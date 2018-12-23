@@ -1,7 +1,6 @@
-// ----------------------------------------------------------------------------
-// Paint module:
 function paintCommand(canvas, cmd) {
     var ctx = canvas.getContext("2d");
+    // console.log(`cmd: ${JSON.stringify(cmd)}`);
     switch (cmd.kind) {
         case "clear":
             ctx.fillStyle = cmd.fill_style;
@@ -11,33 +10,33 @@ function paintCommand(canvas, cmd) {
             ctx.beginPath();
             ctx.lineWidth = cmd.line_width;
             ctx.strokeStyle = cmd.stroke_style;
-            ctx.moveTo(cmd.from[0], cmd.from[1]);
-            ctx.lineTo(cmd.to[0], cmd.to[1]);
+            ctx.moveTo(cmd.from.x, cmd.from.y);
+            ctx.lineTo(cmd.to.x, cmd.to.y);
             ctx.stroke();
             return;
         case "circle":
             ctx.fillStyle = cmd.fill_style;
             ctx.beginPath();
-            ctx.arc(cmd.center[0], cmd.center[1], cmd.radius, 0, 2 * Math.PI, false);
+            ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
             ctx.fill();
             return;
         case "rounded_rect":
             ctx.fillStyle = cmd.fill_style;
-            var x = cmd.pos[0];
-            var y = cmd.pos[1];
-            var width = cmd.size[0];
-            var height = cmd.size[1];
-            var radius = cmd.radius;
+            var x = cmd.pos.x;
+            var y = cmd.pos.y;
+            var width = cmd.size.x;
+            var height = cmd.size.y;
+            var r = cmd.corner_radius;
             ctx.beginPath();
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + width - radius, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-            ctx.lineTo(x + width, y + height - radius);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-            ctx.lineTo(x + radius, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-            ctx.lineTo(x, y + radius);
-            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + width - r, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+            ctx.lineTo(x + width, y + height - r);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+            ctx.lineTo(x + r, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
             ctx.closePath();
             ctx.fill();
             return;
@@ -45,7 +44,7 @@ function paintCommand(canvas, cmd) {
             ctx.font = cmd.font;
             ctx.fillStyle = cmd.fill_style;
             ctx.textAlign = cmd.text_align;
-            ctx.fillText(cmd.text, cmd.pos[0], cmd.pos[1]);
+            ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
             return;
     }
 }
@@ -71,18 +70,16 @@ function js_gui(input) {
     commands.push({
         fillStyle: "#ff1111",
         kind: "rounded_rect",
-        pos: [100, 100],
+        pos: { x: 100, y: 100 },
         radius: 20,
-        size: [200, 100]
+        size: { x: 200, y: 100 }
     });
     return commands;
 }
 function paint_gui(canvas, mouse_pos) {
     var input = {
-        mouse_x: mouse_pos.x,
-        mouse_y: mouse_pos.y,
-        screen_height: canvas.height,
-        screen_width: canvas.width
+        mouse_pos: mouse_pos,
+        screen_size: { x: canvas.width, y: canvas.height }
     };
     var commands = rust_gui(input);
     for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {

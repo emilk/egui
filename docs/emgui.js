@@ -67,59 +67,6 @@
 
     };
 
-    function freeInput(ptr) {
-
-        wasm.__wbg_input_free(ptr);
-    }
-    /**
-    */
-    class Input {
-
-        free() {
-            const ptr = this.ptr;
-            this.ptr = 0;
-            freeInput(ptr);
-        }
-
-        /**
-        * @returns {number}
-        */
-        get screen_width() {
-            return wasm.__wbg_get_input_screen_width(this.ptr);
-        }
-        set screen_width(arg0) {
-            return wasm.__wbg_set_input_screen_width(this.ptr, arg0);
-        }
-        /**
-        * @returns {number}
-        */
-        get screen_height() {
-            return wasm.__wbg_get_input_screen_height(this.ptr);
-        }
-        set screen_height(arg0) {
-            return wasm.__wbg_set_input_screen_height(this.ptr, arg0);
-        }
-        /**
-        * @returns {number}
-        */
-        get mouse_x() {
-            return wasm.__wbg_get_input_mouse_x(this.ptr);
-        }
-        set mouse_x(arg0) {
-            return wasm.__wbg_set_input_mouse_x(this.ptr, arg0);
-        }
-        /**
-        * @returns {number}
-        */
-        get mouse_y() {
-            return wasm.__wbg_get_input_mouse_y(this.ptr);
-        }
-        set mouse_y(arg0) {
-            return wasm.__wbg_set_input_mouse_y(this.ptr, arg0);
-        }
-    }
-    __exports.Input = Input;
-
     __exports.__wbindgen_throw = function(ptr, len) {
         throw new Error(getStringFromWasm(ptr, len));
     };

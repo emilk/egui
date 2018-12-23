@@ -2,12 +2,13 @@
 name = "emgui"
 version = "0.1.0"
 authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
+# edition = "2018" // TODO: update
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# rand = { version="0.6", features = ['wasm-bindgen'] }
+lazy_static = "1"
 serde = "1"
 serde_derive = "1"
 serde_json = "1"

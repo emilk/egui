@@ -1,3 +1,8 @@
+interface Vec2 {
+  x: number;
+  y: number;
+}
+
 // ----------------------------------------------------------------------------
 // Paint module:
 
@@ -8,15 +13,15 @@ interface Clear {
 
 interface Line {
   kind: "line";
-  from: [number, number];
+  from: Vec2;
   line_width: number;
   stroke_style: string;
-  to: [number, number];
+  to: Vec2;
 }
 
 interface Circle {
   kind: "circle";
-  center: [number, number];
+  center: Vec2;
   fill_style: string;
   radius: number;
 }
@@ -24,16 +29,16 @@ interface Circle {
 interface RoundedRect {
   kind: "rounded_rect";
   fill_style: string;
-  pos: [number, number];
-  radius: number;
-  size: [number, number];
+  pos: Vec2;
+  corner_radius: number;
+  size: Vec2;
 }
 
 interface Text {
   kind: "text";
   fill_style: string;
   font: string;
-  pos: [number, number];
+  pos: Vec2;
   text: string;
   text_align: "start" | "center" | "end";
 }
@@ -42,6 +47,8 @@ type PaintCmd = Clear | Line | Circle | RoundedRect | Text;
 
 function paintCommand(canvas, cmd: PaintCmd) {
   const ctx = canvas.getContext("2d");
+
+  // console.log(`cmd: ${JSON.stringify(cmd)}`);
 
   switch (cmd.kind) {
     case "clear":
@@ -53,40 +60,35 @@ function paintCommand(canvas, cmd: PaintCmd) {
       ctx.beginPath();
       ctx.lineWidth = cmd.line_width;
       ctx.strokeStyle = cmd.stroke_style;
-      ctx.moveTo(cmd.from[0], cmd.from[1]);
-      ctx.lineTo(cmd.to[0], cmd.to[1]);
+      ctx.moveTo(cmd.from.x, cmd.from.y);
+      ctx.lineTo(cmd.to.x, cmd.to.y);
       ctx.stroke();
       return;
 
     case "circle":
       ctx.fillStyle = cmd.fill_style;
       ctx.beginPath();
-      ctx.arc(cmd.center[0], cmd.center[1], cmd.radius, 0, 2 * Math.PI, false);
+      ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
       ctx.fill();
       return;
 
     case "rounded_rect":
       ctx.fillStyle = cmd.fill_style;
-      const x = cmd.pos[0];
-      const y = cmd.pos[1];
-      const width = cmd.size[0];
-      const height = cmd.size[1];
-      const radius = cmd.radius;
+      const x = cmd.pos.x;
+      const y = cmd.pos.y;
+      const width = cmd.size.x;
+      const height = cmd.size.y;
+      const r = cmd.corner_radius;
       ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(
-        x + width,
-        y + height,
-        x + width - radius,
-        y + height,
-      );
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - r, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      ctx.lineTo(x + r, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
       ctx.fill();
       return;
@@ -95,23 +97,16 @@ function paintCommand(canvas, cmd: PaintCmd) {
       ctx.font = cmd.font;
       ctx.fillStyle = cmd.fill_style;
       ctx.textAlign = cmd.text_align;
-      ctx.fillText(cmd.text, cmd.pos[0], cmd.pos[1]);
+      ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
       return;
   }
 }
 
 // ----------------------------------------------------------------------------
 
-interface Coord {
-  x: number;
-  y: number;
-}
-
 interface Input {
-  mouse_x: number;
-  mouse_y: number;
-  screen_height: number;
-  screen_width: number;
+  mouse_pos: Vec2;
+  screen_size: Vec2;
   // TODO: mouse down etc
 }
 
@@ -149,9 +144,9 @@ function js_gui(input: Input): PaintCmd[] {
   commands.push({
     fillStyle: "#ff1111",
     kind: "rounded_rect",
-    pos: [100, 100],
+    pos: { x: 100, y: 100 },
     radius: 20,
-    size: [200, 100],
+    size: { x: 200, y: 100 },
   });
 
   return commands;
@@ -159,10 +154,8 @@ function js_gui(input: Input): PaintCmd[] {
 
 function paint_gui(canvas, mouse_pos) {
   const input = {
-    mouse_x: mouse_pos.x,
-    mouse_y: mouse_pos.y,
-    screen_height: canvas.height,
-    screen_width: canvas.width,
+    mouse_pos,
+    screen_size: { x: canvas.width, y: canvas.height },
   };
   const commands = rust_gui(input);
 
@@ -173,7 +166,7 @@ function paint_gui(canvas, mouse_pos) {
 
 // ----------------------------------------------------------------------------
 
-function mouse_pos_from_event(canvas, evt): Coord {
+function mouse_pos_from_event(canvas, evt): Vec2 {
   const rect = canvas.getBoundingClientRect();
   return {
     x: evt.clientX - rect.left,

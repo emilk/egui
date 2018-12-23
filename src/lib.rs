@@ -1,70 +1,76 @@
+extern crate lazy_static;
 extern crate serde;
 extern crate serde_json;
 extern crate wasm_bindgen;
 extern crate web_sys;
+
 #[macro_use]
 extern crate serde_derive;
 
+use std::sync::Mutex;
+
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-#[derive(Deserialize)]
-pub struct Input {
-    pub screen_width: f32,
-    pub screen_height: f32,
-    pub mouse_x: f32,
-    pub mouse_y: f32,
+mod types;
+
+use types::*;
+
+struct App {
+    count: i32,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum TextAlign {
-    Start,
-    Center,
-    End,
-}
+impl App {
+    fn new() -> Self {
+        App { count: 0 }
+    }
 
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-enum PaintCmd {
-    Clear {
-        fill_style: String,
-    },
-    RoundedRect {
-        fill_style: String,
-        pos: [f32; 2],
-        size: [f32; 2],
-        radius: f32,
-    },
-    Text {
-        fill_style: String,
-        font: String,
-        pos: [f32; 2],
-        text: String,
-        text_align: TextAlign,
-    },
+    fn show_gui(&mut self, input: &Input) -> Vec<PaintCmd> {
+        let rect = Rect {
+            pos: Vec2 { x: 100.0, y: 100.0 },
+            size: Vec2 { x: 200.0, y: 200.0 },
+        };
+
+        let is_hovering = rect.contains(&input.mouse_pos);
+
+        vec![
+            PaintCmd::Clear {
+                fill_style: "#44444400".to_string(),
+            },
+            PaintCmd::Text {
+                fill_style: "#11ff00".to_string(),
+                font: "14px Palatino".to_string(),
+                pos: Vec2 { x: 200.0, y: 32.0 },
+                text: format!(
+                    "Mouse pos: {} {}, is_hovering: {}",
+                    input.mouse_pos.x, input.mouse_pos.y, is_hovering
+                ),
+                text_align: TextAlign::Center,
+            },
+            PaintCmd::Text {
+                fill_style: "#11ff00".to_string(),
+                font: "14px Palatino".to_string(),
+                pos: Vec2 { x: 200.0, y: 64.0 },
+                text: format!("Count: {}", self.count),
+                text_align: TextAlign::Center,
+            },
+            PaintCmd::RoundedRect {
+                fill_style: "#1111ff".to_string(),
+                pos: rect.pos,
+                corner_radius: 40.0,
+                size: rect.size,
+            },
+        ]
+    }
 }
 
 #[wasm_bindgen]
 pub fn show_gui(input_json: &str) -> String {
+    lazy_static::lazy_static! {
+        static ref APP: Mutex<App> = Mutex::new(App::new());
+    }
+
+    // TODO: faster interface than JSON
     let input: Input = serde_json::from_str(input_json).unwrap();
-    let commands = [
-        PaintCmd::Clear {
-            fill_style: "#44444400".to_string(),
-        },
-        PaintCmd::RoundedRect {
-            fill_style: "#1111ff".to_string(),
-            pos: [100.0, 100.0],
-            radius: 40.0,
-            size: [200.0, 200.0],
-        },
-        PaintCmd::Text {
-            fill_style: "#11ff00".to_string(),
-            font: "14px Palatino".to_string(),
-            pos: [200.0, 32.0],
-            text: format!("Mouse pos: {} {}", input.mouse_x, input.mouse_y),
-            text_align: TextAlign::Center,
-        },
-    ];
+    let commands = APP.lock().unwrap().show_gui(&input);
     serde_json::to_string(&commands).unwrap()
 }
