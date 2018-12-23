@@ -15,19 +15,23 @@ rm -rf docs/*.d.ts
 rm -rf docs/*.js
 rm -rf docs/*.wasm
 
-echo "Build rust:"
-cargo build --target wasm32-unknown-unknown
+function build_rust
+{
+	echo "Build rust:"
+	cargo build --target wasm32-unknown-unknown
 
-echo "Lint and clean up typescript:"
-tslint --fix docs/*.ts
+	echo "Generate JS bindings for wasm:"
+	FOLDER_NAME=${PWD##*/}
+	TARGET_NAME="$FOLDER_NAME.wasm"
+	wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
+	  --out-dir docs --no-modules
+	  # --no-modules-global hoboho
+}
 
 echo "Compile typescript:"
+build_rust
 tsc
 
-echo "Generate JS bindings for wasm:"
+# wait || exit $?
 
-FOLDER_NAME=${PWD##*/}
-TARGET_NAME="$FOLDER_NAME.wasm"
-wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
-  --out-dir docs --no-modules
-  # --no-modules-global hoboho
+# 3.4 s

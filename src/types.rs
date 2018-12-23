@@ -1,10 +1,10 @@
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Rect {
     pub pos: Vec2,
     pub size: Vec2,
@@ -19,21 +19,21 @@ impl Rect {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub struct Input {
     pub screen_size: Vec2,
     pub mouse_pos: Vec2,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TextAlign {
-    Start,
+    Start, // Test with arabic text
     Center,
     End,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)] // TODOcopy
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
     Clear {

@@ -19,3 +19,8 @@ This is similar to Dear ImGui but separates the layout from the rendering, and a
 Input is gathered in TypeScript.
 PaintCommands rendered to a HTML canvas.
 Everything else is written in Rust, compiled to WASM.
+
+# Test goal:
+
+Make an "any" editor. Store text files, make a VERY SIMPLE text editor, in the web.
+Supports MARKDEEP. A place for you ideas. Stored on your computer (local storage).
