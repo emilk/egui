@@ -78,6 +78,10 @@ function js_gui(input) {
 }
 function paint_gui(canvas, input) {
     var commands = rust_gui(input);
+    commands.unshift({
+        fill_style: "#00000000",
+        kind: "clear"
+    });
     for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
         var cmd = commands_1[_i];
         paintCommand(canvas, cmd);

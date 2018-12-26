@@ -1,4 +1,4 @@
-use gui::Gui;
+use crate::gui::Gui;
 
 pub struct App {
     count: i32,

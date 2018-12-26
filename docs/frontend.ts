@@ -160,6 +160,10 @@ function js_gui(input: RawInput): PaintCmd[] {
 
 function paint_gui(canvas, input: RawInput) {
   const commands = rust_gui(input);
+  commands.unshift({
+    fill_style: "#00000000",
+    kind: "clear",
+  });
 
   for (const cmd of commands) {
     paintCommand(canvas, cmd);

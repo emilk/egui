@@ -1,16 +1,10 @@
-use types::*;
-
-#[derive(Default)]
-pub struct InteractInfo {
-    pub hovering: bool,
-    pub clicked: bool,
-}
+use crate::types::*;
 
 // TODO: implement Gui on this so we can add children to a widget
 // pub struct Widget {}
 
 pub struct Gui {
-    commands: Vec<PaintCmd>,
+    commands: Vec<GuiCmd>,
     input: GuiInput,
 
     cursor: Vec2,
@@ -19,9 +13,7 @@ pub struct Gui {
 impl Gui {
     pub fn new(input: GuiInput) -> Self {
         Gui {
-            commands: vec![PaintCmd::Clear {
-                fill_style: "#44444400".to_string(),
-            }],
+            commands: vec![],
             input,
             cursor: Vec2 { x: 32.0, y: 32.0 },
         }
@@ -31,32 +23,30 @@ impl Gui {
         &self.input
     }
 
-    pub fn into_commands(self) -> Vec<PaintCmd> {
+    pub fn into_commands(self) -> Vec<GuiCmd> {
         self.commands
     }
 
-    pub fn paint_commands(&self) -> &[PaintCmd] {
+    pub fn paint_commands(&self) -> &[GuiCmd] {
         &self.commands
     }
 
-    fn rect(&mut self, rect: Rect, fill_style: String) -> InteractInfo {
-        let hovering = rect.contains(self.input.mouse_pos);
-        let clicked = hovering && self.input.mouse_clicked;
-        let ii = InteractInfo { hovering, clicked };
-        self.commands.push(PaintCmd::RoundedRect {
-            fill_style,
-            pos: rect.pos,
-            corner_radius: 5.0,
-            size: rect.size,
+    fn rect(&mut self, rect: Rect, style: RectStyle) -> InteractInfo {
+        let hovered = rect.contains(self.input.mouse_pos);
+        let clicked = hovered && self.input.mouse_clicked;
+        let interact = InteractInfo { hovered, clicked };
+        self.commands.push(GuiCmd::Rect {
+            interact,
+            rect,
+            style,
         });
-        ii
+        interact
     }
 
-    fn text<S: Into<String>>(&mut self, pos: Vec2, text: S) {
-        self.commands.push(PaintCmd::Text {
-            fill_style: "#ffffffbb".to_string(),
-            font: "14px Palatino".to_string(),
+    fn text<S: Into<String>>(&mut self, pos: Vec2, style: TextStyle, text: S) {
+        self.commands.push(GuiCmd::Text {
             pos,
+            style,
             text: text.into(),
             text_align: TextAlign::Start,
         });
@@ -69,28 +59,24 @@ impl Gui {
             pos: self.cursor,
             size: Vec2 { x: 200.0, y: 32.0 }, // TODO: get from some settings
         };
-        let hovering = rect.contains(self.input.mouse_pos);
-        let fill_style = if hovering {
-            "#444444ff".to_string()
-        } else {
-            "#222222ff".to_string()
-        };
-        let ii = self.rect(rect, fill_style);
+        let interact = self.rect(rect, RectStyle::Button);
+
+        // TODO: clip-rect of text
         self.text(
             Vec2 {
-                x: rect.pos.x + 4.0,
+                x: rect.pos.x + 8.0,
                 y: rect.center().y + 14.0 / 2.0,
             },
+            TextStyle::Button,
             text,
         );
         self.cursor.y += rect.size.y + 16.0;
-        ii
+        interact
     }
 
     pub fn label<S: Into<String>>(&mut self, text: S) {
         for line in text.into().split("\n") {
-            let pos = self.cursor;
-            self.text(pos, line);
+            self.text(self.cursor, TextStyle::Label, line);
             self.cursor.y += 16.0;
         }
         self.cursor.y += 16.0; // Padding

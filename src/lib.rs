@@ -11,10 +11,11 @@ use std::sync::Mutex;
 
 use wasm_bindgen::prelude::*;
 
-use types::*;
+use crate::types::*;
 
 pub mod app;
 pub mod gui;
+pub mod style;
 pub mod types;
 
 /*
@@ -48,5 +49,6 @@ pub fn show_gui(raw_input_json: &str) -> String {
     let mut gui = gui::Gui::new(gui_input);
     APP.lock().unwrap().show_gui(&mut gui);
     let commands = gui.into_commands();
+    let commands = style::into_paint_commands(commands);
     serde_json::to_string(&commands).unwrap()
 }

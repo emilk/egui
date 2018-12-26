@@ -74,6 +74,12 @@ impl GuiInput {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct InteractInfo {
+    pub hovered: bool,
+    pub clicked: bool,
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TextAlign {
@@ -82,7 +88,37 @@ pub enum TextAlign {
     End,
 }
 
-#[derive(Clone, Debug, Serialize)] // TODOcopy
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RectStyle {
+    Button,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TextStyle {
+    Button,
+    Label,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub enum GuiCmd {
+    Rect {
+        rect: Rect,
+        style: RectStyle,
+        interact: InteractInfo,
+    },
+    Text {
+        pos: Vec2,
+        text: String,
+        text_align: TextAlign,
+        style: TextStyle,
+    },
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Serialize)] // TODO: copy
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
     Clear {
