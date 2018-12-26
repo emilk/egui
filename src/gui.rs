@@ -34,26 +34,41 @@ impl Gui {
         let id = self.get_id(&text);
         let rect = Rect {
             pos: self.cursor,
-            size: Vec2 { x: 200.0, y: 32.0 }, // TODO: get from some settings
+            size: Vec2 { x: 176.0, y: 24.0 }, // TODO: get from some settings
         };
 
         let interact = self.interactive_rect(id, &rect);
 
-        self.commands.push(GuiCmd::Rect {
+        self.commands.push(GuiCmd::Button {
             interact,
             rect,
-            style: RectStyle::Button,
+            text,
         });
 
-        // TODO: clip-rect of text
-        self.text(
-            Vec2 {
-                x: rect.pos.x + 8.0,
-                y: rect.center().y + 14.0 / 2.0,
-            },
-            TextStyle::Button,
-            text,
-        );
+        self.cursor.y += rect.size.y + 16.0;
+        interact
+    }
+
+    pub fn checkbox<S: Into<String>>(&mut self, label: S, checked: &mut bool) -> InteractInfo {
+        let label: String = label.into();
+        let id = self.get_id(&label);
+        let rect = Rect {
+            pos: self.cursor,
+            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+        };
+
+        let interact = self.interactive_rect(id, &rect);
+        if interact.clicked {
+            *checked = !*checked;
+        }
+
+        self.commands.push(GuiCmd::Checkbox {
+            checked: *checked,
+            interact,
+            rect,
+            text: label,
+        });
+
         self.cursor.y += rect.size.y + 16.0;
         interact
     }

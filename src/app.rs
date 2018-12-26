@@ -1,6 +1,7 @@
 use crate::{gui::Gui, math::*, types::*};
 
 pub struct App {
+    checked: bool,
     count: i32,
 
     width: f32,
@@ -9,9 +10,10 @@ pub struct App {
     stroke_width: f32,
 }
 
-impl App {
-    pub fn new() -> App {
+impl Default for App {
+    fn default() -> App {
         App {
+            checked: false,
             count: 0,
             width: 100.0,
             height: 50.0,
@@ -19,17 +21,22 @@ impl App {
             stroke_width: 2.0,
         }
     }
+}
 
+impl App {
     pub fn show_gui(&mut self, gui: &mut Gui) {
+        gui.checkbox("checkbox", &mut self.checked);
+
         if gui.button("Click me").clicked {
             self.count += 1;
         }
 
         gui.label(format!("The button have been clicked {} times", self.count));
 
-        gui.slider_f32("width", &mut self.width, 0.0, 100.0);
-        gui.slider_f32("height", &mut self.height, 0.0, 100.0);
-        gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 100.0);
+        gui.slider_f32("width", &mut self.width, 0.0, 500.0);
+        gui.slider_f32("height", &mut self.height, 0.0, 500.0);
+        gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 50.0);
+        gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
 
         gui.commands
             .push(GuiCmd::PaintCommands(vec![PaintCmd::Rect {

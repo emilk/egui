@@ -13,10 +13,9 @@ interface Clear {
 
 interface Line {
   kind: "line";
-  from: Vec2;
-  line_width: number;
-  stroke_style: string;
-  to: Vec2;
+  points: Vec2[];
+  style: string;
+  width: number;
 }
 
 interface Outline {
@@ -59,20 +58,6 @@ function paintCommand(canvas, cmd: PaintCmd) {
   // console.log(`cmd: ${JSON.stringify(cmd)}`);
 
   switch (cmd.kind) {
-    case "clear":
-      ctx.fillStyle = cmd.fill_style;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      return;
-
-    case "line":
-      ctx.beginPath();
-      ctx.lineWidth = cmd.line_width;
-      ctx.strokeStyle = cmd.stroke_style;
-      ctx.moveTo(cmd.from.x, cmd.from.y);
-      ctx.lineTo(cmd.to.x, cmd.to.y);
-      ctx.stroke();
-      return;
-
     case "circle":
       ctx.beginPath();
       ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
@@ -85,6 +70,22 @@ function paintCommand(canvas, cmd: PaintCmd) {
         ctx.strokeStyle = cmd.outline.style;
         ctx.stroke();
       }
+      return;
+
+    case "clear":
+      ctx.fillStyle = cmd.fill_style;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+
+    case "line":
+      ctx.beginPath();
+      ctx.moveTo(cmd.points[0].x, cmd.points[0].y);
+      for (const point of cmd.points) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.lineWidth = cmd.width;
+      ctx.strokeStyle = cmd.style;
+      ctx.stroke();
       return;
 
     case "rect":

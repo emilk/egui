@@ -42,7 +42,7 @@ pub fn show_gui(raw_input_json: &str) -> String {
     let raw_input: RawInput = serde_json::from_str(raw_input_json).unwrap();
 
     lazy_static::lazy_static! {
-        static ref APP: Mutex<app::App> = Mutex::new(app::App::new());
+        static ref APP: Mutex<app::App> = Default::default();
         static ref LAST_INPUT: Mutex<RawInput> = Default::default();
         static ref GUI_STATE: Mutex<gui::GuiState> = Default::default();
     }

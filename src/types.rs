@@ -91,24 +91,23 @@ pub enum TextAlign {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RectStyle {
-    Button,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
 pub enum TextStyle {
-    Button,
     Label,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub enum GuiCmd {
     PaintCommands(Vec<PaintCmd>),
-    Rect {
-        rect: Rect,
-        style: RectStyle,
+    Button {
         interact: InteractInfo,
+        rect: Rect,
+        text: String,
+    },
+    Checkbox {
+        checked: bool,
+        interact: InteractInfo,
+        rect: Rect,
+        text: String,
     },
     Slider {
         interact: InteractInfo,
@@ -141,6 +140,11 @@ pub struct Outline {
 pub enum PaintCmd {
     Clear {
         fill_style: Style,
+    },
+    Line {
+        points: Vec<Vec2>,
+        style: Style,
+        width: f32,
     },
     Rect {
         corner_radius: f32,
