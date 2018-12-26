@@ -9,7 +9,9 @@ fn translate_cmd(cmd: GuiCmd) -> PaintCmd {
             interact,
         } => match style {
             RectStyle::Button => {
-                let fill_style = if interact.hovered {
+                let fill_style = if interact.active {
+                    "#888888ff".to_string()
+                } else if interact.hovered {
                     "#444444ff".to_string()
                 } else {
                     "#222222ff".to_string()
@@ -43,6 +45,6 @@ fn translate_cmd(cmd: GuiCmd) -> PaintCmd {
     }
 }
 
-pub fn into_paint_commands(gui_commands: Vec<GuiCmd>) -> Vec<PaintCmd> {
-    gui_commands.into_iter().map(translate_cmd).collect()
+pub fn into_paint_commands(gui_commands: &[GuiCmd]) -> Vec<PaintCmd> {
+    gui_commands.iter().cloned().map(translate_cmd).collect()
 }

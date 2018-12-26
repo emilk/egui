@@ -74,10 +74,37 @@ impl GuiInput {
 
 // ----------------------------------------------------------------------------
 
+/// Names taken from Dear ImGui
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct LayoutOptions {
+    // Horizontal and vertical spacing between widgets
+    item_spacing: Vec2,
+
+    /// Padding within a framed rectangle (used by most widgets)
+    frame_padding: Vec2,
+}
+
+impl LayoutOptions {
+    pub fn new() -> Self {
+        // Values taken from Dear ImGui
+        LayoutOptions {
+            item_spacing: Vec2 { x: 8.0, y: 4.0 },
+            frame_padding: Vec2 { x: 4.0, y: 3.0 },
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct InteractInfo {
     pub hovered: bool,
+
+    /// The mouse went got pressed on this thing this frame
     pub clicked: bool,
+
+    /// The mouse is interacting with this thing (e.g. dragging it)
+    pub active: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]

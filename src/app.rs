@@ -1,14 +1,11 @@
 use crate::gui::Gui;
 
+#[derive(Default)]
 pub struct App {
     count: i32,
 }
 
 impl App {
-    pub fn new() -> Self {
-        App { count: 0 }
-    }
-
     pub fn show_gui(&mut self, gui: &mut Gui) {
         if gui.button("Click me").clicked {
             self.count += 1;
@@ -22,7 +19,7 @@ impl App {
             self.count
         ));
 
-        let commands_json = serde_json::to_string_pretty(&gui.paint_commands()).unwrap();
-        gui.label(format!("All paint commands:\n{}", commands_json));
+        let commands_json = format!("{:#?}", gui.gui_commands());
+        gui.label(format!("All gui commands: {}", commands_json));
     }
 }
