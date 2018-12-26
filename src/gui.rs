@@ -1,4 +1,4 @@
-use crate::types::*;
+use crate::{math::*, types::*};
 
 // TODO: implement Gui on this so we can add children to a widget
 // pub struct Widget {}
@@ -37,18 +37,7 @@ impl Gui {
             size: Vec2 { x: 200.0, y: 32.0 }, // TODO: get from some settings
         };
 
-        let hovered = rect.contains(self.input.mouse_pos);
-        let clicked = hovered && self.input.mouse_clicked;
-        if clicked {
-            self.state.active_id = Some(id);
-        }
-        let active = self.state.active_id == Some(id);
-
-        let interact = InteractInfo {
-            hovered,
-            clicked,
-            active,
-        };
+        let interact = self.interactive_rect(id, &rect);
 
         self.commands.push(GuiCmd::Rect {
             interact,
@@ -78,7 +67,57 @@ impl Gui {
         self.cursor.y += 16.0; // Padding
     }
 
+    pub fn slider_f32<S: Into<String>>(
+        &mut self,
+        label: S,
+        value: &mut f32,
+        min: f32,
+        max: f32,
+    ) -> InteractInfo {
+        let label: String = label.into();
+        let id = self.get_id(&label);
+        let rect = Rect {
+            pos: self.cursor,
+            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+        };
+        let interact = self.interactive_rect(id, &rect);
+
+        debug_assert!(min <= max);
+
+        if interact.active {
+            *value = remap_clamp(self.input.mouse_pos.x, rect.min().x, rect.max().x, min, max);
+        }
+
+        self.commands.push(GuiCmd::Slider {
+            interact,
+            label,
+            max,
+            min,
+            rect,
+            value: *value,
+        });
+
+        self.cursor.y += rect.size.y + 16.0;
+
+        interact
+    }
+
     // ------------------------------------------------------------------------
+
+    fn interactive_rect(&mut self, id: Id, rect: &Rect) -> InteractInfo {
+        let hovered = rect.contains(self.input.mouse_pos);
+        let clicked = hovered && self.input.mouse_clicked;
+        if clicked {
+            self.state.active_id = Some(id);
+        }
+        let active = self.state.active_id == Some(id);
+
+        InteractInfo {
+            hovered,
+            clicked,
+            active,
+        }
+    }
 
     fn get_id(&self, id_str: &str) -> Id {
         use std::hash::Hasher;

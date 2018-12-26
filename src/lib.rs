@@ -1,20 +1,23 @@
+#![deny(warnings)]
+
 extern crate lazy_static;
 extern crate serde;
 extern crate serde_json;
 extern crate wasm_bindgen;
 extern crate web_sys;
 
-#[macro_use]
+#[macro_use] // TODO: get rid of this
 extern crate serde_derive;
 
 use std::sync::Mutex;
 
 use wasm_bindgen::prelude::*;
 
-use crate::types::*;
+use crate::{math::Vec2, types::*};
 
 pub mod app;
 pub mod gui;
+pub mod math;
 pub mod style;
 pub mod types;
 

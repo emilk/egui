@@ -1,30 +1,4 @@
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
-pub struct Vec2 {
-    pub x: f32,
-    pub y: f32,
-}
-
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
-pub struct Rect {
-    pub pos: Vec2,
-    pub size: Vec2,
-}
-
-impl Rect {
-    pub fn contains(&self, p: Vec2) -> bool {
-        self.pos.x <= p.x
-            && p.x <= self.pos.x + self.size.x
-            && self.pos.y <= p.y
-            && p.y <= self.pos.y + self.size.y
-    }
-
-    pub fn center(&self) -> Vec2 {
-        Vec2 {
-            x: self.pos.x + self.size.x / 2.0,
-            y: self.pos.y + self.size.y / 2.0,
-        }
-    }
-}
+use crate::math::{Rect, Vec2};
 
 // ----------------------------------------------------------------------------
 
@@ -140,6 +114,14 @@ pub enum GuiCmd {
         text: String,
         text_align: TextAlign,
         style: TextStyle,
+    },
+    Slider {
+        interact: InteractInfo,
+        label: String,
+        max: f32,
+        min: f32,
+        rect: Rect,
+        value: f32,
     },
 }
 
