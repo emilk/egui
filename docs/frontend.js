@@ -15,18 +15,24 @@ function paintCommand(canvas, cmd) {
             ctx.stroke();
             return;
         case "circle":
-            ctx.fillStyle = cmd.fill_style;
             ctx.beginPath();
             ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
-            ctx.fill();
+            if (cmd.fill_style) {
+                ctx.fillStyle = cmd.fill_style;
+                ctx.fill();
+            }
+            if (cmd.outline) {
+                ctx.lineWidth = cmd.outline.width;
+                ctx.strokeStyle = cmd.outline.style;
+                ctx.stroke();
+            }
             return;
-        case "rounded_rect":
-            ctx.fillStyle = cmd.fill_style;
+        case "rect":
             var x = cmd.pos.x;
             var y = cmd.pos.y;
             var width = cmd.size.x;
             var height = cmd.size.y;
-            var r = cmd.corner_radius;
+            var r = Math.min(cmd.corner_radius, width / 2, height / 2);
             ctx.beginPath();
             ctx.moveTo(x + r, y);
             ctx.lineTo(x + width - r, y);
@@ -38,7 +44,15 @@ function paintCommand(canvas, cmd) {
             ctx.lineTo(x, y + r);
             ctx.quadraticCurveTo(x, y, x + r, y);
             ctx.closePath();
-            ctx.fill();
+            if (cmd.fill_style) {
+                ctx.fillStyle = cmd.fill_style;
+                ctx.fill();
+            }
+            if (cmd.outline) {
+                ctx.lineWidth = cmd.outline.width;
+                ctx.strokeStyle = cmd.outline.style;
+                ctx.stroke();
+            }
             return;
         case "text":
             ctx.font = cmd.font;
@@ -69,7 +83,7 @@ function js_gui(input) {
     });
     commands.push({
         fillStyle: "#ff1111",
-        kind: "rounded_rect",
+        kind: "rect",
         pos: { x: 100, y: 100 },
         radius: 20,
         size: { x: 200, y: 100 }

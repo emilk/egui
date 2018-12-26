@@ -19,31 +19,39 @@ interface Line {
   to: Vec2;
 }
 
+interface Outline {
+  width: number;
+  style: string;
+}
+
 interface Circle {
-  kind: "circle";
   center: Vec2;
-  fill_style: string;
+  fill_style: string | null;
+  kind: "circle";
+  outline: Outline | null;
   radius: number;
 }
 
-interface RoundedRect {
-  kind: "rounded_rect";
-  fill_style: string;
-  pos: Vec2;
+interface Rect {
   corner_radius: number;
+  fill_style: string | null;
+  kind: "rect";
+  outline: Outline | null;
+  pos: Vec2;
   size: Vec2;
 }
 
 interface Text {
   kind: "text";
-  fill_style: string;
+  fill_style: string | null;
   font: string;
   pos: Vec2;
+  stroke_style: string | null;
   text: string;
   text_align: "start" | "center" | "end";
 }
 
-type PaintCmd = Clear | Line | Circle | RoundedRect | Text;
+type PaintCmd = Circle | Clear | Line | Rect | Text;
 
 function paintCommand(canvas, cmd: PaintCmd) {
   const ctx = canvas.getContext("2d");
@@ -66,19 +74,25 @@ function paintCommand(canvas, cmd: PaintCmd) {
       return;
 
     case "circle":
-      ctx.fillStyle = cmd.fill_style;
       ctx.beginPath();
       ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
-      ctx.fill();
+      if (cmd.fill_style) {
+        ctx.fillStyle = cmd.fill_style;
+        ctx.fill();
+      }
+      if (cmd.outline) {
+        ctx.lineWidth = cmd.outline.width;
+        ctx.strokeStyle = cmd.outline.style;
+        ctx.stroke();
+      }
       return;
 
-    case "rounded_rect":
-      ctx.fillStyle = cmd.fill_style;
+    case "rect":
       const x = cmd.pos.x;
       const y = cmd.pos.y;
       const width = cmd.size.x;
       const height = cmd.size.y;
-      const r = cmd.corner_radius;
+      const r = Math.min(cmd.corner_radius, width / 2, height / 2);
       ctx.beginPath();
       ctx.moveTo(x + r, y);
       ctx.lineTo(x + width - r, y);
@@ -90,7 +104,15 @@ function paintCommand(canvas, cmd: PaintCmd) {
       ctx.lineTo(x, y + r);
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
-      ctx.fill();
+      if (cmd.fill_style) {
+        ctx.fillStyle = cmd.fill_style;
+        ctx.fill();
+      }
+      if (cmd.outline) {
+        ctx.lineWidth = cmd.outline.width;
+        ctx.strokeStyle = cmd.outline.style;
+        ctx.stroke();
+      }
       return;
 
     case "text":
@@ -149,7 +171,7 @@ function js_gui(input: RawInput): PaintCmd[] {
 
   commands.push({
     fillStyle: "#ff1111",
-    kind: "rounded_rect",
+    kind: "rect",
     pos: { x: 100, y: 100 },
     radius: 20,
     size: { x: 200, y: 100 },

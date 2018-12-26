@@ -104,16 +104,11 @@ pub enum TextStyle {
 
 #[derive(Clone, Debug, Serialize)]
 pub enum GuiCmd {
+    PaintCommands(Vec<PaintCmd>),
     Rect {
         rect: Rect,
         style: RectStyle,
         interact: InteractInfo,
-    },
-    Text {
-        pos: Vec2,
-        text: String,
-        text_align: TextAlign,
-        style: TextStyle,
     },
     Slider {
         interact: InteractInfo,
@@ -123,24 +118,39 @@ pub enum GuiCmd {
         rect: Rect,
         value: f32,
     },
+    Text {
+        pos: Vec2,
+        style: TextStyle,
+        text: String,
+        text_align: TextAlign,
+    },
 }
 
 // ----------------------------------------------------------------------------
+
+pub type Style = String;
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Outline {
+    pub width: f32,
+    pub style: Style,
+}
 
 #[derive(Clone, Debug, Serialize)] // TODO: copy
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
     Clear {
-        fill_style: String,
+        fill_style: Style,
     },
-    RoundedRect {
-        fill_style: String,
+    Rect {
+        corner_radius: f32,
+        fill_style: Option<Style>,
+        outline: Option<Outline>,
         pos: Vec2,
         size: Vec2,
-        corner_radius: f32,
     },
     Text {
-        fill_style: String,
+        fill_style: Style,
         font: String,
         pos: Vec2,
         text: String,

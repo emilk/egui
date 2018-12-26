@@ -3,6 +3,7 @@ use crate::{math::*, types::*};
 /// TODO: a Style struct which defines colors etc
 fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
     match cmd {
+        GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
         GuiCmd::Rect {
             rect,
             style,
@@ -12,36 +13,19 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
                 let fill_style = if interact.active {
                     "#888888ff".to_string()
                 } else if interact.hovered {
-                    "#444444ff".to_string()
+                    "#666666ff".to_string()
                 } else {
-                    "#222222ff".to_string()
+                    "#444444ff".to_string()
                 };
-                out_commands.push(PaintCmd::RoundedRect {
+                out_commands.push(PaintCmd::Rect {
                     corner_radius: 5.0,
-                    fill_style,
+                    fill_style: Some(fill_style),
+                    outline: None,
                     pos: rect.pos,
                     size: rect.size,
                 });
             }
         },
-        GuiCmd::Text {
-            pos,
-            text,
-            text_align,
-            style,
-        } => {
-            let fill_style = match style {
-                TextStyle::Button => "#ffffffbb".to_string(),
-                TextStyle::Label => "#ffffffbb".to_string(),
-            };
-            out_commands.push(PaintCmd::Text {
-                fill_style,
-                font: "14px Palatino".to_string(),
-                pos,
-                text,
-                text_align,
-            });
-        }
         GuiCmd::Slider {
             interact,
             label,
@@ -60,21 +44,23 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
             let marker_fill_style = if interact.active {
                 "#888888ff".to_string()
             } else if interact.hovered {
-                "#444444ff".to_string()
+                "#666666ff".to_string()
             } else {
-                "#222222ff".to_string()
+                "#444444ff".to_string()
             };
 
-            out_commands.push(PaintCmd::RoundedRect {
+            out_commands.push(PaintCmd::Rect {
                 corner_radius: 2.0,
-                fill_style: "#111111ff".to_string(),
+                fill_style: Some("#222222ff".to_string()),
+                outline: None,
                 pos: thin_rect.pos,
                 size: thin_rect.size,
             });
 
-            out_commands.push(PaintCmd::RoundedRect {
+            out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
-                fill_style: marker_fill_style,
+                fill_style: Some(marker_fill_style),
+                outline: None,
                 pos: marker_rect.pos,
                 size: marker_rect.size,
             });
@@ -82,9 +68,27 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
             out_commands.push(PaintCmd::Text {
                 fill_style: "#ffffffbb".to_string(),
                 font: "14px Palatino".to_string(),
-                pos: rect.center(),
+                pos: rect.min(),
                 text: format!("{}: {:.3}", label, value),
-                text_align: TextAlign::Center,
+                text_align: TextAlign::Start,
+            });
+        }
+        GuiCmd::Text {
+            pos,
+            text,
+            text_align,
+            style,
+        } => {
+            let fill_style = match style {
+                TextStyle::Button => "#ffffffbb".to_string(),
+                TextStyle::Label => "#ffffffbb".to_string(),
+            };
+            out_commands.push(PaintCmd::Text {
+                fill_style,
+                font: "14px Palatino".to_string(),
+                pos,
+                text,
+                text_align,
             });
         }
     }
