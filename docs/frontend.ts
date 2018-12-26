@@ -104,10 +104,16 @@ function paintCommand(canvas, cmd: PaintCmd) {
 
 // ----------------------------------------------------------------------------
 
-interface Input {
+/// What the integration gives to the gui.
+interface RawInput {
+  /// Is the button currently down?
+  mouse_down: boolean;
+
+  /// Current position of the mouse in points.
   mouse_pos: Vec2;
+
+  /// Size of the screen in points.
   screen_size: Vec2;
-  // TODO: mouse down etc
 }
 
 // ----------------------------------------------------------------------------
@@ -127,13 +133,13 @@ wasm_bindgen("./emgui_bg.wasm")
   .then(wasm_loaded)
   .catch(console.error);
 
-function rust_gui(input: Input): PaintCmd[] {
+function rust_gui(input: RawInput): PaintCmd[] {
   return JSON.parse(wasm_bindgen.show_gui(JSON.stringify(input)));
 }
 
 // ----------------------------------------------------------------------------
 
-function js_gui(input: Input): PaintCmd[] {
+function js_gui(input: RawInput): PaintCmd[] {
   const commands = [];
 
   commands.push({
@@ -152,11 +158,7 @@ function js_gui(input: Input): PaintCmd[] {
   return commands;
 }
 
-function paint_gui(canvas, mouse_pos) {
-  const input = {
-    mouse_pos,
-    screen_size: { x: canvas.width, y: canvas.height },
-  };
+function paint_gui(canvas, input: RawInput) {
   const commands = rust_gui(input);
 
   for (const cmd of commands) {
@@ -165,6 +167,17 @@ function paint_gui(canvas, mouse_pos) {
 }
 
 // ----------------------------------------------------------------------------
+
+let g_mouse_pos = { x: -1000.0, y: -1000.0 };
+let g_mouse_down = false;
+
+function get_input(canvas): RawInput {
+  return {
+    mouse_down: g_mouse_down,
+    mouse_pos: g_mouse_pos,
+    screen_size: { x: canvas.width, y: canvas.height },
+  };
+}
 
 function mouse_pos_from_event(canvas, evt): Vec2 {
   const rect = canvas.getBoundingClientRect();
@@ -180,8 +193,17 @@ function initialize() {
   canvas.addEventListener(
     "mousemove",
     (evt) => {
-      const mouse_pos = mouse_pos_from_event(canvas, evt);
-      paint_gui(canvas, mouse_pos);
+      g_mouse_pos = mouse_pos_from_event(canvas, evt);
+      paint_gui(canvas, get_input(canvas));
+    },
+    false,
+  );
+
+  canvas.addEventListener(
+    "mouseleave",
+    (evt) => {
+      g_mouse_pos = { x: -1000.0, y: -1000.0 };
+      paint_gui(canvas, get_input(canvas));
     },
     false,
   );
@@ -189,11 +211,22 @@ function initialize() {
   canvas.addEventListener(
     "mousedown",
     (evt) => {
-      const mouse_pos = mouse_pos_from_event(canvas, evt);
-      paint_gui(canvas, mouse_pos);
+      g_mouse_pos = mouse_pos_from_event(canvas, evt);
+      g_mouse_down = true;
+      paint_gui(canvas, get_input(canvas));
     },
     false,
   );
 
-  paint_gui(canvas, { x: 0, y: 0 });
+  canvas.addEventListener(
+    "mouseup",
+    (evt) => {
+      g_mouse_pos = mouse_pos_from_event(canvas, evt);
+      g_mouse_down = false;
+      paint_gui(canvas, get_input(canvas));
+    },
+    false,
+  );
+
+  paint_gui(canvas, get_input(canvas));
 }

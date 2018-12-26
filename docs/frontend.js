@@ -76,11 +76,7 @@ function js_gui(input) {
     });
     return commands;
 }
-function paint_gui(canvas, mouse_pos) {
-    var input = {
-        mouse_pos: mouse_pos,
-        screen_size: { x: canvas.width, y: canvas.height }
-    };
+function paint_gui(canvas, input) {
     var commands = rust_gui(input);
     for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
         var cmd = commands_1[_i];
@@ -88,6 +84,15 @@ function paint_gui(canvas, mouse_pos) {
     }
 }
 // ----------------------------------------------------------------------------
+var g_mouse_pos = { x: -1000.0, y: -1000.0 };
+var g_mouse_down = false;
+function get_input(canvas) {
+    return {
+        mouse_down: g_mouse_down,
+        mouse_pos: g_mouse_pos,
+        screen_size: { x: canvas.width, y: canvas.height }
+    };
+}
 function mouse_pos_from_event(canvas, evt) {
     var rect = canvas.getBoundingClientRect();
     return {
@@ -98,12 +103,22 @@ function mouse_pos_from_event(canvas, evt) {
 function initialize() {
     var canvas = document.getElementById("canvas");
     canvas.addEventListener("mousemove", function (evt) {
-        var mouse_pos = mouse_pos_from_event(canvas, evt);
-        paint_gui(canvas, mouse_pos);
+        g_mouse_pos = mouse_pos_from_event(canvas, evt);
+        paint_gui(canvas, get_input(canvas));
+    }, false);
+    canvas.addEventListener("mouseleave", function (evt) {
+        g_mouse_pos = { x: -1000.0, y: -1000.0 };
+        paint_gui(canvas, get_input(canvas));
     }, false);
     canvas.addEventListener("mousedown", function (evt) {
-        var mouse_pos = mouse_pos_from_event(canvas, evt);
-        paint_gui(canvas, mouse_pos);
+        g_mouse_pos = mouse_pos_from_event(canvas, evt);
+        g_mouse_down = true;
+        paint_gui(canvas, get_input(canvas));
     }, false);
-    paint_gui(canvas, { x: 0, y: 0 });
+    canvas.addEventListener("mouseup", function (evt) {
+        g_mouse_pos = mouse_pos_from_event(canvas, evt);
+        g_mouse_down = false;
+        paint_gui(canvas, get_input(canvas));
+    }, false);
+    paint_gui(canvas, get_input(canvas));
 }
