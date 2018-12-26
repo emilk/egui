@@ -1,7 +1,19 @@
 use crate::{math::*, types::*};
 
+#[derive(Clone, Copy, Debug)]
+pub struct Style {
+    /// For stuff like checkmarks in check boxes
+    pub line_width: f32,
+}
+
+impl Default for Style {
+    fn default() -> Style {
+        Style { line_width: 2.0 }
+    }
+}
+
 /// TODO: a Style struct which defines colors etc
-fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
+fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
     match cmd {
         GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
         GuiCmd::Button {
@@ -29,7 +41,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
                 font: "14px Palatino".to_string(),
                 pos: Vec2 {
                     x: rect.center().x,
-                    y: rect.center().y + 14.0 / 2.0,
+                    y: rect.center().y + 6.0,
                 },
                 text,
                 text_align: TextAlign::Center,
@@ -79,7 +91,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
                         vec2(smaller_rect.max().x, smaller_rect.min().y),
                     ],
                     style: stroke_style.clone(),
-                    width: 4.0,
+                    width: style.line_width,
                 });
             }
 
@@ -88,7 +100,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
                 font: "14px Palatino".to_string(),
                 pos: Vec2 {
                     x: box_rect.max().x + 4.0,
-                    y: rect.center().y + 14.0 / 2.0,
+                    y: rect.center().y + 5.0,
                 },
                 text,
                 text_align: TextAlign::Start,
@@ -153,12 +165,17 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
             rect,
             value,
         } => {
-            let thin_rect = Rect::from_center_size(rect.center(), vec2(rect.size.x, 8.0));
+            let thin_rect = Rect::from_min_size(
+                vec2(rect.min().x, lerp(rect.min().y, rect.max().y, 2.0 / 3.0)),
+                vec2(rect.size.x, 8.0),
+            );
 
             let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
-            let marker_rect =
-                Rect::from_center_size(vec2(marker_center_x, rect.center().y), vec2(16.0, 16.0));
+            let marker_rect = Rect::from_center_size(
+                vec2(marker_center_x, thin_rect.center().y),
+                vec2(16.0, 16.0),
+            );
 
             let marker_fill_style = if interact.active {
                 "#888888ff".to_string()
@@ -187,7 +204,10 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
             out_commands.push(PaintCmd::Text {
                 fill_style: "#ffffffbb".to_string(),
                 font: "14px Palatino".to_string(),
-                pos: rect.min(),
+                pos: vec2(
+                    rect.min().x,
+                    lerp(rect.min().y, rect.max().y, 1.0 / 3.0) + 6.0,
+                ),
                 text: format!("{}: {:.3}", label, value),
                 text_align: TextAlign::Start,
             });
@@ -204,7 +224,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
             out_commands.push(PaintCmd::Text {
                 fill_style,
                 font: "14px Palatino".to_string(),
-                pos,
+                pos: pos + vec2(0.0, 7.0), // TODO: FIXME
                 text,
                 text_align,
             });
@@ -212,10 +232,10 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
     }
 }
 
-pub fn into_paint_commands(gui_commands: &[GuiCmd]) -> Vec<PaintCmd> {
+pub fn into_paint_commands(gui_commands: &[GuiCmd], style: &Style) -> Vec<PaintCmd> {
     let mut paint_commands = vec![];
     for gui_cmd in gui_commands {
-        translate_cmd(&mut paint_commands, gui_cmd.clone())
+        translate_cmd(&mut paint_commands, style, gui_cmd.clone())
     }
     paint_commands
 }

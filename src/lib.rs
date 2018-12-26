@@ -13,16 +13,16 @@ use std::sync::Mutex;
 
 use wasm_bindgen::prelude::*;
 
-use crate::{math::Vec2, types::*};
+use crate::types::*;
 
 pub mod app;
-pub mod gui;
+pub mod emgui;
+pub mod layout;
 pub mod math;
 pub mod style;
 pub mod types;
 
 /*
-
 // Fast compilation, slow code:
 fn foo(x: &dyn Trait);
 
@@ -43,26 +43,15 @@ pub fn show_gui(raw_input_json: &str) -> String {
 
     lazy_static::lazy_static! {
         static ref APP: Mutex<app::App> = Default::default();
-        static ref LAST_INPUT: Mutex<RawInput> = Default::default();
-        static ref GUI_STATE: Mutex<gui::GuiState> = Default::default();
+        static ref EMGUI: Mutex<crate::emgui::Emgui> = Default::default();
     }
 
-    let gui_input = GuiInput::from_last_and_new(&LAST_INPUT.lock().unwrap(), &raw_input);
-    *LAST_INPUT.lock().unwrap() = raw_input;
+    let mut emgui = EMGUI.lock().unwrap();
+    emgui.new_frame(raw_input);
 
-    let mut gui = gui::Gui {
-        commands: Vec::new(),
-        cursor: Vec2 { x: 32.0, y: 32.0 },
-        input: gui_input,
-        state: *GUI_STATE.lock().unwrap(),
-    };
-    if !gui_input.mouse_down {
-        gui.state.active_id = None;
-    }
-    APP.lock().unwrap().show_gui(&mut gui);
+    use crate::app::GuiSettings;
+    APP.lock().unwrap().show_gui(&mut emgui.layout);
 
-    *GUI_STATE.lock().unwrap() = gui.state;
-
-    let commands = style::into_paint_commands(gui.gui_commands());
+    let commands = emgui.paint();
     serde_json::to_string(&commands).unwrap()
 }

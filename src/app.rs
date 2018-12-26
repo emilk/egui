@@ -1,4 +1,8 @@
-use crate::{gui::Gui, math::*, types::*};
+use crate::{layout::Layout, math::*, types::*};
+
+pub trait GuiSettings {
+    fn show_gui(&mut self, gui: &mut Layout);
+}
 
 pub struct App {
     checked: bool,
@@ -25,8 +29,8 @@ impl Default for App {
     }
 }
 
-impl App {
-    pub fn show_gui(&mut self, gui: &mut Gui) {
+impl GuiSettings for App {
+    fn show_gui(&mut self, gui: &mut Layout) {
         gui.checkbox("checkbox", &mut self.checked);
 
         if gui
@@ -71,7 +75,28 @@ impl App {
                 }),
             }]));
 
-        let commands_json = format!("{:#?}", gui.gui_commands());
-        gui.label(format!("All gui commands: {}", commands_json));
+        gui.label("LayoutOptions:");
+        let mut layout_options = gui.layout_options;
+        layout_options.show_gui(gui);
+        gui.layout_options = layout_options;
+    }
+}
+
+impl GuiSettings for crate::layout::LayoutOptions {
+    fn show_gui(&mut self, gui: &mut Layout) {
+        if gui.button("Reset LayoutOptions").clicked {
+            *self = Default::default();
+        }
+        gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
+        gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
+        gui.slider_f32("width", &mut self.width, 0.0, 1000.0);
+        gui.slider_f32("button_height", &mut self.button_height, 0.0, 60.0);
+        gui.slider_f32(
+            "checkbox_radio_height",
+            &mut self.checkbox_radio_height,
+            0.0,
+            60.0,
+        );
+        gui.slider_f32("slider_height", &mut self.slider_height, 0.0, 60.0);
     }
 }

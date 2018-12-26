@@ -45,6 +45,10 @@ pub struct Rect {
 }
 
 impl Rect {
+    pub fn from_min_size(min: Vec2, size: Vec2) -> Self {
+        Rect { pos: min, size }
+    }
+
     pub fn from_center_size(center: Vec2, size: Vec2) -> Self {
         Rect {
             pos: center - size * 0.5,
@@ -74,7 +78,7 @@ impl Rect {
     }
 }
 
-pub fn lerp(t: f32, min: f32, max: f32) -> f32 {
+pub fn lerp(min: f32, max: f32, t: f32) -> f32 {
     (1.0 - t) * min + t * max
 }
 
@@ -86,5 +90,5 @@ pub fn remap_clamp(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max:
     } else {
         (from - from_min) / (from_max - from_min)
     };
-    lerp(t, to_min, to_max)
+    lerp(to_min, to_max, t)
 }

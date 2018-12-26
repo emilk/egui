@@ -1,24 +1,59 @@
 use crate::{math::*, types::*};
 
-// TODO: implement Gui on this so we can add children to a widget
-// pub struct Widget {}
+// ----------------------------------------------------------------------------
 
-type Id = u64;
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct LayoutOptions {
+    // Horizontal and vertical spacing between widgets
+    pub item_spacing: Vec2,
+
+    /// Default width of buttons, sliders etc
+    pub width: f32,
+
+    /// Height of a button
+    pub button_height: f32,
+
+    /// Height of a checkbox and radio button
+    pub checkbox_radio_height: f32,
+
+    /// Height of a slider
+    pub slider_height: f32,
+}
+
+impl Default for LayoutOptions {
+    fn default() -> Self {
+        LayoutOptions {
+            item_spacing: Vec2 { x: 8.0, y: 4.0 },
+            width: 200.0,
+            button_height: 24.0,
+            checkbox_radio_height: 24.0,
+            slider_height: 32.0,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct GuiState {
+pub struct State {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
     pub active_id: Option<Id>,
 }
 
-pub struct Gui {
+// ----------------------------------------------------------------------------
+
+type Id = u64;
+
+#[derive(Clone, Debug, Default)]
+pub struct Layout {
     pub commands: Vec<GuiCmd>,
     pub cursor: Vec2,
     pub input: GuiInput,
-    pub state: GuiState,
+    pub layout_options: LayoutOptions,
+    pub state: State,
 }
 
-impl Gui {
+impl Layout {
     pub fn input(&self) -> &GuiInput {
         &self.input
     }
@@ -34,7 +69,10 @@ impl Gui {
         let id = self.get_id(&text);
         let rect = Rect {
             pos: self.cursor,
-            size: Vec2 { x: 176.0, y: 24.0 }, // TODO: get from some settings
+            size: Vec2 {
+                x: self.layout_options.width,
+                y: self.layout_options.button_height,
+            },
         };
 
         let interact = self.interactive_rect(id, &rect);
@@ -45,7 +83,7 @@ impl Gui {
             text,
         });
 
-        self.cursor.y += rect.size.y + 16.0;
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
@@ -54,7 +92,10 @@ impl Gui {
         let id = self.get_id(&label);
         let rect = Rect {
             pos: self.cursor,
-            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+            size: Vec2 {
+                x: self.layout_options.width,
+                y: self.layout_options.checkbox_radio_height,
+            },
         };
 
         let interact = self.interactive_rect(id, &rect);
@@ -69,7 +110,7 @@ impl Gui {
             text: label,
         });
 
-        self.cursor.y += rect.size.y + 16.0;
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
@@ -79,7 +120,7 @@ impl Gui {
             self.text(self.cursor, TextStyle::Label, line);
             self.cursor.y += 16.0;
         }
-        self.cursor.y += 16.0; // Padding
+        self.cursor.y += self.layout_options.item_spacing.y;
     }
 
     /// A radio button
@@ -88,7 +129,10 @@ impl Gui {
         let id = self.get_id(&label);
         let rect = Rect {
             pos: self.cursor,
-            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+            size: Vec2 {
+                x: self.layout_options.width,
+                y: self.layout_options.checkbox_radio_height,
+            },
         };
 
         let interact = self.interactive_rect(id, &rect);
@@ -100,7 +144,7 @@ impl Gui {
             text: label,
         });
 
-        self.cursor.y += rect.size.y + 16.0;
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
@@ -115,7 +159,10 @@ impl Gui {
         let id = self.get_id(&label);
         let rect = Rect {
             pos: self.cursor,
-            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+            size: Vec2 {
+                x: self.layout_options.width,
+                y: self.layout_options.slider_height,
+            },
         };
         let interact = self.interactive_rect(id, &rect);
 
@@ -134,7 +181,7 @@ impl Gui {
             value: *value,
         });
 
-        self.cursor.y += rect.size.y + 16.0;
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
 
         interact
     }
