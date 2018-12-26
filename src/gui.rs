@@ -82,6 +82,28 @@ impl Gui {
         self.cursor.y += 16.0; // Padding
     }
 
+    /// A radio button
+    pub fn radio<S: Into<String>>(&mut self, label: S, checked: bool) -> InteractInfo {
+        let label: String = label.into();
+        let id = self.get_id(&label);
+        let rect = Rect {
+            pos: self.cursor,
+            size: Vec2 { x: 200.0, y: 24.0 }, // TODO: get from some settings
+        };
+
+        let interact = self.interactive_rect(id, &rect);
+
+        self.commands.push(GuiCmd::RadioButton {
+            checked,
+            interact,
+            rect,
+            text: label,
+        });
+
+        self.cursor.y += rect.size.y + 16.0;
+        interact
+    }
+
     pub fn slider_f32<S: Into<String>>(
         &mut self,
         label: S,

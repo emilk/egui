@@ -3,6 +3,7 @@ use crate::{gui::Gui, math::*, types::*};
 pub struct App {
     checked: bool,
     count: i32,
+    selected_alternative: i32,
 
     width: f32,
     height: f32,
@@ -14,6 +15,7 @@ impl Default for App {
     fn default() -> App {
         App {
             checked: false,
+            selected_alternative: 0,
             count: 0,
             width: 100.0,
             height: 50.0,
@@ -26,6 +28,25 @@ impl Default for App {
 impl App {
     pub fn show_gui(&mut self, gui: &mut Gui) {
         gui.checkbox("checkbox", &mut self.checked);
+
+        if gui
+            .radio("First alternative", self.selected_alternative == 0)
+            .clicked
+        {
+            self.selected_alternative = 0;
+        }
+        if gui
+            .radio("Second alternative", self.selected_alternative == 1)
+            .clicked
+        {
+            self.selected_alternative = 1;
+        }
+        if gui
+            .radio("Final alternative", self.selected_alternative == 2)
+            .clicked
+        {
+            self.selected_alternative = 2;
+        }
 
         if gui.button("Click me").clicked {
             self.count += 1;

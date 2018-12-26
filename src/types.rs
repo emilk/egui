@@ -109,6 +109,12 @@ pub enum GuiCmd {
         rect: Rect,
         text: String,
     },
+    RadioButton {
+        checked: bool,
+        interact: InteractInfo,
+        rect: Rect,
+        text: String,
+    },
     Slider {
         interact: InteractInfo,
         label: String,
@@ -138,6 +144,12 @@ pub struct Outline {
 #[derive(Clone, Debug, Serialize)] // TODO: copy
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
+    Circle {
+        center: Vec2,
+        fill_style: Option<Style>,
+        outline: Option<Outline>,
+        radius: f32,
+    },
     Clear {
         fill_style: Style,
     },

@@ -94,6 +94,57 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, cmd: GuiCmd) {
                 text_align: TextAlign::Start,
             });
         }
+        GuiCmd::RadioButton {
+            checked,
+            interact,
+            rect,
+            text,
+        } => {
+            let fill_style = if interact.active {
+                "#888888ff".to_string()
+            } else if interact.hovered {
+                "#666666ff".to_string()
+            } else {
+                "#444444ff".to_string()
+            };
+
+            let stroke_style = if interact.active {
+                "#ffffffff".to_string()
+            } else if interact.hovered {
+                "#ffffffcc".to_string()
+            } else {
+                "#ffffffaa".to_string()
+            };
+
+            let circle_radius = 8.0;
+            let circle_center = vec2(rect.min().x + circle_radius, rect.center().y);
+            out_commands.push(PaintCmd::Circle {
+                center: circle_center,
+                fill_style: Some(fill_style),
+                outline: None,
+                radius: circle_radius,
+            });
+
+            if checked {
+                out_commands.push(PaintCmd::Circle {
+                    center: circle_center,
+                    fill_style: Some("#000000ff".to_string()),
+                    outline: None,
+                    radius: circle_radius * 0.5,
+                });
+            }
+
+            out_commands.push(PaintCmd::Text {
+                fill_style: stroke_style.clone(),
+                font: "14px Palatino".to_string(),
+                pos: Vec2 {
+                    x: rect.min().x + 2.0 * circle_radius + 4.0,
+                    y: rect.center().y + 14.0 / 2.0,
+                },
+                text,
+                text_align: TextAlign::Start,
+            });
+        }
         GuiCmd::Slider {
             interact,
             label,
