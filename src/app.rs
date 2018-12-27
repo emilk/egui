@@ -58,10 +58,12 @@ impl GuiSettings for App {
 
         gui.label(format!("The button have been clicked {} times", self.count));
 
-        gui.slider_f32("width", &mut self.width, 0.0, 500.0);
-        gui.slider_f32("height", &mut self.height, 0.0, 500.0);
-        gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 50.0);
-        gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
+        gui.foldable("Box rendering options", |gui| {
+            gui.slider_f32("width", &mut self.width, 0.0, 500.0);
+            gui.slider_f32("height", &mut self.height, 0.0, 500.0);
+            gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 50.0);
+            gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
+        });
 
         gui.commands
             .push(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
