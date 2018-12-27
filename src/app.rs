@@ -31,6 +31,12 @@ impl Default for App {
 
 impl GuiSettings for App {
     fn show_gui(&mut self, gui: &mut Layout) {
+        gui.label(format!(
+            "Screen size: {} x {}",
+            gui.input().screen_size.x,
+            gui.input().screen_size.y,
+        ));
+
         gui.checkbox("checkbox", &mut self.checked);
 
         if gui

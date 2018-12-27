@@ -111,38 +111,59 @@ function paint_gui(canvas, input) {
 var g_mouse_pos = { x: -1000.0, y: -1000.0 };
 var g_mouse_down = false;
 function get_input(canvas) {
+    var pixels_per_point = window.devicePixelRatio || 1;
+    var ctx = canvas.getContext("2d");
+    ctx.scale(pixels_per_point, pixels_per_point);
+    // Resize based on screen size:
+    canvas.setAttribute("width", window.innerWidth * pixels_per_point);
+    canvas.setAttribute("height", window.innerHeight * pixels_per_point);
     return {
         mouse_down: g_mouse_down,
         mouse_pos: g_mouse_pos,
         screen_size: { x: canvas.width, y: canvas.height }
     };
 }
-function mouse_pos_from_event(canvas, evt) {
+function mouse_pos_from_event(canvas, event) {
     var rect = canvas.getBoundingClientRect();
     return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
     };
 }
 function initialize() {
+    console.log("window.devicePixelRatio: " + window.devicePixelRatio);
     var canvas = document.getElementById("canvas");
-    canvas.addEventListener("mousemove", function (evt) {
-        g_mouse_pos = mouse_pos_from_event(canvas, evt);
-        paint_gui(canvas, get_input(canvas));
-    }, false);
-    canvas.addEventListener("mouseleave", function (evt) {
+    var repaint = function () { return paint_gui(canvas, get_input(canvas)); };
+    canvas.addEventListener("mousemove", function (event) {
+        g_mouse_pos = mouse_pos_from_event(canvas, event);
+        repaint();
+        event.stopPropagation();
+        event.preventDefault();
+    });
+    canvas.addEventListener("mouseleave", function (event) {
         g_mouse_pos = { x: -1000.0, y: -1000.0 };
-        paint_gui(canvas, get_input(canvas));
-    }, false);
-    canvas.addEventListener("mousedown", function (evt) {
-        g_mouse_pos = mouse_pos_from_event(canvas, evt);
+        repaint();
+        event.stopPropagation();
+        event.preventDefault();
+    });
+    canvas.addEventListener("mousedown", function (event) {
+        g_mouse_pos = mouse_pos_from_event(canvas, event);
         g_mouse_down = true;
-        paint_gui(canvas, get_input(canvas));
-    }, false);
-    canvas.addEventListener("mouseup", function (evt) {
-        g_mouse_pos = mouse_pos_from_event(canvas, evt);
+        repaint();
+        event.stopPropagation();
+        event.preventDefault();
+    });
+    canvas.addEventListener("mouseup", function (event) {
+        g_mouse_pos = mouse_pos_from_event(canvas, event);
         g_mouse_down = false;
-        paint_gui(canvas, get_input(canvas));
-    }, false);
-    paint_gui(canvas, get_input(canvas));
+        repaint();
+        event.stopPropagation();
+        event.preventDefault();
+    });
+    window.addEventListener("load", repaint);
+    window.addEventListener("pagehide", repaint);
+    window.addEventListener("pageshow", repaint);
+    window.addEventListener("resize", repaint);
+    // setInterval(repaint, 16);
+    repaint();
 }

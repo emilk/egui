@@ -9,12 +9,11 @@
         /* Remove touch delay: */
         touch-action: manipulation;
       }
-
       body {
         background: #000000;
-        color: #bbbbbb;
-        max-width: 1024px;
-        margin: auto;
+      }
+      html, body {
+          overflow: hidden;
       }
     </style>
   </head>
@@ -38,6 +37,6 @@
     <script src="frontend.js" type="module"></script>
 
     <!-- TODO: make this cover the entire screen, with resize and all -->
-    <canvas id="canvas" width="1024" height="768"></canvas>
+    <canvas id="canvas" width="1024" height="1024"></canvas>
   </body>
 </html>
