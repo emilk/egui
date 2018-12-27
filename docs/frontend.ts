@@ -14,6 +14,11 @@ interface Color {
   a: number;
 }
 
+interface Outline {
+  color: Color;
+  width: number;
+}
+
 interface Clear {
   kind: "clear";
   fill_color: Color;
@@ -21,28 +26,23 @@ interface Clear {
 
 interface Line {
   kind: "line";
+  color: Color;
   points: Vec2[];
-  color: Color;
   width: number;
-}
-
-interface Outline {
-  width: number;
-  color: Color;
 }
 
 interface Circle {
+  kind: "circle";
   center: Vec2;
   fill_color: Color | null;
-  kind: "circle";
   outline: Outline | null;
   radius: number;
 }
 
 interface Rect {
+  kind: "rect";
   corner_radius: number;
   fill_color: Color | null;
-  kind: "rect";
   outline: Outline | null;
   pos: Vec2;
   size: Vec2;
@@ -51,7 +51,8 @@ interface Rect {
 interface Text {
   kind: "text";
   fill_color: Color | null;
-  font: string;
+  font_name: string; // e.g. "Palatino"
+  font_size: number, // Height in pixels, e.g. 12
   pos: Vec2;
   stroke_color: Color | null;
   text: string;
@@ -129,9 +130,10 @@ function paint_command(canvas, cmd: PaintCmd) {
       return;
 
     case "text":
-      ctx.font = cmd.font;
       ctx.fillStyle = styleFromColor(cmd.fill_color);
+      ctx.font = `${cmd.font_size}px ${cmd.font_name}`;
       ctx.textAlign = cmd.text_align;
+      ctx.textBaseline = "top";
       ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
       return;
   }

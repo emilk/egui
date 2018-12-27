@@ -1,14 +1,40 @@
 use crate::{math::*, types::*};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Style {
-    /// For stuff like checkmarks in check boxes
+    /// Show rectangles around each widget
+    pub debug_rects: bool,
+
+    /// For stuff like check marks in check boxes.
     pub line_width: f32,
+
+    pub font_name: String,
+
+    /// Height in pixels of most text.
+    pub font_size: f32,
 }
 
 impl Default for Style {
     fn default() -> Style {
-        Style { line_width: 2.0 }
+        Style {
+            debug_rects: false,
+            line_width: 2.0,
+            font_name: "Palatino".to_string(),
+            font_size: 12.0,
+        }
+    }
+}
+
+fn debug_rect(rect: Rect) -> PaintCmd {
+    PaintCmd::Rect {
+        corner_radius: 0.0,
+        fill_color: None,
+        outline: Some(Outline {
+            color: srgba(255, 255, 255, 255),
+            width: 1.0,
+        }),
+        pos: rect.pos,
+        size: rect.size,
     }
 }
 
@@ -38,14 +64,19 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             // TODO: clip-rect of text
             out_commands.push(PaintCmd::Text {
                 fill_color: srgba(255, 255, 255, 187),
-                font: "14px Palatino".to_string(),
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
                 pos: Vec2 {
                     x: rect.center().x,
-                    y: rect.center().y + 6.0,
+                    y: rect.center().y - 6.0,
                 },
                 text,
                 text_align: TextAlign::Center,
             });
+
+            if style.debug_rects {
+                out_commands.push(debug_rect(rect));
+            }
         }
         GuiCmd::Checkbox {
             checked,
@@ -97,14 +128,19 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             out_commands.push(PaintCmd::Text {
                 fill_color: stroke_color,
-                font: "14px Palatino".to_string(),
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
                 pos: Vec2 {
                     x: box_rect.max().x + 4.0,
-                    y: rect.center().y + 5.0,
+                    y: rect.center().y - 4.0,
                 },
                 text,
                 text_align: TextAlign::Start,
             });
+
+            if style.debug_rects {
+                out_commands.push(debug_rect(rect));
+            }
         }
         GuiCmd::RadioButton {
             checked,
@@ -148,14 +184,19 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             out_commands.push(PaintCmd::Text {
                 fill_color: stroke_color,
-                font: "14px Palatino".to_string(),
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
                 pos: Vec2 {
                     x: rect.min().x + 2.0 * circle_radius + 4.0,
-                    y: rect.center().y + 14.0 / 2.0,
+                    y: rect.center().y - 4.0,
                 },
                 text,
                 text_align: TextAlign::Start,
             });
+
+            if style.debug_rects {
+                out_commands.push(debug_rect(rect));
+            }
         }
         GuiCmd::Slider {
             interact,
@@ -203,28 +244,34 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             out_commands.push(PaintCmd::Text {
                 fill_color: srgba(255, 255, 255, 187),
-                font: "14px Palatino".to_string(),
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
                 pos: vec2(
                     rect.min().x,
-                    lerp(rect.min().y, rect.max().y, 1.0 / 3.0) + 6.0,
+                    lerp(rect.min().y, rect.max().y, 1.0 / 3.0) - 5.0,
                 ),
                 text: format!("{}: {:.3}", label, value),
                 text_align: TextAlign::Start,
             });
+
+            if style.debug_rects {
+                out_commands.push(debug_rect(rect));
+            }
         }
         GuiCmd::Text {
             pos,
             text,
             text_align,
-            style,
+            style: text_style,
         } => {
-            let fill_color = match style {
+            let fill_color = match text_style {
                 TextStyle::Label => srgba(255, 255, 255, 187),
             };
             out_commands.push(PaintCmd::Text {
                 fill_color,
-                font: "14px Palatino".to_string(),
-                pos: pos + vec2(0.0, 7.0), // TODO: FIXME
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
+                pos: pos + vec2(0.0, style.font_size / 2.0 - 5.0), // TODO
                 text,
                 text_align,
             });

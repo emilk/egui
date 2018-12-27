@@ -100,3 +100,14 @@ impl GuiSettings for crate::layout::LayoutOptions {
         gui.slider_f32("slider_height", &mut self.slider_height, 0.0, 60.0);
     }
 }
+
+impl GuiSettings for crate::style::Style {
+    fn show_gui(&mut self, gui: &mut Layout) {
+        if gui.button("Reset Style").clicked {
+            *self = Default::default();
+        }
+        gui.checkbox("debug_rects", &mut self.debug_rects);
+        gui.slider_f32("line_width", &mut self.line_width, 0.0, 10.0);
+        gui.slider_f32("font_size", &mut self.font_size, 5.0, 32.0);
+    }
+}

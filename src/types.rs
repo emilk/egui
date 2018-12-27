@@ -158,7 +158,10 @@ pub enum PaintCmd {
     },
     Text {
         fill_color: Color,
-        font: String,
+        /// Name, e.g. Palatino
+        font_name: String,
+        /// Height in pixels, e.g. 12
+        font_size: f32,
         pos: Vec2,
         text: String,
         text_align: TextAlign,
