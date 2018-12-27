@@ -90,10 +90,13 @@ impl GuiSettings for crate::layout::LayoutOptions {
         if gui.button("Reset LayoutOptions").clicked {
             *self = Default::default();
         }
+        gui.slider_f32("char_size.x", &mut self.char_size.x, 0.0, 20.0);
+        gui.slider_f32("char_size.y", &mut self.char_size.y, 0.0, 20.0);
         gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
         gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
         gui.slider_f32("width", &mut self.width, 0.0, 1000.0);
-        gui.slider_f32("button_height", &mut self.button_height, 0.0, 60.0);
+        gui.slider_f32("button_padding.x", &mut self.button_padding.x, 0.0, 20.0);
+        gui.slider_f32("button_padding.y", &mut self.button_padding.y, 0.0, 20.0);
         gui.slider_f32(
             "checkbox_radio_height",
             &mut self.checkbox_radio_height,

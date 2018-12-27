@@ -91,10 +91,10 @@ pub enum TextStyle {
 #[derive(Clone, Debug, Serialize)]
 pub enum GuiCmd {
     PaintCommands(Vec<PaintCmd>),
+    /// The background for a button
     Button {
         interact: InteractInfo,
         rect: Rect,
-        text: String,
     },
     Checkbox {
         checked: bool,
@@ -102,12 +102,11 @@ pub enum GuiCmd {
         rect: Rect,
         text: String,
     },
-    // The header for a foldable region
+    /// The header button background for a foldable region
     FoldableHeader {
         interact: InteractInfo,
         open: bool,
         rect: Rect,
-        label: String,
     },
     RadioButton {
         checked: bool,

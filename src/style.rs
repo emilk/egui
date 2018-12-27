@@ -19,7 +19,9 @@ impl Default for Style {
         Style {
             debug_rects: false,
             line_width: 2.0,
-            font_name: "Palatino".to_string(),
+            // font_name: "Palatino".to_string(),
+            font_name: "Courier".to_string(),
+            // font_name: "Courier New".to_string(),
             font_size: 12.0,
         }
     }
@@ -91,11 +93,7 @@ fn debug_rect(rect: Rect) -> PaintCmd {
 fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
     match cmd {
         GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
-        GuiCmd::Button {
-            interact,
-            rect,
-            text,
-        } => {
+        GuiCmd::Button { interact, rect } => {
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 5.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
@@ -103,19 +101,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 pos: rect.pos,
                 size: rect.size,
             });
-            // TODO: clip-rect of text
-            out_commands.push(PaintCmd::Text {
-                fill_color: style.interact_stroke_color(&interact),
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
-                pos: Vec2 {
-                    x: rect.center().x,
-                    y: rect.center().y - 6.0,
-                },
-                text,
-                text_align: TextAlign::Center,
-            });
-
             if style.debug_rects {
                 out_commands.push(debug_rect(rect));
             }
@@ -167,7 +152,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         }
         GuiCmd::FoldableHeader {
             interact,
-            label,
             open,
             rect,
         } => {
@@ -184,7 +168,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             // TODO: paint a little triangle or arrow or something instead of this
 
-            let (small_icon_rect, _, rest_rect) = style.icon_rectangles(&rect);
+            let (small_icon_rect, _, _) = style.icon_rectangles(&rect);
             // Draw a minus:
             out_commands.push(PaintCmd::Line {
                 points: vec![
@@ -205,18 +189,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     width: style.line_width,
                 });
             }
-
-            out_commands.push(PaintCmd::Text {
-                fill_color: stroke_color,
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
-                pos: Vec2 {
-                    x: rest_rect.min().x,
-                    y: rect.center().y - style.font_size / 2.0,
-                },
-                text: label,
-                text_align: TextAlign::Start,
-            });
         }
         GuiCmd::RadioButton {
             checked,

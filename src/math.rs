@@ -34,6 +34,16 @@ impl std::ops::Mul<f32> for Vec2 {
     }
 }
 
+impl std::ops::Mul<Vec2> for f32 {
+    type Output = Vec2;
+    fn mul(self, vec: Vec2) -> Vec2 {
+        Vec2 {
+            x: self * vec.x,
+            y: self * vec.y,
+        }
+    }
+}
+
 pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }

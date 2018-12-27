@@ -15,10 +15,10 @@ impl Emgui {
 
         // TODO: this should be nicer
         self.layout.commands.clear();
-        self.layout.cursor = vec2(32.0, 32.0);
+        self.layout.cursor = vec2(0.0, 0.0);
         self.layout.input = gui_input;
         if !gui_input.mouse_down {
-            self.layout.state.active_id = None;
+            self.layout.memory.active_id = None;
         }
     }
 
