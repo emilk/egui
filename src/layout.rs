@@ -76,50 +76,40 @@ impl Layout {
     pub fn button<S: Into<String>>(&mut self, text: S) -> InteractInfo {
         let text: String = text.into();
         let id = self.get_id(&text);
-        let rect = Rect {
-            pos: self.cursor,
-            size: Vec2 {
+        let (rect, interact) = self.reserve_space(
+            id,
+            Vec2 {
                 x: self.layout_options.width,
                 y: self.layout_options.button_height,
             },
-        };
-
-        let interact = self.interactive_rect(id, &rect);
-
+        );
         self.commands.push(GuiCmd::Button {
             interact,
             rect,
             text,
         });
-
-        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
     pub fn checkbox<S: Into<String>>(&mut self, label: S, checked: &mut bool) -> InteractInfo {
         let label: String = label.into();
         let id = self.get_id(&label);
-        let rect = Rect {
-            pos: self.cursor,
-            size: Vec2 {
+        let (rect, interact) = self.reserve_space(
+            id,
+            Vec2 {
                 x: self.layout_options.width,
                 y: self.layout_options.checkbox_radio_height,
             },
-        };
-
-        let interact = self.interactive_rect(id, &rect);
+        );
         if interact.clicked {
             *checked = !*checked;
         }
-
         self.commands.push(GuiCmd::Checkbox {
             checked: *checked,
             interact,
             rect,
             text: label,
         });
-
-        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
@@ -136,24 +126,19 @@ impl Layout {
     pub fn radio<S: Into<String>>(&mut self, label: S, checked: bool) -> InteractInfo {
         let label: String = label.into();
         let id = self.get_id(&label);
-        let rect = Rect {
-            pos: self.cursor,
-            size: Vec2 {
+        let (rect, interact) = self.reserve_space(
+            id,
+            Vec2 {
                 x: self.layout_options.width,
                 y: self.layout_options.checkbox_radio_height,
             },
-        };
-
-        let interact = self.interactive_rect(id, &rect);
-
+        );
         self.commands.push(GuiCmd::RadioButton {
             checked,
             interact,
             rect,
             text: label,
         });
-
-        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
         interact
     }
 
@@ -164,18 +149,16 @@ impl Layout {
         min: f32,
         max: f32,
     ) -> InteractInfo {
+        debug_assert!(min <= max);
         let label: String = label.into();
         let id = self.get_id(&label);
-        let rect = Rect {
-            pos: self.cursor,
-            size: Vec2 {
+        let (rect, interact) = self.reserve_space(
+            id,
+            Vec2 {
                 x: self.layout_options.width,
                 y: self.layout_options.slider_height,
             },
-        };
-        let interact = self.interactive_rect(id, &rect);
-
-        debug_assert!(min <= max);
+        );
 
         if interact.active {
             *value = remap_clamp(self.input.mouse_pos.x, rect.min().x, rect.max().x, min, max);
@@ -190,8 +173,6 @@ impl Layout {
             value: *value,
         });
 
-        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
-
         interact
     }
 
@@ -205,17 +186,13 @@ impl Layout {
     {
         let label: String = label.into();
         let id = self.get_id(&label);
-
-        let rect = Rect {
-            pos: self.cursor,
-            size: Vec2 {
+        let (rect, interact) = self.reserve_space(
+            id,
+            Vec2 {
                 x: self.layout_options.width,
                 y: self.layout_options.button_height,
             },
-        };
-
-        let interact = self.interactive_rect(id, &rect);
-        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
+        );
 
         if interact.clicked {
             if self.state.open_foldables.contains(&id) {
@@ -247,6 +224,16 @@ impl Layout {
     }
 
     // ------------------------------------------------------------------------
+
+    fn reserve_space(&mut self, id: Id, size: Vec2) -> (Rect, InteractInfo) {
+        let rect = Rect {
+            pos: self.cursor,
+            size,
+        };
+        let interact = self.interactive_rect(id, &rect);
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
+        (rect, interact)
+    }
 
     fn interactive_rect(&mut self, id: Id, rect: &Rect) -> InteractInfo {
         let hovered = rect.contains(self.input.mouse_pos);
