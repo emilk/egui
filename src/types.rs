@@ -76,14 +76,6 @@ pub struct InteractInfo {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TextAlign {
-    Start, // Test with arabic text
-    Center,
-    End,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
 pub enum TextStyle {
     Label,
 }
@@ -100,7 +92,6 @@ pub enum GuiCmd {
         checked: bool,
         interact: InteractInfo,
         rect: Rect,
-        text: String,
     },
     /// The header button background for a foldable region
     FoldableHeader {
@@ -112,21 +103,21 @@ pub enum GuiCmd {
         checked: bool,
         interact: InteractInfo,
         rect: Rect,
-        text: String,
     },
     Slider {
         interact: InteractInfo,
-        label: String,
         max: f32,
         min: f32,
         rect: Rect,
         value: f32,
     },
+    /// Paint a single line of mono-space text.
+    /// The text should start at the given position and flow to the right.
+    /// The text should be vertically centered at the given position.
     Text {
         pos: Vec2,
         style: TextStyle,
         text: String,
-        text_align: TextAlign,
     },
 }
 
@@ -162,6 +153,9 @@ pub enum PaintCmd {
         pos: Vec2,
         size: Vec2,
     },
+    /// Paint a single line of mono-space text.
+    /// The text should start at the given position and flow to the right.
+    /// The text should be vertically centered at the given position.
     Text {
         fill_color: Color,
         /// Name, e.g. Palatino
@@ -170,6 +164,5 @@ pub enum PaintCmd {
         font_size: f32,
         pos: Vec2,
         text: String,
-        text_align: TextAlign,
     },
 }

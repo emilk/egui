@@ -63,8 +63,7 @@ function paint_command(canvas, cmd) {
         case "text":
             ctx.fillStyle = styleFromColor(cmd.fill_color);
             ctx.font = cmd.font_size + "px " + cmd.font_name;
-            ctx.textAlign = cmd.text_align;
-            ctx.textBaseline = "top";
+            ctx.textBaseline = "middle";
             ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
             return;
     }

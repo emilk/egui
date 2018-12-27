@@ -59,8 +59,8 @@ impl Style {
         }
     }
 
-    /// Returns small icon rectangle, big icon rectangle, and the remaining rectangle
-    fn icon_rectangles(&self, rect: &Rect) -> (Rect, Rect, Rect) {
+    /// Returns small icon rectangle and big icon rectangle
+    fn icon_rectangles(&self, rect: &Rect) -> (Rect, Rect) {
         let box_side = 16.0;
         let big_icon_rect = Rect::from_center_size(
             vec2(rect.min().x + 4.0 + box_side * 0.5, rect.center().y),
@@ -69,10 +69,7 @@ impl Style {
 
         let small_icon_rect = Rect::from_center_size(big_icon_rect.center(), vec2(10.0, 10.0));
 
-        let rest_rect =
-            Rect::from_min_size(vec2(big_icon_rect.max().x + 4.0, rect.min().y), rect.size);
-
-        (small_icon_rect, big_icon_rect, rest_rect)
+        (small_icon_rect, big_icon_rect)
     }
 }
 
@@ -109,9 +106,8 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             checked,
             interact,
             rect,
-            text,
         } => {
-            let (small_icon_rect, big_icon_rect, rest_rect) = style.icon_rectangles(&rect);
+            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&rect);
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
@@ -133,18 +129,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     width: style.line_width,
                 });
             }
-
-            out_commands.push(PaintCmd::Text {
-                fill_color: stroke_color,
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
-                pos: Vec2 {
-                    x: rest_rect.min().x,
-                    y: rest_rect.center().y - 4.0,
-                },
-                text,
-                text_align: TextAlign::Start,
-            });
 
             if style.debug_rects {
                 out_commands.push(debug_rect(rect));
@@ -168,7 +152,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             // TODO: paint a little triangle or arrow or something instead of this
 
-            let (small_icon_rect, _, _) = style.icon_rectangles(&rect);
+            let (small_icon_rect, _) = style.icon_rectangles(&rect);
             // Draw a minus:
             out_commands.push(PaintCmd::Line {
                 points: vec![
@@ -178,7 +162,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 color: stroke_color,
                 width: style.line_width,
             });
-            if open {
+            if !open {
                 // Draw it as a plus:
                 out_commands.push(PaintCmd::Line {
                     points: vec![
@@ -194,12 +178,11 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             checked,
             interact,
             rect,
-            text,
         } => {
             let fill_color = style.interact_fill_color(&interact);
             let stroke_color = style.interact_stroke_color(&interact);
 
-            let (small_icon_rect, big_icon_rect, rest_rect) = style.icon_rectangles(&rect);
+            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&rect);
 
             out_commands.push(PaintCmd::Circle {
                 center: big_icon_rect.center(),
@@ -217,35 +200,18 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 });
             }
 
-            out_commands.push(PaintCmd::Text {
-                fill_color: stroke_color,
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
-                pos: Vec2 {
-                    x: rest_rect.min().x,
-                    y: rect.center().y - 4.0,
-                },
-                text,
-                text_align: TextAlign::Start,
-            });
-
             if style.debug_rects {
                 out_commands.push(debug_rect(rect));
             }
         }
         GuiCmd::Slider {
             interact,
-            label,
             max,
             min,
             rect,
             value,
         } => {
-            let thin_rect = Rect::from_min_size(
-                vec2(rect.min().x, lerp(rect.min().y, rect.max().y, 2.0 / 3.0)),
-                vec2(rect.size.x, 8.0),
-            );
-
+            let thin_rect = Rect::from_center_size(rect.center(), vec2(rect.size.x, 6.0));
             let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
             let marker_rect = Rect::from_center_size(
@@ -269,18 +235,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 size: marker_rect.size,
             });
 
-            out_commands.push(PaintCmd::Text {
-                fill_color: style.interact_stroke_color(&interact),
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
-                pos: vec2(
-                    rect.min().x,
-                    lerp(rect.min().y, rect.max().y, 1.0 / 3.0) - 5.0,
-                ),
-                text: format!("{}: {:.3}", label, value),
-                text_align: TextAlign::Start,
-            });
-
             if style.debug_rects {
                 out_commands.push(debug_rect(rect));
             }
@@ -288,7 +242,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         GuiCmd::Text {
             pos,
             text,
-            text_align,
             style: text_style,
         } => {
             let fill_color = match text_style {
@@ -298,9 +251,8 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 fill_color,
                 font_name: style.font_name.clone(),
                 font_size: style.font_size,
-                pos: pos + vec2(0.0, style.font_size / 2.0 - 5.0), // TODO
+                pos,
                 text,
-                text_align,
             });
         }
     }

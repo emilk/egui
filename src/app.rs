@@ -56,7 +56,7 @@ impl GuiSettings for App {
             self.count += 1;
         }
 
-        gui.label(format!("The button have been clicked {} times", self.count));
+        gui.label(format!("This is a multiline label.\nThe button have been clicked {} times.\nBelow are more options.", self.count));
 
         gui.foldable("Box rendering options", |gui| {
             gui.slider_f32("width", &mut self.width, 0.0, 500.0);
@@ -78,9 +78,9 @@ impl GuiSettings for App {
             }]));
 
         gui.foldable("LayoutOptions", |gui| {
-            let mut layout_options = gui.layout_options;
-            layout_options.show_gui(gui);
-            gui.layout_options = layout_options;
+            let mut options = gui.options;
+            options.show_gui(gui);
+            gui.options = options;
         });
     }
 }
@@ -94,16 +94,11 @@ impl GuiSettings for crate::layout::LayoutOptions {
         gui.slider_f32("char_size.y", &mut self.char_size.y, 0.0, 20.0);
         gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
         gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
+        gui.slider_f32("indent", &mut self.indent, 0.0, 100.0);
         gui.slider_f32("width", &mut self.width, 0.0, 1000.0);
         gui.slider_f32("button_padding.x", &mut self.button_padding.x, 0.0, 20.0);
         gui.slider_f32("button_padding.y", &mut self.button_padding.y, 0.0, 20.0);
-        gui.slider_f32(
-            "checkbox_radio_height",
-            &mut self.checkbox_radio_height,
-            0.0,
-            60.0,
-        );
-        gui.slider_f32("slider_height", &mut self.slider_height, 0.0, 60.0);
+        gui.slider_f32("start_icon_width", &mut self.start_icon_width, 0.0, 60.0);
     }
 }
 
