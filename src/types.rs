@@ -102,6 +102,13 @@ pub enum GuiCmd {
         rect: Rect,
         text: String,
     },
+    // The header for a foldable region
+    FoldableHeader {
+        interact: InteractInfo,
+        open: bool,
+        rect: Rect,
+        label: String,
+    },
     RadioButton {
         checked: bool,
         interact: InteractInfo,

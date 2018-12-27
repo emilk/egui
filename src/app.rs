@@ -75,10 +75,11 @@ impl GuiSettings for App {
                 }),
             }]));
 
-        gui.label("LayoutOptions:");
-        let mut layout_options = gui.layout_options;
-        layout_options.show_gui(gui);
-        gui.layout_options = layout_options;
+        gui.foldable("LayoutOptions", |gui| {
+            let mut layout_options = gui.layout_options;
+            layout_options.show_gui(gui);
+            gui.layout_options = layout_options;
+        });
     }
 }
 

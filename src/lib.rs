@@ -52,9 +52,10 @@ pub fn show_gui(raw_input_json: &str) -> String {
     use crate::app::GuiSettings;
     APP.lock().unwrap().show_gui(&mut emgui.layout);
 
-    emgui.layout.label("Style:");
     let mut style = emgui.style.clone();
-    style.show_gui(&mut emgui.layout);
+    emgui.layout.foldable("Style", |gui| {
+        style.show_gui(gui);
+    });
     emgui.style = style;
 
     let commands = emgui.paint();

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{math::*, types::*};
 
 // ----------------------------------------------------------------------------
@@ -6,6 +8,9 @@ use crate::{math::*, types::*};
 pub struct LayoutOptions {
     // Horizontal and vertical spacing between widgets
     pub item_spacing: Vec2,
+
+    /// Indent foldable regions etc by this much.
+    pub indent: f32,
 
     /// Default width of buttons, sliders etc
     pub width: f32,
@@ -24,6 +29,7 @@ impl Default for LayoutOptions {
     fn default() -> Self {
         LayoutOptions {
             item_spacing: Vec2 { x: 8.0, y: 4.0 },
+            indent: 21.0,
             width: 200.0,
             button_height: 24.0,
             checkbox_radio_height: 24.0,
@@ -34,10 +40,13 @@ impl Default for LayoutOptions {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct State {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
     pub active_id: Option<Id>,
+
+    /// Which foldable regions are open.
+    open_foldables: HashSet<Id>,
 }
 
 // ----------------------------------------------------------------------------
@@ -182,6 +191,57 @@ impl Layout {
         });
 
         self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
+
+        interact
+    }
+
+    // ------------------------------------------------------------------------
+    // Areas:
+
+    pub fn foldable<S, F>(&mut self, label: S, add_contents: F) -> InteractInfo
+    where
+        S: Into<String>,
+        F: FnOnce(&mut Layout),
+    {
+        let label: String = label.into();
+        let id = self.get_id(&label);
+
+        let rect = Rect {
+            pos: self.cursor,
+            size: Vec2 {
+                x: self.layout_options.width,
+                y: self.layout_options.button_height,
+            },
+        };
+
+        let interact = self.interactive_rect(id, &rect);
+        self.cursor.y += rect.size.y + self.layout_options.item_spacing.y;
+
+        if interact.clicked {
+            if self.state.open_foldables.contains(&id) {
+                self.state.open_foldables.remove(&id);
+            } else {
+                self.state.open_foldables.insert(id);
+            }
+        }
+        let open = self.state.open_foldables.contains(&id);
+
+        self.commands.push(GuiCmd::FoldableHeader {
+            interact,
+            rect,
+            label,
+            open,
+        });
+
+        if open {
+            // TODO: push/pop id stack
+            let old_x = self.cursor.x;
+            self.cursor.x += self.layout_options.indent;
+            add_contents(self);
+            self.cursor.x = old_x;
+
+            // TODO: paint background?
+        }
 
         interact
     }

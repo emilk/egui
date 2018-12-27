@@ -142,6 +142,76 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 out_commands.push(debug_rect(rect));
             }
         }
+        GuiCmd::FoldableHeader {
+            interact,
+            label,
+            open,
+            rect,
+        } => {
+            let fill_color = if interact.active {
+                srgba(136, 136, 136, 255)
+            } else if interact.hovered {
+                srgba(100, 100, 100, 255)
+            } else {
+                srgba(68, 68, 68, 255)
+            };
+
+            let stroke_color = if interact.active {
+                srgba(255, 255, 255, 255)
+            } else if interact.hovered {
+                srgba(255, 255, 255, 200)
+            } else {
+                srgba(255, 255, 255, 170)
+            };
+
+            out_commands.push(PaintCmd::Rect {
+                corner_radius: 3.0,
+                fill_color: Some(fill_color),
+                outline: None,
+                pos: rect.pos,
+                size: rect.size,
+            });
+
+            // TODO: paint a little triangle or arrow or something instead of this
+
+            let box_side = 16.0;
+            let box_rect = Rect::from_center_size(
+                vec2(rect.min().x + box_side * 0.5, rect.center().y),
+                vec2(box_side, box_side),
+            );
+            // Draw a minus:
+            out_commands.push(PaintCmd::Line {
+                points: vec![
+                    vec2(box_rect.min().x, box_rect.center().y),
+                    vec2(box_rect.max().x, box_rect.center().y),
+                ],
+                color: stroke_color,
+                width: style.line_width,
+            });
+            if open {
+                // Draw it as a plus:
+                out_commands.push(PaintCmd::Line {
+                    points: vec![
+                        vec2(box_rect.center().x, box_rect.min().y),
+                        vec2(box_rect.center().x, box_rect.max().y),
+                    ],
+                    color: stroke_color,
+                    width: style.line_width,
+                });
+            }
+
+            out_commands.push(PaintCmd::Text {
+                fill_color: stroke_color,
+                font_name: style.font_name.clone(),
+                font_size: style.font_size,
+                pos: Vec2 {
+                    x: box_rect.max().x + 4.0,
+                    y: rect.center().y - style.font_size / 2.0,
+                },
+                text: label,
+                text_align: TextAlign::Start,
+            });
+        }
         GuiCmd::RadioButton {
             checked,
             interact,
