@@ -21,23 +21,23 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             rect,
             text,
         } => {
-            let rect_fill_style = if interact.active {
-                "#888888ff".to_string()
+            let rect_fill_color = if interact.active {
+                srgba(136, 136, 136, 255)
             } else if interact.hovered {
-                "#666666ff".to_string()
+                srgba(100, 100, 100, 255)
             } else {
-                "#444444ff".to_string()
+                srgba(68, 68, 68, 255)
             };
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 5.0,
-                fill_style: Some(rect_fill_style),
+                fill_color: Some(rect_fill_color),
                 outline: None,
                 pos: rect.pos,
                 size: rect.size,
             });
             // TODO: clip-rect of text
             out_commands.push(PaintCmd::Text {
-                fill_style: "#ffffffbb".to_string(),
+                fill_color: srgba(255, 255, 255, 187),
                 font: "14px Palatino".to_string(),
                 pos: Vec2 {
                     x: rect.center().x,
@@ -53,20 +53,20 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             rect,
             text,
         } => {
-            let fill_style = if interact.active {
-                "#888888ff".to_string()
+            let fill_color = if interact.active {
+                srgba(136, 136, 136, 255)
             } else if interact.hovered {
-                "#666666ff".to_string()
+                srgba(100, 100, 100, 255)
             } else {
-                "#444444ff".to_string()
+                srgba(68, 68, 68, 255)
             };
 
-            let stroke_style = if interact.active {
-                "#ffffffff".to_string()
+            let stroke_color = if interact.active {
+                srgba(255, 255, 255, 255)
             } else if interact.hovered {
-                "#ffffffcc".to_string()
+                srgba(255, 255, 255, 200)
             } else {
-                "#ffffffaa".to_string()
+                srgba(255, 255, 255, 170)
             };
 
             let box_side = 16.0;
@@ -76,7 +76,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             );
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
-                fill_style: Some(fill_style),
+                fill_color: Some(fill_color),
                 outline: None,
                 pos: box_rect.pos,
                 size: box_rect.size,
@@ -90,13 +90,13 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                         vec2(smaller_rect.center().x, smaller_rect.max().y),
                         vec2(smaller_rect.max().x, smaller_rect.min().y),
                     ],
-                    style: stroke_style.clone(),
+                    color: stroke_color,
                     width: style.line_width,
                 });
             }
 
             out_commands.push(PaintCmd::Text {
-                fill_style: stroke_style.clone(),
+                fill_color: stroke_color,
                 font: "14px Palatino".to_string(),
                 pos: Vec2 {
                     x: box_rect.max().x + 4.0,
@@ -112,27 +112,27 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             rect,
             text,
         } => {
-            let fill_style = if interact.active {
-                "#888888ff".to_string()
+            let fill_color = if interact.active {
+                srgba(136, 136, 136, 255)
             } else if interact.hovered {
-                "#666666ff".to_string()
+                srgba(100, 100, 100, 255)
             } else {
-                "#444444ff".to_string()
+                srgba(68, 68, 68, 255)
             };
 
-            let stroke_style = if interact.active {
-                "#ffffffff".to_string()
+            let stroke_color = if interact.active {
+                srgba(255, 255, 255, 255)
             } else if interact.hovered {
-                "#ffffffcc".to_string()
+                srgba(255, 255, 255, 200)
             } else {
-                "#ffffffaa".to_string()
+                srgba(255, 255, 255, 170)
             };
 
             let circle_radius = 8.0;
             let circle_center = vec2(rect.min().x + circle_radius, rect.center().y);
             out_commands.push(PaintCmd::Circle {
                 center: circle_center,
-                fill_style: Some(fill_style),
+                fill_color: Some(fill_color),
                 outline: None,
                 radius: circle_radius,
             });
@@ -140,14 +140,14 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             if checked {
                 out_commands.push(PaintCmd::Circle {
                     center: circle_center,
-                    fill_style: Some("#000000ff".to_string()),
+                    fill_color: Some(srgba(0, 0, 0, 255)),
                     outline: None,
                     radius: circle_radius * 0.5,
                 });
             }
 
             out_commands.push(PaintCmd::Text {
-                fill_style: stroke_style.clone(),
+                fill_color: stroke_color,
                 font: "14px Palatino".to_string(),
                 pos: Vec2 {
                     x: rect.min().x + 2.0 * circle_radius + 4.0,
@@ -177,17 +177,17 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 vec2(16.0, 16.0),
             );
 
-            let marker_fill_style = if interact.active {
-                "#888888ff".to_string()
+            let marker_fill_color = if interact.active {
+                srgba(136, 136, 136, 255)
             } else if interact.hovered {
-                "#666666ff".to_string()
+                srgba(100, 100, 100, 255)
             } else {
-                "#444444ff".to_string()
+                srgba(68, 68, 68, 255)
             };
 
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 2.0,
-                fill_style: Some("#222222ff".to_string()),
+                fill_color: Some(srgba(34, 34, 34, 255)),
                 outline: None,
                 pos: thin_rect.pos,
                 size: thin_rect.size,
@@ -195,14 +195,14 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
 
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
-                fill_style: Some(marker_fill_style),
+                fill_color: Some(marker_fill_color),
                 outline: None,
                 pos: marker_rect.pos,
                 size: marker_rect.size,
             });
 
             out_commands.push(PaintCmd::Text {
-                fill_style: "#ffffffbb".to_string(),
+                fill_color: srgba(255, 255, 255, 187),
                 font: "14px Palatino".to_string(),
                 pos: vec2(
                     rect.min().x,
@@ -218,11 +218,11 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             text_align,
             style,
         } => {
-            let fill_style = match style {
-                TextStyle::Label => "#ffffffbb".to_string(),
+            let fill_color = match style {
+                TextStyle::Label => srgba(255, 255, 255, 187),
             };
             out_commands.push(PaintCmd::Text {
-                fill_style,
+                fill_color,
                 font: "14px Palatino".to_string(),
                 pos: pos + vec2(0.0, 7.0), // TODO: FIXME
                 text,

@@ -6,26 +6,34 @@ interface Vec2 {
 // ----------------------------------------------------------------------------
 // Paint module:
 
+/// 0-255 sRGBA
+interface Color {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
 interface Clear {
   kind: "clear";
-  fill_style: string;
+  fill_color: Color;
 }
 
 interface Line {
   kind: "line";
   points: Vec2[];
-  style: string;
+  color: Color;
   width: number;
 }
 
 interface Outline {
   width: number;
-  style: string;
+  color: Color;
 }
 
 interface Circle {
   center: Vec2;
-  fill_style: string | null;
+  fill_color: Color | null;
   kind: "circle";
   outline: Outline | null;
   radius: number;
@@ -33,7 +41,7 @@ interface Circle {
 
 interface Rect {
   corner_radius: number;
-  fill_style: string | null;
+  fill_color: Color | null;
   kind: "rect";
   outline: Outline | null;
   pos: Vec2;
@@ -42,17 +50,21 @@ interface Rect {
 
 interface Text {
   kind: "text";
-  fill_style: string | null;
+  fill_color: Color | null;
   font: string;
   pos: Vec2;
-  stroke_style: string | null;
+  stroke_color: Color | null;
   text: string;
   text_align: "start" | "center" | "end";
 }
 
 type PaintCmd = Circle | Clear | Line | Rect | Text;
 
-function paintCommand(canvas, cmd: PaintCmd) {
+function styleFromColor(color: Color): string {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255.0})`;
+}
+
+function paint_command(canvas, cmd: PaintCmd) {
   const ctx = canvas.getContext("2d");
 
   // console.log(`cmd: ${JSON.stringify(cmd)}`);
@@ -61,19 +73,19 @@ function paintCommand(canvas, cmd: PaintCmd) {
     case "circle":
       ctx.beginPath();
       ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
-      if (cmd.fill_style) {
-        ctx.fillStyle = cmd.fill_style;
+      if (cmd.fill_color) {
+        ctx.fillStyle = styleFromColor(cmd.fill_color);
         ctx.fill();
       }
       if (cmd.outline) {
         ctx.lineWidth = cmd.outline.width;
-        ctx.strokeStyle = cmd.outline.style;
+        ctx.strokeStyle = styleFromColor(cmd.outline.color);
         ctx.stroke();
       }
       return;
 
     case "clear":
-      ctx.fillStyle = cmd.fill_style;
+      ctx.fillStyle = styleFromColor(cmd.fill_color);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
 
@@ -84,7 +96,7 @@ function paintCommand(canvas, cmd: PaintCmd) {
         ctx.lineTo(point.x, point.y);
       }
       ctx.lineWidth = cmd.width;
-      ctx.strokeStyle = cmd.style;
+      ctx.strokeStyle = styleFromColor(cmd.color);
       ctx.stroke();
       return;
 
@@ -105,20 +117,20 @@ function paintCommand(canvas, cmd: PaintCmd) {
       ctx.lineTo(x, y + r);
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
-      if (cmd.fill_style) {
-        ctx.fillStyle = cmd.fill_style;
+      if (cmd.fill_color) {
+        ctx.fillStyle = styleFromColor(cmd.fill_color);
         ctx.fill();
       }
       if (cmd.outline) {
         ctx.lineWidth = cmd.outline.width;
-        ctx.strokeStyle = cmd.outline.style;
+        ctx.strokeStyle = styleFromColor(cmd.outline.color);
         ctx.stroke();
       }
       return;
 
     case "text":
       ctx.font = cmd.font;
-      ctx.fillStyle = cmd.fill_style;
+      ctx.fillStyle = styleFromColor(cmd.fill_color);
       ctx.textAlign = cmd.text_align;
       ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
       return;
@@ -184,12 +196,12 @@ function js_gui(input: RawInput): PaintCmd[] {
 function paint_gui(canvas, input: RawInput) {
   const commands = rust_gui(input);
   commands.unshift({
-    fill_style: "#00000000",
+    fill_color: {r: 0, g: 0, b: 0, a: 0},
     kind: "clear",
   });
 
   for (const cmd of commands) {
-    paintCommand(canvas, cmd);
+    paint_command(canvas, cmd);
   }
 }
 

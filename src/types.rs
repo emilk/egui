@@ -48,6 +48,21 @@ impl GuiInput {
 
 // ----------------------------------------------------------------------------
 
+/// 0-255 sRGBA
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+pub fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+    Color { r, g, b, a }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct InteractInfo {
     pub hovered: bool,
@@ -111,12 +126,10 @@ pub enum GuiCmd {
 
 // ----------------------------------------------------------------------------
 
-pub type Style = String;
-
 #[derive(Clone, Debug, Serialize)]
 pub struct Outline {
     pub width: f32,
-    pub style: Style,
+    pub color: Color,
 }
 
 #[derive(Clone, Debug, Serialize)] // TODO: copy
@@ -124,27 +137,27 @@ pub struct Outline {
 pub enum PaintCmd {
     Circle {
         center: Vec2,
-        fill_style: Option<Style>,
+        fill_color: Option<Color>,
         outline: Option<Outline>,
         radius: f32,
     },
     Clear {
-        fill_style: Style,
+        fill_color: Color,
     },
     Line {
         points: Vec<Vec2>,
-        style: Style,
+        color: Color,
         width: f32,
     },
     Rect {
         corner_radius: f32,
-        fill_style: Option<Style>,
+        fill_color: Option<Color>,
         outline: Option<Outline>,
         pos: Vec2,
         size: Vec2,
     },
     Text {
-        fill_style: Style,
+        fill_color: Color,
         font: String,
         pos: Vec2,
         text: String,

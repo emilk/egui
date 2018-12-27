@@ -66,12 +66,12 @@ impl GuiSettings for App {
         gui.commands
             .push(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
                 corner_radius: self.corner_radius,
-                fill_style: Some("#888888ff".into()),
+                fill_color: Some(srgba(136, 136, 136, 255)),
                 pos: vec2(300.0, 100.0),
                 size: vec2(self.width, self.height),
                 outline: Some(Outline {
                     width: self.stroke_width,
-                    style: "#ffffffff".into(),
+                    color: srgba(255, 255, 255, 255),
                 }),
             }]));
 

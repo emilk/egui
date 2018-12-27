@@ -1,22 +1,25 @@
-function paintCommand(canvas, cmd) {
+function styleFromColor(color) {
+    return "rgba(" + color.r + ", " + color.g + ", " + color.b + ", " + color.a / 255.0 + ")";
+}
+function paint_command(canvas, cmd) {
     var ctx = canvas.getContext("2d");
     // console.log(`cmd: ${JSON.stringify(cmd)}`);
     switch (cmd.kind) {
         case "circle":
             ctx.beginPath();
             ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
-            if (cmd.fill_style) {
-                ctx.fillStyle = cmd.fill_style;
+            if (cmd.fill_color) {
+                ctx.fillStyle = styleFromColor(cmd.fill_color);
                 ctx.fill();
             }
             if (cmd.outline) {
                 ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = cmd.outline.style;
+                ctx.strokeStyle = styleFromColor(cmd.outline.color);
                 ctx.stroke();
             }
             return;
         case "clear":
-            ctx.fillStyle = cmd.fill_style;
+            ctx.fillStyle = styleFromColor(cmd.fill_color);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             return;
         case "line":
@@ -27,7 +30,7 @@ function paintCommand(canvas, cmd) {
                 ctx.lineTo(point.x, point.y);
             }
             ctx.lineWidth = cmd.width;
-            ctx.strokeStyle = cmd.style;
+            ctx.strokeStyle = styleFromColor(cmd.color);
             ctx.stroke();
             return;
         case "rect":
@@ -47,19 +50,19 @@ function paintCommand(canvas, cmd) {
             ctx.lineTo(x, y + r);
             ctx.quadraticCurveTo(x, y, x + r, y);
             ctx.closePath();
-            if (cmd.fill_style) {
-                ctx.fillStyle = cmd.fill_style;
+            if (cmd.fill_color) {
+                ctx.fillStyle = styleFromColor(cmd.fill_color);
                 ctx.fill();
             }
             if (cmd.outline) {
                 ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = cmd.outline.style;
+                ctx.strokeStyle = styleFromColor(cmd.outline.color);
                 ctx.stroke();
             }
             return;
         case "text":
             ctx.font = cmd.font;
-            ctx.fillStyle = cmd.fill_style;
+            ctx.fillStyle = styleFromColor(cmd.fill_color);
             ctx.textAlign = cmd.text_align;
             ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
             return;
@@ -96,12 +99,12 @@ function js_gui(input) {
 function paint_gui(canvas, input) {
     var commands = rust_gui(input);
     commands.unshift({
-        fill_style: "#00000000",
+        fill_color: { r: 0, g: 0, b: 0, a: 0 },
         kind: "clear"
     });
     for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
         var cmd = commands_1[_i];
-        paintCommand(canvas, cmd);
+        paint_command(canvas, cmd);
     }
 }
 // ----------------------------------------------------------------------------
