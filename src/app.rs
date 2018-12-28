@@ -39,24 +39,17 @@ impl GuiSettings for App {
 
         gui.checkbox("checkbox", &mut self.checked);
 
-        if gui
-            .radio("First alternative", self.selected_alternative == 0)
-            .clicked
-        {
-            self.selected_alternative = 0;
-        }
-        if gui
-            .radio("Second alternative", self.selected_alternative == 1)
-            .clicked
-        {
-            self.selected_alternative = 1;
-        }
-        if gui
-            .radio("Final alternative", self.selected_alternative == 2)
-            .clicked
-        {
-            self.selected_alternative = 2;
-        }
+        gui.horizontal(|gui| {
+            if gui.radio("First", self.selected_alternative == 0).clicked {
+                self.selected_alternative = 0;
+            }
+            if gui.radio("Second", self.selected_alternative == 1).clicked {
+                self.selected_alternative = 1;
+            }
+            if gui.radio("Final", self.selected_alternative == 2).clicked {
+                self.selected_alternative = 2;
+            }
+        });
 
         if gui.button("Click me").clicked {
             self.count += 1;

@@ -1,4 +1,4 @@
-use crate::{layout, math::*, style, types::*};
+use crate::{layout, style, types::*};
 
 /// Encapsulates input, layout and painting for ease of use.
 #[derive(Clone, Debug, Default)]
@@ -12,14 +12,7 @@ impl Emgui {
     pub fn new_frame(&mut self, new_input: RawInput) {
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;
-
-        // TODO: this should be nicer
-        self.layout.commands.clear();
-        self.layout.cursor = vec2(0.0, 0.0);
-        self.layout.input = gui_input;
-        if !gui_input.mouse_down {
-            self.layout.memory.active_id = None;
-        }
+        self.layout.new_frae(gui_input);
     }
 
     pub fn paint(&mut self) -> Vec<PaintCmd> {

@@ -33,7 +33,7 @@ impl Default for LayoutOptions {
             char_size: vec2(7.2, 14.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
-            width: 200.0,
+            width: 250.0,
             button_padding: vec2(5.0, 3.0),
             start_icon_width: 20.0,
         }
@@ -43,9 +43,9 @@ impl Default for LayoutOptions {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default)]
-pub struct Memory {
+struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
-    pub active_id: Option<Id>,
+    active_id: Option<Id>,
 
     /// Which foldable regions are open.
     open_foldables: HashSet<Id>,
@@ -62,16 +62,61 @@ type TextFragments = Vec<TextFragment>;
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Direction {
+    Horizontal,
+    Vertical,
+}
+
+impl Default for Direction {
+    fn default() -> Direction {
+        Direction::Vertical
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// TODO: give this a better name
+#[derive(Clone, Debug, Default)]
+struct Layouter {
+    /// Doesn't change.
+    dir: Direction,
+
+    /// Changes only along self.dir
+    cursor: Vec2,
+
+    /// We keep track of our max-size along the orthogonal to self.dir
+    size: Vec2,
+}
+
+impl Layouter {
+    /// Reserve this much space and move the cursor.
+    fn reserve_space(&mut self, size: Vec2) {
+        if self.dir == Direction::Horizontal {
+            self.cursor.x += size.x;
+            self.size.x += size.x;
+            self.size.y = self.size.y.max(size.y);
+        } else {
+            self.cursor.y += size.y;
+            self.size.y += size.y;
+            self.size.x = self.size.x.max(size.x);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 type Id = u64;
 
+/// TODO: non-pub
 #[derive(Clone, Debug, Default)]
 pub struct Layout {
-    pub options: LayoutOptions,
-    pub input: GuiInput,
-    pub cursor: Vec2,
+    pub options: LayoutOptions, // TODO: remove pub
+    input: GuiInput,
+    memory: Memory,
     id: Id,
-    pub memory: Memory,
-    pub commands: Vec<GuiCmd>,
+    layouter: Layouter,
+    pub commands: Vec<GuiCmd>, // TODO: remove pub
 }
 
 impl Layout {
@@ -83,15 +128,25 @@ impl Layout {
         &self.commands
     }
 
+    // TODO: move
+    pub fn new_frae(&mut self, gui_input: GuiInput) {
+        self.commands.clear();
+        self.layouter = Default::default();
+        self.input = gui_input;
+        if !gui_input.mouse_down {
+            self.memory.active_id = None;
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     pub fn button<S: Into<String>>(&mut self, text: S) -> InteractInfo {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.cursor + self.options.button_padding;
+        let text_cursor = self.layouter.cursor + self.options.button_padding;
         let (rect, interact) =
-            self.reserve_space(id, text_size + 2.0 * self.options.button_padding);
+            self.reserve_interactive_space(id, text_size + 2.0 * self.options.button_padding);
         self.commands.push(GuiCmd::Button { interact, rect });
         self.add_text(text_cursor, text);
         interact
@@ -101,9 +156,10 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor =
-            self.cursor + self.options.button_padding + vec2(self.options.start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_space(
+        let text_cursor = self.layouter.cursor
+            + self.options.button_padding
+            + vec2(self.options.start_icon_width, 0.0);
+        let (rect, interact) = self.reserve_interactive_space(
             id,
             self.options.button_padding
                 + vec2(self.options.start_icon_width, 0.0)
@@ -125,9 +181,8 @@ impl Layout {
     pub fn label<S: Into<String>>(&mut self, text: S) {
         let text: String = text.into();
         let (text, text_size) = self.layout_text(&text);
-        self.add_text(self.cursor, text);
-        self.cursor.y += text_size.y;
-        self.cursor.y += self.options.item_spacing.y;
+        self.add_text(self.layouter.cursor, text);
+        self.reserve_space_default_spacing(text_size);
     }
 
     /// A radio button
@@ -135,9 +190,10 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor =
-            self.cursor + self.options.button_padding + vec2(self.options.start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_space(
+        let text_cursor = self.layouter.cursor
+            + self.options.button_padding
+            + vec2(self.options.start_icon_width, 0.0);
+        let (rect, interact) = self.reserve_interactive_space(
             id,
             self.options.button_padding
                 + vec2(self.options.start_icon_width, 0.0)
@@ -164,9 +220,9 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text, value));
-        self.add_text(self.cursor, text);
-        self.cursor.y += text_size.y;
-        let (slider_rect, interact) = self.reserve_space(
+        self.add_text(self.layouter.cursor, text);
+        self.layouter.reserve_space(text_size);
+        let (slider_rect, interact) = self.reserve_interactive_space(
             id,
             Vec2 {
                 x: self.options.width,
@@ -203,11 +259,15 @@ impl Layout {
         S: Into<String>,
         F: FnOnce(&mut Layout),
     {
+        assert!(
+            self.layouter.dir == Direction::Vertical,
+            "Horizontal foldable is unimplemented"
+        );
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.cursor + self.options.button_padding;
-        let (rect, interact) = self.reserve_space(
+        let text_cursor = self.layouter.cursor + self.options.button_padding;
+        let (rect, interact) = self.reserve_interactive_space(
             id,
             vec2(
                 self.options.width,
@@ -234,29 +294,46 @@ impl Layout {
         if open {
             let old_id = self.id;
             self.id = id;
-            let old_x = self.cursor.x;
-            self.cursor.x += self.options.indent;
+            let old_x = self.layouter.cursor.x;
+            self.layouter.cursor.x += self.options.indent;
             add_contents(self);
-            self.cursor.x = old_x;
+            self.layouter.cursor.x = old_x;
             self.id = old_id;
         }
 
         interact
     }
 
-    // ------------------------------------------------------------------------
-
-    fn reserve_space(&mut self, id: Id, size: Vec2) -> (Rect, InteractInfo) {
-        let rect = Rect {
-            pos: self.cursor,
-            size,
+    /// Start a region with horizontal layout
+    pub fn horizontal<F>(&mut self, add_contents: F)
+    where
+        F: FnOnce(&mut Layout),
+    {
+        let horizontal_layouter = Layouter {
+            dir: Direction::Horizontal,
+            cursor: self.layouter.cursor,
+            ..Default::default()
         };
-        let interact = self.interactive_rect(id, &rect);
-        self.cursor.y += rect.size.y + self.options.item_spacing.y;
-        (rect, interact)
+        let old_layouter = std::mem::replace(&mut self.layouter, horizontal_layouter);
+        add_contents(self);
+        let horizontal_layouter = std::mem::replace(&mut self.layouter, old_layouter);
+        self.layouter.reserve_space(horizontal_layouter.size);
     }
 
-    fn interactive_rect(&mut self, id: Id, rect: &Rect) -> InteractInfo {
+    // ------------------------------------------------------------------------
+
+    fn reserve_space_default_spacing(&mut self, size: Vec2) -> Rect {
+        let rect = Rect {
+            pos: self.layouter.cursor,
+            size,
+        };
+        self.layouter
+            .reserve_space(size + self.options.item_spacing);
+        rect
+    }
+
+    fn reserve_interactive_space(&mut self, id: Id, size: Vec2) -> (Rect, InteractInfo) {
+        let rect = self.reserve_space_default_spacing(size);
         let hovered = rect.contains(self.input.mouse_pos);
         let clicked = hovered && self.input.mouse_clicked;
         if clicked {
@@ -264,11 +341,12 @@ impl Layout {
         }
         let active = self.memory.active_id == Some(id);
 
-        InteractInfo {
+        let interact = InteractInfo {
             hovered,
             clicked,
             active,
-        }
+        };
+        (rect, interact)
     }
 
     fn get_id(&self, id_str: &str) -> Id {
