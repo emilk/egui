@@ -30,7 +30,7 @@ impl Default for Style {
 impl Style {
     /// e.g. the background of the slider
     fn background_fill_color(&self) -> Color {
-        srgba(34, 34, 34, 255)
+        srgba(34, 34, 34, 200)
     }
 
     fn text_color(&self) -> Color {

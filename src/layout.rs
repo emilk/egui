@@ -46,6 +46,43 @@ impl Default for LayoutOptions {
 
 // ----------------------------------------------------------------------------
 
+// TODO: rename
+pub struct GuiResponse<'a> {
+    /// The mouse is hovering above this
+    pub hovered: bool,
+
+    /// The mouse went got pressed on this thing this frame
+    pub clicked: bool,
+
+    /// The mouse is interacting with this thing (e.g. dragging it)
+    pub active: bool,
+
+    layout: &'a mut Layout,
+}
+
+impl<'a> GuiResponse<'a> {
+    /// Show some stuff if the item was hovered
+    pub fn tooltip<F>(self, add_contents: F) -> Self
+    where
+        F: FnOnce(&mut Layout),
+    {
+        if self.hovered {
+            let window_pos = self.layout.input.mouse_pos + vec2(16.0, 16.0);
+            self.layout.show_popup(window_pos, add_contents);
+        }
+        self
+    }
+
+    /// Show this text if the item was hovered
+    pub fn tooltip_text<S: Into<String>>(self, text: S) -> Self {
+        self.tooltip(|popup| {
+            popup.label(text);
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Debug, Default)]
 struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
@@ -153,31 +190,31 @@ impl Layout {
 
     // ------------------------------------------------------------------------
 
-    pub fn button<S: Into<String>>(&mut self, text: S) -> InteractInfo {
+    pub fn button<S: Into<String>>(&mut self, text: S) -> GuiResponse {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.layouter.cursor + self.options.button_padding;
         let (rect, interact) =
-            self.reserve_interactive_space(id, text_size + 2.0 * self.options.button_padding);
+            self.reserve_space(text_size + 2.0 * self.options.button_padding, Some(id));
         self.graphics.push(GuiCmd::Button { interact, rect });
         self.add_text(text_cursor, text);
-        interact
+        self.response(interact)
     }
 
-    pub fn checkbox<S: Into<String>>(&mut self, text: S, checked: &mut bool) -> InteractInfo {
+    pub fn checkbox<S: Into<String>>(&mut self, text: S, checked: &mut bool) -> GuiResponse {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.layouter.cursor
             + self.options.button_padding
             + vec2(self.options.start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_interactive_space(
-            id,
+        let (rect, interact) = self.reserve_space(
             self.options.button_padding
                 + vec2(self.options.start_icon_width, 0.0)
                 + text_size
                 + self.options.button_padding,
+            Some(id),
         );
         if interact.clicked {
             *checked = !*checked;
@@ -188,30 +225,31 @@ impl Layout {
             rect,
         });
         self.add_text(text_cursor, text);
-        interact
+        self.response(interact)
     }
 
-    pub fn label<S: Into<String>>(&mut self, text: S) {
+    pub fn label<S: Into<String>>(&mut self, text: S) -> GuiResponse {
         let text: String = text.into();
         let (text, text_size) = self.layout_text(&text);
         self.add_text(self.layouter.cursor, text);
-        self.reserve_space_default_spacing(text_size);
+        let (_, interact) = self.reserve_space(text_size, None);
+        self.response(interact)
     }
 
     /// A radio button
-    pub fn radio<S: Into<String>>(&mut self, text: S, checked: bool) -> InteractInfo {
+    pub fn radio<S: Into<String>>(&mut self, text: S, checked: bool) -> GuiResponse {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.layouter.cursor
             + self.options.button_padding
             + vec2(self.options.start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_interactive_space(
-            id,
+        let (rect, interact) = self.reserve_space(
             self.options.button_padding
                 + vec2(self.options.start_icon_width, 0.0)
                 + text_size
                 + self.options.button_padding,
+            Some(id),
         );
         self.graphics.push(GuiCmd::RadioButton {
             checked,
@@ -219,7 +257,7 @@ impl Layout {
             rect,
         });
         self.add_text(text_cursor, text);
-        interact
+        self.response(interact)
     }
 
     pub fn slider_f32<S: Into<String>>(
@@ -228,19 +266,19 @@ impl Layout {
         value: &mut f32,
         min: f32,
         max: f32,
-    ) -> InteractInfo {
+    ) -> GuiResponse {
         debug_assert!(min <= max);
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text, value));
         self.add_text(self.layouter.cursor, text);
         self.layouter.reserve_space(text_size);
-        let (slider_rect, interact) = self.reserve_interactive_space(
-            id,
+        let (slider_rect, interact) = self.reserve_space(
             Vec2 {
                 x: self.options.width,
                 y: self.options.char_size.y,
             },
+            Some(id),
         );
 
         if interact.active {
@@ -261,13 +299,13 @@ impl Layout {
             value: *value,
         });
 
-        interact
+        self.response(interact)
     }
 
     // ------------------------------------------------------------------------
     // Areas:
 
-    pub fn foldable<S, F>(&mut self, text: S, add_contents: F) -> InteractInfo
+    pub fn foldable<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
     where
         S: Into<String>,
         F: FnOnce(&mut Layout),
@@ -280,12 +318,12 @@ impl Layout {
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.layouter.cursor + self.options.button_padding;
-        let (rect, interact) = self.reserve_interactive_space(
-            id,
+        let (rect, interact) = self.reserve_space(
             vec2(
                 self.options.width,
                 text_size.y + 2.0 * self.options.button_padding.y,
             ),
+            Some(id),
         );
 
         if interact.clicked {
@@ -314,7 +352,7 @@ impl Layout {
             self.id = old_id;
         }
 
-        interact
+        self.response(interact)
     }
 
     /// Start a region with horizontal layout
@@ -341,10 +379,11 @@ impl Layout {
 
     // ------------------------------------------------------------------------
 
-    /// Show some text in a window under mouse position.
-    pub fn tooltip_text<S: Into<String>>(&mut self, text: S) {
-        let window_pos = self.input.mouse_pos + vec2(16.0, 16.0);
-
+    /// Show a pop-over window
+    pub fn show_popup<F>(&mut self, window_pos: Vec2, add_contents: F)
+    where
+        F: FnOnce(&mut Layout),
+    {
         // TODO: less copying
         let mut popup_layout = Layout {
             options: self.options,
@@ -357,7 +396,7 @@ impl Layout {
         };
         popup_layout.layouter.cursor = window_pos + self.options.window_padding;
 
-        popup_layout.label(text);
+        add_contents(&mut popup_layout);
 
         // TODO: handle the last item_spacing in a nicer way
         let inner_size = popup_layout.layouter.size - self.options.item_spacing;
@@ -371,24 +410,23 @@ impl Layout {
 
     // ------------------------------------------------------------------------
 
-    fn reserve_space_default_spacing(&mut self, size: Vec2) -> Rect {
+    fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> (Rect, InteractInfo) {
         let rect = Rect {
             pos: self.layouter.cursor,
             size,
         };
         self.layouter
             .reserve_space(size + self.options.item_spacing);
-        rect
-    }
-
-    fn reserve_interactive_space(&mut self, id: Id, size: Vec2) -> (Rect, InteractInfo) {
-        let rect = self.reserve_space_default_spacing(size);
         let hovered = rect.contains(self.input.mouse_pos);
         let clicked = hovered && self.input.mouse_clicked;
-        if clicked {
-            self.memory.active_id = Some(id);
-        }
-        let active = self.memory.active_id == Some(id);
+        let active = if interaction_id.is_some() {
+            if clicked {
+                self.memory.active_id = interaction_id;
+            }
+            self.memory.active_id == interaction_id
+        } else {
+            false
+        };
 
         let interact = InteractInfo {
             hovered,
@@ -434,6 +472,15 @@ impl Layout {
                 style: TextStyle::Label,
                 text: fragment.text,
             });
+        }
+    }
+
+    fn response(&mut self, interact: InteractInfo) -> GuiResponse {
+        GuiResponse {
+            hovered: interact.hovered,
+            clicked: interact.clicked,
+            active: interact.active,
+            layout: self,
         }
     }
 }

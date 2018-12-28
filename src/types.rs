@@ -65,6 +65,7 @@ pub fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct InteractInfo {
+    /// The mouse is hovering above this
     pub hovered: bool,
 
     /// The mouse went got pressed on this thing this frame

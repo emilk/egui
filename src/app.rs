@@ -37,12 +37,11 @@ impl GuiSettings for App {
             gui.input().screen_size.y,
         ));
 
-        // TODO: add tooltip text with: gui.button("click me").tooltip_text("tooltip")
-        if gui.checkbox("checkbox", &mut self.checked).hovered {
-            gui.tooltip_text(
-                "This is a multiline tooltip that explains the checkbox you are hovering.\nThis is the second line.\nThis is the third.",
-            );
-        }
+        gui.label("Hover me").tooltip_text(
+            "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+        );
+
+        gui.checkbox("checkbox", &mut self.checked);
 
         gui.horizontal(|gui| {
             if gui.radio("First", self.selected_alternative == 0).clicked {
@@ -56,7 +55,11 @@ impl GuiSettings for App {
             }
         });
 
-        if gui.button("Click me").clicked {
+        if gui
+            .button("Click me")
+            .tooltip_text("This will just increase a counter.")
+            .clicked
+        {
             self.count += 1;
         }
 
