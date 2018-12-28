@@ -37,7 +37,12 @@ impl GuiSettings for App {
             gui.input().screen_size.y,
         ));
 
-        gui.checkbox("checkbox", &mut self.checked);
+        // TODO: add tooltip text with: gui.button("click me").tooltip_text("tooltip")
+        if gui.checkbox("checkbox", &mut self.checked).hovered {
+            gui.tooltip_text(
+                "This is a multiline tooltip that explains the checkbox you are hovering.\nThis is the second line.\nThis is the third.",
+            );
+        }
 
         gui.horizontal(|gui| {
             if gui.radio("First", self.selected_alternative == 0).clicked {
@@ -64,22 +69,21 @@ impl GuiSettings for App {
             gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
         });
 
-        gui.commands
-            .push(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
-                corner_radius: self.corner_radius,
-                fill_color: Some(srgba(136, 136, 136, 255)),
-                pos: vec2(300.0, 100.0),
-                size: vec2(self.width, self.height),
-                outline: Some(Outline {
-                    width: self.stroke_width,
-                    color: srgba(255, 255, 255, 255),
-                }),
-            }]));
+        gui.add_paint_command(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
+            corner_radius: self.corner_radius,
+            fill_color: Some(srgba(136, 136, 136, 255)),
+            pos: vec2(300.0, 100.0),
+            size: vec2(self.width, self.height),
+            outline: Some(Outline {
+                width: self.stroke_width,
+                color: srgba(255, 255, 255, 255),
+            }),
+        }]));
 
         gui.foldable("LayoutOptions", |gui| {
-            let mut options = gui.options;
+            let mut options = gui.options().clone();
             options.show_gui(gui);
-            gui.options = options;
+            gui.set_options(options);
         });
     }
 }
@@ -93,6 +97,8 @@ impl GuiSettings for crate::layout::LayoutOptions {
         gui.slider_f32("char_size.y", &mut self.char_size.y, 0.0, 20.0);
         gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
         gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
+        gui.slider_f32("window_padding.x", &mut self.window_padding.x, 0.0, 10.0);
+        gui.slider_f32("window_padding.y", &mut self.window_padding.y, 0.0, 10.0);
         gui.slider_f32("indent", &mut self.indent, 0.0, 100.0);
         gui.slider_f32("width", &mut self.width, 0.0, 1000.0);
         gui.slider_f32("button_padding.x", &mut self.button_padding.x, 0.0, 20.0);

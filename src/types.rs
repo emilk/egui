@@ -119,6 +119,10 @@ pub enum GuiCmd {
         style: TextStyle,
         text: String,
     },
+    /// Background of e.g. a popup
+    Window {
+        rect: Rect,
+    },
 }
 
 // ----------------------------------------------------------------------------

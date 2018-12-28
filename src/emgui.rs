@@ -12,7 +12,7 @@ impl Emgui {
     pub fn new_frame(&mut self, new_input: RawInput) {
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;
-        self.layout.new_frae(gui_input);
+        self.layout.new_frame(gui_input);
     }
 
     pub fn paint(&mut self) -> Vec<PaintCmd> {

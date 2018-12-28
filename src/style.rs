@@ -255,10 +255,28 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 text,
             });
         }
+        GuiCmd::Window { rect } => {
+            out_commands.push(PaintCmd::Rect {
+                corner_radius: 5.0,
+                fill_color: Some(style.background_fill_color()),
+                outline: Some(Outline {
+                    color: srgba(255, 255, 255, 255), // TODO
+                    width: 1.0,
+                }),
+                pos: rect.pos,
+                size: rect.size,
+            });
+        }
     }
 }
 
-pub fn into_paint_commands(gui_commands: &[GuiCmd], style: &Style) -> Vec<PaintCmd> {
+pub fn into_paint_commands<'a, GuiCmdIterator>(
+    gui_commands: GuiCmdIterator,
+    style: &Style,
+) -> Vec<PaintCmd>
+where
+    GuiCmdIterator: Iterator<Item = &'a GuiCmd>,
+{
     let mut paint_commands = vec![];
     for gui_cmd in gui_commands {
         translate_cmd(&mut paint_commands, style, gui_cmd.clone())
