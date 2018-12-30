@@ -1,2 +1,3 @@
 *.sublime*
+/docs/*.d.ts
 /target

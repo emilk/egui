@@ -1,4 +1,4 @@
-use crate::{layout::Layout, math::*, types::*};
+use emgui::{math::*, types::*, Layout};
 
 pub trait GuiSettings {
     fn show_gui(&mut self, gui: &mut Layout);
@@ -91,7 +91,7 @@ impl GuiSettings for App {
     }
 }
 
-impl GuiSettings for crate::layout::LayoutOptions {
+impl GuiSettings for emgui::LayoutOptions {
     fn show_gui(&mut self, gui: &mut Layout) {
         if gui.button("Reset LayoutOptions").clicked {
             *self = Default::default();
@@ -110,7 +110,7 @@ impl GuiSettings for crate::layout::LayoutOptions {
     }
 }
 
-impl GuiSettings for crate::style::Style {
+impl GuiSettings for emgui::Style {
     fn show_gui(&mut self, gui: &mut Layout) {
         if gui.button("Reset Style").clicked {
             *self = Default::default();

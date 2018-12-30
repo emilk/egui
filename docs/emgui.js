@@ -13,12 +13,15 @@
         return cachegetUint8Memory;
     }
 
+    let WASM_VECTOR_LEN = 0;
+
     function passStringToWasm(arg) {
 
         const buf = cachedTextEncoder.encode(arg);
         const ptr = wasm.__wbindgen_malloc(buf.length);
         getUint8Memory().set(buf, ptr);
-        return [ptr, buf.length];
+        WASM_VECTOR_LEN = buf.length;
+        return ptr;
     }
 
     let cachedTextDecoder = new TextDecoder('utf-8');
@@ -47,7 +50,8 @@
     * @returns {string}
     */
     __exports.show_gui = function(arg0) {
-        const [ptr0, len0] = passStringToWasm(arg0);
+        const ptr0 = passStringToWasm(arg0);
+        const len0 = WASM_VECTOR_LEN;
         const retptr = globalArgumentPtr();
         try {
             wasm.show_gui(retptr, ptr0, len0);
@@ -77,7 +81,7 @@
         if (path_or_module instanceof WebAssembly.Module) {
             instantiation = WebAssembly.instantiate(path_or_module, imports)
             .then(instance => {
-            return { instance, module: module_or_path }
+            return { instance, module: path_or_module }
         });
     } else {
         const data = fetch(path_or_module);
@@ -91,7 +95,7 @@
     }
     return instantiation.then(({instance}) => {
         wasm = init.wasm = instance.exports;
-        return;
+
     });
 };
 self.wasm_bindgen = Object.assign(init, __exports);

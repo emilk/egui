@@ -1,40 +1,19 @@
 #![deny(warnings)]
 
 extern crate lazy_static;
-extern crate serde;
 extern crate serde_json;
 extern crate wasm_bindgen;
-extern crate web_sys;
+// extern crate web_sys;
 
-#[macro_use] // TODO: get rid of this
-extern crate serde_derive;
+extern crate emgui;
 
 use std::sync::Mutex;
 
+use emgui::{Emgui, RawInput};
+
 use wasm_bindgen::prelude::*;
 
-use crate::types::*;
-
 pub mod app;
-pub mod emgui;
-pub mod layout;
-pub mod math;
-pub mod style;
-pub mod types;
-
-/*
-// Fast compilation, slow code:
-fn foo(x: &dyn Trait);
-
-
-// Fast code, slow compilation:
-fn foo<T: Trait>(x: &dyn T);
-
-
-// Compiles quickly in debug, fast in release:
-#[dynimp(Trait)]
-fn foo(x: &Trait);
-*/
 
 #[wasm_bindgen]
 pub fn show_gui(raw_input_json: &str) -> String {
@@ -43,7 +22,7 @@ pub fn show_gui(raw_input_json: &str) -> String {
 
     lazy_static::lazy_static! {
         static ref APP: Mutex<app::App> = Default::default();
-        static ref EMGUI: Mutex<crate::emgui::Emgui> = Default::default();
+        static ref EMGUI: Mutex<Emgui> = Default::default();
     }
 
     let mut emgui = EMGUI.lock().unwrap();
