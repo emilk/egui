@@ -1,10 +1,9 @@
 {
     "defaultSeverity": "error",
-    "extends": [
-        "tslint:recommended"
-    ],
+    "extends": ["tslint:recommended"],
     "jsRules": {},
     "rules": {
+        "arrow-parens": [true, "ban-single-arg-parens"],
         "interface-name": [true, "never-prefix"],
         "max-classes-per-file": [false],
         "no-bitwise": false,

@@ -24,3 +24,7 @@ Everything else is written in Rust, compiled to WASM.
 
 Make an "any" editor. Store text files, make a VERY SIMPLE text editor, in the web.
 Supports MARKDEEP. A place for you ideas. Stored on your computer (local storage).
+
+# Credits / Licenses
+
+ProggyClean.ttf, Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. http://www.proggyfonts.net/

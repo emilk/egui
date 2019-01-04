@@ -1,4 +1,6 @@
-function styleFromColor(color) {
+// ----------------------------------------------------------------------------
+// Canvas painting:
+function style_from_color(color) {
     return "rgba(" + color.r + ", " + color.g + ", " + color.b + ", " + color.a / 255.0 + ")";
 }
 function paint_command(canvas, cmd) {
@@ -9,17 +11,17 @@ function paint_command(canvas, cmd) {
             ctx.beginPath();
             ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
             if (cmd.fill_color) {
-                ctx.fillStyle = styleFromColor(cmd.fill_color);
+                ctx.fillStyle = style_from_color(cmd.fill_color);
                 ctx.fill();
             }
             if (cmd.outline) {
                 ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = styleFromColor(cmd.outline.color);
+                ctx.strokeStyle = style_from_color(cmd.outline.color);
                 ctx.stroke();
             }
             return;
         case "clear":
-            ctx.fillStyle = styleFromColor(cmd.fill_color);
+            ctx.fillStyle = style_from_color(cmd.fill_color);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             return;
         case "line":
@@ -30,7 +32,7 @@ function paint_command(canvas, cmd) {
                 ctx.lineTo(point.x, point.y);
             }
             ctx.lineWidth = cmd.width;
-            ctx.strokeStyle = styleFromColor(cmd.color);
+            ctx.strokeStyle = style_from_color(cmd.color);
             ctx.stroke();
             return;
         case "rect":
@@ -51,17 +53,17 @@ function paint_command(canvas, cmd) {
             ctx.quadraticCurveTo(x, y, x + r, y);
             ctx.closePath();
             if (cmd.fill_color) {
-                ctx.fillStyle = styleFromColor(cmd.fill_color);
+                ctx.fillStyle = style_from_color(cmd.fill_color);
                 ctx.fill();
             }
             if (cmd.outline) {
                 ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = styleFromColor(cmd.outline.color);
+                ctx.strokeStyle = style_from_color(cmd.outline.color);
                 ctx.stroke();
             }
             return;
         case "text":
-            ctx.fillStyle = styleFromColor(cmd.fill_color);
+            ctx.fillStyle = style_from_color(cmd.fill_color);
             ctx.font = cmd.font_size + "px " + cmd.font_name;
             ctx.textBaseline = "middle";
             ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
@@ -75,7 +77,7 @@ function wasm_loaded() {
 }
 // here we tell bindgen the path to the wasm file so it can start
 // initialization and return to us a promise when it's done
-wasm_bindgen("./emgui_bg.wasm")
+wasm_bindgen("./emgui_wasm_bg.wasm")
     .then(wasm_loaded)["catch"](console.error);
 function rust_gui(input) {
     return JSON.parse(wasm_bindgen.show_gui(JSON.stringify(input)));
@@ -96,27 +98,45 @@ function js_gui(input) {
     });
     return commands;
 }
+var WEB_GL = true;
+var g_webgl_painter = null;
 function paint_gui(canvas, input) {
-    var commands = rust_gui(input);
-    commands.unshift({
-        fill_color: { r: 0, g: 0, b: 0, a: 0 },
-        kind: "clear"
-    });
-    for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
-        var cmd = commands_1[_i];
-        paint_command(canvas, cmd);
+    if (WEB_GL) {
+        if (g_webgl_painter === null) {
+            g_webgl_painter = wasm_bindgen.new_webgl_painter("canvas");
+        }
+        wasm_bindgen.paint_webgl(g_webgl_painter, JSON.stringify(input));
+    }
+    else {
+        var commands = rust_gui(input);
+        for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
+            var cmd = commands_1[_i];
+            var commands_2 = rust_gui(input);
+            commands_2.unshift({
+                fill_color: { r: 0, g: 0, b: 0, a: 0 },
+                kind: "clear"
+            });
+            paint_command(canvas, cmd);
+        }
     }
 }
 // ----------------------------------------------------------------------------
 var g_mouse_pos = { x: -1000.0, y: -1000.0 };
 var g_mouse_down = false;
+function auto_resize_canvas(canvas) {
+    if (WEB_GL) {
+        canvas.setAttribute("width", window.innerWidth);
+        canvas.setAttribute("height", window.innerHeight);
+    }
+    else {
+        var pixels_per_point = window.devicePixelRatio || 1;
+        var ctx = canvas.getContext("2d");
+        ctx.scale(pixels_per_point, pixels_per_point);
+        canvas.setAttribute("width", window.innerWidth * pixels_per_point);
+        canvas.setAttribute("height", window.innerHeight * pixels_per_point);
+    }
+}
 function get_input(canvas) {
-    var pixels_per_point = window.devicePixelRatio || 1;
-    var ctx = canvas.getContext("2d");
-    ctx.scale(pixels_per_point, pixels_per_point);
-    // Resize based on screen size:
-    canvas.setAttribute("width", window.innerWidth * pixels_per_point);
-    canvas.setAttribute("height", window.innerHeight * pixels_per_point);
     return {
         mouse_down: g_mouse_down,
         mouse_pos: g_mouse_pos,
@@ -133,6 +153,7 @@ function mouse_pos_from_event(canvas, event) {
 function initialize() {
     console.log("window.devicePixelRatio: " + window.devicePixelRatio);
     var canvas = document.getElementById("canvas");
+    auto_resize_canvas(canvas);
     var repaint = function () { return paint_gui(canvas, get_input(canvas)); };
     canvas.addEventListener("mousemove", function (event) {
         g_mouse_pos = mouse_pos_from_event(canvas, event);

@@ -8,10 +8,24 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+js-sys = "0.3"
 lazy_static = "1"
 serde = "1"
 serde_json = "1"
 wasm-bindgen = "0.2"
-# web-sys = { version = "0.3.5", features = ['console', 'Performance', 'Window'] }
 
 emgui = { path = "../emgui" }
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  'Document',
+  'Element',
+  'HtmlCanvasElement',
+  'WebGlBuffer',
+  'WebGlProgram',
+  'WebGlRenderingContext',
+  'WebGlShader',
+  'WebGlUniformLocation',
+  'Window',
+]

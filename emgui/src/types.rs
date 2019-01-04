@@ -57,7 +57,11 @@ pub struct Color {
     pub a: u8,
 }
 
-pub fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+impl Color {
+    pub const WHITE: Color = srgba(255, 255, 255, 255);
+}
+
+pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
     Color { r, g, b, a }
 }
 

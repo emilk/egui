@@ -60,7 +60,10 @@ interface Text {
 
 type PaintCmd = Circle | Clear | Line | Rect | Text;
 
-function styleFromColor(color: Color): string {
+// ----------------------------------------------------------------------------
+// Canvas painting:
+
+function style_from_color(color: Color): string {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255.0})`;
 }
 
@@ -74,18 +77,18 @@ function paint_command(canvas, cmd: PaintCmd) {
       ctx.beginPath();
       ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
       if (cmd.fill_color) {
-        ctx.fillStyle = styleFromColor(cmd.fill_color);
+        ctx.fillStyle = style_from_color(cmd.fill_color);
         ctx.fill();
       }
       if (cmd.outline) {
         ctx.lineWidth = cmd.outline.width;
-        ctx.strokeStyle = styleFromColor(cmd.outline.color);
+        ctx.strokeStyle = style_from_color(cmd.outline.color);
         ctx.stroke();
       }
       return;
 
     case "clear":
-      ctx.fillStyle = styleFromColor(cmd.fill_color);
+      ctx.fillStyle = style_from_color(cmd.fill_color);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
 
@@ -96,7 +99,7 @@ function paint_command(canvas, cmd: PaintCmd) {
         ctx.lineTo(point.x, point.y);
       }
       ctx.lineWidth = cmd.width;
-      ctx.strokeStyle = styleFromColor(cmd.color);
+      ctx.strokeStyle = style_from_color(cmd.color);
       ctx.stroke();
       return;
 
@@ -118,18 +121,18 @@ function paint_command(canvas, cmd: PaintCmd) {
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
       if (cmd.fill_color) {
-        ctx.fillStyle = styleFromColor(cmd.fill_color);
+        ctx.fillStyle = style_from_color(cmd.fill_color);
         ctx.fill();
       }
       if (cmd.outline) {
         ctx.lineWidth = cmd.outline.width;
-        ctx.strokeStyle = styleFromColor(cmd.outline.color);
+        ctx.strokeStyle = style_from_color(cmd.outline.color);
         ctx.stroke();
       }
       return;
 
     case "text":
-      ctx.fillStyle = styleFromColor(cmd.fill_color);
+      ctx.fillStyle = style_from_color(cmd.fill_color);
       ctx.font = `${cmd.font_size}px ${cmd.font_name}`;
       ctx.textBaseline = "middle";
       ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
@@ -164,7 +167,7 @@ function wasm_loaded() {
 
 // here we tell bindgen the path to the wasm file so it can start
 // initialization and return to us a promise when it's done
-wasm_bindgen("./emgui_bg.wasm")
+wasm_bindgen("./emgui_wasm_bg.wasm")
   .then(wasm_loaded)
   .catch(console.error);
 
@@ -193,15 +196,26 @@ function js_gui(input: RawInput): PaintCmd[] {
   return commands;
 }
 
-function paint_gui(canvas, input: RawInput) {
-  const commands = rust_gui(input);
-  commands.unshift({
-    fill_color: {r: 0, g: 0, b: 0, a: 0},
-    kind: "clear",
-  });
+const WEB_GL = true;
+let g_webgl_painter = null;
 
-  for (const cmd of commands) {
-    paint_command(canvas, cmd);
+function paint_gui(canvas, input: RawInput) {
+  if (WEB_GL) {
+    if (g_webgl_painter === null) {
+      g_webgl_painter = wasm_bindgen.new_webgl_painter("canvas");
+    }
+    wasm_bindgen.paint_webgl(g_webgl_painter, JSON.stringify(input));
+  } else {
+    let commands = rust_gui(input);
+    for (const cmd of commands) {
+      const commands = rust_gui(input);
+      commands.unshift({
+        fill_color: { r: 0, g: 0, b: 0, a: 0 },
+        kind: "clear",
+      });
+
+      paint_command(canvas, cmd);
+    }
   }
 }
 
@@ -210,16 +224,22 @@ function paint_gui(canvas, input: RawInput) {
 let g_mouse_pos = { x: -1000.0, y: -1000.0 };
 let g_mouse_down = false;
 
+function auto_resize_canvas(canvas) {
+  if (WEB_GL) {
+    canvas.setAttribute("width", window.innerWidth);
+    canvas.setAttribute("height", window.innerHeight);
+  } else {
+    const pixels_per_point = window.devicePixelRatio || 1;
+
+    const ctx = canvas.getContext("2d");
+    ctx.scale(pixels_per_point, pixels_per_point);
+
+    canvas.setAttribute("width", window.innerWidth * pixels_per_point);
+    canvas.setAttribute("height", window.innerHeight * pixels_per_point);
+  }
+}
+
 function get_input(canvas): RawInput {
-  const pixels_per_point = window.devicePixelRatio || 1;
-
-  const ctx = canvas.getContext("2d");
-  ctx.scale(pixels_per_point, pixels_per_point);
-
-  // Resize based on screen size:
-  canvas.setAttribute("width", window.innerWidth * pixels_per_point);
-  canvas.setAttribute("height", window.innerHeight * pixels_per_point);
-
   return {
     mouse_down: g_mouse_down,
     mouse_pos: g_mouse_pos,
@@ -239,49 +259,38 @@ function initialize() {
   console.log(`window.devicePixelRatio: ${window.devicePixelRatio}`);
 
   const canvas = document.getElementById("canvas");
+  auto_resize_canvas(canvas);
   const repaint = () => paint_gui(canvas, get_input(canvas));
 
-  canvas.addEventListener(
-    "mousemove",
-    (event) => {
-      g_mouse_pos = mouse_pos_from_event(canvas, event);
-      repaint();
-      event.stopPropagation();
-      event.preventDefault();
-    },
-  );
+  canvas.addEventListener("mousemove", event => {
+    g_mouse_pos = mouse_pos_from_event(canvas, event);
+    repaint();
+    event.stopPropagation();
+    event.preventDefault();
+  });
 
-  canvas.addEventListener(
-    "mouseleave",
-    (event) => {
-      g_mouse_pos = { x: -1000.0, y: -1000.0 };
-      repaint();
-      event.stopPropagation();
-      event.preventDefault();
-    },
-  );
+  canvas.addEventListener("mouseleave", event => {
+    g_mouse_pos = { x: -1000.0, y: -1000.0 };
+    repaint();
+    event.stopPropagation();
+    event.preventDefault();
+  });
 
-  canvas.addEventListener(
-    "mousedown",
-    (event) => {
-      g_mouse_pos = mouse_pos_from_event(canvas, event);
-      g_mouse_down = true;
-      repaint();
-      event.stopPropagation();
-      event.preventDefault();
-    },
-  );
+  canvas.addEventListener("mousedown", event => {
+    g_mouse_pos = mouse_pos_from_event(canvas, event);
+    g_mouse_down = true;
+    repaint();
+    event.stopPropagation();
+    event.preventDefault();
+  });
 
-  canvas.addEventListener(
-    "mouseup",
-    (event) => {
-      g_mouse_pos = mouse_pos_from_event(canvas, event);
-      g_mouse_down = false;
-      repaint();
-      event.stopPropagation();
-      event.preventDefault();
-    },
-  );
+  canvas.addEventListener("mouseup", event => {
+    g_mouse_pos = mouse_pos_from_event(canvas, event);
+    g_mouse_down = false;
+    repaint();
+    event.stopPropagation();
+    event.preventDefault();
+  });
 
   window.addEventListener("load", repaint);
   window.addEventListener("pagehide", repaint);
