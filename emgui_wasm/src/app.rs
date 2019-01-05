@@ -96,8 +96,6 @@ impl GuiSettings for emgui::LayoutOptions {
         if gui.button("Reset LayoutOptions").clicked {
             *self = Default::default();
         }
-        gui.slider_f32("char_size.x", &mut self.char_size.x, 0.0, 20.0);
-        gui.slider_f32("char_size.y", &mut self.char_size.y, 0.0, 20.0);
         gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
         gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
         gui.slider_f32("window_padding.x", &mut self.window_padding.x, 0.0, 10.0);

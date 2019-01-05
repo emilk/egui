@@ -198,10 +198,8 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new() -> Painter {
-        Painter {
-            font: Font::new(13),
-        }
+    pub fn new(font: Font) -> Painter {
+        Painter { font }
     }
 
     /// 8-bit row-major font atlas texture, (width, height, pixels).
@@ -347,8 +345,8 @@ impl Painter {
                     x_offsets,
                 } => {
                     for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
-                        if let Some(glyph) = self.font.glyph_info(c) {
-                            let top_left = Vertex {
+                        if let Some(glyph) = self.font.uv_rect(c) {
+                            let mut top_left = Vertex {
                                 pos: *pos
                                     + vec2(
                                         x_offset + (glyph.offset_x as f32),
@@ -357,6 +355,8 @@ impl Painter {
                                 uv: (glyph.min_x, glyph.min_y),
                                 color: *color,
                             };
+                            top_left.pos.x = top_left.pos.x.round(); // Pixel-perfection.
+                            top_left.pos.y = top_left.pos.y.round(); // Pixel-perfection.
                             let bottom_right = Vertex {
                                 pos: top_left.pos
                                     + vec2(

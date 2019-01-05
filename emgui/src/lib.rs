@@ -16,6 +16,7 @@ pub mod types;
 
 pub use crate::{
     emgui::Emgui,
+    font::Font,
     layout::Layout,
     layout::LayoutOptions,
     painter::{Frame, Painter, Vertex},

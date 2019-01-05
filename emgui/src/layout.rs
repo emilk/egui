@@ -6,10 +6,6 @@ use crate::{font::Font, math::*, types::*};
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct LayoutOptions {
-    /// The width and height of a single character (including any spacing).
-    /// All text is monospace!
-    pub char_size: Vec2,
-
     /// Horizontal and vertical padding within a window frame.
     pub window_padding: Vec2,
 
@@ -33,7 +29,6 @@ pub struct LayoutOptions {
 impl Default for LayoutOptions {
     fn default() -> Self {
         LayoutOptions {
-            char_size: vec2(7.2, 14.0),
             item_spacing: vec2(8.0, 4.0),
             window_padding: vec2(6.0, 6.0),
             indent: 21.0,
@@ -165,10 +160,10 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn new() -> Layout {
+    pub fn new(font: Font) -> Layout {
         Layout {
             options: Default::default(),
-            font: Font::new(13),
+            font,
             input: Default::default(),
             memory: Default::default(),
             id: Default::default(),
@@ -293,7 +288,7 @@ impl Layout {
         let (slider_rect, interact) = self.reserve_space(
             Vec2 {
                 x: self.options.width,
-                y: self.options.char_size.y,
+                y: self.font.line_spacing(),
             },
             Some(id),
         );
@@ -463,7 +458,7 @@ impl Layout {
     }
 
     fn layout_text(&self, text: &str) -> (TextFragments, Vec2) {
-        let char_size = self.options.char_size;
+        let line_spacing = self.font.line_spacing();
         let mut cursor_y = 0.0;
         let mut max_width = 0.0;
         let mut text_fragments = Vec::new();
@@ -476,7 +471,7 @@ impl Layout {
                 text: line.into(),
             });
 
-            cursor_y += char_size.y;
+            cursor_y += line_spacing;
             max_width = line_width.max(max_width);
         }
         let bounding_size = vec2(max_width, cursor_y);

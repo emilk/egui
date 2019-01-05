@@ -1,4 +1,4 @@
-use crate::{layout, style, types::*};
+use crate::{font::Font, layout, style, types::*};
 
 /// Encapsulates input, layout and painting for ease of use.
 #[derive(Clone)]
@@ -9,10 +9,10 @@ pub struct Emgui {
 }
 
 impl Emgui {
-    pub fn new() -> Emgui {
+    pub fn new(font: Font) -> Emgui {
         Emgui {
             last_input: Default::default(),
-            layout: layout::Layout::new(),
+            layout: layout::Layout::new(font),
             style: Default::default(),
         }
     }

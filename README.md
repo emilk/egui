@@ -28,3 +28,4 @@ Supports MARKDEEP. A place for you ideas. Stored on your computer (local storage
 # Credits / Licenses
 
 ProggyClean.ttf, Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. http://www.proggyfonts.net/
+Roboto-Regular.ttf: Apache License, Version 2.0

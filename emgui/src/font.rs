@@ -3,14 +3,13 @@
 use rusttype::{point, Scale};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct GlyphInfo {
-    /// X offset for nice rendering
-    pub offset_x: u16,
+pub struct UvRect {
+    /// X/Y offset for nice rendering
+    pub offset_x: i16,
 
     /// Y offset for nice rendering
-    pub offset_y: u16,
+    pub offset_y: i16,
 
-    // Texture coordinates:
     pub min_x: u16,
     pub min_y: u16,
 
@@ -21,19 +20,29 @@ pub struct GlyphInfo {
     pub max_y: u16,
 }
 
-/// Printable ascii characters [33, 126], which excludes 32 (space) and 127 (DEL)
-const NUM_CHARS: usize = 94;
-const FIRST_ASCII: usize = 33;
-/// Inclusive
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GlyphInfo {
+    id: rusttype::GlyphId,
+
+    pub advance_width: f32,
+
+    /// Texture coordinates. None for space.
+    pub uv: Option<UvRect>,
+}
+
+/// Printable ASCII characters [32, 126], which excludes control codes.
+const FIRST_ASCII: usize = 32; // 32 == space
 const LAST_ASCII: usize = 126;
+const NUM_CHARS: usize = LAST_ASCII - FIRST_ASCII + 1;
 
 // TODO: break out texture atlas into separate struct, and fill it dynamically, potentially from multiple fonts.
 #[derive(Clone)]
 pub struct Font {
+    font: rusttype::Font<'static>,
     /// Maximum character height
     scale: usize,
     /// NUM_CHARS big
-    char_rects: Vec<GlyphInfo>,
+    glyph_infos: Vec<GlyphInfo>,
     atlas_width: usize,
     atlas_height: usize,
     atlas: Vec<u8>,
@@ -41,7 +50,8 @@ pub struct Font {
 
 impl Font {
     pub fn new(scale: usize) -> Font {
-        let font_data = include_bytes!("../fonts/ProggyClean.ttf");
+        // let font_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        let font_data = include_bytes!("../fonts/DejaVuSans.ttf"); // 20 works nicely for this.
         let font = rusttype::Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
 
         // println!(
@@ -76,64 +86,77 @@ impl Font {
         let mut cursor_y = 0;
         let mut row_height = 1;
 
-        let mut char_rects = vec![];
+        let mut glyph_infos = vec![];
 
         for glyph in glyphs {
-            let bb = glyph
-                .pixel_bounding_box()
-                .expect("Failed to get pixel bounding box");
-            let glyph_width = bb.width() as usize;
-            let glyph_height = bb.height() as usize;
-            assert!(glyph_width >= 1);
-            assert!(glyph_height >= 1);
-            assert!(glyph_width <= atlas_width);
-            if cursor_x + glyph_width > atlas_width {
-                // New row:
-                cursor_x = 0;
-                cursor_y += row_height;
-                row_height = 0;
-            }
-
-            row_height = row_height.max(glyph_height);
-            while cursor_y + row_height >= atlas_height {
-                atlas_height *= 2;
-            }
-            if atlas_width * atlas_height > atlas.len() {
-                atlas.resize(atlas_width * atlas_height, 0);
-            }
-
-            glyph.draw(|x, y, v| {
-                if v > 0.0 {
-                    let x = x as usize;
-                    let y = y as usize;
-                    let px = cursor_x + x as usize;
-                    let py = cursor_y + y as usize;
-                    atlas[py * atlas_width + px] = (v * 255.0).round() as u8;
+            if let Some(bb) = glyph.pixel_bounding_box() {
+                let glyph_width = bb.width() as usize;
+                let glyph_height = bb.height() as usize;
+                assert!(glyph_width >= 1);
+                assert!(glyph_height >= 1);
+                assert!(glyph_width <= atlas_width);
+                if cursor_x + glyph_width > atlas_width {
+                    // New row:
+                    cursor_x = 0;
+                    cursor_y += row_height;
+                    row_height = 0;
                 }
-            });
 
-            let offset_y = scale as i32 + bb.min.y - 3; // TODO: use font.v_metrics
-            assert!(0 <= bb.min.x);
-            assert!(0 <= offset_y && offset_y < scale as i32);
-            char_rects.push(GlyphInfo {
-                offset_x: bb.min.x as u16,
-                offset_y: offset_y as u16,
-                min_x: cursor_x as u16,
-                min_y: cursor_y as u16,
-                max_x: (cursor_x + glyph_width - 1) as u16,
-                max_y: (cursor_y + glyph_height - 1) as u16,
-            });
+                row_height = row_height.max(glyph_height);
+                while cursor_y + row_height >= atlas_height {
+                    atlas_height *= 2;
+                }
+                if atlas_width * atlas_height > atlas.len() {
+                    atlas.resize(atlas_width * atlas_height, 0);
+                }
 
-            cursor_x += glyph_width;
+                glyph.draw(|x, y, v| {
+                    if v > 0.0 {
+                        let x = x as usize;
+                        let y = y as usize;
+                        let px = cursor_x + x as usize;
+                        let py = cursor_y + y as usize;
+                        atlas[py * atlas_width + px] = (v * 255.0).round() as u8;
+                    }
+                });
+
+                let offset_y = scale as i16 + bb.min.y as i16 - 3; // TODO: use font.v_metrics
+                glyph_infos.push(GlyphInfo {
+                    id: glyph.id(),
+                    advance_width: glyph.unpositioned().h_metrics().advance_width,
+                    uv: Some(UvRect {
+                        offset_x: bb.min.x as i16,
+                        offset_y: offset_y as i16,
+                        min_x: cursor_x as u16,
+                        min_y: cursor_y as u16,
+                        max_x: (cursor_x + glyph_width - 1) as u16,
+                        max_y: (cursor_y + glyph_height - 1) as u16,
+                    }),
+                });
+
+                cursor_x += glyph_width;
+            } else {
+                // No bounding box. Maybe a space?
+                glyph_infos.push(GlyphInfo {
+                    id: glyph.id(),
+                    advance_width: glyph.unpositioned().h_metrics().advance_width,
+                    uv: None,
+                });
+            }
         }
 
         Font {
+            font,
             scale,
-            char_rects,
+            glyph_infos,
             atlas_width,
             atlas_height,
             atlas,
         }
+    }
+
+    pub fn line_spacing(&self) -> f32 {
+        self.scale as f32
     }
 
     pub fn supported_characters() -> impl Iterator<Item = char> {
@@ -156,10 +179,19 @@ impl Font {
         self.atlas[y * self.atlas_width + x]
     }
 
-    pub fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
+    pub fn uv_rect(&self, c: char) -> Option<UvRect> {
         let c = c as usize;
         if FIRST_ASCII <= c && c <= LAST_ASCII {
-            Some(self.char_rects[c - FIRST_ASCII])
+            self.glyph_infos[c - FIRST_ASCII].uv
+        } else {
+            None
+        }
+    }
+
+    fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
+        let c = c as usize;
+        if FIRST_ASCII <= c && c <= LAST_ASCII {
+            Some(self.glyph_infos[c - FIRST_ASCII])
         } else {
             None
         }
@@ -168,13 +200,23 @@ impl Font {
     /// Returns the start (X) of each character, starting at zero, plus the total width.
     /// i.e. returns text.chars().count() + 1 numbers.
     pub fn layout_single_line(&self, text: &str) -> Vec<f32> {
+        let scale = Scale::uniform(self.scale as f32);
+
         let mut x_offsets = Vec::new();
-        let mut x = 0.0;
+        let mut cursor_x = 0.0f32;
+        let mut last_glyph_id = None;
         for c in text.chars() {
-            x_offsets.push(x);
-            x += 7.0; // TODO: kerning
+            cursor_x = cursor_x.round();
+            x_offsets.push(cursor_x);
+            if let Some(glyph) = self.glyph_info(c) {
+                if let Some(last_glyph_id) = last_glyph_id {
+                    cursor_x += self.font.pair_kerning(scale, last_glyph_id, glyph.id)
+                }
+                cursor_x += glyph.advance_width;
+                last_glyph_id = Some(glyph.id);
+            }
         }
-        x_offsets.push(x);
+        x_offsets.push(cursor_x);
         x_offsets
     }
 
@@ -189,28 +231,40 @@ impl Font {
 
     pub fn debug_print_all_chars(&self) {
         let max_width = 160;
+        let scale = Scale::uniform(self.scale as f32);
         let mut pixel_rows = vec![vec![0; max_width]; self.scale];
-        let mut cursor_x = 0;
+        let mut cursor_x = 0.0;
         let mut cursor_y = 0;
+        let mut last_glyph_id = None;
         for c in Self::supported_characters() {
-            if let Some(glyph_info) = self.glyph_info(c) {
-                for x in glyph_info.min_x..=glyph_info.max_x {
-                    for y in glyph_info.min_y..=glyph_info.max_y {
-                        let pixel = self.pixel(x, y);
-                        let rx = glyph_info.offset_x + x - glyph_info.min_x;
-                        let ry = glyph_info.offset_y + y - glyph_info.min_y;
-                        pixel_rows[cursor_y + ry as usize][cursor_x + rx as usize] = pixel;
-                    }
+            if let Some(glyph) = self.glyph_info(c) {
+                if let Some(last_glyph_id) = last_glyph_id {
+                    cursor_x += self.font.pair_kerning(scale, last_glyph_id, glyph.id)
                 }
-                cursor_x += 7; // TODO
-                if cursor_x + 7 >= max_width {
+                if cursor_x + glyph.advance_width >= max_width as f32 {
                     println!("{}", (0..max_width).map(|_| "X").collect::<String>());
                     for row in pixel_rows {
                         println!("{}", as_ascii(&row));
                     }
                     pixel_rows = vec![vec![0; max_width]; self.scale];
-                    cursor_x = 0;
+                    cursor_x = 0.0;
                 }
+                if let Some(uv) = glyph.uv {
+                    for x in uv.min_x..=uv.max_x {
+                        for y in uv.min_y..=uv.max_y {
+                            let pixel = self.pixel(x as u16, y as u16);
+                            let rx = uv.offset_x + x as i16 - uv.min_x as i16;
+                            let ry = uv.offset_y + y as i16 - uv.min_y as i16;
+                            let px = (cursor_x + rx as f32).round();
+                            let py = cursor_y + ry;
+                            if 0.0 <= px && 0 <= py {
+                                pixel_rows[py as usize][px as usize] = pixel;
+                            }
+                        }
+                    }
+                }
+                cursor_x += glyph.advance_width;
+                last_glyph_id = Some(glyph.id);
             }
         }
         println!("{}", (0..max_width).map(|_| "X").collect::<String>());
@@ -220,7 +274,19 @@ impl Font {
 fn as_ascii(pixels: &[u8]) -> String {
     pixels
         .iter()
-        .map(|pixel| if *pixel == 0 { ' ' } else { 'X' })
+        .map(|pixel| {
+            if *pixel == 0 {
+                ' '
+            } else if *pixel < 85 {
+                '.'
+            } else if *pixel < 170 {
+                'o'
+            } else if *pixel < 255 {
+                'O'
+            } else {
+                'X'
+            }
+        })
         .collect()
 }
 

@@ -9,7 +9,7 @@ extern crate emgui;
 
 use std::sync::Mutex;
 
-use emgui::{Emgui, Frame, RawInput};
+use emgui::{Emgui, Font, Frame, RawInput};
 
 use wasm_bindgen::prelude::*;
 
@@ -42,9 +42,13 @@ mod webgl;
 //     serde_json::to_string(&commands).unwrap()
 // }
 
+fn font() -> Font {
+    Font::new(20) // TODO: don't create this multiple times
+}
+
 #[wasm_bindgen]
 pub fn new_webgl_painter(canvas_id: &str) -> Result<webgl::Painter, JsValue> {
-    let emgui_painter = emgui::Painter::new(); // TODO: don't create this twice
+    let emgui_painter = emgui::Painter::new(font()); // TODO: don't create this twice
     webgl::Painter::new(canvas_id, emgui_painter.texture())
 }
 
@@ -58,8 +62,8 @@ impl State {
     fn new() -> State {
         State {
             app: Default::default(),
-            emgui: Emgui::new(),
-            emgui_painter: emgui::Painter::new(),
+            emgui: Emgui::new(font()),
+            emgui_painter: emgui::Painter::new(font()),
         }
     }
 
