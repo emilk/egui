@@ -7,16 +7,10 @@ if ! [[ $(wasm-bindgen --version) ]]; then
     cargo install -f wasm-bindgen-cli
 fi
 
-if ! [[ -f docs/webassembly.d.ts ]]; then
-	curl https://raw.githubusercontent.com/01alchemist/webassembly-types/master/webassembly.d.ts > docs/webassembly.d.ts
-fi
-
 BUILD=debug
 # BUILD=release
 
 # Clear output from old stuff:
-# rm -rf docs/*.d.ts
-rm -rf docs/*.js
 rm -rf docs/*.wasm
 
 function build_rust
@@ -28,15 +22,8 @@ function build_rust
 	FOLDER_NAME=${PWD##*/}
 	TARGET_NAME="emgui_wasm.wasm"
 	wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
-	  --out-dir docs --no-modules
+	  --out-dir docs --no-modules --no-typescript
 	  # --no-modules-global hoboho
 }
 
 build_rust
-
-echo "Compile typescript:"
-tsc
-
-# wait || exit $?
-
-# 3.4 s

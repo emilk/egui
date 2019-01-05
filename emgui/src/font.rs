@@ -5,19 +5,13 @@ use rusttype::{point, Scale};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UvRect {
     /// X/Y offset for nice rendering
-    pub offset_x: i16,
+    pub offset: (i16, i16),
 
-    /// Y offset for nice rendering
-    pub offset_y: i16,
-
-    pub min_x: u16,
-    pub min_y: u16,
-
-    /// Inclusive.
-    pub max_x: u16,
+    /// Top left corner.
+    pub min: (u16, u16),
 
     /// Inclusive
-    pub max_y: u16,
+    pub max: (u16, u16),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,8 +44,10 @@ pub struct Font {
 
 impl Font {
     pub fn new(scale: usize) -> Font {
+        // TODO: figure out a way to make the wasm smaller despite including a font.
         // let font_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-        let font_data = include_bytes!("../fonts/DejaVuSans.ttf"); // 20 works nicely for this.
+        // let font_data = include_bytes!("../fonts/DejaVuSans.ttf");
+        let font_data = include_bytes!("../fonts/Roboto-Regular.ttf");
         let font = rusttype::Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
 
         // println!(
@@ -125,12 +121,12 @@ impl Font {
                     id: glyph.id(),
                     advance_width: glyph.unpositioned().h_metrics().advance_width,
                     uv: Some(UvRect {
-                        offset_x: bb.min.x as i16,
-                        offset_y: offset_y as i16,
-                        min_x: cursor_x as u16,
-                        min_y: cursor_y as u16,
-                        max_x: (cursor_x + glyph_width - 1) as u16,
-                        max_y: (cursor_y + glyph_height - 1) as u16,
+                        offset: (bb.min.x as i16, offset_y as i16),
+                        min: (cursor_x as u16, cursor_y as u16),
+                        max: (
+                            (cursor_x + glyph_width - 1) as u16,
+                            (cursor_y + glyph_height - 1) as u16,
+                        ),
                     }),
                 });
 
@@ -250,11 +246,11 @@ impl Font {
                     cursor_x = 0.0;
                 }
                 if let Some(uv) = glyph.uv {
-                    for x in uv.min_x..=uv.max_x {
-                        for y in uv.min_y..=uv.max_y {
+                    for x in uv.min.0..=uv.max.0 {
+                        for y in uv.min.1..=uv.max.1 {
                             let pixel = self.pixel(x as u16, y as u16);
-                            let rx = uv.offset_x + x as i16 - uv.min_x as i16;
-                            let ry = uv.offset_y + y as i16 - uv.min_y as i16;
+                            let rx = uv.offset.0 + x as i16 - uv.min.0 as i16;
+                            let ry = uv.offset.1 + y as i16 - uv.min.1 as i16;
                             let px = (cursor_x + rx as f32).round();
                             let py = cursor_y + ry;
                             if 0.0 <= px && 0 <= py {

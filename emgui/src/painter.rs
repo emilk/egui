@@ -349,10 +349,10 @@ impl Painter {
                             let mut top_left = Vertex {
                                 pos: *pos
                                     + vec2(
-                                        x_offset + (glyph.offset_x as f32),
-                                        glyph.offset_y as f32,
+                                        x_offset + (glyph.offset.0 as f32),
+                                        glyph.offset.1 as f32,
                                     ),
-                                uv: (glyph.min_x, glyph.min_y),
+                                uv: (glyph.min.0, glyph.min.1),
                                 color: *color,
                             };
                             top_left.pos.x = top_left.pos.x.round(); // Pixel-perfection.
@@ -360,10 +360,10 @@ impl Painter {
                             let bottom_right = Vertex {
                                 pos: top_left.pos
                                     + vec2(
-                                        (1 + glyph.max_x - glyph.min_x) as f32,
-                                        (1 + glyph.max_y - glyph.min_y) as f32,
+                                        (1 + glyph.max.0 - glyph.min.0) as f32,
+                                        (1 + glyph.max.1 - glyph.min.1) as f32,
                                     ),
-                                uv: (glyph.max_x + 1, glyph.max_y + 1),
+                                uv: (glyph.max.0 + 1, glyph.max.1 + 1),
                                 color: *color,
                             };
                             frame.add_rect(top_left, bottom_right);
