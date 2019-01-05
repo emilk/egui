@@ -1,75 +1,3 @@
-// ----------------------------------------------------------------------------
-// Canvas painting:
-function style_from_color(color) {
-    return "rgba(" + color.r + ", " + color.g + ", " + color.b + ", " + color.a / 255.0 + ")";
-}
-function paint_command(canvas, cmd) {
-    var ctx = canvas.getContext("2d");
-    // console.log(`cmd: ${JSON.stringify(cmd)}`);
-    switch (cmd.kind) {
-        case "circle":
-            ctx.beginPath();
-            ctx.arc(cmd.center.x, cmd.center.y, cmd.radius, 0, 2 * Math.PI, false);
-            if (cmd.fill_color) {
-                ctx.fillStyle = style_from_color(cmd.fill_color);
-                ctx.fill();
-            }
-            if (cmd.outline) {
-                ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = style_from_color(cmd.outline.color);
-                ctx.stroke();
-            }
-            return;
-        case "clear":
-            ctx.fillStyle = style_from_color(cmd.fill_color);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            return;
-        case "line":
-            ctx.beginPath();
-            ctx.moveTo(cmd.points[0].x, cmd.points[0].y);
-            for (var _i = 0, _a = cmd.points; _i < _a.length; _i++) {
-                var point = _a[_i];
-                ctx.lineTo(point.x, point.y);
-            }
-            ctx.lineWidth = cmd.width;
-            ctx.strokeStyle = style_from_color(cmd.color);
-            ctx.stroke();
-            return;
-        case "rect":
-            var x = cmd.pos.x;
-            var y = cmd.pos.y;
-            var width = cmd.size.x;
-            var height = cmd.size.y;
-            var r = Math.min(cmd.corner_radius, width / 2, height / 2);
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + width - r, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-            ctx.lineTo(x + width, y + height - r);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-            ctx.lineTo(x + r, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
-            if (cmd.fill_color) {
-                ctx.fillStyle = style_from_color(cmd.fill_color);
-                ctx.fill();
-            }
-            if (cmd.outline) {
-                ctx.lineWidth = cmd.outline.width;
-                ctx.strokeStyle = style_from_color(cmd.outline.color);
-                ctx.stroke();
-            }
-            return;
-        case "text":
-            ctx.fillStyle = style_from_color(cmd.fill_color);
-            ctx.font = cmd.font_size + "px " + cmd.font_name;
-            ctx.textBaseline = "middle";
-            ctx.fillText(cmd.text, cmd.pos.x, cmd.pos.y);
-            return;
-    }
-}
 // we'll defer our execution until the wasm is ready to go
 function wasm_loaded() {
     console.log("wasm loaded");
@@ -79,55 +7,24 @@ function wasm_loaded() {
 // initialization and return to us a promise when it's done
 wasm_bindgen("./emgui_wasm_bg.wasm")
     .then(wasm_loaded)["catch"](console.error);
-function rust_gui(input) {
-    return JSON.parse(wasm_bindgen.show_gui(JSON.stringify(input)));
-}
 // ----------------------------------------------------------------------------
-function js_gui(input) {
-    var commands = [];
-    commands.push({
-        fillStyle: "#111111",
-        kind: "clear"
-    });
-    commands.push({
-        fillStyle: "#ff1111",
-        kind: "rect",
-        pos: { x: 100, y: 100 },
-        radius: 20,
-        size: { x: 200, y: 100 }
-    });
-    return commands;
-}
-var WEB_GL = true;
 var g_webgl_painter = null;
 function paint_gui(canvas, input) {
-    if (WEB_GL) {
-        if (g_webgl_painter === null) {
-            g_webgl_painter = wasm_bindgen.new_webgl_painter("canvas");
-        }
-        wasm_bindgen.paint_webgl(g_webgl_painter, JSON.stringify(input));
+    if (g_webgl_painter === null) {
+        g_webgl_painter = wasm_bindgen.new_webgl_painter("canvas");
     }
-    else {
-        var commands = rust_gui(input);
-        for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
-            var cmd = commands_1[_i];
-            commands.unshift({
-                fill_color: { r: 0, g: 0, b: 0, a: 0 },
-                kind: "clear"
-            });
-            paint_command(canvas, cmd);
-        }
-    }
+    wasm_bindgen.paint_webgl(g_webgl_painter, JSON.stringify(input));
 }
 // ----------------------------------------------------------------------------
 var g_mouse_pos = { x: -1000.0, y: -1000.0 };
 var g_mouse_down = false;
 function auto_resize_canvas(canvas) {
-    if (WEB_GL) {
+    if (true) {
         canvas.setAttribute("width", window.innerWidth);
         canvas.setAttribute("height", window.innerHeight);
     }
     else {
+        // TODO: this stuff
         var pixels_per_point = window.devicePixelRatio || 1;
         var ctx = canvas.getContext("2d");
         ctx.scale(pixels_per_point, pixels_per_point);

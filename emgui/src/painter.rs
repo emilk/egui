@@ -1,5 +1,8 @@
 #![allow(unused_variables)]
 
+const ANTI_ALIAS: bool = true;
+const AA_SIZE: f32 = 1.0;
+
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
     font::Font,
@@ -33,15 +36,17 @@ pub enum PathType {
 use self::PathType::*;
 
 impl Frame {
+    fn triangle(&mut self, a: u32, b: u32, c: u32) {
+        self.indices.push(a);
+        self.indices.push(b);
+        self.indices.push(c);
+    }
+
     /// Uniformly colored rectangle
     pub fn add_rect(&mut self, top_left: Vertex, bottom_right: Vertex) {
         let idx = self.vertices.len() as u32;
-        self.indices.push(idx + 0);
-        self.indices.push(idx + 1);
-        self.indices.push(idx + 2);
-        self.indices.push(idx + 2);
-        self.indices.push(idx + 1);
-        self.indices.push(idx + 3);
+        self.triangle(idx + 0, idx + 1, idx + 2);
+        self.triangle(idx + 2, idx + 1, idx + 3);
 
         let top_right = Vertex {
             pos: vec2(bottom_right.pos.x, top_left.pos.y),
@@ -60,19 +65,37 @@ impl Frame {
     }
 
     pub fn fill_closed_path(&mut self, points: &[Vec2], normals: &[Vec2], color: Color) {
-        // TODO: use normals for anti-aliasing
         assert_eq!(points.len(), normals.len());
         let n = points.len() as u32;
-        let idx = self.vertices.len() as u32;
-        self.vertices.extend(points.iter().map(|&pos| Vertex {
+        let vert = |pos, color| Vertex {
             pos,
             uv: (0, 0),
             color,
-        }));
-        for i in 2..n {
-            self.indices.push(idx);
-            self.indices.push(idx + i - 1);
-            self.indices.push(idx + i);
+        };
+        if ANTI_ALIAS {
+            let color_outer = color.transparent();
+            let idx_inner = self.vertices.len() as u32;
+            let idx_outer = idx_inner + 1;
+            for i in 2..n {
+                self.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+            }
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let dm = normals[i1 as usize] * AA_SIZE * 0.5;
+                self.vertices.push(vert(points[i1 as usize] - dm, color));
+                self.vertices
+                    .push(vert(points[i1 as usize] + dm, color_outer));
+                self.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                self.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                i0 = i1;
+            }
+        } else {
+            let idx = self.vertices.len() as u32;
+            self.vertices
+                .extend(points.iter().map(|&pos| vert(pos, color)));
+            for i in 2..n {
+                self.triangle(idx, idx + i - 1, idx + i);
+            }
         }
     }
 
@@ -84,33 +107,87 @@ impl Frame {
         color: Color,
         width: f32,
     ) {
-        // TODO: anti-aliasing
         assert_eq!(points.len(), normals.len());
         let n = points.len() as u32;
         let hw = width / 2.0;
-
         let idx = self.vertices.len() as u32;
-        let last_index = if path_type == Closed { n } else { n - 1 };
-        for i in 0..last_index {
-            self.indices.push(idx + (2 * i + 0) % (2 * n));
-            self.indices.push(idx + (2 * i + 1) % (2 * n));
-            self.indices.push(idx + (2 * i + 2) % (2 * n));
-            self.indices.push(idx + (2 * i + 2) % (2 * n));
-            self.indices.push(idx + (2 * i + 1) % (2 * n));
-            self.indices.push(idx + (2 * i + 3) % (2 * n));
-        }
 
-        for (&p, &n) in points.iter().zip(normals) {
-            self.vertices.push(Vertex {
-                pos: p + hw * n,
-                uv: (0, 0),
-                color,
-            });
-            self.vertices.push(Vertex {
-                pos: p - hw * n,
-                uv: (0, 0),
-                color,
-            });
+        let vert = |pos, color| Vertex {
+            pos,
+            uv: (0, 0),
+            color,
+        };
+
+        if ANTI_ALIAS {
+            let color_outer = color.transparent();
+            let thin_line = width <= 1.0;
+            let mut color_inner = color;
+            if thin_line {
+                // Fade out as it gets thinner:
+                color_inner.a = (color_inner.a as f32 * width).round() as u8;
+            }
+            // TODO: line caps ?
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let connect_with_previous = path_type == PathType::Closed || i1 > 0;
+                if thin_line {
+                    let hw = (width - AA_SIZE) * 0.5;
+                    let p = points[i1 as usize];
+                    let n = normals[i1 as usize];
+                    self.vertices.push(vert(p + n * AA_SIZE, color_outer));
+                    self.vertices.push(vert(p, color_inner));
+                    self.vertices.push(vert(p - n * AA_SIZE, color_outer));
+
+                    if connect_with_previous {
+                        self.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                        self.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+
+                        self.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                        self.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                    }
+                } else {
+                    let hw = (width - AA_SIZE) * 0.5;
+                    let p = points[i1 as usize];
+                    let n = normals[i1 as usize];
+                    self.vertices
+                        .push(vert(p + n * (hw + AA_SIZE), color_outer));
+                    self.vertices.push(vert(p + n * (hw + 0.0), color_inner));
+                    self.vertices.push(vert(p - n * (hw + 0.0), color_inner));
+                    self.vertices
+                        .push(vert(p - n * (hw + AA_SIZE), color_outer));
+
+                    if connect_with_previous {
+                        self.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        self.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+
+                        self.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        self.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+
+                        self.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        self.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                    }
+                }
+                i0 = i1;
+            }
+        } else {
+            let last_index = if path_type == Closed { n } else { n - 1 };
+            for i in 0..last_index {
+                self.triangle(
+                    idx + (2 * i + 0) % (2 * n),
+                    idx + (2 * i + 1) % (2 * n),
+                    idx + (2 * i + 2) % (2 * n),
+                );
+                self.triangle(
+                    idx + (2 * i + 2) % (2 * n),
+                    idx + (2 * i + 1) % (2 * n),
+                    idx + (2 * i + 3) % (2 * n),
+                );
+            }
+
+            for (&p, &n) in points.iter().zip(normals) {
+                self.vertices.push(vert(p + hw * n, color));
+                self.vertices.push(vert(p - hw * n, color));
+            }
         }
     }
 }
@@ -200,11 +277,11 @@ impl Painter {
                     }
                 }
                 PaintCmd::Rect {
+                    corner_radius,
                     fill_color,
                     outline,
                     pos,
                     size,
-                    ..
                 } => {
                     path_points.clear();
                     path_normals.clear();
@@ -212,15 +289,43 @@ impl Painter {
                     let min = *pos;
                     let max = *pos + *size;
 
-                    // TODO: rounded corners
-                    path_points.push(vec2(min.x, min.y));
-                    path_normals.push(vec2(-1.0, -1.0));
-                    path_points.push(vec2(max.x, min.y));
-                    path_normals.push(vec2(1.0, -1.0));
-                    path_points.push(vec2(max.x, max.y));
-                    path_normals.push(vec2(1.0, 1.0));
-                    path_points.push(vec2(min.x, max.y));
-                    path_normals.push(vec2(-1.0, 1.0));
+                    let cr = corner_radius.min(size.x * 0.5).min(size.y * 0.5);
+
+                    if cr < 1.0 {
+                        path_points.push(vec2(min.x, min.y));
+                        path_normals.push(vec2(-1.0, -1.0));
+                        path_points.push(vec2(max.x, min.y));
+                        path_normals.push(vec2(1.0, -1.0));
+                        path_points.push(vec2(max.x, max.y));
+                        path_normals.push(vec2(1.0, 1.0));
+                        path_points.push(vec2(min.x, max.y));
+                        path_normals.push(vec2(-1.0, 1.0));
+                    } else {
+                        let n = 8;
+
+                        let mut add_arc = |c, quadrant| {
+                            let quadrant = quadrant as f32;
+
+                            const RIGHT_ANGLE: f32 = TAU / 4.0;
+                            for i in 0..=n {
+                                let angle = remap(
+                                    i as f32,
+                                    0.0,
+                                    n as f32,
+                                    quadrant * RIGHT_ANGLE,
+                                    (quadrant + 1.0) * RIGHT_ANGLE,
+                                );
+                                let normal = vec2(angle.cos(), angle.sin());
+                                path_points.push(c + cr * normal);
+                                path_normals.push(normal);
+                            }
+                        };
+
+                        add_arc(vec2(max.x - cr, max.y - cr), 0);
+                        add_arc(vec2(min.x + cr, max.y - cr), 1);
+                        add_arc(vec2(min.x + cr, min.y + cr), 2);
+                        add_arc(vec2(max.x - cr, min.y + cr), 3);
+                    }
 
                     if let Some(color) = fill_color {
                         frame.fill_closed_path(&path_points, &path_normals, *color);

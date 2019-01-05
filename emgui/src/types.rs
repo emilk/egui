@@ -59,6 +59,15 @@ pub struct Color {
 
 impl Color {
     pub const WHITE: Color = srgba(255, 255, 255, 255);
+
+    pub fn transparent(self) -> Color {
+        Color {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a: 0,
+        }
+    }
 }
 
 pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
