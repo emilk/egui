@@ -123,6 +123,8 @@ pub enum GuiCmd {
         pos: Vec2,
         style: TextStyle,
         text: String,
+        /// Start each character in the text, as offset from pos.
+        x_offsets: Vec<f32>,
     },
     /// Background of e.g. a popup
     Window {
@@ -162,16 +164,14 @@ pub enum PaintCmd {
         pos: Vec2,
         size: Vec2,
     },
-    /// Paint a single line of mono-space text.
-    /// The text should start at the given position and flow to the right.
-    /// The text should be vertically centered at the given position.
+    /// Paint a single line of text
     Text {
-        fill_color: Color,
-        /// Name, e.g. Palatino
-        font_name: String,
-        /// Height in pixels, e.g. 12
-        font_size: f32,
+        color: Color,
+        /// Top left corner of the first character.
         pos: Vec2,
         text: String,
+        /// Start each character in the text, as offset from pos.
+        x_offsets: Vec<f32>,
+        // TODO: font info
     },
 }

@@ -241,18 +241,18 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         }
         GuiCmd::Text {
             pos,
-            text,
             style: text_style,
+            text,
+            x_offsets,
         } => {
-            let fill_color = match text_style {
+            let color = match text_style {
                 TextStyle::Label => style.text_color(),
             };
             out_commands.push(PaintCmd::Text {
-                fill_color,
-                font_name: style.font_name.clone(),
-                font_size: style.font_size,
+                color,
                 pos,
                 text,
+                x_offsets,
             });
         }
         GuiCmd::Window { rect } => {

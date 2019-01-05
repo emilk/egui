@@ -92,6 +92,11 @@ pub fn lerp(min: f32, max: f32, t: f32) -> f32 {
     (1.0 - t) * min + t * max
 }
 
+pub fn remap(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max: f32) -> f32 {
+    let t = (from - from_min) / (from_max - from_min);
+    lerp(to_min, to_max, t)
+}
+
 pub fn remap_clamp(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max: f32) -> f32 {
     let t = if from <= from_min {
         0.0
@@ -102,3 +107,5 @@ pub fn remap_clamp(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max:
     };
     lerp(to_min, to_max, t)
 }
+
+pub const TAU: f32 = 2.0 * std::f32::consts::PI;

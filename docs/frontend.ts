@@ -206,14 +206,12 @@ function paint_gui(canvas, input: RawInput) {
     }
     wasm_bindgen.paint_webgl(g_webgl_painter, JSON.stringify(input));
   } else {
-    let commands = rust_gui(input);
+    const commands = rust_gui(input);
     for (const cmd of commands) {
-      const commands = rust_gui(input);
       commands.unshift({
         fill_color: { r: 0, g: 0, b: 0, a: 0 },
         kind: "clear",
       });
-
       paint_command(canvas, cmd);
     }
   }

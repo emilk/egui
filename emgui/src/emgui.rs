@@ -1,7 +1,7 @@
 use crate::{layout, style, types::*};
 
 /// Encapsulates input, layout and painting for ease of use.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone)]
 pub struct Emgui {
     pub last_input: RawInput,
     pub layout: layout::Layout,
@@ -9,6 +9,14 @@ pub struct Emgui {
 }
 
 impl Emgui {
+    pub fn new() -> Emgui {
+        Emgui {
+            last_input: Default::default(),
+            layout: layout::Layout::new(),
+            style: Default::default(),
+        }
+    }
+
     pub fn new_frame(&mut self, new_input: RawInput) {
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;

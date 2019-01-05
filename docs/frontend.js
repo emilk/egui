@@ -111,8 +111,7 @@ function paint_gui(canvas, input) {
         var commands = rust_gui(input);
         for (var _i = 0, commands_1 = commands; _i < commands_1.length; _i++) {
             var cmd = commands_1[_i];
-            var commands_2 = rust_gui(input);
-            commands_2.unshift({
+            commands.unshift({
                 fill_color: { r: 0, g: 0, b: 0, a: 0 },
                 kind: "clear"
             });

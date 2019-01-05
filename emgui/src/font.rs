@@ -5,19 +5,20 @@ use rusttype::{point, Scale};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
     /// X offset for nice rendering
-    offset_x: u16,
+    pub offset_x: u16,
 
     /// Y offset for nice rendering
-    offset_y: u16,
+    pub offset_y: u16,
 
-    min_x: u16,
-    min_y: u16,
+    // Texture coordinates:
+    pub min_x: u16,
+    pub min_y: u16,
 
     /// Inclusive.
-    max_x: u16,
+    pub max_x: u16,
 
     /// Inclusive
-    max_y: u16,
+    pub max_y: u16,
 }
 
 /// Printable ascii characters [33, 126], which excludes 32 (space) and 127 (DEL)
@@ -26,6 +27,7 @@ const FIRST_ASCII: usize = 33;
 /// Inclusive
 const LAST_ASCII: usize = 126;
 
+// TODO: break out texture atlas into separate struct, and fill it dynamically, potentially from multiple fonts.
 #[derive(Clone)]
 pub struct Font {
     /// Maximum character height
@@ -138,8 +140,12 @@ impl Font {
         (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char)
     }
 
-    pub fn texture(&self) -> (usize, usize, &[u8]) {
-        (self.atlas_width, self.atlas_height, &self.atlas)
+    pub fn texture(&self) -> (u16, u16, &[u8]) {
+        (
+            self.atlas_width as u16,
+            self.atlas_height as u16,
+            &self.atlas,
+        )
     }
 
     pub fn pixel(&self, x: u16, y: u16) -> u8 {
@@ -157,6 +163,19 @@ impl Font {
         } else {
             None
         }
+    }
+
+    /// Returns the start (X) of each character, starting at zero, plus the total width.
+    /// i.e. returns text.chars().count() + 1 numbers.
+    pub fn layout_single_line(&self, text: &str) -> Vec<f32> {
+        let mut x_offsets = Vec::new();
+        let mut x = 0.0;
+        for c in text.chars() {
+            x_offsets.push(x);
+            x += 7.0; // TODO: kerning
+        }
+        x_offsets.push(x);
+        x_offsets
     }
 
     pub fn debug_print_atlas_ascii_art(&self) {

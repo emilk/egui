@@ -16,35 +16,36 @@ use wasm_bindgen::prelude::*;
 mod app;
 mod webgl;
 
-#[wasm_bindgen]
-pub fn show_gui(raw_input_json: &str) -> String {
-    // TODO: faster interface than JSON
-    let raw_input: RawInput = serde_json::from_str(raw_input_json).unwrap();
+// #[wasm_bindgen]
+// pub fn show_gui(raw_input_json: &str) -> String {
+//     // TODO: faster interface than JSON
+//     let raw_input: RawInput = serde_json::from_str(raw_input_json).unwrap();
 
-    lazy_static::lazy_static! {
-        static ref APP: Mutex<app::App> = Default::default();
-        static ref EMGUI: Mutex<Emgui> = Default::default();
-    }
+//     lazy_static::lazy_static! {
+//         static ref APP: Mutex<app::App> = Default::default();
+//         static ref EMGUI: Mutex<Emgui> = Default::default();
+//     }
 
-    let mut emgui = EMGUI.lock().unwrap();
-    emgui.new_frame(raw_input);
+//     let mut emgui = EMGUI.lock().unwrap();
+//     emgui.new_frame(raw_input);
 
-    use crate::app::GuiSettings;
-    APP.lock().unwrap().show_gui(&mut emgui.layout);
+//     use crate::app::GuiSettings;
+//     APP.lock().unwrap().show_gui(&mut emgui.layout);
 
-    let mut style = emgui.style.clone();
-    emgui.layout.foldable("Style", |gui| {
-        style.show_gui(gui);
-    });
-    emgui.style = style;
+//     let mut style = emgui.style.clone();
+//     emgui.layout.foldable("Style", |gui| {
+//         style.show_gui(gui);
+//     });
+//     emgui.style = style;
 
-    let commands = emgui.paint();
-    serde_json::to_string(&commands).unwrap()
-}
+//     let commands = emgui.paint();
+//     serde_json::to_string(&commands).unwrap()
+// }
 
 #[wasm_bindgen]
 pub fn new_webgl_painter(canvas_id: &str) -> Result<webgl::Painter, JsValue> {
-    webgl::Painter::new(canvas_id)
+    let emgui_painter = emgui::Painter::new(); // TODO: don't create this twice
+    webgl::Painter::new(canvas_id, emgui_painter.texture())
 }
 
 struct State {
@@ -57,7 +58,7 @@ impl State {
     fn new() -> State {
         State {
             app: Default::default(),
-            emgui: Default::default(),
+            emgui: Emgui::new(),
             emgui_painter: emgui::Painter::new(),
         }
     }

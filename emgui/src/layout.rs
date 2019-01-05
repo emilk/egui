@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{math::*, types::*};
+use crate::{font::Font, math::*, types::*};
 
 // ----------------------------------------------------------------------------
 
@@ -95,7 +95,10 @@ struct Memory {
 // ----------------------------------------------------------------------------
 
 struct TextFragment {
-    rect: Rect,
+    /// The start of each character, starting at zero.
+    x_offsets: Vec<f32>,
+    /// 0 for the first line, n * line_spacing for the rest
+    y_offset: f32,
     text: String,
 }
 
@@ -149,9 +152,10 @@ impl Layouter {
 
 type Id = u64;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone)]
 pub struct Layout {
     options: LayoutOptions,
+    font: Font, // TODO: Arc?
     input: GuiInput,
     memory: Memory,
     id: Id,
@@ -161,6 +165,19 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn new() -> Layout {
+        Layout {
+            options: Default::default(),
+            font: Font::new(13),
+            input: Default::default(),
+            memory: Default::default(),
+            id: Default::default(),
+            layouter: Default::default(),
+            graphics: Default::default(),
+            hovering_graphics: Default::default(),
+        }
+    }
+
     pub fn input(&self) -> &GuiInput {
         &self.input
     }
@@ -388,6 +405,7 @@ impl Layout {
         let mut popup_layout = Layout {
             options: self.options,
             input: self.input,
+            font: self.font.clone(),
             memory: self.memory.clone(), // TODO: Arc
             id: self.id,
             layouter: Default::default(),
@@ -450,11 +468,11 @@ impl Layout {
         let mut max_width = 0.0;
         let mut text_fragments = Vec::new();
         for line in text.split('\n') {
-            // TODO: break long lines
-            let line_width = char_size.x * (line.len() as f32);
-
+            let x_offsets = self.font.layout_single_line(&line);
+            let line_width = *x_offsets.last().unwrap();
             text_fragments.push(TextFragment {
-                rect: Rect::from_min_size(vec2(0.0, cursor_y), vec2(line_width, char_size.y)),
+                x_offsets,
+                y_offset: cursor_y,
                 text: line.into(),
             });
 
@@ -468,9 +486,10 @@ impl Layout {
     fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {
         for fragment in text {
             self.graphics.push(GuiCmd::Text {
-                pos: pos + vec2(fragment.rect.pos.x, fragment.rect.center().y),
+                pos: pos + vec2(0.0, fragment.y_offset),
                 style: TextStyle::Label,
                 text: fragment.text,
+                x_offsets: fragment.x_offsets,
             });
         }
     }

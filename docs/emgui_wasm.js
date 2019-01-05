@@ -23,54 +23,6 @@
         WASM_VECTOR_LEN = buf.length;
         return ptr;
     }
-
-    let cachedTextDecoder = new TextDecoder('utf-8');
-
-    function getStringFromWasm(ptr, len) {
-        return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
-    }
-
-    let cachedGlobalArgumentPtr = null;
-    function globalArgumentPtr() {
-        if (cachedGlobalArgumentPtr === null) {
-            cachedGlobalArgumentPtr = wasm.__wbindgen_global_argument_ptr();
-        }
-        return cachedGlobalArgumentPtr;
-    }
-
-    let cachegetUint32Memory = null;
-    function getUint32Memory() {
-        if (cachegetUint32Memory === null || cachegetUint32Memory.buffer !== wasm.memory.buffer) {
-            cachegetUint32Memory = new Uint32Array(wasm.memory.buffer);
-        }
-        return cachegetUint32Memory;
-    }
-    /**
-    * @param {string} arg0
-    * @returns {string}
-    */
-    __exports.show_gui = function(arg0) {
-        const ptr0 = passStringToWasm(arg0);
-        const len0 = WASM_VECTOR_LEN;
-        const retptr = globalArgumentPtr();
-        try {
-            wasm.show_gui(retptr, ptr0, len0);
-            const mem = getUint32Memory();
-            const rustptr = mem[retptr / 4];
-            const rustlen = mem[retptr / 4 + 1];
-
-            const realRet = getStringFromWasm(rustptr, rustlen).slice();
-            wasm.__wbindgen_free(rustptr, rustlen * 1);
-            return realRet;
-
-
-        } finally {
-            wasm.__wbindgen_free(ptr0, len0 * 1);
-
-        }
-
-    };
-
     /**
     * @param {string} arg0
     * @returns {Painter}
@@ -114,6 +66,12 @@
 
 function getObject(idx) { return heap[idx]; }
 
+let cachedTextDecoder = new TextDecoder('utf-8');
+
+function getStringFromWasm(ptr, len) {
+    return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
+}
+
 let heap_next = heap.length;
 
 function addHeapObject(obj) {
@@ -148,6 +106,14 @@ __exports.__widl_instanceof_HTMLCanvasElement = function(idx) {
 const __widl_f_get_context_HTMLCanvasElement_target = typeof HTMLCanvasElement === 'undefined' ? null : HTMLCanvasElement.prototype.getContext || function() {
     throw new Error(`wasm-bindgen: HTMLCanvasElement.getContext does not exist`);
 };
+
+let cachegetUint32Memory = null;
+function getUint32Memory() {
+    if (cachegetUint32Memory === null || cachegetUint32Memory.buffer !== wasm.memory.buffer) {
+        cachegetUint32Memory = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachegetUint32Memory;
+}
 
 __exports.__widl_f_get_context_HTMLCanvasElement = function(arg0, arg1, arg2, exnptr) {
     let varg1 = getStringFromWasm(arg1, arg2);
@@ -201,6 +167,34 @@ __exports.__widl_f_buffer_data_with_array_buffer_view_WebGLRenderingContext = fu
     __widl_f_buffer_data_with_array_buffer_view_WebGLRenderingContext_target.call(getObject(arg0), arg1, getObject(arg2), arg3);
 };
 
+function getArrayU8FromWasm(ptr, len) {
+    return getUint8Memory().subarray(ptr / 1, ptr / 1 + len);
+}
+
+const __widl_f_tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.texImage2D || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.texImage2D does not exist`);
+};
+
+__exports.__widl_f_tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array_WebGLRenderingContext = function(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, exnptr) {
+    let varg9 = arg9 == 0 ? undefined : getArrayU8FromWasm(arg9, arg10);
+    try {
+        __widl_f_tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array_WebGLRenderingContext_target.call(getObject(arg0), arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, varg9);
+    } catch (e) {
+        const view = getUint32Memory();
+        view[exnptr / 4] = 1;
+        view[exnptr / 4 + 1] = addHeapObject(e);
+
+    }
+};
+
+const __widl_f_active_texture_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.activeTexture || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.activeTexture does not exist`);
+};
+
+__exports.__widl_f_active_texture_WebGLRenderingContext = function(arg0, arg1) {
+    __widl_f_active_texture_WebGLRenderingContext_target.call(getObject(arg0), arg1);
+};
+
 const __widl_f_attach_shader_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.attachShader || function() {
     throw new Error(`wasm-bindgen: WebGLRenderingContext.attachShader does not exist`);
 };
@@ -215,6 +209,14 @@ const __widl_f_bind_buffer_WebGLRenderingContext_target = typeof WebGLRenderingC
 
 __exports.__widl_f_bind_buffer_WebGLRenderingContext = function(arg0, arg1, arg2) {
     __widl_f_bind_buffer_WebGLRenderingContext_target.call(getObject(arg0), arg1, getObject(arg2));
+};
+
+const __widl_f_bind_texture_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.bindTexture || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.bindTexture does not exist`);
+};
+
+__exports.__widl_f_bind_texture_WebGLRenderingContext = function(arg0, arg1, arg2) {
+    __widl_f_bind_texture_WebGLRenderingContext_target.call(getObject(arg0), arg1, getObject(arg2));
 };
 
 const __widl_f_blend_func_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.blendFunc || function() {
@@ -278,6 +280,17 @@ const __widl_f_create_shader_WebGLRenderingContext_target = typeof WebGLRenderin
 __exports.__widl_f_create_shader_WebGLRenderingContext = function(arg0, arg1) {
 
     const val = __widl_f_create_shader_WebGLRenderingContext_target.call(getObject(arg0), arg1);
+    return isLikeNone(val) ? 0 : addHeapObject(val);
+
+};
+
+const __widl_f_create_texture_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.createTexture || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.createTexture does not exist`);
+};
+
+__exports.__widl_f_create_texture_WebGLRenderingContext = function(arg0) {
+
+    const val = __widl_f_create_texture_WebGLRenderingContext_target.call(getObject(arg0));
     return isLikeNone(val) ? 0 : addHeapObject(val);
 
 };
@@ -388,6 +401,22 @@ __exports.__widl_f_shader_source_WebGLRenderingContext = function(arg0, arg1, ar
     __widl_f_shader_source_WebGLRenderingContext_target.call(getObject(arg0), getObject(arg1), varg2);
 };
 
+const __widl_f_tex_parameteri_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.texParameteri || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.texParameteri does not exist`);
+};
+
+__exports.__widl_f_tex_parameteri_WebGLRenderingContext = function(arg0, arg1, arg2, arg3) {
+    __widl_f_tex_parameteri_WebGLRenderingContext_target.call(getObject(arg0), arg1, arg2, arg3);
+};
+
+const __widl_f_uniform1i_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.uniform1i || function() {
+    throw new Error(`wasm-bindgen: WebGLRenderingContext.uniform1i does not exist`);
+};
+
+__exports.__widl_f_uniform1i_WebGLRenderingContext = function(arg0, arg1, arg2) {
+    __widl_f_uniform1i_WebGLRenderingContext_target.call(getObject(arg0), getObject(arg1), arg2);
+};
+
 const __widl_f_uniform2f_WebGLRenderingContext_target = typeof WebGLRenderingContext === 'undefined' ? null : WebGLRenderingContext.prototype.uniform2f || function() {
     throw new Error(`wasm-bindgen: WebGLRenderingContext.uniform2f does not exist`);
 };
@@ -463,6 +492,14 @@ __exports.__wbg_subarray_705096b76e15e94e = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
+__exports.__wbg_new_3153ff3e90269012 = function(arg0) {
+    return addHeapObject(new Uint16Array(getObject(arg0)));
+};
+
+__exports.__wbg_subarray_6f181829e5fd3854 = function(arg0, arg1, arg2) {
+    return addHeapObject(getObject(arg0).subarray(arg1, arg2));
+};
+
 __exports.__wbg_instanceof_Memory_d223615e29613829 = function(idx) {
     return getObject(idx) instanceof WebAssembly.Memory ? 1 : 0;
 };
@@ -511,6 +548,21 @@ __exports.__wbindgen_string_new = function(p, l) {
     return addHeapObject(getStringFromWasm(p, l));
 };
 
+__exports.__wbindgen_number_get = function(n, invalid) {
+    let obj = getObject(n);
+    if (typeof(obj) === 'number') return obj;
+    getUint8Memory()[invalid] = 1;
+    return 0;
+};
+
+__exports.__wbindgen_is_null = function(idx) {
+    return getObject(idx) === null ? 1 : 0;
+};
+
+__exports.__wbindgen_is_undefined = function(idx) {
+    return getObject(idx) === undefined ? 1 : 0;
+};
+
 __exports.__wbindgen_boolean_get = function(i) {
     let v = getObject(i);
     if (typeof(v) === 'boolean') {
@@ -518,6 +570,18 @@ __exports.__wbindgen_boolean_get = function(i) {
     } else {
         return 2;
     }
+};
+
+__exports.__wbindgen_is_symbol = function(i) {
+    return typeof(getObject(i)) === 'symbol' ? 1 : 0;
+};
+
+__exports.__wbindgen_string_get = function(i, len_ptr) {
+    let obj = getObject(i);
+    if (typeof(obj) !== 'string') return 0;
+    const ptr = passStringToWasm(obj);
+    getUint32Memory()[len_ptr / 4] = WASM_VECTOR_LEN;
+    return ptr;
 };
 
 __exports.__wbindgen_memory = function() { return addHeapObject(wasm.memory); };
