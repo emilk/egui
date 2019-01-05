@@ -141,10 +141,10 @@ impl Painter {
         let mut positions: Vec<f32> = Vec::with_capacity(2 * frame.vertices.len());
         let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * frame.vertices.len());
         for v in &frame.vertices {
-            positions.push(v.x);
-            positions.push(v.y);
-            tex_coords.push(v.u);
-            tex_coords.push(v.v);
+            positions.push(v.pos.x);
+            positions.push(v.pos.y);
+            tex_coords.push(v.uv.0);
+            tex_coords.push(v.uv.1);
         }
 
         let mut colors: Vec<u8> = Vec::with_capacity(4 * frame.vertices.len());

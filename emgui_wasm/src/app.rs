@@ -18,7 +18,7 @@ pub struct App {
 impl Default for App {
     fn default() -> App {
         App {
-            checked: false,
+            checked: true,
             selected_alternative: 0,
             count: 0,
             width: 100.0,

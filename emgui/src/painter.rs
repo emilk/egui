@@ -1,20 +1,18 @@
+#![allow(unused_variables)]
+
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
     font::Font,
-    math::{remap, Vec2, TAU},
+    math::{remap, vec2, Vec2, TAU},
     types::{Color, PaintCmd},
 };
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Vertex {
-    /// Pixel coordinated
-    pub x: f32,
-    /// Pixel coordinated
-    pub y: f32,
+    /// Pixel coordinates
+    pub pos: Vec2,
     /// Texel indices into the texture
-    pub u: u16,
-    /// Texel indices into the texture
-    pub v: u16,
+    pub uv: (u16, u16),
     /// sRGBA
     pub color: Color,
 }
@@ -26,6 +24,13 @@ pub struct Frame {
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum PathType {
+    Open,
+    Closed,
+}
+use self::PathType::*;
 
 impl Frame {
     /// Uniformly colored rectangle
@@ -39,17 +44,13 @@ impl Frame {
         self.indices.push(idx + 3);
 
         let top_right = Vertex {
-            x: bottom_right.x,
-            y: top_left.y,
-            u: bottom_right.u,
-            v: top_left.v,
+            pos: vec2(bottom_right.pos.x, top_left.pos.y),
+            uv: (bottom_right.uv.0, top_left.uv.1),
             color: top_left.color,
         };
         let botom_left = Vertex {
-            x: top_left.x,
-            y: bottom_right.y,
-            u: top_left.u,
-            v: bottom_right.v,
+            pos: vec2(top_left.pos.x, bottom_right.pos.y),
+            uv: (top_left.uv.0, bottom_right.uv.1),
             color: top_left.color,
         };
         self.vertices.push(top_left);
@@ -59,17 +60,15 @@ impl Frame {
     }
 
     pub fn fill_closed_path(&mut self, points: &[Vec2], normals: &[Vec2], color: Color) {
-        self.vertices.extend(points.iter().map(|p| Vertex {
-            x: p.x,
-            y: p.y,
-            u: 0,
-            v: 0,
-            color,
-        }));
         // TODO: use normals for anti-aliasing
         assert_eq!(points.len(), normals.len());
         let n = points.len() as u32;
         let idx = self.vertices.len() as u32;
+        self.vertices.extend(points.iter().map(|&pos| Vertex {
+            pos,
+            uv: (0, 0),
+            color,
+        }));
         for i in 2..n {
             self.indices.push(idx);
             self.indices.push(idx + i - 1);
@@ -77,12 +76,13 @@ impl Frame {
         }
     }
 
-    pub fn draw_closed_path(
+    pub fn paint_path(
         &mut self,
+        path_type: PathType,
         points: &[Vec2],
         normals: &[Vec2],
-        width: f32,
         color: Color,
+        width: f32,
     ) {
         // TODO: anti-aliasing
         assert_eq!(points.len(), normals.len());
@@ -90,7 +90,8 @@ impl Frame {
         let hw = width / 2.0;
 
         let idx = self.vertices.len() as u32;
-        for i in 0..n {
+        let last_index = if path_type == Closed { n } else { n - 1 };
+        for i in 0..last_index {
             self.indices.push(idx + (2 * i + 0) % (2 * n));
             self.indices.push(idx + (2 * i + 1) % (2 * n));
             self.indices.push(idx + (2 * i + 2) % (2 * n));
@@ -99,19 +100,15 @@ impl Frame {
             self.indices.push(idx + (2 * i + 3) % (2 * n));
         }
 
-        for (p, n) in points.iter().zip(normals) {
+        for (&p, &n) in points.iter().zip(normals) {
             self.vertices.push(Vertex {
-                x: p.x + hw * n.x,
-                y: p.y + hw * n.x,
-                u: 0,
-                v: 0,
+                pos: p + hw * n,
+                uv: (0, 0),
                 color,
             });
             self.vertices.push(Vertex {
-                x: p.x - hw * n.x,
-                y: p.y - hw * n.x,
-                u: 0,
-                v: 0,
+                pos: p - hw * n,
+                uv: (0, 0),
                 color,
             });
         }
@@ -136,8 +133,8 @@ impl Painter {
     }
 
     pub fn paint(&self, commands: &[PaintCmd]) -> Frame {
-        // let mut path_points = Vec::new();
-        // let mut path_normals = Vec::new();
+        let mut path_points = Vec::new();
+        let mut path_normals = Vec::new();
 
         let mut frame = Frame::default();
         for cmd in commands {
@@ -148,34 +145,60 @@ impl Painter {
                     outline,
                     radius,
                 } => {
-                    let n = 64; // TODO: parameter
-                    if let Some(color) = fill_color {
-                        let idx = frame.vertices.len() as u32;
-                        for i in 2..n {
-                            frame.indices.push(idx);
-                            frame.indices.push(idx + i - 1);
-                            frame.indices.push(idx + i);
-                        }
+                    path_points.clear();
+                    path_normals.clear();
 
-                        for i in 0..n {
-                            let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
-                            frame.vertices.push(Vertex {
-                                x: center.x + radius * angle.cos(),
-                                y: center.y + radius * angle.sin(),
-                                u: 0,
-                                v: 0,
-                                color: *color,
-                            });
-                        }
+                    let n = 32; // TODO: parameter
+                    for i in 0..n {
+                        let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
+                        let normal = vec2(angle.cos(), angle.sin());
+                        path_normals.push(normal);
+                        path_points.push(*center + *radius * normal);
                     }
-                    if let Some(_outline) = outline {
-                        // TODO
+
+                    if let Some(color) = fill_color {
+                        frame.fill_closed_path(&path_points, &path_normals, *color);
+                    }
+                    if let Some(outline) = outline {
+                        frame.paint_path(
+                            Closed,
+                            &path_points,
+                            &path_normals,
+                            outline.color,
+                            outline.width,
+                        );
                     }
                 }
                 PaintCmd::Clear { fill_color } => {
                     frame.clear_color = Some(*fill_color);
                 }
-                PaintCmd::Line { .. } => {} // TODO
+                PaintCmd::Line {
+                    points,
+                    color,
+                    width,
+                } => {
+                    let n = points.len();
+                    if n >= 2 {
+                        path_points = points.clone();
+                        path_normals.clear();
+
+                        path_normals.push((path_points[1] - path_points[0]).normalized().rot90());
+                        for i in 1..n - 1 {
+                            let n0 = (path_points[i] - path_points[i - 1]).normalized().rot90();
+                            let n1 = (path_points[i + 1] - path_points[i]).normalized().rot90();
+                            let v = (n0 + n1) / 2.0;
+                            let normal = v / v.length_sq();
+                            path_normals.push(normal); // TODO: handle VERY sharp turns better
+                        }
+                        path_normals.push(
+                            (path_points[n - 1] - path_points[n - 2])
+                                .normalized()
+                                .rot90(),
+                        );
+
+                        frame.paint_path(Open, &path_points, &path_normals, *color, *width);
+                    }
+                }
                 PaintCmd::Rect {
                     fill_color,
                     outline,
@@ -183,52 +206,33 @@ impl Painter {
                     size,
                     ..
                 } => {
+                    path_points.clear();
+                    path_normals.clear();
+
+                    let min = *pos;
+                    let max = *pos + *size;
+
                     // TODO: rounded corners
-                    // TODO: anti-aliasing
-                    // TODO: FilledRect and RectOutline as separate commands?
+                    path_points.push(vec2(min.x, min.y));
+                    path_normals.push(vec2(-1.0, -1.0));
+                    path_points.push(vec2(max.x, min.y));
+                    path_normals.push(vec2(1.0, -1.0));
+                    path_points.push(vec2(max.x, max.y));
+                    path_normals.push(vec2(1.0, 1.0));
+                    path_points.push(vec2(min.x, max.y));
+                    path_normals.push(vec2(-1.0, 1.0));
+
                     if let Some(color) = fill_color {
-                        let vert = |pos: Vec2| Vertex {
-                            x: pos.x,
-                            y: pos.y,
-                            u: 0,
-                            v: 0,
-                            color: *color,
-                        };
-                        frame.add_rect(vert(*pos), vert(*pos + *size));
+                        frame.fill_closed_path(&path_points, &path_normals, *color);
                     }
                     if let Some(outline) = outline {
-                        let vert = |x, y| Vertex {
-                            x,
-                            y,
-                            u: 0,
-                            v: 0,
-                            color: outline.color,
-                        };
-
-                        // Draw this counter-clockwise from top-left corner,
-                        // outer to inner on each step.
-                        let hw = outline.width / 2.0;
-
-                        let idx = frame.vertices.len() as u32;
-                        for i in 0..4 {
-                            frame.indices.push(idx + (2 * i + 0) % 8);
-                            frame.indices.push(idx + (2 * i + 1) % 8);
-                            frame.indices.push(idx + (2 * i + 2) % 8);
-                            frame.indices.push(idx + (2 * i + 2) % 8);
-                            frame.indices.push(idx + (2 * i + 1) % 8);
-                            frame.indices.push(idx + (2 * i + 3) % 8);
-                        }
-
-                        let min = *pos;
-                        let max = *pos + *size;
-                        frame.vertices.push(vert(min.x - hw, min.y - hw));
-                        frame.vertices.push(vert(min.x + hw, min.y + hw));
-                        frame.vertices.push(vert(max.x + hw, min.y - hw));
-                        frame.vertices.push(vert(max.x - hw, min.y + hw));
-                        frame.vertices.push(vert(max.x + hw, max.y + hw));
-                        frame.vertices.push(vert(max.x - hw, max.y - hw));
-                        frame.vertices.push(vert(min.x - hw, max.y + hw));
-                        frame.vertices.push(vert(min.x + hw, max.y - hw));
+                        frame.paint_path(
+                            Closed,
+                            &path_points,
+                            &path_normals,
+                            outline.color,
+                            outline.width,
+                        );
                     }
                 }
                 PaintCmd::Text {
@@ -240,17 +244,21 @@ impl Painter {
                     for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
                         if let Some(glyph) = self.font.glyph_info(c) {
                             let top_left = Vertex {
-                                x: pos.x + x_offset + (glyph.offset_x as f32),
-                                y: pos.y + (glyph.offset_y as f32),
-                                u: glyph.min_x,
-                                v: glyph.min_y,
+                                pos: *pos
+                                    + vec2(
+                                        x_offset + (glyph.offset_x as f32),
+                                        glyph.offset_y as f32,
+                                    ),
+                                uv: (glyph.min_x, glyph.min_y),
                                 color: *color,
                             };
                             let bottom_right = Vertex {
-                                x: top_left.x + (1 + glyph.max_x - glyph.min_x) as f32,
-                                y: top_left.y + (1 + glyph.max_y - glyph.min_y) as f32,
-                                u: glyph.max_x + 1,
-                                v: glyph.max_y + 1,
+                                pos: top_left.pos
+                                    + vec2(
+                                        (1 + glyph.max_x - glyph.min_x) as f32,
+                                        (1 + glyph.max_y - glyph.min_y) as f32,
+                                    ),
+                                uv: (glyph.max_x + 1, glyph.max_y + 1),
                                 color: *color,
                             };
                             frame.add_rect(top_left, bottom_right);
