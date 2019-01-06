@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{font::Font, layout, style, types::GuiInput, Frame, Painter, RawInput};
 
 /// Encapsulates input, layout and painting for ease of use.
@@ -10,7 +12,7 @@ pub struct Emgui {
 }
 
 impl Emgui {
-    pub fn new(font: Font) -> Emgui {
+    pub fn new(font: Arc<Font>) -> Emgui {
         Emgui {
             last_input: Default::default(),
             data: layout::Data::new(font.clone()),
@@ -30,12 +32,14 @@ impl Emgui {
     }
 
     pub fn whole_screen_region(&mut self) -> layout::Region {
+        let size = self.data.input.screen_size;
         layout::Region {
             data: &mut self.data,
             id: Default::default(),
             dir: layout::Direction::Vertical,
             cursor: Default::default(),
-            size: Default::default(),
+            bounding_size: Default::default(),
+            available_space: size,
         }
     }
 
@@ -44,7 +48,7 @@ impl Emgui {
     }
 
     pub fn paint(&mut self) -> Frame {
-        let gui_commands = self.data.gui_commands();
+        let gui_commands = self.data.drain_gui_commands();
         let paint_commands = style::into_paint_commands(gui_commands, &self.style);
         self.painter.paint(&paint_commands)
     }

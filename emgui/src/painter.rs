@@ -1,4 +1,4 @@
-#![allow(unused_variables)]
+use std::sync::Arc;
 
 const ANTI_ALIAS: bool = true;
 const AA_SIZE: f32 = 1.0;
@@ -131,7 +131,6 @@ impl Frame {
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
                 if thin_line {
-                    let hw = (width - AA_SIZE) * 0.5;
                     let p = points[i1 as usize];
                     let n = normals[i1 as usize];
                     self.vertices.push(vert(p + n * AA_SIZE, color_outer));
@@ -194,11 +193,11 @@ impl Frame {
 
 #[derive(Clone)]
 pub struct Painter {
-    font: Font,
+    font: Arc<Font>,
 }
 
 impl Painter {
-    pub fn new(font: Font) -> Painter {
+    pub fn new(font: Arc<Font>) -> Painter {
         Painter { font }
     }
 
@@ -289,7 +288,7 @@ impl Painter {
 
                     let cr = corner_radius.min(size.x * 0.5).min(size.y * 0.5);
 
-                    if cr < 1.0 {
+                    if cr <= 0.0 {
                         path_points.push(vec2(min.x, min.y));
                         path_normals.push(vec2(-1.0, -1.0));
                         path_points.push(vec2(max.x, min.y));

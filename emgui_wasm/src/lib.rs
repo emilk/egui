@@ -5,6 +5,8 @@ extern crate wasm_bindgen;
 
 extern crate emgui;
 
+use std::sync::Arc;
+
 use emgui::{Emgui, Font, RawInput};
 
 use wasm_bindgen::prelude::*;
@@ -38,7 +40,7 @@ pub struct State {
 
 impl State {
     fn new(canvas_id: &str) -> Result<State, JsValue> {
-        let font = Font::new(20); // TODO: Arc to avoid cloning
+        let font = Arc::new(Font::new(20));
         let emgui = Emgui::new(font);
         let webgl_painter = webgl::Painter::new(canvas_id, emgui.texture())?;
         Ok(State {
@@ -58,20 +60,30 @@ impl State {
 
         let mut style = self.emgui.style.clone();
         let mut region = self.emgui.whole_screen_region();
+        let mut region = region.centered_column(300.0);
         self.app.show_gui(&mut region);
 
+        // TODO: move this to some emgui::example module
         region.foldable("Style", |gui| {
             style.show_gui(gui);
         });
 
         let stats = self.stats; // TODO: avoid
+        let webgl_info = self.webgl_painter.debug_info(); // TODO: avoid
         region.foldable("Stats", |gui| {
             gui.label(format!("num_vertices: {}", stats.num_vertices));
             gui.label(format!("num_triangles: {}", stats.num_triangles));
 
+            gui.label("WebGl painter info:");
+            gui.indent(|gui| {
+                gui.label(webgl_info);
+            });
+
             gui.label("Timings:");
-            gui.label(format!("Everything: {:.1} ms", stats.everything_ms));
-            gui.label(format!("WebGL: {:.1} ms", stats.webgl_ms));
+            gui.indent(|gui| {
+                gui.label(format!("Everything: {:.1} ms", stats.everything_ms));
+                gui.label(format!("WebGL: {:.1} ms", stats.webgl_ms));
+            });
         });
 
         self.emgui.style = style;

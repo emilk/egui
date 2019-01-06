@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{font::Font, math::*, types::*};
 
@@ -15,9 +15,6 @@ pub struct LayoutOptions {
     /// Indent foldable regions etc by this much.
     pub indent: f32,
 
-    /// Default width of sliders, foldout categories etc. TODO: percentage of parent?
-    pub width: f32,
-
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
 
@@ -32,7 +29,6 @@ impl Default for LayoutOptions {
             item_spacing: vec2(8.0, 4.0),
             window_padding: vec2(6.0, 6.0),
             indent: 21.0,
-            width: 250.0,
             button_padding: vec2(5.0, 3.0),
             start_icon_width: 20.0,
         }
@@ -123,7 +119,7 @@ type Id = u64;
 #[derive(Clone)]
 pub struct Data {
     pub(crate) options: LayoutOptions,
-    pub(crate) font: Font, // TODO: Arc?. TODO: move to options.
+    pub(crate) font: Arc<Font>,
     pub(crate) input: GuiInput,
     pub(crate) memory: Memory,
     pub(crate) graphics: Vec<GuiCmd>,
@@ -131,7 +127,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn new(font: Font) -> Data {
+    pub fn new(font: Arc<Font>) -> Data {
         Data {
             options: Default::default(),
             font,
@@ -146,10 +142,6 @@ impl Data {
         &self.input
     }
 
-    pub fn gui_commands(&self) -> impl Iterator<Item = &GuiCmd> {
-        self.graphics.iter().chain(self.hovering_graphics.iter())
-    }
-
     pub fn options(&self) -> &LayoutOptions {
         &self.options
     }
@@ -160,12 +152,17 @@ impl Data {
 
     // TODO: move
     pub fn new_frame(&mut self, gui_input: GuiInput) {
-        self.graphics.clear();
-        self.hovering_graphics.clear();
         self.input = gui_input;
         if !gui_input.mouse_down {
             self.memory.active_id = None;
         }
+    }
+
+    pub fn drain_gui_commands(&mut self) -> impl ExactSizeIterator<Item = GuiCmd> {
+        // TODO: there must be a nicer way to do this?
+        let mut all_commands: Vec<_> = self.graphics.drain(..).collect();
+        all_commands.extend(self.hovering_graphics.drain(..));
+        all_commands.into_iter()
     }
 
     /// Show a pop-over window
@@ -183,13 +180,14 @@ impl Data {
             id: Default::default(),
             dir: Direction::Vertical,
             cursor: window_pos + window_padding,
-            size: vec2(0.0, 0.0),
+            bounding_size: vec2(0.0, 0.0),
+            available_space: vec2(400.0, std::f32::INFINITY), // TODO
         };
 
         add_contents(&mut popup_region);
 
         // TODO: handle the last item_spacing in a nicer way
-        let inner_size = popup_region.size - self.options.item_spacing;
+        let inner_size = popup_region.bounding_size - self.options.item_spacing;
         let outer_size = inner_size + 2.0 * window_padding;
 
         let rect = Rect::from_min_size(window_pos, outer_size);
@@ -204,10 +202,11 @@ impl Data {
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
+/// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region<'a> {
+    // TODO: Arc<StaticDat> + Arc<Mutex<MutableData>> for a lot less hassle.
     pub(crate) data: &'a mut Data,
 
-    // TODO: add min_size and max_size
     /// Unique ID of this region.
     pub(crate) id: Id,
 
@@ -217,8 +216,13 @@ pub struct Region<'a> {
     /// Changes only along self.dir
     pub(crate) cursor: Vec2,
 
+    /// Bounding box children.
     /// We keep track of our max-size along the orthogonal to self.dir
-    pub(crate) size: Vec2,
+    pub(crate) bounding_size: Vec2,
+
+    /// This how much space we can take up without overflowing our parent.
+    /// Shrinks as cursor increments.
+    pub(crate) available_space: Vec2,
 }
 
 impl<'a> Region<'a> {
@@ -233,12 +237,17 @@ impl<'a> Region<'a> {
         self.data.options()
     }
 
+    // TODO: remove
     pub fn set_options(&mut self, options: LayoutOptions) {
         self.data.set_options(options)
     }
 
     pub fn input(&self) -> &GuiInput {
         self.data.input()
+    }
+
+    pub fn cursor(&self) -> Vec2 {
+        self.cursor
     }
 
     pub fn button<S: Into<String>>(&mut self, text: S) -> GuiResponse {
@@ -326,7 +335,7 @@ impl<'a> Region<'a> {
         self.reserve_space_inner(text_size);
         let (slider_rect, interact) = self.reserve_space(
             Vec2 {
-                x: self.options().width,
+                x: self.available_space.x,
                 y: self.data.font.line_spacing(),
             },
             Some(id),
@@ -354,7 +363,7 @@ impl<'a> Region<'a> {
     }
 
     // ------------------------------------------------------------------------
-    // Areas:
+    // Sub-regions:
 
     pub fn foldable<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
     where
@@ -371,7 +380,7 @@ impl<'a> Region<'a> {
         let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) = self.reserve_space(
             vec2(
-                self.options().width,
+                self.available_space.x,
                 text_size.y + 2.0 * self.options().button_padding.y,
             ),
             Some(id),
@@ -397,17 +406,44 @@ impl<'a> Region<'a> {
         );
 
         if open {
-            // TODO: new region
             let old_id = self.id;
             self.id = id;
-            let old_x = self.cursor.x;
-            self.cursor.x += self.options().indent;
-            add_contents(self);
-            self.cursor.x = old_x;
+            self.indent(add_contents);
             self.id = old_id;
         }
 
         self.response(interact)
+    }
+
+    /// Create a child region which is indented to the right
+    pub fn indent<F>(&mut self, add_contents: F)
+    where
+        F: FnOnce(&mut Region),
+    {
+        let indent = vec2(self.options().indent, 0.0);
+        let mut child_region = Region {
+            data: self.data,
+            id: self.id,
+            dir: self.dir,
+            cursor: self.cursor + indent,
+            bounding_size: vec2(0.0, 0.0),
+            available_space: self.available_space - indent,
+        };
+        add_contents(&mut child_region);
+        let size = child_region.bounding_size;
+        self.reserve_space_inner(indent + size);
+    }
+
+    /// A horizontally centered region of the given width.
+    pub fn centered_column(&mut self, width: f32) -> Region {
+        Region {
+            data: self.data,
+            id: self.id,
+            dir: self.dir,
+            cursor: vec2((self.available_space.x - width) / 2.0, self.cursor.y),
+            bounding_size: vec2(0.0, 0.0),
+            available_space: vec2(width, self.available_space.y),
+        }
     }
 
     /// Start a region with horizontal layout
@@ -415,21 +451,70 @@ impl<'a> Region<'a> {
     where
         F: FnOnce(&mut Region),
     {
-        let mut horizontal_region = Region {
+        let mut child_region = Region {
             data: self.data,
             id: self.id,
             dir: Direction::Horizontal,
             cursor: self.cursor,
-            size: vec2(0.0, 0.0),
+            bounding_size: vec2(0.0, 0.0),
+            available_space: self.available_space,
         };
-        add_contents(&mut horizontal_region);
-        let size = horizontal_region.size;
+        add_contents(&mut child_region);
+        let size = child_region.bounding_size;
         self.reserve_space_inner(size);
     }
 
+    // TODO: we need to rethink this a lot. Passing closures have problems with borrow checker.
+    // Much better with temporary regions that register the final size in Drop ?
+
+    // pub fn columns_2<F0, F1>(&mut self, col0: F0, col1: F1)
+    // where
+    //     F0: FnOnce(&mut Region),
+    //     F1: FnOnce(&mut Region),
+    // {
+    //     let mut max_height = 0.0;
+    //     let num_columns = 2;
+    //     // TODO: ensure there is space
+    //     let padding = self.options().item_spacing.x;
+    //     let total_padding = padding * (num_columns as f32 - 1.0);
+    //     let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
+
+    //     let col_idx = 0;
+    //     let mut child_region = Region {
+    //         data: self.data,
+    //         id: self.id,
+    //         dir: Direction::Vertical,
+    //         cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
+    //         bounding_size: vec2(0.0, 0.0),
+    //         available_space: vec2(column_width, self.available_space.y),
+    //     };
+    //     col0(&mut child_region);
+    //     let size = child_region.bounding_size;
+    //     max_height = size.y.max(max_height);
+
+    //     let col_idx = 1;
+    //     let mut child_region = Region {
+    //         data: self.data,
+    //         id: self.id,
+    //         dir: Direction::Vertical,
+    //         cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
+    //         bounding_size: vec2(0.0, 0.0),
+    //         available_space: vec2(column_width, self.available_space.y),
+    //     };
+    //     col1(&mut child_region);
+    //     let size = child_region.bounding_size;
+    //     max_height = size.y.max(max_height);
+
+    //     self.reserve_space_inner(vec2(self.available_space.x, max_height));
+    // }
+
     // ------------------------------------------------------------------------
 
-    fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> (Rect, InteractInfo) {
+    pub fn reserve_space(
+        &mut self,
+        size: Vec2,
+        interaction_id: Option<Id>,
+    ) -> (Rect, InteractInfo) {
         let rect = Rect {
             pos: self.cursor,
             size,
@@ -458,12 +543,14 @@ impl<'a> Region<'a> {
     fn reserve_space_inner(&mut self, size: Vec2) {
         if self.dir == Direction::Horizontal {
             self.cursor.x += size.x;
-            self.size.x += size.x;
-            self.size.y = self.size.y.max(size.y);
+            self.available_space.x -= size.x;
+            self.bounding_size.x += size.x;
+            self.bounding_size.y = self.bounding_size.y.max(size.y);
         } else {
             self.cursor.y += size.y;
-            self.size.y += size.y;
-            self.size.x = self.size.x.max(size.x);
+            self.available_space.y -= size.x;
+            self.bounding_size.y += size.y;
+            self.bounding_size.x = self.bounding_size.x.max(size.x);
         }
     }
 

@@ -275,11 +275,11 @@ pub fn into_paint_commands<'a, GuiCmdIterator>(
     style: &Style,
 ) -> Vec<PaintCmd>
 where
-    GuiCmdIterator: Iterator<Item = &'a GuiCmd>,
+    GuiCmdIterator: Iterator<Item = GuiCmd>,
 {
     let mut paint_commands = vec![];
     for gui_cmd in gui_commands {
-        translate_cmd(&mut paint_commands, style, gui_cmd.clone())
+        translate_cmd(&mut paint_commands, style, gui_cmd)
     }
     paint_commands
 }

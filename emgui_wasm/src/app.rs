@@ -9,8 +9,7 @@ pub struct App {
     count: i32,
     selected_alternative: i32,
 
-    width: f32,
-    height: f32,
+    size: Vec2,
     corner_radius: f32,
     stroke_width: f32,
 }
@@ -21,8 +20,7 @@ impl Default for App {
             checked: true,
             selected_alternative: 0,
             count: 0,
-            width: 100.0,
-            height: 50.0,
+            size: vec2(100.0, 50.0),
             corner_radius: 5.0,
             stroke_width: 2.0,
         }
@@ -65,23 +63,25 @@ impl GuiSettings for App {
 
         gui.label(format!("This is a multiline label.\nThe button have been clicked {} times.\nBelow are more options.", self.count));
 
-        gui.foldable("Box rendering options", |gui| {
-            gui.slider_f32("width", &mut self.width, 0.0, 500.0);
-            gui.slider_f32("height", &mut self.height, 0.0, 500.0);
+        gui.foldable("Test box rendering", |gui| {
+            gui.slider_f32("width", &mut self.size.x, 0.0, 500.0);
+            gui.slider_f32("height", &mut self.size.y, 0.0, 500.0);
             gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 50.0);
             gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
-        });
 
-        gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
-            corner_radius: self.corner_radius,
-            fill_color: Some(srgba(136, 136, 136, 255)),
-            pos: vec2(300.0, 100.0),
-            size: vec2(self.width, self.height),
-            outline: Some(Outline {
-                width: self.stroke_width,
-                color: srgba(255, 255, 255, 255),
-            }),
-        }]));
+            let pos = gui.cursor();
+            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
+                corner_radius: self.corner_radius,
+                fill_color: Some(srgba(136, 136, 136, 255)),
+                pos,
+                size: self.size,
+                outline: Some(Outline {
+                    width: self.stroke_width,
+                    color: srgba(255, 255, 255, 255),
+                }),
+            }]));
+            gui.reserve_space(self.size, None);
+        });
 
         gui.foldable("LayoutOptions", |gui| {
             let mut options = gui.options().clone();
@@ -101,7 +101,6 @@ impl GuiSettings for emgui::LayoutOptions {
         gui.slider_f32("window_padding.x", &mut self.window_padding.x, 0.0, 10.0);
         gui.slider_f32("window_padding.y", &mut self.window_padding.y, 0.0, 10.0);
         gui.slider_f32("indent", &mut self.indent, 0.0, 100.0);
-        gui.slider_f32("width", &mut self.width, 0.0, 1000.0);
         gui.slider_f32("button_padding.x", &mut self.button_padding.x, 0.0, 20.0);
         gui.slider_f32("button_padding.y", &mut self.button_padding.y, 0.0, 20.0);
         gui.slider_f32("start_icon_width", &mut self.start_icon_width, 0.0, 60.0);

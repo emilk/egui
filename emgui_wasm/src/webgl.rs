@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use {
     js_sys::WebAssembly,
     wasm_bindgen::{prelude::*, JsCast},
@@ -23,6 +21,17 @@ pub struct Painter {
 }
 
 impl Painter {
+    pub fn debug_info(&self) -> String {
+        format!(
+            "Stored canvas size: {} x {}\n\
+             gl context size: {} x {}",
+            self.canvas.width(),
+            self.canvas.height(),
+            self.gl.drawing_buffer_width(),
+            self.gl.drawing_buffer_height(),
+        )
+    }
+
     pub fn new(
         canvas_id: &str,
         (tex_width, tex_height, pixels): (u16, u16, &[u8]),
@@ -274,6 +283,12 @@ impl Painter {
         let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
         gl.uniform1i(Some(&u_sampler_loc), 0);
 
+        gl.viewport(
+            0,
+            0,
+            self.canvas.width() as i32,
+            self.canvas.height() as i32,
+        );
         gl.clear_color(0.05, 0.05, 0.05, 1.0);
         gl.clear(Gl::COLOR_BUFFER_BIT);
 

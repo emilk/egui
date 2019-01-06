@@ -1,5 +1,3 @@
-#![allow(unused)] // TODO
-
 use rusttype::{point, Scale};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -27,7 +25,6 @@ pub struct GlyphInfo {
 /// Printable ASCII characters [32, 126], which excludes control codes.
 const FIRST_ASCII: usize = 32; // 32 == space
 const LAST_ASCII: usize = 126;
-const NUM_CHARS: usize = LAST_ASCII - FIRST_ASCII + 1;
 
 // TODO: break out texture atlas into separate struct, and fill it dynamically, potentially from multiple fonts.
 #[derive(Clone)]
@@ -116,7 +113,7 @@ impl Font {
                     }
                 });
 
-                let offset_y = scale as i16 + bb.min.y as i16 - 3; // TODO: use font.v_metrics
+                let offset_y = scale as i16 + bb.min.y as i16 - 4; // TODO: use font.v_metrics
                 glyph_infos.push(GlyphInfo {
                     id: glyph.id(),
                     advance_width: glyph.unpositioned().h_metrics().advance_width,
@@ -230,7 +227,7 @@ impl Font {
         let scale = Scale::uniform(self.scale as f32);
         let mut pixel_rows = vec![vec![0; max_width]; self.scale];
         let mut cursor_x = 0.0;
-        let mut cursor_y = 0;
+        let cursor_y = 0;
         let mut last_glyph_id = None;
         for c in Self::supported_characters() {
             if let Some(glyph) = self.glyph_info(c) {
