@@ -10,7 +10,6 @@ use emgui::Frame;
 
 type Gl = WebGlRenderingContext;
 
-#[wasm_bindgen]
 pub struct Painter {
     canvas: web_sys::HtmlCanvasElement,
     gl: WebGlRenderingContext,
@@ -101,7 +100,7 @@ impl Painter {
             varying vec4 v_color;
             void main() {
                 gl_FragColor = v_color;
-                gl_FragColor *= texture2D(u_sampler, v_tc).a;
+                gl_FragColor.a *= texture2D(u_sampler, v_tc).a;
             }
         "#,
         )?;

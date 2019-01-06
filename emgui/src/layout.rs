@@ -52,24 +52,25 @@ pub struct GuiResponse<'a> {
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
 
-    layout: &'a mut Layout,
+    /// Used for showing a popup (if any)
+    data: &'a mut Data,
 }
 
 impl<'a> GuiResponse<'a> {
     /// Show some stuff if the item was hovered
-    pub fn tooltip<F>(self, add_contents: F) -> Self
+    pub fn tooltip<F>(&mut self, add_contents: F) -> &mut Self
     where
-        F: FnOnce(&mut Layout),
+        F: FnOnce(&mut Region),
     {
         if self.hovered {
-            let window_pos = self.layout.input.mouse_pos + vec2(16.0, 16.0);
-            self.layout.show_popup(window_pos, add_contents);
+            let window_pos = self.data.input().mouse_pos + vec2(16.0, 16.0);
+            self.data.show_popup(window_pos, add_contents);
         }
         self
     }
 
     /// Show this text if the item was hovered
-    pub fn tooltip_text<S: Into<String>>(self, text: S) -> Self {
+    pub fn tooltip_text<S: Into<String>>(&mut self, text: S) -> &mut Self {
         self.tooltip(|popup| {
             popup.label(text);
         })
@@ -79,7 +80,7 @@ impl<'a> GuiResponse<'a> {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default)]
-struct Memory {
+pub struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
     active_id: Option<Id>,
 
@@ -102,7 +103,7 @@ type TextFragments = Vec<TextFragment>;
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Direction {
+pub enum Direction {
     Horizontal,
     Vertical,
 }
@@ -115,59 +116,27 @@ impl Default for Direction {
 
 // ----------------------------------------------------------------------------
 
-// TODO: give this a better name
-#[derive(Clone, Debug, Default)]
-struct Layouter {
-    /// Doesn't change.
-    dir: Direction,
-
-    /// Changes only along self.dir
-    cursor: Vec2,
-
-    /// We keep track of our max-size along the orthogonal to self.dir
-    size: Vec2,
-}
-
-impl Layouter {
-    /// Reserve this much space and move the cursor.
-    fn reserve_space(&mut self, size: Vec2) {
-        if self.dir == Direction::Horizontal {
-            self.cursor.x += size.x;
-            self.size.x += size.x;
-            self.size.y = self.size.y.max(size.y);
-        } else {
-            self.cursor.y += size.y;
-            self.size.y += size.y;
-            self.size.x = self.size.x.max(size.x);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 type Id = u64;
 
+// TODO: give a better name.
+/// Contains the input, options and output of all GUI commands.
 #[derive(Clone)]
-pub struct Layout {
-    options: LayoutOptions,
-    font: Font, // TODO: Arc?
-    input: GuiInput,
-    memory: Memory,
-    id: Id,
-    layouter: Layouter,
-    graphics: Vec<GuiCmd>,
-    hovering_graphics: Vec<GuiCmd>,
+pub struct Data {
+    pub(crate) options: LayoutOptions,
+    pub(crate) font: Font, // TODO: Arc?. TODO: move to options.
+    pub(crate) input: GuiInput,
+    pub(crate) memory: Memory,
+    pub(crate) graphics: Vec<GuiCmd>,
+    pub(crate) hovering_graphics: Vec<GuiCmd>,
 }
 
-impl Layout {
-    pub fn new(font: Font) -> Layout {
-        Layout {
+impl Data {
+    pub fn new(font: Font) -> Data {
+        Data {
             options: Default::default(),
             font,
             input: Default::default(),
             memory: Default::default(),
-            id: Default::default(),
-            layouter: Default::default(),
             graphics: Default::default(),
             hovering_graphics: Default::default(),
         }
@@ -193,23 +162,93 @@ impl Layout {
     pub fn new_frame(&mut self, gui_input: GuiInput) {
         self.graphics.clear();
         self.hovering_graphics.clear();
-        self.layouter = Default::default();
         self.input = gui_input;
         if !gui_input.mouse_down {
             self.memory.active_id = None;
         }
     }
 
-    // ------------------------------------------------------------------------
+    /// Show a pop-over window
+    pub fn show_popup<F>(&mut self, window_pos: Vec2, add_contents: F)
+    where
+        F: FnOnce(&mut Region),
+    {
+        // TODO: nicer way to do layering!
+        let num_graphics_before = self.graphics.len();
+
+        let window_padding = self.options.window_padding;
+
+        let mut popup_region = Region {
+            data: self,
+            id: Default::default(),
+            dir: Direction::Vertical,
+            cursor: window_pos + window_padding,
+            size: vec2(0.0, 0.0),
+        };
+
+        add_contents(&mut popup_region);
+
+        // TODO: handle the last item_spacing in a nicer way
+        let inner_size = popup_region.size - self.options.item_spacing;
+        let outer_size = inner_size + 2.0 * window_padding;
+
+        let rect = Rect::from_min_size(window_pos, outer_size);
+
+        let popup_graphics = self.graphics.split_off(num_graphics_before);
+        self.hovering_graphics.push(GuiCmd::Window { rect });
+        self.hovering_graphics.extend(popup_graphics);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Represents a region of the screen
+/// with a type of layout (horizontal or vertical).
+pub struct Region<'a> {
+    pub(crate) data: &'a mut Data,
+
+    // TODO: add min_size and max_size
+    /// Unique ID of this region.
+    pub(crate) id: Id,
+
+    /// Doesn't change.
+    pub(crate) dir: Direction,
+
+    /// Changes only along self.dir
+    pub(crate) cursor: Vec2,
+
+    /// We keep track of our max-size along the orthogonal to self.dir
+    pub(crate) size: Vec2,
+}
+
+impl<'a> Region<'a> {
+    /// It is up to the caller to make sure there is room for this.
+    /// Can be used for free painting.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn add_graphic(&mut self, gui_cmd: GuiCmd) {
+        self.data.graphics.push(gui_cmd)
+    }
+
+    pub fn options(&self) -> &LayoutOptions {
+        self.data.options()
+    }
+
+    pub fn set_options(&mut self, options: LayoutOptions) {
+        self.data.set_options(options)
+    }
+
+    pub fn input(&self) -> &GuiInput {
+        self.data.input()
+    }
 
     pub fn button<S: Into<String>>(&mut self, text: S) -> GuiResponse {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.layouter.cursor + self.options.button_padding;
+        let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) =
-            self.reserve_space(text_size + 2.0 * self.options.button_padding, Some(id));
-        self.graphics.push(GuiCmd::Button { interact, rect });
+            self.reserve_space(text_size + 2.0 * self.options().button_padding, Some(id));
+        self.add_graphic(GuiCmd::Button { interact, rect });
         self.add_text(text_cursor, text);
         self.response(interact)
     }
@@ -218,20 +257,20 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.layouter.cursor
-            + self.options.button_padding
-            + vec2(self.options.start_icon_width, 0.0);
+        let text_cursor = self.cursor
+            + self.options().button_padding
+            + vec2(self.options().start_icon_width, 0.0);
         let (rect, interact) = self.reserve_space(
-            self.options.button_padding
-                + vec2(self.options.start_icon_width, 0.0)
+            self.options().button_padding
+                + vec2(self.options().start_icon_width, 0.0)
                 + text_size
-                + self.options.button_padding,
+                + self.options().button_padding,
             Some(id),
         );
         if interact.clicked {
             *checked = !*checked;
         }
-        self.graphics.push(GuiCmd::Checkbox {
+        self.add_graphic(GuiCmd::Checkbox {
             checked: *checked,
             interact,
             rect,
@@ -243,7 +282,7 @@ impl Layout {
     pub fn label<S: Into<String>>(&mut self, text: S) -> GuiResponse {
         let text: String = text.into();
         let (text, text_size) = self.layout_text(&text);
-        self.add_text(self.layouter.cursor, text);
+        self.add_text(self.cursor, text);
         let (_, interact) = self.reserve_space(text_size, None);
         self.response(interact)
     }
@@ -253,17 +292,17 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.layouter.cursor
-            + self.options.button_padding
-            + vec2(self.options.start_icon_width, 0.0);
+        let text_cursor = self.cursor
+            + self.options().button_padding
+            + vec2(self.options().start_icon_width, 0.0);
         let (rect, interact) = self.reserve_space(
-            self.options.button_padding
-                + vec2(self.options.start_icon_width, 0.0)
+            self.options().button_padding
+                + vec2(self.options().start_icon_width, 0.0)
                 + text_size
-                + self.options.button_padding,
+                + self.options().button_padding,
             Some(id),
         );
-        self.graphics.push(GuiCmd::RadioButton {
+        self.add_graphic(GuiCmd::RadioButton {
             checked,
             interact,
             rect,
@@ -283,19 +322,19 @@ impl Layout {
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text, value));
-        self.add_text(self.layouter.cursor, text);
-        self.layouter.reserve_space(text_size);
+        self.add_text(self.cursor, text);
+        self.reserve_space_inner(text_size);
         let (slider_rect, interact) = self.reserve_space(
             Vec2 {
-                x: self.options.width,
-                y: self.font.line_spacing(),
+                x: self.options().width,
+                y: self.data.font.line_spacing(),
             },
             Some(id),
         );
 
         if interact.active {
             *value = remap_clamp(
-                self.input.mouse_pos.x,
+                self.input().mouse_pos.x,
                 slider_rect.min().x,
                 slider_rect.max().x,
                 min,
@@ -303,7 +342,7 @@ impl Layout {
             );
         }
 
-        self.graphics.push(GuiCmd::Slider {
+        self.add_graphic(GuiCmd::Slider {
             interact,
             max,
             min,
@@ -320,47 +359,51 @@ impl Layout {
     pub fn foldable<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
     where
         S: Into<String>,
-        F: FnOnce(&mut Layout),
+        F: FnOnce(&mut Region),
     {
         assert!(
-            self.layouter.dir == Direction::Vertical,
+            self.dir == Direction::Vertical,
             "Horizontal foldable is unimplemented"
         );
         let text: String = text.into();
         let id = self.get_id(&text);
         let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.layouter.cursor + self.options.button_padding;
+        let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) = self.reserve_space(
             vec2(
-                self.options.width,
-                text_size.y + 2.0 * self.options.button_padding.y,
+                self.options().width,
+                text_size.y + 2.0 * self.options().button_padding.y,
             ),
             Some(id),
         );
 
         if interact.clicked {
-            if self.memory.open_foldables.contains(&id) {
-                self.memory.open_foldables.remove(&id);
+            if self.data.memory.open_foldables.contains(&id) {
+                self.data.memory.open_foldables.remove(&id);
             } else {
-                self.memory.open_foldables.insert(id);
+                self.data.memory.open_foldables.insert(id);
             }
         }
-        let open = self.memory.open_foldables.contains(&id);
+        let open = self.data.memory.open_foldables.contains(&id);
 
-        self.graphics.push(GuiCmd::FoldableHeader {
+        self.add_graphic(GuiCmd::FoldableHeader {
             interact,
             rect,
             open,
         });
-        self.add_text(text_cursor + vec2(self.options.start_icon_width, 0.0), text);
+        self.add_text(
+            text_cursor + vec2(self.options().start_icon_width, 0.0),
+            text,
+        );
 
         if open {
+            // TODO: new region
             let old_id = self.id;
             self.id = id;
-            let old_x = self.layouter.cursor.x;
-            self.layouter.cursor.x += self.options.indent;
+            let old_x = self.cursor.x;
+            self.cursor.x += self.options().indent;
             add_contents(self);
-            self.layouter.cursor.x = old_x;
+            self.cursor.x = old_x;
             self.id = old_id;
         }
 
@@ -370,73 +413,35 @@ impl Layout {
     /// Start a region with horizontal layout
     pub fn horizontal<F>(&mut self, add_contents: F)
     where
-        F: FnOnce(&mut Layout),
+        F: FnOnce(&mut Region),
     {
-        let horizontal_layouter = Layouter {
-            dir: Direction::Horizontal,
-            cursor: self.layouter.cursor,
-            ..Default::default()
-        };
-        let old_layouter = std::mem::replace(&mut self.layouter, horizontal_layouter);
-        add_contents(self);
-        let horizontal_layouter = std::mem::replace(&mut self.layouter, old_layouter);
-        self.layouter.reserve_space(horizontal_layouter.size);
-    }
-
-    // ------------------------------------------------------------------------
-    // Free painting. It is up to the caller to make sure there is room for these.
-    pub fn add_paint_command(&mut self, cmd: GuiCmd) {
-        self.graphics.push(cmd);
-    }
-
-    // ------------------------------------------------------------------------
-
-    /// Show a pop-over window
-    pub fn show_popup<F>(&mut self, window_pos: Vec2, add_contents: F)
-    where
-        F: FnOnce(&mut Layout),
-    {
-        // TODO: less copying
-        let mut popup_layout = Layout {
-            options: self.options,
-            input: self.input,
-            font: self.font.clone(),
-            memory: self.memory.clone(), // TODO: Arc
+        let mut horizontal_region = Region {
+            data: self.data,
             id: self.id,
-            layouter: Default::default(),
-            graphics: vec![],
-            hovering_graphics: vec![],
+            dir: Direction::Horizontal,
+            cursor: self.cursor,
+            size: vec2(0.0, 0.0),
         };
-        popup_layout.layouter.cursor = window_pos + self.options.window_padding;
-
-        add_contents(&mut popup_layout);
-
-        // TODO: handle the last item_spacing in a nicer way
-        let inner_size = popup_layout.layouter.size - self.options.item_spacing;
-        let outer_size = inner_size + 2.0 * self.options.window_padding;
-
-        let rect = Rect::from_min_size(window_pos, outer_size);
-        self.hovering_graphics.push(GuiCmd::Window { rect });
-        self.hovering_graphics
-            .extend(popup_layout.gui_commands().cloned());
+        add_contents(&mut horizontal_region);
+        let size = horizontal_region.size;
+        self.reserve_space_inner(size);
     }
 
     // ------------------------------------------------------------------------
 
     fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> (Rect, InteractInfo) {
         let rect = Rect {
-            pos: self.layouter.cursor,
+            pos: self.cursor,
             size,
         };
-        self.layouter
-            .reserve_space(size + self.options.item_spacing);
-        let hovered = rect.contains(self.input.mouse_pos);
-        let clicked = hovered && self.input.mouse_clicked;
+        self.reserve_space_inner(size + self.options().item_spacing);
+        let hovered = rect.contains(self.input().mouse_pos);
+        let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
             if clicked {
-                self.memory.active_id = interaction_id;
+                self.data.memory.active_id = interaction_id;
             }
-            self.memory.active_id == interaction_id
+            self.data.memory.active_id == interaction_id
         } else {
             false
         };
@@ -449,6 +454,19 @@ impl Layout {
         (rect, interact)
     }
 
+    /// Reserve this much space and move the cursor.
+    fn reserve_space_inner(&mut self, size: Vec2) {
+        if self.dir == Direction::Horizontal {
+            self.cursor.x += size.x;
+            self.size.x += size.x;
+            self.size.y = self.size.y.max(size.y);
+        } else {
+            self.cursor.y += size.y;
+            self.size.y += size.y;
+            self.size.x = self.size.x.max(size.x);
+        }
+    }
+
     fn get_id(&self, id_str: &str) -> Id {
         use std::hash::Hasher;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -457,13 +475,14 @@ impl Layout {
         hasher.finish()
     }
 
+    // TODO: move this function
     fn layout_text(&self, text: &str) -> (TextFragments, Vec2) {
-        let line_spacing = self.font.line_spacing();
+        let line_spacing = self.data.font.line_spacing();
         let mut cursor_y = 0.0;
         let mut max_width = 0.0;
         let mut text_fragments = Vec::new();
         for line in text.split('\n') {
-            let x_offsets = self.font.layout_single_line(&line);
+            let x_offsets = self.data.font.layout_single_line(&line);
             let line_width = *x_offsets.last().unwrap();
             text_fragments.push(TextFragment {
                 x_offsets,
@@ -480,7 +499,7 @@ impl Layout {
 
     fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {
         for fragment in text {
-            self.graphics.push(GuiCmd::Text {
+            self.add_graphic(GuiCmd::Text {
                 pos: pos + vec2(0.0, fragment.y_offset),
                 style: TextStyle::Label,
                 text: fragment.text,
@@ -494,7 +513,7 @@ impl Layout {
             hovered: interact.hovered,
             clicked: interact.clicked,
             active: interact.active,
-            layout: self,
+            data: self.data,
         }
     }
 }

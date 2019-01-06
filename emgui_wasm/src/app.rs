@@ -1,7 +1,7 @@
-use emgui::{math::*, types::*, Layout};
+use emgui::{math::*, types::*, Region};
 
 pub trait GuiSettings {
-    fn show_gui(&mut self, gui: &mut Layout);
+    fn show_gui(&mut self, gui: &mut Region);
 }
 
 pub struct App {
@@ -30,7 +30,7 @@ impl Default for App {
 }
 
 impl GuiSettings for App {
-    fn show_gui(&mut self, gui: &mut Layout) {
+    fn show_gui(&mut self, gui: &mut Region) {
         gui.label(format!(
             "Screen size: {} x {}",
             gui.input().screen_size.x,
@@ -72,7 +72,7 @@ impl GuiSettings for App {
             gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
         });
 
-        gui.add_paint_command(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
+        gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
             corner_radius: self.corner_radius,
             fill_color: Some(srgba(136, 136, 136, 255)),
             pos: vec2(300.0, 100.0),
@@ -92,7 +92,7 @@ impl GuiSettings for App {
 }
 
 impl GuiSettings for emgui::LayoutOptions {
-    fn show_gui(&mut self, gui: &mut Layout) {
+    fn show_gui(&mut self, gui: &mut Region) {
         if gui.button("Reset LayoutOptions").clicked {
             *self = Default::default();
         }
@@ -109,7 +109,7 @@ impl GuiSettings for emgui::LayoutOptions {
 }
 
 impl GuiSettings for emgui::Style {
-    fn show_gui(&mut self, gui: &mut Layout) {
+    fn show_gui(&mut self, gui: &mut Region) {
         if gui.button("Reset Style").clicked {
             *self = Default::default();
         }
