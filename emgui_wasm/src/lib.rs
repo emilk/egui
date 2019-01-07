@@ -60,8 +60,13 @@ impl State {
 
         let mut style = self.emgui.style.clone();
         let mut region = self.emgui.whole_screen_region();
-        let mut region = region.centered_column(300.0);
+        let mut region = region.centered_column(480.0);
         self.app.show_gui(&mut region);
+
+        let mut options = self.emgui.options().clone();
+        region.foldable("LayoutOptions", |gui| {
+            options.show_gui(gui);
+        });
 
         // TODO: move this to some emgui::example module
         region.foldable("Style", |gui| {
@@ -86,6 +91,7 @@ impl State {
             });
         });
 
+        self.emgui.set_options(options);
         self.emgui.style = style;
         let frame = self.emgui.paint();
 

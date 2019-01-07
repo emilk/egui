@@ -82,12 +82,6 @@ impl GuiSettings for App {
             }]));
             gui.reserve_space(self.size, None);
         });
-
-        gui.foldable("LayoutOptions", |gui| {
-            let mut options = gui.options().clone();
-            options.show_gui(gui);
-            gui.set_options(options);
-        });
     }
 }
 

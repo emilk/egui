@@ -1,4 +1,8 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
 
 use crate::{font::Font, math::*, types::*};
 
@@ -38,7 +42,7 @@ impl Default for LayoutOptions {
 // ----------------------------------------------------------------------------
 
 // TODO: rename
-pub struct GuiResponse<'a> {
+pub struct GuiResponse {
     /// The mouse is hovering above this
     pub hovered: bool,
 
@@ -49,10 +53,10 @@ pub struct GuiResponse<'a> {
     pub active: bool,
 
     /// Used for showing a popup (if any)
-    data: &'a mut Data,
+    data: Arc<Data>,
 }
 
-impl<'a> GuiResponse<'a> {
+impl GuiResponse {
     /// Show some stuff if the item was hovered
     pub fn tooltip<F>(&mut self, add_contents: F) -> &mut Self
     where
@@ -60,7 +64,7 @@ impl<'a> GuiResponse<'a> {
     {
         if self.hovered {
             let window_pos = self.data.input().mouse_pos + vec2(16.0, 16.0);
-            self.data.show_popup(window_pos, add_contents);
+            show_popup(&self.data, window_pos, add_contents);
         }
         self
     }
@@ -114,16 +118,46 @@ impl Default for Direction {
 
 type Id = u64;
 
+// ----------------------------------------------------------------------------
+
+/// TODO: improve this
+#[derive(Clone, Default)]
+pub struct GraphicLayers {
+    pub(crate) graphics: Vec<GuiCmd>,
+    pub(crate) hovering_graphics: Vec<GuiCmd>,
+}
+
+impl GraphicLayers {
+    pub fn drain(&mut self) -> impl ExactSizeIterator<Item = GuiCmd> {
+        // TODO: there must be a nicer way to do this?
+        let mut all_commands: Vec<_> = self.graphics.drain(..).collect();
+        all_commands.extend(self.hovering_graphics.drain(..));
+        all_commands.into_iter()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 // TODO: give a better name.
 /// Contains the input, options and output of all GUI commands.
-#[derive(Clone)]
 pub struct Data {
     pub(crate) options: LayoutOptions,
     pub(crate) font: Arc<Font>,
     pub(crate) input: GuiInput,
-    pub(crate) memory: Memory,
-    pub(crate) graphics: Vec<GuiCmd>,
-    pub(crate) hovering_graphics: Vec<GuiCmd>,
+    pub(crate) memory: Mutex<Memory>,
+    pub(crate) graphics: Mutex<GraphicLayers>,
+}
+
+impl Clone for Data {
+    fn clone(&self) -> Self {
+        Data {
+            options: self.options.clone(),
+            font: self.font.clone(),
+            input: self.input.clone(),
+            memory: Mutex::new(self.memory.lock().unwrap().clone()),
+            graphics: Mutex::new(self.graphics.lock().unwrap().clone()),
+        }
+    }
 }
 
 impl Data {
@@ -134,7 +168,6 @@ impl Data {
             input: Default::default(),
             memory: Default::default(),
             graphics: Default::default(),
-            hovering_graphics: Default::default(),
         }
     }
 
@@ -154,48 +187,42 @@ impl Data {
     pub fn new_frame(&mut self, gui_input: GuiInput) {
         self.input = gui_input;
         if !gui_input.mouse_down {
-            self.memory.active_id = None;
+            self.memory.lock().unwrap().active_id = None;
         }
     }
+}
 
-    pub fn drain_gui_commands(&mut self) -> impl ExactSizeIterator<Item = GuiCmd> {
-        // TODO: there must be a nicer way to do this?
-        let mut all_commands: Vec<_> = self.graphics.drain(..).collect();
-        all_commands.extend(self.hovering_graphics.drain(..));
-        all_commands.into_iter()
-    }
+/// Show a pop-over window
+pub fn show_popup<F>(data: &Arc<Data>, window_pos: Vec2, add_contents: F)
+where
+    F: FnOnce(&mut Region),
+{
+    // TODO: nicer way to do layering!
+    let num_graphics_before = data.graphics.lock().unwrap().graphics.len();
 
-    /// Show a pop-over window
-    pub fn show_popup<F>(&mut self, window_pos: Vec2, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
-        // TODO: nicer way to do layering!
-        let num_graphics_before = self.graphics.len();
+    let window_padding = data.options.window_padding;
 
-        let window_padding = self.options.window_padding;
+    let mut popup_region = Region {
+        data: data.clone(),
+        id: Default::default(),
+        dir: Direction::Vertical,
+        cursor: window_pos + window_padding,
+        bounding_size: vec2(0.0, 0.0),
+        available_space: vec2(400.0, std::f32::INFINITY), // TODO
+    };
 
-        let mut popup_region = Region {
-            data: self,
-            id: Default::default(),
-            dir: Direction::Vertical,
-            cursor: window_pos + window_padding,
-            bounding_size: vec2(0.0, 0.0),
-            available_space: vec2(400.0, std::f32::INFINITY), // TODO
-        };
+    add_contents(&mut popup_region);
 
-        add_contents(&mut popup_region);
+    // TODO: handle the last item_spacing in a nicer way
+    let inner_size = popup_region.bounding_size - data.options.item_spacing;
+    let outer_size = inner_size + 2.0 * window_padding;
 
-        // TODO: handle the last item_spacing in a nicer way
-        let inner_size = popup_region.bounding_size - self.options.item_spacing;
-        let outer_size = inner_size + 2.0 * window_padding;
+    let rect = Rect::from_min_size(window_pos, outer_size);
 
-        let rect = Rect::from_min_size(window_pos, outer_size);
-
-        let popup_graphics = self.graphics.split_off(num_graphics_before);
-        self.hovering_graphics.push(GuiCmd::Window { rect });
-        self.hovering_graphics.extend(popup_graphics);
-    }
+    let mut graphics = data.graphics.lock().unwrap();
+    let popup_graphics = graphics.graphics.split_off(num_graphics_before);
+    graphics.hovering_graphics.push(GuiCmd::Window { rect });
+    graphics.hovering_graphics.extend(popup_graphics);
 }
 
 // ----------------------------------------------------------------------------
@@ -203,9 +230,8 @@ impl Data {
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
-pub struct Region<'a> {
-    // TODO: Arc<StaticDat> + Arc<Mutex<MutableData>> for a lot less hassle.
-    pub(crate) data: &'a mut Data,
+pub struct Region {
+    pub(crate) data: Arc<Data>,
 
     /// Unique ID of this region.
     pub(crate) id: Id,
@@ -225,21 +251,16 @@ pub struct Region<'a> {
     pub(crate) available_space: Vec2,
 }
 
-impl<'a> Region<'a> {
+impl Region {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_graphic(&mut self, gui_cmd: GuiCmd) {
-        self.data.graphics.push(gui_cmd)
+        self.data.graphics.lock().unwrap().graphics.push(gui_cmd)
     }
 
     pub fn options(&self) -> &LayoutOptions {
         self.data.options()
-    }
-
-    // TODO: remove
-    pub fn set_options(&mut self, options: LayoutOptions) {
-        self.data.set_options(options)
     }
 
     pub fn input(&self) -> &GuiInput {
@@ -252,7 +273,7 @@ impl<'a> Region<'a> {
 
     pub fn button<S: Into<String>>(&mut self, text: S) -> GuiResponse {
         let text: String = text.into();
-        let id = self.get_id(&text);
+        let id = self.make_child_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) =
@@ -264,7 +285,7 @@ impl<'a> Region<'a> {
 
     pub fn checkbox<S: Into<String>>(&mut self, text: S, checked: &mut bool) -> GuiResponse {
         let text: String = text.into();
-        let id = self.get_id(&text);
+        let id = self.make_child_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.cursor
             + self.options().button_padding
@@ -299,7 +320,7 @@ impl<'a> Region<'a> {
     /// A radio button
     pub fn radio<S: Into<String>>(&mut self, text: S, checked: bool) -> GuiResponse {
         let text: String = text.into();
-        let id = self.get_id(&text);
+        let id = self.make_child_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.cursor
             + self.options().button_padding
@@ -327,12 +348,31 @@ impl<'a> Region<'a> {
         min: f32,
         max: f32,
     ) -> GuiResponse {
+        let text_string: String = text.into();
+        if true {
+            // Text to the right of the slider
+            self.columns(2, |columns| {
+                columns[1].label(format!("{}: {:.3}", text_string, value));
+                columns[0].naked_slider_f32(&text_string, value, min, max)
+            })
+        } else {
+            // Text above slider
+            let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text_string, value));
+            self.add_text(self.cursor, text);
+            self.reserve_space_inner(text_size);
+            self.naked_slider_f32(&text_string, value, min, max)
+        }
+    }
+
+    pub fn naked_slider_f32<H: Hash>(
+        &mut self,
+        id: &H,
+        value: &mut f32,
+        min: f32,
+        max: f32,
+    ) -> GuiResponse {
         debug_assert!(min <= max);
-        let text: String = text.into();
-        let id = self.get_id(&text);
-        let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text, value));
-        self.add_text(self.cursor, text);
-        self.reserve_space_inner(text_size);
+        let id = self.make_child_id(id);
         let (slider_rect, interact) = self.reserve_space(
             Vec2 {
                 x: self.available_space.x,
@@ -375,7 +415,7 @@ impl<'a> Region<'a> {
             "Horizontal foldable is unimplemented"
         );
         let text: String = text.into();
-        let id = self.get_id(&text);
+        let id = self.make_child_id(&text);
         let (text, text_size) = self.layout_text(&text);
         let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) = self.reserve_space(
@@ -386,14 +426,17 @@ impl<'a> Region<'a> {
             Some(id),
         );
 
-        if interact.clicked {
-            if self.data.memory.open_foldables.contains(&id) {
-                self.data.memory.open_foldables.remove(&id);
-            } else {
-                self.data.memory.open_foldables.insert(id);
+        let open = {
+            let mut memory = self.data.memory.lock().unwrap();
+            if interact.clicked {
+                if memory.open_foldables.contains(&id) {
+                    memory.open_foldables.remove(&id);
+                } else {
+                    memory.open_foldables.insert(id);
+                }
             }
-        }
-        let open = self.data.memory.open_foldables.contains(&id);
+            memory.open_foldables.contains(&id)
+        };
 
         self.add_graphic(GuiCmd::FoldableHeader {
             interact,
@@ -422,7 +465,7 @@ impl<'a> Region<'a> {
     {
         let indent = vec2(self.options().indent, 0.0);
         let mut child_region = Region {
-            data: self.data,
+            data: self.data.clone(),
             id: self.id,
             dir: self.dir,
             cursor: self.cursor + indent,
@@ -437,7 +480,7 @@ impl<'a> Region<'a> {
     /// A horizontally centered region of the given width.
     pub fn centered_column(&mut self, width: f32) -> Region {
         Region {
-            data: self.data,
+            data: self.data.clone(),
             id: self.id,
             dir: self.dir,
             cursor: vec2((self.available_space.x - width) / 2.0, self.cursor.y),
@@ -452,7 +495,7 @@ impl<'a> Region<'a> {
         F: FnOnce(&mut Region),
     {
         let mut child_region = Region {
-            data: self.data,
+            data: self.data.clone(),
             id: self.id,
             dir: Direction::Horizontal,
             cursor: self.cursor,
@@ -464,49 +507,43 @@ impl<'a> Region<'a> {
         self.reserve_space_inner(size);
     }
 
-    // TODO: we need to rethink this a lot. Passing closures have problems with borrow checker.
-    // Much better with temporary regions that register the final size in Drop ?
+    /// Temporarily split split a vertical layout into two column regions.
+    ///
+    ///     gui.columns(2, |columns| {
+    ///         columns[0].label("First column");
+    ///         columns[1].label("Second column");
+    ///     });
+    pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
+    where
+        F: FnOnce(&mut [Region]) -> R,
+    {
+        // TODO: ensure there is space
+        let padding = self.options().item_spacing.x;
+        let total_padding = padding * (num_columns as f32 - 1.0);
+        let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
 
-    // pub fn columns_2<F0, F1>(&mut self, col0: F0, col1: F1)
-    // where
-    //     F0: FnOnce(&mut Region),
-    //     F1: FnOnce(&mut Region),
-    // {
-    //     let mut max_height = 0.0;
-    //     let num_columns = 2;
-    //     // TODO: ensure there is space
-    //     let padding = self.options().item_spacing.x;
-    //     let total_padding = padding * (num_columns as f32 - 1.0);
-    //     let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
+        let mut columns: Vec<Region> = (0..num_columns)
+            .map(|col_idx| Region {
+                data: self.data.clone(),
+                id: self.make_child_id(&("column", col_idx)),
+                dir: Direction::Vertical,
+                cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
+                bounding_size: vec2(0.0, 0.0),
+                available_space: vec2(column_width, self.available_space.y),
+            })
+            .collect();
 
-    //     let col_idx = 0;
-    //     let mut child_region = Region {
-    //         data: self.data,
-    //         id: self.id,
-    //         dir: Direction::Vertical,
-    //         cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
-    //         bounding_size: vec2(0.0, 0.0),
-    //         available_space: vec2(column_width, self.available_space.y),
-    //     };
-    //     col0(&mut child_region);
-    //     let size = child_region.bounding_size;
-    //     max_height = size.y.max(max_height);
+        let result = add_contents(&mut columns[..]);
 
-    //     let col_idx = 1;
-    //     let mut child_region = Region {
-    //         data: self.data,
-    //         id: self.id,
-    //         dir: Direction::Vertical,
-    //         cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
-    //         bounding_size: vec2(0.0, 0.0),
-    //         available_space: vec2(column_width, self.available_space.y),
-    //     };
-    //     col1(&mut child_region);
-    //     let size = child_region.bounding_size;
-    //     max_height = size.y.max(max_height);
+        let mut max_height = 0.0;
+        for region in columns {
+            let size = region.bounding_size;
+            max_height = size.y.max(max_height);
+        }
 
-    //     self.reserve_space_inner(vec2(self.available_space.x, max_height));
-    // }
+        self.reserve_space_inner(vec2(self.available_space.x, max_height));
+        result
+    }
 
     // ------------------------------------------------------------------------
 
@@ -523,10 +560,11 @@ impl<'a> Region<'a> {
         let hovered = rect.contains(self.input().mouse_pos);
         let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
+            let mut memory = self.data.memory.lock().unwrap();
             if clicked {
-                self.data.memory.active_id = interaction_id;
+                memory.active_id = interaction_id;
             }
-            self.data.memory.active_id == interaction_id
+            memory.active_id == interaction_id
         } else {
             false
         };
@@ -554,11 +592,11 @@ impl<'a> Region<'a> {
         }
     }
 
-    fn get_id(&self, id_str: &str) -> Id {
+    fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
         use std::hash::Hasher;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         hasher.write_u64(self.id);
-        hasher.write(id_str.as_bytes());
+        child_id.hash(&mut hasher);
         hasher.finish()
     }
 
@@ -600,7 +638,7 @@ impl<'a> Region<'a> {
             hovered: interact.hovered,
             clicked: interact.clicked,
             active: interact.active,
-            data: self.data,
+            data: self.data.clone(),
         }
     }
 }
