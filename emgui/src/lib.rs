@@ -13,6 +13,7 @@ pub mod math;
 mod painter;
 mod style;
 pub mod types;
+pub mod widgets;
 
 pub use crate::{
     emgui::Emgui,

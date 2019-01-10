@@ -4,7 +4,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{font::Font, math::*, types::*};
+use crate::{
+    font::Font,
+    math::*,
+    types::*,
+    widgets::{label, Widget},
+};
 
 // ----------------------------------------------------------------------------
 
@@ -72,7 +77,7 @@ impl GuiResponse {
     /// Show this text if the item was hovered
     pub fn tooltip_text<S: Into<String>>(&mut self, text: S) -> &mut Self {
         self.tooltip(|popup| {
-            popup.label(text);
+            popup.add(label(text));
         })
     }
 }
@@ -90,7 +95,7 @@ pub struct Memory {
 
 // ----------------------------------------------------------------------------
 
-struct TextFragment {
+pub struct TextFragment {
     /// The start of each character, starting at zero.
     x_offsets: Vec<f32>,
     /// 0 for the first line, n * line_spacing for the rest
@@ -98,7 +103,7 @@ struct TextFragment {
     text: String,
 }
 
-type TextFragments = Vec<TextFragment>;
+pub type TextFragments = Vec<TextFragment>;
 
 // ----------------------------------------------------------------------------
 
@@ -116,7 +121,14 @@ impl Default for Direction {
 
 // ----------------------------------------------------------------------------
 
-type Id = u64;
+pub type Id = u64;
+
+pub fn make_id<H: Hash>(source: &H) -> Id {
+    use std::hash::Hasher;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    source.hash(&mut hasher);
+    hasher.finish()
+}
 
 // ----------------------------------------------------------------------------
 
@@ -271,137 +283,6 @@ impl Region {
         self.cursor
     }
 
-    pub fn button<S: Into<String>>(&mut self, text: S) -> GuiResponse {
-        let text: String = text.into();
-        let id = self.make_child_id(&text);
-        let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.cursor + self.options().button_padding;
-        let (rect, interact) =
-            self.reserve_space(text_size + 2.0 * self.options().button_padding, Some(id));
-        self.add_graphic(GuiCmd::Button { interact, rect });
-        self.add_text(text_cursor, text);
-        self.response(interact)
-    }
-
-    pub fn checkbox<S: Into<String>>(&mut self, text: S, checked: &mut bool) -> GuiResponse {
-        let text: String = text.into();
-        let id = self.make_child_id(&text);
-        let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.cursor
-            + self.options().button_padding
-            + vec2(self.options().start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_space(
-            self.options().button_padding
-                + vec2(self.options().start_icon_width, 0.0)
-                + text_size
-                + self.options().button_padding,
-            Some(id),
-        );
-        if interact.clicked {
-            *checked = !*checked;
-        }
-        self.add_graphic(GuiCmd::Checkbox {
-            checked: *checked,
-            interact,
-            rect,
-        });
-        self.add_text(text_cursor, text);
-        self.response(interact)
-    }
-
-    pub fn label<S: Into<String>>(&mut self, text: S) -> GuiResponse {
-        let text: String = text.into();
-        let (text, text_size) = self.layout_text(&text);
-        self.add_text(self.cursor, text);
-        let (_, interact) = self.reserve_space(text_size, None);
-        self.response(interact)
-    }
-
-    /// A radio button
-    pub fn radio<S: Into<String>>(&mut self, text: S, checked: bool) -> GuiResponse {
-        let text: String = text.into();
-        let id = self.make_child_id(&text);
-        let (text, text_size) = self.layout_text(&text);
-        let text_cursor = self.cursor
-            + self.options().button_padding
-            + vec2(self.options().start_icon_width, 0.0);
-        let (rect, interact) = self.reserve_space(
-            self.options().button_padding
-                + vec2(self.options().start_icon_width, 0.0)
-                + text_size
-                + self.options().button_padding,
-            Some(id),
-        );
-        self.add_graphic(GuiCmd::RadioButton {
-            checked,
-            interact,
-            rect,
-        });
-        self.add_text(text_cursor, text);
-        self.response(interact)
-    }
-
-    pub fn slider_f32<S: Into<String>>(
-        &mut self,
-        text: S,
-        value: &mut f32,
-        min: f32,
-        max: f32,
-    ) -> GuiResponse {
-        let text_string: String = text.into();
-        if true {
-            // Text to the right of the slider
-            self.columns(2, |columns| {
-                columns[1].label(format!("{}: {:.3}", text_string, value));
-                columns[0].naked_slider_f32(&text_string, value, min, max)
-            })
-        } else {
-            // Text above slider
-            let (text, text_size) = self.layout_text(&format!("{}: {:.3}", text_string, value));
-            self.add_text(self.cursor, text);
-            self.reserve_space_inner(text_size);
-            self.naked_slider_f32(&text_string, value, min, max)
-        }
-    }
-
-    pub fn naked_slider_f32<H: Hash>(
-        &mut self,
-        id: &H,
-        value: &mut f32,
-        min: f32,
-        max: f32,
-    ) -> GuiResponse {
-        debug_assert!(min <= max);
-        let id = self.make_child_id(id);
-        let (slider_rect, interact) = self.reserve_space(
-            Vec2 {
-                x: self.available_space.x,
-                y: self.data.font.line_spacing(),
-            },
-            Some(id),
-        );
-
-        if interact.active {
-            *value = remap_clamp(
-                self.input().mouse_pos.x,
-                slider_rect.min().x,
-                slider_rect.max().x,
-                min,
-                max,
-            );
-        }
-
-        self.add_graphic(GuiCmd::Slider {
-            interact,
-            max,
-            min,
-            rect: slider_rect,
-            value: *value,
-        });
-
-        self.response(interact)
-    }
-
     // ------------------------------------------------------------------------
     // Sub-regions:
 
@@ -507,11 +388,11 @@ impl Region {
         self.reserve_space_inner(size);
     }
 
-    /// Temporarily split split a vertical layout into two column regions.
+    /// Temporarily split split a vertical layout into several columns.
     ///
     ///     gui.columns(2, |columns| {
-    ///         columns[0].label("First column");
-    ///         columns[1].label("Second column");
+    ///         columns[0].add(label("First column"));
+    ///         columns[1].add(label("Second column"));
     ///     });
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
     where
@@ -547,6 +428,13 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
+    pub fn add<W: Widget>(&mut self, widget: W) -> GuiResponse {
+        widget.add_to(self)
+    }
+
+    // ------------------------------------------------------------------------
+
+    // TODO: Return a Rect
     pub fn reserve_space(
         &mut self,
         size: Vec2,
@@ -577,8 +465,9 @@ impl Region {
         (rect, interact)
     }
 
+    // TODO: Return a Rect
     /// Reserve this much space and move the cursor.
-    fn reserve_space_inner(&mut self, size: Vec2) {
+    pub fn reserve_space_inner(&mut self, size: Vec2) {
         if self.dir == Direction::Horizontal {
             self.cursor.x += size.x;
             self.available_space.x -= size.x;
@@ -592,7 +481,7 @@ impl Region {
         }
     }
 
-    fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
+    pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
         use std::hash::Hasher;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         hasher.write_u64(self.id);
@@ -600,8 +489,18 @@ impl Region {
         hasher.finish()
     }
 
-    // TODO: move this function
-    fn layout_text(&self, text: &str) -> (TextFragments, Vec2) {
+    pub fn combined_id(&self, child_id: Option<Id>) -> Option<Id> {
+        child_id.map(|child_id| {
+            use std::hash::Hasher;
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            hasher.write_u64(self.id);
+            child_id.hash(&mut hasher);
+            hasher.finish()
+        })
+    }
+
+    // TODO: move this function to Font
+    pub fn layout_text(&self, text: &str) -> (TextFragments, Vec2) {
         let line_spacing = self.data.font.line_spacing();
         let mut cursor_y = 0.0;
         let mut max_width = 0.0;
@@ -622,7 +521,7 @@ impl Region {
         (text_fragments, bounding_size)
     }
 
-    fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {
+    pub fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {
         for fragment in text {
             self.add_graphic(GuiCmd::Text {
                 pos: pos + vec2(0.0, fragment.y_offset),
@@ -633,7 +532,7 @@ impl Region {
         }
     }
 
-    fn response(&mut self, interact: InteractInfo) -> GuiResponse {
+    pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
         GuiResponse {
             hovered: interact.hovered,
             clicked: interact.clicked,

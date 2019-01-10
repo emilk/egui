@@ -7,11 +7,6 @@ pub struct Style {
 
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
-
-    pub font_name: String,
-
-    /// Height in pixels of most text.
-    pub font_size: f32,
 }
 
 impl Default for Style {
@@ -19,10 +14,6 @@ impl Default for Style {
         Style {
             debug_rects: false,
             line_width: 2.0,
-            // font_name: "Palatino".to_string(),
-            font_name: "Courier".to_string(),
-            // font_name: "Courier New".to_string(),
-            font_size: 12.0,
         }
     }
 }

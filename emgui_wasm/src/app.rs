@@ -1,4 +1,4 @@
-use emgui::{math::*, types::*, Region};
+use emgui::{math::*, types::*, widgets::*, Region};
 
 pub trait GuiSettings {
     fn show_gui(&mut self, gui: &mut Region);
@@ -29,45 +29,54 @@ impl Default for App {
 
 impl GuiSettings for App {
     fn show_gui(&mut self, gui: &mut Region) {
-        gui.label(format!(
+        gui.add(label(format!(
             "Screen size: {} x {}",
             gui.input().screen_size.x,
             gui.input().screen_size.y,
-        ));
+        )));
 
-        gui.label("Hover me").tooltip_text(
+        gui.add(label("Hover me")).tooltip_text(
             "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
         );
 
-        gui.checkbox("checkbox", &mut self.checked);
+        gui.add(Checkbox::new(&mut self.checked, "checkbox"));
 
         gui.horizontal(|gui| {
-            if gui.radio("First", self.selected_alternative == 0).clicked {
+            if gui
+                .add(radio(self.selected_alternative == 0, "First"))
+                .clicked
+            {
                 self.selected_alternative = 0;
             }
-            if gui.radio("Second", self.selected_alternative == 1).clicked {
+            if gui
+                .add(radio(self.selected_alternative == 1, "Second"))
+                .clicked
+            {
                 self.selected_alternative = 1;
             }
-            if gui.radio("Final", self.selected_alternative == 2).clicked {
+            if gui
+                .add(radio(self.selected_alternative == 2, "Final"))
+                .clicked
+            {
                 self.selected_alternative = 2;
             }
         });
 
         if gui
-            .button("Click me")
+            .add(Button::new("Click me"))
             .tooltip_text("This will just increase a counter.")
             .clicked
         {
             self.count += 1;
         }
 
-        gui.label(format!("This is a multiline label.\nThe button have been clicked {} times.\nBelow are more options.", self.count));
+        gui.add(label(format!("This is a multiline label.\nThe button have been clicked {} times.\nBelow are more options.", self.count)));
 
         gui.foldable("Test box rendering", |gui| {
-            gui.slider_f32("width", &mut self.size.x, 0.0, 500.0);
-            gui.slider_f32("height", &mut self.size.y, 0.0, 500.0);
-            gui.slider_f32("corner_radius", &mut self.corner_radius, 0.0, 50.0);
-            gui.slider_f32("stroke_width", &mut self.stroke_width, 0.0, 10.0);
+            gui.add(Slider::new(&mut self.size.x, 0.0, 500.0).text("width"));
+            gui.add(Slider::new(&mut self.size.y, 0.0, 500.0).text("height"));
+            gui.add(Slider::new(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
+            gui.add(Slider::new(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
 
             let pos = gui.cursor();
             gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
@@ -87,27 +96,26 @@ impl GuiSettings for App {
 
 impl GuiSettings for emgui::LayoutOptions {
     fn show_gui(&mut self, gui: &mut Region) {
-        if gui.button("Reset LayoutOptions").clicked {
+        if gui.add(Button::new("Reset LayoutOptions")).clicked {
             *self = Default::default();
         }
-        gui.slider_f32("item_spacing.x", &mut self.item_spacing.x, 0.0, 10.0);
-        gui.slider_f32("item_spacing.y", &mut self.item_spacing.y, 0.0, 10.0);
-        gui.slider_f32("window_padding.x", &mut self.window_padding.x, 0.0, 10.0);
-        gui.slider_f32("window_padding.y", &mut self.window_padding.y, 0.0, 10.0);
-        gui.slider_f32("indent", &mut self.indent, 0.0, 100.0);
-        gui.slider_f32("button_padding.x", &mut self.button_padding.x, 0.0, 20.0);
-        gui.slider_f32("button_padding.y", &mut self.button_padding.y, 0.0, 20.0);
-        gui.slider_f32("start_icon_width", &mut self.start_icon_width, 0.0, 60.0);
+        gui.add(Slider::new(&mut self.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
+        gui.add(Slider::new(&mut self.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
+        gui.add(Slider::new(&mut self.window_padding.x, 0.0, 10.0).text("window_padding.x"));
+        gui.add(Slider::new(&mut self.window_padding.y, 0.0, 10.0).text("window_padding.y"));
+        gui.add(Slider::new(&mut self.indent, 0.0, 100.0).text("indent"));
+        gui.add(Slider::new(&mut self.button_padding.x, 0.0, 20.0).text("button_padding.x"));
+        gui.add(Slider::new(&mut self.button_padding.y, 0.0, 20.0).text("button_padding.y"));
+        gui.add(Slider::new(&mut self.start_icon_width, 0.0, 60.0).text("start_icon_width"));
     }
 }
 
 impl GuiSettings for emgui::Style {
     fn show_gui(&mut self, gui: &mut Region) {
-        if gui.button("Reset Style").clicked {
+        if gui.add(Button::new("Reset Style")).clicked {
             *self = Default::default();
         }
-        gui.checkbox("debug_rects", &mut self.debug_rects);
-        gui.slider_f32("line_width", &mut self.line_width, 0.0, 10.0);
-        gui.slider_f32("font_size", &mut self.font_size, 5.0, 32.0);
+        gui.add(Checkbox::new(&mut self.debug_rects, "debug_rects"));
+        gui.add(Slider::new(&mut self.line_width, 0.0, 10.0).text("line_width"));
     }
 }

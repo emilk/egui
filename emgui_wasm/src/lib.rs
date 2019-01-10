@@ -7,7 +7,7 @@ extern crate emgui;
 
 use std::sync::Arc;
 
-use emgui::{Emgui, Font, RawInput};
+use emgui::{widgets::label, Emgui, Font, RawInput};
 
 use wasm_bindgen::prelude::*;
 
@@ -73,21 +73,25 @@ impl State {
             style.show_gui(gui);
         });
 
-        let stats = self.stats; // TODO: avoid
-        let webgl_info = self.webgl_painter.debug_info(); // TODO: avoid
         region.foldable("Stats", |gui| {
-            gui.label(format!("num_vertices: {}", stats.num_vertices));
-            gui.label(format!("num_triangles: {}", stats.num_triangles));
+            gui.add(label(format!("num_vertices: {}", self.stats.num_vertices)));
+            gui.add(label(format!(
+                "num_triangles: {}",
+                self.stats.num_triangles
+            )));
 
-            gui.label("WebGl painter info:");
+            gui.add(label("WebGl painter info:"));
             gui.indent(|gui| {
-                gui.label(webgl_info);
+                gui.add(label(self.webgl_painter.debug_info()));
             });
 
-            gui.label("Timings:");
+            gui.add(label("Timings:"));
             gui.indent(|gui| {
-                gui.label(format!("Everything: {:.1} ms", stats.everything_ms));
-                gui.label(format!("WebGL: {:.1} ms", stats.webgl_ms));
+                gui.add(label(format!(
+                    "Everything: {:.1} ms",
+                    self.stats.everything_ms
+                )));
+                gui.add(label(format!("WebGL: {:.1} ms", self.stats.webgl_ms)));
             });
         });
 
