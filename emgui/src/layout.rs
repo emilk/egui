@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    font::Font,
+    font::{Font, TextFragment},
     math::*,
     types::*,
     widgets::{label, Widget},
@@ -92,18 +92,6 @@ pub struct Memory {
     /// Which foldable regions are open.
     open_foldables: HashSet<Id>,
 }
-
-// ----------------------------------------------------------------------------
-
-pub struct TextFragment {
-    /// The start of each character, starting at zero.
-    x_offsets: Vec<f32>,
-    /// 0 for the first line, n * line_spacing for the rest
-    y_offset: f32,
-    text: String,
-}
-
-pub type TextFragments = Vec<TextFragment>;
 
 // ----------------------------------------------------------------------------
 
@@ -220,7 +208,7 @@ where
         dir: Direction::Vertical,
         cursor: window_pos + window_padding,
         bounding_size: vec2(0.0, 0.0),
-        available_space: vec2(400.0, std::f32::INFINITY), // TODO
+        available_space: vec2(400.0, std::f32::INFINITY), // TODO: popup/tooltip width
     };
 
     add_contents(&mut popup_region);
@@ -283,6 +271,14 @@ impl Region {
         self.cursor
     }
 
+    pub fn font(&self) -> &Font {
+        &*self.data.font
+    }
+
+    pub fn width(&self) -> f32 {
+        self.available_space.x
+    }
+
     // ------------------------------------------------------------------------
     // Sub-regions:
 
@@ -297,7 +293,7 @@ impl Region {
         );
         let text: String = text.into();
         let id = self.make_child_id(&text);
-        let (text, text_size) = self.layout_text(&text);
+        let (text, text_size) = self.font().layout_multiline(&text, self.width());
         let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) = self.reserve_space(
             vec2(
@@ -434,7 +430,6 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
-    // TODO: Return a Rect
     pub fn reserve_space(
         &mut self,
         size: Vec2,
@@ -497,28 +492,6 @@ impl Region {
             child_id.hash(&mut hasher);
             hasher.finish()
         })
-    }
-
-    // TODO: move this function to Font
-    pub fn layout_text(&self, text: &str) -> (TextFragments, Vec2) {
-        let line_spacing = self.data.font.line_spacing();
-        let mut cursor_y = 0.0;
-        let mut max_width = 0.0;
-        let mut text_fragments = Vec::new();
-        for line in text.split('\n') {
-            let x_offsets = self.data.font.layout_single_line(&line);
-            let line_width = *x_offsets.last().unwrap();
-            text_fragments.push(TextFragment {
-                x_offsets,
-                y_offset: cursor_y,
-                text: line.into(),
-            });
-
-            cursor_y += line_spacing;
-            max_width = line_width.max(max_width);
-        }
-        let bounding_size = vec2(max_width, cursor_y);
-        (text_fragments, bounding_size)
     }
 
     pub fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {

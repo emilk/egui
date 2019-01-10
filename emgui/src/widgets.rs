@@ -29,7 +29,7 @@ pub fn label<S: Into<String>>(text: S) -> Label {
 
 impl Widget for Label {
     fn add_to(self, region: &mut Region) -> GuiResponse {
-        let (text, text_size) = region.layout_text(&self.text);
+        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
         region.add_text(region.cursor(), text);
         let (_, interact) = region.reserve_space(text_size, None);
         region.response(interact)
@@ -51,7 +51,7 @@ impl Button {
 impl Widget for Button {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.layout_text(&self.text);
+        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor() + region.options().button_padding;
         let (rect, interact) =
             region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
@@ -81,7 +81,7 @@ impl<'a> Checkbox<'a> {
 impl<'a> Widget for Checkbox<'a> {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.layout_text(&self.text);
+        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
@@ -129,7 +129,7 @@ pub fn radio<S: Into<String>>(checked: bool, text: S) -> RadioButton {
 impl Widget for RadioButton {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.layout_text(&self.text);
+        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
@@ -196,7 +196,7 @@ impl<'a> Widget for Slider<'a> {
             naked.text = None;
 
             if text_on_top {
-                let (text, text_size) = region.layout_text(&full_text);
+                let (text, text_size) = region.font().layout_multiline(&full_text, region.width());
                 region.add_text(region.cursor(), text);
                 region.reserve_space_inner(text_size);
                 naked.add_to(region)

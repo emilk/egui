@@ -1,5 +1,27 @@
 use rusttype::{point, Scale};
 
+use crate::math::{vec2, Vec2};
+
+pub struct TextFragment {
+    /// The start of each character, starting at zero.
+    pub x_offsets: Vec<f32>,
+    /// 0 for the first line, n * line_spacing for the rest
+    pub y_offset: f32,
+    pub text: String,
+}
+
+impl TextFragment {
+    pub fn min_x(&self) -> f32 {
+        *self.x_offsets.first().unwrap()
+    }
+
+    pub fn max_x(&self) -> f32 {
+        *self.x_offsets.last().unwrap()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UvRect {
     /// X/Y offset for nice rendering
@@ -190,27 +212,109 @@ impl Font {
         }
     }
 
-    /// Returns the start (X) of each character, starting at zero, plus the total width.
-    /// i.e. returns text.chars().count() + 1 numbers.
-    pub fn layout_single_line(&self, text: &str) -> Vec<f32> {
+    /// Returns the a single line of characters separated into words
+    pub fn layout_single_line(&self, text: &str) -> Vec<TextFragment> {
         let scale = Scale::uniform(self.scale as f32);
 
-        let mut x_offsets = Vec::new();
+        let mut current_fragment = TextFragment {
+            x_offsets: vec![0.0],
+            y_offset: 0.0,
+            text: String::new(),
+        };
+        let mut all_fragments = vec![];
         let mut cursor_x = 0.0f32;
         let mut last_glyph_id = None;
+
         for c in text.chars() {
-            cursor_x = cursor_x.round();
-            x_offsets.push(cursor_x);
             if let Some(glyph) = self.glyph_info(c) {
                 if let Some(last_glyph_id) = last_glyph_id {
                     cursor_x += self.font.pair_kerning(scale, last_glyph_id, glyph.id)
                 }
                 cursor_x += glyph.advance_width;
+                cursor_x = cursor_x.round();
                 last_glyph_id = Some(glyph.id);
+
+                let is_space = glyph.uv.is_none();
+                if is_space {
+                    // TODO: also break after hyphens etc
+                    if !current_fragment.text.is_empty() {
+                        all_fragments.push(current_fragment);
+                        current_fragment = TextFragment {
+                            x_offsets: vec![cursor_x],
+                            y_offset: 0.0,
+                            text: String::new(),
+                        }
+                    }
+                } else {
+                    current_fragment.text.push(c);
+                    current_fragment.x_offsets.push(cursor_x);
+                }
+            } else {
+                // Ignore unknown glyph
             }
         }
-        x_offsets.push(cursor_x);
-        x_offsets
+
+        if !current_fragment.text.is_empty() {
+            all_fragments.push(current_fragment)
+        }
+        all_fragments
+    }
+
+    pub fn layout_single_line_max_width(&self, text: &str, max_width: f32) -> Vec<TextFragment> {
+        let mut words = self.layout_single_line(text);
+        if words.is_empty() || words.last().unwrap().max_x() <= max_width {
+            return words; // Early-out
+        }
+
+        let line_spacing = self.line_spacing();
+
+        // Break up lines:
+        let mut line_start_x = 0.0;
+        let mut cursor_y = 0.0;
+
+        for word in words.iter_mut().skip(1) {
+            if word.max_x() - line_start_x >= max_width {
+                // Time for a new line:
+                cursor_y += line_spacing;
+                line_start_x = word.min_x();
+            }
+
+            word.y_offset += cursor_y;
+            for x in &mut word.x_offsets {
+                *x -= line_start_x;
+            }
+        }
+
+        words
+    }
+
+    /// Returns each line + total bounding box size.
+    pub fn layout_multiline(&self, text: &str, max_width: f32) -> (Vec<TextFragment>, Vec2) {
+        let line_spacing = self.line_spacing();
+        let mut cursor_y = 0.0;
+        let mut text_fragments = Vec::new();
+        for line in text.split('\n') {
+            let mut line_fragments = self.layout_single_line_max_width(&line, max_width);
+            if let Some(last_word) = line_fragments.last() {
+                let line_height = last_word.y_offset + line_spacing;
+                for fragment in &mut line_fragments {
+                    fragment.y_offset += cursor_y;
+                }
+                text_fragments.append(&mut line_fragments);
+                cursor_y += line_height; // TODO: add extra spacing between paragraphs
+            } else {
+                cursor_y += line_spacing;
+            }
+            cursor_y = cursor_y.round();
+        }
+
+        let mut widest_line = 0.0;
+        for fragment in &text_fragments {
+            widest_line = fragment.max_x().max(widest_line);
+        }
+
+        let bounding_size = vec2(widest_line, cursor_y);
+        (text_fragments, bounding_size)
     }
 
     pub fn debug_print_atlas_ascii_art(&self) {
