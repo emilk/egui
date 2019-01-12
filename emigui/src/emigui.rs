@@ -75,22 +75,13 @@ impl Emigui {
         let size = self.data.input.screen_size;
         layout::Region {
             data: self.data.clone(),
+            options: self.data.options(),
             id: Default::default(),
             dir: layout::Direction::Vertical,
             cursor: Default::default(),
             bounding_size: Default::default(),
             available_space: size,
         }
-    }
-
-    pub fn options(&self) -> &layout::LayoutOptions {
-        &self.data.options
-    }
-
-    pub fn set_options(&mut self, options: layout::LayoutOptions) {
-        let mut new_data = (*self.data).clone();
-        new_data.options = options;
-        self.data = Arc::new(new_data);
     }
 
     pub fn paint(&mut self) -> Frame {
@@ -103,14 +94,14 @@ impl Emigui {
     }
 
     pub fn example(&mut self, region: &mut Region) {
-        let mut options = self.options().clone();
         region.foldable("LayoutOptions", |gui| {
+            let mut options = self.data.options();
             show_options(&mut options, gui);
+            self.data.set_options(options);
         });
 
-        let mut style = self.style.clone();
         region.foldable("Style", |gui| {
-            show_style(&mut style, gui);
+            show_style(&mut self.style, gui);
         });
 
         region.foldable("Stats", |gui| {
@@ -120,8 +111,5 @@ impl Emigui {
                 self.stats.num_triangles
             )));
         });
-
-        // self.set_options(options); // TODO
-        self.style = style;
     }
 }

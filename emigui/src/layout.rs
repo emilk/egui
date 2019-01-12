@@ -141,7 +141,8 @@ impl GraphicLayers {
 // TODO: give a better name.
 /// Contains the input, options and output of all GUI commands.
 pub struct Data {
-    pub(crate) options: LayoutOptions,
+    /// The default options for new regions
+    pub(crate) options: Mutex<LayoutOptions>,
     pub(crate) font: Arc<Font>,
     pub(crate) input: GuiInput,
     pub(crate) memory: Mutex<Memory>,
@@ -151,7 +152,7 @@ pub struct Data {
 impl Clone for Data {
     fn clone(&self) -> Self {
         Data {
-            options: self.options.clone(),
+            options: Mutex::new(self.options()),
             font: self.font.clone(),
             input: self.input.clone(),
             memory: Mutex::new(self.memory.lock().unwrap().clone()),
@@ -175,12 +176,12 @@ impl Data {
         &self.input
     }
 
-    pub fn options(&self) -> &LayoutOptions {
-        &self.options
+    pub fn options(&self) -> LayoutOptions {
+        *self.options.lock().unwrap()
     }
 
-    pub fn set_options(&mut self, options: LayoutOptions) {
-        self.options = options;
+    pub fn set_options(&self, options: LayoutOptions) {
+        *self.options.lock().unwrap() = options;
     }
 
     // TODO: move
@@ -200,10 +201,12 @@ where
     // TODO: nicer way to do layering!
     let num_graphics_before = data.graphics.lock().unwrap().graphics.len();
 
-    let window_padding = data.options.window_padding;
+    let options = data.options();
+    let window_padding = options.window_padding;
 
     let mut popup_region = Region {
         data: data.clone(),
+        options,
         id: Default::default(),
         dir: Direction::Vertical,
         cursor: window_pos + window_padding,
@@ -214,7 +217,7 @@ where
     add_contents(&mut popup_region);
 
     // TODO: handle the last item_spacing in a nicer way
-    let inner_size = popup_region.bounding_size - data.options.item_spacing;
+    let inner_size = popup_region.bounding_size - options.item_spacing;
     let outer_size = inner_size + 2.0 * window_padding;
 
     let rect = Rect::from_min_size(window_pos, outer_size);
@@ -232,6 +235,8 @@ where
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region {
     pub(crate) data: Arc<Data>,
+
+    pub(crate) options: LayoutOptions,
 
     /// Unique ID of this region.
     pub(crate) id: Id,
@@ -259,8 +264,9 @@ impl Region {
         self.data.graphics.lock().unwrap().graphics.push(gui_cmd)
     }
 
+    /// Options for this region, and any child regions we may spawn.
     pub fn options(&self) -> &LayoutOptions {
-        self.data.options()
+        &self.options
     }
 
     pub fn input(&self) -> &GuiInput {
@@ -343,6 +349,7 @@ impl Region {
         let indent = vec2(self.options().indent, 0.0);
         let mut child_region = Region {
             data: self.data.clone(),
+            options: self.options,
             id: self.id,
             dir: self.dir,
             cursor: self.cursor + indent,
@@ -358,6 +365,7 @@ impl Region {
     pub fn centered_column(&mut self, width: f32) -> Region {
         Region {
             data: self.data.clone(),
+            options: self.options,
             id: self.id,
             dir: self.dir,
             cursor: vec2((self.available_space.x - width) / 2.0, self.cursor.y),
@@ -373,6 +381,7 @@ impl Region {
     {
         let mut child_region = Region {
             data: self.data.clone(),
+            options: self.options,
             id: self.id,
             dir: Direction::Horizontal,
             cursor: self.cursor,
@@ -402,6 +411,7 @@ impl Region {
         let mut columns: Vec<Region> = (0..num_columns)
             .map(|col_idx| Region {
                 data: self.data.clone(),
+                options: self.options,
                 id: self.make_child_id(&("column", col_idx)),
                 dir: Direction::Vertical,
                 cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
