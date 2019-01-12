@@ -5,9 +5,7 @@ extern crate wasm_bindgen;
 
 extern crate emigui;
 
-use std::sync::{Arc, Mutex};
-
-use emigui::{widgets::label, Emigui, Font, RawInput, TextureAtlas};
+use emigui::{widgets::label, Emigui, RawInput};
 
 use wasm_bindgen::prelude::*;
 
@@ -32,20 +30,8 @@ pub struct State {
 
 impl State {
     fn new(canvas_id: &str) -> Result<State, JsValue> {
-        let mut atlas = TextureAtlas::new(128, 8); // TODO: better default?
-
-        // Make one white pixel for use for various stuff:
-        let pos = atlas.allocate((1, 1));
-        atlas[pos] = 255;
-
-        let atlas = Arc::new(Mutex::new(atlas));
-
-        let font = Arc::new(Font::new(20, atlas.clone()));
-
-        let texture = atlas.lock().unwrap().clone().into_texture();
-
-        let emigui = Emigui::new(font);
-        let webgl_painter = webgl::Painter::new(canvas_id, texture)?;
+        let emigui = Emigui::new();
+        let webgl_painter = webgl::Painter::new(canvas_id, emigui.texture())?;
         Ok(State {
             app: Default::default(),
             emigui,

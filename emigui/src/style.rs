@@ -232,15 +232,14 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         }
         GuiCmd::Text {
             pos,
-            style: text_style,
+            text_style,
             text,
             x_offsets,
         } => {
-            let color = match text_style {
-                TextStyle::Label => style.text_color(),
-            };
+            let color = style.text_color();
             out_commands.push(PaintCmd::Text {
                 color,
+                text_style,
                 pos,
                 text,
                 x_offsets,

@@ -1,4 +1,5 @@
 use crate::{
+    fonts::TextStyle,
     layout::{make_id, GuiResponse, Id, Region},
     math::{remap_clamp, vec2, Vec2},
     types::GuiCmd,
@@ -15,11 +16,20 @@ pub trait Widget {
 
 pub struct Label {
     text: String,
+    text_style: TextStyle,
 }
 
 impl Label {
     pub fn new<S: Into<String>>(text: S) -> Self {
-        Label { text: text.into() }
+        Label {
+            text: text.into(),
+            text_style: TextStyle::Body,
+        }
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
+        self
     }
 }
 
@@ -29,8 +39,9 @@ pub fn label<S: Into<String>>(text: S) -> Label {
 
 impl Widget for Label {
     fn add_to(self, region: &mut Region) -> GuiResponse {
-        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
-        region.add_text(region.cursor(), text);
+        let font = &region.fonts()[self.text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, region.width());
+        region.add_text(region.cursor(), self.text_style, text);
         let (_, interact) = region.reserve_space(text_size, None);
         region.response(interact)
     }
@@ -51,12 +62,14 @@ impl Button {
 impl Widget for Button {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
+        let text_style = TextStyle::Button;
+        let font = &region.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor() + region.options().button_padding;
         let (rect, interact) =
             region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
         region.add_graphic(GuiCmd::Button { interact, rect });
-        region.add_text(text_cursor, text);
+        region.add_text(text_cursor, text_style, text);
         region.response(interact)
     }
 }
@@ -81,7 +94,9 @@ impl<'a> Checkbox<'a> {
 impl<'a> Widget for Checkbox<'a> {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
+        let text_style = TextStyle::Button;
+        let font = &region.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
@@ -100,7 +115,7 @@ impl<'a> Widget for Checkbox<'a> {
             interact,
             rect,
         });
-        region.add_text(text_cursor, text);
+        region.add_text(text_cursor, text_style, text);
         region.response(interact)
     }
 }
@@ -129,7 +144,9 @@ pub fn radio<S: Into<String>>(checked: bool, text: S) -> RadioButton {
 impl Widget for RadioButton {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(&self.text);
-        let (text, text_size) = region.font().layout_multiline(&self.text, region.width());
+        let text_style = TextStyle::Button;
+        let font = &region.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
@@ -145,7 +162,7 @@ impl Widget for RadioButton {
             interact,
             rect,
         });
-        region.add_text(text_cursor, text);
+        region.add_text(text_cursor, text_style, text);
         region.response(interact)
     }
 }
@@ -187,6 +204,9 @@ impl<'a> Slider<'a> {
 
 impl<'a> Widget for Slider<'a> {
     fn add_to(self, region: &mut Region) -> GuiResponse {
+        let text_style = TextStyle::Button;
+        let font = &region.fonts()[text_style];
+
         if let Some(text) = &self.text {
             let text_on_top = self.text_on_top.unwrap_or_default();
             let full_text = format!("{}: {:.3}", text, self.value);
@@ -196,8 +216,8 @@ impl<'a> Widget for Slider<'a> {
             naked.text = None;
 
             if text_on_top {
-                let (text, text_size) = region.font().layout_multiline(&full_text, region.width());
-                region.add_text(region.cursor(), text);
+                let (text, text_size) = font.layout_multiline(&full_text, region.width());
+                region.add_text(region.cursor(), text_style, text);
                 region.reserve_space_inner(text_size);
                 naked.add_to(region)
             } else {
@@ -215,7 +235,7 @@ impl<'a> Widget for Slider<'a> {
             let (slider_rect, interact) = region.reserve_space(
                 Vec2 {
                     x: region.available_space.x,
-                    y: region.data.font.line_spacing(),
+                    y: font.line_spacing(),
                 },
                 id,
             );

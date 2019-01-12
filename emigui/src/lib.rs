@@ -8,6 +8,7 @@ extern crate serde_derive;
 
 mod emigui;
 mod font;
+mod fonts;
 mod layout;
 pub mod math;
 mod painter;
@@ -18,11 +19,10 @@ pub mod widgets;
 
 pub use crate::{
     emigui::Emigui,
-    font::Font,
+    fonts::TextStyle,
     layout::LayoutOptions,
     layout::Region,
     painter::{Frame, Painter, Vertex},
     style::Style,
-    texture_atlas::TextureAtlas,
     types::RawInput,
 };

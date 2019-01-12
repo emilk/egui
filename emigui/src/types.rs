@@ -1,4 +1,7 @@
-use crate::math::{Rect, Vec2};
+use crate::{
+    fonts::TextStyle,
+    math::{Rect, Vec2},
+};
 
 // ----------------------------------------------------------------------------
 
@@ -88,12 +91,6 @@ pub struct InteractInfo {
     pub active: bool,
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TextStyle {
-    Label,
-}
-
 #[derive(Clone, Debug, Serialize)]
 pub enum GuiCmd {
     PaintCommands(Vec<PaintCmd>),
@@ -130,7 +127,7 @@ pub enum GuiCmd {
     /// The text should be vertically centered at the given position.
     Text {
         pos: Vec2,
-        style: TextStyle,
+        text_style: TextStyle,
         text: String,
         /// Start each character in the text, as offset from pos.
         x_offsets: Vec<f32>,
@@ -179,6 +176,7 @@ pub enum PaintCmd {
         /// Top left corner of the first character.
         pos: Vec2,
         text: String,
+        text_style: TextStyle,
         /// Start each character in the text, as offset from pos.
         x_offsets: Vec<f32>,
         // TODO: font info

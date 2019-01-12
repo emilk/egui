@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::{
-    font::{Font, TextFragment},
+    font::TextFragment,
+    fonts::{Fonts, TextStyle},
     math::*,
     types::*,
     widgets::{label, Widget},
@@ -143,7 +144,7 @@ impl GraphicLayers {
 pub struct Data {
     /// The default options for new regions
     pub(crate) options: Mutex<LayoutOptions>,
-    pub(crate) font: Arc<Font>,
+    pub(crate) fonts: Arc<Fonts>,
     pub(crate) input: GuiInput,
     pub(crate) memory: Mutex<Memory>,
     pub(crate) graphics: Mutex<GraphicLayers>,
@@ -153,7 +154,7 @@ impl Clone for Data {
     fn clone(&self) -> Self {
         Data {
             options: Mutex::new(self.options()),
-            font: self.font.clone(),
+            fonts: self.fonts.clone(),
             input: self.input.clone(),
             memory: Mutex::new(self.memory.lock().unwrap().clone()),
             graphics: Mutex::new(self.graphics.lock().unwrap().clone()),
@@ -162,10 +163,10 @@ impl Clone for Data {
 }
 
 impl Data {
-    pub fn new(font: Arc<Font>) -> Data {
+    pub fn new() -> Data {
         Data {
             options: Default::default(),
-            font,
+            fonts: Arc::new(Fonts::new()),
             input: Default::default(),
             memory: Default::default(),
             graphics: Default::default(),
@@ -277,8 +278,8 @@ impl Region {
         self.cursor
     }
 
-    pub fn font(&self) -> &Font {
-        &*self.data.font
+    pub fn fonts(&self) -> &Fonts {
+        &*self.data.fonts
     }
 
     pub fn width(&self) -> f32 {
@@ -299,7 +300,9 @@ impl Region {
         );
         let text: String = text.into();
         let id = self.make_child_id(&text);
-        let (text, text_size) = self.font().layout_multiline(&text, self.width());
+        let text_style = TextStyle::Heading;
+        let font = &self.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&text, self.width());
         let text_cursor = self.cursor + self.options().button_padding;
         let (rect, interact) = self.reserve_space(
             vec2(
@@ -328,6 +331,7 @@ impl Region {
         });
         self.add_text(
             text_cursor + vec2(self.options().start_icon_width, 0.0),
+            text_style,
             text,
         );
 
@@ -504,11 +508,11 @@ impl Region {
         })
     }
 
-    pub fn add_text(&mut self, pos: Vec2, text: Vec<TextFragment>) {
+    pub fn add_text(&mut self, pos: Vec2, text_style: TextStyle, text: Vec<TextFragment>) {
         for fragment in text {
             self.add_graphic(GuiCmd::Text {
                 pos: pos + vec2(0.0, fragment.y_offset),
-                style: TextStyle::Label,
+                text_style,
                 text: fragment.text,
                 x_offsets: fragment.x_offsets,
             });

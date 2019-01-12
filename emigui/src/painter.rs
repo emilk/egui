@@ -5,7 +5,7 @@ const AA_SIZE: f32 = 1.0;
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
-    font::Font,
+    fonts::Fonts,
     math::{remap, vec2, Vec2, TAU},
     types::{Color, PaintCmd},
 };
@@ -193,12 +193,12 @@ impl Frame {
 
 #[derive(Clone)]
 pub struct Painter {
-    font: Arc<Font>,
+    fonts: Arc<Fonts>,
 }
 
 impl Painter {
-    pub fn new(font: Arc<Font>) -> Painter {
-        Painter { font }
+    pub fn new(fonts: Arc<Fonts>) -> Painter {
+        Painter { fonts }
     }
 
     pub fn paint(&self, commands: &[PaintCmd]) -> Frame {
@@ -336,10 +336,12 @@ impl Painter {
                     color,
                     pos,
                     text,
+                    text_style,
                     x_offsets,
                 } => {
+                    let font = &self.fonts[*text_style];
                     for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
-                        if let Some(glyph) = self.font.uv_rect(c) {
+                        if let Some(glyph) = font.uv_rect(c) {
                             let mut top_left = Vertex {
                                 pos: *pos
                                     + vec2(

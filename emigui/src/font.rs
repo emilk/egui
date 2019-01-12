@@ -64,12 +64,8 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(scale: usize, atlas: Arc<Mutex<TextureAtlas>>) -> Font {
-        // TODO: figure out a way to make the wasm smaller despite including a font.
-        // let font_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-        // let font_data = include_bytes!("../fonts/DejaVuSans.ttf");
-        let font_data = include_bytes!("../fonts/Roboto-Regular.ttf");
-        let font = rusttype::Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
+    pub fn new(atlas: Arc<Mutex<TextureAtlas>>, font_data: &'static [u8], scale: usize) -> Font {
+        let font = rusttype::Font::from_bytes(font_data).expect("Error constructing Font");
 
         // println!(
         //     "font.v_metrics: {:?}",

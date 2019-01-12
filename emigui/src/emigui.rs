@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::{
-    font::Font,
     layout,
     layout::{LayoutOptions, Region},
     style,
@@ -48,20 +47,27 @@ pub struct Emigui {
 }
 
 impl Emigui {
-    pub fn new(font: Arc<Font>) -> Emigui {
+    pub fn new() -> Emigui {
+        let data = Arc::new(layout::Data::new());
+        let fonts = data.fonts.clone();
         Emigui {
             last_input: Default::default(),
-            data: Arc::new(layout::Data::new(font.clone())),
+            data,
             style: Default::default(),
-            painter: Painter::new(font),
+            painter: Painter::new(fonts),
             stats: Default::default(),
         }
+    }
+
+    pub fn texture(&self) -> (u16, u16, &[u8]) {
+        self.data.fonts.texture()
     }
 
     pub fn new_frame(&mut self, new_input: RawInput) {
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;
 
+        // TODO: avoid this clone
         let mut new_data = (*self.data).clone();
         new_data.new_frame(gui_input);
         self.data = Arc::new(new_data);
