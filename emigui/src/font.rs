@@ -1,6 +1,9 @@
 use rusttype::{point, Scale};
 
-use crate::math::{vec2, Vec2};
+use crate::{
+    math::{vec2, Vec2},
+    texture_atlas::TextureAtlas,
+};
 
 pub struct TextFragment {
     /// The start of each character, starting at zero.
@@ -48,7 +51,6 @@ pub struct GlyphInfo {
 const FIRST_ASCII: usize = 32; // 32 == space
 const LAST_ASCII: usize = 126;
 
-// TODO: break out texture atlas into separate struct, and fill it dynamically, potentially from multiple fonts.
 #[derive(Clone)]
 pub struct Font {
     font: rusttype::Font<'static>,
@@ -56,9 +58,7 @@ pub struct Font {
     scale: usize,
     /// NUM_CHARS big
     glyph_infos: Vec<GlyphInfo>,
-    atlas_width: usize,
-    atlas_height: usize,
-    atlas: Vec<u8>,
+    atlas: TextureAtlas, // TODO: Arc<Mutex<TextureAtlas>>
 }
 
 impl Font {
@@ -88,18 +88,11 @@ impl Font {
             })
             .collect();
 
-        // TODO: decide dynamically?
-        let atlas_width = 128;
-
-        let mut atlas_height = 8;
-        let mut atlas = vec![0; atlas_width * atlas_height];
+        let mut atlas = TextureAtlas::new(128, 8); // TODO: better default?
 
         // Make one white pixel for use for various stuff:
-        atlas[0] = 255;
-
-        let mut cursor_x = 1;
-        let mut cursor_y = 0;
-        let mut row_height = 1;
+        let pos = atlas.allocate((1, 1));
+        atlas[pos] = 255;
 
         let mut glyph_infos = vec![];
 
@@ -109,29 +102,14 @@ impl Font {
                 let glyph_height = bb.height() as usize;
                 assert!(glyph_width >= 1);
                 assert!(glyph_height >= 1);
-                assert!(glyph_width <= atlas_width);
-                if cursor_x + glyph_width > atlas_width {
-                    // New row:
-                    cursor_x = 0;
-                    cursor_y += row_height;
-                    row_height = 0;
-                }
 
-                row_height = row_height.max(glyph_height);
-                while cursor_y + row_height >= atlas_height {
-                    atlas_height *= 2;
-                }
-                if atlas_width * atlas_height > atlas.len() {
-                    atlas.resize(atlas_width * atlas_height, 0);
-                }
+                let glyph_pos = atlas.allocate((glyph_width, glyph_height));
 
                 glyph.draw(|x, y, v| {
                     if v > 0.0 {
-                        let x = x as usize;
-                        let y = y as usize;
-                        let px = cursor_x + x as usize;
-                        let py = cursor_y + y as usize;
-                        atlas[py * atlas_width + px] = (v * 255.0).round() as u8;
+                        let px = glyph_pos.0 + x as usize;
+                        let py = glyph_pos.1 + y as usize;
+                        atlas[(px, py)] = (v * 255.0).round() as u8;
                     }
                 });
 
@@ -141,15 +119,13 @@ impl Font {
                     advance_width: glyph.unpositioned().h_metrics().advance_width,
                     uv: Some(UvRect {
                         offset: (bb.min.x as i16, offset_y as i16),
-                        min: (cursor_x as u16, cursor_y as u16),
+                        min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
                         max: (
-                            (cursor_x + glyph_width - 1) as u16,
-                            (cursor_y + glyph_height - 1) as u16,
+                            (glyph_pos.0 + glyph_width - 1) as u16,
+                            (glyph_pos.1 + glyph_height - 1) as u16,
                         ),
                     }),
                 });
-
-                cursor_x += glyph_width;
             } else {
                 // No bounding box. Maybe a space?
                 glyph_infos.push(GlyphInfo {
@@ -164,8 +140,6 @@ impl Font {
             font,
             scale,
             glyph_infos,
-            atlas_width,
-            atlas_height,
             atlas,
         }
     }
@@ -179,19 +153,7 @@ impl Font {
     }
 
     pub fn texture(&self) -> (u16, u16, &[u8]) {
-        (
-            self.atlas_width as u16,
-            self.atlas_height as u16,
-            &self.atlas,
-        )
-    }
-
-    pub fn pixel(&self, x: u16, y: u16) -> u8 {
-        let x = x as usize;
-        let y = y as usize;
-        assert!(x < self.atlas_width);
-        assert!(y < self.atlas_height);
-        self.atlas[y * self.atlas_width + x]
+        self.atlas.texture()
     }
 
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
@@ -317,15 +279,6 @@ impl Font {
         (text_fragments, bounding_size)
     }
 
-    pub fn debug_print_atlas_ascii_art(&self) {
-        for y in 0..self.atlas_height {
-            println!(
-                "{}",
-                as_ascii(&self.atlas[y * self.atlas_width..(y + 1) * self.atlas_width])
-            );
-        }
-    }
-
     pub fn debug_print_all_chars(&self) {
         let max_width = 160;
         let scale = Scale::uniform(self.scale as f32);
@@ -349,7 +302,7 @@ impl Font {
                 if let Some(uv) = glyph.uv {
                     for x in uv.min.0..=uv.max.0 {
                         for y in uv.min.1..=uv.max.1 {
-                            let pixel = self.pixel(x as u16, y as u16);
+                            let pixel = self.atlas[(x as usize, y as usize)];
                             let rx = uv.offset.0 + x as i16 - uv.min.0 as i16;
                             let ry = uv.offset.1 + y as i16 - uv.min.1 as i16;
                             let px = (cursor_x + rx as f32).round();
@@ -393,7 +346,6 @@ mod tests {
     #[test]
     fn font_test() {
         let font = Font::new(13);
-        font.debug_print_atlas_ascii_art();
         font.debug_print_all_chars();
         panic!();
     }

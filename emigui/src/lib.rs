@@ -12,6 +12,7 @@ mod layout;
 pub mod math;
 mod painter;
 mod style;
+mod texture_atlas;
 pub mod types;
 pub mod widgets;
 
