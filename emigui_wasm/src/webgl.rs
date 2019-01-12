@@ -34,7 +34,7 @@ impl Painter {
 
     pub fn new(
         canvas_id: &str,
-        (tex_width, tex_height, pixels): (u16, u16, &[u8]),
+        (tex_width, tex_height, pixels): (u16, u16, Vec<u8>),
     ) -> Result<Painter, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
         let canvas = document.get_element_by_id(canvas_id).unwrap();

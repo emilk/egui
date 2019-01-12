@@ -201,11 +201,6 @@ impl Painter {
         Painter { font }
     }
 
-    /// 8-bit row-major font atlas texture, (width, height, pixels).
-    pub fn texture(&self) -> (u16, u16, &[u8]) {
-        self.font.texture()
-    }
-
     pub fn paint(&self, commands: &[PaintCmd]) -> Frame {
         let mut path_points = Vec::new();
         let mut path_normals = Vec::new();

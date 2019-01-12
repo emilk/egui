@@ -28,12 +28,8 @@ impl TextureAtlas {
         self.height
     }
 
-    pub fn pixels(&self) -> &[u8] {
-        &self.pixels
-    }
-
-    pub fn texture(&self) -> (u16, u16, &[u8]) {
-        (self.width() as u16, self.height() as u16, self.pixels())
+    pub fn into_texture(self) -> (u16, u16, Vec<u8>) {
+        (self.width as u16, self.height as u16, self.pixels)
     }
 
     /// Returns the coordinates of where the rect ended up.

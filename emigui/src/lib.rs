@@ -23,5 +23,6 @@ pub use crate::{
     layout::Region,
     painter::{Frame, Painter, Vertex},
     style::Style,
+    texture_atlas::TextureAtlas,
     types::RawInput,
 };

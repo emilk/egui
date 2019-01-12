@@ -58,10 +58,6 @@ impl Emigui {
         }
     }
 
-    pub fn texture(&self) -> (u16, u16, &[u8]) {
-        self.painter.texture()
-    }
-
     pub fn new_frame(&mut self, new_input: RawInput) {
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;

@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use rusttype::{point, Scale};
 
 use crate::{
@@ -58,11 +60,11 @@ pub struct Font {
     scale: usize,
     /// NUM_CHARS big
     glyph_infos: Vec<GlyphInfo>,
-    atlas: TextureAtlas, // TODO: Arc<Mutex<TextureAtlas>>
+    atlas: Arc<Mutex<TextureAtlas>>,
 }
 
 impl Font {
-    pub fn new(scale: usize) -> Font {
+    pub fn new(scale: usize, atlas: Arc<Mutex<TextureAtlas>>) -> Font {
         // TODO: figure out a way to make the wasm smaller despite including a font.
         // let font_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
         // let font_data = include_bytes!("../fonts/DejaVuSans.ttf");
@@ -88,13 +90,8 @@ impl Font {
             })
             .collect();
 
-        let mut atlas = TextureAtlas::new(128, 8); // TODO: better default?
-
-        // Make one white pixel for use for various stuff:
-        let pos = atlas.allocate((1, 1));
-        atlas[pos] = 255;
-
         let mut glyph_infos = vec![];
+        let mut atlas_lock = atlas.lock().unwrap();
 
         for glyph in glyphs {
             if let Some(bb) = glyph.pixel_bounding_box() {
@@ -103,13 +100,13 @@ impl Font {
                 assert!(glyph_width >= 1);
                 assert!(glyph_height >= 1);
 
-                let glyph_pos = atlas.allocate((glyph_width, glyph_height));
+                let glyph_pos = atlas_lock.allocate((glyph_width, glyph_height));
 
                 glyph.draw(|x, y, v| {
                     if v > 0.0 {
                         let px = glyph_pos.0 + x as usize;
                         let py = glyph_pos.1 + y as usize;
-                        atlas[(px, py)] = (v * 255.0).round() as u8;
+                        atlas_lock[(px, py)] = (v * 255.0).round() as u8;
                     }
                 });
 
@@ -136,6 +133,8 @@ impl Font {
             }
         }
 
+        drop(atlas_lock);
+
         Font {
             font,
             scale,
@@ -150,10 +149,6 @@ impl Font {
 
     pub fn supported_characters() -> impl Iterator<Item = char> {
         (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char)
-    }
-
-    pub fn texture(&self) -> (u16, u16, &[u8]) {
-        self.atlas.texture()
     }
 
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
@@ -280,6 +275,8 @@ impl Font {
     }
 
     pub fn debug_print_all_chars(&self) {
+        let atlas_lock = self.atlas.lock().unwrap();
+
         let max_width = 160;
         let scale = Scale::uniform(self.scale as f32);
         let mut pixel_rows = vec![vec![0; max_width]; self.scale];
@@ -302,7 +299,7 @@ impl Font {
                 if let Some(uv) = glyph.uv {
                     for x in uv.min.0..=uv.max.0 {
                         for y in uv.min.1..=uv.max.1 {
-                            let pixel = self.atlas[(x as usize, y as usize)];
+                            let pixel = atlas_lock[(x as usize, y as usize)];
                             let rx = uv.offset.0 + x as i16 - uv.min.0 as i16;
                             let ry = uv.offset.1 + y as i16 - uv.min.1 as i16;
                             let px = (cursor_x + rx as f32).round();
