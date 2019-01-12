@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "emgui",
-    "emgui_wasm",
+    "emigui",
+    "emigui_wasm",
 ]
 
 # Optimize for small code size:

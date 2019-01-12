@@ -1,4 +1,4 @@
-# Emgui – An Experimental, Modularized immediate mode Graphical User Interface
+# Emigui – Experimental, Modularized Immediate mode Graphical User Interface
 
 Here are the steps, in chronological order of execution:
 

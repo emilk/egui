@@ -20,7 +20,7 @@ function build_rust
 
 	echo "Generate JS bindings for wasm:"
 	FOLDER_NAME=${PWD##*/}
-	TARGET_NAME="emgui_wasm.wasm"
+	TARGET_NAME="emigui_wasm.wasm"
 	wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
 	  --out-dir docs --no-modules --no-typescript
 	  # --no-modules-global hoboho

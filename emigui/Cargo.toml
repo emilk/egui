@@ -1,5 +1,5 @@
 [package]
-name = "emgui"
+name = "emigui"
 version = "0.1.0"
 authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
 edition = "2018"

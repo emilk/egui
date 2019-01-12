@@ -1,8 +1,4 @@
-use emgui::{math::*, types::*, widgets::*, Region};
-
-pub trait GuiSettings {
-    fn show_gui(&mut self, gui: &mut Region);
-}
+use emigui::{math::*, types::*, widgets::*, Region};
 
 pub struct App {
     checked: bool,
@@ -27,8 +23,10 @@ impl Default for App {
     }
 }
 
-impl GuiSettings for App {
-    fn show_gui(&mut self, gui: &mut Region) {
+impl App {
+    pub fn show_gui(&mut self, gui: &mut Region) {
+        gui.add(label("Emigui is an Immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
+
         gui.add(label(format!(
             "Screen size: {} x {}",
             gui.input().screen_size.x,
@@ -91,31 +89,5 @@ impl GuiSettings for App {
             }]));
             gui.reserve_space(self.size, None);
         });
-    }
-}
-
-impl GuiSettings for emgui::LayoutOptions {
-    fn show_gui(&mut self, gui: &mut Region) {
-        if gui.add(Button::new("Reset LayoutOptions")).clicked {
-            *self = Default::default();
-        }
-        gui.add(Slider::new(&mut self.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
-        gui.add(Slider::new(&mut self.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
-        gui.add(Slider::new(&mut self.window_padding.x, 0.0, 10.0).text("window_padding.x"));
-        gui.add(Slider::new(&mut self.window_padding.y, 0.0, 10.0).text("window_padding.y"));
-        gui.add(Slider::new(&mut self.indent, 0.0, 100.0).text("indent"));
-        gui.add(Slider::new(&mut self.button_padding.x, 0.0, 20.0).text("button_padding.x"));
-        gui.add(Slider::new(&mut self.button_padding.y, 0.0, 20.0).text("button_padding.y"));
-        gui.add(Slider::new(&mut self.start_icon_width, 0.0, 60.0).text("start_icon_width"));
-    }
-}
-
-impl GuiSettings for emgui::Style {
-    fn show_gui(&mut self, gui: &mut Region) {
-        if gui.add(Button::new("Reset Style")).clicked {
-            *self = Default::default();
-        }
-        gui.add(Checkbox::new(&mut self.debug_rects, "debug_rects"));
-        gui.add(Slider::new(&mut self.line_width, 0.0, 10.0).text("line_width"));
     }
 }

@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emgui::Frame;
+use emigui::Frame;
 
 type Gl = WebGlRenderingContext;
 
