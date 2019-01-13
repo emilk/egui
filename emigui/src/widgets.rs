@@ -1,8 +1,8 @@
 use crate::{
     fonts::TextStyle,
-    layout::{make_id, GuiResponse, Id, Region},
+    layout::{make_id, Direction, GuiResponse, Id, Region},
     math::{remap_clamp, vec2, Vec2},
-    types::GuiCmd,
+    types::{Color, GuiCmd, PaintCmd},
 };
 
 // ----------------------------------------------------------------------------
@@ -264,3 +264,64 @@ impl<'a> Widget for Slider<'a> {
 }
 
 // ----------------------------------------------------------------------------
+
+pub struct Separator {
+    line_width: f32,
+    width: f32,
+}
+
+impl Separator {
+    pub fn new() -> Separator {
+        Separator {
+            line_width: 2.0,
+            width: 6.0,
+        }
+    }
+
+    pub fn line_width(&mut self, line_width: f32) -> &mut Self {
+        self.line_width = line_width;
+        self
+    }
+
+    pub fn width(&mut self, width: f32) -> &mut Self {
+        self.width = width;
+        self
+    }
+}
+
+impl Widget for Separator {
+    fn add_to(self, region: &mut Region) -> GuiResponse {
+        let available_space = region.available_space;
+        let (points, interact) = match region.direction() {
+            Direction::Horizontal => {
+                let (rect, interact) =
+                    region.reserve_space(vec2(self.width, available_space.y), None);
+                (
+                    vec![
+                        vec2(rect.center().x, rect.min().y),
+                        vec2(rect.center().x, rect.max().y),
+                    ],
+                    interact,
+                )
+            }
+            Direction::Vertical => {
+                let (rect, interact) =
+                    region.reserve_space(vec2(available_space.x, self.width), None);
+                (
+                    vec![
+                        vec2(rect.min().x, rect.center().y),
+                        vec2(rect.max().x, rect.center().y),
+                    ],
+                    interact,
+                )
+            }
+        };
+        let paint_cmd = PaintCmd::Line {
+            points,
+            color: Color::WHITE,
+            width: self.line_width,
+        };
+        region.add_graphic(GuiCmd::PaintCommands(vec![paint_cmd]));
+        region.response(interact)
+    }
+}

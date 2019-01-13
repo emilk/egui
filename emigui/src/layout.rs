@@ -286,6 +286,10 @@ impl Region {
         self.available_space.x
     }
 
+    pub fn direction(&self) -> Direction {
+        self.dir
+    }
+
     // ------------------------------------------------------------------------
     // Sub-regions:
 
