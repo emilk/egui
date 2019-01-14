@@ -1,6 +1,6 @@
 use crate::{
     fonts::TextStyle,
-    layout::{make_id, Direction, GuiResponse, Id, Region},
+    layout::{make_id, Align, Direction, GuiResponse, Id, Region},
     math::{remap_clamp, vec2, Vec2},
     types::{Color, GuiCmd, PaintCmd},
 };
@@ -41,8 +41,8 @@ impl Widget for Label {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let font = &region.fonts()[self.text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        region.add_text(region.cursor(), self.text_style, text);
         let interact = region.reserve_space(text_size, None);
+        region.add_text(interact.rect.min(), self.text_style, text);
         region.response(interact)
     }
 }
@@ -65,9 +65,9 @@ impl Widget for Button {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        let text_cursor = region.cursor() + region.options().button_padding;
         let interact =
             region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
+        let text_cursor = interact.rect.min() + region.options().button_padding;
         region.add_graphic(GuiCmd::Button { interact });
         region.add_text(text_cursor, text_style, text);
         region.response(interact)
@@ -97,9 +97,6 @@ impl<'a> Widget for Checkbox<'a> {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        let text_cursor = region.cursor()
-            + region.options().button_padding
-            + vec2(region.options().start_icon_width, 0.0);
         let interact = region.reserve_space(
             region.options().button_padding
                 + vec2(region.options().start_icon_width, 0.0)
@@ -107,6 +104,9 @@ impl<'a> Widget for Checkbox<'a> {
                 + region.options().button_padding,
             Some(id),
         );
+        let text_cursor = interact.rect.min()
+            + region.options().button_padding
+            + vec2(region.options().start_icon_width, 0.0);
         if interact.clicked {
             *self.checked = !*self.checked;
         }
@@ -146,9 +146,6 @@ impl Widget for RadioButton {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        let text_cursor = region.cursor()
-            + region.options().button_padding
-            + vec2(region.options().start_icon_width, 0.0);
         let interact = region.reserve_space(
             region.options().button_padding
                 + vec2(region.options().start_icon_width, 0.0)
@@ -156,6 +153,9 @@ impl Widget for RadioButton {
                 + region.options().button_padding,
             Some(id),
         );
+        let text_cursor = interact.rect.min()
+            + region.options().button_padding
+            + vec2(region.options().start_icon_width, 0.0);
         region.add_graphic(GuiCmd::RadioButton {
             checked: self.checked,
             interact,
@@ -215,14 +215,18 @@ impl<'a> Widget for Slider<'a> {
 
             if text_on_top {
                 let (text, text_size) = font.layout_multiline(&full_text, region.width());
-                region.add_text(region.cursor(), text_style, text);
-                region.reserve_space_without_padding(text_size);
+                let pos = region.reserve_space_without_padding(text_size);
+                region.add_text(pos, text_style, text);
                 naked.add_to(region)
             } else {
                 region.columns(2, |columns| {
                     let response = naked.add_to(&mut columns[0]);
+
                     columns[1].available_space.y = response.rect.size().y;
-                    columns[1].add(label(full_text)); // TODO: centered!
+                    columns[1].horizontal(Align::Center, |region| {
+                        region.add(label(full_text));
+                    });
+
                     response
                 })
             }
@@ -295,23 +299,21 @@ impl Widget for Separator {
         let available_space = region.available_space;
         let (points, interact) = match region.direction() {
             Direction::Horizontal => {
-                let (rect, interact) =
-                    region.reserve_space(vec2(self.width, available_space.y), None);
+                let interact = region.reserve_space(vec2(self.width, available_space.y), None);
                 (
                     vec![
-                        vec2(rect.center().x, rect.min().y),
-                        vec2(rect.center().x, rect.max().y),
+                        vec2(interact.rect.center().x, interact.rect.min().y),
+                        vec2(interact.rect.center().x, interact.rect.max().y),
                     ],
                     interact,
                 )
             }
             Direction::Vertical => {
-                let (rect, interact) =
-                    region.reserve_space(vec2(available_space.x, self.width), None);
+                let interact = region.reserve_space(vec2(available_space.x, self.width), None);
                 (
                     vec![
-                        vec2(rect.min().x, rect.center().y),
-                        vec2(rect.max().x, rect.center().y),
+                        vec2(interact.rect.min().x, interact.rect.center().y),
+                        vec2(interact.rect.max().x, interact.rect.center().y),
                     ],
                     interact,
                 )

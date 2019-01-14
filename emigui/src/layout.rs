@@ -43,7 +43,7 @@ impl Default for LayoutOptions {
             button_padding: vec2(5.0, 3.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
-            clickable_diameter: 10.0,
+            clickable_diameter: 38.0,
             start_icon_width: 20.0,
         }
     }
@@ -112,6 +112,25 @@ pub enum Direction {
 impl Default for Direction {
     fn default() -> Direction {
         Direction::Vertical
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Align {
+    /// Left/Top
+    Min,
+
+    /// Note: requires a bounded/known available_width.
+    Center,
+
+    /// Right/Bottom
+    /// Note: requires a bounded/known available_width.
+    Max,
+}
+
+impl Default for Align {
+    fn default() -> Align {
+        Align::Min
     }
 }
 
@@ -217,6 +236,7 @@ where
         options,
         id: Default::default(),
         dir: Direction::Vertical,
+        align: Align::Min,
         cursor: window_pos + window_padding,
         bounding_size: vec2(0.0, 0.0),
         available_space: vec2(400.0, std::f32::INFINITY), // TODO: popup/tooltip width
@@ -252,6 +272,8 @@ pub struct Region {
     /// Doesn't change.
     pub(crate) dir: Direction,
 
+    pub(crate) align: Align,
+
     /// Changes only along self.dir
     pub(crate) cursor: Vec2,
 
@@ -279,10 +301,6 @@ impl Region {
 
     pub fn input(&self) -> &GuiInput {
         self.data.input()
-    }
-
-    pub fn cursor(&self) -> Vec2 {
-        self.cursor
     }
 
     pub fn fonts(&self) -> &Fonts {
@@ -363,6 +381,7 @@ impl Region {
             options: self.options,
             id: self.id,
             dir: self.dir,
+            align: Align::Min,
             cursor: self.cursor + indent,
             bounding_size: vec2(0.0, 0.0),
             available_space: self.available_space - indent,
@@ -373,20 +392,21 @@ impl Region {
     }
 
     /// A horizontally centered region of the given width.
-    pub fn centered_column(&mut self, width: f32) -> Region {
+    pub fn centered_column(&mut self, width: f32, align: Align) -> Region {
         Region {
             data: self.data.clone(),
             options: self.options,
             id: self.id,
             dir: self.dir,
             cursor: vec2((self.available_space.x - width) / 2.0, self.cursor.y),
+            align,
             bounding_size: vec2(0.0, 0.0),
             available_space: vec2(width, self.available_space.y),
         }
     }
 
     /// Start a region with horizontal layout
-    pub fn horizontal<F>(&mut self, add_contents: F)
+    pub fn horizontal<F>(&mut self, align: Align, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
@@ -395,6 +415,7 @@ impl Region {
             options: self.options,
             id: self.id,
             dir: Direction::Horizontal,
+            align,
             cursor: self.cursor,
             bounding_size: vec2(0.0, 0.0),
             available_space: self.available_space,
@@ -425,6 +446,7 @@ impl Region {
                 options: self.options,
                 id: self.make_child_id(&("column", col_idx)),
                 dir: Direction::Vertical,
+                align: self.align,
                 cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
                 bounding_size: vec2(0.0, 0.0),
                 available_space: vec2(column_width, self.available_space.y),
@@ -452,12 +474,9 @@ impl Region {
     // ------------------------------------------------------------------------
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
-        let rect = Rect {
-            pos: self.cursor,
-            size,
-        };
+        let pos = self.reserve_space_without_padding(size + self.options().item_spacing);
 
-        self.reserve_space_without_padding(size + self.options().item_spacing);
+        let rect = Rect::from_min_size(pos, size);
 
         let hovered = rect.contains(self.input().mouse_pos);
         let clicked = hovered && self.input().mouse_clicked;
@@ -479,20 +498,31 @@ impl Region {
         }
     }
 
-    // TODO: Return a Rect
     /// Reserve this much space and move the cursor.
-    pub fn reserve_space_without_padding(&mut self, size: Vec2) {
+    pub fn reserve_space_without_padding(&mut self, size: Vec2) -> Vec2 {
+        let mut pos = self.cursor;
         if self.dir == Direction::Horizontal {
+            pos.y += match self.align {
+                Align::Min => 0.0,
+                Align::Center => 0.5 * (self.available_space.y - size.y),
+                Align::Max => self.available_space.y - size.y,
+            };
             self.cursor.x += size.x;
             self.available_space.x -= size.x;
             self.bounding_size.x += size.x;
             self.bounding_size.y = self.bounding_size.y.max(size.y);
         } else {
+            pos.x += match self.align {
+                Align::Min => 0.0,
+                Align::Center => 0.5 * (self.available_space.x - size.x),
+                Align::Max => self.available_space.x - size.x,
+            };
             self.cursor.y += size.y;
             self.available_space.y -= size.x;
             self.bounding_size.y += size.y;
             self.bounding_size.x = self.bounding_size.x.max(size.x);
         }
+        pos
     }
 
     pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {

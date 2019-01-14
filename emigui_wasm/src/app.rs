@@ -1,4 +1,4 @@
-use emigui::{math::*, types::*, widgets::*, Region, TextStyle};
+use emigui::{math::*, types::*, widgets::*, Align, Region, TextStyle};
 
 pub struct App {
     checked: bool,
@@ -41,7 +41,7 @@ impl App {
 
         gui.add(Checkbox::new(&mut self.checked, "checkbox"));
 
-        gui.horizontal(|gui| {
+        gui.horizontal(Align::Min, |gui| {
             if gui
                 .add(radio(self.selected_alternative == 0, "First"))
                 .clicked
@@ -78,7 +78,7 @@ impl App {
             gui.add(Slider::new(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
             gui.add(Slider::new(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
 
-            let pos = gui.cursor();
+            let pos = gui.reserve_space(self.size, None).rect.min();
             gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
                 corner_radius: self.corner_radius,
                 fill_color: Some(srgba(136, 136, 136, 255)),
@@ -88,7 +88,6 @@ impl App {
                     color: srgba(255, 255, 255, 255),
                 }),
             }]));
-            gui.reserve_space(self.size, None);
         });
     }
 }

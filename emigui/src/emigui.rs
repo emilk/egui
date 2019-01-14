@@ -80,6 +80,7 @@ impl Emigui {
             options: self.data.options(),
             id: Default::default(),
             dir: layout::Direction::Vertical,
+            align: layout::Align::Center,
             cursor: Default::default(),
             bounding_size: Default::default(),
             available_space: size,

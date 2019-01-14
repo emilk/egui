@@ -186,12 +186,14 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             value,
         } => {
             let rect = interact.rect;
-            let thin_rect = Rect::from_center_size(rect.center(), vec2(rect.size.x, 6.0));
+            let thickness = rect.size().y;
+            let thin_size = vec2(rect.size.x, thickness / 2.0);
+            let thin_rect = Rect::from_center_size(rect.center(), thin_size);
             let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
             let marker_rect = Rect::from_center_size(
                 vec2(marker_center_x, thin_rect.center().y),
-                vec2(16.0, 16.0),
+                vec2(thickness, thickness),
             );
 
             out_commands.push(PaintCmd::Rect {
@@ -202,7 +204,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             });
 
             out_commands.push(PaintCmd::Rect {
-                corner_radius: 3.0,
+                corner_radius: 6.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
                 outline: None,
                 rect: marker_rect,

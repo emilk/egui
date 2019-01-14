@@ -5,7 +5,7 @@ extern crate wasm_bindgen;
 
 extern crate emigui;
 
-use emigui::{widgets::label, Emigui, RawInput};
+use emigui::{widgets::label, Align, Emigui, RawInput};
 
 use wasm_bindgen::prelude::*;
 
@@ -46,7 +46,7 @@ impl State {
         self.emigui.new_frame(raw_input);
 
         let mut region = self.emigui.whole_screen_region();
-        let mut region = region.centered_column(480.0);
+        let mut region = region.centered_column(480.0, Align::Min);
         self.app.show_gui(&mut region);
         self.emigui.example(&mut region);
 

@@ -20,8 +20,7 @@ pub mod widgets;
 pub use crate::{
     emigui::Emigui,
     fonts::TextStyle,
-    layout::LayoutOptions,
-    layout::Region,
+    layout::{Align, LayoutOptions, Region},
     painter::{Frame, Painter, Vertex},
     style::Style,
     types::RawInput,
