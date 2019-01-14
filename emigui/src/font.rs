@@ -338,8 +338,10 @@ mod tests {
     use super::*;
     #[test]
     fn font_test() {
-        let font = Font::new(13);
+        let atlas = TextureAtlas::new(128, 8);
+        let atlas = Arc::new(Mutex::new(atlas));
+        let font_data = include_bytes!("../fonts/Roboto-Regular.ttf");
+        let font = Font::new(atlas, font_data, 13);
         font.debug_print_all_chars();
-        panic!();
     }
 }
