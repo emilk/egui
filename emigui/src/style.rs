@@ -72,8 +72,7 @@ fn debug_rect(rect: Rect) -> PaintCmd {
             color: srgba(255, 255, 255, 255),
             width: 1.0,
         }),
-        pos: rect.pos,
-        size: rect.size,
+        rect,
     }
 }
 
@@ -81,30 +80,24 @@ fn debug_rect(rect: Rect) -> PaintCmd {
 fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
     match cmd {
         GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
-        GuiCmd::Button { interact, rect } => {
+        GuiCmd::Button { interact } => {
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 5.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
                 outline: None,
-                pos: rect.pos,
-                size: rect.size,
+                rect: interact.rect,
             });
             if style.debug_rects {
-                out_commands.push(debug_rect(rect));
+                out_commands.push(debug_rect(interact.rect));
             }
         }
-        GuiCmd::Checkbox {
-            checked,
-            interact,
-            rect,
-        } => {
-            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&rect);
+        GuiCmd::Checkbox { checked, interact } => {
+            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&interact.rect);
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
                 outline: None,
-                pos: big_icon_rect.pos,
-                size: big_icon_rect.size,
+                rect: big_icon_rect,
             });
 
             let stroke_color = style.interact_stroke_color(&interact);
@@ -122,14 +115,10 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             }
 
             if style.debug_rects {
-                out_commands.push(debug_rect(rect));
+                out_commands.push(debug_rect(interact.rect));
             }
         }
-        GuiCmd::FoldableHeader {
-            interact,
-            open,
-            rect,
-        } => {
+        GuiCmd::FoldableHeader { interact, open } => {
             let fill_color = style.interact_fill_color(&interact);
             let stroke_color = style.interact_stroke_color(&interact);
 
@@ -137,13 +126,12 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 corner_radius: 3.0,
                 fill_color: Some(fill_color),
                 outline: None,
-                pos: rect.pos,
-                size: rect.size,
+                rect: interact.rect,
             });
 
             // TODO: paint a little triangle or arrow or something instead of this
 
-            let (small_icon_rect, _) = style.icon_rectangles(&rect);
+            let (small_icon_rect, _) = style.icon_rectangles(&interact.rect);
             // Draw a minus:
             out_commands.push(PaintCmd::Line {
                 points: vec![
@@ -165,15 +153,11 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 });
             }
         }
-        GuiCmd::RadioButton {
-            checked,
-            interact,
-            rect,
-        } => {
+        GuiCmd::RadioButton { checked, interact } => {
             let fill_color = style.interact_fill_color(&interact);
             let stroke_color = style.interact_stroke_color(&interact);
 
-            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&rect);
+            let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&interact.rect);
 
             out_commands.push(PaintCmd::Circle {
                 center: big_icon_rect.center(),
@@ -192,16 +176,16 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             }
 
             if style.debug_rects {
-                out_commands.push(debug_rect(rect));
+                out_commands.push(debug_rect(interact.rect));
             }
         }
         GuiCmd::Slider {
             interact,
             max,
             min,
-            rect,
             value,
         } => {
+            let rect = interact.rect;
             let thin_rect = Rect::from_center_size(rect.center(), vec2(rect.size.x, 6.0));
             let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
@@ -214,16 +198,14 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 corner_radius: 2.0,
                 fill_color: Some(style.background_fill_color()),
                 outline: None,
-                pos: thin_rect.pos,
-                size: thin_rect.size,
+                rect: thin_rect,
             });
 
             out_commands.push(PaintCmd::Rect {
                 corner_radius: 3.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
                 outline: None,
-                pos: marker_rect.pos,
-                size: marker_rect.size,
+                rect: marker_rect,
             });
 
             if style.debug_rects {
@@ -253,8 +235,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     color: srgba(255, 255, 255, 255), // TODO
                     width: 1.0,
                 }),
-                pos: rect.pos,
-                size: rect.size,
+                rect: rect,
             });
         }
     }

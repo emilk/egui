@@ -272,16 +272,15 @@ impl Painter {
                     corner_radius,
                     fill_color,
                     outline,
-                    pos,
-                    size,
+                    rect,
                 } => {
                     path_points.clear();
                     path_normals.clear();
 
-                    let min = *pos;
-                    let max = *pos + *size;
+                    let min = rect.min();
+                    let max = rect.max();
 
-                    let cr = corner_radius.min(size.x * 0.5).min(size.y * 0.5);
+                    let cr = corner_radius.min(rect.size.x * 0.5).min(rect.size.y * 0.5);
 
                     if cr <= 0.0 {
                         path_points.push(vec2(min.x, min.y));

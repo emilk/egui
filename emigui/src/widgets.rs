@@ -42,7 +42,7 @@ impl Widget for Label {
         let font = &region.fonts()[self.text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
         region.add_text(region.cursor(), self.text_style, text);
-        let (_, interact) = region.reserve_space(text_size, None);
+        let interact = region.reserve_space(text_size, None);
         region.response(interact)
     }
 }
@@ -66,9 +66,9 @@ impl Widget for Button {
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let text_cursor = region.cursor() + region.options().button_padding;
-        let (rect, interact) =
+        let interact =
             region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
-        region.add_graphic(GuiCmd::Button { interact, rect });
+        region.add_graphic(GuiCmd::Button { interact });
         region.add_text(text_cursor, text_style, text);
         region.response(interact)
     }
@@ -100,7 +100,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
-        let (rect, interact) = region.reserve_space(
+        let interact = region.reserve_space(
             region.options().button_padding
                 + vec2(region.options().start_icon_width, 0.0)
                 + text_size
@@ -113,7 +113,6 @@ impl<'a> Widget for Checkbox<'a> {
         region.add_graphic(GuiCmd::Checkbox {
             checked: *self.checked,
             interact,
-            rect,
         });
         region.add_text(text_cursor, text_style, text);
         region.response(interact)
@@ -150,7 +149,7 @@ impl Widget for RadioButton {
         let text_cursor = region.cursor()
             + region.options().button_padding
             + vec2(region.options().start_icon_width, 0.0);
-        let (rect, interact) = region.reserve_space(
+        let interact = region.reserve_space(
             region.options().button_padding
                 + vec2(region.options().start_icon_width, 0.0)
                 + text_size
@@ -160,7 +159,6 @@ impl Widget for RadioButton {
         region.add_graphic(GuiCmd::RadioButton {
             checked: self.checked,
             interact,
-            rect,
         });
         region.add_text(text_cursor, text_style, text);
         region.response(interact)
@@ -218,24 +216,28 @@ impl<'a> Widget for Slider<'a> {
             if text_on_top {
                 let (text, text_size) = font.layout_multiline(&full_text, region.width());
                 region.add_text(region.cursor(), text_style, text);
-                region.reserve_space_inner(text_size);
+                region.reserve_space_without_padding(text_size);
                 naked.add_to(region)
             } else {
                 region.columns(2, |columns| {
-                    columns[1].add(label(full_text));
-                    naked.add_to(&mut columns[0])
+                    let response = naked.add_to(&mut columns[0]);
+                    columns[1].available_space.y = response.rect.size().y;
+                    columns[1].add(label(full_text)); // TODO: centered!
+                    response
                 })
             }
         } else {
+            let height = font.line_spacing().max(region.options().clickable_diameter);
+
             let value = self.value;
             let min = self.min;
             let max = self.max;
             debug_assert!(min <= max);
             let id = region.combined_id(self.id);
-            let (slider_rect, interact) = region.reserve_space(
+            let interact = region.reserve_space(
                 Vec2 {
                     x: region.available_space.x,
-                    y: font.line_spacing(),
+                    y: height,
                 },
                 id,
             );
@@ -243,8 +245,8 @@ impl<'a> Widget for Slider<'a> {
             if interact.active {
                 *value = remap_clamp(
                     region.input().mouse_pos.x,
-                    slider_rect.min().x,
-                    slider_rect.max().x,
+                    interact.rect.min().x,
+                    interact.rect.max().x,
                     min,
                     max,
                 );
@@ -254,7 +256,6 @@ impl<'a> Widget for Slider<'a> {
                 interact,
                 max,
                 min,
-                rect: slider_rect,
                 value: *value,
             });
 

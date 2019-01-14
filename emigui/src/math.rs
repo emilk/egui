@@ -128,6 +128,10 @@ impl Rect {
     pub fn max(&self) -> Vec2 {
         self.pos + self.size
     }
+
+    pub fn size(&self) -> Vec2 {
+        self.size
+    }
 }
 
 pub fn lerp(min: f32, max: f32, t: f32) -> f32 {

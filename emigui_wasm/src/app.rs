@@ -82,8 +82,7 @@ impl App {
             gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
                 corner_radius: self.corner_radius,
                 fill_color: Some(srgba(136, 136, 136, 255)),
-                pos,
-                size: self.size,
+                rect: Rect::from_min_size(pos, self.size),
                 outline: Some(Outline {
                     width: self.stroke_width,
                     color: srgba(255, 255, 255, 255),

@@ -89,6 +89,9 @@ pub struct InteractInfo {
 
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
+
+    /// The region of the screen we are talking about
+    pub rect: Rect,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -97,29 +100,24 @@ pub enum GuiCmd {
     /// The background for a button
     Button {
         interact: InteractInfo,
-        rect: Rect,
     },
     Checkbox {
         checked: bool,
         interact: InteractInfo,
-        rect: Rect,
     },
     /// The header button background for a foldable region
     FoldableHeader {
         interact: InteractInfo,
         open: bool,
-        rect: Rect,
     },
     RadioButton {
         checked: bool,
         interact: InteractInfo,
-        rect: Rect,
     },
     Slider {
         interact: InteractInfo,
         max: f32,
         min: f32,
-        rect: Rect,
         value: f32,
     },
     /// Paint a single line of mono-space text.
@@ -167,8 +165,7 @@ pub enum PaintCmd {
         corner_radius: f32,
         fill_color: Option<Color>,
         outline: Option<Outline>,
-        pos: Vec2,
-        size: Vec2,
+        rect: Rect,
     },
     /// Paint a single line of text
     Text {

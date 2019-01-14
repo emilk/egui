@@ -19,14 +19,17 @@ pub struct LayoutOptions {
     /// Horizontal and vertical padding within a window frame.
     pub window_padding: Vec2,
 
+    /// Button size is text size plus this on each side
+    pub button_padding: Vec2,
+
     /// Horizontal and vertical spacing between widgets
     pub item_spacing: Vec2,
 
     /// Indent foldable regions etc by this much.
     pub indent: f32,
 
-    /// Button size is text size plus this on each side
-    pub button_padding: Vec2,
+    /// Anything clickable is (at least) this wide.
+    pub clickable_diameter: f32,
 
     /// Checkboxed, radio button and foldables have an icon at the start.
     /// The text starts after this many pixels.
@@ -36,10 +39,11 @@ pub struct LayoutOptions {
 impl Default for LayoutOptions {
     fn default() -> Self {
         LayoutOptions {
-            item_spacing: vec2(8.0, 4.0),
             window_padding: vec2(6.0, 6.0),
-            indent: 21.0,
             button_padding: vec2(5.0, 3.0),
+            item_spacing: vec2(8.0, 4.0),
+            indent: 21.0,
+            clickable_diameter: 10.0,
             start_icon_width: 20.0,
         }
     }
@@ -57,6 +61,9 @@ pub struct GuiResponse {
 
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
+
+    /// The region of the screen we are talking about
+    pub rect: Rect,
 
     /// Used for showing a popup (if any)
     data: Arc<Data>,
@@ -308,7 +315,7 @@ impl Region {
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&text, self.width());
         let text_cursor = self.cursor + self.options().button_padding;
-        let (rect, interact) = self.reserve_space(
+        let interact = self.reserve_space(
             vec2(
                 self.available_space.x,
                 text_size.y + 2.0 * self.options().button_padding.y,
@@ -328,11 +335,7 @@ impl Region {
             memory.open_foldables.contains(&id)
         };
 
-        self.add_graphic(GuiCmd::FoldableHeader {
-            interact,
-            rect,
-            open,
-        });
+        self.add_graphic(GuiCmd::FoldableHeader { interact, open });
         self.add_text(
             text_cursor + vec2(self.options().start_icon_width, 0.0),
             text_style,
@@ -366,7 +369,7 @@ impl Region {
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
-        self.reserve_space_inner(indent + size);
+        self.reserve_space_without_padding(indent + size);
     }
 
     /// A horizontally centered region of the given width.
@@ -398,7 +401,7 @@ impl Region {
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
-        self.reserve_space_inner(size);
+        self.reserve_space_without_padding(size);
     }
 
     /// Temporarily split split a vertical layout into several columns.
@@ -436,7 +439,7 @@ impl Region {
             max_height = size.y.max(max_height);
         }
 
-        self.reserve_space_inner(vec2(self.available_space.x, max_height));
+        self.reserve_space_without_padding(vec2(self.available_space.x, max_height));
         result
     }
 
@@ -448,16 +451,14 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
-    pub fn reserve_space(
-        &mut self,
-        size: Vec2,
-        interaction_id: Option<Id>,
-    ) -> (Rect, InteractInfo) {
+    pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let rect = Rect {
             pos: self.cursor,
             size,
         };
-        self.reserve_space_inner(size + self.options().item_spacing);
+
+        self.reserve_space_without_padding(size + self.options().item_spacing);
+
         let hovered = rect.contains(self.input().mouse_pos);
         let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
@@ -470,17 +471,17 @@ impl Region {
             false
         };
 
-        let interact = InteractInfo {
+        InteractInfo {
+            rect,
             hovered,
             clicked,
             active,
-        };
-        (rect, interact)
+        }
     }
 
     // TODO: Return a Rect
     /// Reserve this much space and move the cursor.
-    pub fn reserve_space_inner(&mut self, size: Vec2) {
+    pub fn reserve_space_without_padding(&mut self, size: Vec2) {
         if self.dir == Direction::Horizontal {
             self.cursor.x += size.x;
             self.available_space.x -= size.x;
@@ -524,10 +525,12 @@ impl Region {
     }
 
     pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
+        // TODO: unify GuiResponse and InteractInfo. They are the same thing!
         GuiResponse {
             hovered: interact.hovered,
             clicked: interact.clicked,
             active: interact.active,
+            rect: interact.rect,
             data: self.data.clone(),
         }
     }
