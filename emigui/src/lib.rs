@@ -23,5 +23,6 @@ pub use crate::{
     layout::{Align, LayoutOptions, Region},
     mesher::{Frame, Vertex},
     style::Style,
+    texture_atlas::Texture,
     types::RawInput,
 };

@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::Frame;
+use emigui::{Frame, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -32,10 +32,7 @@ impl Painter {
         )
     }
 
-    pub fn new(
-        canvas_id: &str,
-        (tex_width, tex_height, pixels): (u16, u16, &[u8]),
-    ) -> Result<Painter, JsValue> {
+    pub fn new(canvas_id: &str, texture: &Texture) -> Result<Painter, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
         let canvas = document.get_element_by_id(canvas_id).unwrap();
         let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
@@ -47,11 +44,11 @@ impl Painter {
 
         // --------------------------------------------------------------------
 
-        let texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&texture));
+        let gl_texture = gl.create_texture().unwrap();
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
         // TODO: remove once https://github.com/rustwasm/wasm-bindgen/issues/1005 is fixed.
-        let mut pixels: Vec<_> = pixels.iter().cloned().collect();
+        let mut pixels: Vec<_> = texture.pixels.iter().cloned().collect();
 
         let level = 0;
         let internal_format = Gl::ALPHA;
@@ -62,8 +59,8 @@ impl Painter {
             Gl::TEXTURE_2D,
             level,
             internal_format as i32,
-            tex_width as i32,
-            tex_height as i32,
+            texture.width as i32,
+            texture.height as i32,
             border,
             src_format,
             src_type,
@@ -122,13 +119,13 @@ impl Painter {
         Ok(Painter {
             canvas,
             gl,
-            texture,
+            texture: gl_texture,
             program,
             index_buffer,
             pos_buffer,
             tc_buffer,
             color_buffer,
-            tex_size: (tex_width, tex_height),
+            tex_size: (texture.width as u16, texture.height as u16),
         })
     }
 

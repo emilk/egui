@@ -98,11 +98,12 @@ impl Font {
 
                 let glyph_pos = atlas_lock.allocate((glyph_width, glyph_height));
 
+                let texture = atlas_lock.texture_mut();
                 glyph.draw(|x, y, v| {
                     if v > 0.0 {
                         let px = glyph_pos.0 + x as usize;
                         let py = glyph_pos.1 + y as usize;
-                        atlas_lock[(px, py)] = (v * 255.0).round() as u8;
+                        texture[(px, py)] = (v * 255.0).round() as u8;
                     }
                 });
 
@@ -271,7 +272,8 @@ impl Font {
     }
 
     pub fn debug_print_all_chars(&self) {
-        let atlas_lock = self.atlas.lock().unwrap();
+        let mut atlas_lock = self.atlas.lock().unwrap();
+        let texture_mut = atlas_lock.texture_mut();
 
         let max_width = 160;
         let scale = Scale::uniform(self.scale as f32);
@@ -295,7 +297,7 @@ impl Font {
                 if let Some(uv) = glyph.uv {
                     for x in uv.min.0..=uv.max.0 {
                         for y in uv.min.1..=uv.max.1 {
-                            let pixel = atlas_lock[(x as usize, y as usize)];
+                            let pixel = texture_mut[(x as usize, y as usize)];
                             let rx = uv.offset.0 + x as i16 - uv.min.0 as i16;
                             let ry = uv.offset.1 + y as i16 - uv.min.1 as i16;
                             let px = (cursor_x + rx as f32).round();

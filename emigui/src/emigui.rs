@@ -6,7 +6,7 @@ use crate::{
     style,
     types::GuiInput,
     widgets::*,
-    Frame, RawInput,
+    Frame, RawInput, Texture,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -55,7 +55,7 @@ impl Emigui {
         }
     }
 
-    pub fn texture(&self) -> (u16, u16, &[u8]) {
+    pub fn texture(&self) -> &Texture {
         self.data.fonts.texture()
     }
 
