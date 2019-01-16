@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 const ANTI_ALIAS: bool = true;
 const AA_SIZE: f32 = 1.0;
 
@@ -22,7 +20,6 @@ pub struct Vertex {
 
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
-    pub clear_color: Option<Color>,
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
@@ -189,19 +186,8 @@ impl Frame {
             }
         }
     }
-}
 
-#[derive(Clone)]
-pub struct Painter {
-    fonts: Arc<Fonts>,
-}
-
-impl Painter {
-    pub fn new(fonts: Arc<Fonts>) -> Painter {
-        Painter { fonts }
-    }
-
-    pub fn paint(&self, commands: &[PaintCmd]) -> Frame {
+    pub fn paint(fonts: &Fonts, commands: &[PaintCmd]) -> Frame {
         let mut path_points = Vec::new();
         let mut path_normals = Vec::new();
 
@@ -237,9 +223,6 @@ impl Painter {
                             outline.width,
                         );
                     }
-                }
-                PaintCmd::Clear { fill_color } => {
-                    frame.clear_color = Some(*fill_color);
                 }
                 PaintCmd::Line {
                     points,
@@ -338,7 +321,7 @@ impl Painter {
                     text_style,
                     x_offsets,
                 } => {
-                    let font = &self.fonts[*text_style];
+                    let font = &fonts[*text_style];
                     for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
                         if let Some(glyph) = font.uv_rect(c) {
                             let mut top_left = Vertex {

@@ -129,8 +129,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 rect: interact.rect,
             });
 
-            // TODO: paint a little triangle or arrow or something instead of this
-
             let (small_icon_rect, _) = style.icon_rectangles(&interact.rect);
             // Draw a minus:
             out_commands.push(PaintCmd::Line {
@@ -215,12 +213,13 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
             }
         }
         GuiCmd::Text {
+            color,
             pos,
-            text_style,
             text,
+            text_style,
             x_offsets,
         } => {
-            let color = style.text_color();
+            let color = color.unwrap_or_else(|| style.text_color());
             out_commands.push(PaintCmd::Text {
                 color,
                 text_style,
@@ -237,7 +236,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     color: srgba(255, 255, 255, 255), // TODO
                     width: 1.0,
                 }),
-                rect: rect,
+                rect,
             });
         }
     }

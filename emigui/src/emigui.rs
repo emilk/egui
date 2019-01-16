@@ -6,7 +6,7 @@ use crate::{
     style,
     types::GuiInput,
     widgets::*,
-    Frame, Painter, RawInput,
+    Frame, RawInput,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -42,19 +42,15 @@ pub struct Emigui {
     pub last_input: RawInput,
     pub data: Arc<layout::Data>,
     pub style: style::Style,
-    pub painter: Painter,
     stats: Stats,
 }
 
 impl Emigui {
     pub fn new() -> Emigui {
-        let data = Arc::new(layout::Data::new());
-        let fonts = data.fonts.clone();
         Emigui {
             last_input: Default::default(),
-            data,
+            data: Arc::new(layout::Data::new()),
             style: Default::default(),
-            painter: Painter::new(fonts),
             stats: Default::default(),
         }
     }
@@ -90,7 +86,7 @@ impl Emigui {
     pub fn paint(&mut self) -> Frame {
         let gui_commands = self.data.graphics.lock().unwrap().drain();
         let paint_commands = style::into_paint_commands(gui_commands, &self.style);
-        let frame = self.painter.paint(&paint_commands);
+        let frame = Frame::paint(&self.data.fonts, &paint_commands);
         self.stats.num_vertices = frame.vertices.len();
         self.stats.num_triangles = frame.indices.len() / 3;
         frame

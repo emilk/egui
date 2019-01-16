@@ -120,13 +120,12 @@ pub enum GuiCmd {
         min: f32,
         value: f32,
     },
-    /// Paint a single line of mono-space text.
-    /// The text should start at the given position and flow to the right.
-    /// The text should be vertically centered at the given position.
+    /// A string of text with a position for each character.
     Text {
+        color: Option<Color>,
         pos: Vec2,
-        text_style: TextStyle,
         text: String,
+        text_style: TextStyle,
         /// Start each character in the text, as offset from pos.
         x_offsets: Vec<f32>,
     },
@@ -152,9 +151,6 @@ pub enum PaintCmd {
         fill_color: Option<Color>,
         outline: Option<Outline>,
         radius: f32,
-    },
-    Clear {
-        fill_color: Color,
     },
     Line {
         points: Vec<Vec2>,

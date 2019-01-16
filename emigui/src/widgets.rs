@@ -17,6 +17,7 @@ pub trait Widget {
 pub struct Label {
     text: String,
     text_style: TextStyle,
+    text_color: Option<Color>,
 }
 
 impl Label {
@@ -24,11 +25,17 @@ impl Label {
         Label {
             text: text.into(),
             text_style: TextStyle::Body,
+            text_color: None,
         }
     }
 
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = text_style;
+        self
+    }
+
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
         self
     }
 }
@@ -42,7 +49,7 @@ impl Widget for Label {
         let font = &region.fonts()[self.text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let interact = region.reserve_space(text_size, None);
-        region.add_text(interact.rect.min(), self.text_style, text);
+        region.add_text(interact.rect.min(), self.text_style, text, self.text_color);
         region.response(interact)
     }
 }
@@ -51,11 +58,20 @@ impl Widget for Label {
 
 pub struct Button {
     text: String,
+    text_color: Option<Color>,
 }
 
 impl Button {
     pub fn new<S: Into<String>>(text: S) -> Self {
-        Button { text: text.into() }
+        Button {
+            text: text.into(),
+            text_color: None,
+        }
+    }
+
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
+        self
     }
 }
 
@@ -69,7 +85,7 @@ impl Widget for Button {
             region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
         let text_cursor = interact.rect.min() + region.options().button_padding;
         region.add_graphic(GuiCmd::Button { interact });
-        region.add_text(text_cursor, text_style, text);
+        region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
 }
@@ -80,6 +96,7 @@ impl Widget for Button {
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
+    text_color: Option<Color>,
 }
 
 impl<'a> Checkbox<'a> {
@@ -87,7 +104,13 @@ impl<'a> Checkbox<'a> {
         Checkbox {
             checked,
             text: text.into(),
+            text_color: None,
         }
+    }
+
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
+        self
     }
 }
 
@@ -114,7 +137,7 @@ impl<'a> Widget for Checkbox<'a> {
             checked: *self.checked,
             interact,
         });
-        region.add_text(text_cursor, text_style, text);
+        region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
 }
@@ -125,6 +148,7 @@ impl<'a> Widget for Checkbox<'a> {
 pub struct RadioButton {
     checked: bool,
     text: String,
+    text_color: Option<Color>,
 }
 
 impl RadioButton {
@@ -132,7 +156,13 @@ impl RadioButton {
         RadioButton {
             checked,
             text: text.into(),
+            text_color: None,
         }
+    }
+
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
+        self
     }
 }
 
@@ -160,7 +190,7 @@ impl Widget for RadioButton {
             checked: self.checked,
             interact,
         });
-        region.add_text(text_cursor, text_style, text);
+        region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
 }
@@ -174,6 +204,7 @@ pub struct Slider<'a> {
     max: f32,
     id: Option<Id>,
     text: Option<String>,
+    text_color: Option<Color>,
     text_on_top: Option<bool>,
 }
 
@@ -186,6 +217,7 @@ impl<'a> Slider<'a> {
             id: None,
             text: None,
             text_on_top: None,
+            text_color: None,
         }
     }
 
@@ -198,6 +230,11 @@ impl<'a> Slider<'a> {
         self.text = Some(text.into());
         self
     }
+
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
+        self
+    }
 }
 
 impl<'a> Widget for Slider<'a> {
@@ -207,8 +244,9 @@ impl<'a> Widget for Slider<'a> {
 
         if let Some(text) = &self.text {
             let text_on_top = self.text_on_top.unwrap_or_default();
+            let text_color = self.text_color;
             let full_text = format!("{}: {:.3}", text, self.value);
-            let id = Some(self.id.unwrap_or(make_id(text)));
+            let id = Some(self.id.unwrap_or_else(|| make_id(text)));
             let mut naked = self;
             naked.id = id;
             naked.text = None;
@@ -216,7 +254,7 @@ impl<'a> Widget for Slider<'a> {
             if text_on_top {
                 let (text, text_size) = font.layout_multiline(&full_text, region.width());
                 let pos = region.reserve_space_without_padding(text_size);
-                region.add_text(pos, text_style, text);
+                region.add_text(pos, text_style, text, text_color);
                 naked.add_to(region)
             } else {
                 region.columns(2, |columns| {

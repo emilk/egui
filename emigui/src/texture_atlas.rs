@@ -13,8 +13,8 @@ pub struct TextureAtlas {
 impl TextureAtlas {
     pub fn new(width: usize, height: usize) -> Self {
         TextureAtlas {
-            width: width,
-            height: height,
+            width,
+            height,
             pixels: vec![0; width * height],
             ..Default::default()
         }

@@ -51,7 +51,7 @@ impl Default for LayoutOptions {
 
 // ----------------------------------------------------------------------------
 
-// TODO: rename
+// TODO: rename GuiResponse
 pub struct GuiResponse {
     /// The mouse is hovering above this
     pub hovered: bool,
@@ -181,7 +181,7 @@ impl Clone for Data {
         Data {
             options: Mutex::new(self.options()),
             fonts: self.fonts.clone(),
-            input: self.input.clone(),
+            input: self.input,
             memory: Mutex::new(self.memory.lock().unwrap().clone()),
             graphics: Mutex::new(self.graphics.lock().unwrap().clone()),
         }
@@ -358,6 +358,7 @@ impl Region {
             text_cursor + vec2(self.options().start_icon_width, 0.0),
             text_style,
             text,
+            None,
         );
 
         if open {
@@ -475,13 +476,15 @@ impl Region {
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let pos = self.reserve_space_without_padding(size + self.options().item_spacing);
-
         let rect = Rect::from_min_size(pos, size);
+        let mut memory = self.data.memory.lock().unwrap();
 
-        let hovered = rect.contains(self.input().mouse_pos);
+        let is_something_else_active =
+            memory.active_id.is_some() && memory.active_id != interaction_id;
+
+        let hovered = !is_something_else_active && rect.contains(self.input().mouse_pos);
         let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
-            let mut memory = self.data.memory.lock().unwrap();
             if clicked {
                 memory.active_id = interaction_id;
             }
@@ -543,12 +546,19 @@ impl Region {
         })
     }
 
-    pub fn add_text(&mut self, pos: Vec2, text_style: TextStyle, text: Vec<TextFragment>) {
+    pub fn add_text(
+        &mut self,
+        pos: Vec2,
+        text_style: TextStyle,
+        text: Vec<TextFragment>,
+        color: Option<Color>,
+    ) {
         for fragment in text {
             self.add_graphic(GuiCmd::Text {
+                color,
                 pos: pos + vec2(0.0, fragment.y_offset),
-                text_style,
                 text: fragment.text,
+                text_style,
                 x_offsets: fragment.x_offsets,
             });
         }
