@@ -29,8 +29,8 @@ pub struct Fonts {
 impl Fonts {
     pub fn new() -> Fonts {
         let mut sizes = FontSizes::new();
-        sizes.insert(TextStyle::Body, 20.0);
-        sizes.insert(TextStyle::Button, 20.0);
+        sizes.insert(TextStyle::Body, 18.0);
+        sizes.insert(TextStyle::Button, 22.0);
         sizes.insert(TextStyle::Heading, 30.0);
         Fonts::from_sizes(sizes)
     }

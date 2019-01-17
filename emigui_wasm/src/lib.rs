@@ -44,7 +44,7 @@ impl State {
         self.emigui.new_frame(raw_input);
 
         let mut region = self.emigui.whole_screen_region();
-        let mut region = region.centered_column(480.0, Align::Min);
+        let mut region = region.centered_column(region.width().min(480.0), Align::Min);
         self.app.show_gui(&mut region);
         self.emigui.example(&mut region);
 

@@ -299,6 +299,10 @@ impl Region {
         &self.options
     }
 
+    pub fn data(&self) -> &Arc<Data> {
+        &self.data
+    }
+
     pub fn input(&self) -> &GuiInput {
         self.data.input()
     }
@@ -329,7 +333,7 @@ impl Region {
         );
         let text: String = text.into();
         let id = self.make_child_id(&text);
-        let text_style = TextStyle::Heading;
+        let text_style = TextStyle::Button;
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&text, self.width());
         let text_cursor = self.cursor + self.options().button_padding;

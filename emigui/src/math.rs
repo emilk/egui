@@ -154,4 +154,14 @@ pub fn remap_clamp(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max:
     lerp(to_min, to_max, t)
 }
 
+pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
+    if x <= min {
+        min
+    } else if x >= max {
+        max
+    } else {
+        x
+    }
+}
+
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;

@@ -2,6 +2,11 @@
 <html>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
+<!-- Disable zooming: -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<!-- TODO: read https://www.html5rocks.com/en/mobile/mobifying/#toc-meta-viewport -->
+
 <head>
     <title>Emigui – A experiment in an Immediate Mode GUI written in Rust</title>
     <style>
@@ -95,21 +100,16 @@
             auto_resize_canvas(canvas);
             paint_gui(canvas, get_input(canvas));
         };
-        canvas.addEventListener("mousemove", function(event) {
-            g_mouse_pos = mouse_pos_from_event(canvas, event);
-            repaint();
-            event.stopPropagation();
-            event.preventDefault();
-        });
-        canvas.addEventListener("mouseleave", function(event) {
-            g_mouse_pos = { x: -1000.0, y: -1000.0 };
-            repaint();
-            event.stopPropagation();
-            event.preventDefault();
-        });
+
         canvas.addEventListener("mousedown", function(event) {
             g_mouse_pos = mouse_pos_from_event(canvas, event);
             g_mouse_down = true;
+            repaint();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        canvas.addEventListener("mousemove", function(event) {
+            g_mouse_pos = mouse_pos_from_event(canvas, event);
             repaint();
             event.stopPropagation();
             event.preventDefault();
@@ -121,6 +121,38 @@
             event.stopPropagation();
             event.preventDefault();
         });
+        canvas.addEventListener("mouseleave", function(event) {
+            g_mouse_pos = { x: -1000.0, y: -1000.0 };
+            repaint();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+
+        canvas.addEventListener("touchstart", function(event) {
+            // console.log(`touchstart ${JSON.stringify(event)}`);
+            g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
+            g_mouse_down = true;
+            repaint();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        canvas.addEventListener("touchmove", function(event) {
+            // console.log(`touchmove ${JSON.stringify(event)}`);
+            g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
+            repaint();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        canvas.addEventListener("touchend", function(event) {
+            // console.log(`touchend ${JSON.stringify(event)}`);
+            g_mouse_down = false;
+            repaint();
+            g_mouse_pos = { x: -1000.0, y: -1000.0 };
+            repaint();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+
         window.addEventListener("load", repaint);
         window.addEventListener("pagehide", repaint);
         window.addEventListener("pageshow", repaint);
