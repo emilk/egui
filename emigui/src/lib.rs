@@ -19,7 +19,7 @@ pub mod widgets;
 
 pub use crate::{
     emigui::Emigui,
-    fonts::TextStyle,
+    fonts::{FontSizes, Fonts, TextStyle},
     layout::{Align, LayoutOptions, Region},
     mesher::{Frame, Vertex},
     style::Style,

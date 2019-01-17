@@ -53,7 +53,13 @@ impl TextureAtlas {
     }
 
     pub fn texture_mut(&mut self) -> &mut Texture {
+        self.texture.id += 1;
         &mut self.texture
+    }
+
+    pub fn clear(&mut self) {
+        self.cursor = (0, 0);
+        self.row_height = 0;
     }
 
     /// Returns the coordinates of where the rect ended up.
@@ -79,7 +85,7 @@ impl TextureAtlas {
 
         let pos = self.cursor;
         self.cursor.0 += w;
-        self.texture.id += 1; // TODO: hash this ?
+        self.texture.id += 1;
         (pos.0 as usize, pos.1 as usize)
     }
 }

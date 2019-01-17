@@ -1,6 +1,7 @@
 use crate::{
     fonts::TextStyle,
     math::{Rect, Vec2},
+    mesher::Frame,
 };
 
 // ----------------------------------------------------------------------------
@@ -152,6 +153,7 @@ pub enum PaintCmd {
         outline: Option<Outline>,
         radius: f32,
     },
+    Frame(Frame),
     Line {
         points: Vec<Vec2>,
         color: Color,

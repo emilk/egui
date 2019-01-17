@@ -3,10 +3,12 @@ use std::sync::Arc;
 use crate::{
     layout,
     layout::{LayoutOptions, Region},
+    math::vec2,
+    mesher::Vertex,
     style,
-    types::GuiInput,
+    types::{Color, GuiCmd, GuiInput, PaintCmd},
     widgets::*,
-    Frame, RawInput, Texture,
+    FontSizes, Fonts, Frame, RawInput, Texture,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -35,6 +37,12 @@ fn show_style(style: &mut style::Style, gui: &mut Region) {
     }
     gui.add(Checkbox::new(&mut style.debug_rects, "debug_rects"));
     gui.add(Slider::new(&mut style.line_width, 0.0, 10.0).text("line_width"));
+}
+
+fn show_font_sizes(font_sizes: &mut FontSizes, gui: &mut Region) {
+    for (text_style, mut size) in font_sizes {
+        gui.add(Slider::new(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
+    }
 }
 
 /// Encapsulates input, layout and painting for ease of use.
@@ -101,6 +109,39 @@ impl Emigui {
 
         region.foldable("Style", |gui| {
             show_style(&mut self.style, gui);
+        });
+
+        region.foldable("Fonts", |gui| {
+            let texture = self.texture();
+            gui.add(label(format!(
+                "Font texture size: {} x {}",
+                texture.width, texture.height
+            )));
+            let size = vec2(texture.width as f32, texture.height as f32);
+            let rect = gui.reserve_space(size, None).rect;
+            let top_left = Vertex {
+                pos: rect.min(),
+                uv: (0, 0),
+                color: Color::WHITE,
+            };
+            let bottom_right = Vertex {
+                pos: rect.max(),
+                uv: (texture.width as u16 - 1, texture.height as u16 - 1),
+                color: Color::WHITE,
+            };
+            let mut frame = Frame::default();
+            frame.add_rect(top_left, bottom_right);
+            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+
+            let old_font_sizes = self.data.fonts.sizes();
+            let mut new_font_sizes = old_font_sizes.clone();
+            show_font_sizes(&mut new_font_sizes, gui);
+            if *old_font_sizes != new_font_sizes {
+                let mut new_data = (*self.data).clone();
+                let fonts = Fonts::from_sizes(new_font_sizes);
+                new_data.fonts = Arc::new(fonts);
+                self.data = Arc::new(new_data);
+            }
         });
 
         region.foldable("Stats", |gui| {

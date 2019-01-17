@@ -18,6 +18,7 @@ pub struct Painter {
     tc_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
     tex_size: (u16, u16),
+    current_texture_id: Option<u64>,
 }
 
 impl Painter {
@@ -32,7 +33,7 @@ impl Painter {
         )
     }
 
-    pub fn new(canvas_id: &str, texture: &Texture) -> Result<Painter, JsValue> {
+    pub fn new(canvas_id: &str) -> Result<Painter, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
         let canvas = document.get_element_by_id(canvas_id).unwrap();
         let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
@@ -46,27 +47,6 @@ impl Painter {
 
         let gl_texture = gl.create_texture().unwrap();
         gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
-
-        // TODO: remove once https://github.com/rustwasm/wasm-bindgen/issues/1005 is fixed.
-        let mut pixels: Vec<_> = texture.pixels.iter().cloned().collect();
-
-        let level = 0;
-        let internal_format = Gl::ALPHA;
-        let border = 0;
-        let src_format = Gl::ALPHA;
-        let src_type = Gl::UNSIGNED_BYTE;
-        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            Gl::TEXTURE_2D,
-            level,
-            internal_format as i32,
-            texture.width as i32,
-            texture.height as i32,
-            border,
-            src_format,
-            src_type,
-            Some(&mut pixels),
-        )
-        .unwrap();
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
         // gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::NEAREST as i32);
@@ -125,11 +105,47 @@ impl Painter {
             pos_buffer,
             tc_buffer,
             color_buffer,
-            tex_size: (texture.width as u16, texture.height as u16),
+            tex_size: (0, 0),
+            current_texture_id: None,
         })
     }
 
-    pub fn paint(&self, frame: &Frame) -> Result<(), JsValue> {
+    fn upload_texture(&mut self, texture: &Texture) {
+        if self.current_texture_id == Some(texture.id) {
+            return; // No change
+        }
+
+        let gl = &self.gl;
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
+
+        // TODO: remove once https://github.com/rustwasm/wasm-bindgen/issues/1005 is fixed.
+        let mut pixels: Vec<_> = texture.pixels.iter().cloned().collect();
+
+        let level = 0;
+        let internal_format = Gl::ALPHA;
+        let border = 0;
+        let src_format = Gl::ALPHA;
+        let src_type = Gl::UNSIGNED_BYTE;
+        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+            Gl::TEXTURE_2D,
+            level,
+            internal_format as i32,
+            texture.width as i32,
+            texture.height as i32,
+            border,
+            src_format,
+            src_type,
+            Some(&mut pixels),
+        )
+        .unwrap();
+
+        self.tex_size = (texture.width as u16, texture.height as u16);
+        self.current_texture_id = Some(texture.id);
+    }
+
+    pub fn paint(&mut self, frame: &Frame, texture: &Texture) -> Result<(), JsValue> {
+        self.upload_texture(texture);
+
         let gl = &self.gl;
 
         // --------------------------------------------------------------------

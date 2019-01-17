@@ -1,5 +1,6 @@
 use std::{
-    collections::BTreeMap,
+    collections::{hash_map::DefaultHasher, BTreeMap},
+    hash::{Hash, Hasher},
     sync::{Arc, Mutex},
 };
 
@@ -9,7 +10,7 @@ use crate::{
 };
 
 /// TODO: rename
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum TextStyle {
     Body,
     Button,
@@ -17,14 +18,43 @@ pub enum TextStyle {
     // Monospace,
 }
 
+pub type FontSizes = BTreeMap<TextStyle, f32>;
+
 pub struct Fonts {
+    sizes: FontSizes,
     fonts: BTreeMap<TextStyle, Font>,
     texture: Texture,
 }
 
 impl Fonts {
     pub fn new() -> Fonts {
-        let mut atlas = TextureAtlas::new(128, 8); // TODO: better default?
+        let mut sizes = FontSizes::new();
+        sizes.insert(TextStyle::Body, 20.0);
+        sizes.insert(TextStyle::Button, 20.0);
+        sizes.insert(TextStyle::Heading, 30.0);
+        Fonts::from_sizes(sizes)
+    }
+
+    pub fn from_sizes(sizes: FontSizes) -> Fonts {
+        let mut fonts = Fonts {
+            sizes: Default::default(),
+            fonts: Default::default(),
+            texture: Default::default(),
+        };
+        fonts.set_sizes(sizes);
+        fonts
+    }
+
+    pub fn sizes(&self) -> &FontSizes {
+        &self.sizes
+    }
+
+    pub fn set_sizes(&mut self, sizes: FontSizes) {
+        if self.sizes == sizes {
+            return;
+        }
+
+        let mut atlas = TextureAtlas::new(512, 8); // TODO: better default?
 
         // Make one white pixel for use for various stuff:
         let pos = atlas.allocate((1, 1));
@@ -32,25 +62,20 @@ impl Fonts {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        // TODO: figure out a way to make the wasm smaller despite including a font.
+        // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
         // let typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
         // let typeface_data = include_bytes!("../fonts/DejaVuSans.ttf");
         let typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
+        self.sizes = sizes.clone();
+        self.fonts = sizes
+            .into_iter()
+            .map(|(text_style, size)| (text_style, Font::new(atlas.clone(), typeface_data, size)))
+            .collect();
+        self.texture = atlas.lock().unwrap().texture().clone();
 
-        let mut fonts = BTreeMap::new();
-        fonts.insert(
-            TextStyle::Body,
-            Font::new(atlas.clone(), typeface_data, 20.0),
-        );
-        fonts.insert(TextStyle::Button, fonts[&TextStyle::Body].clone());
-        fonts.insert(
-            TextStyle::Heading,
-            Font::new(atlas.clone(), typeface_data, 30.0),
-        );
-
-        let texture = atlas.lock().unwrap().clone().texture().clone();
-
-        Fonts { fonts, texture }
+        let mut hasher = DefaultHasher::new();
+        self.texture.pixels.hash(&mut hasher);
+        self.texture.id = hasher.finish();
     }
 
     pub fn texture(&self) -> &Texture {

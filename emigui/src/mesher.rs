@@ -8,7 +8,7 @@ use crate::{
     types::{Color, PaintCmd},
 };
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct Vertex {
     /// Pixel coordinates
     pub pos: Vec2,
@@ -18,7 +18,7 @@ pub struct Vertex {
     pub color: Color,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct Frame {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
@@ -33,6 +33,14 @@ pub enum PathType {
 use self::PathType::*;
 
 impl Frame {
+    pub fn append(&mut self, frame: &Frame) {
+        let index_offset = self.vertices.len() as u32;
+        for index in &frame.indices {
+            self.indices.push(index_offset + index);
+        }
+        self.vertices.extend(frame.vertices.iter());
+    }
+
     fn triangle(&mut self, a: u32, b: u32, c: u32) {
         self.indices.push(a);
         self.indices.push(b);
@@ -223,6 +231,9 @@ impl Frame {
                             outline.width,
                         );
                     }
+                }
+                PaintCmd::Frame(cmd_frame) => {
+                    frame.append(cmd_frame);
                 }
                 PaintCmd::Line {
                     points,

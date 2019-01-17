@@ -30,12 +30,10 @@ pub struct State {
 
 impl State {
     fn new(canvas_id: &str) -> Result<State, JsValue> {
-        let emigui = Emigui::new();
-        let webgl_painter = webgl::Painter::new(canvas_id, emigui.texture())?;
         Ok(State {
             app: Default::default(),
-            emigui,
-            webgl_painter,
+            emigui: Emigui::new(),
+            webgl_painter: webgl::Painter::new(canvas_id)?,
             everything_ms: 0.0,
         })
     }
@@ -58,7 +56,7 @@ impl State {
         region.add(label(format!("Everything: {:.1} ms", self.everything_ms)));
 
         let frame = self.emigui.paint();
-        let result = self.webgl_painter.paint(&frame);
+        let result = self.webgl_painter.paint(&frame, self.emigui.texture());
 
         self.everything_ms = now_ms() - everything_start;
 

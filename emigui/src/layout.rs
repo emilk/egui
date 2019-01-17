@@ -428,10 +428,10 @@ impl Region {
 
     /// Temporarily split split a vertical layout into several columns.
     ///
-    ///     gui.columns(2, |columns| {
-    ///         columns[0].add(label("First column"));
-    ///         columns[1].add(label("Second column"));
-    ///     });
+    /// region.columns(2, |columns| {
+    ///     columns[0].add(emigui::widgets::label("First column"));
+    ///     columns[1].add(emigui::widgets::label("Second column"));
+    /// });
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
     where
         F: FnOnce(&mut [Region]) -> R,
