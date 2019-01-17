@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     layout,
-    layout::{LayoutOptions, Region},
-    math::vec2,
+    layout::{show_popup, LayoutOptions, Region},
+    math::{clamp, remap_clamp, vec2},
     mesher::Vertex,
     style,
     types::{Color, GuiCmd, GuiInput, PaintCmd},
@@ -42,6 +42,69 @@ fn show_style(style: &mut style::Style, gui: &mut Region) {
 fn show_font_sizes(font_sizes: &mut FontSizes, gui: &mut Region) {
     for (text_style, mut size) in font_sizes {
         gui.add(Slider::new(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
+    }
+}
+
+fn show_font_texture(texture: &Texture, gui: &mut Region) {
+    gui.add(label(format!(
+        "Font texture size: {} x {} (hover to zoom)",
+        texture.width, texture.height
+    )));
+    let size = vec2(texture.width as f32, texture.height as f32);
+    let interact = gui.reserve_space(size, None);
+    let rect = interact.rect;
+    let top_left = Vertex {
+        pos: rect.min(),
+        uv: (0, 0),
+        color: Color::WHITE,
+    };
+    let bottom_right = Vertex {
+        pos: rect.max(),
+        uv: (texture.width as u16 - 1, texture.height as u16 - 1),
+        color: Color::WHITE,
+    };
+    let mut frame = Frame::default();
+    frame.add_rect(top_left, bottom_right);
+    gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+
+    if interact.hovered {
+        show_popup(gui.data(), gui.input().mouse_pos, |gui| {
+            let zoom_rect = gui.reserve_space(vec2(128.0, 128.0), None).rect;
+            let u = remap_clamp(
+                gui.input().mouse_pos.x,
+                rect.min().x,
+                rect.max().x,
+                0.0,
+                texture.width as f32 - 1.0,
+            )
+            .round();
+            let v = remap_clamp(
+                gui.input().mouse_pos.y,
+                rect.min().y,
+                rect.max().y,
+                0.0,
+                texture.height as f32 - 1.0,
+            )
+            .round();
+
+            let texel_radius = 32.0;
+            let u = clamp(u, texel_radius, texture.width as f32 - 1.0 - texel_radius);
+            let v = clamp(v, texel_radius, texture.height as f32 - 1.0 - texel_radius);
+
+            let top_left = Vertex {
+                pos: zoom_rect.min(),
+                uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
+                color: Color::WHITE,
+            };
+            let bottom_right = Vertex {
+                pos: zoom_rect.max(),
+                uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
+                color: Color::WHITE,
+            };
+            let mut frame = Frame::default();
+            frame.add_rect(top_left, bottom_right);
+            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+        });
     }
 }
 
@@ -112,27 +175,7 @@ impl Emigui {
         });
 
         region.foldable("Fonts", |gui| {
-            let texture = self.texture();
-            gui.add(label(format!(
-                "Font texture size: {} x {}",
-                texture.width, texture.height
-            )));
-            let size = vec2(texture.width as f32, texture.height as f32);
-            let rect = gui.reserve_space(size, None).rect;
-            let top_left = Vertex {
-                pos: rect.min(),
-                uv: (0, 0),
-                color: Color::WHITE,
-            };
-            let bottom_right = Vertex {
-                pos: rect.max(),
-                uv: (texture.width as u16 - 1, texture.height as u16 - 1),
-                color: Color::WHITE,
-            };
-            let mut frame = Frame::default();
-            frame.add_rect(top_left, bottom_right);
-            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
-
+            show_font_texture(self.texture(), gui);
             let old_font_sizes = self.data.fonts.sizes();
             let mut new_font_sizes = old_font_sizes.clone();
             show_font_sizes(&mut new_font_sizes, gui);
