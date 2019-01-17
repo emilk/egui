@@ -57,19 +57,19 @@ const LAST_ASCII: usize = 126;
 pub struct Font {
     font: rusttype::Font<'static>,
     /// Maximum character height
-    scale: usize,
+    scale: f32,
     /// NUM_CHARS big
     glyph_infos: Vec<GlyphInfo>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
 impl Font {
-    pub fn new(atlas: Arc<Mutex<TextureAtlas>>, font_data: &'static [u8], scale: usize) -> Font {
+    pub fn new(atlas: Arc<Mutex<TextureAtlas>>, font_data: &'static [u8], scale: f32) -> Font {
         let font = rusttype::Font::from_bytes(font_data).expect("Error constructing Font");
 
         // println!(
         //     "font.v_metrics: {:?}",
-        //     font.v_metrics(Scale::uniform(scale as f32))
+        //     font.v_metrics(Scale::uniform(scale))
         // );
 
         let glyphs: Vec<_> = Self::supported_characters()
@@ -81,7 +81,7 @@ impl Font {
                     "Failed to find a glyph for the character '{}'",
                     c
                 );
-                let glyph = glyph.scaled(Scale::uniform(scale as f32));
+                let glyph = glyph.scaled(Scale::uniform(scale));
                 glyph.positioned(point(0.0, 0.0))
             })
             .collect();
@@ -141,7 +141,7 @@ impl Font {
     }
 
     pub fn line_spacing(&self) -> f32 {
-        self.scale as f32
+        self.scale
     }
 
     pub fn supported_characters() -> impl Iterator<Item = char> {
@@ -168,7 +168,7 @@ impl Font {
 
     /// Returns the a single line of characters separated into words
     pub fn layout_single_line(&self, text: &str) -> Vec<TextFragment> {
-        let scale = Scale::uniform(self.scale as f32);
+        let scale = Scale::uniform(self.scale);
 
         let mut current_fragment = TextFragment {
             x_offsets: vec![0.0],
@@ -276,8 +276,8 @@ impl Font {
         let texture_mut = atlas_lock.texture_mut();
 
         let max_width = 160;
-        let scale = Scale::uniform(self.scale as f32);
-        let mut pixel_rows = vec![vec![0; max_width]; self.scale];
+        let scale = Scale::uniform(self.scale);
+        let mut pixel_rows = vec![vec![0; max_width]; self.scale.ceil() as usize];
         let mut cursor_x = 0.0;
         let cursor_y = 0;
         let mut last_glyph_id = None;
@@ -291,7 +291,7 @@ impl Font {
                     for row in pixel_rows {
                         println!("{}", as_ascii(&row));
                     }
-                    pixel_rows = vec![vec![0; max_width]; self.scale];
+                    pixel_rows = vec![vec![0; max_width]; self.scale.ceil() as usize];
                     cursor_x = 0.0;
                 }
                 if let Some(uv) = glyph.uv {
@@ -343,7 +343,7 @@ mod tests {
         let atlas = TextureAtlas::new(128, 8);
         let atlas = Arc::new(Mutex::new(atlas));
         let font_data = include_bytes!("../fonts/Roboto-Regular.ttf");
-        let font = Font::new(atlas, font_data, 13);
+        let font = Font::new(atlas, font_data, 13.0);
         font.debug_print_all_chars();
     }
 }

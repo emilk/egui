@@ -38,11 +38,14 @@ impl Fonts {
         let typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
 
         let mut fonts = BTreeMap::new();
-        fonts.insert(TextStyle::Body, Font::new(atlas.clone(), typeface_data, 20));
+        fonts.insert(
+            TextStyle::Body,
+            Font::new(atlas.clone(), typeface_data, 20.0),
+        );
         fonts.insert(TextStyle::Button, fonts[&TextStyle::Body].clone());
         fonts.insert(
             TextStyle::Heading,
-            Font::new(atlas.clone(), typeface_data, 30),
+            Font::new(atlas.clone(), typeface_data, 30.0),
         );
 
         let texture = atlas.lock().unwrap().clone().texture().clone();
