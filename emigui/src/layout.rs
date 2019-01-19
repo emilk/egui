@@ -189,10 +189,10 @@ impl Clone for Data {
 }
 
 impl Data {
-    pub fn new() -> Data {
+    pub fn new(pixels_per_point: f32) -> Data {
         Data {
             options: Default::default(),
-            fonts: Arc::new(Fonts::new()),
+            fonts: Arc::new(Fonts::new(pixels_per_point)),
             input: Default::default(),
             memory: Default::default(),
             graphics: Default::default(),
@@ -317,6 +317,10 @@ impl Region {
 
     pub fn direction(&self) -> Direction {
         self.dir
+    }
+
+    pub fn cursor(&self) -> Vec2 {
+        self.cursor
     }
 
     // ------------------------------------------------------------------------

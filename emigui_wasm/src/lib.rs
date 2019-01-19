@@ -29,10 +29,10 @@ pub struct State {
 }
 
 impl State {
-    fn new(canvas_id: &str) -> Result<State, JsValue> {
+    fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
         Ok(State {
             app: Default::default(),
-            emigui: Emigui::new(),
+            emigui: Emigui::new(pixels_per_point),
             webgl_painter: webgl::Painter::new(canvas_id)?,
             everything_ms: 0.0,
         })
@@ -56,7 +56,9 @@ impl State {
         region.add(label(format!("Everything: {:.1} ms", self.everything_ms)));
 
         let frame = self.emigui.paint();
-        let result = self.webgl_painter.paint(&frame, self.emigui.texture());
+        let result =
+            self.webgl_painter
+                .paint(&frame, self.emigui.texture(), raw_input.pixels_per_point);
 
         self.everything_ms = now_ms() - everything_start;
 
@@ -65,8 +67,8 @@ impl State {
 }
 
 #[wasm_bindgen]
-pub fn new_webgl_gui(canvas_id: &str) -> Result<State, JsValue> {
-    State::new(canvas_id)
+pub fn new_webgl_gui(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
+    State::new(canvas_id, pixels_per_point)
 }
 
 #[wasm_bindgen]

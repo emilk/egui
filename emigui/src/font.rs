@@ -9,8 +9,11 @@ use crate::{
 
 pub struct TextFragment {
     /// The start of each character, starting at zero.
+    /// Unit: points.
     pub x_offsets: Vec<f32>,
+
     /// 0 for the first line, n * line_spacing for the rest
+    /// Unit: points.
     pub y_offset: f32,
     pub text: String,
 }
@@ -27,22 +30,24 @@ impl TextFragment {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct UvRect {
-    /// X/Y offset for nice rendering
-    pub offset: (i16, i16),
+    /// X/Y offset for nice rendering (unit: points).
+    pub offset: Vec2,
+    pub size: Vec2,
 
-    /// Top left corner.
+    /// Top left corner UV in texture.
     pub min: (u16, u16),
 
-    /// Inclusive
+    /// Bottom right corner (exclusive).
     pub max: (u16, u16),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct GlyphInfo {
     id: rusttype::GlyphId,
 
+    /// Unit: points.
     pub advance_width: f32,
 
     /// Texture coordinates. None for space.
@@ -53,24 +58,28 @@ pub struct GlyphInfo {
 const FIRST_ASCII: usize = 32; // 32 == space
 const LAST_ASCII: usize = 126;
 
+/// The interface uses points as the unit for everything.
 #[derive(Clone)]
 pub struct Font {
     font: rusttype::Font<'static>,
     /// Maximum character height
-    scale: f32,
+    scale_in_pixels: f32,
+    pixels_per_point: f32,
     /// NUM_CHARS big
     glyph_infos: Vec<GlyphInfo>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
 impl Font {
-    pub fn new(atlas: Arc<Mutex<TextureAtlas>>, font_data: &'static [u8], scale: f32) -> Font {
+    pub fn new(
+        atlas: Arc<Mutex<TextureAtlas>>,
+        font_data: &'static [u8],
+        scale_in_points: f32,
+        pixels_per_point: f32,
+    ) -> Font {
         let font = rusttype::Font::from_bytes(font_data).expect("Error constructing Font");
 
-        // println!(
-        //     "font.v_metrics: {:?}",
-        //     font.v_metrics(Scale::uniform(scale))
-        // );
+        let scale_in_pixels = pixels_per_point * scale_in_points;
 
         let glyphs: Vec<_> = Self::supported_characters()
             .map(|c| {
@@ -81,7 +90,7 @@ impl Font {
                     "Failed to find a glyph for the character '{}'",
                     c
                 );
-                let glyph = glyph.scaled(Scale::uniform(scale));
+                let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
                 glyph.positioned(point(0.0, 0.0))
             })
             .collect();
@@ -90,7 +99,7 @@ impl Font {
         let mut atlas_lock = atlas.lock().unwrap();
 
         for glyph in glyphs {
-            if let Some(bb) = glyph.pixel_bounding_box() {
+            let uv = if let Some(bb) = glyph.pixel_bounding_box() {
                 let glyph_width = bb.width() as usize;
                 let glyph_height = bb.height() as usize;
                 assert!(glyph_width >= 1);
@@ -107,41 +116,53 @@ impl Font {
                     }
                 });
 
-                let offset_y = scale as i16 + bb.min.y as i16 - 4; // TODO: use font.v_metrics
-                glyph_infos.push(GlyphInfo {
-                    id: glyph.id(),
-                    advance_width: glyph.unpositioned().h_metrics().advance_width,
-                    uv: Some(UvRect {
-                        offset: (bb.min.x as i16, offset_y as i16),
-                        min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-                        max: (
-                            (glyph_pos.0 + glyph_width - 1) as u16,
-                            (glyph_pos.1 + glyph_height - 1) as u16,
-                        ),
-                    }),
-                });
+                let offset_y_in_pixels =
+                    scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
+                Some(UvRect {
+                    offset: vec2(
+                        bb.min.x as f32 / pixels_per_point,
+                        offset_y_in_pixels / pixels_per_point,
+                    ),
+                    size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+                    min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
+                    max: (
+                        (glyph_pos.0 + glyph_width) as u16,
+                        (glyph_pos.1 + glyph_height) as u16,
+                    ),
+                })
             } else {
                 // No bounding box. Maybe a space?
-                glyph_infos.push(GlyphInfo {
-                    id: glyph.id(),
-                    advance_width: glyph.unpositioned().h_metrics().advance_width,
-                    uv: None,
-                });
-            }
+                None
+            };
+
+            let advance_width_in_points =
+                glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
+
+            glyph_infos.push(GlyphInfo {
+                id: glyph.id(),
+                advance_width: advance_width_in_points,
+                uv,
+            });
         }
 
         drop(atlas_lock);
 
         Font {
             font,
-            scale,
+            scale_in_pixels,
+            pixels_per_point,
             glyph_infos,
             atlas,
         }
     }
 
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    /// In points
     pub fn line_spacing(&self) -> f32 {
-        self.scale
+        self.scale_in_pixels / self.pixels_per_point
     }
 
     pub fn supported_characters() -> impl Iterator<Item = char> {
@@ -168,7 +189,7 @@ impl Font {
 
     /// Returns the a single line of characters separated into words
     pub fn layout_single_line(&self, text: &str) -> Vec<TextFragment> {
-        let scale = Scale::uniform(self.scale);
+        let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
         let mut current_fragment = TextFragment {
             x_offsets: vec![0.0],
@@ -176,16 +197,19 @@ impl Font {
             text: String::new(),
         };
         let mut all_fragments = vec![];
-        let mut cursor_x = 0.0f32;
+        let mut cursor_x_in_points = 0.0f32;
         let mut last_glyph_id = None;
 
         for c in text.chars() {
             if let Some(glyph) = self.glyph_info(c) {
                 if let Some(last_glyph_id) = last_glyph_id {
-                    cursor_x += self.font.pair_kerning(scale, last_glyph_id, glyph.id)
+                    cursor_x_in_points +=
+                        self.font
+                            .pair_kerning(scale_in_pixels, last_glyph_id, glyph.id)
+                            / self.pixels_per_point
                 }
-                cursor_x += glyph.advance_width;
-                cursor_x = cursor_x.round();
+                cursor_x_in_points += glyph.advance_width;
+                cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
                 last_glyph_id = Some(glyph.id);
 
                 let is_space = glyph.uv.is_none();
@@ -194,14 +218,14 @@ impl Font {
                     if !current_fragment.text.is_empty() {
                         all_fragments.push(current_fragment);
                         current_fragment = TextFragment {
-                            x_offsets: vec![cursor_x],
+                            x_offsets: vec![cursor_x_in_points],
                             y_offset: 0.0,
                             text: String::new(),
                         }
                     }
                 } else {
                     current_fragment.text.push(c);
-                    current_fragment.x_offsets.push(cursor_x);
+                    current_fragment.x_offsets.push(cursor_x_in_points);
                 }
             } else {
                 // Ignore unknown glyph
@@ -214,9 +238,13 @@ impl Font {
         all_fragments
     }
 
-    pub fn layout_single_line_max_width(&self, text: &str, max_width: f32) -> Vec<TextFragment> {
+    pub fn layout_single_line_max_width(
+        &self,
+        text: &str,
+        max_width_in_points: f32,
+    ) -> Vec<TextFragment> {
         let mut words = self.layout_single_line(text);
-        if words.is_empty() || words.last().unwrap().max_x() <= max_width {
+        if words.is_empty() || words.last().unwrap().max_x() <= max_width_in_points {
             return words; // Early-out
         }
 
@@ -227,7 +255,7 @@ impl Font {
         let mut cursor_y = 0.0;
 
         for word in words.iter_mut().skip(1) {
-            if word.max_x() - line_start_x >= max_width {
+            if word.max_x() - line_start_x >= max_width_in_points {
                 // Time for a new line:
                 cursor_y += line_spacing;
                 line_start_x = word.min_x();
@@ -243,12 +271,16 @@ impl Font {
     }
 
     /// Returns each line + total bounding box size.
-    pub fn layout_multiline(&self, text: &str, max_width: f32) -> (Vec<TextFragment>, Vec2) {
+    pub fn layout_multiline(
+        &self,
+        text: &str,
+        max_width_in_points: f32,
+    ) -> (Vec<TextFragment>, Vec2) {
         let line_spacing = self.line_spacing();
         let mut cursor_y = 0.0;
         let mut text_fragments = Vec::new();
         for line in text.split('\n') {
-            let mut line_fragments = self.layout_single_line_max_width(&line, max_width);
+            let mut line_fragments = self.layout_single_line_max_width(&line, max_width_in_points);
             if let Some(last_word) = line_fragments.last() {
                 let line_height = last_word.y_offset + line_spacing;
                 for fragment in &mut line_fragments {
@@ -259,7 +291,7 @@ impl Font {
             } else {
                 cursor_y += line_spacing;
             }
-            cursor_y = cursor_y.round();
+            cursor_y = self.round_to_pixel(cursor_y);
         }
 
         let mut widest_line = 0.0;
@@ -269,81 +301,5 @@ impl Font {
 
         let bounding_size = vec2(widest_line, cursor_y);
         (text_fragments, bounding_size)
-    }
-
-    pub fn debug_print_all_chars(&self) {
-        let mut atlas_lock = self.atlas.lock().unwrap();
-        let texture_mut = atlas_lock.texture_mut();
-
-        let max_width = 160;
-        let scale = Scale::uniform(self.scale);
-        let mut pixel_rows = vec![vec![0; max_width]; self.scale.ceil() as usize];
-        let mut cursor_x = 0.0;
-        let cursor_y = 0;
-        let mut last_glyph_id = None;
-        for c in Self::supported_characters() {
-            if let Some(glyph) = self.glyph_info(c) {
-                if let Some(last_glyph_id) = last_glyph_id {
-                    cursor_x += self.font.pair_kerning(scale, last_glyph_id, glyph.id)
-                }
-                if cursor_x + glyph.advance_width >= max_width as f32 {
-                    println!("{}", (0..max_width).map(|_| "X").collect::<String>());
-                    for row in pixel_rows {
-                        println!("{}", as_ascii(&row));
-                    }
-                    pixel_rows = vec![vec![0; max_width]; self.scale.ceil() as usize];
-                    cursor_x = 0.0;
-                }
-                if let Some(uv) = glyph.uv {
-                    for x in uv.min.0..=uv.max.0 {
-                        for y in uv.min.1..=uv.max.1 {
-                            let pixel = texture_mut[(x as usize, y as usize)];
-                            let rx = uv.offset.0 + x as i16 - uv.min.0 as i16;
-                            let ry = uv.offset.1 + y as i16 - uv.min.1 as i16;
-                            let px = (cursor_x + rx as f32).round();
-                            let py = cursor_y + ry;
-                            if 0.0 <= px && 0 <= py {
-                                pixel_rows[py as usize][px as usize] = pixel;
-                            }
-                        }
-                    }
-                }
-                cursor_x += glyph.advance_width;
-                last_glyph_id = Some(glyph.id);
-            }
-        }
-        println!("{}", (0..max_width).map(|_| "X").collect::<String>());
-    }
-}
-
-fn as_ascii(pixels: &[u8]) -> String {
-    pixels
-        .iter()
-        .map(|pixel| {
-            if *pixel == 0 {
-                ' '
-            } else if *pixel < 85 {
-                '.'
-            } else if *pixel < 170 {
-                'o'
-            } else if *pixel < 255 {
-                'O'
-            } else {
-                'X'
-            }
-        })
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn font_test() {
-        let atlas = TextureAtlas::new(128, 8);
-        let atlas = Arc::new(Mutex::new(atlas));
-        let font_data = include_bytes!("../fonts/Roboto-Regular.ttf");
-        let font = Font::new(atlas, font_data, 13.0);
-        font.debug_print_all_chars();
     }
 }

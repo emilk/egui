@@ -51,7 +51,10 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
         "Font texture size: {} x {} (hover to zoom)",
         texture.width, texture.height
     )));
-    let size = vec2(texture.width as f32, texture.height as f32);
+    let mut size = vec2(texture.width as f32, texture.height as f32);
+    if size.x > gui.width() {
+        size *= gui.width() / size.x;
+    }
     let interact = gui.reserve_space(size, None);
     let rect = interact.rect;
     let top_left = Vertex {
@@ -118,10 +121,10 @@ pub struct Emigui {
 }
 
 impl Emigui {
-    pub fn new() -> Emigui {
+    pub fn new(pixels_per_point: f32) -> Emigui {
         Emigui {
             last_input: Default::default(),
-            data: Arc::new(layout::Data::new()),
+            data: Arc::new(layout::Data::new(pixels_per_point)),
             style: Default::default(),
             stats: Default::default(),
         }
@@ -182,7 +185,7 @@ impl Emigui {
             show_font_texture(self.texture(), gui);
             if *old_font_sizes != new_font_sizes {
                 let mut new_data = (*self.data).clone();
-                let fonts = Fonts::from_sizes(new_font_sizes);
+                let fonts = Fonts::from_sizes(new_font_sizes, self.data.input.pixels_per_point);
                 new_data.fonts = Arc::new(fonts);
                 self.data = Arc::new(new_data);
             }

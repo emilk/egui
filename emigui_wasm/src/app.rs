@@ -30,9 +30,20 @@ impl App {
         gui.add(Separator::new());
 
         gui.add(label(format!(
-            "Screen size: {} x {}",
+            "Screen size: {} x {}, pixels_per_point: {}",
             gui.input().screen_size.x,
             gui.input().screen_size.y,
+            gui.input().pixels_per_point,
+        )));
+        gui.add(label(format!(
+            "mouse_pos: {} x {}",
+            gui.input().mouse_pos.x,
+            gui.input().mouse_pos.y,
+        )));
+        gui.add(label(format!(
+            "gui cursor: {} x {}",
+            gui.cursor().x,
+            gui.cursor().y,
         )));
 
         gui.horizontal(Align::Min, |gui| {

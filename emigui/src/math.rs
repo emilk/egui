@@ -28,10 +28,10 @@ impl Vec2 {
 }
 
 impl std::ops::AddAssign for Vec2 {
-    fn add_assign(&mut self, other: Vec2) {
+    fn add_assign(&mut self, rhs: Vec2) {
         *self = Vec2 {
-            x: self.x + other.x,
-            y: self.y + other.y,
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
         };
     }
 }
@@ -53,6 +53,13 @@ impl std::ops::Sub for Vec2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Vec2 {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
     }
 }
 

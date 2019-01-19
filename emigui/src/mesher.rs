@@ -1,5 +1,5 @@
 const ANTI_ALIAS: bool = true;
-const AA_SIZE: f32 = 1.0;
+const AA_SIZE: f32 = 0.5; // TODO: 1.0 / pixels_per_point
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
@@ -336,23 +336,15 @@ impl Frame {
                     for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
                         if let Some(glyph) = font.uv_rect(c) {
                             let mut top_left = Vertex {
-                                pos: *pos
-                                    + vec2(
-                                        x_offset + (glyph.offset.0 as f32),
-                                        glyph.offset.1 as f32,
-                                    ),
-                                uv: (glyph.min.0, glyph.min.1),
+                                pos: *pos + glyph.offset + vec2(*x_offset, 0.0),
+                                uv: glyph.min,
                                 color: *color,
                             };
-                            top_left.pos.x = top_left.pos.x.round(); // Pixel-perfection.
-                            top_left.pos.y = top_left.pos.y.round(); // Pixel-perfection.
+                            top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
+                            top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
                             let bottom_right = Vertex {
-                                pos: top_left.pos
-                                    + vec2(
-                                        (1 + glyph.max.0 - glyph.min.0) as f32,
-                                        (1 + glyph.max.1 - glyph.min.1) as f32,
-                                    ),
-                                uv: (glyph.max.0 + 1, glyph.max.1 + 1),
+                                pos: top_left.pos + glyph.size,
+                                uv: glyph.max,
                                 color: *color,
                             };
                             frame.add_rect(top_left, bottom_right);

@@ -2,7 +2,7 @@
 * Break off example app from emigui_wasm
 * Try it on iPhone
 * Read TTF from browser?
-* Device pixel density aware font rendering
+* requestAnimationFrame
 
 # Additional bindings, e.g. Piston
 

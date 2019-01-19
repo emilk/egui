@@ -25,13 +25,14 @@
     }
     /**
     * @param {string} arg0
+    * @param {number} arg1
     * @returns {State}
     */
-    __exports.new_webgl_gui = function(arg0) {
+    __exports.new_webgl_gui = function(arg0, arg1) {
         const ptr0 = passStringToWasm(arg0);
         const len0 = WASM_VECTOR_LEN;
         try {
-            return State.__wrap(wasm.new_webgl_gui(ptr0, len0));
+            return State.__wrap(wasm.new_webgl_gui(ptr0, len0, arg1));
 
         } finally {
             wasm.__wbindgen_free(ptr0, len0 * 1);
@@ -330,20 +331,20 @@ __exports.__widl_f_performance_Window = function(arg0) {
 
 };
 
-__exports.__wbg_new_1b06d86d496d7b40 = function(arg0) {
+__exports.__wbg_new_12b9ae8fdb332911 = function(arg0) {
     return addHeapObject(new Float32Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_fe30ee182e9ec716 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_1c02edccacdc6b96 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_newnoargs_a6ad1b52f5989ea9 = function(arg0, arg1) {
+__exports.__wbg_newnoargs_970ffcd96c15d34e = function(arg0, arg1) {
     let varg0 = getStringFromWasm(arg0, arg1);
     return addHeapObject(new Function(varg0));
 };
 
-__exports.__wbg_call_720151a19a4c6808 = function(arg0, arg1, exnptr) {
+__exports.__wbg_call_6ecd167e59b01396 = function(arg0, arg1, exnptr) {
     try {
         return addHeapObject(getObject(arg0).call(getObject(arg1)));
     } catch (e) {
@@ -354,61 +355,37 @@ __exports.__wbg_call_720151a19a4c6808 = function(arg0, arg1, exnptr) {
     }
 };
 
-__exports.__wbg_new_e9ac55ad4b35397d = function(arg0) {
+__exports.__wbg_new_24372bdd16e7ac17 = function(arg0) {
     return addHeapObject(new Int16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_930aeb4c907055d1 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_333aec38f24ecc8c = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_d90640b4228ff695 = function(arg0) {
+__exports.__wbg_new_4e991c7c717b13c1 = function(arg0) {
     return addHeapObject(new Uint8Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_ba3c433705738bca = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_0de502469162fe71 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_1c85449424e3413d = function(arg0) {
+__exports.__wbg_new_ebb3136fdb1b1152 = function(arg0) {
     return addHeapObject(new Uint16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_08927d6d29836298 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_acb28098200224ff = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_instanceof_Memory_7db9a3f810fae661 = function(idx) {
+__exports.__wbg_instanceof_Memory_48643a8591466d1a = function(idx) {
     return getObject(idx) instanceof WebAssembly.Memory ? 1 : 0;
 };
 
-__exports.__wbg_buffer_0346d756c794d630 = function(arg0) {
+__exports.__wbg_buffer_74e21c76ddf2eb17 = function(arg0) {
     return addHeapObject(getObject(arg0).buffer);
 };
-
-function freeState(ptr) {
-
-    wasm.__wbg_state_free(ptr);
-}
-/**
-*/
-class State {
-
-    static __wrap(ptr) {
-        const obj = Object.create(State.prototype);
-        obj.ptr = ptr;
-
-        return obj;
-    }
-
-    free() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-        freeState(ptr);
-    }
-
-}
-__exports.State = State;
 
 __exports.__wbindgen_object_clone_ref = function(idx) {
     return addHeapObject(getObject(idx));
@@ -471,6 +448,30 @@ function takeObject(idx) {
 }
 
 __exports.__wbindgen_rethrow = function(idx) { throw takeObject(idx); };
+
+function freeState(ptr) {
+
+    wasm.__wbg_state_free(ptr);
+}
+/**
+*/
+class State {
+
+    static __wrap(ptr) {
+        const obj = Object.create(State.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+        freeState(ptr);
+    }
+
+}
+__exports.State = State;
 
 __exports.__wbindgen_throw = function(ptr, len) {
     throw new Error(getStringFromWasm(ptr, len));

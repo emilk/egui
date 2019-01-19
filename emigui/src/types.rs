@@ -17,6 +17,9 @@ pub struct RawInput {
 
     /// Size of the screen in points.
     pub screen_size: Vec2,
+
+    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    pub pixels_per_point: f32,
 }
 
 /// What the gui maintains
@@ -36,6 +39,9 @@ pub struct GuiInput {
 
     /// Size of the screen in points.
     pub screen_size: Vec2,
+
+    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    pub pixels_per_point: f32,
 }
 
 impl GuiInput {
@@ -46,6 +52,7 @@ impl GuiInput {
             mouse_released: last.mouse_down && !new.mouse_down,
             mouse_pos: new.mouse_pos,
             screen_size: new.screen_size,
+            pixels_per_point: new.pixels_per_point,
         }
     }
 }

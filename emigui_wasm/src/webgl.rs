@@ -143,7 +143,12 @@ impl Painter {
         self.current_texture_id = Some(texture.id);
     }
 
-    pub fn paint(&mut self, frame: &Frame, texture: &Texture) -> Result<(), JsValue> {
+    pub fn paint(
+        &mut self,
+        frame: &Frame,
+        texture: &Texture,
+        pixels_per_point: f32,
+    ) -> Result<(), JsValue> {
         self.upload_texture(texture);
 
         let gl = &self.gl;
@@ -280,8 +285,8 @@ impl Painter {
             .unwrap();
         gl.uniform2f(
             Some(&u_screen_size_loc),
-            self.canvas.width() as f32,
-            self.canvas.height() as f32,
+            self.canvas.width() as f32 / pixels_per_point,
+            self.canvas.height() as f32 / pixels_per_point,
         );
 
         let u_tex_size_loc = gl

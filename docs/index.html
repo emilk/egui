@@ -56,7 +56,7 @@
 
     function paint_gui(canvas, input) {
         if (g_webgl_painter === null) {
-            g_webgl_painter = wasm_bindgen.new_webgl_gui("canvas");
+            g_webgl_painter = wasm_bindgen.new_webgl_gui("canvas", pixels_per_point());
         }
         wasm_bindgen.run_gui(g_webgl_painter, JSON.stringify(input));
     }
@@ -64,24 +64,24 @@
     var g_mouse_pos = { x: -1000.0, y: -1000.0 };
     var g_mouse_down = false;
 
+    function pixels_per_point() {
+        // return 1.0;
+        return window.devicePixelRatio || 1.0;
+    }
+
     function auto_resize_canvas(canvas) {
-        // TODO: figure out why this isn't quite working.
-        if (true) {
-            canvas.setAttribute("width", window.innerWidth);
-            canvas.setAttribute("height", window.innerHeight);
-        } else {
-            // TODO: this stuff
-            var pixels_per_point = window.devicePixelRatio || 1;
-            canvas.setAttribute("width", window.innerWidth * pixels_per_point);
-            canvas.setAttribute("height", window.innerHeight * pixels_per_point);
-        }
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+        canvas.width = window.innerWidth * pixels_per_point();
+        canvas.height = window.innerHeight * pixels_per_point();
     }
 
     function get_input(canvas) {
         return {
             mouse_down: g_mouse_down,
             mouse_pos: g_mouse_pos,
-            screen_size: { x: canvas.width, y: canvas.height }
+            screen_size: { x: window.innerWidth, y: window.innerHeight },
+            pixels_per_point: pixels_per_point(),
         };
     }
 
