@@ -31,7 +31,7 @@ pub struct LayoutOptions {
     /// Anything clickable is (at least) this wide.
     pub clickable_diameter: f32,
 
-    /// Checkboxed, radio button and foldables have an icon at the start.
+    /// Checkboxes, radio button and foldables have an icon at the start.
     /// The text starts after this many pixels.
     pub start_icon_width: f32,
 }
@@ -43,7 +43,7 @@ impl Default for LayoutOptions {
             button_padding: vec2(5.0, 3.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
-            clickable_diameter: 38.0,
+            clickable_diameter: 34.0,
             start_icon_width: 20.0,
         }
     }
@@ -239,7 +239,7 @@ where
         align: Align::Min,
         cursor: window_pos + window_padding,
         bounding_size: vec2(0.0, 0.0),
-        available_space: vec2(400.0, std::f32::INFINITY), // TODO: popup/tooltip width
+        available_space: vec2(data.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: popup/tooltip width
     };
 
     add_contents(&mut popup_region);

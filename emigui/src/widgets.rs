@@ -81,9 +81,11 @@ impl Widget for Button {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        let interact =
-            region.reserve_space(text_size + 2.0 * region.options().button_padding, Some(id));
-        let text_cursor = interact.rect.min() + region.options().button_padding;
+        let padding = region.options().button_padding;
+        let mut size = text_size + 2.0 * padding;
+        size.y = size.y.max(region.options().clickable_diameter);
+        let interact = region.reserve_space(size, Some(id));
+        let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         region.add_graphic(GuiCmd::Button { interact });
         region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)

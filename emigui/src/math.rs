@@ -90,6 +90,8 @@ pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub struct Rect {
     pub pos: Vec2,
@@ -132,7 +134,35 @@ impl Rect {
     pub fn size(&self) -> Vec2 {
         self.size
     }
+
+    // Convenience functions:
+    pub fn left_top(&self) -> Vec2 {
+        vec2(self.min().x, self.min().y)
+    }
+    pub fn center_top(&self) -> Vec2 {
+        vec2(self.center().x, self.min().y)
+    }
+    pub fn right_top(&self) -> Vec2 {
+        vec2(self.max().x, self.min().y)
+    }
+    pub fn left_center(&self) -> Vec2 {
+        vec2(self.min().x, self.center().y)
+    }
+    pub fn right_center(&self) -> Vec2 {
+        vec2(self.max().x, self.center().y)
+    }
+    pub fn left_bottom(&self) -> Vec2 {
+        vec2(self.min().x, self.max().y)
+    }
+    pub fn center_bottom(&self) -> Vec2 {
+        vec2(self.center().x, self.max().y)
+    }
+    pub fn right_bottom(&self) -> Vec2 {
+        vec2(self.max().x, self.max().y)
+    }
 }
+
+// ----------------------------------------------------------------------------
 
 pub fn lerp(min: f32, max: f32, t: f32) -> f32 {
     (1.0 - t) * min + t * max

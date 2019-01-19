@@ -31,7 +31,7 @@ impl Fonts {
         let mut sizes = FontSizes::new();
         sizes.insert(TextStyle::Body, 18.0);
         sizes.insert(TextStyle::Button, 22.0);
-        sizes.insert(TextStyle::Heading, 30.0);
+        sizes.insert(TextStyle::Heading, 28.0);
         Fonts::from_sizes(sizes)
     }
 

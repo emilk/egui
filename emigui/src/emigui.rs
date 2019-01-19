@@ -28,6 +28,7 @@ fn show_options(options: &mut LayoutOptions, gui: &mut Region) {
     gui.add(Slider::new(&mut options.indent, 0.0, 100.0).text("indent"));
     gui.add(Slider::new(&mut options.button_padding.x, 0.0, 20.0).text("button_padding.x"));
     gui.add(Slider::new(&mut options.button_padding.y, 0.0, 20.0).text("button_padding.y"));
+    gui.add(Slider::new(&mut options.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
     gui.add(Slider::new(&mut options.start_icon_width, 0.0, 60.0).text("start_icon_width"));
 }
 
@@ -175,10 +176,10 @@ impl Emigui {
         });
 
         region.foldable("Fonts", |gui| {
-            show_font_texture(self.texture(), gui);
             let old_font_sizes = self.data.fonts.sizes();
             let mut new_font_sizes = old_font_sizes.clone();
             show_font_sizes(&mut new_font_sizes, gui);
+            show_font_texture(self.texture(), gui);
             if *old_font_sizes != new_font_sizes {
                 let mut new_data = (*self.data).clone();
                 let fonts = Fonts::from_sizes(new_font_sizes);

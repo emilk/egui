@@ -1,9 +1,8 @@
 # Code
 * Break off example app from emigui_wasm
 * Try it on iPhone
-* Dynamic fonts:
-	* Font options (sizes)
-	* Read ttf via web?
+* Read TTF from browser?
+* Device pixel density aware font rendering
 
 # Additional bindings, e.g. Piston
 
