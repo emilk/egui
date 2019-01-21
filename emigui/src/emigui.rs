@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    layout,
+    label, layout,
     layout::{show_popup, LayoutOptions, Region},
     math::{clamp, remap_clamp, vec2},
     mesher::Vertex,
@@ -47,10 +47,11 @@ fn show_font_sizes(font_sizes: &mut FontSizes, gui: &mut Region) {
 }
 
 fn show_font_texture(texture: &Texture, gui: &mut Region) {
-    gui.add(label(format!(
+    gui.add(label!(
         "Font texture size: {} x {} (hover to zoom)",
-        texture.width, texture.height
-    )));
+        texture.width,
+        texture.height
+    ));
     let mut size = vec2(texture.width as f32, texture.height as f32);
     if size.x > gui.width() {
         size *= gui.width() / size.x;
@@ -192,11 +193,24 @@ impl Emigui {
         });
 
         region.foldable("Stats", |gui| {
-            gui.add(label(format!("num_vertices: {}", self.stats.num_vertices)));
-            gui.add(label(format!(
-                "num_triangles: {}",
-                self.stats.num_triangles
-            )));
+            gui.add(label!(
+                "Screen size: {} x {} points, pixels_per_point: {}",
+                gui.input().screen_size.x,
+                gui.input().screen_size.y,
+                gui.input().pixels_per_point,
+            ));
+            gui.add(label!(
+                "mouse_pos: {} x {}",
+                gui.input().mouse_pos.x,
+                gui.input().mouse_pos.y,
+            ));
+            gui.add(label!(
+                "gui cursor: {} x {}",
+                gui.cursor().x,
+                gui.cursor().y,
+            ));
+            gui.add(label!("num_vertices: {}", self.stats.num_vertices));
+            gui.add(label!("num_triangles: {}", self.stats.num_triangles));
         });
     }
 }

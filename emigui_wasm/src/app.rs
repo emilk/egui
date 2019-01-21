@@ -1,4 +1,4 @@
-use emigui::{math::*, types::*, widgets::*, Align, Region, TextStyle};
+use emigui::{label, math::*, types::*, widgets::*, Align, Region, TextStyle};
 
 pub struct App {
     checked: bool,
@@ -25,62 +25,46 @@ impl Default for App {
 
 impl App {
     pub fn show_gui(&mut self, gui: &mut Region) {
-        gui.add(label("Emigui").text_style(TextStyle::Heading));
-        gui.add(label("Emigui is an Immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
+        gui.add(label!("Emigui").text_style(TextStyle::Heading));
+        gui.add(label!("Emigui is an Immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
         gui.add(Separator::new());
 
-        gui.add(label(format!(
-            "Screen size: {} x {}, pixels_per_point: {}",
-            gui.input().screen_size.x,
-            gui.input().screen_size.y,
-            gui.input().pixels_per_point,
-        )));
-        gui.add(label(format!(
-            "mouse_pos: {} x {}",
-            gui.input().mouse_pos.x,
-            gui.input().mouse_pos.y,
-        )));
-        gui.add(label(format!(
-            "gui cursor: {} x {}",
-            gui.cursor().x,
-            gui.cursor().y,
-        )));
+        gui.foldable("Widget examples", |gui| {
+            gui.horizontal(Align::Min, |gui| {
+                gui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
+                gui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
+                gui.add(label!("and tooltips (hover me)")).tooltip_text(
+                    "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+                );
+            });
 
-        gui.horizontal(Align::Min, |gui| {
-            gui.add(label("Text can have").text_color(srgba(110, 255, 110, 255)));
-            gui.add(label("color").text_color(srgba(128, 140, 255, 255)));
-        });
+            gui.add(Checkbox::new(&mut self.checked, "checkbox"));
 
-        gui.add(label("Hover me")).tooltip_text(
-            "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-        );
+            gui.horizontal(Align::Min, |gui| {
+                if gui.add(radio(self.radio == 0, "First")).clicked {
+                    self.radio = 0;
+                }
+                if gui.add(radio(self.radio == 1, "Second")).clicked {
+                    self.radio = 1;
+                }
+                if gui.add(radio(self.radio == 2, "Final")).clicked {
+                    self.radio = 2;
+                }
+            });
 
-        gui.add(Checkbox::new(&mut self.checked, "checkbox"));
-
-        gui.horizontal(Align::Min, |gui| {
-            if gui.add(radio(self.radio == 0, "First")).clicked {
-                self.radio = 0;
-            }
-            if gui.add(radio(self.radio == 1, "Second")).clicked {
-                self.radio = 1;
-            }
-            if gui.add(radio(self.radio == 2, "Final")).clicked {
-                self.radio = 2;
-            }
-        });
-
-        gui.horizontal(Align::Min, |gui| {
-            if gui
-                .add(Button::new("Click me"))
-                .tooltip_text("This will just increase a counter.")
-                .clicked
-            {
-                self.count += 1;
-            }
-            gui.add(label(format!(
-                "The button have been clicked {} times",
-                self.count
-            )));
+            gui.horizontal(Align::Min, |gui| {
+                if gui
+                    .add(Button::new("Click me"))
+                    .tooltip_text("This will just increase a counter.")
+                    .clicked
+                {
+                    self.count += 1;
+                }
+                gui.add(label!(
+                    "The button have been clicked {} times",
+                    self.count
+                ));
+            });
         });
 
         gui.foldable("Test box rendering", |gui| {

@@ -5,7 +5,7 @@ extern crate wasm_bindgen;
 
 extern crate emigui;
 
-use emigui::{widgets::label, Align, Emigui, RawInput};
+use emigui::{label, widgets::Label, Align, Emigui, RawInput};
 
 use wasm_bindgen::prelude::*;
 
@@ -48,12 +48,12 @@ impl State {
         self.app.show_gui(&mut region);
         self.emigui.example(&mut region);
 
-        region.add(label("WebGl painter info:"));
+        region.add(label!("WebGl painter info:"));
         region.indent(|region| {
-            region.add(label(self.webgl_painter.debug_info()));
+            region.add(label!(self.webgl_painter.debug_info()));
         });
 
-        region.add(label(format!("Everything: {:.1} ms", self.everything_ms)));
+        region.add(label!("Everything: {:.1} ms", self.everything_ms));
 
         let frame = self.emigui.paint();
         let result =

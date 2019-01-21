@@ -9,7 +9,7 @@ use crate::{
     fonts::{Fonts, TextStyle},
     math::*,
     types::*,
-    widgets::{label, Widget},
+    widgets::{Label, Widget},
 };
 
 // ----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ impl GuiResponse {
     /// Show this text if the item was hovered
     pub fn tooltip_text<S: Into<String>>(&mut self, text: S) -> &mut Self {
         self.tooltip(|popup| {
-            popup.add(label(text));
+            popup.add(Label::new(text));
         })
     }
 }
@@ -437,8 +437,8 @@ impl Region {
     /// Temporarily split split a vertical layout into several columns.
     ///
     /// region.columns(2, |columns| {
-    ///     columns[0].add(emigui::widgets::label("First column"));
-    ///     columns[1].add(emigui::widgets::label("Second column"));
+    ///     columns[0].add(emigui::widgets::label!("First column"));
+    ///     columns[1].add(emigui::widgets::label!("Second column"));
     /// });
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
     where

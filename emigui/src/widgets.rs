@@ -40,8 +40,11 @@ impl Label {
     }
 }
 
-pub fn label<S: Into<String>>(text: S) -> Label {
-    Label::new(text)
+/// Usage:  label!("Foo: {}", bar)
+#[macro_export]
+macro_rules! label {
+    ($fmt:expr) => (Label::new($fmt));
+    ($fmt:expr, $($arg:tt)*) => (Label::new(format!($fmt, $($arg)*)));
 }
 
 impl Widget for Label {
@@ -264,7 +267,7 @@ impl<'a> Widget for Slider<'a> {
 
                     columns[1].available_space.y = response.rect.size().y;
                     columns[1].horizontal(Align::Center, |region| {
-                        region.add(label(full_text));
+                        region.add(Label::new(full_text));
                     });
 
                     response
