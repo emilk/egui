@@ -331,20 +331,20 @@ __exports.__widl_f_performance_Window = function(arg0) {
 
 };
 
-__exports.__wbg_new_12b9ae8fdb332911 = function(arg0) {
+__exports.__wbg_new_f49b071a6847bcff = function(arg0) {
     return addHeapObject(new Float32Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_1c02edccacdc6b96 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_f8934b42fec7ca7c = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_newnoargs_970ffcd96c15d34e = function(arg0, arg1) {
+__exports.__wbg_newnoargs_43c5f57b77232284 = function(arg0, arg1) {
     let varg0 = getStringFromWasm(arg0, arg1);
     return addHeapObject(new Function(varg0));
 };
 
-__exports.__wbg_call_6ecd167e59b01396 = function(arg0, arg1, exnptr) {
+__exports.__wbg_call_7ac13208e630ddeb = function(arg0, arg1, exnptr) {
     try {
         return addHeapObject(getObject(arg0).call(getObject(arg1)));
     } catch (e) {
@@ -355,35 +355,35 @@ __exports.__wbg_call_6ecd167e59b01396 = function(arg0, arg1, exnptr) {
     }
 };
 
-__exports.__wbg_new_24372bdd16e7ac17 = function(arg0) {
+__exports.__wbg_new_efed94c530925533 = function(arg0) {
     return addHeapObject(new Int16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_333aec38f24ecc8c = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_b6e319a511351c70 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_4e991c7c717b13c1 = function(arg0) {
+__exports.__wbg_new_a999fd72f5304154 = function(arg0) {
     return addHeapObject(new Uint8Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_0de502469162fe71 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_1cd21da1682e7d1e = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_ebb3136fdb1b1152 = function(arg0) {
+__exports.__wbg_new_12076896685e5e56 = function(arg0) {
     return addHeapObject(new Uint16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_acb28098200224ff = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_a860cdd7b04efc31 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_instanceof_Memory_48643a8591466d1a = function(idx) {
+__exports.__wbg_instanceof_Memory_ed5a1f7b9a0e05a3 = function(idx) {
     return getObject(idx) instanceof WebAssembly.Memory ? 1 : 0;
 };
 
-__exports.__wbg_buffer_74e21c76ddf2eb17 = function(arg0) {
+__exports.__wbg_buffer_efdca35786c3eb75 = function(arg0) {
     return addHeapObject(getObject(arg0).buffer);
 };
 
@@ -403,21 +403,6 @@ __exports.__wbindgen_string_new = function(p, l) {
     return addHeapObject(getStringFromWasm(p, l));
 };
 
-__exports.__wbindgen_number_get = function(n, invalid) {
-    let obj = getObject(n);
-    if (typeof(obj) === 'number') return obj;
-    getUint8Memory()[invalid] = 1;
-    return 0;
-};
-
-__exports.__wbindgen_is_null = function(idx) {
-    return getObject(idx) === null ? 1 : 0;
-};
-
-__exports.__wbindgen_is_undefined = function(idx) {
-    return getObject(idx) === undefined ? 1 : 0;
-};
-
 __exports.__wbindgen_boolean_get = function(i) {
     let v = getObject(i);
     if (typeof(v) === 'boolean') {
@@ -427,16 +412,78 @@ __exports.__wbindgen_boolean_get = function(i) {
     }
 };
 
-__exports.__wbindgen_is_symbol = function(i) {
-    return typeof(getObject(i)) === 'symbol' ? 1 : 0;
+__exports.__wbindgen_debug_string = function(i, len_ptr) {
+    const toString = Object.prototype.toString;
+    const debug_str = val => {
+        // primitive types
+        const type = typeof val;
+        if (type == 'number' || type == 'boolean' || val == null) {
+            return  `${val}`;
+        }
+        if (type == 'string') {
+            return `"${val}"`;
+        }
+        if (type == 'symbol') {
+            const description = val.description;
+            if (description == null) {
+                return 'Symbol';
+            } else {
+                return `Symbol(${description})`;
+            }
+        }
+        if (type == 'function') {
+            const name = val.name;
+            if (typeof name == 'string' && name.length > 0) {
+                return `Function(${name})`;
+            } else {
+                return 'Function';
+            }
+        }
+        // objects
+        if (Array.isArray(val)) {
+            const length = val.length;
+            let debug = '[';
+            if (length > 0) {
+                debug += debug_str(val[0]);
+            }
+            for(let i = 1; i < length; i++) {
+                debug += ', ' + debug_str(val[i]);
+            }
+            debug += ']';
+            return debug;
+        }
+        // Test for built-in
+        const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
+        let className;
+        if (builtInMatches.length > 1) {
+            className = builtInMatches[1];
+        } else {
+            // Failed to match the standard '[object ClassName]'
+            return toString.call(val);
+        }
+        if (className == 'Object') {
+            // we're a user defined class or Object
+            // JSON.stringify avoids problems with cycles, and is generally much
+            // easier than looping through ownProperties of `val`.
+            try {
+                return 'Object(' + JSON.stringify(val) + ')';
+            } catch (_) {
+                return 'Object';
+            }
+        }
+        // errors
+        if (val instanceof Error) {
+        return `${val.name}: ${val.message}
+        ${val.stack}`;
+    }
+    // TODO we could test for more things here, like `Set`s and `Map`s.
+    return className;
 };
-
-__exports.__wbindgen_string_get = function(i, len_ptr) {
-    let obj = getObject(i);
-    if (typeof(obj) !== 'string') return 0;
-    const ptr = passStringToWasm(obj);
-    getUint32Memory()[len_ptr / 4] = WASM_VECTOR_LEN;
-    return ptr;
+const val = getObject(i);
+const debug = debug_str(val);
+const ptr = passStringToWasm(debug);
+getUint32Memory()[len_ptr / 4] = WASM_VECTOR_LEN;
+return ptr;
 };
 
 __exports.__wbindgen_memory = function() { return addHeapObject(wasm.memory); };
@@ -479,7 +526,7 @@ __exports.__wbindgen_throw = function(ptr, len) {
 
 function init(path_or_module) {
     let instantiation;
-    const imports = { './emigui_wasm': __exports };
+    const imports = { './example': __exports };
     if (path_or_module instanceof WebAssembly.Module) {
         instantiation = WebAssembly.instantiate(path_or_module, imports)
         .then(instance => {

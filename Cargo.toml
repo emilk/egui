@@ -2,6 +2,7 @@
 members = [
     "emigui",
     "emigui_wasm",
+    "example",
 ]
 
 # Optimize for small code size:

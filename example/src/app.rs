@@ -25,7 +25,7 @@ impl Default for App {
 
 impl App {
     pub fn show_gui(&mut self, gui: &mut Region) {
-        gui.add(label!("Emigui").text_style(TextStyle::Heading));
+        gui.add(label!("Emigui!").text_style(TextStyle::Heading));
         gui.add(label!("Emigui is an Immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
         gui.add(Separator::new());
 
