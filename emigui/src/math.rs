@@ -134,12 +134,19 @@ impl Rect {
     pub fn min(&self) -> Vec2 {
         self.pos
     }
+
     pub fn max(&self) -> Vec2 {
         self.pos + self.size
     }
 
     pub fn size(&self) -> Vec2 {
         self.size
+    }
+    pub fn width(&self) -> f32 {
+        self.size.x
+    }
+    pub fn height(&self) -> f32 {
+        self.size.y
     }
 
     // Convenience functions:

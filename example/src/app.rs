@@ -84,8 +84,9 @@ impl App {
                 .rect
                 .min();
 
+            let mut cmds = vec![];
             for i in 0..self.num_boxes {
-                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
+                cmds.push(PaintCmd::Rect {
                     corner_radius: self.corner_radius,
                     fill_color: Some(srgba(136, 136, 136, 255)),
                     rect: Rect::from_min_size(
@@ -96,8 +97,9 @@ impl App {
                         width: self.stroke_width,
                         color: srgba(255, 255, 255, 255),
                     }),
-                }]));
+                });
             }
+            gui.add_graphic(GuiCmd::PaintCommands(cmds));
         });
     }
 }

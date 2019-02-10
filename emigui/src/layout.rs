@@ -409,7 +409,7 @@ impl Region {
             options: self.options,
             id: self.id,
             dir: self.dir,
-            cursor: vec2((self.available_space.x - width) / 2.0, self.cursor.y),
+            cursor: self.cursor + vec2((self.available_space.x - width) / 2.0, 0.0),
             align,
             bounding_size: vec2(0.0, 0.0),
             available_space: vec2(width, self.available_space.y),
@@ -558,6 +558,31 @@ impl Region {
             child_id.hash(&mut hasher);
             hasher.finish()
         })
+    }
+
+    // Helper function
+    pub fn floating_text(
+        &mut self,
+        pos: Vec2,
+        text: &str,
+        text_style: TextStyle,
+        align: (Align, Align),
+        text_color: Option<Color>,
+    ) {
+        let font = &self.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(text, std::f32::INFINITY);
+
+        let x = match align.0 {
+            Align::Min => pos.x,
+            Align::Center => pos.x - 0.5 * text_size.x,
+            Align::Max => pos.x - text_size.x,
+        };
+        let y = match align.1 {
+            Align::Min => pos.y,
+            Align::Center => pos.y - 0.5 * text_size.y,
+            Align::Max => pos.y - text_size.y,
+        };
+        self.add_text(vec2(x, y), text_style, text, text_color);
     }
 
     pub fn add_text(
