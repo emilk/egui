@@ -220,6 +220,11 @@ impl Data {
             self.memory.lock().unwrap().active_id = None;
         }
     }
+
+    /// Is the user interacting with anything?
+    pub fn any_active(&self) -> bool {
+        self.memory.lock().unwrap().active_id.is_some()
+    }
 }
 
 /// Show a pop-over window
