@@ -416,8 +416,7 @@ impl Region {
         }
     }
 
-    /// Start a region with horizontal layout
-    pub fn horizontal<F>(&mut self, align: Align, add_contents: F)
+    pub fn inner_layout<F>(&mut self, dir: Direction, align: Align, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
@@ -425,7 +424,7 @@ impl Region {
             data: self.data.clone(),
             options: self.options,
             id: self.id,
-            dir: Direction::Horizontal,
+            dir,
             align,
             cursor: self.cursor,
             bounding_size: vec2(0.0, 0.0),
@@ -434,6 +433,22 @@ impl Region {
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
         self.reserve_space_without_padding(size);
+    }
+
+    /// Start a region with horizontal layout
+    pub fn horizontal<F>(&mut self, align: Align, add_contents: F)
+    where
+        F: FnOnce(&mut Region),
+    {
+        self.inner_layout(Direction::Horizontal, align, add_contents)
+    }
+
+    /// Start a region with vertical layout
+    pub fn vertical<F>(&mut self, align: Align, add_contents: F)
+    where
+        F: FnOnce(&mut Region),
+    {
+        self.inner_layout(Direction::Vertical, align, add_contents)
     }
 
     /// Temporarily split split a vertical layout into several columns.
