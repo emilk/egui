@@ -13,7 +13,7 @@ pub struct RawInput {
     pub mouse_down: bool,
 
     /// Current position of the mouse in points.
-    pub mouse_pos: Vec2,
+    pub mouse_pos: Option<Vec2>,
 
     /// Size of the screen in points.
     pub screen_size: Vec2,
@@ -35,7 +35,7 @@ pub struct GuiInput {
     pub mouse_released: bool,
 
     /// Current position of the mouse in points.
-    pub mouse_pos: Vec2,
+    pub mouse_pos: Option<Vec2>,
 
     /// Size of the screen in points.
     pub screen_size: Vec2,

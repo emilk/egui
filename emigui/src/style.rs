@@ -242,7 +242,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
     }
 }
 
-pub fn into_paint_commands<'a, GuiCmdIterator>(
+pub fn into_paint_commands<GuiCmdIterator>(
     gui_commands: GuiCmdIterator,
     style: &Style,
 ) -> Vec<PaintCmd>

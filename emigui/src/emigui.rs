@@ -72,44 +72,46 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
     frame.add_rect(top_left, bottom_right);
     gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
 
-    if interact.hovered {
-        show_popup(gui.data(), gui.input().mouse_pos, |gui| {
-            let zoom_rect = gui.reserve_space(vec2(128.0, 128.0), None).rect;
-            let u = remap_clamp(
-                gui.input().mouse_pos.x,
-                rect.min().x,
-                rect.max().x,
-                0.0,
-                texture.width as f32 - 1.0,
-            )
-            .round();
-            let v = remap_clamp(
-                gui.input().mouse_pos.y,
-                rect.min().y,
-                rect.max().y,
-                0.0,
-                texture.height as f32 - 1.0,
-            )
-            .round();
+    if let Some(mouse_pos) = gui.input().mouse_pos {
+        if interact.hovered {
+            show_popup(gui.data(), mouse_pos, |gui| {
+                let zoom_rect = gui.reserve_space(vec2(128.0, 128.0), None).rect;
+                let u = remap_clamp(
+                    mouse_pos.x,
+                    rect.min().x,
+                    rect.max().x,
+                    0.0,
+                    texture.width as f32 - 1.0,
+                )
+                .round();
+                let v = remap_clamp(
+                    mouse_pos.y,
+                    rect.min().y,
+                    rect.max().y,
+                    0.0,
+                    texture.height as f32 - 1.0,
+                )
+                .round();
 
-            let texel_radius = 32.0;
-            let u = clamp(u, texel_radius, texture.width as f32 - 1.0 - texel_radius);
-            let v = clamp(v, texel_radius, texture.height as f32 - 1.0 - texel_radius);
+                let texel_radius = 32.0;
+                let u = clamp(u, texel_radius, texture.width as f32 - 1.0 - texel_radius);
+                let v = clamp(v, texel_radius, texture.height as f32 - 1.0 - texel_radius);
 
-            let top_left = Vertex {
-                pos: zoom_rect.min(),
-                uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
-                color: Color::WHITE,
-            };
-            let bottom_right = Vertex {
-                pos: zoom_rect.max(),
-                uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
-                color: Color::WHITE,
-            };
-            let mut frame = Frame::default();
-            frame.add_rect(top_left, bottom_right);
-            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
-        });
+                let top_left = Vertex {
+                    pos: zoom_rect.min(),
+                    uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
+                    color: Color::WHITE,
+                };
+                let bottom_right = Vertex {
+                    pos: zoom_rect.max(),
+                    uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
+                    color: Color::WHITE,
+                };
+                let mut frame = Frame::default();
+                frame.add_rect(top_left, bottom_right);
+                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+            });
+        }
     }
 }
 
@@ -199,11 +201,11 @@ impl Emigui {
                 gui.input().screen_size.y,
                 gui.input().pixels_per_point,
             ));
-            gui.add(label!(
-                "mouse_pos: {} x {}",
-                gui.input().mouse_pos.x,
-                gui.input().mouse_pos.y,
-            ));
+            if let Some(mouse_pos) = gui.input().mouse_pos {
+                gui.add(label!("mouse_pos: {} x {}", mouse_pos.x, mouse_pos.y,));
+            } else {
+                gui.add(label!("mouse_pos: None"));
+            }
             gui.add(label!(
                 "gui cursor: {} x {}",
                 gui.cursor().x,

@@ -119,7 +119,7 @@ impl Painter {
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
 
         // TODO: remove once https://github.com/rustwasm/wasm-bindgen/issues/1005 is fixed.
-        let mut pixels: Vec<_> = texture.pixels.iter().cloned().collect();
+        let mut pixels: Vec<_> = texture.pixels.to_vec();
 
         let level = 0;
         let internal_format = Gl::ALPHA;
@@ -294,8 +294,8 @@ impl Painter {
             .unwrap();
         gl.uniform2f(
             Some(&u_tex_size_loc),
-            self.tex_size.0 as f32,
-            self.tex_size.1 as f32,
+            f32::from(self.tex_size.0),
+            f32::from(self.tex_size.1),
         );
 
         let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();

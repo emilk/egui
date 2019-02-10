@@ -59,7 +59,7 @@
         wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input));
     }
     // ----------------------------------------------------------------------------
-    var g_mouse_pos = { x: -1000.0, y: -1000.0 };
+    var g_mouse_pos = null;
     var g_mouse_down = false;
 
     function pixels_per_point() {
@@ -120,14 +120,13 @@
             event.preventDefault();
         });
         canvas.addEventListener("mouseleave", function(event) {
-            g_mouse_pos = { x: -1000.0, y: -1000.0 };
+            g_mouse_pos = null;
             repaint();
             event.stopPropagation();
             event.preventDefault();
         });
 
         canvas.addEventListener("touchstart", function(event) {
-            // console.log(`touchstart ${JSON.stringify(event)}`);
             g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
             g_mouse_down = true;
             repaint();
@@ -135,17 +134,15 @@
             event.preventDefault();
         });
         canvas.addEventListener("touchmove", function(event) {
-            // console.log(`touchmove ${JSON.stringify(event)}`);
             g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
             repaint();
             event.stopPropagation();
             event.preventDefault();
         });
         canvas.addEventListener("touchend", function(event) {
-            // console.log(`touchend ${JSON.stringify(event)}`);
             g_mouse_down = false;
             repaint();
-            g_mouse_pos = { x: -1000.0, y: -1000.0 };
+            g_mouse_pos = null;
             repaint();
             event.stopPropagation();
             event.preventDefault();

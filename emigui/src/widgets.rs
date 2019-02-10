@@ -1,3 +1,5 @@
+#![allow(clippy::new_without_default_derive)]
+
 use crate::{
     fonts::TextStyle,
     layout::{make_id, Align, Direction, GuiResponse, Id, Region},
@@ -289,14 +291,16 @@ impl<'a> Widget for Slider<'a> {
                 id,
             );
 
-            if interact.active {
-                *value = remap_clamp(
-                    region.input().mouse_pos.x,
-                    interact.rect.min().x,
-                    interact.rect.max().x,
-                    min,
-                    max,
-                );
+            if let Some(mouse_pos) = region.input().mouse_pos {
+                if interact.active {
+                    *value = remap_clamp(
+                        mouse_pos.x,
+                        interact.rect.min().x,
+                        interact.rect.max().x,
+                        min,
+                        max,
+                    );
+                }
             }
 
             region.add_graphic(GuiCmd::Slider {

@@ -76,8 +76,10 @@ impl GuiResponse {
         F: FnOnce(&mut Region),
     {
         if self.hovered {
-            let window_pos = self.data.input().mouse_pos + vec2(16.0, 16.0);
-            show_popup(&self.data, window_pos, add_contents);
+            if let Some(mouse_pos) = self.data.input().mouse_pos {
+                let window_pos = mouse_pos + vec2(16.0, 16.0);
+                show_popup(&self.data, window_pos, add_contents);
+            }
         }
         self
     }
@@ -214,7 +216,7 @@ impl Data {
     // TODO: move
     pub fn new_frame(&mut self, gui_input: GuiInput) {
         self.input = gui_input;
-        if !gui_input.mouse_down {
+        if !gui_input.mouse_down || gui_input.mouse_pos.is_none() {
             self.memory.lock().unwrap().active_id = None;
         }
     }
@@ -490,7 +492,11 @@ impl Region {
         let is_something_else_active =
             memory.active_id.is_some() && memory.active_id != interaction_id;
 
-        let hovered = !is_something_else_active && rect.contains(self.input().mouse_pos);
+        let hovered = if let Some(mouse_pos) = self.input().mouse_pos {
+            !is_something_else_active && rect.contains(mouse_pos)
+        } else {
+            false
+        };
         let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
             if clicked {

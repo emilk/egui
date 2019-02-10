@@ -1,3 +1,5 @@
+#![allow(clippy::identity_op)]
+
 const ANTI_ALIAS: bool = true;
 const AA_SIZE: f32 = 0.5; // TODO: 1.0 / pixels_per_point
 
@@ -129,7 +131,7 @@ impl Frame {
             let mut color_inner = color;
             if thin_line {
                 // Fade out as it gets thinner:
-                color_inner.a = (color_inner.a as f32 * width).round() as u8;
+                color_inner.a = (f32::from(color_inner.a) * width).round() as u8;
             }
             // TODO: line caps ?
             let mut i0 = n - 1;
