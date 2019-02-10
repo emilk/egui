@@ -8,6 +8,7 @@ pub struct App {
     size: Vec2,
     corner_radius: f32,
     stroke_width: f32,
+    num_boxes: i32,
 }
 
 impl Default for App {
@@ -19,6 +20,7 @@ impl Default for App {
             size: vec2(100.0, 50.0),
             corner_radius: 5.0,
             stroke_width: 2.0,
+            num_boxes: 1,
         }
     }
 }
@@ -68,21 +70,34 @@ impl App {
         });
 
         gui.foldable("Test box rendering", |gui| {
-            gui.add(Slider::new(&mut self.size.x, 0.0, 500.0).text("width"));
-            gui.add(Slider::new(&mut self.size.y, 0.0, 500.0).text("height"));
-            gui.add(Slider::new(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
-            gui.add(Slider::new(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
+            gui.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
+            gui.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
+            gui.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
+            gui.add(Slider::f32(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
+            gui.add(Slider::i32(&mut self.num_boxes, 0, 5).text("num_boxes"));
 
-            let pos = gui.reserve_space(self.size, None).rect.min();
-            gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
-                corner_radius: self.corner_radius,
-                fill_color: Some(srgba(136, 136, 136, 255)),
-                rect: Rect::from_min_size(pos, self.size),
-                outline: Some(Outline {
-                    width: self.stroke_width,
-                    color: srgba(255, 255, 255, 255),
-                }),
-            }]));
+            let pos = gui
+                .reserve_space(
+                    vec2(self.size.x * (self.num_boxes as f32), self.size.y),
+                    None,
+                )
+                .rect
+                .min();
+
+            for i in 0..self.num_boxes {
+                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Rect {
+                    corner_radius: self.corner_radius,
+                    fill_color: Some(srgba(136, 136, 136, 255)),
+                    rect: Rect::from_min_size(
+                        vec2(pos.x + (i as f32) * self.size.x, pos.y),
+                        self.size,
+                    ),
+                    outline: Some(Outline {
+                        width: self.stroke_width,
+                        color: srgba(255, 255, 255, 255),
+                    }),
+                }]));
+            }
         });
     }
 }

@@ -21,15 +21,15 @@ fn show_options(options: &mut LayoutOptions, gui: &mut Region) {
     if gui.add(Button::new("Reset LayoutOptions")).clicked {
         *options = Default::default();
     }
-    gui.add(Slider::new(&mut options.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
-    gui.add(Slider::new(&mut options.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
-    gui.add(Slider::new(&mut options.window_padding.x, 0.0, 10.0).text("window_padding.x"));
-    gui.add(Slider::new(&mut options.window_padding.y, 0.0, 10.0).text("window_padding.y"));
-    gui.add(Slider::new(&mut options.indent, 0.0, 100.0).text("indent"));
-    gui.add(Slider::new(&mut options.button_padding.x, 0.0, 20.0).text("button_padding.x"));
-    gui.add(Slider::new(&mut options.button_padding.y, 0.0, 20.0).text("button_padding.y"));
-    gui.add(Slider::new(&mut options.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
-    gui.add(Slider::new(&mut options.start_icon_width, 0.0, 60.0).text("start_icon_width"));
+    gui.add(Slider::f32(&mut options.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
+    gui.add(Slider::f32(&mut options.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
+    gui.add(Slider::f32(&mut options.window_padding.x, 0.0, 10.0).text("window_padding.x"));
+    gui.add(Slider::f32(&mut options.window_padding.y, 0.0, 10.0).text("window_padding.y"));
+    gui.add(Slider::f32(&mut options.indent, 0.0, 100.0).text("indent"));
+    gui.add(Slider::f32(&mut options.button_padding.x, 0.0, 20.0).text("button_padding.x"));
+    gui.add(Slider::f32(&mut options.button_padding.y, 0.0, 20.0).text("button_padding.y"));
+    gui.add(Slider::f32(&mut options.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
+    gui.add(Slider::f32(&mut options.start_icon_width, 0.0, 60.0).text("start_icon_width"));
 }
 
 fn show_style(style: &mut style::Style, gui: &mut Region) {
@@ -37,12 +37,12 @@ fn show_style(style: &mut style::Style, gui: &mut Region) {
         *style = Default::default();
     }
     gui.add(Checkbox::new(&mut style.debug_rects, "debug_rects"));
-    gui.add(Slider::new(&mut style.line_width, 0.0, 10.0).text("line_width"));
+    gui.add(Slider::f32(&mut style.line_width, 0.0, 10.0).text("line_width"));
 }
 
 fn show_font_sizes(font_sizes: &mut FontSizes, gui: &mut Region) {
     for (text_style, mut size) in font_sizes {
-        gui.add(Slider::new(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
+        gui.add(Slider::f32(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
     }
 }
 

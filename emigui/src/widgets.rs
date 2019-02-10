@@ -204,25 +204,49 @@ impl Widget for RadioButton {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Debug)]
 pub struct Slider<'a> {
-    value: &'a mut f32,
+    get_set_value: Box<'a + FnMut(Option<f32>) -> f32>,
     min: f32,
     max: f32,
     id: Option<Id>,
     text: Option<String>,
+    precision: usize,
     text_color: Option<Color>,
     text_on_top: Option<bool>,
 }
 
 impl<'a> Slider<'a> {
-    pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
+    pub fn f32(value: &'a mut f32, min: f32, max: f32) -> Self {
         Slider {
-            value,
+            get_set_value: Box::new(move |v: Option<f32>| {
+                if let Some(v) = v {
+                    *value = v
+                }
+                *value
+            }),
             min,
             max,
             id: None,
             text: None,
+            precision: 3,
+            text_on_top: None,
+            text_color: None,
+        }
+    }
+
+    pub fn i32(value: &'a mut i32, min: i32, max: i32) -> Self {
+        Slider {
+            get_set_value: Box::new(move |v: Option<f32>| {
+                if let Some(v) = v {
+                    *value = v.round() as i32
+                }
+                *value as f32
+            }),
+            min: min as f32,
+            max: max as f32,
+            id: None,
+            text: None,
+            precision: 0,
             text_on_top: None,
             text_color: None,
         }
@@ -245,14 +269,19 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn add_to(mut self, region: &mut Region) -> GuiResponse {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
 
         if let Some(text) = &self.text {
             let text_on_top = self.text_on_top.unwrap_or_default();
             let text_color = self.text_color;
-            let full_text = format!("{}: {:.3}", text, self.value);
+            let full_text = format!(
+                "{}: {:.*}",
+                text,
+                self.precision,
+                (self.get_set_value)(None)
+            );
             let id = Some(self.id.unwrap_or_else(|| make_id(text)));
             let mut naked = self;
             naked.id = id;
@@ -278,7 +307,6 @@ impl<'a> Widget for Slider<'a> {
         } else {
             let height = font.line_spacing().max(region.options().clickable_diameter);
 
-            let value = self.value;
             let min = self.min;
             let max = self.max;
             debug_assert!(min <= max);
@@ -293,13 +321,13 @@ impl<'a> Widget for Slider<'a> {
 
             if let Some(mouse_pos) = region.input().mouse_pos {
                 if interact.active {
-                    *value = remap_clamp(
+                    (self.get_set_value)(Some(remap_clamp(
                         mouse_pos.x,
                         interact.rect.min().x,
                         interact.rect.max().x,
                         min,
                         max,
-                    );
+                    )));
                 }
             }
 
@@ -307,7 +335,7 @@ impl<'a> Widget for Slider<'a> {
                 interact,
                 max,
                 min,
-                value: *value,
+                value: (self.get_set_value)(None),
             });
 
             region.response(interact)
