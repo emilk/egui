@@ -6,19 +6,14 @@ extern crate wasm_bindgen;
 extern crate emigui;
 extern crate emigui_wasm;
 
-use emigui::{label, widgets::Label, Align, Emigui, RawInput};
+use {
+    emigui::{label, widgets::Label, Align, Emigui, RawInput},
+    emigui_wasm::now_sec,
+};
 
 use wasm_bindgen::prelude::*;
 
 mod app;
-
-fn now_ms() -> f64 {
-    web_sys::window()
-        .expect("should have a Window")
-        .performance()
-        .expect("should have a Performance")
-        .now()
-}
 
 #[wasm_bindgen]
 pub struct State {
@@ -39,7 +34,7 @@ impl State {
     }
 
     fn run(&mut self, raw_input: RawInput) -> Result<(), JsValue> {
-        let everything_start = now_ms();
+        let everything_start = now_sec();
 
         self.emigui.new_frame(raw_input);
 
@@ -60,7 +55,7 @@ impl State {
             self.webgl_painter
                 .paint(&frame, self.emigui.texture(), raw_input.pixels_per_point);
 
-        self.everything_ms = now_ms() - everything_start;
+        self.everything_ms = 1000.0 * (now_sec() - everything_start);
 
         result
     }

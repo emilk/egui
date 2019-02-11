@@ -18,10 +18,12 @@ emigui = { path = "../emigui" }
 [dependencies.web-sys]
 version = "0.3"
 features = [
+  'console',
   'Document',
   'Element',
   'HtmlCanvasElement',
   'Performance',
+  'Storage',
   'WebGlBuffer',
   'WebGlProgram',
   'WebGlRenderingContext',
