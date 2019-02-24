@@ -1,8 +1,5 @@
 #![allow(clippy::identity_op)]
 
-const ANTI_ALIAS: bool = true;
-const AA_SIZE: f32 = 0.5; // TODO: 1.0 / pixels_per_point
-
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
     fonts::Fonts,
@@ -26,13 +23,6 @@ pub struct Frame {
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum PathType {
-    Open,
-    Closed,
-}
-use self::PathType::*;
 
 impl Frame {
     pub fn append(&mut self, frame: &Frame) {
@@ -70,6 +60,31 @@ impl Frame {
         self.vertices.push(botom_left);
         self.vertices.push(bottom_right);
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum PathType {
+    Open,
+    Closed,
+}
+use self::PathType::*;
+
+pub struct Mesher {
+    pub anti_alias: bool,
+    pub aa_size: f32,
+
+    /// Where the output goes
+    pub frame: Frame,
+}
+
+impl Mesher {
+    pub fn new(pixels_per_point: f32) -> Mesher {
+        Mesher {
+            anti_alias: true,
+            aa_size: 1.0 / pixels_per_point,
+            frame: Default::default(),
+        }
+    }
 
     pub fn fill_closed_path(&mut self, points: &[Vec2], normals: &[Vec2], color: Color) {
         assert_eq!(points.len(), normals.len());
@@ -79,29 +94,32 @@ impl Frame {
             uv: (0, 0),
             color,
         };
-        if ANTI_ALIAS {
+        let frame = &mut self.frame;
+        if self.anti_alias {
             let color_outer = color.transparent();
-            let idx_inner = self.vertices.len() as u32;
+            let idx_inner = frame.vertices.len() as u32;
             let idx_outer = idx_inner + 1;
             for i in 2..n {
-                self.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+                frame.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
             }
             let mut i0 = n - 1;
             for i1 in 0..n {
-                let dm = normals[i1 as usize] * AA_SIZE * 0.5;
-                self.vertices.push(vert(points[i1 as usize] - dm, color));
-                self.vertices
+                let dm = normals[i1 as usize] * self.aa_size * 0.5;
+                frame.vertices.push(vert(points[i1 as usize] - dm, color));
+                frame
+                    .vertices
                     .push(vert(points[i1 as usize] + dm, color_outer));
-                self.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-                self.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                frame.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                frame.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
                 i0 = i1;
             }
         } else {
-            let idx = self.vertices.len() as u32;
-            self.vertices
+            let idx = frame.vertices.len() as u32;
+            frame
+                .vertices
                 .extend(points.iter().map(|&pos| vert(pos, color)));
             for i in 2..n {
-                self.triangle(idx, idx + i - 1, idx + i);
+                frame.triangle(idx, idx + i - 1, idx + i);
             }
         }
     }
@@ -117,15 +135,16 @@ impl Frame {
         assert_eq!(points.len(), normals.len());
         let n = points.len() as u32;
         let hw = width / 2.0;
-        let idx = self.vertices.len() as u32;
+        let idx = self.frame.vertices.len() as u32;
 
         let vert = |pos, color| Vertex {
             pos,
             uv: (0, 0),
             color,
         };
+        let frame = &mut self.frame;
 
-        if ANTI_ALIAS {
+        if self.anti_alias {
             let color_outer = color.transparent();
             let thin_line = width <= 1.0;
             let mut color_inner = color;
@@ -140,37 +159,39 @@ impl Frame {
                 if thin_line {
                     let p = points[i1 as usize];
                     let n = normals[i1 as usize];
-                    self.vertices.push(vert(p + n * AA_SIZE, color_outer));
-                    self.vertices.push(vert(p, color_inner));
-                    self.vertices.push(vert(p - n * AA_SIZE, color_outer));
+                    frame.vertices.push(vert(p + n * self.aa_size, color_outer));
+                    frame.vertices.push(vert(p, color_inner));
+                    frame.vertices.push(vert(p - n * self.aa_size, color_outer));
 
                     if connect_with_previous {
-                        self.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
-                        self.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+                        frame.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                        frame.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
 
-                        self.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
-                        self.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                        frame.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                        frame.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
                     }
                 } else {
-                    let hw = (width - AA_SIZE) * 0.5;
+                    let hw = (width - self.aa_size) * 0.5;
                     let p = points[i1 as usize];
                     let n = normals[i1 as usize];
-                    self.vertices
-                        .push(vert(p + n * (hw + AA_SIZE), color_outer));
-                    self.vertices.push(vert(p + n * (hw + 0.0), color_inner));
-                    self.vertices.push(vert(p - n * (hw + 0.0), color_inner));
-                    self.vertices
-                        .push(vert(p - n * (hw + AA_SIZE), color_outer));
+                    frame
+                        .vertices
+                        .push(vert(p + n * (hw + self.aa_size), color_outer));
+                    frame.vertices.push(vert(p + n * (hw + 0.0), color_inner));
+                    frame.vertices.push(vert(p - n * (hw + 0.0), color_inner));
+                    frame
+                        .vertices
+                        .push(vert(p - n * (hw + self.aa_size), color_outer));
 
                     if connect_with_previous {
-                        self.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                        self.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+                        frame.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        frame.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
 
-                        self.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                        self.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                        frame.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        frame.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
 
-                        self.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                        self.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                        frame.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        frame.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
                     }
                 }
                 i0 = i1;
@@ -178,12 +199,12 @@ impl Frame {
         } else {
             let last_index = if path_type == Closed { n } else { n - 1 };
             for i in 0..last_index {
-                self.triangle(
+                frame.triangle(
                     idx + (2 * i + 0) % (2 * n),
                     idx + (2 * i + 1) % (2 * n),
                     idx + (2 * i + 2) % (2 * n),
                 );
-                self.triangle(
+                frame.triangle(
                     idx + (2 * i + 2) % (2 * n),
                     idx + (2 * i + 1) % (2 * n),
                     idx + (2 * i + 3) % (2 * n),
@@ -191,17 +212,16 @@ impl Frame {
             }
 
             for (&p, &n) in points.iter().zip(normals) {
-                self.vertices.push(vert(p + hw * n, color));
-                self.vertices.push(vert(p - hw * n, color));
+                frame.vertices.push(vert(p + hw * n, color));
+                frame.vertices.push(vert(p - hw * n, color));
             }
         }
     }
 
-    pub fn paint(fonts: &Fonts, commands: &[PaintCmd]) -> Frame {
+    pub fn paint(&mut self, fonts: &Fonts, commands: &[PaintCmd]) {
         let mut path_points = Vec::new();
         let mut path_normals = Vec::new();
 
-        let mut frame = Frame::default();
         for cmd in commands {
             match cmd {
                 PaintCmd::Circle {
@@ -222,10 +242,10 @@ impl Frame {
                     }
 
                     if let Some(color) = fill_color {
-                        frame.fill_closed_path(&path_points, &path_normals, *color);
+                        self.fill_closed_path(&path_points, &path_normals, *color);
                     }
                     if let Some(outline) = outline {
-                        frame.paint_path(
+                        self.paint_path(
                             Closed,
                             &path_points,
                             &path_normals,
@@ -235,7 +255,7 @@ impl Frame {
                     }
                 }
                 PaintCmd::Frame(cmd_frame) => {
-                    frame.append(cmd_frame);
+                    self.frame.append(cmd_frame);
                 }
                 PaintCmd::Line {
                     points,
@@ -261,7 +281,7 @@ impl Frame {
                                 .rot90(),
                         );
 
-                        frame.paint_path(Open, &path_points, &path_normals, *color, *width);
+                        self.paint_path(Open, &path_points, &path_normals, *color, *width);
                     }
                 }
                 PaintCmd::Rect {
@@ -315,10 +335,10 @@ impl Frame {
                     }
 
                     if let Some(color) = fill_color {
-                        frame.fill_closed_path(&path_points, &path_normals, *color);
+                        self.fill_closed_path(&path_points, &path_normals, *color);
                     }
                     if let Some(outline) = outline {
-                        frame.paint_path(
+                        self.paint_path(
                             Closed,
                             &path_points,
                             &path_normals,
@@ -349,12 +369,11 @@ impl Frame {
                                 uv: glyph.max,
                                 color: *color,
                             };
-                            frame.add_rect(top_left, bottom_right);
+                            self.frame.add_rect(top_left, bottom_right);
                         }
                     }
                 }
             }
         }
-        frame
     }
 }

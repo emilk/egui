@@ -4,7 +4,7 @@ use crate::{
     label, layout,
     layout::{show_popup, LayoutOptions, Region},
     math::{clamp, remap_clamp, vec2},
-    mesher::Vertex,
+    mesher::{Mesher, Vertex},
     style,
     types::{Color, GuiCmd, GuiInput, PaintCmd},
     widgets::*,
@@ -164,7 +164,10 @@ impl Emigui {
     pub fn paint(&mut self) -> Frame {
         let gui_commands = self.data.graphics.lock().unwrap().drain();
         let paint_commands = style::into_paint_commands(gui_commands, &self.style);
-        let frame = Frame::paint(&self.data.fonts, &paint_commands);
+
+        let mut mesher = Mesher::new(self.last_input.pixels_per_point);
+        mesher.paint(&self.data.fonts, &paint_commands);
+        let frame = mesher.frame;
         self.stats.num_vertices = frame.vertices.len();
         self.stats.num_triangles = frame.indices.len() / 3;
         frame
