@@ -310,7 +310,7 @@ impl<'a> Widget for Slider<'a> {
             let min = self.min;
             let max = self.max;
             debug_assert!(min <= max);
-            let id = region.combined_id(self.id);
+            let id = region.combined_id(Some(self.id.unwrap_or(42))); // TODO: slider ID
             let interact = region.reserve_space(
                 Vec2 {
                     x: region.available_space.x,
