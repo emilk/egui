@@ -15,13 +15,36 @@
 
     let WASM_VECTOR_LEN = 0;
 
-    function passStringToWasm(arg) {
+    let passStringToWasm;
+    if (typeof cachedTextEncoder.encodeInto === 'function') {
+        passStringToWasm = function(arg) {
 
-        const buf = cachedTextEncoder.encode(arg);
-        const ptr = wasm.__wbindgen_malloc(buf.length);
-        getUint8Memory().set(buf, ptr);
-        WASM_VECTOR_LEN = buf.length;
-        return ptr;
+            let size = arg.length;
+            let ptr = wasm.__wbindgen_malloc(size);
+            let writeOffset = 0;
+            while (true) {
+                const view = getUint8Memory().subarray(ptr + writeOffset, ptr + size);
+                const { read, written } = cachedTextEncoder.encodeInto(arg, view);
+                arg = arg.substring(read);
+                writeOffset += written;
+                if (arg.length === 0) {
+                    break;
+                }
+                ptr = wasm.__wbindgen_realloc(ptr, size, size * 2);
+                size *= 2;
+            }
+            WASM_VECTOR_LEN = writeOffset;
+            return ptr;
+        };
+    } else {
+        passStringToWasm = function(arg) {
+
+            const buf = cachedTextEncoder.encode(arg);
+            const ptr = wasm.__wbindgen_malloc(buf.length);
+            getUint8Memory().set(buf, ptr);
+            WASM_VECTOR_LEN = buf.length;
+            return ptr;
+        };
     }
     /**
     * @param {string} arg0
@@ -96,9 +119,7 @@ __exports.__widl_f_get_element_by_id_Document = function(arg0, arg1, arg2) {
 
 };
 
-__exports.__widl_instanceof_HTMLCanvasElement = function(idx) {
-    return getObject(idx) instanceof HTMLCanvasElement ? 1 : 0;
-};
+__exports.__widl_instanceof_HTMLCanvasElement = function(idx) { return getObject(idx) instanceof HTMLCanvasElement ? 1 : 0; };
 
 let cachegetUint32Memory = null;
 function getUint32Memory() {
@@ -106,6 +127,12 @@ function getUint32Memory() {
         cachegetUint32Memory = new Uint32Array(wasm.memory.buffer);
     }
     return cachegetUint32Memory;
+}
+
+function handleError(exnptr, e) {
+    const view = getUint32Memory();
+    view[exnptr / 4] = 1;
+    view[exnptr / 4 + 1] = addHeapObject(e);
 }
 
 __exports.__widl_f_get_context_HTMLCanvasElement = function(arg0, arg1, arg2, exnptr) {
@@ -116,10 +143,7 @@ __exports.__widl_f_get_context_HTMLCanvasElement = function(arg0, arg1, arg2, ex
         return isLikeNone(val) ? 0 : addHeapObject(val);
 
     } catch (e) {
-        const view = getUint32Memory();
-        view[exnptr / 4] = 1;
-        view[exnptr / 4 + 1] = addHeapObject(e);
-
+        handleError(exnptr, e);
     }
 };
 
@@ -135,9 +159,7 @@ __exports.__widl_f_now_Performance = function(arg0) {
     return getObject(arg0).now();
 };
 
-__exports.__widl_instanceof_WebGLRenderingContext = function(idx) {
-    return getObject(idx) instanceof WebGLRenderingContext ? 1 : 0;
-};
+__exports.__widl_instanceof_WebGLRenderingContext = function(idx) { return getObject(idx) instanceof WebGLRenderingContext ? 1 : 0; };
 
 __exports.__widl_f_buffer_data_with_array_buffer_view_WebGLRenderingContext = function(arg0, arg1, arg2, arg3) {
     getObject(arg0).bufferData(arg1, getObject(arg2), arg3);
@@ -152,10 +174,7 @@ __exports.__widl_f_tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and
     try {
         getObject(arg0).texImage2D(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, varg9);
     } catch (e) {
-        const view = getUint32Memory();
-        view[exnptr / 4] = 1;
-        view[exnptr / 4 + 1] = addHeapObject(e);
-
+        handleError(exnptr, e);
     }
 };
 
@@ -313,9 +332,7 @@ __exports.__widl_f_drawing_buffer_height_WebGLRenderingContext = function(arg0) 
     return getObject(arg0).drawingBufferHeight;
 };
 
-__exports.__widl_instanceof_Window = function(idx) {
-    return getObject(idx) instanceof Window ? 1 : 0;
-};
+__exports.__widl_instanceof_Window = function(idx) { return getObject(idx) instanceof Window ? 1 : 0; };
 
 __exports.__widl_f_document_Window = function(arg0) {
 
@@ -331,90 +348,67 @@ __exports.__widl_f_performance_Window = function(arg0) {
 
 };
 
-__exports.__wbg_new_f49b071a6847bcff = function(arg0) {
+__exports.__wbg_new_00eb63e4d0ee8796 = function(arg0) {
     return addHeapObject(new Float32Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_f8934b42fec7ca7c = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_a64203346c9773d6 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_newnoargs_43c5f57b77232284 = function(arg0, arg1) {
+__exports.__wbg_newnoargs_56431a307f4eb856 = function(arg0, arg1) {
     let varg0 = getStringFromWasm(arg0, arg1);
     return addHeapObject(new Function(varg0));
 };
 
-__exports.__wbg_call_7ac13208e630ddeb = function(arg0, arg1, exnptr) {
+__exports.__wbg_call_f6ee70703ec77c6c = function(arg0, arg1, exnptr) {
     try {
         return addHeapObject(getObject(arg0).call(getObject(arg1)));
     } catch (e) {
-        const view = getUint32Memory();
-        view[exnptr / 4] = 1;
-        view[exnptr / 4 + 1] = addHeapObject(e);
-
+        handleError(exnptr, e);
     }
 };
 
-__exports.__wbg_new_efed94c530925533 = function(arg0) {
+__exports.__wbg_new_138409b4887d6dd6 = function(arg0) {
     return addHeapObject(new Int16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_b6e319a511351c70 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_783c98c421ae1b96 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_a999fd72f5304154 = function(arg0) {
+__exports.__wbg_new_0763112334e4d8dd = function(arg0) {
     return addHeapObject(new Uint8Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_1cd21da1682e7d1e = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_b0dbd9eb6fca9341 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_new_12076896685e5e56 = function(arg0) {
+__exports.__wbg_new_fad4b1eaf5748cf4 = function(arg0) {
     return addHeapObject(new Uint16Array(getObject(arg0)));
 };
 
-__exports.__wbg_subarray_a860cdd7b04efc31 = function(arg0, arg1, arg2) {
+__exports.__wbg_subarray_20d7705e928d8a85 = function(arg0, arg1, arg2) {
     return addHeapObject(getObject(arg0).subarray(arg1, arg2));
 };
 
-__exports.__wbg_instanceof_Memory_ed5a1f7b9a0e05a3 = function(idx) {
-    return getObject(idx) instanceof WebAssembly.Memory ? 1 : 0;
-};
+__exports.__wbg_instanceof_Memory_d6aeebcf1c6c121e = function(idx) { return getObject(idx) instanceof WebAssembly.Memory ? 1 : 0; };
 
-__exports.__wbg_buffer_efdca35786c3eb75 = function(arg0) {
+__exports.__wbg_buffer_8a74a93c17ac10c7 = function(arg0) {
     return addHeapObject(getObject(arg0).buffer);
 };
 
-__exports.__wbindgen_object_clone_ref = function(idx) {
-    return addHeapObject(getObject(idx));
-};
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-__exports.__wbindgen_object_drop_ref = function(i) { dropObject(i); };
-
-__exports.__wbindgen_string_new = function(p, l) {
-    return addHeapObject(getStringFromWasm(p, l));
-};
+__exports.__wbindgen_string_new = function(p, l) { return addHeapObject(getStringFromWasm(p, l)); };
 
 __exports.__wbindgen_boolean_get = function(i) {
     let v = getObject(i);
-    if (typeof(v) === 'boolean') {
-        return v ? 1 : 0;
-    } else {
-        return 2;
-    }
+    return typeof(v) === 'boolean' ? (v ? 1 : 0) : 2;
 };
 
 __exports.__wbindgen_debug_string = function(i, len_ptr) {
-    const toString = Object.prototype.toString;
-    const debug_str = val => {
+    const debug_str =
+    val => {
         // primitive types
         const type = typeof val;
         if (type == 'number' || type == 'boolean' || val == null) {
@@ -478,7 +472,9 @@ __exports.__wbindgen_debug_string = function(i, len_ptr) {
     }
     // TODO we could test for more things here, like `Set`s and `Map`s.
     return className;
-};
+}
+;
+const toString = Object.prototype.toString;
 const val = getObject(i);
 const debug = debug_str(val);
 const ptr = passStringToWasm(debug);
@@ -487,6 +483,12 @@ return ptr;
 };
 
 __exports.__wbindgen_memory = function() { return addHeapObject(wasm.memory); };
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
 
 function takeObject(idx) {
     const ret = getObject(idx);
@@ -520,6 +522,12 @@ class State {
 }
 __exports.State = State;
 
+__exports.__wbindgen_object_clone_ref = function(idx) {
+    return addHeapObject(getObject(idx));
+};
+
+__exports.__wbindgen_object_drop_ref = function(i) { dropObject(i); };
+
 __exports.__wbindgen_throw = function(ptr, len) {
     throw new Error(getStringFromWasm(ptr, len));
 };
@@ -535,7 +543,13 @@ function init(path_or_module) {
 } else {
     const data = fetch(path_or_module);
     if (typeof WebAssembly.instantiateStreaming === 'function') {
-        instantiation = WebAssembly.instantiateStreaming(data, imports);
+        instantiation = WebAssembly.instantiateStreaming(data, imports)
+        .catch(e => {
+            console.warn("`WebAssembly.instantiateStreaming` failed. Assuming this is because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
+            return data
+            .then(r => r.arrayBuffer())
+            .then(bytes => WebAssembly.instantiate(bytes, imports));
+        });
     } else {
         instantiation = data
         .then(response => response.arrayBuffer())
