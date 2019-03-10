@@ -21,7 +21,7 @@ pub use crate::{
     emigui::Emigui,
     fonts::{FontSizes, Fonts, TextStyle},
     layout::{Align, LayoutOptions, Region},
-    mesher::{Frame, Vertex},
+    mesher::{Mesh, Vertex},
     style::Style,
     texture_atlas::Texture,
     types::RawInput,

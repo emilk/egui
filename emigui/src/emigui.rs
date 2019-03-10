@@ -8,7 +8,7 @@ use crate::{
     style,
     types::{Color, GuiCmd, GuiInput, PaintCmd},
     widgets::*,
-    FontSizes, Fonts, Frame, RawInput, Texture,
+    FontSizes, Fonts, Mesh, RawInput, Texture,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -68,9 +68,9 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
         uv: (texture.width as u16 - 1, texture.height as u16 - 1),
         color: Color::WHITE,
     };
-    let mut frame = Frame::default();
-    frame.add_rect(top_left, bottom_right);
-    gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+    let mut mesh = Mesh::default();
+    mesh.add_rect(top_left, bottom_right);
+    gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Mesh(mesh)]));
 
     if let Some(mouse_pos) = gui.input().mouse_pos {
         if interact.hovered {
@@ -107,9 +107,9 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
                     uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
                     color: Color::WHITE,
                 };
-                let mut frame = Frame::default();
-                frame.add_rect(top_left, bottom_right);
-                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Frame(frame)]));
+                let mut mesh = Mesh::default();
+                mesh.add_rect(top_left, bottom_right);
+                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Mesh(mesh)]));
             });
         }
     }
@@ -161,16 +161,16 @@ impl Emigui {
         }
     }
 
-    pub fn paint(&mut self) -> Frame {
+    pub fn paint(&mut self) -> Mesh {
         let gui_commands = self.data.graphics.lock().unwrap().drain();
         let paint_commands = style::into_paint_commands(gui_commands, &self.style);
 
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
         mesher.paint(&self.data.fonts, &paint_commands);
-        let frame = mesher.frame;
-        self.stats.num_vertices = frame.vertices.len();
-        self.stats.num_triangles = frame.indices.len() / 3;
-        frame
+        let mesh = mesher.mesh;
+        self.stats.num_vertices = mesh.vertices.len();
+        self.stats.num_triangles = mesh.indices.len() / 3;
+        mesh
     }
 
     pub fn example(&mut self, region: &mut Region) {

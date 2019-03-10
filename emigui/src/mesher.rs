@@ -18,19 +18,19 @@ pub struct Vertex {
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
-pub struct Frame {
+pub struct Mesh {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
 
-impl Frame {
-    pub fn append(&mut self, frame: &Frame) {
+impl Mesh {
+    pub fn append(&mut self, mesh: &Mesh) {
         let index_offset = self.vertices.len() as u32;
-        for index in &frame.indices {
+        for index in &mesh.indices {
             self.indices.push(index_offset + index);
         }
-        self.vertices.extend(frame.vertices.iter());
+        self.vertices.extend(mesh.vertices.iter());
     }
 
     fn triangle(&mut self, a: u32, b: u32, c: u32) {
@@ -74,7 +74,7 @@ pub struct Mesher {
     pub aa_size: f32,
 
     /// Where the output goes
-    pub frame: Frame,
+    pub mesh: Mesh,
 }
 
 impl Mesher {
@@ -82,7 +82,7 @@ impl Mesher {
         Mesher {
             anti_alias: true,
             aa_size: 1.0 / pixels_per_point,
-            frame: Default::default(),
+            mesh: Default::default(),
         }
     }
 
@@ -94,32 +94,30 @@ impl Mesher {
             uv: (0, 0),
             color,
         };
-        let frame = &mut self.frame;
+        let mesh = &mut self.mesh;
         if self.anti_alias {
             let color_outer = color.transparent();
-            let idx_inner = frame.vertices.len() as u32;
+            let idx_inner = mesh.vertices.len() as u32;
             let idx_outer = idx_inner + 1;
             for i in 2..n {
-                frame.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+                mesh.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
             }
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let dm = normals[i1 as usize] * self.aa_size * 0.5;
-                frame.vertices.push(vert(points[i1 as usize] - dm, color));
-                frame
-                    .vertices
+                mesh.vertices.push(vert(points[i1 as usize] - dm, color));
+                mesh.vertices
                     .push(vert(points[i1 as usize] + dm, color_outer));
-                frame.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-                frame.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                mesh.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                mesh.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
                 i0 = i1;
             }
         } else {
-            let idx = frame.vertices.len() as u32;
-            frame
-                .vertices
+            let idx = mesh.vertices.len() as u32;
+            mesh.vertices
                 .extend(points.iter().map(|&pos| vert(pos, color)));
             for i in 2..n {
-                frame.triangle(idx, idx + i - 1, idx + i);
+                mesh.triangle(idx, idx + i - 1, idx + i);
             }
         }
     }
@@ -135,14 +133,14 @@ impl Mesher {
         assert_eq!(points.len(), normals.len());
         let n = points.len() as u32;
         let hw = width / 2.0;
-        let idx = self.frame.vertices.len() as u32;
+        let idx = self.mesh.vertices.len() as u32;
 
         let vert = |pos, color| Vertex {
             pos,
             uv: (0, 0),
             color,
         };
-        let frame = &mut self.frame;
+        let mesh = &mut self.mesh;
 
         if self.anti_alias {
             let color_outer = color.transparent();
@@ -159,39 +157,37 @@ impl Mesher {
                 if thin_line {
                     let p = points[i1 as usize];
                     let n = normals[i1 as usize];
-                    frame.vertices.push(vert(p + n * self.aa_size, color_outer));
-                    frame.vertices.push(vert(p, color_inner));
-                    frame.vertices.push(vert(p - n * self.aa_size, color_outer));
+                    mesh.vertices.push(vert(p + n * self.aa_size, color_outer));
+                    mesh.vertices.push(vert(p, color_inner));
+                    mesh.vertices.push(vert(p - n * self.aa_size, color_outer));
 
                     if connect_with_previous {
-                        frame.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
-                        frame.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+                        mesh.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                        mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
 
-                        frame.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
-                        frame.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                        mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                        mesh.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
                     }
                 } else {
                     let hw = (width - self.aa_size) * 0.5;
                     let p = points[i1 as usize];
                     let n = normals[i1 as usize];
-                    frame
-                        .vertices
+                    mesh.vertices
                         .push(vert(p + n * (hw + self.aa_size), color_outer));
-                    frame.vertices.push(vert(p + n * (hw + 0.0), color_inner));
-                    frame.vertices.push(vert(p - n * (hw + 0.0), color_inner));
-                    frame
-                        .vertices
+                    mesh.vertices.push(vert(p + n * (hw + 0.0), color_inner));
+                    mesh.vertices.push(vert(p - n * (hw + 0.0), color_inner));
+                    mesh.vertices
                         .push(vert(p - n * (hw + self.aa_size), color_outer));
 
                     if connect_with_previous {
-                        frame.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                        frame.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+                        mesh.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
 
-                        frame.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                        frame.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                        mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
 
-                        frame.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                        frame.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                        mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        mesh.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
                     }
                 }
                 i0 = i1;
@@ -199,12 +195,12 @@ impl Mesher {
         } else {
             let last_index = if path_type == Closed { n } else { n - 1 };
             for i in 0..last_index {
-                frame.triangle(
+                mesh.triangle(
                     idx + (2 * i + 0) % (2 * n),
                     idx + (2 * i + 1) % (2 * n),
                     idx + (2 * i + 2) % (2 * n),
                 );
-                frame.triangle(
+                mesh.triangle(
                     idx + (2 * i + 2) % (2 * n),
                     idx + (2 * i + 1) % (2 * n),
                     idx + (2 * i + 3) % (2 * n),
@@ -212,8 +208,8 @@ impl Mesher {
             }
 
             for (&p, &n) in points.iter().zip(normals) {
-                frame.vertices.push(vert(p + hw * n, color));
-                frame.vertices.push(vert(p - hw * n, color));
+                mesh.vertices.push(vert(p + hw * n, color));
+                mesh.vertices.push(vert(p - hw * n, color));
             }
         }
     }
@@ -254,8 +250,8 @@ impl Mesher {
                         );
                     }
                 }
-                PaintCmd::Frame(cmd_frame) => {
-                    self.frame.append(cmd_frame);
+                PaintCmd::Mesh(cmd_frame) => {
+                    self.mesh.append(cmd_frame);
                 }
                 PaintCmd::Line {
                     points,
@@ -369,7 +365,7 @@ impl Mesher {
                                 uv: glyph.max,
                                 color: *color,
                             };
-                            self.frame.add_rect(top_left, bottom_right);
+                            self.mesh.add_rect(top_left, bottom_right);
                         }
                     }
                 }

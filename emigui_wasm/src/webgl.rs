@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{Frame, Texture};
+use emigui::{Mesh, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -145,7 +145,7 @@ impl Painter {
 
     pub fn paint(
         &mut self,
-        frame: &Frame,
+        mesh: &Mesh,
         texture: &Texture,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
@@ -163,19 +163,19 @@ impl Painter {
 
         // --------------------------------------------------------------------
 
-        let indices: Vec<u16> = frame.indices.iter().map(|idx| *idx as u16).collect();
+        let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
 
-        let mut positions: Vec<f32> = Vec::with_capacity(2 * frame.vertices.len());
-        let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * frame.vertices.len());
-        for v in &frame.vertices {
+        let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
+        let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * mesh.vertices.len());
+        for v in &mesh.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
             tex_coords.push(v.uv.0);
             tex_coords.push(v.uv.1);
         }
 
-        let mut colors: Vec<u8> = Vec::with_capacity(4 * frame.vertices.len());
-        for v in &frame.vertices {
+        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
+        for v in &mesh.vertices {
             colors.push(v.color.r);
             colors.push(v.color.g);
             colors.push(v.color.b);
