@@ -1,31 +1,34 @@
-# Emigui – Experimental, Modularized Immediate mode Graphical User Interface
+# Emigui
+Experimental, Modularized Immediate mode Graphical User Interface
 
-Here are the steps, in chronological order of execution:
+A GUI library written in Rust, compiled to WASM. Inspired by game tech.
 
-CODE: Input bindings, i.e. gathering GuiInput data from the system (web browser, Mac Window, iPhone App, ...)
-DATA: GuiInput: mouse and keyboard state + window size
-DATA: GuiSizes: this is a configuration of the ImLayout system, sets sizes of e.g. a slider.
-CODE: ImLayout: Immediate mode layout Gui elements. THIS IS WHAT YOUR APP CODE CALLS!
-DATA: GuiPaint: High-level commands to render e.g. a checked box with a hover-effect at a certain position.
-DATA: GuiStyle: The colors/shading of the gui.
-CODE: GuiPainter: Renders GuiPaint + GuiStyle into DrawCommands
-DATA: PaintCommands: low-level commands (e.g. "Draw a rectangle with this color here")
-CODE: Painter: paints the the PaintCommands to the screen (HTML canvas, OpenGL, ...)
+## How it works:
 
-This is similar to Dear ImGui but separates the layout from the rendering, and adds another step to the rendering.
+Loop:
+* Gather input: mouse, touches, screen size, ...
+* Run app code (Immediate Mode GUI)
+* Output is a triangle mesh
+* Render with WebGL
 
-# Implementation
+## Demos
+[Emigui feature demo](https://emilk.github.io/emigui/index.html)
 
-Input is gathered in TypeScript.
-PaintCommands rendered to a HTML canvas.
-Everything else is written in Rust, compiled to WASM.
+[Hobogo: A small game using Emigui](https://emilk.github.io/hobogo/index.html)
 
-# Test goal:
+## State
+More of a tech demo than anything else. Features:
 
-Make an "any" editor. Store text files, make a VERY SIMPLE text editor, in the web.
-Supports MARKDEEP. A place for you ideas. Stored on your computer (local storage).
+* Buttons
+* Sliders
+* Text
+* Horizontal or vertical layout
+* Columns
+* Collapsible headers
 
-# Credits / Licenses
+## Inspiration
+[Dear ImGui](https://github.com/ocornut/imgui)
 
+## Credits / Licenses
 ProggyClean.ttf, Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. http://www.proggyfonts.net/
 Roboto-Regular.ttf: Apache License, Version 2.0
