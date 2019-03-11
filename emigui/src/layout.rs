@@ -116,12 +116,12 @@ pub fn make_id<H: Hash>(source: &H) -> Id {
 /// TODO: improve this
 #[derive(Clone, Default)]
 pub struct GraphicLayers {
-    pub(crate) graphics: Vec<GuiCmd>,
-    pub(crate) hovering_graphics: Vec<GuiCmd>,
+    pub(crate) graphics: Vec<PaintCmd>,
+    pub(crate) hovering_graphics: Vec<PaintCmd>,
 }
 
 impl GraphicLayers {
-    pub fn drain(&mut self) -> impl ExactSizeIterator<Item = GuiCmd> {
+    pub fn drain(&mut self) -> impl ExactSizeIterator<Item = PaintCmd> {
         // TODO: there must be a nicer way to do this?
         let mut all_commands: Vec<_> = self.graphics.drain(..).collect();
         all_commands.extend(self.hovering_graphics.drain(..));
@@ -223,7 +223,15 @@ where
 
     let mut graphics = data.graphics.lock().unwrap();
     let popup_graphics = graphics.graphics.split_off(num_graphics_before);
-    graphics.hovering_graphics.push(GuiCmd::Window { rect });
+    graphics.hovering_graphics.push(PaintCmd::Rect {
+        corner_radius: 5.0,
+        fill_color: Some(style.background_fill_color()),
+        outline: Some(Outline {
+            color: gray(255, 255), // TODO
+            width: 1.0,
+        }),
+        rect,
+    });
     graphics.hovering_graphics.extend(popup_graphics);
 }
 
@@ -261,12 +269,17 @@ impl Region {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add_graphic(&mut self, gui_cmd: GuiCmd) {
-        self.data.graphics.lock().unwrap().graphics.push(gui_cmd)
+    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
+        self.data.graphics.lock().unwrap().graphics.push(paint_cmd)
     }
 
-    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.add_graphic(GuiCmd::PaintCommands(vec![paint_cmd]))
+    pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
+        self.data
+            .graphics
+            .lock()
+            .unwrap()
+            .graphics
+            .append(&mut cmds)
     }
 
     /// Options for this region, and any child regions we may spawn.
@@ -315,11 +328,11 @@ impl Region {
         let text_style = TextStyle::Button;
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&text, self.width());
-        let text_cursor = self.cursor + self.style().button_padding;
+        let text_cursor = self.cursor + self.style.button_padding;
         let interact = self.reserve_space(
             vec2(
                 self.available_space.x,
-                text_size.y + 2.0 * self.style().button_padding.y,
+                text_size.y + 2.0 * self.style.button_padding.y,
             ),
             Some(id),
         );
@@ -336,9 +349,40 @@ impl Region {
             memory.open_foldables.contains(&id)
         };
 
-        self.add_graphic(GuiCmd::FoldableHeader { interact, open });
+        let fill_color = self.style.interact_fill_color(&interact);
+        let stroke_color = self.style.interact_stroke_color(&interact);
+
+        self.add_paint_cmd(PaintCmd::Rect {
+            corner_radius: 3.0,
+            fill_color: Some(fill_color),
+            outline: None,
+            rect: interact.rect,
+        });
+
+        let (small_icon_rect, _) = self.style.icon_rectangles(&interact.rect);
+        // Draw a minus:
+        self.add_paint_cmd(PaintCmd::Line {
+            points: vec![
+                vec2(small_icon_rect.min().x, small_icon_rect.center().y),
+                vec2(small_icon_rect.max().x, small_icon_rect.center().y),
+            ],
+            color: stroke_color,
+            width: self.style.line_width,
+        });
+        if !open {
+            // Draw it as a plus:
+            self.add_paint_cmd(PaintCmd::Line {
+                points: vec![
+                    vec2(small_icon_rect.center().x, small_icon_rect.min().y),
+                    vec2(small_icon_rect.center().x, small_icon_rect.max().y),
+                ],
+                color: stroke_color,
+                width: self.style.line_width,
+            });
+        }
+
         self.add_text(
-            text_cursor + vec2(self.style().start_icon_width, 0.0),
+            text_cursor + vec2(self.style.start_icon_width, 0.0),
             text_style,
             text,
             None,
@@ -359,7 +403,7 @@ impl Region {
     where
         F: FnOnce(&mut Region),
     {
-        let indent = vec2(self.style().indent, 0.0);
+        let indent = vec2(self.style.indent, 0.0);
         let mut child_region = Region {
             data: self.data.clone(),
             style: self.style,
@@ -435,7 +479,7 @@ impl Region {
         F: FnOnce(&mut [Region]) -> R,
     {
         // TODO: ensure there is space
-        let padding = self.style().item_spacing.x;
+        let padding = self.style.item_spacing.x;
         let total_padding = padding * (num_columns as f32 - 1.0);
         let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
 
@@ -473,7 +517,7 @@ impl Region {
     // ------------------------------------------------------------------------
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
-        let pos = self.reserve_space_without_padding(size + self.style().item_spacing);
+        let pos = self.reserve_space_without_padding(size + self.style.item_spacing);
         let rect = Rect::from_min_size(pos, size);
         let mut memory = self.data.memory.lock().unwrap();
 
@@ -580,8 +624,9 @@ impl Region {
         text: Vec<TextFragment>,
         color: Option<Color>,
     ) {
+        let color = color.unwrap_or_else(|| self.style().text_color());
         for fragment in text {
-            self.add_graphic(GuiCmd::Text {
+            self.add_paint_cmd(PaintCmd::Text {
                 color,
                 pos: pos + vec2(0.0, fragment.y_offset),
                 text: fragment.text,

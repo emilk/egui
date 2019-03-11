@@ -3,8 +3,8 @@
 use crate::{
     fonts::TextStyle,
     layout::{make_id, Align, Direction, GuiResponse, Id, Region},
-    math::{remap_clamp, vec2, Vec2},
-    types::{Color, GuiCmd, PaintCmd},
+    math::{remap_clamp, vec2, Rect, Vec2},
+    types::{gray, Color, Outline, PaintCmd},
 };
 
 // ----------------------------------------------------------------------------
@@ -91,7 +91,12 @@ impl Widget for Button {
         size.y = size.y.max(region.style().clickable_diameter);
         let interact = region.reserve_space(size, Some(id));
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
-        region.add_graphic(GuiCmd::Button { interact });
+        region.add_paint_cmd(PaintCmd::Rect {
+            corner_radius: 10.0,
+            fill_color: Some(region.style().interact_fill_color(&interact)),
+            outline: None,
+            rect: interact.rect,
+        });
         region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
@@ -140,10 +145,28 @@ impl<'a> Widget for Checkbox<'a> {
         if interact.clicked {
             *self.checked = !*self.checked;
         }
-        region.add_graphic(GuiCmd::Checkbox {
-            checked: *self.checked,
-            interact,
+        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(&interact.rect);
+        region.add_paint_cmd(PaintCmd::Rect {
+            corner_radius: 3.0,
+            fill_color: Some(region.style().interact_fill_color(&interact)),
+            outline: None,
+            rect: big_icon_rect,
         });
+
+        let stroke_color = region.style().interact_stroke_color(&interact);
+
+        if *self.checked {
+            region.add_paint_cmd(PaintCmd::Line {
+                points: vec![
+                    vec2(small_icon_rect.min().x, small_icon_rect.center().y),
+                    vec2(small_icon_rect.center().x, small_icon_rect.max().y),
+                    vec2(small_icon_rect.max().x, small_icon_rect.min().y),
+                ],
+                color: stroke_color,
+                width: region.style().line_width,
+            });
+        }
+
         region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
@@ -193,10 +216,28 @@ impl Widget for RadioButton {
         let text_cursor = interact.rect.min()
             + region.style().button_padding
             + vec2(region.style().start_icon_width, 0.0);
-        region.add_graphic(GuiCmd::RadioButton {
-            checked: self.checked,
-            interact,
+
+        let fill_color = region.style().interact_fill_color(&interact);
+        let stroke_color = region.style().interact_stroke_color(&interact);
+
+        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(&interact.rect);
+
+        region.add_paint_cmd(PaintCmd::Circle {
+            center: big_icon_rect.center(),
+            fill_color: Some(fill_color),
+            outline: None,
+            radius: big_icon_rect.size.x / 2.0,
         });
+
+        if self.checked {
+            region.add_paint_cmd(PaintCmd::Circle {
+                center: small_icon_rect.center(),
+                fill_color: Some(stroke_color),
+                outline: None,
+                radius: small_icon_rect.size.x / 2.0,
+            });
+        }
+
         region.add_text(text_cursor, text_style, text, self.text_color);
         region.response(interact)
     }
@@ -349,12 +390,36 @@ impl<'a> Widget for Slider<'a> {
                 }
             }
 
-            region.add_graphic(GuiCmd::Slider {
-                interact,
-                max,
-                min,
-                value: (self.get_set_value)(None),
-            });
+            // Paint it:
+            {
+                let value = (self.get_set_value)(None);
+
+                let rect = interact.rect;
+                let thickness = rect.size().y;
+                let thin_size = vec2(rect.size.x, thickness / 5.0);
+                let thin_rect = Rect::from_center_size(rect.center(), thin_size);
+                let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
+
+                region.add_paint_cmd(PaintCmd::Rect {
+                    corner_radius: 4.0,
+                    fill_color: Some(region.style().background_fill_color()),
+                    outline: Some(Outline {
+                        color: gray(200, 255), // TODO
+                        width: 1.0,
+                    }),
+                    rect: thin_rect,
+                });
+
+                region.add_paint_cmd(PaintCmd::Circle {
+                    center: vec2(marker_center_x, thin_rect.center().y),
+                    fill_color: Some(region.style().interact_fill_color(&interact)),
+                    outline: Some(Outline {
+                        color: region.style().interact_stroke_color(&interact),
+                        width: 1.5,
+                    }),
+                    radius: thickness / 3.0,
+                });
+            }
 
             region.response(interact)
         }
@@ -412,12 +477,11 @@ impl Widget for Separator {
                 )
             }
         };
-        let paint_cmd = PaintCmd::Line {
+        region.add_paint_cmd(PaintCmd::Line {
             points,
             color: Color::WHITE,
             width: self.line_width,
-        };
-        region.add_graphic(GuiCmd::PaintCommands(vec![paint_cmd]));
+        });
         region.response(interact)
     }
 }

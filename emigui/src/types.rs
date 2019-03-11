@@ -111,47 +111,6 @@ pub struct InteractInfo {
     pub rect: Rect,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub enum GuiCmd {
-    PaintCommands(Vec<PaintCmd>),
-    /// The background for a button
-    Button {
-        interact: InteractInfo,
-    },
-    Checkbox {
-        checked: bool,
-        interact: InteractInfo,
-    },
-    /// The header button background for a foldable region
-    FoldableHeader {
-        interact: InteractInfo,
-        open: bool,
-    },
-    RadioButton {
-        checked: bool,
-        interact: InteractInfo,
-    },
-    Slider {
-        interact: InteractInfo,
-        max: f32,
-        min: f32,
-        value: f32,
-    },
-    /// A string of text with a position for each character.
-    Text {
-        color: Option<Color>,
-        pos: Vec2,
-        text: String,
-        text_style: TextStyle,
-        /// Start each character in the text, as offset from pos.
-        x_offsets: Vec<f32>,
-    },
-    /// Background of e.g. a popup
-    Window {
-        rect: Rect,
-    },
-}
-
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Serialize)]

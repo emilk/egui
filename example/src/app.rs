@@ -129,7 +129,7 @@ impl App {
                     }),
                 });
             }
-            gui.add_graphic(GuiCmd::PaintCommands(cmds));
+            gui.add_paint_cmds(cmds);
         });
 
         gui.foldable("Slider example", |gui| {

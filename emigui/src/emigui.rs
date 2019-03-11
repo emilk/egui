@@ -6,7 +6,7 @@ use crate::{
     math::{clamp, remap_clamp, vec2},
     mesher::{Mesher, Vertex},
     style::Style,
-    types::{Color, GuiCmd, GuiInput, PaintCmd},
+    types::{Color, GuiInput, PaintCmd},
     widgets::*,
     FontSizes, Fonts, Mesh, RawInput, Texture,
 };
@@ -63,7 +63,7 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
     };
     let mut mesh = Mesh::default();
     mesh.add_rect(top_left, bottom_right);
-    gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Mesh(mesh)]));
+    gui.add_paint_cmd(PaintCmd::Mesh(mesh));
 
     if let Some(mouse_pos) = gui.input().mouse_pos {
         if interact.hovered {
@@ -102,7 +102,7 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
                 };
                 let mut mesh = Mesh::default();
                 mesh.add_rect(top_left, bottom_right);
-                gui.add_graphic(GuiCmd::PaintCommands(vec![PaintCmd::Mesh(mesh)]));
+                gui.add_paint_cmd(PaintCmd::Mesh(mesh));
             });
         }
     }
@@ -153,9 +153,7 @@ impl Emigui {
     }
 
     pub fn paint(&mut self) -> Mesh {
-        let gui_commands = self.data.graphics.lock().unwrap().drain();
-        let paint_commands = crate::style::into_paint_commands(gui_commands, &self.data.style());
-
+        let paint_commands: Vec<PaintCmd> = self.data.graphics.lock().unwrap().drain().collect();
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
         mesher.paint(&self.data.fonts, &paint_commands);
         let mesh = mesher.mesh;
