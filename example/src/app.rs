@@ -2,13 +2,15 @@ use emigui::{label, math::*, types::*, widgets::*, Align, Region, TextStyle};
 
 pub struct App {
     checked: bool,
-    count: i32,
-    radio: i32,
+    count: usize,
+    radio: usize,
 
     size: Vec2,
     corner_radius: f32,
     stroke_width: f32,
-    num_boxes: i32,
+    num_boxes: usize,
+
+    num_columns: usize,
 }
 
 impl Default for App {
@@ -21,6 +23,8 @@ impl Default for App {
             corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
+
+            num_columns: 2,
         }
     }
 }
@@ -69,12 +73,26 @@ impl App {
             });
         });
 
+        gui.foldable("Layouts", |gui| {
+            gui.add(Slider::usize(&mut self.num_columns, 1, 10).text("Columns"));
+            gui.columns(self.num_columns, |cols| {
+                for (i, col) in cols.iter_mut().enumerate() {
+                    col.add(label!("Column {} out of {}", i + 1, self.num_columns));
+                    if i + 1 == self.num_columns {
+                        if col.add(Button::new("Delete this")).clicked {
+                            self.num_columns -= 1;
+                        }
+                    }
+                }
+            });
+        });
+
         gui.foldable("Test box rendering", |gui| {
             gui.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
             gui.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
             gui.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
             gui.add(Slider::f32(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
-            gui.add(Slider::i32(&mut self.num_boxes, 0, 5).text("num_boxes"));
+            gui.add(Slider::usize(&mut self.num_boxes, 0, 5).text("num_boxes"));
 
             let pos = gui
                 .reserve_space(
