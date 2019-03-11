@@ -1,5 +1,15 @@
 use emigui::{label, math::*, types::*, widgets::*, Align, Region, TextStyle};
 
+pub fn show_value_gui(value: &mut usize, gui: &mut Region) {
+    gui.add(Slider::usize(value, 1, 1000));
+    if *value < 500 {
+        if gui.add(Button::new("Double it")).clicked {
+            *value *= 2;
+        }
+    }
+    gui.add(label!("Value: {}", value));
+}
+
 pub struct App {
     checked: bool,
     count: usize,
@@ -11,6 +21,8 @@ pub struct App {
     num_boxes: usize,
 
     num_columns: usize,
+
+    slider_value: usize,
 }
 
 impl Default for App {
@@ -25,6 +37,8 @@ impl Default for App {
             num_boxes: 1,
 
             num_columns: 2,
+
+            slider_value: 100,
         }
     }
 }
@@ -118,6 +132,10 @@ impl App {
                 });
             }
             gui.add_graphic(GuiCmd::PaintCommands(cmds));
+        });
+
+        gui.foldable("Slider example", |gui| {
+            show_value_gui(&mut self.slider_value, gui);
         });
     }
 }
