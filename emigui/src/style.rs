@@ -21,32 +21,32 @@ impl Default for Style {
 impl Style {
     /// e.g. the background of the slider
     fn background_fill_color(&self) -> Color {
-        srgba(34, 34, 34, 200)
+        gray(34, 200)
     }
 
     fn text_color(&self) -> Color {
-        srgba(255, 255, 255, 187)
+        gray(255, 200)
     }
 
     /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
     fn interact_fill_color(&self, interact: &InteractInfo) -> Color {
         if interact.active {
-            srgba(136, 136, 136, 255)
+            srgba(100, 100, 200, 255)
         } else if interact.hovered {
-            srgba(100, 100, 100, 255)
+            srgba(100, 100, 150, 255)
         } else {
-            srgba(68, 68, 68, 220)
+            srgba(60, 60, 70, 255)
         }
     }
 
     /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
     fn interact_stroke_color(&self, interact: &InteractInfo) -> Color {
         if interact.active {
-            srgba(255, 255, 255, 255)
+            gray(255, 255)
         } else if interact.hovered {
-            srgba(255, 255, 255, 200)
+            gray(255, 200)
         } else {
-            srgba(255, 255, 255, 170)
+            gray(255, 170)
         }
     }
 
@@ -69,7 +69,7 @@ fn debug_rect(rect: Rect) -> PaintCmd {
         corner_radius: 0.0,
         fill_color: None,
         outline: Some(Outline {
-            color: srgba(255, 255, 255, 255),
+            color: gray(255, 255),
             width: 1.0,
         }),
         rect,
@@ -82,7 +82,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
         GuiCmd::Button { interact } => {
             out_commands.push(PaintCmd::Rect {
-                corner_radius: 5.0,
+                corner_radius: 10.0,
                 fill_color: Some(style.interact_fill_color(&interact)),
                 outline: None,
                 rect: interact.rect,
@@ -185,27 +185,28 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
         } => {
             let rect = interact.rect;
             let thickness = rect.size().y;
-            let thin_size = vec2(rect.size.x, thickness / 2.0);
+            let thin_size = vec2(rect.size.x, thickness / 5.0);
             let thin_rect = Rect::from_center_size(rect.center(), thin_size);
             let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
-            let marker_rect = Rect::from_center_size(
-                vec2(marker_center_x, thin_rect.center().y),
-                vec2(thickness, thickness),
-            );
-
             out_commands.push(PaintCmd::Rect {
-                corner_radius: 2.0,
+                corner_radius: 4.0,
                 fill_color: Some(style.background_fill_color()),
-                outline: None,
+                outline: Some(Outline {
+                    color: gray(200, 255), // TODO
+                    width: 1.0,
+                }),
                 rect: thin_rect,
             });
 
-            out_commands.push(PaintCmd::Rect {
-                corner_radius: 6.0,
+            out_commands.push(PaintCmd::Circle {
+                center: vec2(marker_center_x, thin_rect.center().y),
                 fill_color: Some(style.interact_fill_color(&interact)),
-                outline: None,
-                rect: marker_rect,
+                outline: Some(Outline {
+                    color: style.interact_stroke_color(&interact),
+                    width: 1.5,
+                }),
+                radius: thickness / 3.0,
             });
 
             if style.debug_rects {
@@ -233,7 +234,7 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 corner_radius: 5.0,
                 fill_color: Some(style.background_fill_color()),
                 outline: Some(Outline {
-                    color: srgba(255, 255, 255, 255), // TODO
+                    color: gray(255, 255), // TODO
                     width: 1.0,
                 }),
                 rect,

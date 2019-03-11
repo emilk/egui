@@ -85,6 +85,15 @@ pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
     Color { r, g, b, a }
 }
 
+pub const fn gray(l: u8, a: u8) -> Color {
+    Color {
+        r: l,
+        g: l,
+        b: l,
+        a,
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
@@ -160,7 +169,6 @@ pub enum PaintCmd {
         outline: Option<Outline>,
         radius: f32,
     },
-    Mesh(Mesh),
     Line {
         points: Vec<Vec2>,
         color: Color,
@@ -183,4 +191,6 @@ pub enum PaintCmd {
         x_offsets: Vec<f32>,
         // TODO: font info
     },
+    /// Low-level triangle mesh
+    Mesh(Mesh),
 }

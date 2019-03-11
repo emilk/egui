@@ -2,10 +2,8 @@ use emigui::{label, math::*, types::*, widgets::*, Align, Region, TextStyle};
 
 pub fn show_value_gui(value: &mut usize, gui: &mut Region) {
     gui.add(Slider::usize(value, 1, 1000));
-    if *value < 500 {
-        if gui.add(Button::new("Double it")).clicked {
-            *value *= 2;
-        }
+    if gui.add(Button::new("Double it")).clicked {
+        *value *= 2;
     }
     gui.add(label!("Value: {}", value));
 }
@@ -120,14 +118,14 @@ impl App {
             for i in 0..self.num_boxes {
                 cmds.push(PaintCmd::Rect {
                     corner_radius: self.corner_radius,
-                    fill_color: Some(srgba(136, 136, 136, 255)),
+                    fill_color: Some(gray(136, 255)),
                     rect: Rect::from_min_size(
-                        vec2(pos.x + (i as f32) * self.size.x, pos.y),
+                        vec2(pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                         self.size,
                     ),
                     outline: Some(Outline {
                         width: self.stroke_width,
-                        color: srgba(255, 255, 255, 255),
+                        color: gray(255, 255),
                     }),
                 });
             }
