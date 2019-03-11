@@ -86,9 +86,9 @@ impl Widget for Button {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
-        let padding = region.options().button_padding;
+        let padding = region.style().button_padding;
         let mut size = text_size + 2.0 * padding;
-        size.y = size.y.max(region.options().clickable_diameter);
+        size.y = size.y.max(region.style().clickable_diameter);
         let interact = region.reserve_space(size, Some(id));
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         region.add_graphic(GuiCmd::Button { interact });
@@ -128,15 +128,15 @@ impl<'a> Widget for Checkbox<'a> {
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let interact = region.reserve_space(
-            region.options().button_padding
-                + vec2(region.options().start_icon_width, 0.0)
+            region.style().button_padding
+                + vec2(region.style().start_icon_width, 0.0)
                 + text_size
-                + region.options().button_padding,
+                + region.style().button_padding,
             Some(id),
         );
         let text_cursor = interact.rect.min()
-            + region.options().button_padding
-            + vec2(region.options().start_icon_width, 0.0);
+            + region.style().button_padding
+            + vec2(region.style().start_icon_width, 0.0);
         if interact.clicked {
             *self.checked = !*self.checked;
         }
@@ -184,15 +184,15 @@ impl Widget for RadioButton {
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
         let interact = region.reserve_space(
-            region.options().button_padding
-                + vec2(region.options().start_icon_width, 0.0)
+            region.style().button_padding
+                + vec2(region.style().start_icon_width, 0.0)
                 + text_size
-                + region.options().button_padding,
+                + region.style().button_padding,
             Some(id),
         );
         let text_cursor = interact.rect.min()
-            + region.options().button_padding
-            + vec2(region.options().start_icon_width, 0.0);
+            + region.style().button_padding
+            + vec2(region.style().start_icon_width, 0.0);
         region.add_graphic(GuiCmd::RadioButton {
             checked: self.checked,
             interact,
@@ -323,7 +323,7 @@ impl<'a> Widget for Slider<'a> {
                 })
             }
         } else {
-            let height = font.line_spacing().max(region.options().clickable_diameter);
+            let height = font.line_spacing().max(region.style().clickable_diameter);
 
             let min = self.min;
             let max = self.max;

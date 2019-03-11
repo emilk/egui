@@ -8,46 +8,10 @@ use crate::{
     font::TextFragment,
     fonts::{Fonts, TextStyle},
     math::*,
+    style::Style,
     types::*,
     widgets::{Label, Widget},
 };
-
-// ----------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, Serialize)]
-pub struct LayoutOptions {
-    /// Horizontal and vertical padding within a window frame.
-    pub window_padding: Vec2,
-
-    /// Button size is text size plus this on each side
-    pub button_padding: Vec2,
-
-    /// Horizontal and vertical spacing between widgets
-    pub item_spacing: Vec2,
-
-    /// Indent foldable regions etc by this much.
-    pub indent: f32,
-
-    /// Anything clickable is (at least) this wide.
-    pub clickable_diameter: f32,
-
-    /// Checkboxes, radio button and foldables have an icon at the start.
-    /// The text starts after this many pixels.
-    pub start_icon_width: f32,
-}
-
-impl Default for LayoutOptions {
-    fn default() -> Self {
-        LayoutOptions {
-            window_padding: vec2(6.0, 6.0),
-            button_padding: vec2(5.0, 3.0),
-            item_spacing: vec2(8.0, 4.0),
-            indent: 21.0,
-            clickable_diameter: 34.0,
-            start_icon_width: 20.0,
-        }
-    }
-}
 
 // ----------------------------------------------------------------------------
 
@@ -168,10 +132,10 @@ impl GraphicLayers {
 // ----------------------------------------------------------------------------
 
 // TODO: give a better name.
-/// Contains the input, options and output of all GUI commands.
+/// Contains the input, style and output of all GUI commands.
 pub struct Data {
-    /// The default options for new regions
-    pub(crate) options: Mutex<LayoutOptions>,
+    /// The default style for new regions
+    pub(crate) style: Mutex<Style>,
     pub(crate) fonts: Arc<Fonts>,
     pub(crate) input: GuiInput,
     pub(crate) memory: Mutex<Memory>,
@@ -181,7 +145,7 @@ pub struct Data {
 impl Clone for Data {
     fn clone(&self) -> Self {
         Data {
-            options: Mutex::new(self.options()),
+            style: Mutex::new(self.style()),
             fonts: self.fonts.clone(),
             input: self.input,
             memory: Mutex::new(self.memory.lock().unwrap().clone()),
@@ -193,7 +157,7 @@ impl Clone for Data {
 impl Data {
     pub fn new(pixels_per_point: f32) -> Data {
         Data {
-            options: Default::default(),
+            style: Default::default(),
             fonts: Arc::new(Fonts::new(pixels_per_point)),
             input: Default::default(),
             memory: Default::default(),
@@ -205,12 +169,12 @@ impl Data {
         &self.input
     }
 
-    pub fn options(&self) -> LayoutOptions {
-        *self.options.lock().unwrap()
+    pub fn style(&self) -> Style {
+        *self.style.lock().unwrap()
     }
 
-    pub fn set_options(&self, options: LayoutOptions) {
-        *self.options.lock().unwrap() = options;
+    pub fn set_style(&self, style: Style) {
+        *self.style.lock().unwrap() = style;
     }
 
     // TODO: move
@@ -235,12 +199,12 @@ where
     // TODO: nicer way to do layering!
     let num_graphics_before = data.graphics.lock().unwrap().graphics.len();
 
-    let options = data.options();
-    let window_padding = options.window_padding;
+    let style = data.style();
+    let window_padding = style.window_padding;
 
     let mut popup_region = Region {
         data: data.clone(),
-        options,
+        style,
         id: Default::default(),
         dir: Direction::Vertical,
         align: Align::Min,
@@ -252,7 +216,7 @@ where
     add_contents(&mut popup_region);
 
     // TODO: handle the last item_spacing in a nicer way
-    let inner_size = popup_region.bounding_size - options.item_spacing;
+    let inner_size = popup_region.bounding_size - style.item_spacing;
     let outer_size = inner_size + 2.0 * window_padding;
 
     let rect = Rect::from_min_size(window_pos, outer_size);
@@ -271,7 +235,7 @@ where
 pub struct Region {
     pub(crate) data: Arc<Data>,
 
-    pub(crate) options: LayoutOptions,
+    pub(crate) style: Style,
 
     /// Unique ID of this region.
     pub(crate) id: Id,
@@ -301,9 +265,13 @@ impl Region {
         self.data.graphics.lock().unwrap().graphics.push(gui_cmd)
     }
 
+    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
+        self.add_graphic(GuiCmd::PaintCommands(vec![paint_cmd]))
+    }
+
     /// Options for this region, and any child regions we may spawn.
-    pub fn options(&self) -> &LayoutOptions {
-        &self.options
+    pub fn style(&self) -> &Style {
+        &self.style
     }
 
     pub fn data(&self) -> &Arc<Data> {
@@ -347,11 +315,11 @@ impl Region {
         let text_style = TextStyle::Button;
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&text, self.width());
-        let text_cursor = self.cursor + self.options().button_padding;
+        let text_cursor = self.cursor + self.style().button_padding;
         let interact = self.reserve_space(
             vec2(
                 self.available_space.x,
-                text_size.y + 2.0 * self.options().button_padding.y,
+                text_size.y + 2.0 * self.style().button_padding.y,
             ),
             Some(id),
         );
@@ -370,7 +338,7 @@ impl Region {
 
         self.add_graphic(GuiCmd::FoldableHeader { interact, open });
         self.add_text(
-            text_cursor + vec2(self.options().start_icon_width, 0.0),
+            text_cursor + vec2(self.style().start_icon_width, 0.0),
             text_style,
             text,
             None,
@@ -391,10 +359,10 @@ impl Region {
     where
         F: FnOnce(&mut Region),
     {
-        let indent = vec2(self.options().indent, 0.0);
+        let indent = vec2(self.style().indent, 0.0);
         let mut child_region = Region {
             data: self.data.clone(),
-            options: self.options,
+            style: self.style,
             id: self.id,
             dir: self.dir,
             align: Align::Min,
@@ -411,7 +379,7 @@ impl Region {
     pub fn centered_column(&mut self, width: f32, align: Align) -> Region {
         Region {
             data: self.data.clone(),
-            options: self.options,
+            style: self.style,
             id: self.id,
             dir: self.dir,
             cursor: self.cursor + vec2((self.available_space.x - width) / 2.0, 0.0),
@@ -427,7 +395,7 @@ impl Region {
     {
         let mut child_region = Region {
             data: self.data.clone(),
-            options: self.options,
+            style: self.style,
             id: self.id,
             dir,
             align,
@@ -467,14 +435,14 @@ impl Region {
         F: FnOnce(&mut [Region]) -> R,
     {
         // TODO: ensure there is space
-        let padding = self.options().item_spacing.x;
+        let padding = self.style().item_spacing.x;
         let total_padding = padding * (num_columns as f32 - 1.0);
         let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
 
         let mut columns: Vec<Region> = (0..num_columns)
             .map(|col_idx| Region {
                 data: self.data.clone(),
-                options: self.options,
+                style: self.style,
                 id: self.make_child_id(&("column", col_idx)),
                 dir: Direction::Vertical,
                 align: self.align,
@@ -505,7 +473,7 @@ impl Region {
     // ------------------------------------------------------------------------
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
-        let pos = self.reserve_space_without_padding(size + self.options().item_spacing);
+        let pos = self.reserve_space_without_padding(size + self.style().item_spacing);
         let rect = Rect::from_min_size(pos, size);
         let mut memory = self.data.memory.lock().unwrap();
 

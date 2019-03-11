@@ -1,18 +1,41 @@
 use crate::{math::*, types::*};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Style {
-    /// Show rectangles around each widget
-    pub debug_rects: bool,
+    /// Horizontal and vertical padding within a window frame.
+    pub window_padding: Vec2,
 
+    /// Button size is text size plus this on each side
+    pub button_padding: Vec2,
+
+    /// Horizontal and vertical spacing between widgets
+    pub item_spacing: Vec2,
+
+    /// Indent foldable regions etc by this much.
+    pub indent: f32,
+
+    /// Anything clickable is (at least) this wide.
+    pub clickable_diameter: f32,
+
+    /// Checkboxes, radio button and foldables have an icon at the start.
+    /// The text starts after this many pixels.
+    pub start_icon_width: f32,
+
+    // -----------------------------------------------
+    // Purely visual:
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 }
 
 impl Default for Style {
-    fn default() -> Style {
+    fn default() -> Self {
         Style {
-            debug_rects: false,
+            window_padding: vec2(6.0, 6.0),
+            button_padding: vec2(5.0, 3.0),
+            item_spacing: vec2(8.0, 4.0),
+            indent: 21.0,
+            clickable_diameter: 34.0,
+            start_icon_width: 20.0,
             line_width: 2.0,
         }
     }
@@ -64,19 +87,8 @@ impl Style {
     }
 }
 
-fn debug_rect(rect: Rect) -> PaintCmd {
-    PaintCmd::Rect {
-        corner_radius: 0.0,
-        fill_color: None,
-        outline: Some(Outline {
-            color: gray(255, 255),
-            width: 1.0,
-        }),
-        rect,
-    }
-}
+// ----------------------------------------------------------------------------
 
-/// TODO: a Style struct which defines colors etc
 fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
     match cmd {
         GuiCmd::PaintCommands(mut commands) => out_commands.append(&mut commands),
@@ -87,9 +99,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 outline: None,
                 rect: interact.rect,
             });
-            if style.debug_rects {
-                out_commands.push(debug_rect(interact.rect));
-            }
         }
         GuiCmd::Checkbox { checked, interact } => {
             let (small_icon_rect, big_icon_rect) = style.icon_rectangles(&interact.rect);
@@ -112,10 +121,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     color: stroke_color,
                     width: style.line_width,
                 });
-            }
-
-            if style.debug_rects {
-                out_commands.push(debug_rect(interact.rect));
             }
         }
         GuiCmd::FoldableHeader { interact, open } => {
@@ -172,10 +177,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                     radius: small_icon_rect.size.x / 2.0,
                 });
             }
-
-            if style.debug_rects {
-                out_commands.push(debug_rect(interact.rect));
-            }
         }
         GuiCmd::Slider {
             interact,
@@ -208,10 +209,6 @@ fn translate_cmd(out_commands: &mut Vec<PaintCmd>, style: &Style, cmd: GuiCmd) {
                 }),
                 radius: thickness / 3.0,
             });
-
-            if style.debug_rects {
-                out_commands.push(debug_rect(rect));
-            }
         }
         GuiCmd::Text {
             color,

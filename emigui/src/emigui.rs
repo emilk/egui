@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::{
     label, layout,
-    layout::{show_popup, LayoutOptions, Region},
+    layout::{show_popup, Region},
     math::{clamp, remap_clamp, vec2},
     mesher::{Mesher, Vertex},
-    style,
+    style::Style,
     types::{Color, GuiCmd, GuiInput, PaintCmd},
     widgets::*,
     FontSizes, Fonts, Mesh, RawInput, Texture,
@@ -17,26 +17,19 @@ struct Stats {
     num_triangles: usize,
 }
 
-fn show_options(options: &mut LayoutOptions, gui: &mut Region) {
-    if gui.add(Button::new("Reset LayoutOptions")).clicked {
-        *options = Default::default();
-    }
-    gui.add(Slider::f32(&mut options.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
-    gui.add(Slider::f32(&mut options.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
-    gui.add(Slider::f32(&mut options.window_padding.x, 0.0, 10.0).text("window_padding.x"));
-    gui.add(Slider::f32(&mut options.window_padding.y, 0.0, 10.0).text("window_padding.y"));
-    gui.add(Slider::f32(&mut options.indent, 0.0, 100.0).text("indent"));
-    gui.add(Slider::f32(&mut options.button_padding.x, 0.0, 20.0).text("button_padding.x"));
-    gui.add(Slider::f32(&mut options.button_padding.y, 0.0, 20.0).text("button_padding.y"));
-    gui.add(Slider::f32(&mut options.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
-    gui.add(Slider::f32(&mut options.start_icon_width, 0.0, 60.0).text("start_icon_width"));
-}
-
-fn show_style(style: &mut style::Style, gui: &mut Region) {
-    if gui.add(Button::new("Reset Style")).clicked {
+fn show_style(style: &mut Style, gui: &mut Region) {
+    if gui.add(Button::new("Reset style")).clicked {
         *style = Default::default();
     }
-    gui.add(Checkbox::new(&mut style.debug_rects, "debug_rects"));
+    gui.add(Slider::f32(&mut style.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
+    gui.add(Slider::f32(&mut style.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
+    gui.add(Slider::f32(&mut style.window_padding.x, 0.0, 10.0).text("window_padding.x"));
+    gui.add(Slider::f32(&mut style.window_padding.y, 0.0, 10.0).text("window_padding.y"));
+    gui.add(Slider::f32(&mut style.indent, 0.0, 100.0).text("indent"));
+    gui.add(Slider::f32(&mut style.button_padding.x, 0.0, 20.0).text("button_padding.x"));
+    gui.add(Slider::f32(&mut style.button_padding.y, 0.0, 20.0).text("button_padding.y"));
+    gui.add(Slider::f32(&mut style.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
+    gui.add(Slider::f32(&mut style.start_icon_width, 0.0, 60.0).text("start_icon_width"));
     gui.add(Slider::f32(&mut style.line_width, 0.0, 10.0).text("line_width"));
 }
 
@@ -119,7 +112,6 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
 pub struct Emigui {
     pub last_input: RawInput,
     pub data: Arc<layout::Data>,
-    pub style: style::Style,
     stats: Stats,
 }
 
@@ -128,7 +120,6 @@ impl Emigui {
         Emigui {
             last_input: Default::default(),
             data: Arc::new(layout::Data::new(pixels_per_point)),
-            style: Default::default(),
             stats: Default::default(),
         }
     }
@@ -151,7 +142,7 @@ impl Emigui {
         let size = self.data.input.screen_size;
         layout::Region {
             data: self.data.clone(),
-            options: self.data.options(),
+            style: self.data.style(),
             id: Default::default(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
@@ -163,7 +154,7 @@ impl Emigui {
 
     pub fn paint(&mut self) -> Mesh {
         let gui_commands = self.data.graphics.lock().unwrap().drain();
-        let paint_commands = style::into_paint_commands(gui_commands, &self.style);
+        let paint_commands = crate::style::into_paint_commands(gui_commands, &self.data.style());
 
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
         mesher.paint(&self.data.fonts, &paint_commands);
@@ -174,14 +165,10 @@ impl Emigui {
     }
 
     pub fn example(&mut self, region: &mut Region) {
-        region.foldable("LayoutOptions", |gui| {
-            let mut options = self.data.options();
-            show_options(&mut options, gui);
-            self.data.set_options(options);
-        });
-
         region.foldable("Style", |gui| {
-            show_style(&mut self.style, gui);
+            let mut style = self.data.style();
+            show_style(&mut style, gui);
+            self.data.set_style(style);
         });
 
         region.foldable("Fonts", |gui| {
