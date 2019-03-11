@@ -252,6 +252,24 @@ impl<'a> Slider<'a> {
         }
     }
 
+    pub fn usize(value: &'a mut usize, min: usize, max: usize) -> Self {
+        Slider {
+            get_set_value: Box::new(move |v: Option<f32>| {
+                if let Some(v) = v {
+                    *value = v.round() as usize
+                }
+                *value as f32
+            }),
+            min: min as f32,
+            max: max as f32,
+            id: None,
+            text: None,
+            precision: 0,
+            text_on_top: None,
+            text_color: None,
+        }
+    }
+
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
