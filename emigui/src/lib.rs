@@ -11,7 +11,7 @@ mod font;
 mod fonts;
 mod layout;
 pub mod math;
-mod mesher;
+pub mod mesher;
 mod style;
 mod texture_atlas;
 pub mod types;
