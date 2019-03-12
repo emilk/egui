@@ -419,6 +419,20 @@ impl Region {
         self.reserve_space_without_padding(indent + size);
     }
 
+    /// A left-aligned column on the left
+    pub fn left_column(&mut self, width: f32) -> Region {
+        Region {
+            data: self.data.clone(),
+            style: self.style,
+            id: self.id,
+            dir: self.dir,
+            cursor: self.cursor,
+            align: Align::Min,
+            bounding_size: vec2(0.0, 0.0),
+            available_space: vec2(width, self.available_space.y),
+        }
+    }
+
     /// A horizontally centered region of the given width.
     pub fn centered_column(&mut self, width: f32, align: Align) -> Region {
         Region {

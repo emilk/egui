@@ -1,0 +1,13 @@
+[package]
+name = "example_glium"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+emigui = { path = "../emigui" }
+# gl = "0.11.0"
+# glutin = "0.20"
+# winit = "0.19.0"
+glium = "0.23"
+

@@ -1,11 +1,11 @@
 # Emigui
 (Experimental, Modularized Immediate mode Graphical User Interface)
 
-An immediate mode GUI library written in Rust. Compiles to WASM.
+An immediate mode GUI library written in Rust. For web apps or native apps.
 
 ## Goals:
 * Easy to use
-* Platform independent (the same code should run on web and native)
+* Platform independent (the same code works on the web and as a native app)
 * Responsive
 
 ## How it works:
@@ -13,7 +13,16 @@ Loop:
 * Gather input: mouse, touches, screen size, ...
 * Run application code (Immediate Mode GUI)
 * Output is a triangle mesh
-* Render with WebGL
+* Render with e.g. OpenGL
+
+## Available backends:
+Wherever you can render textured triangles you can use Emigui.
+
+Currently two backends have been tested:
+* WebAssembly (emigui_wasm) for making a web app
+* [Glium](https://github.com/glium/glium) for native apps (see example_glium).
+
+The same application code can thus be compiled to either into a native app or a web app.
 
 ## Demos
 [Emigui feature demo](https://emilk.github.io/emigui/index.html), source: https://github.com/emilk/emigui/blob/master/example/src/app.rs
@@ -33,8 +42,8 @@ Features:
 * Anti-aliased rendering of circles, rounded rectangles and lines.
 
 ## Roadmap:
-* Native backend
-* Some examples / documentation
+* Turn the [Glium](https://github.com/glium/glium) backend into a library
+* Some examples and documentation
 * Text input
 
 ## Inspiration
