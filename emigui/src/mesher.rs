@@ -41,6 +41,8 @@ impl Mesh {
 
     /// Uniformly colored rectangle
     pub fn add_rect(&mut self, top_left: Vertex, bottom_right: Vertex) {
+        debug_assert_eq!(top_left.color, bottom_right.color);
+
         let idx = self.vertices.len() as u32;
         self.triangle(idx + 0, idx + 1, idx + 2);
         self.triangle(idx + 2, idx + 1, idx + 3);
@@ -59,6 +61,58 @@ impl Mesh {
         self.vertices.push(top_right);
         self.vertices.push(botom_left);
         self.vertices.push(bottom_right);
+    }
+
+    /// Split a large mesh into many small.
+    /// All the returned meshes will have indices that fit into u16.
+    pub fn split_to_u16(self) -> Vec<Mesh> {
+        const MAX_SIZE: u32 = 1 << 16;
+
+        if self.vertices.len() < MAX_SIZE as usize {
+            return vec![self]; // Common-case optimization
+        }
+
+        let mut output = vec![];
+        let mut index_cursor = 0;
+
+        while index_cursor < self.indices.len() {
+            let span_start = index_cursor;
+            let mut min_vindex = self.indices[index_cursor];
+            let mut max_vindex = self.indices[index_cursor];
+
+            while index_cursor < self.indices.len() {
+                let (mut new_min, mut new_max) = (min_vindex, max_vindex);
+                for i in 0..3 {
+                    let idx = self.indices[index_cursor + i];
+                    new_min = new_min.min(idx);
+                    new_max = new_max.max(idx);
+                }
+
+                if new_max - new_min < MAX_SIZE {
+                    // Triangle fits
+                    min_vindex = new_min;
+                    max_vindex = new_max;
+                    index_cursor += 3;
+                } else {
+                    break;
+                }
+            }
+
+            assert!(
+                index_cursor > span_start,
+                "One triangle spanned more than {} vertices",
+                MAX_SIZE
+            );
+
+            output.push(Mesh {
+                indices: self.indices[span_start..index_cursor]
+                    .iter()
+                    .map(|vi| vi - min_vindex)
+                    .collect(),
+                vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
+            });
+        }
+        return output;
     }
 }
 

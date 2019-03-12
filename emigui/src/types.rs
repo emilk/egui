@@ -60,7 +60,7 @@ impl GuiInput {
 // ----------------------------------------------------------------------------
 
 /// 0-255 sRGBA
-#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Color {
     pub r: u8,
     pub g: u8,

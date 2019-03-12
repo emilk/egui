@@ -145,7 +145,7 @@ impl Painter {
 
     pub fn paint(
         &mut self,
-        mesh: &Mesh,
+        mesh: Mesh,
         texture: &Texture,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
@@ -153,16 +153,49 @@ impl Painter {
 
         let gl = &self.gl;
 
-        // --------------------------------------------------------------------
-
         gl.enable(Gl::BLEND);
         gl.blend_func(Gl::SRC_ALPHA, Gl::ONE_MINUS_SRC_ALPHA);
         gl.use_program(Some(&self.program));
         gl.active_texture(Gl::TEXTURE0);
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
 
-        // --------------------------------------------------------------------
+        let u_screen_size_loc = gl
+            .get_uniform_location(&self.program, "u_screen_size")
+            .unwrap();
+        gl.uniform2f(
+            Some(&u_screen_size_loc),
+            self.canvas.width() as f32 / pixels_per_point,
+            self.canvas.height() as f32 / pixels_per_point,
+        );
 
+        let u_tex_size_loc = gl
+            .get_uniform_location(&self.program, "u_tex_size")
+            .unwrap();
+        gl.uniform2f(
+            Some(&u_tex_size_loc),
+            f32::from(self.tex_size.0),
+            f32::from(self.tex_size.1),
+        );
+
+        let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
+        gl.uniform1i(Some(&u_sampler_loc), 0);
+
+        gl.viewport(
+            0,
+            0,
+            self.canvas.width() as i32,
+            self.canvas.height() as i32,
+        );
+        gl.clear_color(0.05, 0.05, 0.05, 1.0);
+        gl.clear(Gl::COLOR_BUFFER_BIT);
+
+        for mesh in mesh.split_to_u16() {
+            self.paint_mesh(&mesh)?;
+        }
+        Ok(())
+    }
+
+    fn paint_mesh(&mut self, mesh: &Mesh) -> Result<(), JsValue> {
         let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
@@ -183,6 +216,8 @@ impl Painter {
         }
 
         // --------------------------------------------------------------------
+
+        let gl = &self.gl;
 
         let indices_memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
@@ -279,36 +314,6 @@ impl Painter {
         gl.enable_vertex_attrib_array(a_color_loc);
 
         // --------------------------------------------------------------------
-
-        let u_screen_size_loc = gl
-            .get_uniform_location(&self.program, "u_screen_size")
-            .unwrap();
-        gl.uniform2f(
-            Some(&u_screen_size_loc),
-            self.canvas.width() as f32 / pixels_per_point,
-            self.canvas.height() as f32 / pixels_per_point,
-        );
-
-        let u_tex_size_loc = gl
-            .get_uniform_location(&self.program, "u_tex_size")
-            .unwrap();
-        gl.uniform2f(
-            Some(&u_tex_size_loc),
-            f32::from(self.tex_size.0),
-            f32::from(self.tex_size.1),
-        );
-
-        let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
-        gl.uniform1i(Some(&u_sampler_loc), 0);
-
-        gl.viewport(
-            0,
-            0,
-            self.canvas.width() as i32,
-            self.canvas.height() as i32,
-        );
-        gl.clear_color(0.05, 0.05, 0.05, 1.0);
-        gl.clear(Gl::COLOR_BUFFER_BIT);
 
         gl.draw_elements_with_i32(Gl::TRIANGLES, indices.len() as i32, Gl::UNSIGNED_SHORT, 0);
 

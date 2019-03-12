@@ -53,7 +53,7 @@ impl State {
         let mesh = self.emigui.paint();
         let result =
             self.webgl_painter
-                .paint(&mesh, self.emigui.texture(), raw_input.pixels_per_point);
+                .paint(mesh, self.emigui.texture(), raw_input.pixels_per_point);
 
         self.everything_ms = 1000.0 * (now_sec() - everything_start);
 
