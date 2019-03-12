@@ -91,12 +91,25 @@
         };
     }
 
+    const ANIMATION_FRAME = true;
+
+    function paint() {
+        var canvas = document.getElementById("canvas");
+        auto_resize_canvas(canvas);
+        paint_gui(canvas, get_input(canvas));
+
+        if (ANIMATION_FRAME) {
+            window.requestAnimationFrame(paint);
+        }
+    }
+
     function on_wasm_loaded() {
         console.log("window.devicePixelRatio: " + window.devicePixelRatio);
         var canvas = document.getElementById("canvas");
         var repaint = function() {
-            auto_resize_canvas(canvas);
-            paint_gui(canvas, get_input(canvas));
+            if (!ANIMATION_FRAME) {
+                paint();
+            }
         };
 
         canvas.addEventListener("mousedown", function(event) {
@@ -152,8 +165,10 @@
         window.addEventListener("pagehide", repaint);
         window.addEventListener("pageshow", repaint);
         window.addEventListener("resize", repaint);
-        // setInterval(repaint, 16);
-        repaint();
+
+        // setInterval(repaint, 33);
+
+        paint();
     }
     </script>
     <!-- TODO: make this cover the entire screen, with resize and all -->
