@@ -2,8 +2,8 @@
 members = [
     "emigui",
     "emigui_wasm",
-    "example",
     "example_glium",
+    "example_wasm",
 ]
 
 # Optimize for small code size:

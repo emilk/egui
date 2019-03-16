@@ -16,10 +16,10 @@ BUILD=debug
 rm -rf docs/*.wasm
 
 echo "Build rust:"
-cargo build --target wasm32-unknown-unknown
+cargo build -p example_wasm --target wasm32-unknown-unknown
 
 echo "Generate JS bindings for wasm:"
 FOLDER_NAME=${PWD##*/}
-TARGET_NAME="example.wasm"
+TARGET_NAME="example_wasm.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
