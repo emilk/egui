@@ -7,7 +7,7 @@ extern crate emigui;
 extern crate emigui_wasm;
 
 use {
-    emigui::{label, widgets::Label, Align, Emigui, RawInput},
+    emigui::{label, types::srgba, widgets::Label, Align, Emigui, RawInput},
     emigui_wasm::now_sec,
 };
 
@@ -50,10 +50,14 @@ impl State {
 
         region.add(label!("Everything: {:.1} ms", self.everything_ms));
 
+        let bg_color = srgba(16, 16, 16, 255);
         let mesh = self.emigui.paint();
-        let result =
-            self.webgl_painter
-                .paint(mesh, self.emigui.texture(), raw_input.pixels_per_point);
+        let result = self.webgl_painter.paint(
+            bg_color,
+            mesh,
+            self.emigui.texture(),
+            raw_input.pixels_per_point,
+        );
 
         self.everything_ms = 1000.0 * (now_sec() - everything_start);
 

@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{Mesh, Texture};
+use emigui::{Color, Mesh, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -145,6 +145,7 @@ impl Painter {
 
     pub fn paint(
         &mut self,
+        bg_color: Color,
         mesh: Mesh,
         texture: &Texture,
         pixels_per_point: f32,
@@ -186,7 +187,12 @@ impl Painter {
             self.canvas.width() as i32,
             self.canvas.height() as i32,
         );
-        gl.clear_color(0.05, 0.05, 0.05, 1.0);
+        gl.clear_color(
+            bg_color.r as f32 / 255.0,
+            bg_color.g as f32 / 255.0,
+            bg_color.b as f32 / 255.0,
+            bg_color.a as f32 / 255.0,
+        );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for mesh in mesh.split_to_u16() {

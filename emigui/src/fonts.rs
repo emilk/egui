@@ -65,9 +65,10 @@ impl Fonts {
         let atlas = Arc::new(Mutex::new(atlas));
 
         // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
-        // let typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        let typeface_data = include_bytes!("../fonts/Comfortaa-Regular.ttf");
         // let typeface_data = include_bytes!("../fonts/DejaVuSans.ttf");
-        let typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
+        // let typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        // let typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
         self.sizes = sizes.clone();
         self.fonts = sizes
             .into_iter()

@@ -24,5 +24,5 @@ pub use crate::{
     mesher::{Mesh, Vertex},
     style::Style,
     texture_atlas::Texture,
-    types::RawInput,
+    types::{Color, RawInput},
 };
