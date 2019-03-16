@@ -61,6 +61,7 @@
     // ----------------------------------------------------------------------------
     var g_mouse_pos = null;
     var g_mouse_down = false;
+    var g_is_touch = false;
 
     function pixels_per_point() {
         // return 1.0;
@@ -104,7 +105,6 @@
     }
 
     function on_wasm_loaded() {
-        console.log("window.devicePixelRatio: " + window.devicePixelRatio);
         var canvas = document.getElementById("canvas");
         var repaint = function() {
             if (!ANIMATION_FRAME) {
@@ -113,6 +113,7 @@
         };
 
         canvas.addEventListener("mousedown", function(event) {
+            if (g_is_touch) { return; }
             g_mouse_pos = mouse_pos_from_event(canvas, event);
             g_mouse_down = true;
             repaint();
@@ -120,12 +121,14 @@
             event.preventDefault();
         });
         canvas.addEventListener("mousemove", function(event) {
+            if (g_is_touch) { return; }
             g_mouse_pos = mouse_pos_from_event(canvas, event);
             repaint();
             event.stopPropagation();
             event.preventDefault();
         });
         canvas.addEventListener("mouseup", function(event) {
+            if (g_is_touch) { return; }
             g_mouse_pos = mouse_pos_from_event(canvas, event);
             g_mouse_down = false;
             repaint();
@@ -133,6 +136,7 @@
             event.preventDefault();
         });
         canvas.addEventListener("mouseleave", function(event) {
+            if (g_is_touch) { return; }
             g_mouse_pos = null;
             repaint();
             event.stopPropagation();
@@ -140,6 +144,7 @@
         });
 
         canvas.addEventListener("touchstart", function(event) {
+            g_is_touch = true;
             g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
             g_mouse_down = true;
             repaint();
@@ -147,26 +152,28 @@
             event.preventDefault();
         });
         canvas.addEventListener("touchmove", function(event) {
+            g_is_touch = true;
             g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
             repaint();
             event.stopPropagation();
             event.preventDefault();
         });
         canvas.addEventListener("touchend", function(event) {
-            g_mouse_down = false;
-            repaint();
-            g_mouse_pos = null;
-            repaint();
+            g_is_touch = true;
+            g_mouse_down = false; // First release mouse to click...
+            paint();
+            g_mouse_pos = null; // ...remove hover effect
+            paint();
             event.stopPropagation();
             event.preventDefault();
         });
 
-        window.addEventListener("load", repaint);
-        window.addEventListener("pagehide", repaint);
-        window.addEventListener("pageshow", repaint);
-        window.addEventListener("resize", repaint);
-
-        // setInterval(repaint, 33);
+        if (!ANIMATION_FRAME) {
+            window.addEventListener("load", paint);
+            window.addEventListener("pagehide", paint);
+            window.addEventListener("pageshow", paint);
+            window.addEventListener("resize", paint);
+        }
 
         paint();
     }
