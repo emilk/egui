@@ -31,7 +31,7 @@ impl Fonts {
     pub fn new(pixels_per_point: f32) -> Fonts {
         let mut sizes = FontSizes::new();
         sizes.insert(TextStyle::Body, 16.0);
-        sizes.insert(TextStyle::Button, 20.0);
+        sizes.insert(TextStyle::Button, 18.0);
         sizes.insert(TextStyle::Heading, 28.0);
         Fonts::from_sizes(sizes, pixels_per_point)
     }
