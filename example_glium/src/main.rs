@@ -182,10 +182,13 @@ impl Painter {
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
 
-        let (width, height) = display.get_framebuffer_dimensions();
+        let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
+        let (width_pixels, height_pixels) = display.get_framebuffer_dimensions();
+        let width_points = width_pixels as f32 / pixels_per_point;
+        let height_points = height_pixels as f32 / pixels_per_point;
 
         let uniforms = uniform! {
-            u_screen_size: [width as f32, height as f32],
+            u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: &self.texture,
         };
@@ -226,7 +229,7 @@ fn main() {
         mouse_pos: None,
         screen_size: {
             let (width, height) = display.get_framebuffer_dimensions();
-            vec2(width as f32, height as f32)
+            vec2(width as f32, height as f32) / pixels_per_point
         },
         pixels_per_point,
     };
@@ -251,7 +254,7 @@ fn main() {
                 glutin::WindowEvent::CloseRequested => return glutin::ControlFlow::Break,
 
                 glutin::WindowEvent::Resized(glutin::dpi::LogicalSize { width, height }) => {
-                    raw_input.screen_size = vec2(width as f32, height as f32);
+                    raw_input.screen_size = vec2(width as f32, height as f32) / pixels_per_point;
                     if paint(raw_input) {
                         return glutin::ControlFlow::Break;
                     }
