@@ -618,7 +618,7 @@ impl Region {
         text_style: TextStyle,
         align: (Align, Align),
         text_color: Option<Color>,
-    ) {
+    ) -> Vec2 {
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(text, std::f32::INFINITY);
 
@@ -633,6 +633,7 @@ impl Region {
             Align::Max => pos.y - text_size.y,
         };
         self.add_text(vec2(x, y), text_style, text, text_color);
+        text_size
     }
 
     pub fn add_text(

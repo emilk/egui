@@ -117,6 +117,11 @@ impl Rect {
         }
     }
 
+    /// Expand by this much in each direction
+    pub fn expand(self, amnt: f32) -> Self {
+        Rect::from_center_size(self.center(), self.size() + 2.0 * vec2(amnt, amnt))
+    }
+
     pub fn contains(&self, p: Vec2) -> bool {
         self.pos.x <= p.x
             && p.x <= self.pos.x + self.size.x
