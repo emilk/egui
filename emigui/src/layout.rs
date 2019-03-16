@@ -303,6 +303,10 @@ impl Region {
         self.available_space.x
     }
 
+    pub fn height(&self) -> f32 {
+        self.available_space.y
+    }
+
     pub fn direction(&self) -> Direction {
         self.dir
     }
@@ -543,9 +547,8 @@ impl Region {
         } else {
             false
         };
-        let clicked = hovered && self.input().mouse_clicked;
         let active = if interaction_id.is_some() {
-            if clicked {
+            if hovered && self.input().mouse_clicked {
                 memory.active_id = interaction_id;
             }
             memory.active_id == interaction_id
@@ -553,6 +556,7 @@ impl Region {
             false
         };
 
+        let clicked = hovered && self.input().mouse_released;
         InteractInfo {
             rect,
             hovered,
