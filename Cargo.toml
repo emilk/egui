@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "emigui",
+    "emigui_glium",
     "emigui_wasm",
     "example_glium",
     "example_wasm",
