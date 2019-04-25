@@ -5,8 +5,9 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    #[must_use]
     pub fn normalized(self) -> Vec2 {
-        let len = self.x.hypot(self.y);
+        let len = self.length();
         if len <= 0.0 {
             self
         } else {
@@ -24,6 +25,18 @@ impl Vec2 {
 
     pub fn length_sq(self) -> f32 {
         self.x * self.x + self.y * self.y
+    }
+
+    pub fn dist(a: Vec2, b: Vec2) -> f32 {
+        (a - b).length()
+    }
+
+    pub fn dist_sq(a: Vec2, b: Vec2) -> f32 {
+        (a - b).length_sq()
+    }
+
+    pub fn angled(angle: f32) -> Vec2 {
+        vec2(angle.cos(), angle.sin())
     }
 }
 
@@ -183,7 +196,11 @@ impl Rect {
 
 // ----------------------------------------------------------------------------
 
-pub fn lerp(min: f32, max: f32, t: f32) -> f32 {
+pub fn lerp<T>(min: T, max: T, t: f32) -> T
+where
+    f32: std::ops::Mul<T, Output = T>,
+    T: std::ops::Add<T, Output = T>,
+{
     (1.0 - t) * min + t * max
 }
 
@@ -211,6 +228,11 @@ pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     } else {
         x
     }
+}
+
+/// For t=[0,1], returns [0,1] with a derivate of zero at both ends
+pub fn ease_in_ease_out(t: f32) -> f32 {
+    return 3.0 * t * t - 2.0 * t * t * t;
 }
 
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;

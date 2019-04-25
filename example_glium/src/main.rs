@@ -68,7 +68,16 @@ fn main() {
                         return glutin::ControlFlow::Break;
                     }
                 }
-                _ => (),
+                glutin::WindowEvent::KeyboardInput { input, .. } => {
+                    if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q)
+                        && input.modifiers.logo
+                    {
+                        return glutin::ControlFlow::Break;
+                    }
+                }
+                _ => {
+                    // dbg!(event);
+                }
             },
             _ => (),
         }

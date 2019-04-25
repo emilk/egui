@@ -1,4 +1,4 @@
-use crate::{math::*, types::*};
+use crate::{color::*, math::*, types::*};
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Style {

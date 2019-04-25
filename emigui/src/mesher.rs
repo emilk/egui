@@ -2,9 +2,10 @@
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
+    color::Color,
     fonts::Fonts,
     math::{remap, vec2, Vec2, TAU},
-    types::{Color, PaintCmd},
+    types::PaintCmd,
 };
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]

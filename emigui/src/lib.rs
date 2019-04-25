@@ -6,6 +6,7 @@ extern crate serde;
 #[macro_use] // TODO: get rid of this
 extern crate serde_derive;
 
+pub mod color;
 mod emigui;
 mod font;
 mod fonts;
@@ -18,11 +19,12 @@ pub mod types;
 pub mod widgets;
 
 pub use crate::{
+    color::Color,
     emigui::Emigui,
     fonts::{FontSizes, Fonts, TextStyle},
     layout::{Align, Region},
     mesher::{Mesh, Vertex},
     style::Style,
     texture_atlas::Texture,
-    types::{Color, RawInput},
+    types::RawInput,
 };

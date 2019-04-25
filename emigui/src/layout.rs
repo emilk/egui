@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    color::{self, Color},
     font::TextFragment,
     fonts::{Fonts, TextStyle},
     math::*,
@@ -227,7 +228,7 @@ where
         corner_radius: 5.0,
         fill_color: Some(style.background_fill_color()),
         outline: Some(Outline {
-            color: gray(255, 255), // TODO
+            color: color::gray(255, 255), // TODO
             width: 1.0,
         }),
         rect,
@@ -313,6 +314,10 @@ impl Region {
 
     pub fn cursor(&self) -> Vec2 {
         self.cursor
+    }
+
+    pub fn set_align(&mut self, align: Align) {
+        self.align = align;
     }
 
     // ------------------------------------------------------------------------
@@ -423,32 +428,43 @@ impl Region {
         self.reserve_space_without_padding(indent + size);
     }
 
-    /// A left-aligned column on the left
-    pub fn left_column(&mut self, width: f32) -> Region {
+    /// Return a sub-region relative to the parent
+    pub fn relative_region(&mut self, rect: Rect) -> Region {
         Region {
             data: self.data.clone(),
             style: self.style,
             id: self.id,
             dir: self.dir,
-            cursor: self.cursor,
-            align: Align::Min,
+            cursor: self.cursor + rect.min(),
+            align: self.align,
             bounding_size: vec2(0.0, 0.0),
-            available_space: vec2(width, self.available_space.y),
+            available_space: rect.size(),
         }
     }
 
-    /// A horizontally centered region of the given width.
-    pub fn centered_column(&mut self, width: f32, align: Align) -> Region {
-        Region {
-            data: self.data.clone(),
-            style: self.style,
-            id: self.id,
-            dir: self.dir,
-            cursor: self.cursor + vec2((self.available_space.x - width) / 2.0, 0.0),
-            align,
-            bounding_size: vec2(0.0, 0.0),
-            available_space: vec2(width, self.available_space.y),
-        }
+    /// A column region with a given width.
+    pub fn column(&mut self, column_position: Align, width: f32) -> Region {
+        let x = match column_position {
+            Align::Min => 0.0,
+            Align::Center => self.available_space.x / 2.0 - width / 2.0,
+            Align::Max => self.available_space.x - width,
+        };
+        self.relative_region(Rect::from_min_size(
+            vec2(x, 0.0),
+            vec2(width, self.available_space.y),
+        ))
+    }
+
+    pub fn left_column(&mut self, width: f32) -> Region {
+        self.column(Align::Min, width)
+    }
+
+    pub fn centered_column(&mut self, width: f32) -> Region {
+        self.column(Align::Center, width)
+    }
+
+    pub fn right_column(&mut self, width: f32) -> Region {
+        self.column(Align::Max, width)
     }
 
     pub fn inner_layout<F>(&mut self, dir: Direction, align: Align, add_contents: F)

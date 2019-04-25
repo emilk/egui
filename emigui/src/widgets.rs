@@ -1,10 +1,11 @@
 #![allow(clippy::new_without_default_derive)]
 
 use crate::{
+    color::{self, Color},
     fonts::TextStyle,
     layout::{make_id, Align, Direction, GuiResponse, Id, Region},
     math::{remap_clamp, vec2, Rect, Vec2},
-    types::{gray, Color, Outline, PaintCmd},
+    types::{Outline, PaintCmd},
 };
 
 // ----------------------------------------------------------------------------
@@ -325,6 +326,11 @@ impl<'a> Slider<'a> {
         self.text_color = Some(text_color);
         self
     }
+
+    pub fn precision(mut self, precision: usize) -> Self {
+        self.precision = precision;
+        self
+    }
 }
 
 impl<'a> Widget for Slider<'a> {
@@ -404,7 +410,7 @@ impl<'a> Widget for Slider<'a> {
                     corner_radius: 4.0,
                     fill_color: Some(region.style().background_fill_color()),
                     outline: Some(Outline {
-                        color: gray(200, 255), // TODO
+                        color: color::gray(200, 255), // TODO
                         width: 1.0,
                     }),
                     rect: thin_rect,
@@ -479,7 +485,7 @@ impl Widget for Separator {
         };
         region.add_paint_cmd(PaintCmd::Line {
             points,
-            color: Color::WHITE,
+            color: color::WHITE,
             width: self.line_width,
         });
         region.response(interact)

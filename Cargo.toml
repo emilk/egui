@@ -6,10 +6,3 @@ members = [
     "example_glium",
     "example_wasm",
 ]
-
-# Optimize for small code size:
-[profile.dev]
-opt-level = "s"
-
-[profile.release]
-opt-level = "s"

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
+    color::WHITE,
     label, layout,
     layout::{show_popup, Region},
     math::{clamp, remap_clamp, vec2},
     mesher::{Mesher, Vertex},
     style::Style,
-    types::{Color, GuiInput, PaintCmd},
+    types::{GuiInput, PaintCmd},
     widgets::*,
     FontSizes, Fonts, Mesh, RawInput, Texture,
 };
@@ -54,12 +55,12 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
     let top_left = Vertex {
         pos: rect.min(),
         uv: (0, 0),
-        color: Color::WHITE,
+        color: WHITE,
     };
     let bottom_right = Vertex {
         pos: rect.max(),
         uv: (texture.width as u16 - 1, texture.height as u16 - 1),
-        color: Color::WHITE,
+        color: WHITE,
     };
     let mut mesh = Mesh::default();
     mesh.add_rect(top_left, bottom_right);
@@ -93,12 +94,12 @@ fn show_font_texture(texture: &Texture, gui: &mut Region) {
                 let top_left = Vertex {
                     pos: zoom_rect.min(),
                     uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
-                    color: Color::WHITE,
+                    color: WHITE,
                 };
                 let bottom_right = Vertex {
                     pos: zoom_rect.max(),
                     uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
-                    color: Color::WHITE,
+                    color: WHITE,
                 };
                 let mut mesh = Mesh::default();
                 mesh.add_rect(top_left, bottom_right);
