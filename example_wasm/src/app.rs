@@ -79,7 +79,7 @@ impl App {
                     self.count += 1;
                 }
                 gui.add(label!(
-                    "The button have been clicked {} times",
+                    "The button has been clicked {} times",
                     self.count
                 ));
             });
