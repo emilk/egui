@@ -10,7 +10,7 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new(facade: &glium::backend::Facade) -> Painter {
+    pub fn new(facade: &dyn glium::backend::Facade) -> Painter {
         let program = program!(facade,
             140 => {
                     vertex: "
@@ -127,7 +127,7 @@ impl Painter {
         }
     }
 
-    fn upload_texture(&mut self, facade: &glium::backend::Facade, texture: &emigui::Texture) {
+    fn upload_texture(&mut self, facade: &dyn glium::backend::Facade, texture: &emigui::Texture) {
         if self.current_texture_id == Some(texture.id) {
             return; // No change
         }

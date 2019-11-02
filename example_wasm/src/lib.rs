@@ -7,7 +7,7 @@ extern crate emigui;
 extern crate emigui_wasm;
 
 use {
-    emigui::{label, types::srgba, widgets::Label, Align, Emigui, RawInput},
+    emigui::{color::srgba, label, widgets::Label, Emigui, RawInput},
     emigui_wasm::now_sec,
 };
 

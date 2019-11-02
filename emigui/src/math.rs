@@ -40,6 +40,14 @@ impl Vec2 {
     }
 }
 
+impl std::ops::Neg for Vec2 {
+    type Output = Vec2;
+
+    fn neg(self) -> Vec2 {
+        vec2(-self.x, -self.y)
+    }
+}
+
 impl std::ops::AddAssign for Vec2 {
     fn add_assign(&mut self, rhs: Vec2) {
         *self = Vec2 {

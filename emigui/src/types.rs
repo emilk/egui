@@ -83,7 +83,7 @@ pub struct Outline {
     pub color: Color,
 }
 
-#[derive(Clone, Debug, Serialize)] // TODO: copy
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
     Circle {

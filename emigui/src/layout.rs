@@ -308,6 +308,10 @@ impl Region {
         self.available_space.y
     }
 
+    pub fn size(&self) -> Vec2 {
+        self.available_space
+    }
+
     pub fn direction(&self) -> Direction {
         self.dir
     }

@@ -247,7 +247,7 @@ impl Widget for RadioButton {
 // ----------------------------------------------------------------------------
 
 pub struct Slider<'a> {
-    get_set_value: Box<'a + FnMut(Option<f32>) -> f32>,
+    get_set_value: Box<dyn 'a + FnMut(Option<f32>) -> f32>,
     min: f32,
     max: f32,
     id: Option<Id>,
