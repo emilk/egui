@@ -1,11 +1,13 @@
 #![deny(warnings)]
 
+use std::time::{Duration, Instant};
+
 use {
     emigui::{
         label,
         math::vec2,
         widgets::{Button, Label},
-        Emigui,
+        Align, Emigui,
     },
     emigui_glium::Painter,
     glium::glutin,
@@ -31,56 +33,60 @@ fn main() {
         ..Default::default()
     };
 
-    let mut paint = |raw_input| {
+    let mut quit = false;
+
+    let mut frame_start = Instant::now();
+
+    while !quit {
+        {
+            // Keep smooth frame rate. TODO: proper vsync
+            let frame_duration = frame_start.elapsed();
+            if frame_duration < Duration::from_millis(16) {
+                std::thread::sleep(Duration::from_millis(16) - frame_duration);
+            }
+            frame_start = Instant::now();
+        }
+
+        events_loop.poll_events(|event| {
+            match event {
+                glutin::Event::WindowEvent { event, .. } => match event {
+                    glutin::WindowEvent::CloseRequested => quit = true,
+
+                    glutin::WindowEvent::Resized(glutin::dpi::LogicalSize { width, height }) => {
+                        raw_input.screen_size =
+                            vec2(width as f32, height as f32) / pixels_per_point;
+                    }
+                    glutin::WindowEvent::MouseInput { state, .. } => {
+                        raw_input.mouse_down = state == glutin::ElementState::Pressed;
+                    }
+                    glutin::WindowEvent::CursorMoved { position, .. } => {
+                        raw_input.mouse_pos = Some(vec2(position.x as f32, position.y as f32));
+                    }
+                    glutin::WindowEvent::KeyboardInput { input, .. } => {
+                        if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q)
+                            && input.modifiers.logo
+                        {
+                            quit = true;
+                        }
+                    }
+                    _ => {
+                        // dbg!(event);
+                    }
+                },
+                _ => (),
+            }
+        });
+
         emigui.new_frame(raw_input);
         let mut region = emigui.whole_screen_region();
         let mut region = region.left_column(region.width().min(480.0));
-        region.add(label!("Emigui!").text_style(emigui::TextStyle::Heading));
-        let exit = region.add(Button::new("Quit")).clicked;
+        region.set_align(Align::Min);
+        region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
+        if region.add(Button::new("Quit")).clicked {
+            quit = true;
+        }
         emigui.example(&mut region);
         let mesh = emigui.paint();
         painter.paint(&display, mesh, emigui.texture());
-        exit
-    };
-
-    paint(raw_input);
-
-    events_loop.run_forever(|event| {
-        match event {
-            glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::CloseRequested => return glutin::ControlFlow::Break,
-
-                glutin::WindowEvent::Resized(glutin::dpi::LogicalSize { width, height }) => {
-                    raw_input.screen_size = vec2(width as f32, height as f32) / pixels_per_point;
-                    if paint(raw_input) {
-                        return glutin::ControlFlow::Break;
-                    }
-                }
-                glutin::WindowEvent::MouseInput { state, .. } => {
-                    raw_input.mouse_down = state == glutin::ElementState::Pressed;
-                    if paint(raw_input) {
-                        return glutin::ControlFlow::Break;
-                    }
-                }
-                glutin::WindowEvent::CursorMoved { position, .. } => {
-                    raw_input.mouse_pos = Some(vec2(position.x as f32, position.y as f32));
-                    if paint(raw_input) {
-                        return glutin::ControlFlow::Break;
-                    }
-                }
-                glutin::WindowEvent::KeyboardInput { input, .. } => {
-                    if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q)
-                        && input.modifiers.logo
-                    {
-                        return glutin::ControlFlow::Break;
-                    }
-                }
-                _ => {
-                    // dbg!(event);
-                }
-            },
-            _ => (),
-        }
-        glutin::ControlFlow::Continue
-    });
+    }
 }
