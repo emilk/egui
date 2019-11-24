@@ -1,3 +1,5 @@
+#![allow(deprecated)] // legacy implement_vertex macro
+
 use {
     emigui::Mesh,
     glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Surface},
