@@ -15,7 +15,7 @@ pub mod math;
 pub mod mesher;
 mod style;
 mod texture_atlas;
-pub mod types;
+mod types;
 pub mod widgets;
 
 pub use crate::{
@@ -23,8 +23,10 @@ pub use crate::{
     emigui::Emigui,
     fonts::{FontSizes, Fonts, TextStyle},
     layout::{Align, Region},
+    math::*,
     mesher::{Mesh, Vertex},
     style::Style,
     texture_atlas::Texture,
     types::RawInput,
+    types::*,
 };
