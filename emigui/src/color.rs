@@ -32,3 +32,7 @@ pub const fn gray(l: u8, a: u8) -> Color {
 }
 
 pub const WHITE: Color = srgba(255, 255, 255, 255);
+pub const BLACK: Color = srgba(0, 0, 0, 255);
+pub const RED: Color = srgba(255, 0, 0, 255);
+pub const GREEN: Color = srgba(0, 255, 0, 255);
+pub const BLUE: Color = srgba(0, 0, 255, 255);
