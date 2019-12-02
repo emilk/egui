@@ -21,7 +21,7 @@ pub mod widgets;
 pub use crate::{
     color::Color,
     emigui::Emigui,
-    fonts::{FontSizes, Fonts, TextStyle},
+    fonts::{FontDefinitions, Fonts, TextStyle},
     layout::{Align, Region},
     math::*,
     mesher::{Mesh, Vertex},

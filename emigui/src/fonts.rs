@@ -15,44 +15,51 @@ pub enum TextStyle {
     Body,
     Button,
     Heading,
-    // Monospace,
+    Monospace,
 }
 
-pub type FontSizes = BTreeMap<TextStyle, f32>;
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum FontFamily {
+    Monospace,
+    VariableWidth,
+}
+
+pub type FontDefinitions = BTreeMap<TextStyle, (FontFamily, f32)>;
 
 pub struct Fonts {
     pixels_per_point: f32,
-    sizes: FontSizes,
+    definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     texture: Texture,
 }
 
 impl Fonts {
     pub fn new(pixels_per_point: f32) -> Fonts {
-        let mut sizes = FontSizes::new();
-        sizes.insert(TextStyle::Body, 16.0);
-        sizes.insert(TextStyle::Button, 18.0);
-        sizes.insert(TextStyle::Heading, 28.0);
-        Fonts::from_sizes(sizes, pixels_per_point)
+        let mut definitions = FontDefinitions::new();
+        definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 16.0));
+        definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 18.0));
+        definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 28.0));
+        definitions.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
+        Fonts::from_definitions(definitions, pixels_per_point)
     }
 
-    pub fn from_sizes(sizes: FontSizes, pixels_per_point: f32) -> Fonts {
+    pub fn from_definitions(definitions: FontDefinitions, pixels_per_point: f32) -> Fonts {
         let mut fonts = Fonts {
             pixels_per_point,
-            sizes: Default::default(),
+            definitions: Default::default(),
             fonts: Default::default(),
             texture: Default::default(),
         };
-        fonts.set_sizes(sizes);
+        fonts.set_sizes(definitions);
         fonts
     }
 
-    pub fn sizes(&self) -> &FontSizes {
-        &self.sizes
+    pub fn definitions(&self) -> &FontDefinitions {
+        &self.definitions
     }
 
-    pub fn set_sizes(&mut self, sizes: FontSizes) {
-        if self.sizes == sizes {
+    pub fn set_sizes(&mut self, definitions: FontDefinitions) {
+        if self.definitions == definitions {
             return;
         }
 
@@ -65,14 +72,22 @@ impl Fonts {
         let atlas = Arc::new(Mutex::new(atlas));
 
         // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
-        let typeface_data = include_bytes!("../fonts/Comfortaa-Regular.ttf");
-        // let typeface_data = include_bytes!("../fonts/DejaVuSans.ttf");
-        // let typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-        // let typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
-        self.sizes = sizes.clone();
-        self.fonts = sizes
+        let monospae_typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+
+        // let monospae_typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
+
+        let variable_typeface_data = include_bytes!("../fonts/Comfortaa-Regular.ttf");
+        // let variable_typeface_data = include_bytes!("../fonts/DejaVuSans.ttf");
+
+        self.definitions = definitions.clone();
+        self.fonts = definitions
             .into_iter()
-            .map(|(text_style, size)| {
+            .map(|(text_style, (family, size))| {
+                let typeface_data: &[u8] = match family {
+                    FontFamily::Monospace => monospae_typeface_data,
+                    FontFamily::VariableWidth => variable_typeface_data,
+                };
+
                 (
                     text_style,
                     Font::new(atlas.clone(), typeface_data, size, self.pixels_per_point),

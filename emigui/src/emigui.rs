@@ -9,7 +9,7 @@ use crate::{
     style::Style,
     types::{GuiInput, PaintCmd},
     widgets::*,
-    FontSizes, Fonts, Mesh, RawInput, Texture,
+    FontDefinitions, Fonts, Mesh, RawInput, Texture,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -34,8 +34,9 @@ fn show_style(style: &mut Style, gui: &mut Region) {
     gui.add(Slider::f32(&mut style.line_width, 0.0, 10.0).text("line_width"));
 }
 
-fn show_font_sizes(font_sizes: &mut FontSizes, gui: &mut Region) {
-    for (text_style, mut size) in font_sizes {
+fn show_font_definitions(font_definitions: &mut FontDefinitions, gui: &mut Region) {
+    for (text_style, (_family, mut size)) in font_definitions {
+        // TODO: radiobutton for family
         gui.add(Slider::f32(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
     }
 }
@@ -171,13 +172,14 @@ impl Emigui {
         });
 
         region.foldable("Fonts", |gui| {
-            let old_font_sizes = self.data.fonts.sizes();
-            let mut new_font_sizes = old_font_sizes.clone();
-            show_font_sizes(&mut new_font_sizes, gui);
+            let old_font_definitions = self.data.fonts.definitions();
+            let mut new_font_definitions = old_font_definitions.clone();
+            show_font_definitions(&mut new_font_definitions, gui);
             show_font_texture(self.texture(), gui);
-            if *old_font_sizes != new_font_sizes {
+            if *old_font_definitions != new_font_definitions {
                 let mut new_data = (*self.data).clone();
-                let fonts = Fonts::from_sizes(new_font_sizes, self.data.input.pixels_per_point);
+                let fonts =
+                    Fonts::from_definitions(new_font_definitions, self.data.input.pixels_per_point);
                 new_data.fonts = Arc::new(fonts);
                 self.data = Arc::new(new_data);
             }
