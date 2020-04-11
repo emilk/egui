@@ -35,9 +35,9 @@ fn show_style(style: &mut Style, gui: &mut Region) {
 }
 
 fn show_font_definitions(font_definitions: &mut FontDefinitions, gui: &mut Region) {
-    for (text_style, (_family, mut size)) in font_definitions {
+    for (text_style, (_family, size)) in font_definitions {
         // TODO: radiobutton for family
-        gui.add(Slider::f32(&mut size, 4.0, 40.0).text(format!("{:?}", text_style)));
+        gui.add(Slider::f32(size, 4.0, 40.0).text(format!("{:?}", text_style)));
     }
 }
 
