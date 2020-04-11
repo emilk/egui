@@ -18,7 +18,7 @@ mod texture_atlas;
 mod types;
 pub mod widgets;
 
-pub use crate::{
+pub use {
     color::Color,
     emigui::Emigui,
     fonts::{FontDefinitions, Fonts, TextStyle},
@@ -27,6 +27,5 @@ pub use crate::{
     mesher::{Mesh, Vertex},
     style::Style,
     texture_atlas::Texture,
-    types::RawInput,
     types::*,
 };

@@ -1,4 +1,4 @@
-use emigui::{color::*, label, math::*, types::*, widgets::*, Align, Region, TextStyle};
+use emigui::{color::*, label, math::*, widgets::*, Align, Outline, PaintCmd, Region, TextStyle};
 
 pub fn show_value_gui(value: &mut usize, gui: &mut Region) {
     gui.add(Slider::usize(value, 1, 1000));
