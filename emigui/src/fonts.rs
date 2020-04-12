@@ -26,6 +26,15 @@ pub enum FontFamily {
 
 pub type FontDefinitions = BTreeMap<TextStyle, (FontFamily, f32)>;
 
+pub fn default_font_definitions() -> FontDefinitions {
+    let mut definitions = FontDefinitions::new();
+    definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 16.0));
+    definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 18.0));
+    definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 28.0));
+    definitions.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
+    definitions
+}
+
 pub struct Fonts {
     pixels_per_point: f32,
     definitions: FontDefinitions,
@@ -35,12 +44,7 @@ pub struct Fonts {
 
 impl Fonts {
     pub fn new(pixels_per_point: f32) -> Fonts {
-        let mut definitions = FontDefinitions::new();
-        definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 16.0));
-        definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 18.0));
-        definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 28.0));
-        definitions.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
-        Fonts::from_definitions(definitions, pixels_per_point)
+        Fonts::from_definitions(default_font_definitions(), pixels_per_point)
     }
 
     pub fn from_definitions(definitions: FontDefinitions, pixels_per_point: f32) -> Fonts {

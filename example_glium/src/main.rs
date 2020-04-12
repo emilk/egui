@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use {
     emigui::{
+        example_app::ExampleApp,
         label,
         math::vec2,
         widgets::{Button, Label},
@@ -36,6 +37,8 @@ fn main() {
     let mut quit = false;
 
     let mut frame_start = Instant::now();
+
+    let mut example_app = ExampleApp::default();
 
     while !quit {
         {
@@ -85,7 +88,8 @@ fn main() {
         if region.add(Button::new("Quit")).clicked {
             quit = true;
         }
-        emigui.example(&mut region);
+        example_app.ui(&mut region);
+        emigui.ui(&mut region);
         let mesh = emigui.paint();
         painter.paint(&display, mesh, emigui.texture());
     }

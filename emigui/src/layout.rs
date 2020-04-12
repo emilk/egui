@@ -192,6 +192,14 @@ impl Data {
     }
 }
 
+impl Data {
+    pub fn style_ui(&self, region: &mut Region) {
+        let mut style = self.style();
+        style.ui(region);
+        self.set_style(style);
+    }
+}
+
 /// Show a pop-over window
 pub fn show_popup<F>(data: &Arc<Data>, window_pos: Vec2, add_contents: F)
 where

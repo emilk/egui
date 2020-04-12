@@ -1,14 +1,7 @@
-use emigui::{color::*, label, math::*, widgets::*, Align, Outline, PaintCmd, Region, TextStyle};
+use crate::{color::*, label, math::*, widgets::*, Align, Outline, PaintCmd, Region};
 
-pub fn show_value_gui(value: &mut usize, gui: &mut Region) {
-    gui.add(Slider::usize(value, 1, 1000));
-    if gui.add(Button::new("Double it")).clicked {
-        *value *= 2;
-    }
-    gui.add(label!("Value: {}", value));
-}
-
-pub struct App {
+/// Showcase some region code
+pub struct ExampleApp {
     checked: bool,
     count: usize,
     radio: usize,
@@ -23,9 +16,9 @@ pub struct App {
     slider_value: usize,
 }
 
-impl Default for App {
-    fn default() -> App {
-        App {
+impl Default for ExampleApp {
+    fn default() -> ExampleApp {
+        ExampleApp {
             checked: true,
             radio: 0,
             count: 0,
@@ -41,53 +34,53 @@ impl Default for App {
     }
 }
 
-impl App {
-    pub fn show_gui(&mut self, gui: &mut Region) {
-        gui.add(label!("Emigui!").text_style(TextStyle::Heading));
-        gui.add(label!("Emigui is an Immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
-        gui.add(Separator::new());
+impl ExampleApp {
+    pub fn ui(&mut self, region: &mut Region) {
+        region.foldable("About Emigui", |region| {
+            region.add(label!("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
+        });
 
-        gui.foldable("Widget examples", |gui| {
-            gui.horizontal(Align::Min, |gui| {
-                gui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
-                gui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
-                gui.add(label!("and tooltips (hover me)")).tooltip_text(
+        region.foldable("Widget examples", |region| {
+            region.horizontal(Align::Min, |region| {
+                region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
+                region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
+                region.add(label!("and tooltips (hover me)")).tooltip_text(
                     "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
                 );
             });
 
-            gui.add(Checkbox::new(&mut self.checked, "checkbox"));
+            region.add(Checkbox::new(&mut self.checked, "checkbox"));
 
-            gui.horizontal(Align::Min, |gui| {
-                if gui.add(radio(self.radio == 0, "First")).clicked {
+            region.horizontal(Align::Min, |region| {
+                if region.add(radio(self.radio == 0, "First")).clicked {
                     self.radio = 0;
                 }
-                if gui.add(radio(self.radio == 1, "Second")).clicked {
+                if region.add(radio(self.radio == 1, "Second")).clicked {
                     self.radio = 1;
                 }
-                if gui.add(radio(self.radio == 2, "Final")).clicked {
+                if region.add(radio(self.radio == 2, "Final")).clicked {
                     self.radio = 2;
                 }
             });
 
-            gui.horizontal(Align::Min, |gui| {
-                if gui
+            region.horizontal(Align::Min, |region| {
+                if region
                     .add(Button::new("Click me"))
                     .tooltip_text("This will just increase a counter.")
                     .clicked
                 {
                     self.count += 1;
                 }
-                gui.add(label!(
+                region.add(label!(
                     "The button have been clicked {} times",
                     self.count
                 ));
             });
         });
 
-        gui.foldable("Layouts", |gui| {
-            gui.add(Slider::usize(&mut self.num_columns, 1, 10).text("Columns"));
-            gui.columns(self.num_columns, |cols| {
+        region.foldable("Layouts", |region| {
+            region.add(Slider::usize(&mut self.num_columns, 1, 10).text("Columns"));
+            region.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.add(label!("Column {} out of {}", i + 1, self.num_columns));
                     if i + 1 == self.num_columns {
@@ -99,14 +92,14 @@ impl App {
             });
         });
 
-        gui.foldable("Test box rendering", |gui| {
-            gui.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
-            gui.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
-            gui.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
-            gui.add(Slider::f32(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
-            gui.add(Slider::usize(&mut self.num_boxes, 0, 5).text("num_boxes"));
+        region.foldable("Test box rendering", |region| {
+            region.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
+            region.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
+            region.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
+            region.add(Slider::f32(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
+            region.add(Slider::usize(&mut self.num_boxes, 0, 5).text("num_boxes"));
 
-            let pos = gui
+            let pos = region
                 .reserve_space(
                     vec2(self.size.x * (self.num_boxes as f32), self.size.y),
                     None,
@@ -129,11 +122,19 @@ impl App {
                     }),
                 });
             }
-            gui.add_paint_cmds(cmds);
+            region.add_paint_cmds(cmds);
         });
 
-        gui.foldable("Slider example", |gui| {
-            show_value_gui(&mut self.slider_value, gui);
+        region.foldable("Slider example", |region| {
+            value_ui(&mut self.slider_value, region);
         });
     }
+}
+
+pub fn value_ui(value: &mut usize, region: &mut Region) {
+    region.add(Slider::usize(value, 1, 1000));
+    if region.add(Button::new("Double it")).clicked {
+        *value *= 2;
+    }
+    region.add(label!("Value: {}", value));
 }

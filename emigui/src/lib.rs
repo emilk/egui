@@ -8,6 +8,7 @@ extern crate serde_derive;
 
 pub mod color;
 mod emigui;
+pub mod example_app;
 mod font;
 mod fonts;
 mod layout;

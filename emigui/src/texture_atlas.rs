@@ -89,3 +89,79 @@ impl TextureAtlas {
         (pos.0 as usize, pos.1 as usize)
     }
 }
+
+impl Texture {
+    pub fn ui(&self, region: &mut crate::Region) {
+        use crate::{
+            color::WHITE, label, layout::show_popup, math::*, widgets::Label, Mesh, PaintCmd,
+            Vertex,
+        };
+
+        region.add(label!(
+            "Texture size: {} x {} (hover to zoom)",
+            self.width,
+            self.height
+        ));
+        let mut size = vec2(self.width as f32, self.height as f32);
+        if size.x > region.width() {
+            size *= region.width() / size.x;
+        }
+        let interact = region.reserve_space(size, None);
+        let rect = interact.rect;
+        let top_left = Vertex {
+            pos: rect.min(),
+            uv: (0, 0),
+            color: WHITE,
+        };
+        let bottom_right = Vertex {
+            pos: rect.max(),
+            uv: (self.width as u16 - 1, self.height as u16 - 1),
+            color: WHITE,
+        };
+        let mut mesh = Mesh::default();
+        mesh.add_rect(top_left, bottom_right);
+        region.add_paint_cmd(PaintCmd::Mesh(mesh));
+
+        if let Some(mouse_pos) = region.input().mouse_pos {
+            if interact.hovered {
+                show_popup(region.data(), mouse_pos, |region| {
+                    let zoom_rect = region.reserve_space(vec2(128.0, 128.0), None).rect;
+                    let u = remap_clamp(
+                        mouse_pos.x,
+                        rect.min().x,
+                        rect.max().x,
+                        0.0,
+                        self.width as f32 - 1.0,
+                    )
+                    .round();
+                    let v = remap_clamp(
+                        mouse_pos.y,
+                        rect.min().y,
+                        rect.max().y,
+                        0.0,
+                        self.height as f32 - 1.0,
+                    )
+                    .round();
+
+                    let texel_radius = 32.0;
+                    let u = clamp(u, texel_radius, self.width as f32 - 1.0 - texel_radius);
+                    let v = clamp(v, texel_radius, self.height as f32 - 1.0 - texel_radius);
+
+                    let top_left = Vertex {
+                        pos: zoom_rect.min(),
+                        uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
+                        color: WHITE,
+                    };
+                    let bottom_right = Vertex {
+                        pos: zoom_rect.max(),
+                        uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
+                        color: WHITE,
+                    };
+                    let mut mesh = Mesh::default();
+                    mesh.add_rect(top_left, bottom_right);
+                    region.add_paint_cmd(PaintCmd::Mesh(mesh));
+                });
+            }
+        }
+    }
+}

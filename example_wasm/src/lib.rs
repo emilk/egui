@@ -7,17 +7,21 @@ extern crate emigui;
 extern crate emigui_wasm;
 
 use {
-    emigui::{color::srgba, label, widgets::Label, Emigui, RawInput},
+    emigui::{
+        color::srgba,
+        example_app::ExampleApp,
+        label,
+        widgets::{Label, Separator},
+        Align, Emigui, RawInput, TextStyle,
+    },
     emigui_wasm::now_sec,
 };
 
 use wasm_bindgen::prelude::*;
-
-mod app;
-
 #[wasm_bindgen]
+
 pub struct State {
-    app: app::App,
+    example_app: ExampleApp,
     emigui: Emigui,
     webgl_painter: emigui_wasm::webgl::Painter,
     everything_ms: f64,
@@ -26,7 +30,7 @@ pub struct State {
 impl State {
     fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
         Ok(State {
-            app: Default::default(),
+            example_app: Default::default(),
             emigui: Emigui::new(pixels_per_point),
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
             everything_ms: 0.0,
@@ -40,15 +44,23 @@ impl State {
 
         let mut region = self.emigui.whole_screen_region();
         let mut region = region.centered_column(region.width().min(480.0));
-        self.app.show_gui(&mut region);
-        self.emigui.example(&mut region);
+        region.add(label!("Emigui!").text_style(TextStyle::Heading));
+        region.add(label!("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
+        region.add(label!(
+            "Everything you see is rendered as textured triangles. There is no DOM. There are not HTML elements."
+        ));
+        region.add(Separator::new());
+        self.example_app.ui(&mut region);
+        self.emigui.ui(&mut region);
 
+        region.set_align(Align::Min);
         region.add(label!("WebGl painter info:"));
         region.indent(|region| {
             region.add(label!(self.webgl_painter.debug_info()));
         });
-
-        region.add(label!("Everything: {:.1} ms", self.everything_ms));
+        region.add(
+            label!("Everything: {:.1} ms", self.everything_ms).text_style(TextStyle::Monospace),
+        );
 
         let bg_color = srgba(16, 16, 16, 255);
         let mesh = self.emigui.paint();

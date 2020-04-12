@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    color::WHITE,
     label, layout,
-    layout::{show_popup, Region},
-    math::{clamp, remap_clamp, vec2},
-    mesher::{Mesher, Vertex},
-    style::Style,
+    layout::Region,
+    mesher::Mesher,
     types::{GuiInput, PaintCmd},
     widgets::*,
     FontDefinitions, Fonts, Mesh, RawInput, Texture,
@@ -16,98 +13,6 @@ use crate::{
 struct Stats {
     num_vertices: usize,
     num_triangles: usize,
-}
-
-fn show_style(style: &mut Style, gui: &mut Region) {
-    if gui.add(Button::new("Reset style")).clicked {
-        *style = Default::default();
-    }
-    gui.add(Slider::f32(&mut style.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
-    gui.add(Slider::f32(&mut style.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
-    gui.add(Slider::f32(&mut style.window_padding.x, 0.0, 10.0).text("window_padding.x"));
-    gui.add(Slider::f32(&mut style.window_padding.y, 0.0, 10.0).text("window_padding.y"));
-    gui.add(Slider::f32(&mut style.indent, 0.0, 100.0).text("indent"));
-    gui.add(Slider::f32(&mut style.button_padding.x, 0.0, 20.0).text("button_padding.x"));
-    gui.add(Slider::f32(&mut style.button_padding.y, 0.0, 20.0).text("button_padding.y"));
-    gui.add(Slider::f32(&mut style.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
-    gui.add(Slider::f32(&mut style.start_icon_width, 0.0, 60.0).text("start_icon_width"));
-    gui.add(Slider::f32(&mut style.line_width, 0.0, 10.0).text("line_width"));
-}
-
-fn show_font_definitions(font_definitions: &mut FontDefinitions, gui: &mut Region) {
-    for (text_style, (_family, size)) in font_definitions {
-        // TODO: radiobutton for family
-        gui.add(Slider::f32(size, 4.0, 40.0).text(format!("{:?}", text_style)));
-    }
-}
-
-fn show_font_texture(texture: &Texture, gui: &mut Region) {
-    gui.add(label!(
-        "Font texture size: {} x {} (hover to zoom)",
-        texture.width,
-        texture.height
-    ));
-    let mut size = vec2(texture.width as f32, texture.height as f32);
-    if size.x > gui.width() {
-        size *= gui.width() / size.x;
-    }
-    let interact = gui.reserve_space(size, None);
-    let rect = interact.rect;
-    let top_left = Vertex {
-        pos: rect.min(),
-        uv: (0, 0),
-        color: WHITE,
-    };
-    let bottom_right = Vertex {
-        pos: rect.max(),
-        uv: (texture.width as u16 - 1, texture.height as u16 - 1),
-        color: WHITE,
-    };
-    let mut mesh = Mesh::default();
-    mesh.add_rect(top_left, bottom_right);
-    gui.add_paint_cmd(PaintCmd::Mesh(mesh));
-
-    if let Some(mouse_pos) = gui.input().mouse_pos {
-        if interact.hovered {
-            show_popup(gui.data(), mouse_pos, |gui| {
-                let zoom_rect = gui.reserve_space(vec2(128.0, 128.0), None).rect;
-                let u = remap_clamp(
-                    mouse_pos.x,
-                    rect.min().x,
-                    rect.max().x,
-                    0.0,
-                    texture.width as f32 - 1.0,
-                )
-                .round();
-                let v = remap_clamp(
-                    mouse_pos.y,
-                    rect.min().y,
-                    rect.max().y,
-                    0.0,
-                    texture.height as f32 - 1.0,
-                )
-                .round();
-
-                let texel_radius = 32.0;
-                let u = clamp(u, texel_radius, texture.width as f32 - 1.0 - texel_radius);
-                let v = clamp(v, texel_radius, texture.height as f32 - 1.0 - texel_radius);
-
-                let top_left = Vertex {
-                    pos: zoom_rect.min(),
-                    uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
-                    color: WHITE,
-                };
-                let bottom_right = Vertex {
-                    pos: zoom_rect.max(),
-                    uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
-                    color: WHITE,
-                };
-                let mut mesh = Mesh::default();
-                mesh.add_rect(top_left, bottom_right);
-                gui.add_paint_cmd(PaintCmd::Mesh(mesh));
-            });
-        }
-    }
 }
 
 /// Encapsulates input, layout and painting for ease of use.
@@ -164,18 +69,16 @@ impl Emigui {
         mesh
     }
 
-    pub fn example(&mut self, region: &mut Region) {
-        region.foldable("Style", |gui| {
-            let mut style = self.data.style();
-            show_style(&mut style, gui);
-            self.data.set_style(style);
+    pub fn ui(&mut self, region: &mut Region) {
+        region.foldable("Style", |region| {
+            self.data.style_ui(region);
         });
 
-        region.foldable("Fonts", |gui| {
+        region.foldable("Fonts", |region| {
             let old_font_definitions = self.data.fonts.definitions();
             let mut new_font_definitions = old_font_definitions.clone();
-            show_font_definitions(&mut new_font_definitions, gui);
-            show_font_texture(self.texture(), gui);
+            font_definitions_ui(&mut new_font_definitions, region);
+            self.data.fonts.texture().ui(region);
             if *old_font_definitions != new_font_definitions {
                 let mut new_data = (*self.data).clone();
                 let fonts =
@@ -185,25 +88,39 @@ impl Emigui {
             }
         });
 
-        region.foldable("Stats", |gui| {
-            gui.add(label!(
+        region.foldable("Stats", |region| {
+            region.add(label!(
                 "Screen size: {} x {} points, pixels_per_point: {}",
-                gui.input().screen_size.x,
-                gui.input().screen_size.y,
-                gui.input().pixels_per_point,
+                region.input().screen_size.x,
+                region.input().screen_size.y,
+                region.input().pixels_per_point,
             ));
-            if let Some(mouse_pos) = gui.input().mouse_pos {
-                gui.add(label!("mouse_pos: {} x {}", mouse_pos.x, mouse_pos.y,));
+            if let Some(mouse_pos) = region.input().mouse_pos {
+                region.add(label!("mouse_pos: {} x {}", mouse_pos.x, mouse_pos.y,));
             } else {
-                gui.add(label!("mouse_pos: None"));
+                region.add(label!("mouse_pos: None"));
             }
-            gui.add(label!(
-                "gui cursor: {} x {}",
-                gui.cursor().x,
-                gui.cursor().y,
+            region.add(label!(
+                "region cursor: {} x {}",
+                region.cursor().x,
+                region.cursor().y,
             ));
-            gui.add(label!("num_vertices: {}", self.stats.num_vertices));
-            gui.add(label!("num_triangles: {}", self.stats.num_triangles));
+            region.add(label!("num_vertices: {}", self.stats.num_vertices));
+            region.add(label!("num_triangles: {}", self.stats.num_triangles));
         });
+    }
+}
+
+fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Region) {
+    for (text_style, (_family, size)) in font_definitions.iter_mut() {
+        // TODO: radiobutton for family
+        region.add(
+            Slider::f32(size, 4.0, 40.0)
+                .precision(0)
+                .text(format!("{:?}", text_style)),
+        );
+    }
+    if region.add(Button::new("Reset fonts")).clicked {
+        *font_definitions = crate::fonts::default_font_definitions();
     }
 }

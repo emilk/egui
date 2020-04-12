@@ -19,7 +19,7 @@ pub trait Widget {
 
 pub struct Label {
     text: String,
-    text_style: TextStyle,
+    text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the region"
     text_color: Option<Color>,
 }
 
@@ -331,6 +331,17 @@ impl<'a> Slider<'a> {
         self.precision = precision;
         self
     }
+
+    fn get_value_f32(&mut self) -> f32 {
+        (self.get_set_value)(None)
+    }
+
+    fn set_value_f32(&mut self, mut value: f32) {
+        if self.precision == 0 {
+            value = value.round();
+        }
+        (self.get_set_value)(Some(value));
+    }
 }
 
 impl<'a> Widget for Slider<'a> {
@@ -341,12 +352,8 @@ impl<'a> Widget for Slider<'a> {
         if let Some(text) = &self.text {
             let text_on_top = self.text_on_top.unwrap_or_default();
             let text_color = self.text_color;
-            let full_text = format!(
-                "{}: {:.*}",
-                text,
-                self.precision,
-                (self.get_set_value)(None)
-            );
+            let value = (self.get_set_value)(None);
+            let full_text = format!("{}: {:.*}", text, self.precision, value);
             let id = Some(self.id.unwrap_or_else(|| make_id(text)));
             let mut naked = self;
             naked.id = id;
@@ -386,19 +393,19 @@ impl<'a> Widget for Slider<'a> {
 
             if let Some(mouse_pos) = region.input().mouse_pos {
                 if interact.active {
-                    (self.get_set_value)(Some(remap_clamp(
+                    self.set_value_f32(remap_clamp(
                         mouse_pos.x,
                         interact.rect.min().x,
                         interact.rect.max().x,
                         min,
                         max,
-                    )));
+                    ));
                 }
             }
 
             // Paint it:
             {
-                let value = (self.get_set_value)(None);
+                let value = self.get_value_f32();
 
                 let rect = interact.rect;
                 let thickness = rect.size().y;
