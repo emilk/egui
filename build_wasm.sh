@@ -9,14 +9,14 @@ if ! [[ $(wasm-bindgen --version) ]]; then
 	cargo update
 fi
 
-BUILD=debug
-# BUILD=release
+# BUILD=debug
+BUILD=release
 
 # Clear output from old stuff:
 rm -rf docs/*.wasm
 
 echo "Build rust:"
-cargo build -p example_wasm --target wasm32-unknown-unknown
+cargo build --release -p example_wasm --target wasm32-unknown-unknown
 
 echo "Generate JS bindings for wasm:"
 FOLDER_NAME=${PWD##*/}
