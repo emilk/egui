@@ -347,7 +347,9 @@ impl Mesher {
                     let min = rect.min();
                     let max = rect.max();
 
-                    let cr = corner_radius.min(rect.size.x * 0.5).min(rect.size.y * 0.5);
+                    let cr = corner_radius
+                        .min(rect.width() * 0.5)
+                        .min(rect.height() * 0.5);
 
                     if cr <= 0.0 {
                         path_points.push(vec2(min.x, min.y));

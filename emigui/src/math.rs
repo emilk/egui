@@ -122,19 +122,26 @@ pub fn vec2(x: f32, y: f32) -> Vec2 {
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub struct Rect {
-    pub pos: Vec2,
-    pub size: Vec2,
+    min: Vec2,
+    max: Vec2,
 }
 
 impl Rect {
+    pub fn from_min_max(min: Vec2, max: Vec2) -> Self {
+        Rect { min, max: max }
+    }
+
     pub fn from_min_size(min: Vec2, size: Vec2) -> Self {
-        Rect { pos: min, size }
+        Rect {
+            min,
+            max: min + size,
+        }
     }
 
     pub fn from_center_size(center: Vec2, size: Vec2) -> Self {
         Rect {
-            pos: center - size * 0.5,
-            size,
+            min: center - size * 0.5,
+            max: center + size * 0.5,
         }
     }
 
@@ -144,38 +151,36 @@ impl Rect {
     }
 
     pub fn contains(&self, p: Vec2) -> bool {
-        self.pos.x <= p.x
-            && p.x <= self.pos.x + self.size.x
-            && self.pos.y <= p.y
-            && p.y <= self.pos.y + self.size.y
+        self.min.x <= p.x
+            && p.x <= self.min.x + self.size().x
+            && self.min.y <= p.y
+            && p.y <= self.min.y + self.size().y
     }
 
     pub fn center(&self) -> Vec2 {
         Vec2 {
-            x: self.pos.x + self.size.x / 2.0,
-            y: self.pos.y + self.size.y / 2.0,
+            x: self.min.x + self.size().x / 2.0,
+            y: self.min.y + self.size().y / 2.0,
         }
     }
-
     pub fn min(&self) -> Vec2 {
-        self.pos
+        self.min
     }
-
     pub fn max(&self) -> Vec2 {
-        self.pos + self.size
+        self.max
     }
-
     pub fn size(&self) -> Vec2 {
-        self.size
+        self.max - self.min
     }
     pub fn width(&self) -> f32 {
-        self.size.x
+        self.max.x - self.min.x
     }
     pub fn height(&self) -> f32 {
-        self.size.y
+        self.max.y - self.min.y
     }
 
-    // Convenience functions:
+    // Convenience functions (assumes origin is towards left top):
+
     pub fn left_top(&self) -> Vec2 {
         vec2(self.min().x, self.min().y)
     }

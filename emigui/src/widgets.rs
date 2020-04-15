@@ -227,7 +227,7 @@ impl Widget for RadioButton {
             center: big_icon_rect.center(),
             fill_color: Some(fill_color),
             outline: None,
-            radius: big_icon_rect.size.x / 2.0,
+            radius: big_icon_rect.size().x / 2.0,
         });
 
         if self.checked {
@@ -235,7 +235,7 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 fill_color: Some(stroke_color),
                 outline: None,
-                radius: small_icon_rect.size.x / 2.0,
+                radius: small_icon_rect.size().x / 2.0,
             });
         }
 
@@ -409,7 +409,7 @@ impl<'a> Widget for Slider<'a> {
 
                 let rect = interact.rect;
                 let thickness = rect.size().y;
-                let thin_size = vec2(rect.size.x, thickness / 5.0);
+                let thin_size = vec2(rect.size().x, thickness / 5.0);
                 let thin_rect = Rect::from_center_size(rect.center(), thin_size);
                 let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
 
