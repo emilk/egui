@@ -20,8 +20,8 @@ mod types;
 pub mod widgets;
 
 pub use {
+    crate::emigui::Emigui,
     color::Color,
-    emigui::Emigui,
     fonts::{FontDefinitions, Fonts, TextStyle},
     layout::{Align, Region},
     math::*,
