@@ -8,6 +8,8 @@ use crate::{
     types::PaintCmd,
 };
 
+const WHITE_UV: (u16, u16) = (1, 1);
+
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct Vertex {
     /// Pixel coordinates
@@ -146,7 +148,7 @@ impl Mesher {
         let n = points.len() as u32;
         let vert = |pos, color| Vertex {
             pos,
-            uv: (0, 0),
+            uv: WHITE_UV,
             color,
         };
         let mesh = &mut self.mesh;
@@ -192,7 +194,7 @@ impl Mesher {
 
         let vert = |pos, color| Vertex {
             pos,
-            uv: (0, 0),
+            uv: WHITE_UV,
             color,
         };
         let mesh = &mut self.mesh;

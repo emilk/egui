@@ -69,9 +69,13 @@ impl Fonts {
 
         let mut atlas = TextureAtlas::new(512, 8); // TODO: better default?
 
-        // Make one white pixel for use for various stuff:
-        let pos = atlas.allocate((1, 1));
-        atlas.texture_mut()[pos] = 255;
+        // Make the top left four pixels fully white:
+        let pos = atlas.allocate((2, 2));
+        assert_eq!(pos, (0, 0));
+        atlas.texture_mut()[(0, 0)] = 255;
+        atlas.texture_mut()[(0, 1)] = 255;
+        atlas.texture_mut()[(1, 0)] = 255;
+        atlas.texture_mut()[(1, 1)] = 255;
 
         let atlas = Arc::new(Mutex::new(atlas));
 
