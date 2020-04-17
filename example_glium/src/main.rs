@@ -92,7 +92,7 @@ fn main() {
         emigui.ui(&mut region);
 
         // TODO: Make it simpler to show a window
-        Window::new("Test window").show(region.data().clone(), |region| {
+        Window::new("Test window").show(region.ctx(), |region| {
             region.add(label!("Grab the window and move it around!"));
         });
 

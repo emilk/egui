@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    layout::{make_id, Data, Direction},
+    layout::{make_id, Direction},
     widgets::Label,
     *,
 };
@@ -24,13 +24,13 @@ impl Window {
         }
     }
 
-    pub fn show<F>(self, data: Arc<Data>, add_contents: F)
+    pub fn show<F>(self, ctx: &Arc<Context>, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
         let id = make_id(&self.title);
 
-        let mut state = data.memory.lock().unwrap().get_or_create_window(
+        let mut state = ctx.memory.lock().unwrap().get_or_create_window(
             id,
             Rect::from_min_size(
                 vec2(400.0, 200.0), // TODO
@@ -39,13 +39,13 @@ impl Window {
         );
 
         let layer = Layer::Window(id);
-        let where_to_put_background = data.graphics.lock().unwrap().layer(layer).len();
+        let where_to_put_background = ctx.graphics.lock().unwrap().layer(layer).len();
 
-        let style = data.style();
+        let style = ctx.style();
         let window_padding = style.window_padding;
 
         let mut contents_region = Region {
-            data: data.clone(),
+            ctx: ctx.clone(),
             layer: Layer::Popup,
             style,
             id: Default::default(),
@@ -53,7 +53,7 @@ impl Window {
             align: Align::Min,
             cursor: state.rect.min() + window_padding,
             bounding_size: vec2(0.0, 0.0),
-            available_space: vec2(data.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: window.width
+            available_space: vec2(ctx.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: window.width
         };
 
         // Show top bar:
@@ -69,7 +69,7 @@ impl Window {
 
         state.rect = Rect::from_min_size(state.rect.min(), outer_size);
 
-        let mut graphics = data.graphics.lock().unwrap();
+        let mut graphics = ctx.graphics.lock().unwrap();
         let graphics = graphics.layer(layer);
         graphics.insert(
             where_to_put_background,
@@ -84,12 +84,12 @@ impl Window {
             },
         );
 
-        let interact = data.interact(layer, state.rect, Some(id));
+        let interact = ctx.interact(layer, state.rect, Some(id));
         if interact.active {
-            state.rect = state.rect.translate(data.input().mouse_move);
+            state.rect = state.rect.translate(ctx.input().mouse_move);
         }
 
-        let mut memory = data.memory.lock().unwrap();
+        let mut memory = ctx.memory.lock().unwrap();
         if interact.active || interact.clicked {
             memory.move_window_to_top(id);
         }

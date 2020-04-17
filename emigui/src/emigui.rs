@@ -11,7 +11,7 @@ struct Stats {
 /// Encapsulates input, layout and painting for ease of use.
 pub struct Emigui {
     pub last_input: RawInput,
-    pub data: Arc<layout::Data>,
+    pub ctx: Arc<Context>,
     stats: Stats,
     anti_alias: bool,
 }
@@ -20,14 +20,14 @@ impl Emigui {
     pub fn new(pixels_per_point: f32) -> Emigui {
         Emigui {
             last_input: Default::default(),
-            data: Arc::new(layout::Data::new(pixels_per_point)),
+            ctx: Arc::new(Context::new(pixels_per_point)),
             stats: Default::default(),
             anti_alias: true,
         }
     }
 
     pub fn texture(&self) -> &Texture {
-        self.data.fonts.texture()
+        self.ctx.fonts.texture()
     }
 
     pub fn new_frame(&mut self, new_input: RawInput) {
@@ -35,31 +35,31 @@ impl Emigui {
         self.last_input = new_input;
 
         // TODO: avoid this clone
-        let mut new_data = (*self.data).clone();
+        let mut new_data = (*self.ctx).clone();
         new_data.new_frame(gui_input);
-        self.data = Arc::new(new_data);
+        self.ctx = Arc::new(new_data);
     }
 
     pub fn whole_screen_region(&mut self) -> Region {
         Region {
-            data: self.data.clone(),
+            ctx: self.ctx.clone(),
             layer: Layer::Background,
-            style: self.data.style(),
+            style: self.ctx.style(),
             id: Default::default(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
             cursor: Default::default(),
             bounding_size: Default::default(),
-            available_space: self.data.input.screen_size,
+            available_space: self.ctx.input.screen_size,
         }
     }
 
     pub fn paint(&mut self) -> Mesh {
-        let paint_commands: Vec<PaintCmd> = self.data.graphics.lock().unwrap().drain().collect();
+        let paint_commands: Vec<PaintCmd> = self.ctx.graphics.lock().unwrap().drain().collect();
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
         mesher.anti_alias = self.anti_alias;
 
-        mesher.paint(&self.data.fonts, &paint_commands);
+        mesher.paint(&self.ctx.fonts, &paint_commands);
         let mesh = mesher.mesh;
         self.stats.num_vertices = mesh.vertices.len();
         self.stats.num_triangles = mesh.indices.len() / 3;
@@ -69,20 +69,20 @@ impl Emigui {
     pub fn ui(&mut self, region: &mut Region) {
         region.foldable("Style", |region| {
             region.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
-            self.data.style_ui(region);
+            self.ctx.style_ui(region);
         });
 
         region.foldable("Fonts", |region| {
-            let old_font_definitions = self.data.fonts.definitions();
+            let old_font_definitions = self.ctx.fonts.definitions();
             let mut new_font_definitions = old_font_definitions.clone();
             font_definitions_ui(&mut new_font_definitions, region);
-            self.data.fonts.texture().ui(region);
+            self.ctx.fonts.texture().ui(region);
             if *old_font_definitions != new_font_definitions {
-                let mut new_data = (*self.data).clone();
+                let mut new_data = (*self.ctx).clone();
                 let fonts =
-                    Fonts::from_definitions(new_font_definitions, self.data.input.pixels_per_point);
+                    Fonts::from_definitions(new_font_definitions, self.ctx.input.pixels_per_point);
                 new_data.fonts = Arc::new(fonts);
-                self.data = Arc::new(new_data);
+                self.ctx = Arc::new(new_data);
             }
         });
 

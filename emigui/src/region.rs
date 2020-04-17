@@ -6,7 +6,7 @@ use crate::{font::TextFragment, layout::*, widgets::*, *};
 /// with a type of layout (horizontal or vertical).
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region {
-    pub(crate) data: Arc<Data>,
+    pub(crate) ctx: Arc<Context>,
 
     /// Where to put the graphics output of this Region
     pub(crate) layer: Layer,
@@ -39,7 +39,7 @@ impl Region {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.data
+        self.ctx
             .graphics
             .lock()
             .unwrap()
@@ -48,7 +48,7 @@ impl Region {
     }
 
     pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
-        self.data
+        self.ctx
             .graphics
             .lock()
             .unwrap()
@@ -61,16 +61,16 @@ impl Region {
         &self.style
     }
 
-    pub fn data(&self) -> &Arc<Data> {
-        &self.data
+    pub fn ctx(&self) -> &Arc<Context> {
+        &self.ctx
     }
 
     pub fn input(&self) -> &GuiInput {
-        self.data.input()
+        self.ctx.input()
     }
 
     pub fn fonts(&self) -> &Fonts {
-        &*self.data.fonts
+        &*self.ctx.fonts
     }
 
     pub fn width(&self) -> f32 {
@@ -124,7 +124,7 @@ impl Region {
         );
 
         let open = {
-            let mut memory = self.data.memory.lock().unwrap();
+            let mut memory = self.ctx.memory.lock().unwrap();
             if interact.clicked {
                 if memory.open_foldables.contains(&id) {
                     memory.open_foldables.remove(&id);
@@ -194,7 +194,7 @@ impl Region {
     {
         let indent = vec2(self.style.indent, 0.0);
         let mut child_region = Region {
-            data: self.data.clone(),
+            ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
@@ -212,7 +212,7 @@ impl Region {
     /// Return a sub-region relative to the parent
     pub fn relative_region(&mut self, rect: Rect) -> Region {
         Region {
-            data: self.data.clone(),
+            ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
@@ -254,7 +254,7 @@ impl Region {
         F: FnOnce(&mut Region),
     {
         let mut child_region = Region {
-            data: self.data.clone(),
+            ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
@@ -302,7 +302,7 @@ impl Region {
 
         let mut columns: Vec<Region> = (0..num_columns)
             .map(|col_idx| Region {
-                data: self.data.clone(),
+                ctx: self.ctx.clone(),
                 layer: self.layer,
                 style: self.style,
                 id: self.make_child_id(&("column", col_idx)),
@@ -337,7 +337,7 @@ impl Region {
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let pos = self.reserve_space_without_padding(size + self.style.item_spacing);
         let rect = Rect::from_min_size(pos, size);
-        self.data.interact(self.layer, rect, interaction_id)
+        self.ctx.interact(self.layer, rect, interaction_id)
     }
 
     /// Reserve this much space and move the cursor.
@@ -438,7 +438,7 @@ impl Region {
             clicked: interact.clicked,
             active: interact.active,
             rect: interact.rect,
-            data: self.data.clone(),
+            ctx: self.ctx.clone(),
         }
     }
 }

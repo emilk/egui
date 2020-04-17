@@ -124,7 +124,7 @@ impl Texture {
 
         if let Some(mouse_pos) = region.input().mouse_pos {
             if interact.hovered {
-                show_popup(region.data(), mouse_pos, |region| {
+                show_popup(region.ctx(), mouse_pos, |region| {
                     let zoom_rect = region.reserve_space(vec2(128.0, 128.0), None).rect;
                     let u = remap_clamp(
                         mouse_pos.x,

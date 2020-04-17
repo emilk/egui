@@ -1,7 +1,4 @@
-use std::{
-    hash::Hash,
-    sync::{Arc, Mutex},
-};
+use std::{hash::Hash, sync::Arc};
 
 use crate::{widgets::*, *};
 
@@ -22,7 +19,7 @@ pub struct GuiResponse {
     pub rect: Rect,
 
     /// Used for showing a popup (if any)
-    pub data: Arc<Data>,
+    pub ctx: Arc<Context>,
 }
 
 impl GuiResponse {
@@ -32,9 +29,9 @@ impl GuiResponse {
         F: FnOnce(&mut Region),
     {
         if self.hovered {
-            if let Some(mouse_pos) = self.data.input().mouse_pos {
+            if let Some(mouse_pos) = self.ctx.input().mouse_pos {
                 let window_pos = mouse_pos + vec2(16.0, 16.0);
-                show_popup(&self.data, window_pos, add_contents);
+                show_popup(&self.ctx, window_pos, add_contents);
             }
         }
         self
@@ -95,121 +92,19 @@ pub fn make_id<H: Hash>(source: &H) -> Id {
 
 // ----------------------------------------------------------------------------
 
-// TODO: give a better name. Context?
-/// Contains the input, style and output of all GUI commands.
-pub struct Data {
-    /// The default style for new regions
-    pub(crate) style: Mutex<Style>,
-    pub(crate) fonts: Arc<Fonts>,
-    pub(crate) input: GuiInput,
-    pub(crate) memory: Mutex<Memory>,
-    pub(crate) graphics: Mutex<GraphicLayers>,
-}
-
-impl Clone for Data {
-    fn clone(&self) -> Self {
-        Data {
-            style: Mutex::new(self.style()),
-            fonts: self.fonts.clone(),
-            input: self.input,
-            memory: Mutex::new(self.memory.lock().unwrap().clone()),
-            graphics: Mutex::new(self.graphics.lock().unwrap().clone()),
-        }
-    }
-}
-
-impl Data {
-    pub fn new(pixels_per_point: f32) -> Data {
-        Data {
-            style: Default::default(),
-            fonts: Arc::new(Fonts::new(pixels_per_point)),
-            input: Default::default(),
-            memory: Default::default(),
-            graphics: Default::default(),
-        }
-    }
-
-    pub fn input(&self) -> &GuiInput {
-        &self.input
-    }
-
-    pub fn style(&self) -> Style {
-        *self.style.lock().unwrap()
-    }
-
-    pub fn set_style(&self, style: Style) {
-        *self.style.lock().unwrap() = style;
-    }
-
-    // TODO: move
-    pub fn new_frame(&mut self, gui_input: GuiInput) {
-        self.input = gui_input;
-        if !gui_input.mouse_down || gui_input.mouse_pos.is_none() {
-            self.memory.lock().unwrap().active_id = None;
-        }
-    }
-
-    /// Is the user interacting with anything?
-    pub fn any_active(&self) -> bool {
-        self.memory.lock().unwrap().active_id.is_some()
-    }
-
-    pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
-        let mut memory = self.memory.lock().unwrap();
-
-        let hovered = if let Some(mouse_pos) = self.input.mouse_pos {
-            if rect.contains(mouse_pos) {
-                let is_something_else_active =
-                    memory.active_id.is_some() && memory.active_id != interaction_id;
-
-                !is_something_else_active && layer == memory.layer_at(mouse_pos)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        let active = if interaction_id.is_some() {
-            if hovered && self.input.mouse_clicked {
-                memory.active_id = interaction_id;
-            }
-            memory.active_id == interaction_id
-        } else {
-            false
-        };
-
-        let clicked = hovered && self.input.mouse_released;
-
-        InteractInfo {
-            rect,
-            hovered,
-            clicked,
-            active,
-        }
-    }
-}
-
-impl Data {
-    pub fn style_ui(&self, region: &mut Region) {
-        let mut style = self.style();
-        style.ui(region);
-        self.set_style(style);
-    }
-}
-
 /// Show a pop-over window
-pub fn show_popup<F>(data: &Arc<Data>, window_pos: Vec2, add_contents: F)
+pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Vec2, add_contents: F)
 where
     F: FnOnce(&mut Region),
 {
     let layer = Layer::Popup;
-    let where_to_put_background = data.graphics.lock().unwrap().layer(layer).len();
+    let where_to_put_background = ctx.graphics.lock().unwrap().layer(layer).len();
 
-    let style = data.style();
+    let style = ctx.style();
     let window_padding = style.window_padding;
 
     let mut contents_region = Region {
-        data: data.clone(),
+        ctx: ctx.clone(),
         layer: Layer::Popup,
         style,
         id: Default::default(),
@@ -217,7 +112,7 @@ where
         align: Align::Min,
         cursor: window_pos + window_padding,
         bounding_size: vec2(0.0, 0.0),
-        available_space: vec2(data.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: popup/tooltip width
+        available_space: vec2(ctx.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: popup/tooltip width
     };
 
     add_contents(&mut contents_region);
@@ -230,7 +125,7 @@ where
 
     let rect = Rect::from_min_size(window_pos, outer_size);
 
-    let mut graphics = data.graphics.lock().unwrap();
+    let mut graphics = ctx.graphics.lock().unwrap();
     let graphics = graphics.layer(layer);
     graphics.insert(
         where_to_put_background,

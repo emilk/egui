@@ -7,6 +7,7 @@ extern crate serde;
 extern crate serde_derive;
 
 pub mod color;
+mod context;
 mod emigui;
 pub mod example_app;
 mod font;
@@ -26,6 +27,7 @@ mod window;
 pub use {
     crate::emigui::Emigui,
     color::Color,
+    context::Context,
     fonts::{FontDefinitions, Fonts, TextStyle},
     layers::*,
     layout::{Align, Id},
