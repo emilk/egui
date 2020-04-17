@@ -46,7 +46,7 @@ impl Window {
 
         let mut contents_region = Region {
             ctx: ctx.clone(),
-            layer: Layer::Popup,
+            layer,
             style,
             id: Default::default(),
             dir: Direction::Vertical,

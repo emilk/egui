@@ -91,9 +91,13 @@ fn main() {
         example_app.ui(&mut region);
         emigui.ui(&mut region);
 
-        // TODO: Make it simpler to show a window
+        // TODO: Make it even simpler to show a window
         Window::new("Test window").show(region.ctx(), |region| {
             region.add(label!("Grab the window and move it around!"));
+        });
+        Window::new("Another test window").show(region.ctx(), |region| {
+            region.add(label!("This might be on top of the other window?"));
+            region.add(label!("Second line of text"));
         });
 
         let mesh = emigui.paint();

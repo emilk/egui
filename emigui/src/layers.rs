@@ -7,6 +7,7 @@ use crate::{Id, PaintCmd};
 pub enum Layer {
     Background,
     Window(Id),
+    /// Tooltips etc
     Popup,
 }
 
@@ -29,12 +30,13 @@ impl GraphicLayers {
         }
     }
 
-    pub fn drain(&mut self) -> impl ExactSizeIterator<Item = PaintCmd> {
+    pub fn drain(&mut self, window_oreder: &[Id]) -> impl ExactSizeIterator<Item = PaintCmd> {
         let mut all_commands: Vec<_> = self.bg.drain(..).collect();
 
-        // TODO: order
-        for window in self.windows.values_mut() {
-            all_commands.extend(window.drain(..));
+        for id in window_oreder {
+            if let Some(window) = self.windows.get_mut(id) {
+                all_commands.extend(window.drain(..));
+            }
         }
 
         all_commands.extend(self.popup.drain(..));

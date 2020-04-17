@@ -55,6 +55,15 @@ impl Context {
         }
     }
 
+    pub fn drain_paint_lists(&self) -> Vec<PaintCmd> {
+        let memory = self.memory.lock().unwrap();
+        self.graphics
+            .lock()
+            .unwrap()
+            .drain(&memory.window_order)
+            .collect()
+    }
+
     /// Is the user interacting with anything?
     pub fn any_active(&self) -> bool {
         self.memory.lock().unwrap().active_id.is_some()

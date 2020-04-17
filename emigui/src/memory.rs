@@ -13,7 +13,7 @@ pub struct Memory {
     windows: HashMap<Id, WindowState>,
 
     /// Top is last
-    window_order: Vec<Id>,
+    pub window_order: Vec<Id>,
 }
 
 impl Memory {
@@ -44,7 +44,13 @@ impl Memory {
         Layer::Background
     }
 
-    pub fn move_window_to_top(&mut self, _id: Id) {
-        // TODO
+    pub fn move_window_to_top(&mut self, id: Id) {
+        if self.window_order.last() == Some(&id) {
+            return; // common case early-out
+        }
+        if let Some(index) = self.window_order.iter().position(|x| *x == id) {
+            self.window_order.remove(index);
+        }
+        self.window_order.push(id);
     }
 }
