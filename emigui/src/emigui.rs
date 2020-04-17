@@ -20,6 +20,7 @@ pub struct Emigui {
     pub last_input: RawInput,
     pub data: Arc<layout::Data>,
     stats: Stats,
+    anti_alias: bool,
 }
 
 impl Emigui {
@@ -28,6 +29,7 @@ impl Emigui {
             last_input: Default::default(),
             data: Arc::new(layout::Data::new(pixels_per_point)),
             stats: Default::default(),
+            anti_alias: true,
         }
     }
 
@@ -62,6 +64,8 @@ impl Emigui {
     pub fn paint(&mut self) -> Mesh {
         let paint_commands: Vec<PaintCmd> = self.data.graphics.lock().unwrap().drain().collect();
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
+        mesher.anti_alias = self.anti_alias;
+
         mesher.paint(&self.data.fonts, &paint_commands);
         let mesh = mesher.mesh;
         self.stats.num_vertices = mesh.vertices.len();
@@ -71,6 +75,7 @@ impl Emigui {
 
     pub fn ui(&mut self, region: &mut Region) {
         region.foldable("Style", |region| {
+            region.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
             self.data.style_ui(region);
         });
 
