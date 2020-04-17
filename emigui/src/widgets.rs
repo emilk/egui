@@ -1,11 +1,8 @@
 #![allow(clippy::new_without_default_derive)]
 
 use crate::{
-    color::{self, Color},
-    fonts::TextStyle,
-    layout::{make_id, Align, Direction, GuiResponse, Id, Region},
-    math::{remap_clamp, vec2, Rect, Vec2},
-    types::{Outline, PaintCmd},
+    layout::{make_id, Direction, GuiResponse},
+    *,
 };
 
 // ----------------------------------------------------------------------------

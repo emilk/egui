@@ -1,13 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    label, layout,
-    layout::Region,
-    mesher::Mesher,
-    types::{GuiInput, PaintCmd},
-    widgets::*,
-    FontDefinitions, Fonts, Layer, Mesh, RawInput, Texture,
-};
+use crate::{layout, mesher::Mesher, widgets::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct Stats {
