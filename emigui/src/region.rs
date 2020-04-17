@@ -359,21 +359,11 @@ impl Region {
     }
 
     pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
-        use std::hash::Hasher;
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        hasher.write_u64(self.id);
-        child_id.hash(&mut hasher);
-        hasher.finish()
+        self.id.with(child_id)
     }
 
     pub fn combined_id(&self, child_id: Option<Id>) -> Option<Id> {
-        child_id.map(|child_id| {
-            use std::hash::Hasher;
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            hasher.write_u64(self.id);
-            child_id.hash(&mut hasher);
-            hasher.finish()
-        })
+        child_id.map(|child_id| self.id.with(&child_id))
     }
 
     // Helper function

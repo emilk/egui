@@ -1,7 +1,7 @@
 #![allow(clippy::new_without_default_derive)]
 
 use crate::{
-    layout::{make_id, Direction, GuiResponse},
+    layout::{Direction, GuiResponse},
     *,
 };
 
@@ -351,7 +351,7 @@ impl<'a> Widget for Slider<'a> {
             let text_color = self.text_color;
             let value = (self.get_set_value)(None);
             let full_text = format!("{}: {:.*}", text, self.precision, value);
-            let id = Some(self.id.unwrap_or_else(|| make_id(text)));
+            let id = Some(self.id.unwrap_or_else(|| Id::new(text)));
             let mut naked = self;
             naked.id = id;
             naked.text = None;
@@ -379,7 +379,10 @@ impl<'a> Widget for Slider<'a> {
             let min = self.min;
             let max = self.max;
             debug_assert!(min <= max);
-            let id = region.combined_id(Some(self.id.unwrap_or(42))); // TODO: slider ID
+            let id = region.combined_id(Some(
+                self.id
+                    .expect("Sliders must have a text label or an explicit id"),
+            ));
             let interact = region.reserve_space(
                 Vec2 {
                     x: region.available_space.x,

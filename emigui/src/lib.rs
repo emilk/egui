@@ -12,6 +12,7 @@ mod emigui;
 pub mod example_app;
 mod font;
 mod fonts;
+mod id;
 mod layers;
 mod layout;
 pub mod math;
@@ -29,8 +30,9 @@ pub use {
     color::Color,
     context::Context,
     fonts::{FontDefinitions, Fonts, TextStyle},
+    id::Id,
     layers::*,
-    layout::{Align, Id},
+    layout::Align,
     math::*,
     memory::Memory,
     mesher::{Mesh, Vertex},

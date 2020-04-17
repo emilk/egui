@@ -45,7 +45,7 @@ impl Emigui {
             ctx: self.ctx.clone(),
             layer: Layer::Background,
             style: self.ctx.style(),
-            id: Default::default(),
+            id: Id::whole_screen(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
             cursor: Default::default(),

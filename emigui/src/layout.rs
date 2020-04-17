@@ -1,4 +1,4 @@
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
 use crate::{widgets::*, *};
 
@@ -80,18 +80,6 @@ impl Default for Align {
 
 // ----------------------------------------------------------------------------
 
-// TODO: newtype
-pub type Id = u64;
-
-pub fn make_id<H: Hash>(source: &H) -> Id {
-    use std::hash::Hasher;
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    source.hash(&mut hasher);
-    hasher.finish()
-}
-
-// ----------------------------------------------------------------------------
-
 /// Show a pop-over window
 pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Vec2, add_contents: F)
 where
@@ -107,7 +95,7 @@ where
         ctx: ctx.clone(),
         layer,
         style,
-        id: Default::default(),
+        id: Id::popup(),
         dir: Direction::Vertical,
         align: Align::Min,
         cursor: window_pos + window_padding,

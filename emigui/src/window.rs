@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    layout::{make_id, Direction},
-    widgets::Label,
-    *,
-};
+use crate::{layout::Direction, widgets::Label, *};
 
 #[derive(Clone, Copy, Debug)]
 pub struct WindowState {
@@ -28,7 +24,7 @@ impl Window {
     where
         F: FnOnce(&mut Region),
     {
-        let id = make_id(&self.title);
+        let id = Id::new(&self.title);
 
         let mut state = ctx.memory.lock().get_or_create_window(
             id,
@@ -48,7 +44,7 @@ impl Window {
             ctx: ctx.clone(),
             layer,
             style,
-            id: Default::default(),
+            id,
             dir: Direction::Vertical,
             align: Align::Min,
             cursor: state.rect.min() + window_padding,
