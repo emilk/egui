@@ -1,5 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use parking_lot::Mutex;
 use rusttype::{point, Scale};
 
 use crate::{
@@ -96,7 +97,7 @@ impl Font {
             .collect();
 
         let mut glyph_infos = vec![];
-        let mut atlas_lock = atlas.lock().unwrap();
+        let mut atlas_lock = atlas.lock();
 
         for glyph in glyphs {
             let uv = if let Some(bb) = glyph.pixel_bounding_box() {

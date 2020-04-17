@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 
 [dependencies]
-# palette = "0.4"
+parking_lot = "0.10"
 rusttype = "0.8"
 serde = "1"
 serde_derive = "1"

@@ -55,7 +55,7 @@ impl Emigui {
     }
 
     pub fn paint(&mut self) -> Mesh {
-        let paint_commands: Vec<PaintCmd> = self.ctx.graphics.lock().unwrap().drain().collect();
+        let paint_commands = self.ctx.drain_paint_lists();
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
         mesher.anti_alias = self.anti_alias;
 

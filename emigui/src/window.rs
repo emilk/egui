@@ -30,7 +30,7 @@ impl Window {
     {
         let id = make_id(&self.title);
 
-        let mut state = ctx.memory.lock().unwrap().get_or_create_window(
+        let mut state = ctx.memory.lock().get_or_create_window(
             id,
             Rect::from_min_size(
                 vec2(400.0, 200.0), // TODO
@@ -39,7 +39,7 @@ impl Window {
         );
 
         let layer = Layer::Window(id);
-        let where_to_put_background = ctx.graphics.lock().unwrap().layer(layer).len();
+        let where_to_put_background = ctx.graphics.lock().layer(layer).len();
 
         let style = ctx.style();
         let window_padding = style.window_padding;
@@ -69,9 +69,8 @@ impl Window {
 
         state.rect = Rect::from_min_size(state.rect.min(), outer_size);
 
-        let mut graphics = ctx.graphics.lock().unwrap();
-        let graphics = graphics.layer(layer);
-        graphics.insert(
+        let mut graphics = ctx.graphics.lock();
+        graphics.layer(layer).insert(
             where_to_put_background,
             PaintCmd::Rect {
                 corner_radius: 5.0,
@@ -89,7 +88,7 @@ impl Window {
             state.rect = state.rect.translate(ctx.input().mouse_move);
         }
 
-        let mut memory = ctx.memory.lock().unwrap();
+        let mut memory = ctx.memory.lock();
         if interact.active || interact.clicked {
             memory.move_window_to_top(id);
         }

@@ -98,7 +98,7 @@ where
     F: FnOnce(&mut Region),
 {
     let layer = Layer::Popup;
-    let where_to_put_background = ctx.graphics.lock().unwrap().layer(layer).len();
+    let where_to_put_background = ctx.graphics.lock().layer(layer).len();
 
     let style = ctx.style();
     let window_padding = style.window_padding;
@@ -125,9 +125,8 @@ where
 
     let rect = Rect::from_min_size(window_pos, outer_size);
 
-    let mut graphics = ctx.graphics.lock().unwrap();
-    let graphics = graphics.layer(layer);
-    graphics.insert(
+    let mut graphics = ctx.graphics.lock();
+    graphics.layer(layer).insert(
         where_to_put_background,
         PaintCmd::Rect {
             corner_radius: 5.0,

@@ -1,4 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 
 use crate::*;
 
@@ -18,8 +20,8 @@ impl Clone for Context {
             style: Mutex::new(self.style()),
             fonts: self.fonts.clone(),
             input: self.input,
-            memory: Mutex::new(self.memory.lock().unwrap().clone()),
-            graphics: Mutex::new(self.graphics.lock().unwrap().clone()),
+            memory: Mutex::new(self.memory.lock().clone()),
+            graphics: Mutex::new(self.graphics.lock().clone()),
         }
     }
 }
@@ -40,37 +42,33 @@ impl Context {
     }
 
     pub fn style(&self) -> Style {
-        *self.style.lock().unwrap()
+        *self.style.lock()
     }
 
     pub fn set_style(&self, style: Style) {
-        *self.style.lock().unwrap() = style;
+        *self.style.lock() = style;
     }
 
     // TODO: move
     pub fn new_frame(&mut self, gui_input: GuiInput) {
         self.input = gui_input;
         if !gui_input.mouse_down || gui_input.mouse_pos.is_none() {
-            self.memory.lock().unwrap().active_id = None;
+            self.memory.lock().active_id = None;
         }
     }
 
     pub fn drain_paint_lists(&self) -> Vec<PaintCmd> {
-        let memory = self.memory.lock().unwrap();
-        self.graphics
-            .lock()
-            .unwrap()
-            .drain(&memory.window_order)
-            .collect()
+        let memory = self.memory.lock();
+        self.graphics.lock().drain(&memory.window_order).collect()
     }
 
     /// Is the user interacting with anything?
     pub fn any_active(&self) -> bool {
-        self.memory.lock().unwrap().active_id.is_some()
+        self.memory.lock().active_id.is_some()
     }
 
     pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
-        let mut memory = self.memory.lock().unwrap();
+        let mut memory = self.memory.lock();
 
         let hovered = if let Some(mouse_pos) = self.input.mouse_pos {
             if rect.contains(mouse_pos) {

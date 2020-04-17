@@ -39,21 +39,11 @@ impl Region {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.ctx
-            .graphics
-            .lock()
-            .unwrap()
-            .layer(self.layer)
-            .push(paint_cmd)
+        self.ctx.graphics.lock().layer(self.layer).push(paint_cmd)
     }
 
     pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
-        self.ctx
-            .graphics
-            .lock()
-            .unwrap()
-            .layer(self.layer)
-            .append(&mut cmds)
+        self.ctx.graphics.lock().layer(self.layer).append(&mut cmds)
     }
 
     /// Options for this region, and any child regions we may spawn.
@@ -124,7 +114,7 @@ impl Region {
         );
 
         let open = {
-            let mut memory = self.ctx.memory.lock().unwrap();
+            let mut memory = self.ctx.memory.lock();
             if interact.clicked {
                 if memory.open_foldables.contains(&id) {
                     memory.open_foldables.remove(&id);

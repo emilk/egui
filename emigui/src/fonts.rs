@@ -1,8 +1,10 @@
 use std::{
     collections::{hash_map::DefaultHasher, BTreeMap},
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
+
+use parking_lot::Mutex;
 
 use crate::{
     font::Font,
@@ -102,7 +104,7 @@ impl Fonts {
                 )
             })
             .collect();
-        self.texture = atlas.lock().unwrap().texture().clone();
+        self.texture = atlas.lock().texture().clone();
 
         let mut hasher = DefaultHasher::new();
         self.texture.pixels.hash(&mut hasher);
