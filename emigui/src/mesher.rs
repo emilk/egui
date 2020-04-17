@@ -389,8 +389,8 @@ impl Mesher {
                         add_arc(vec2(max.x - cr, min.y + cr), 3);
                     }
 
-                    if let Some(color) = fill_color {
-                        self.fill_closed_path(&path_points, &path_normals, *color);
+                    if let Some(fill_color) = fill_color {
+                        self.fill_closed_path(&path_points, &path_normals, *fill_color);
                     }
                     if let Some(outline) = outline {
                         self.paint_path(

@@ -44,7 +44,7 @@ impl Default for Style {
 impl Style {
     /// e.g. the background of the slider
     pub fn background_fill_color(&self) -> Color {
-        gray(34, 200)
+        gray(34, 230)
     }
 
     pub fn text_color(&self) -> Color {

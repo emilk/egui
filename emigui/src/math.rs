@@ -149,6 +149,9 @@ impl Rect {
     pub fn expand(self, amnt: f32) -> Self {
         Rect::from_center_size(self.center(), self.size() + 2.0 * vec2(amnt, amnt))
     }
+    pub fn translate(self, amnt: Vec2) -> Self {
+        Rect::from_min_size(self.min() + amnt, self.size())
+    }
 
     pub fn contains(&self, p: Vec2) -> bool {
         self.min.x <= p.x

@@ -38,6 +38,9 @@ pub struct GuiInput {
     /// Current position of the mouse in points.
     pub mouse_pos: Option<Vec2>,
 
+    /// How much the mouse moved compared to last frame, in points.
+    pub mouse_move: Vec2,
+
     /// Size of the screen in points.
     pub screen_size: Vec2,
 
@@ -47,11 +50,16 @@ pub struct GuiInput {
 
 impl GuiInput {
     pub fn from_last_and_new(last: &RawInput, new: &RawInput) -> GuiInput {
+        let mouse_move = new
+            .mouse_pos
+            .and_then(|new| last.mouse_pos.map(|last| new - last))
+            .unwrap_or_default();
         GuiInput {
             mouse_down: new.mouse_down,
             mouse_clicked: !last.mouse_down && new.mouse_down,
             mouse_released: last.mouse_down && !new.mouse_down,
             mouse_pos: new.mouse_pos,
+            mouse_move,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point,
         }

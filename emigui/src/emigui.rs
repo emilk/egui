@@ -6,7 +6,7 @@ use crate::{
     mesher::Mesher,
     types::{GuiInput, PaintCmd},
     widgets::*,
-    FontDefinitions, Fonts, Mesh, RawInput, Texture,
+    FontDefinitions, Fonts, Layer, Mesh, RawInput, Texture,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -47,17 +47,17 @@ impl Emigui {
         self.data = Arc::new(new_data);
     }
 
-    pub fn whole_screen_region(&mut self) -> layout::Region {
-        let size = self.data.input.screen_size;
-        layout::Region {
+    pub fn whole_screen_region(&mut self) -> Region {
+        Region {
             data: self.data.clone(),
+            layer: Layer::Background,
             style: self.data.style(),
             id: Default::default(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
             cursor: Default::default(),
             bounding_size: Default::default(),
-            available_space: size,
+            available_space: self.data.input.screen_size,
         }
     }
 

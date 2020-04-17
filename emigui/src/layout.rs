@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     hash::Hash,
     sync::{Arc, Mutex},
 };
@@ -12,6 +12,8 @@ use crate::{
     style::Style,
     types::*,
     widgets::{Label, Widget},
+    window::WindowState,
+    GraphicLayers, Layer,
 };
 
 // ----------------------------------------------------------------------------
@@ -66,6 +68,44 @@ pub struct Memory {
 
     /// Which foldable regions are open.
     open_foldables: HashSet<Id>,
+
+    windows: HashMap<Id, WindowState>,
+
+    /// Top is last
+    window_order: Vec<Id>,
+}
+
+impl Memory {
+    /// default_rect: where to put it if it does NOT exist
+    pub fn get_or_create_window(&mut self, id: Id, default_rect: Rect) -> WindowState {
+        if let Some(state) = self.windows.get(&id) {
+            *state
+        } else {
+            let state = WindowState { rect: default_rect };
+            self.windows.insert(id, state);
+            self.window_order.push(id);
+            state
+        }
+    }
+
+    pub fn set_window_state(&mut self, id: Id, state: WindowState) {
+        self.windows.insert(id, state);
+    }
+
+    pub fn layer_at(&self, pos: Vec2) -> Layer {
+        for window_id in self.window_order.iter().rev() {
+            if let Some(state) = self.windows.get(window_id) {
+                if state.rect.contains(pos) {
+                    return Layer::Window(*window_id);
+                }
+            }
+        }
+        Layer::Background
+    }
+
+    pub fn move_window_to_top(&mut self, _id: Id) {
+        // TODO
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -103,6 +143,7 @@ impl Default for Align {
 
 // ----------------------------------------------------------------------------
 
+// TODO: newtype
 pub type Id = u64;
 
 pub fn make_id<H: Hash>(source: &H) -> Id {
@@ -114,25 +155,7 @@ pub fn make_id<H: Hash>(source: &H) -> Id {
 
 // ----------------------------------------------------------------------------
 
-/// TODO: improve this
-#[derive(Clone, Default)]
-pub struct GraphicLayers {
-    pub(crate) graphics: Vec<PaintCmd>,
-    pub(crate) hovering_graphics: Vec<PaintCmd>,
-}
-
-impl GraphicLayers {
-    pub fn drain(&mut self) -> impl ExactSizeIterator<Item = PaintCmd> {
-        // TODO: there must be a nicer way to do this?
-        let mut all_commands: Vec<_> = self.graphics.drain(..).collect();
-        all_commands.extend(self.hovering_graphics.drain(..));
-        all_commands.into_iter()
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-// TODO: give a better name.
+// TODO: give a better name. Context?
 /// Contains the input, style and output of all GUI commands.
 pub struct Data {
     /// The default style for new regions
@@ -190,6 +213,42 @@ impl Data {
     pub fn any_active(&self) -> bool {
         self.memory.lock().unwrap().active_id.is_some()
     }
+
+    pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
+        let mut memory = self.memory.lock().unwrap();
+
+        // TODO: check for windows on top of the current rect!
+
+        let hovered = if let Some(mouse_pos) = self.input.mouse_pos {
+            if rect.contains(mouse_pos) {
+                let is_something_else_active =
+                    memory.active_id.is_some() && memory.active_id != interaction_id;
+
+                !is_something_else_active && layer == memory.layer_at(mouse_pos)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        let active = if interaction_id.is_some() {
+            if hovered && self.input.mouse_clicked {
+                memory.active_id = interaction_id;
+            }
+            memory.active_id == interaction_id
+        } else {
+            false
+        };
+
+        let clicked = hovered && self.input.mouse_released;
+
+        InteractInfo {
+            rect,
+            hovered,
+            clicked,
+            active,
+        }
+    }
 }
 
 impl Data {
@@ -205,14 +264,15 @@ pub fn show_popup<F>(data: &Arc<Data>, window_pos: Vec2, add_contents: F)
 where
     F: FnOnce(&mut Region),
 {
-    // TODO: nicer way to do layering!
-    let num_graphics_before = data.graphics.lock().unwrap().graphics.len();
+    let layer = Layer::Popup;
+    let where_to_put_background = data.graphics.lock().unwrap().layer(layer).len();
 
     let style = data.style();
     let window_padding = style.window_padding;
 
-    let mut popup_region = Region {
+    let mut contents_region = Region {
         data: data.clone(),
+        layer: Layer::Popup,
         style,
         id: Default::default(),
         dir: Direction::Vertical,
@@ -222,26 +282,30 @@ where
         available_space: vec2(data.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: popup/tooltip width
     };
 
-    add_contents(&mut popup_region);
+    add_contents(&mut contents_region);
+
+    // Now insert popup background:
 
     // TODO: handle the last item_spacing in a nicer way
-    let inner_size = popup_region.bounding_size - style.item_spacing;
+    let inner_size = contents_region.bounding_size - style.item_spacing;
     let outer_size = inner_size + 2.0 * window_padding;
 
     let rect = Rect::from_min_size(window_pos, outer_size);
 
     let mut graphics = data.graphics.lock().unwrap();
-    let popup_graphics = graphics.graphics.split_off(num_graphics_before);
-    graphics.hovering_graphics.push(PaintCmd::Rect {
-        corner_radius: 5.0,
-        fill_color: Some(style.background_fill_color()),
-        outline: Some(Outline {
-            color: color::gray(255, 255), // TODO
-            width: 1.0,
-        }),
-        rect,
-    });
-    graphics.hovering_graphics.extend(popup_graphics);
+    let graphics = graphics.layer(layer);
+    graphics.insert(
+        where_to_put_background,
+        PaintCmd::Rect {
+            corner_radius: 5.0,
+            fill_color: Some(style.background_fill_color()),
+            outline: Some(Outline {
+                color: color::WHITE,
+                width: 1.0,
+            }),
+            rect,
+        },
+    );
 }
 
 // ----------------------------------------------------------------------------
@@ -251,6 +315,9 @@ where
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region {
     pub(crate) data: Arc<Data>,
+
+    /// Where to put the graphics output of this Region
+    pub(crate) layer: Layer,
 
     pub(crate) style: Style,
 
@@ -262,14 +329,15 @@ pub struct Region {
 
     pub(crate) align: Align,
 
-    /// Changes only along self.dir
+    /// Where the next widget will be put.
+    /// Progresses along self.dir
     pub(crate) cursor: Vec2,
 
-    /// Bounding box children.
+    /// Bounding box of children.
     /// We keep track of our max-size along the orthogonal to self.dir
     pub(crate) bounding_size: Vec2,
 
-    /// This how much space we can take up without overflowing our parent.
+    /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
     pub(crate) available_space: Vec2,
 }
@@ -279,7 +347,12 @@ impl Region {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.data.graphics.lock().unwrap().graphics.push(paint_cmd)
+        self.data
+            .graphics
+            .lock()
+            .unwrap()
+            .layer(self.layer)
+            .push(paint_cmd)
     }
 
     pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
@@ -287,7 +360,7 @@ impl Region {
             .graphics
             .lock()
             .unwrap()
-            .graphics
+            .layer(self.layer)
             .append(&mut cmds)
     }
 
@@ -374,9 +447,12 @@ impl Region {
         let stroke_color = self.style.interact_stroke_color(&interact);
 
         self.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: 3.0,
+            corner_radius: 5.0,
             fill_color: Some(fill_color),
-            outline: None,
+            outline: Some(Outline {
+                width: 1.0,
+                color: color::WHITE,
+            }),
             rect: interact.rect,
         });
 
@@ -427,6 +503,7 @@ impl Region {
         let indent = vec2(self.style.indent, 0.0);
         let mut child_region = Region {
             data: self.data.clone(),
+            layer: self.layer,
             style: self.style,
             id: self.id,
             dir: self.dir,
@@ -444,6 +521,7 @@ impl Region {
     pub fn relative_region(&mut self, rect: Rect) -> Region {
         Region {
             data: self.data.clone(),
+            layer: self.layer,
             style: self.style,
             id: self.id,
             dir: self.dir,
@@ -485,6 +563,7 @@ impl Region {
     {
         let mut child_region = Region {
             data: self.data.clone(),
+            layer: self.layer,
             style: self.style,
             id: self.id,
             dir,
@@ -532,6 +611,7 @@ impl Region {
         let mut columns: Vec<Region> = (0..num_columns)
             .map(|col_idx| Region {
                 data: self.data.clone(),
+                layer: self.layer,
                 style: self.style,
                 id: self.make_child_id(&("column", col_idx)),
                 dir: Direction::Vertical,
@@ -565,35 +645,11 @@ impl Region {
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let pos = self.reserve_space_without_padding(size + self.style.item_spacing);
         let rect = Rect::from_min_size(pos, size);
-        let mut memory = self.data.memory.lock().unwrap();
-
-        let is_something_else_active =
-            memory.active_id.is_some() && memory.active_id != interaction_id;
-
-        let hovered = if let Some(mouse_pos) = self.input().mouse_pos {
-            !is_something_else_active && rect.contains(mouse_pos)
-        } else {
-            false
-        };
-        let active = if interaction_id.is_some() {
-            if hovered && self.input().mouse_clicked {
-                memory.active_id = interaction_id;
-            }
-            memory.active_id == interaction_id
-        } else {
-            false
-        };
-
-        let clicked = hovered && self.input().mouse_released;
-        InteractInfo {
-            rect,
-            hovered,
-            clicked,
-            active,
-        }
+        self.data.interact(self.layer, rect, interaction_id)
     }
 
     /// Reserve this much space and move the cursor.
+    /// Returns where to put the widget.
     pub fn reserve_space_without_padding(&mut self, size: Vec2) -> Vec2 {
         let mut pos = self.cursor;
         if self.dir == Direction::Horizontal {
