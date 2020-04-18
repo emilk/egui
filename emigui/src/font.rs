@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use parking_lot::Mutex;
 use rusttype::{point, Scale};
@@ -52,12 +52,8 @@ pub struct GlyphInfo {
     pub advance_width: f32,
 
     /// Texture coordinates. None for space.
-    pub uv: Option<UvRect>,
+    pub uv_rect: Option<UvRect>,
 }
-
-/// Printable ASCII characters [32, 126], which excludes control codes.
-const FIRST_ASCII: usize = 32; // 32 == space
-const LAST_ASCII: usize = 126;
 
 /// The interface uses points as the unit for everything.
 #[derive(Clone)]
@@ -66,8 +62,7 @@ pub struct Font {
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    /// NUM_CHARS big
-    glyph_infos: Vec<GlyphInfo>,
+    glyph_infos: BTreeMap<char, GlyphInfo>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -79,82 +74,84 @@ impl Font {
         pixels_per_point: f32,
     ) -> Font {
         let font = rusttype::Font::from_bytes(font_data).expect("Error constructing Font");
-
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let glyphs: Vec<_> = Self::supported_characters()
-            .map(|c| {
-                let glyph = font.glyph(c);
-                assert_ne!(
-                    glyph.id().0,
-                    0,
-                    "Failed to find a glyph for the character '{}'",
-                    c
-                );
-                let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
-                glyph.positioned(point(0.0, 0.0))
-            })
-            .collect();
-
-        let mut glyph_infos = vec![];
-        let mut atlas_lock = atlas.lock();
-
-        for glyph in glyphs {
-            let uv = if let Some(bb) = glyph.pixel_bounding_box() {
-                let glyph_width = bb.width() as usize;
-                let glyph_height = bb.height() as usize;
-                assert!(glyph_width >= 1);
-                assert!(glyph_height >= 1);
-
-                let glyph_pos = atlas_lock.allocate((glyph_width, glyph_height));
-
-                let texture = atlas_lock.texture_mut();
-                glyph.draw(|x, y, v| {
-                    if v > 0.0 {
-                        let px = glyph_pos.0 + x as usize;
-                        let py = glyph_pos.1 + y as usize;
-                        texture[(px, py)] = (v * 255.0).round() as u8;
-                    }
-                });
-
-                let offset_y_in_pixels =
-                    scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
-                Some(UvRect {
-                    offset: vec2(
-                        bb.min.x as f32 / pixels_per_point,
-                        offset_y_in_pixels / pixels_per_point,
-                    ),
-                    size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-                    min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-                    max: (
-                        (glyph_pos.0 + glyph_width) as u16,
-                        (glyph_pos.1 + glyph_height) as u16,
-                    ),
-                })
-            } else {
-                // No bounding box. Maybe a space?
-                None
-            };
-
-            let advance_width_in_points =
-                glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
-
-            glyph_infos.push(GlyphInfo {
-                id: glyph.id(),
-                advance_width: advance_width_in_points,
-                uv,
-            });
-        }
-
-        drop(atlas_lock);
-
-        Font {
+        let mut font = Font {
             font,
             scale_in_pixels,
             pixels_per_point,
-            glyph_infos,
+            glyph_infos: Default::default(),
             atlas,
+        };
+
+        /// Printable ASCII characters [32, 126], which excludes control codes.
+        const FIRST_ASCII: usize = 32; // 32 == space
+        const LAST_ASCII: usize = 126;
+        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
+            font.add_char(c);
         }
+        font
+    }
+
+    fn add_char(&mut self, c: char) {
+        let glyph = self.font.glyph(c);
+        assert_ne!(
+            glyph.id().0,
+            0,
+            "Failed to find a glyph for the character '{}'",
+            c
+        );
+        let glyph = glyph.scaled(Scale::uniform(self.scale_in_pixels));
+        let glyph = glyph.positioned(point(0.0, 0.0));
+
+        let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
+            let glyph_width = bb.width() as usize;
+            let glyph_height = bb.height() as usize;
+            assert!(glyph_width >= 1);
+            assert!(glyph_height >= 1);
+
+            let mut atlas_lock = self.atlas.lock();
+            let glyph_pos = atlas_lock.allocate((glyph_width, glyph_height));
+
+            let texture = atlas_lock.texture_mut();
+            glyph.draw(|x, y, v| {
+                if v > 0.0 {
+                    let px = glyph_pos.0 + x as usize;
+                    let py = glyph_pos.1 + y as usize;
+                    texture[(px, py)] = (v * 255.0).round() as u8;
+                }
+            });
+
+            let offset_y_in_pixels =
+                self.scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * self.pixels_per_point; // TODO: use font.v_metrics
+            Some(UvRect {
+                offset: vec2(
+                    bb.min.x as f32 / self.pixels_per_point,
+                    offset_y_in_pixels / self.pixels_per_point,
+                ),
+                size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
+                min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
+                max: (
+                    (glyph_pos.0 + glyph_width) as u16,
+                    (glyph_pos.1 + glyph_height) as u16,
+                ),
+            })
+        } else {
+            // No bounding box. Maybe a space?
+            None
+        };
+
+        let advance_width_in_points =
+            glyph.unpositioned().h_metrics().advance_width / self.pixels_per_point;
+
+        self.glyph_infos.insert(
+            c,
+            GlyphInfo {
+                id: glyph.id(),
+                advance_width: advance_width_in_points,
+                uv_rect,
+            },
+        );
     }
 
     pub fn round_to_pixel(&self, point: f32) -> f32 {
@@ -166,26 +163,12 @@ impl Font {
         self.scale_in_pixels / self.pixels_per_point
     }
 
-    pub fn supported_characters() -> impl Iterator<Item = char> {
-        (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char)
-    }
-
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        let c = c as usize;
-        if FIRST_ASCII <= c && c <= LAST_ASCII {
-            self.glyph_infos[c - FIRST_ASCII].uv
-        } else {
-            None
-        }
+        self.glyph_infos.get(&c).and_then(|gi| gi.uv_rect)
     }
 
-    fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
-        let c = c as usize;
-        if FIRST_ASCII <= c && c <= LAST_ASCII {
-            Some(self.glyph_infos[c - FIRST_ASCII])
-        } else {
-            None
-        }
+    fn glyph_info(&self, c: char) -> Option<&GlyphInfo> {
+        self.glyph_infos.get(&c)
     }
 
     /// Returns the a single line of characters separated into words
@@ -213,7 +196,7 @@ impl Font {
                 cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
                 last_glyph_id = Some(glyph.id);
 
-                let is_space = glyph.uv.is_none();
+                let is_space = glyph.uv_rect.is_none();
                 if is_space {
                     // TODO: also break after hyphens etc
                     if !current_fragment.text.is_empty() {
@@ -239,7 +222,8 @@ impl Font {
         all_fragments
     }
 
-    pub fn layout_single_line_max_width(
+    /// A paragraph is text with no line break character in it.
+    pub fn layout_paragraph_max_width(
         &self,
         text: &str,
         max_width_in_points: f32,
@@ -281,7 +265,7 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut text_fragments = Vec::new();
         for line in text.split('\n') {
-            let mut line_fragments = self.layout_single_line_max_width(&line, max_width_in_points);
+            let mut line_fragments = self.layout_paragraph_max_width(&line, max_width_in_points);
             if let Some(last_word) = line_fragments.last() {
                 let line_height = last_word.y_offset + line_spacing;
                 for fragment in &mut line_fragments {
