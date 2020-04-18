@@ -4,7 +4,7 @@
 use crate::{
     color::Color,
     fonts::Fonts,
-    math::{remap, vec2, Vec2, TAU},
+    math::{remap, vec2, Rect, Vec2, TAU},
     types::PaintCmd,
 };
 
@@ -19,6 +19,8 @@ pub struct Vertex {
     /// sRGBA
     pub color: Color,
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Mesh {
@@ -119,6 +121,104 @@ impl Mesh {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+pub struct PathPoint {
+    pos: Vec2,
+
+    /// For filled paths the normal is used for antialiasing.
+    /// For outlines the normal is used for figuring out how to make the line wide
+    /// (i.e. in what direction to expand).
+    /// The normal could be estimated by differences between successive points,
+    /// but that would be less accurate (and in some cases slower).
+    normal: Vec2,
+}
+
+#[derive(Default)]
+struct Path(Vec<PathPoint>);
+
+impl Path {
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn add_point(&mut self, pos: Vec2, normal: Vec2) {
+        self.0.push(PathPoint { pos, normal });
+    }
+
+    pub fn add_circle(&mut self, center: Vec2, radius: f32) {
+        let n = 32; // TODO: parameter
+        for i in 0..n {
+            let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
+            let normal = vec2(angle.cos(), angle.sin());
+            self.add_point(center + radius * normal, normal);
+        }
+    }
+
+    pub fn add_line(&mut self, points: &[Vec2]) {
+        let n = points.len();
+        assert!(n >= 2);
+
+        self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
+        for i in 1..n - 1 {
+            let n0 = (points[i] - points[i - 1]).normalized().rot90();
+            let n1 = (points[i + 1] - points[i]).normalized().rot90();
+            let v = (n0 + n1) / 2.0;
+            let normal = v / v.length_sq();
+            self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
+        }
+        self.add_point(
+            points[n - 1],
+            (points[n - 1] - points[n - 2]).normalized().rot90(),
+        );
+    }
+
+    pub fn add_rectangle(&mut self, rect: &Rect) {
+        let min = rect.min();
+        let max = rect.max();
+        self.add_point(vec2(min.x, min.y), vec2(-1.0, -1.0));
+        self.add_point(vec2(max.x, min.y), vec2(1.0, -1.0));
+        self.add_point(vec2(max.x, max.y), vec2(1.0, 1.0));
+        self.add_point(vec2(min.x, max.y), vec2(-1.0, 1.0));
+    }
+
+    pub fn add_rounded_rectangle(&mut self, rect: &Rect, corner_radius: f32) {
+        let min = rect.min();
+        let max = rect.max();
+
+        let cr = corner_radius
+            .min(rect.width() * 0.5)
+            .min(rect.height() * 0.5);
+
+        if cr <= 0.0 {
+            self.add_rectangle(rect);
+        } else {
+            self.add_circle_quadrant(vec2(max.x - cr, max.y - cr), cr, 0.0);
+            self.add_circle_quadrant(vec2(min.x + cr, max.y - cr), cr, 1.0);
+            self.add_circle_quadrant(vec2(min.x + cr, min.y + cr), cr, 2.0);
+            self.add_circle_quadrant(vec2(max.x - cr, min.y + cr), cr, 3.0);
+        }
+    }
+
+    pub fn add_circle_quadrant(&mut self, center: Vec2, radius: f32, quadrant: f32) {
+        let n = 8;
+        const RIGHT_ANGLE: f32 = TAU / 4.0;
+        for i in 0..=n {
+            let angle = remap(
+                i as f32,
+                0.0,
+                n as f32,
+                quadrant * RIGHT_ANGLE,
+                (quadrant + 1.0) * RIGHT_ANGLE,
+            );
+            let normal = vec2(angle.cos(), angle.sin());
+            self.add_point(center + radius * normal, normal);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum PathType {
     Open,
@@ -126,9 +226,148 @@ pub enum PathType {
 }
 use self::PathType::*;
 
-pub struct Mesher {
+pub struct MesherOptions {
     pub anti_alias: bool,
     pub aa_size: f32,
+}
+
+pub fn fill_closed_path(
+    mesh: &mut Mesh,
+    options: &MesherOptions,
+    path: &[PathPoint],
+    color: Color,
+) {
+    let n = path.len() as u32;
+    let vert = |pos, color| Vertex {
+        pos,
+        uv: WHITE_UV,
+        color,
+    };
+    if options.anti_alias {
+        let color_outer = color.transparent();
+        let idx_inner = mesh.vertices.len() as u32;
+        let idx_outer = idx_inner + 1;
+        for i in 2..n {
+            mesh.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+        }
+        let mut i0 = n - 1;
+        for i1 in 0..n {
+            let p1 = &path[i1 as usize];
+            let dm = p1.normal * options.aa_size * 0.5;
+            mesh.vertices.push(vert(p1.pos - dm, color));
+            mesh.vertices.push(vert(p1.pos + dm, color_outer));
+            mesh.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+            mesh.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+            i0 = i1;
+        }
+    } else {
+        let idx = mesh.vertices.len() as u32;
+        mesh.vertices
+            .extend(path.iter().map(|p| vert(p.pos, color)));
+        for i in 2..n {
+            mesh.triangle(idx, idx + i - 1, idx + i);
+        }
+    }
+}
+
+pub fn paint_path(
+    mesh: &mut Mesh,
+    options: &MesherOptions,
+    path_type: PathType,
+    path: &[PathPoint],
+    color: Color,
+    width: f32,
+) {
+    let n = path.len() as u32;
+    let hw = width / 2.0;
+    let idx = mesh.vertices.len() as u32;
+
+    let vert = |pos, color| Vertex {
+        pos,
+        uv: WHITE_UV,
+        color,
+    };
+
+    if options.anti_alias {
+        let color_outer = color.transparent();
+        let thin_line = width <= 1.0;
+        let mut color_inner = color;
+        if thin_line {
+            // Fade out as it gets thinner:
+            color_inner.a = (f32::from(color_inner.a) * width).round() as u8;
+        }
+        // TODO: line caps ?
+        let mut i0 = n - 1;
+        for i1 in 0..n {
+            let connect_with_previous = path_type == PathType::Closed || i1 > 0;
+            if thin_line {
+                let p1 = &path[i1 as usize];
+                let p = p1.pos;
+                let n = p1.normal;
+                mesh.vertices
+                    .push(vert(p + n * options.aa_size, color_outer));
+                mesh.vertices.push(vert(p, color_inner));
+                mesh.vertices
+                    .push(vert(p - n * options.aa_size, color_outer));
+
+                if connect_with_previous {
+                    mesh.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                    mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+
+                    mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                    mesh.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                }
+            } else {
+                let hw = (width - options.aa_size) * 0.5;
+                let p1 = &path[i1 as usize];
+                let p = p1.pos;
+                let n = p1.normal;
+                mesh.vertices
+                    .push(vert(p + n * (hw + options.aa_size), color_outer));
+                mesh.vertices.push(vert(p + n * (hw + 0.0), color_inner));
+                mesh.vertices.push(vert(p - n * (hw + 0.0), color_inner));
+                mesh.vertices
+                    .push(vert(p - n * (hw + options.aa_size), color_outer));
+
+                if connect_with_previous {
+                    mesh.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                    mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+
+                    mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                    mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+
+                    mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                    mesh.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                }
+            }
+            i0 = i1;
+        }
+    } else {
+        let last_index = if path_type == Closed { n } else { n - 1 };
+        for i in 0..last_index {
+            mesh.triangle(
+                idx + (2 * i + 0) % (2 * n),
+                idx + (2 * i + 1) % (2 * n),
+                idx + (2 * i + 2) % (2 * n),
+            );
+            mesh.triangle(
+                idx + (2 * i + 2) % (2 * n),
+                idx + (2 * i + 1) % (2 * n),
+                idx + (2 * i + 3) % (2 * n),
+            );
+        }
+
+        for p in path {
+            mesh.vertices.push(vert(p.pos + hw * p.normal, color));
+            mesh.vertices.push(vert(p.pos - hw * p.normal, color));
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+pub struct Mesher {
+    pub options: MesherOptions,
 
     /// Where the output goes
     pub mesh: Mesh,
@@ -137,143 +376,16 @@ pub struct Mesher {
 impl Mesher {
     pub fn new(pixels_per_point: f32) -> Mesher {
         Mesher {
-            anti_alias: true,
-            aa_size: 1.0 / pixels_per_point,
+            options: MesherOptions {
+                anti_alias: true,
+                aa_size: 1.0 / pixels_per_point,
+            },
             mesh: Default::default(),
         }
     }
 
-    pub fn fill_closed_path(&mut self, points: &[Vec2], normals: &[Vec2], color: Color) {
-        assert_eq!(points.len(), normals.len());
-        let n = points.len() as u32;
-        let vert = |pos, color| Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        };
-        let mesh = &mut self.mesh;
-        if self.anti_alias {
-            let color_outer = color.transparent();
-            let idx_inner = mesh.vertices.len() as u32;
-            let idx_outer = idx_inner + 1;
-            for i in 2..n {
-                mesh.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
-            }
-            let mut i0 = n - 1;
-            for i1 in 0..n {
-                let dm = normals[i1 as usize] * self.aa_size * 0.5;
-                mesh.vertices.push(vert(points[i1 as usize] - dm, color));
-                mesh.vertices
-                    .push(vert(points[i1 as usize] + dm, color_outer));
-                mesh.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-                mesh.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
-                i0 = i1;
-            }
-        } else {
-            let idx = mesh.vertices.len() as u32;
-            mesh.vertices
-                .extend(points.iter().map(|&pos| vert(pos, color)));
-            for i in 2..n {
-                mesh.triangle(idx, idx + i - 1, idx + i);
-            }
-        }
-    }
-
-    pub fn paint_path(
-        &mut self,
-        path_type: PathType,
-        points: &[Vec2],
-        normals: &[Vec2],
-        color: Color,
-        width: f32,
-    ) {
-        assert_eq!(points.len(), normals.len());
-        let n = points.len() as u32;
-        let hw = width / 2.0;
-        let idx = self.mesh.vertices.len() as u32;
-
-        let vert = |pos, color| Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        };
-        let mesh = &mut self.mesh;
-
-        if self.anti_alias {
-            let color_outer = color.transparent();
-            let thin_line = width <= 1.0;
-            let mut color_inner = color;
-            if thin_line {
-                // Fade out as it gets thinner:
-                color_inner.a = (f32::from(color_inner.a) * width).round() as u8;
-            }
-            // TODO: line caps ?
-            let mut i0 = n - 1;
-            for i1 in 0..n {
-                let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                if thin_line {
-                    let p = points[i1 as usize];
-                    let n = normals[i1 as usize];
-                    mesh.vertices.push(vert(p + n * self.aa_size, color_outer));
-                    mesh.vertices.push(vert(p, color_inner));
-                    mesh.vertices.push(vert(p - n * self.aa_size, color_outer));
-
-                    if connect_with_previous {
-                        mesh.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
-                        mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
-
-                        mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
-                        mesh.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
-                    }
-                } else {
-                    let hw = (width - self.aa_size) * 0.5;
-                    let p = points[i1 as usize];
-                    let n = normals[i1 as usize];
-                    mesh.vertices
-                        .push(vert(p + n * (hw + self.aa_size), color_outer));
-                    mesh.vertices.push(vert(p + n * (hw + 0.0), color_inner));
-                    mesh.vertices.push(vert(p - n * (hw + 0.0), color_inner));
-                    mesh.vertices
-                        .push(vert(p - n * (hw + self.aa_size), color_outer));
-
-                    if connect_with_previous {
-                        mesh.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                        mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
-
-                        mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                        mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
-
-                        mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                        mesh.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
-                    }
-                }
-                i0 = i1;
-            }
-        } else {
-            let last_index = if path_type == Closed { n } else { n - 1 };
-            for i in 0..last_index {
-                mesh.triangle(
-                    idx + (2 * i + 0) % (2 * n),
-                    idx + (2 * i + 1) % (2 * n),
-                    idx + (2 * i + 2) % (2 * n),
-                );
-                mesh.triangle(
-                    idx + (2 * i + 2) % (2 * n),
-                    idx + (2 * i + 1) % (2 * n),
-                    idx + (2 * i + 3) % (2 * n),
-                );
-            }
-
-            for (&p, &n) in points.iter().zip(normals) {
-                mesh.vertices.push(vert(p + hw * n, color));
-                mesh.vertices.push(vert(p - hw * n, color));
-            }
-        }
-    }
-
     pub fn paint(&mut self, fonts: &Fonts, commands: &[PaintCmd]) {
-        let mut path_points = Vec::new();
-        let mut path_normals = Vec::new();
+        let mut path = Path::default();
 
         for cmd in commands {
             match cmd {
@@ -283,25 +395,17 @@ impl Mesher {
                     outline,
                     radius,
                 } => {
-                    path_points.clear();
-                    path_normals.clear();
-
-                    let n = 32; // TODO: parameter
-                    for i in 0..n {
-                        let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
-                        let normal = vec2(angle.cos(), angle.sin());
-                        path_normals.push(normal);
-                        path_points.push(*center + *radius * normal);
-                    }
-
+                    path.clear();
+                    path.add_circle(*center, *radius);
                     if let Some(color) = fill_color {
-                        self.fill_closed_path(&path_points, &path_normals, *color);
+                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *color);
                     }
                     if let Some(outline) = outline {
-                        self.paint_path(
+                        paint_path(
+                            &mut self.mesh,
+                            &self.options,
                             Closed,
-                            &path_points,
-                            &path_normals,
+                            &path.0,
                             outline.color,
                             outline.width,
                         );
@@ -317,24 +421,9 @@ impl Mesher {
                 } => {
                     let n = points.len();
                     if n >= 2 {
-                        path_points = points.clone();
-                        path_normals.clear();
-
-                        path_normals.push((path_points[1] - path_points[0]).normalized().rot90());
-                        for i in 1..n - 1 {
-                            let n0 = (path_points[i] - path_points[i - 1]).normalized().rot90();
-                            let n1 = (path_points[i + 1] - path_points[i]).normalized().rot90();
-                            let v = (n0 + n1) / 2.0;
-                            let normal = v / v.length_sq();
-                            path_normals.push(normal); // TODO: handle VERY sharp turns better
-                        }
-                        path_normals.push(
-                            (path_points[n - 1] - path_points[n - 2])
-                                .normalized()
-                                .rot90(),
-                        );
-
-                        self.paint_path(Open, &path_points, &path_normals, *color, *width);
+                        path.clear();
+                        path.add_line(points);
+                        paint_path(&mut self.mesh, &self.options, Open, &path.0, *color, *width);
                     }
                 }
                 PaintCmd::Rect {
@@ -343,60 +432,17 @@ impl Mesher {
                     outline,
                     rect,
                 } => {
-                    path_points.clear();
-                    path_normals.clear();
-
-                    let min = rect.min();
-                    let max = rect.max();
-
-                    let cr = corner_radius
-                        .min(rect.width() * 0.5)
-                        .min(rect.height() * 0.5);
-
-                    if cr <= 0.0 {
-                        path_points.push(vec2(min.x, min.y));
-                        path_normals.push(vec2(-1.0, -1.0));
-                        path_points.push(vec2(max.x, min.y));
-                        path_normals.push(vec2(1.0, -1.0));
-                        path_points.push(vec2(max.x, max.y));
-                        path_normals.push(vec2(1.0, 1.0));
-                        path_points.push(vec2(min.x, max.y));
-                        path_normals.push(vec2(-1.0, 1.0));
-                    } else {
-                        let n = 8;
-
-                        let mut add_arc = |c, quadrant| {
-                            let quadrant = quadrant as f32;
-
-                            const RIGHT_ANGLE: f32 = TAU / 4.0;
-                            for i in 0..=n {
-                                let angle = remap(
-                                    i as f32,
-                                    0.0,
-                                    n as f32,
-                                    quadrant * RIGHT_ANGLE,
-                                    (quadrant + 1.0) * RIGHT_ANGLE,
-                                );
-                                let normal = vec2(angle.cos(), angle.sin());
-                                path_points.push(c + cr * normal);
-                                path_normals.push(normal);
-                            }
-                        };
-
-                        add_arc(vec2(max.x - cr, max.y - cr), 0);
-                        add_arc(vec2(min.x + cr, max.y - cr), 1);
-                        add_arc(vec2(min.x + cr, min.y + cr), 2);
-                        add_arc(vec2(max.x - cr, min.y + cr), 3);
-                    }
-
+                    path.clear();
+                    path.add_rounded_rectangle(rect, *corner_radius);
                     if let Some(fill_color) = fill_color {
-                        self.fill_closed_path(&path_points, &path_normals, *fill_color);
+                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *fill_color);
                     }
                     if let Some(outline) = outline {
-                        self.paint_path(
+                        paint_path(
+                            &mut self.mesh,
+                            &self.options,
                             Closed,
-                            &path_points,
-                            &path_normals,
+                            &path.0,
                             outline.color,
                             outline.width,
                         );

@@ -57,7 +57,7 @@ impl Emigui {
     pub fn paint(&mut self) -> Mesh {
         let paint_commands = self.ctx.drain_paint_lists();
         let mut mesher = Mesher::new(self.last_input.pixels_per_point);
-        mesher.anti_alias = self.anti_alias;
+        mesher.options.anti_alias = self.anti_alias;
 
         mesher.paint(&self.ctx.fonts, &paint_commands);
         let mesh = mesher.mesh;
