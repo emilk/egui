@@ -23,7 +23,7 @@ pub struct Region {
 
     /// Where the next widget will be put.
     /// Progresses along self.dir
-    pub(crate) cursor: Vec2,
+    pub(crate) cursor: Pos2,
 
     /// Bounding box of children.
     /// We keep track of our max-size along the orthogonal to self.dir
@@ -79,7 +79,7 @@ impl Region {
         self.dir
     }
 
-    pub fn cursor(&self) -> Vec2 {
+    pub fn cursor(&self) -> Pos2 {
         self.cursor
     }
 
@@ -142,8 +142,8 @@ impl Region {
         // Draw a minus:
         self.add_paint_cmd(PaintCmd::Line {
             points: vec![
-                vec2(small_icon_rect.min().x, small_icon_rect.center().y),
-                vec2(small_icon_rect.max().x, small_icon_rect.center().y),
+                pos2(small_icon_rect.min().x, small_icon_rect.center().y),
+                pos2(small_icon_rect.max().x, small_icon_rect.center().y),
             ],
             color: stroke_color,
             width: self.style.line_width,
@@ -152,8 +152,8 @@ impl Region {
             // Draw it as a plus:
             self.add_paint_cmd(PaintCmd::Line {
                 points: vec![
-                    vec2(small_icon_rect.center().x, small_icon_rect.min().y),
-                    vec2(small_icon_rect.center().x, small_icon_rect.max().y),
+                    pos2(small_icon_rect.center().x, small_icon_rect.min().y),
+                    pos2(small_icon_rect.center().x, small_icon_rect.max().y),
                 ],
                 color: stroke_color,
                 width: self.style.line_width,
@@ -207,7 +207,7 @@ impl Region {
             style: self.style,
             id: self.id,
             dir: self.dir,
-            cursor: self.cursor + rect.min(),
+            cursor: self.cursor + rect.min().to_vec2(),
             align: self.align,
             bounding_size: vec2(0.0, 0.0),
             available_space: rect.size(),
@@ -222,7 +222,7 @@ impl Region {
             Align::Max => self.available_space.x - width,
         };
         self.relative_region(Rect::from_min_size(
-            vec2(x, 0.0),
+            pos2(x, 0.0),
             vec2(width, self.available_space.y),
         ))
     }
@@ -332,7 +332,7 @@ impl Region {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    pub fn reserve_space_without_padding(&mut self, size: Vec2) -> Vec2 {
+    pub fn reserve_space_without_padding(&mut self, size: Vec2) -> Pos2 {
         let mut pos = self.cursor;
         if self.dir == Direction::Horizontal {
             pos.y += match self.align {
@@ -369,7 +369,7 @@ impl Region {
     // Helper function
     pub fn floating_text(
         &mut self,
-        pos: Vec2,
+        pos: Pos2,
         text: &str,
         text_style: TextStyle,
         align: (Align, Align),
@@ -388,13 +388,13 @@ impl Region {
             Align::Center => pos.y - 0.5 * text_size.y,
             Align::Max => pos.y - text_size.y,
         };
-        self.add_text(vec2(x, y), text_style, text, text_color);
+        self.add_text(pos2(x, y), text_style, text, text_color);
         text_size
     }
 
     pub fn add_text(
         &mut self,
-        pos: Vec2,
+        pos: Pos2,
         text_style: TextStyle,
         text: Vec<TextFragment>,
         color: Option<Color>,

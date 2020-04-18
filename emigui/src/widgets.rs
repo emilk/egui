@@ -156,9 +156,9 @@ impl<'a> Widget for Checkbox<'a> {
         if *self.checked {
             region.add_paint_cmd(PaintCmd::Line {
                 points: vec![
-                    vec2(small_icon_rect.min().x, small_icon_rect.center().y),
-                    vec2(small_icon_rect.center().x, small_icon_rect.max().y),
-                    vec2(small_icon_rect.max().x, small_icon_rect.min().y),
+                    pos2(small_icon_rect.min().x, small_icon_rect.center().y),
+                    pos2(small_icon_rect.center().x, small_icon_rect.max().y),
+                    pos2(small_icon_rect.max().x, small_icon_rect.min().y),
                 ],
                 color: stroke_color,
                 width: region.style().line_width,
@@ -424,7 +424,7 @@ impl<'a> Widget for Slider<'a> {
                 });
 
                 region.add_paint_cmd(PaintCmd::Circle {
-                    center: vec2(marker_center_x, thin_rect.center().y),
+                    center: pos2(marker_center_x, thin_rect.center().y),
                     fill_color: Some(region.style().interact_fill_color(&interact)),
                     outline: Some(Outline {
                         color: region.style().interact_stroke_color(&interact),
@@ -473,8 +473,8 @@ impl Widget for Separator {
                 let interact = region.reserve_space(vec2(self.width, available_space.y), None);
                 (
                     vec![
-                        vec2(interact.rect.center().x, interact.rect.min().y),
-                        vec2(interact.rect.center().x, interact.rect.max().y),
+                        pos2(interact.rect.center().x, interact.rect.min().y),
+                        pos2(interact.rect.center().x, interact.rect.max().y),
                     ],
                     interact,
                 )
@@ -483,8 +483,8 @@ impl Widget for Separator {
                 let interact = region.reserve_space(vec2(available_space.x, self.width), None);
                 (
                     vec![
-                        vec2(interact.rect.min().x, interact.rect.center().y),
-                        vec2(interact.rect.max().x, interact.rect.center().y),
+                        pos2(interact.rect.min().x, interact.rect.center().y),
+                        pos2(interact.rect.max().x, interact.rect.center().y),
                     ],
                     interact,
                 )

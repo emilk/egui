@@ -6,7 +6,7 @@ use {
     emigui::{
         example_app::ExampleApp,
         label,
-        math::vec2,
+        math::*,
         widgets::{Button, Label},
         Align, Emigui, Window,
     },
@@ -63,7 +63,7 @@ fn main() {
                         raw_input.mouse_down = state == glutin::ElementState::Pressed;
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        raw_input.mouse_pos = Some(vec2(position.x as f32, position.y as f32));
+                        raw_input.mouse_pos = Some(pos2(position.x as f32, position.y as f32));
                     }
                     glutin::WindowEvent::KeyboardInput { input, .. } => {
                         if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q)

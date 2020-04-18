@@ -33,7 +33,7 @@ impl Memory {
         self.windows.insert(id, state);
     }
 
-    pub fn layer_at(&self, pos: Vec2) -> Layer {
+    pub fn layer_at(&self, pos: Pos2) -> Layer {
         for window_id in self.window_order.iter().rev() {
             if let Some(state) = self.windows.get(window_id) {
                 if state.rect.contains(pos) {

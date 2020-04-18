@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     fonts::TextStyle,
-    math::{Rect, Vec2},
+    math::{Pos2, Rect, Vec2},
     mesher::Mesh,
 };
 
@@ -14,7 +14,7 @@ pub struct RawInput {
     pub mouse_down: bool,
 
     /// Current position of the mouse in points.
-    pub mouse_pos: Option<Vec2>,
+    pub mouse_pos: Option<Pos2>,
 
     /// Size of the screen in points.
     pub screen_size: Vec2,
@@ -36,7 +36,7 @@ pub struct GuiInput {
     pub mouse_released: bool,
 
     /// Current position of the mouse in points.
-    pub mouse_pos: Option<Vec2>,
+    pub mouse_pos: Option<Pos2>,
 
     /// How much the mouse moved compared to last frame, in points.
     pub mouse_move: Vec2,
@@ -95,13 +95,13 @@ pub struct Outline {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {
     Circle {
-        center: Vec2,
+        center: Pos2,
         fill_color: Option<Color>,
         outline: Option<Outline>,
         radius: f32,
     },
     Line {
-        points: Vec<Vec2>,
+        points: Vec<Pos2>,
         color: Color,
         width: f32,
     },
@@ -115,7 +115,7 @@ pub enum PaintCmd {
     Text {
         color: Color,
         /// Top left corner of the first character.
-        pos: Vec2,
+        pos: Pos2,
         text: String,
         text_style: TextStyle,
         /// Start each character in the text, as offset from pos.

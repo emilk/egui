@@ -29,7 +29,7 @@ impl Window {
         let mut state = ctx.memory.lock().get_or_create_window(
             id,
             Rect::from_min_size(
-                vec2(400.0, 200.0), // TODO
+                pos2(400.0, 200.0), // TODO
                 vec2(200.0, 200.0), // TODO
             ),
         );

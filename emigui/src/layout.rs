@@ -81,7 +81,7 @@ impl Default for Align {
 // ----------------------------------------------------------------------------
 
 /// Show a pop-over window
-pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Vec2, add_contents: F)
+pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Pos2, add_contents: F)
 where
     F: FnOnce(&mut Region),
 {

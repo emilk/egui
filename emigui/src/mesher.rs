@@ -1,19 +1,14 @@
 #![allow(clippy::identity_op)]
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
-use crate::{
-    color::Color,
-    fonts::Fonts,
-    math::{remap, vec2, Rect, Vec2, TAU},
-    types::PaintCmd,
-};
+use crate::{color::Color, fonts::Fonts, math::*, types::PaintCmd};
 
 const WHITE_UV: (u16, u16) = (1, 1);
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct Vertex {
     /// Pixel coordinates
-    pub pos: Vec2,
+    pub pos: Pos2,
     /// Texel indices into the texture
     pub uv: (u16, u16),
     /// sRGBA
@@ -53,12 +48,12 @@ impl Mesh {
         self.triangle(idx + 2, idx + 1, idx + 3);
 
         let top_right = Vertex {
-            pos: vec2(bottom_right.pos.x, top_left.pos.y),
+            pos: pos2(bottom_right.pos.x, top_left.pos.y),
             uv: (bottom_right.uv.0, top_left.uv.1),
             color: top_left.color,
         };
         let botom_left = Vertex {
-            pos: vec2(top_left.pos.x, bottom_right.pos.y),
+            pos: pos2(top_left.pos.x, bottom_right.pos.y),
             uv: (top_left.uv.0, bottom_right.uv.1),
             color: top_left.color,
         };
@@ -124,7 +119,7 @@ impl Mesh {
 // ----------------------------------------------------------------------------
 
 pub struct PathPoint {
-    pos: Vec2,
+    pos: Pos2,
 
     /// For filled paths the normal is used for antialiasing.
     /// For outlines the normal is used for figuring out how to make the line wide
@@ -142,11 +137,11 @@ impl Path {
         self.0.clear();
     }
 
-    pub fn add_point(&mut self, pos: Vec2, normal: Vec2) {
+    pub fn add_point(&mut self, pos: Pos2, normal: Vec2) {
         self.0.push(PathPoint { pos, normal });
     }
 
-    pub fn add_circle(&mut self, center: Vec2, radius: f32) {
+    pub fn add_circle(&mut self, center: Pos2, radius: f32) {
         let n = 32; // TODO: parameter
         for i in 0..n {
             let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
@@ -155,7 +150,7 @@ impl Path {
         }
     }
 
-    pub fn add_line(&mut self, points: &[Vec2]) {
+    pub fn add_line(&mut self, points: &[Pos2]) {
         let n = points.len();
         assert!(n >= 2);
 
@@ -176,10 +171,10 @@ impl Path {
     pub fn add_rectangle(&mut self, rect: &Rect) {
         let min = rect.min();
         let max = rect.max();
-        self.add_point(vec2(min.x, min.y), vec2(-1.0, -1.0));
-        self.add_point(vec2(max.x, min.y), vec2(1.0, -1.0));
-        self.add_point(vec2(max.x, max.y), vec2(1.0, 1.0));
-        self.add_point(vec2(min.x, max.y), vec2(-1.0, 1.0));
+        self.add_point(pos2(min.x, min.y), vec2(-1.0, -1.0));
+        self.add_point(pos2(max.x, min.y), vec2(1.0, -1.0));
+        self.add_point(pos2(max.x, max.y), vec2(1.0, 1.0));
+        self.add_point(pos2(min.x, max.y), vec2(-1.0, 1.0));
     }
 
     pub fn add_rounded_rectangle(&mut self, rect: &Rect, corner_radius: f32) {
@@ -193,14 +188,14 @@ impl Path {
         if cr <= 0.0 {
             self.add_rectangle(rect);
         } else {
-            self.add_circle_quadrant(vec2(max.x - cr, max.y - cr), cr, 0.0);
-            self.add_circle_quadrant(vec2(min.x + cr, max.y - cr), cr, 1.0);
-            self.add_circle_quadrant(vec2(min.x + cr, min.y + cr), cr, 2.0);
-            self.add_circle_quadrant(vec2(max.x - cr, min.y + cr), cr, 3.0);
+            self.add_circle_quadrant(pos2(max.x - cr, max.y - cr), cr, 0.0);
+            self.add_circle_quadrant(pos2(min.x + cr, max.y - cr), cr, 1.0);
+            self.add_circle_quadrant(pos2(min.x + cr, min.y + cr), cr, 2.0);
+            self.add_circle_quadrant(pos2(max.x - cr, min.y + cr), cr, 3.0);
         }
     }
 
-    pub fn add_circle_quadrant(&mut self, center: Vec2, radius: f32, quadrant: f32) {
+    pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
         let n = 8;
         const RIGHT_ANGLE: f32 = TAU / 4.0;
         for i in 0..=n {

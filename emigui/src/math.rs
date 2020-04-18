@@ -120,25 +120,106 @@ pub fn vec2(x: f32, y: f32) -> Vec2 {
 
 // ----------------------------------------------------------------------------
 
+/// Sometimes called a Point. I prefer the shorter Pos2 so it is equal length to Vec2
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+pub struct Pos2 {
+    pub x: f32,
+    pub y: f32,
+    // implicit w = 1
+}
+
+impl Pos2 {
+    pub fn dist(a: Pos2, b: Pos2) -> f32 {
+        (a - b).length()
+    }
+
+    pub fn dist_sq(a: Pos2, b: Pos2) -> f32 {
+        (a - b).length_sq()
+    }
+
+    // TODO: remove?
+    pub fn to_vec2(self) -> Vec2 {
+        Vec2 {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
+impl std::ops::AddAssign<Vec2> for Pos2 {
+    fn add_assign(&mut self, rhs: Vec2) {
+        *self = Pos2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        };
+    }
+}
+
+impl std::ops::Add<Vec2> for Pos2 {
+    type Output = Pos2;
+    fn add(self, rhs: Vec2) -> Pos2 {
+        Pos2 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+// impl std::ops::Add<Pos2> for Vec2 {
+//     type Output = Pos2;
+//     fn add(self, rhs: Pos2) -> Pos2 {
+//         Pos2 {
+//             x: self.x + rhs.x,
+//             y: self.y + rhs.y,
+//         }
+//     }
+// }
+
+impl std::ops::Sub for Pos2 {
+    type Output = Vec2;
+    fn sub(self, rhs: Pos2) -> Vec2 {
+        Vec2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl std::ops::Sub<Vec2> for Pos2 {
+    type Output = Pos2;
+    fn sub(self, rhs: Vec2) -> Pos2 {
+        Pos2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+pub fn pos2(x: f32, y: f32) -> Pos2 {
+    Pos2 { x, y }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub struct Rect {
-    min: Vec2,
-    max: Vec2,
+    min: Pos2,
+    max: Pos2,
 }
 
 impl Rect {
-    pub fn from_min_max(min: Vec2, max: Vec2) -> Self {
+    pub fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max: max }
     }
 
-    pub fn from_min_size(min: Vec2, size: Vec2) -> Self {
+    pub fn from_min_size(min: Pos2, size: Vec2) -> Self {
         Rect {
             min,
             max: min + size,
         }
     }
 
-    pub fn from_center_size(center: Vec2, size: Vec2) -> Self {
+    pub fn from_center_size(center: Pos2, size: Vec2) -> Self {
         Rect {
             min: center - size * 0.5,
             max: center + size * 0.5,
@@ -153,23 +234,23 @@ impl Rect {
         Rect::from_min_size(self.min() + amnt, self.size())
     }
 
-    pub fn contains(&self, p: Vec2) -> bool {
+    pub fn contains(&self, p: Pos2) -> bool {
         self.min.x <= p.x
             && p.x <= self.min.x + self.size().x
             && self.min.y <= p.y
             && p.y <= self.min.y + self.size().y
     }
 
-    pub fn center(&self) -> Vec2 {
-        Vec2 {
+    pub fn center(&self) -> Pos2 {
+        Pos2 {
             x: self.min.x + self.size().x / 2.0,
             y: self.min.y + self.size().y / 2.0,
         }
     }
-    pub fn min(&self) -> Vec2 {
+    pub fn min(&self) -> Pos2 {
         self.min
     }
-    pub fn max(&self) -> Vec2 {
+    pub fn max(&self) -> Pos2 {
         self.max
     }
     pub fn size(&self) -> Vec2 {
@@ -184,29 +265,29 @@ impl Rect {
 
     // Convenience functions (assumes origin is towards left top):
 
-    pub fn left_top(&self) -> Vec2 {
-        vec2(self.min().x, self.min().y)
+    pub fn left_top(&self) -> Pos2 {
+        pos2(self.min().x, self.min().y)
     }
-    pub fn center_top(&self) -> Vec2 {
-        vec2(self.center().x, self.min().y)
+    pub fn center_top(&self) -> Pos2 {
+        pos2(self.center().x, self.min().y)
     }
-    pub fn right_top(&self) -> Vec2 {
-        vec2(self.max().x, self.min().y)
+    pub fn right_top(&self) -> Pos2 {
+        pos2(self.max().x, self.min().y)
     }
-    pub fn left_center(&self) -> Vec2 {
-        vec2(self.min().x, self.center().y)
+    pub fn left_center(&self) -> Pos2 {
+        pos2(self.min().x, self.center().y)
     }
-    pub fn right_center(&self) -> Vec2 {
-        vec2(self.max().x, self.center().y)
+    pub fn right_center(&self) -> Pos2 {
+        pos2(self.max().x, self.center().y)
     }
-    pub fn left_bottom(&self) -> Vec2 {
-        vec2(self.min().x, self.max().y)
+    pub fn left_bottom(&self) -> Pos2 {
+        pos2(self.min().x, self.max().y)
     }
-    pub fn center_bottom(&self) -> Vec2 {
-        vec2(self.center().x, self.max().y)
+    pub fn center_bottom(&self) -> Pos2 {
+        pos2(self.center().x, self.max().y)
     }
-    pub fn right_bottom(&self) -> Vec2 {
-        vec2(self.max().x, self.max().y)
+    pub fn right_bottom(&self) -> Pos2 {
+        pos2(self.max().x, self.max().y)
     }
 }
 
