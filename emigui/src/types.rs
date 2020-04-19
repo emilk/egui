@@ -91,6 +91,15 @@ pub struct Outline {
     pub color: Color,
 }
 
+impl Outline {
+    pub fn new(width: impl Into<f32>, color: impl Into<Color>) -> Self {
+        Self {
+            width: width.into(),
+            color: color.into(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PaintCmd {

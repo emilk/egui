@@ -131,10 +131,7 @@ impl Region {
         self.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 5.0,
             fill_color: Some(fill_color),
-            outline: Some(Outline {
-                width: 1.0,
-                color: color::WHITE,
-            }),
+            outline: Some(Outline::new(1.0, color::WHITE)),
             rect: interact.rect,
         });
 

@@ -116,10 +116,7 @@ impl ExampleApp {
                         pos2(pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                         self.size,
                     ),
-                    outline: Some(Outline {
-                        width: self.stroke_width,
-                        color: gray(255, 255),
-                    }),
+                    outline: Some(Outline::new(self.stroke_width, gray(255, 255))),
                 });
             }
             region.add_paint_cmds(cmds);

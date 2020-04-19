@@ -416,20 +416,17 @@ impl<'a> Widget for Slider<'a> {
                 region.add_paint_cmd(PaintCmd::Rect {
                     corner_radius: 4.0,
                     fill_color: Some(region.style().background_fill_color()),
-                    outline: Some(Outline {
-                        color: color::gray(200, 255), // TODO
-                        width: 1.0,
-                    }),
+                    outline: Some(Outline::new(1.0, color::gray(200, 255))), // TODO
                     rect: thin_rect,
                 });
 
                 region.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, thin_rect.center().y),
                     fill_color: Some(region.style().interact_fill_color(&interact)),
-                    outline: Some(Outline {
-                        color: region.style().interact_stroke_color(&interact),
-                        width: 1.5,
-                    }),
+                    outline: Some(Outline::new(
+                        1.5,
+                        region.style().interact_stroke_color(&interact),
+                    )),
                     radius: thickness / 3.0,
                 });
             }

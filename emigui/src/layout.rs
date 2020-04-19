@@ -119,10 +119,7 @@ where
         PaintCmd::Rect {
             corner_radius: 5.0,
             fill_color: Some(style.background_fill_color()),
-            outline: Some(Outline {
-                color: color::WHITE,
-                width: 1.0,
-            }),
+            outline: Some(Outline::new(1.0, color::WHITE)),
             rect,
         },
     );
