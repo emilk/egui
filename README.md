@@ -41,13 +41,9 @@ Features:
 * Collapsible headers (sections)
 * Anti-aliased rendering of circles, rounded rectangles and lines.
 
-## Roadmap:
-* Turn the [Glium](https://github.com/glium/glium) backend into a library
-* Some examples and documentation
-* Text input
 
 ## Inspiration
-[Dear ImGui](https://github.com/ocornut/imgui) is a great Immediate Mode GUI for C++ which works with many backends.
+The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immediate Mode GUI for C++ which works with many backends. That library revolutionized how I think about GUI code from something I hated to do to something I now like to do.
 
 ## Credits / Licenses
 Fonts:
