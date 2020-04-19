@@ -9,7 +9,7 @@ pub struct GuiResponse {
     /// The mouse is hovering above this
     pub hovered: bool,
 
-    /// The mouse went got pressed on this thing this frame
+    /// The mouse clicked this thing this frame
     pub clicked: bool,
 
     /// The mouse is interacting with this thing (e.g. dragging it)
@@ -18,7 +18,7 @@ pub struct GuiResponse {
     /// The region of the screen we are talking about
     pub rect: Rect,
 
-    /// Used for showing a popup (if any)
+    /// Used for optionally showing a tooltip
     pub ctx: Arc<Context>,
 }
 
@@ -76,6 +76,20 @@ impl Default for Align {
     fn default() -> Align {
         Align::Min
     }
+}
+
+pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
+    let x = match align.0 {
+        Align::Min => rect.min().x,
+        Align::Center => rect.min().x - 0.5 * rect.size().x,
+        Align::Max => rect.min().x - rect.size().x,
+    };
+    let y = match align.1 {
+        Align::Min => rect.min().y,
+        Align::Center => rect.min().y - 0.5 * rect.size().y,
+        Align::Max => rect.min().y - rect.size().y,
+    };
+    Rect::from_min_size(pos2(x, y), rect.size())
 }
 
 // ----------------------------------------------------------------------------

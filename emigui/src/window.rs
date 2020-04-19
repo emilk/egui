@@ -8,28 +8,39 @@ pub struct WindowState {
     pub rect: Rect,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Window {
     /// The title of the window and by default the source of its identity.
     title: String,
+    /// Put the window here the first time
+    default_pos: Option<Pos2>,
 }
 
 impl Window {
     pub fn new<S: Into<String>>(title: S) -> Self {
         Self {
             title: title.into(),
+            ..Default::default()
         }
+    }
+
+    pub fn default_pos(mut self, default_pos: Pos2) -> Self {
+        self.default_pos = Some(default_pos);
+        self
     }
 
     pub fn show<F>(self, ctx: &Arc<Context>, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
-        let id = Id::new(&self.title);
+        let default_pos = self.default_pos.unwrap_or(pos2(100.0, 100.0)); // TODO
+
+        let id = ctx.make_unique_id(&self.title, default_pos);
 
         let mut state = ctx.memory.lock().get_or_create_window(
             id,
             Rect::from_min_size(
-                pos2(400.0, 200.0), // TODO
+                default_pos,
                 vec2(200.0, 200.0), // TODO
             ),
         );

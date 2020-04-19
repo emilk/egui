@@ -80,7 +80,7 @@ impl Button {
 
 impl Widget for Button {
     fn add_to(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_child_id(&self.text);
+        let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
@@ -126,7 +126,7 @@ impl<'a> Checkbox<'a> {
 
 impl<'a> Widget for Checkbox<'a> {
     fn add_to(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_child_id(&self.text);
+        let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
@@ -200,7 +200,7 @@ pub fn radio<S: Into<String>>(checked: bool, text: S) -> RadioButton {
 
 impl Widget for RadioButton {
     fn add_to(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_child_id(&self.text);
+        let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.width());
@@ -243,11 +243,14 @@ impl Widget for RadioButton {
 
 // ----------------------------------------------------------------------------
 
+/// Combined into one function (rather than two) to make it easier
+/// for the borrow checker.
+type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
+
 pub struct Slider<'a> {
-    get_set_value: Box<dyn 'a + FnMut(Option<f32>) -> f32>,
+    get_set_value: SliderGetSet<'a>,
     min: f32,
     max: f32,
-    id: Option<Id>,
     text: Option<String>,
     precision: usize,
     text_color: Option<Color>,
@@ -255,17 +258,11 @@ pub struct Slider<'a> {
 }
 
 impl<'a> Slider<'a> {
-    pub fn f32(value: &'a mut f32, min: f32, max: f32) -> Self {
+    fn from_get_set(get_set_value: impl 'a + FnMut(Option<f32>) -> f32) -> Self {
         Slider {
-            get_set_value: Box::new(move |v: Option<f32>| {
-                if let Some(v) = v {
-                    *value = v
-                }
-                *value
-            }),
-            min,
-            max,
-            id: None,
+            get_set_value: Box::new(get_set_value),
+            min: std::f32::NAN,
+            max: std::f32::NAN,
             text: None,
             precision: 3,
             text_on_top: None,
@@ -273,45 +270,46 @@ impl<'a> Slider<'a> {
         }
     }
 
+    pub fn f32(value: &'a mut f32, min: f32, max: f32) -> Self {
+        Slider {
+            min,
+            max,
+            precision: 3,
+            ..Self::from_get_set(move |v: Option<f32>| {
+                if let Some(v) = v {
+                    *value = v
+                }
+                *value
+            })
+        }
+    }
+
     pub fn i32(value: &'a mut i32, min: i32, max: i32) -> Self {
         Slider {
-            get_set_value: Box::new(move |v: Option<f32>| {
+            min: min as f32,
+            max: max as f32,
+            precision: 0,
+            ..Self::from_get_set(move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as i32
                 }
                 *value as f32
-            }),
-            min: min as f32,
-            max: max as f32,
-            id: None,
-            text: None,
-            precision: 0,
-            text_on_top: None,
-            text_color: None,
+            })
         }
     }
 
     pub fn usize(value: &'a mut usize, min: usize, max: usize) -> Self {
         Slider {
-            get_set_value: Box::new(move |v: Option<f32>| {
+            min: min as f32,
+            max: max as f32,
+            precision: 0,
+            ..Self::from_get_set(move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as usize
                 }
                 *value as f32
-            }),
-            min: min as f32,
-            max: max as f32,
-            id: None,
-            text: None,
-            precision: 0,
-            text_on_top: None,
-            text_color: None,
+            })
         }
-    }
-
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
     }
 
     pub fn text<S: Into<String>>(mut self, text: S) -> Self {
@@ -351,10 +349,8 @@ impl<'a> Widget for Slider<'a> {
             let text_color = self.text_color;
             let value = (self.get_set_value)(None);
             let full_text = format!("{}: {:.*}", text, self.precision, value);
-            let id = Some(self.id.unwrap_or_else(|| Id::new(text)));
-            let mut naked = self;
-            naked.id = id;
-            naked.text = None;
+
+            let naked = Slider { text: None, ..self };
 
             if text_on_top {
                 let (text, text_size) = font.layout_multiline(&full_text, region.width());
@@ -379,16 +375,13 @@ impl<'a> Widget for Slider<'a> {
             let min = self.min;
             let max = self.max;
             debug_assert!(min <= max);
-            let id = region.combined_id(Some(
-                self.id
-                    .expect("Sliders must have a text label or an explicit id"),
-            ));
+            let id = region.make_position_id();
             let interact = region.reserve_space(
                 Vec2 {
                     x: region.available_space.x,
                     y: height,
                 },
-                id,
+                Some(id),
             );
 
             if let Some(mouse_pos) = region.input().mouse_pos {

@@ -5,6 +5,11 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    pub fn splat(v: impl Into<f32>) -> Vec2 {
+        let v: f32 = v.into();
+        Vec2 { x: v, y: v }
+    }
+
     #[must_use]
     pub fn normalized(self) -> Vec2 {
         let len = self.length();
@@ -129,12 +134,12 @@ pub struct Pos2 {
 }
 
 impl Pos2 {
-    pub fn dist(a: Pos2, b: Pos2) -> f32 {
-        (a - b).length()
+    pub fn dist(self: Pos2, other: Pos2) -> f32 {
+        (self - other).length()
     }
 
-    pub fn dist_sq(a: Pos2, b: Pos2) -> f32 {
-        (a - b).length_sq()
+    pub fn dist_sq(self: Pos2, other: Pos2) -> f32 {
+        (self - other).length_sq()
     }
 
     // TODO: remove?
@@ -230,6 +235,7 @@ impl Rect {
     pub fn expand(self, amnt: f32) -> Self {
         Rect::from_center_size(self.center(), self.size() + 2.0 * vec2(amnt, amnt))
     }
+
     pub fn translate(self, amnt: Vec2) -> Self {
         Rect::from_min_size(self.min() + amnt, self.size())
     }

@@ -100,7 +100,7 @@ impl Region {
             "Horizontal foldable is unimplemented"
         );
         let text: String = text.into();
-        let id = self.make_child_id(&text);
+        let id = self.make_unique_id(&text);
         let text_style = TextStyle::Button;
         let font = &self.fonts()[text_style];
         let (text, text_size) = font.layout_multiline(&text, self.width());
@@ -292,7 +292,7 @@ impl Region {
                 ctx: self.ctx.clone(),
                 layer: self.layer,
                 style: self.style,
-                id: self.make_child_id(&("column", col_idx)),
+                id: self.make_child_region_id(&("column", col_idx)),
                 dir: Direction::Vertical,
                 align: self.align,
                 cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
@@ -355,15 +355,34 @@ impl Region {
         pos
     }
 
-    pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
+    /// Will warn if the returned id is not guaranteed unique.
+    /// Use this to generate widget ids for widgets that have persistent state in Memory.
+    /// If the child_id_source is not unique within this region
+    /// then an error will be printed at the current cursor position.
+    pub fn make_unique_id<IdSource>(&self, child_id_source: &IdSource) -> Id
+    where
+        IdSource: Hash + std::fmt::Debug,
+    {
+        let id = self.id.with(child_id_source);
+        self.ctx
+            .register_unique_id(id, child_id_source, self.cursor)
+    }
+
+    /// Make an Id that is unique to this positon.
+    /// Can be used for widgets that do NOT persist state in Memory
+    /// but you still need to interact with (e.g. buttons, sliders).
+    pub fn make_position_id(&self) -> Id {
+        self.id.with(&Id::from_pos(self.cursor))
+    }
+
+    pub fn make_child_region_id<H: Hash>(&self, child_id: &H) -> Id {
         self.id.with(child_id)
     }
 
-    pub fn combined_id(&self, child_id: Option<Id>) -> Option<Id> {
-        child_id.map(|child_id| self.id.with(&child_id))
-    }
-
-    // Helper function
+    /// Show some text anywhere in the region.
+    /// To center the text at the given position, use `align: (Center, Center)`.
+    /// If you want to draw text floating on top of everything,
+    /// consider using Context.floating_text instead.
     pub fn floating_text(
         &mut self,
         pos: Pos2,
@@ -373,22 +392,13 @@ impl Region {
         text_color: Option<Color>,
     ) -> Vec2 {
         let font = &self.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(text, std::f32::INFINITY);
-
-        let x = match align.0 {
-            Align::Min => pos.x,
-            Align::Center => pos.x - 0.5 * text_size.x,
-            Align::Max => pos.x - text_size.x,
-        };
-        let y = match align.1 {
-            Align::Min => pos.y,
-            Align::Center => pos.y - 0.5 * text_size.y,
-            Align::Max => pos.y - text_size.y,
-        };
-        self.add_text(pos2(x, y), text_style, text, text_color);
-        text_size
+        let (text, size) = font.layout_multiline(text, std::f32::INFINITY);
+        let rect = align_rect(Rect::from_min_size(pos, size), align);
+        self.add_text(rect.min(), text_style, text, text_color);
+        size
     }
 
+    /// Already layed out text.
     pub fn add_text(
         &mut self,
         pos: Pos2,

@@ -40,12 +40,13 @@ impl Emigui {
         self.ctx = Arc::new(new_data);
     }
 
-    pub fn whole_screen_region(&mut self) -> Region {
+    /// A region for the entire screen, behind any windows.
+    pub fn background_region(&mut self) -> Region {
         Region {
             ctx: self.ctx.clone(),
             layer: Layer::Background,
             style: self.ctx.style(),
-            id: Id::whole_screen(),
+            id: Id::background(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
             cursor: Default::default(),

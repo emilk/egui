@@ -81,7 +81,7 @@ fn main() {
         });
 
         emigui.new_frame(raw_input);
-        let mut region = emigui.whole_screen_region();
+        let mut region = emigui.background_region();
         let mut region = region.left_column(region.width().min(480.0));
         region.set_align(Align::Min);
         region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
@@ -95,10 +95,12 @@ fn main() {
         Window::new("Test window").show(region.ctx(), |region| {
             region.add(label!("Grab the window and move it around!"));
         });
-        Window::new("Another test window").show(region.ctx(), |region| {
-            region.add(label!("This might be on top of the other window?"));
-            region.add(label!("Second line of text"));
-        });
+        Window::new("Another test window")
+            .default_pos(pos2(400.0, 100.0))
+            .show(region.ctx(), |region| {
+                region.add(label!("This might be on top of the other window?"));
+                region.add(label!("Second line of text"));
+            });
 
         let mesh = emigui.paint();
         painter.paint(&display, mesh, emigui.texture());
