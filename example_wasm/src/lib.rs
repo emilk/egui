@@ -43,7 +43,7 @@ impl State {
         self.emigui.new_frame(raw_input);
 
         let mut region = self.emigui.background_region();
-        let mut region = region.centered_column(region.width().min(480.0));
+        let mut region = region.centered_column(region.available_width().min(480.0));
         region.add(label!("Emigui!").text_style(TextStyle::Heading));
         region.add(label!("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
         region.add(label!(

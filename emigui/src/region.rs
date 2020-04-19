@@ -21,20 +21,42 @@ pub struct Region {
 
     pub(crate) align: Align,
 
+    // The `rect` represents where in space the region is
+    // and its max size (original available_space).
+    // Note that the size may be infinite in one or both dimensions.
+    // The widgets will TRY to fit within the rect,
+    // but may overflow (which you will see in bounding_size).
+    // It will use the rect (which never changes) as a
+    // clip rect when painting the contents of the region.
+    pub(crate) rect: Rect,
+
     /// Where the next widget will be put.
-    /// Progresses along self.dir
+    /// Progresses along self.dir.
+    /// Initially set to rect.min()
     pub(crate) cursor: Pos2,
 
     /// Bounding box of children.
     /// We keep track of our max-size along the orthogonal to self.dir
+    /// Initially set to zero.
     pub(crate) bounding_size: Vec2,
-
-    /// This how much more space we can take up without overflowing our parent.
-    /// Shrinks as cursor increments.
-    pub(crate) available_space: Vec2,
 }
 
 impl Region {
+    pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
+        let style = ctx.style();
+        Region {
+            ctx,
+            layer,
+            style,
+            id,
+            dir: Direction::Vertical,
+            align: Align::Min,
+            rect,
+            cursor: rect.min(),
+            bounding_size: Vec2::default(),
+        }
+    }
+
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
@@ -63,16 +85,18 @@ impl Region {
         &*self.ctx.fonts
     }
 
-    pub fn width(&self) -> f32 {
-        self.available_space.x
+    pub fn available_width(&self) -> f32 {
+        self.rect.max().x - self.cursor.x
     }
 
-    pub fn height(&self) -> f32 {
-        self.available_space.y
+    pub fn available_height(&self) -> f32 {
+        self.rect.max().y - self.cursor.y
     }
 
-    pub fn size(&self) -> Vec2 {
-        self.available_space
+    /// This how much more space we can take up without overflowing our parent.
+    /// Shrinks as cursor increments.
+    pub fn available_space(&self) -> Vec2 {
+        self.rect.max() - self.cursor
     }
 
     pub fn direction(&self) -> Direction {
@@ -103,11 +127,11 @@ impl Region {
         let id = self.make_unique_id(&text);
         let text_style = TextStyle::Button;
         let font = &self.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&text, self.width());
+        let (text, text_size) = font.layout_multiline(&text, self.available_width());
         let text_cursor = self.cursor + self.style.button_padding;
         let interact = self.reserve_space(
             vec2(
-                self.available_space.x,
+                self.available_width(),
                 text_size.y + 2.0 * self.style.button_padding.y,
             ),
             Some(id),
@@ -180,6 +204,7 @@ impl Region {
         F: FnOnce(&mut Region),
     {
         let indent = vec2(self.style.indent, 0.0);
+        let region_pos = self.cursor + indent;
         let mut child_region = Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
@@ -187,9 +212,9 @@ impl Region {
             id: self.id,
             dir: self.dir,
             align: Align::Min,
-            cursor: self.cursor + indent,
+            rect: Rect::from_min_max(region_pos, self.rect.max()),
+            cursor: region_pos,
             bounding_size: vec2(0.0, 0.0),
-            available_space: self.available_space - indent,
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
@@ -198,16 +223,17 @@ impl Region {
 
     /// Return a sub-region relative to the parent
     pub fn relative_region(&mut self, rect: Rect) -> Region {
+        let region_pos = self.cursor + rect.min().to_vec2();
         Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
             dir: self.dir,
-            cursor: self.cursor + rect.min().to_vec2(),
             align: self.align,
+            rect: Rect::from_min_max(region_pos, self.rect.max()),
+            cursor: region_pos,
             bounding_size: vec2(0.0, 0.0),
-            available_space: rect.size(),
         }
     }
 
@@ -215,12 +241,12 @@ impl Region {
     pub fn column(&mut self, column_position: Align, width: f32) -> Region {
         let x = match column_position {
             Align::Min => 0.0,
-            Align::Center => self.available_space.x / 2.0 - width / 2.0,
-            Align::Max => self.available_space.x - width,
+            Align::Center => self.available_width() / 2.0 - width / 2.0,
+            Align::Max => self.available_width() - width,
         };
         self.relative_region(Rect::from_min_size(
             pos2(x, 0.0),
-            vec2(width, self.available_space.y),
+            vec2(width, self.available_height()),
         ))
     }
 
@@ -247,9 +273,9 @@ impl Region {
             id: self.id,
             dir,
             align,
+            rect: Rect::from_min_max(self.cursor, self.rect.max()),
             cursor: self.cursor,
             bounding_size: vec2(0.0, 0.0),
-            available_space: self.available_space,
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
@@ -285,19 +311,22 @@ impl Region {
         // TODO: ensure there is space
         let padding = self.style.item_spacing.x;
         let total_padding = padding * (num_columns as f32 - 1.0);
-        let column_width = (self.available_space.x - total_padding) / (num_columns as f32);
+        let column_width = (self.available_width() - total_padding) / (num_columns as f32);
 
         let mut columns: Vec<Region> = (0..num_columns)
-            .map(|col_idx| Region {
-                ctx: self.ctx.clone(),
-                layer: self.layer,
-                style: self.style,
-                id: self.make_child_region_id(&("column", col_idx)),
-                dir: Direction::Vertical,
-                align: self.align,
-                cursor: self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0),
-                bounding_size: vec2(0.0, 0.0),
-                available_space: vec2(column_width, self.available_space.y),
+            .map(|col_idx| {
+                let pos = self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0);
+                Region {
+                    ctx: self.ctx.clone(),
+                    layer: self.layer,
+                    style: self.style,
+                    id: self.make_child_region_id(&("column", col_idx)),
+                    dir: Direction::Vertical,
+                    align: self.align,
+                    rect: Rect::from_min_max(pos, pos2(pos.x + column_width, self.rect.max().y)),
+                    cursor: pos,
+                    bounding_size: vec2(0.0, 0.0),
+                }
             })
             .collect();
 
@@ -309,7 +338,7 @@ impl Region {
             max_height = size.y.max(max_height);
         }
 
-        self.reserve_space_without_padding(vec2(self.available_space.x, max_height));
+        self.reserve_space_without_padding(vec2(self.available_width(), max_height));
         result
     }
 
@@ -334,21 +363,19 @@ impl Region {
         if self.dir == Direction::Horizontal {
             pos.y += match self.align {
                 Align::Min => 0.0,
-                Align::Center => 0.5 * (self.available_space.y - size.y),
-                Align::Max => self.available_space.y - size.y,
+                Align::Center => 0.5 * (self.available_height() - size.y),
+                Align::Max => self.available_height() - size.y,
             };
             self.cursor.x += size.x;
-            self.available_space.x -= size.x;
             self.bounding_size.x += size.x;
             self.bounding_size.y = self.bounding_size.y.max(size.y);
         } else {
             pos.x += match self.align {
                 Align::Min => 0.0,
-                Align::Center => 0.5 * (self.available_space.x - size.x),
-                Align::Max => self.available_space.x - size.x,
+                Align::Center => 0.5 * (self.available_width() - size.x),
+                Align::Max => self.available_width() - size.x,
             };
             self.cursor.y += size.y;
-            self.available_space.y -= size.x;
             self.bounding_size.y += size.y;
             self.bounding_size.x = self.bounding_size.x.max(size.x);
         }

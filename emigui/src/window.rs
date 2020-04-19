@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{layout::Direction, mesher::Path, widgets::*, *};
+use crate::{mesher::Path, widgets::*, *};
 
 #[derive(Clone, Copy, Debug)]
 pub struct WindowState {
@@ -54,19 +54,33 @@ impl Window {
         self
     }
 
+    pub fn shrink_to_fit_content(mut self, shrink_to_fit_content: bool) -> Self {
+        self.shrink_to_fit_content = shrink_to_fit_content;
+        self
+    }
+
+    pub fn expand_to_fit_content(mut self, expand_to_fit_content: bool) -> Self {
+        self.expand_to_fit_content = expand_to_fit_content;
+        self
+    }
+
     pub fn show<F>(self, ctx: &Arc<Context>, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
         let default_pos = self.default_pos.unwrap_or(pos2(100.0, 100.0)); // TODO
         let default_size = vec2(200.0, 50.0); // TODO
+        let default_rect = Rect::from_min_size(default_pos, default_size);
 
         let id = ctx.make_unique_id(&self.title, default_pos);
 
-        let mut state = ctx
-            .memory
-            .lock()
-            .get_or_create_window(id, Rect::from_min_size(default_pos, default_size));
+        let (mut state, is_new_window) = match ctx.memory.lock().get_window(id) {
+            Some(state) => (state, false),
+            None => {
+                let state = WindowState { rect: default_rect };
+                (state, true)
+            }
+        };
 
         let layer = Layer::Window(id);
         let where_to_put_background = ctx.graphics.lock().layer(layer).len();
@@ -74,17 +88,11 @@ impl Window {
         let style = ctx.style();
         let window_padding = style.window_padding;
 
-        let mut contents_region = Region {
-            ctx: ctx.clone(),
-            layer,
-            style,
-            id,
-            dir: Direction::Vertical,
-            align: Align::Min,
-            cursor: state.rect.min() + window_padding,
-            bounding_size: vec2(0.0, 0.0),
-            available_space: state.rect.size() - 2.0 * window_padding,
-        };
+        let inner_rect = Rect::from_min_size(
+            state.rect.min() + window_padding,
+            state.rect.size() - 2.0 * window_padding,
+        );
+        let mut contents_region = Region::new(ctx.clone(), layer, id, inner_rect);
 
         // Show top bar:
         contents_region.add(Label::new(self.title).text_style(TextStyle::Heading));
@@ -104,7 +112,7 @@ impl Window {
             new_outer_size = new_outer_size.min(desired_outer_size);
         }
 
-        if self.expand_to_fit_content {
+        if self.expand_to_fit_content || is_new_window {
             new_outer_size = new_outer_size.max(desired_outer_size);
         }
 

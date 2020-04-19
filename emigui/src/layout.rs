@@ -94,6 +94,7 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // ----------------------------------------------------------------------------
 
+// TODO: move show_popup, and expand its features (default size, autosize, etc)
 /// Show a pop-over window
 pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Pos2, add_contents: F)
 where
@@ -105,17 +106,9 @@ where
     let style = ctx.style();
     let window_padding = style.window_padding;
 
-    let mut contents_region = Region {
-        ctx: ctx.clone(),
-        layer,
-        style,
-        id: Id::popup(),
-        dir: Direction::Vertical,
-        align: Align::Min,
-        cursor: window_pos + window_padding,
-        bounding_size: vec2(0.0, 0.0),
-        available_space: vec2(ctx.input.screen_size.x.min(350.0), std::f32::INFINITY), // TODO: popup/tooltip width
-    };
+    let size = vec2(ctx.input.screen_size.x.min(350.0), std::f32::INFINITY); // TODO: popup/tooltip width
+    let inner_rect = Rect::from_min_size(window_pos + window_padding, size);
+    let mut contents_region = Region::new(ctx.clone(), layer, Id::popup(), inner_rect);
 
     add_contents(&mut contents_region);
 

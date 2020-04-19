@@ -272,6 +272,16 @@ impl Rect {
         Rect::from_min_size(self.min() + amnt, self.size())
     }
 
+    // keep min
+    pub fn set_width(&mut self, w: f32) {
+        self.max.x = self.min.x + w;
+    }
+
+    // keep min
+    pub fn set_height(&mut self, h: f32) {
+        self.max.y = self.min.y + h;
+    }
+
     pub fn contains(&self, p: Pos2) -> bool {
         self.min.x <= p.x
             && p.x <= self.min.x + self.size().x

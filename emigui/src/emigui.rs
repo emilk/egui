@@ -49,9 +49,9 @@ impl Emigui {
             id: Id::background(),
             dir: layout::Direction::Vertical,
             align: layout::Align::Center,
+            rect: Rect::from_min_size(Default::default(), self.ctx.input.screen_size),
             cursor: Default::default(),
             bounding_size: Default::default(),
-            available_space: self.ctx.input.screen_size,
         }
     }
 

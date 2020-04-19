@@ -103,8 +103,8 @@ impl Texture {
             self.height
         ));
         let mut size = vec2(self.width as f32, self.height as f32);
-        if size.x > region.width() {
-            size *= region.width() / size.x;
+        if size.x > region.available_width() {
+            size *= region.available_width() / size.x;
         }
         let interact = region.reserve_space(size, None);
         let rect = interact.rect;
