@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{layout::Direction, mesher::Path, widgets::Label, *};
+use crate::{layout::Direction, mesher::Path, widgets::*, *};
 
 #[derive(Clone, Copy, Debug)]
 pub struct WindowState {
@@ -88,6 +88,7 @@ impl Window {
 
         // Show top bar:
         contents_region.add(Label::new(self.title).text_style(TextStyle::Heading));
+        contents_region.add(Separator::new().line_width(1.0).extra(window_padding.x)); // TODO: nicer way to split window title from contents
 
         add_contents(&mut contents_region);
 

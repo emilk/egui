@@ -169,6 +169,18 @@ impl Pos2 {
             y: self.y,
         }
     }
+
+    pub fn floor(self) -> Self {
+        pos2(self.x.floor(), self.y.floor())
+    }
+
+    pub fn round(self) -> Self {
+        pos2(self.x.round(), self.y.round())
+    }
+
+    pub fn ceil(self) -> Self {
+        pos2(self.x.ceil(), self.y.ceil())
+    }
 }
 
 impl std::ops::AddAssign<Vec2> for Pos2 {
