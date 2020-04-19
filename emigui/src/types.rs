@@ -2,7 +2,7 @@ use crate::{
     color::Color,
     fonts::TextStyle,
     math::{Pos2, Rect, Vec2},
-    mesher::Mesh,
+    mesher::{Mesh, Path},
 };
 
 // ----------------------------------------------------------------------------
@@ -100,8 +100,7 @@ impl Outline {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
+#[derive(Clone, Debug)]
 pub enum PaintCmd {
     Circle {
         center: Pos2,
@@ -113,6 +112,12 @@ pub enum PaintCmd {
         points: Vec<Pos2>,
         color: Color,
         width: f32,
+    },
+    Path {
+        path: Path,
+        closed: bool,
+        fill_color: Option<Color>,
+        outline: Option<Outline>,
     },
     Rect {
         corner_radius: f32,

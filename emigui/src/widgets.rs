@@ -91,7 +91,7 @@ impl Widget for Button {
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         region.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 10.0,
-            fill_color: Some(region.style().interact_fill_color(&interact)),
+            fill_color: region.style().interact_fill_color(&interact),
             outline: None,
             rect: interact.rect,
         });
@@ -146,7 +146,7 @@ impl<'a> Widget for Checkbox<'a> {
         let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(&interact.rect);
         region.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 3.0,
-            fill_color: Some(region.style().interact_fill_color(&interact)),
+            fill_color: region.style().interact_fill_color(&interact),
             outline: None,
             rect: big_icon_rect,
         });
@@ -222,7 +222,7 @@ impl Widget for RadioButton {
 
         region.add_paint_cmd(PaintCmd::Circle {
             center: big_icon_rect.center(),
-            fill_color: Some(fill_color),
+            fill_color,
             outline: None,
             radius: big_icon_rect.size().x / 2.0,
         });
@@ -415,7 +415,7 @@ impl<'a> Widget for Slider<'a> {
 
                 region.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, thin_rect.center().y),
-                    fill_color: Some(region.style().interact_fill_color(&interact)),
+                    fill_color: region.style().interact_fill_color(&interact),
                     outline: Some(Outline::new(
                         1.5,
                         region.style().interact_stroke_color(&interact),

@@ -25,6 +25,13 @@ pub struct Style {
     // Purely visual:
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
+
+    pub window: Window,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Window {
+    pub corner_radius: f32,
 }
 
 impl Default for Style {
@@ -37,6 +44,15 @@ impl Default for Style {
             clickable_diameter: 34.0,
             start_icon_width: 20.0,
             line_width: 2.0,
+            window: Window::default(),
+        }
+    }
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        Window {
+            corner_radius: 10.0,
         }
     }
 }
@@ -52,13 +68,13 @@ impl Style {
     }
 
     /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
-    pub fn interact_fill_color(&self, interact: &InteractInfo) -> Color {
+    pub fn interact_fill_color(&self, interact: &InteractInfo) -> Option<Color> {
         if interact.active {
-            srgba(100, 100, 200, 255)
+            Some(srgba(100, 100, 200, 255))
         } else if interact.hovered {
-            srgba(100, 100, 150, 255)
+            Some(srgba(100, 100, 150, 255))
         } else {
-            srgba(60, 60, 70, 255)
+            Some(srgba(60, 60, 70, 255))
         }
     }
 
@@ -71,6 +87,23 @@ impl Style {
         } else {
             gray(255, 170)
         }
+    }
+
+    pub fn interact_stroke_width(&self, interact: &InteractInfo) -> f32 {
+        if interact.active {
+            2.0
+        } else if interact.hovered {
+            1.5
+        } else {
+            1.0
+        }
+    }
+
+    pub fn interact_outline(&self, interact: &InteractInfo) -> Option<Outline> {
+        Some(Outline::new(
+            self.interact_stroke_width(interact),
+            self.interact_stroke_color(interact),
+        ))
     }
 
     /// Returns small icon rectangle and big icon rectangle

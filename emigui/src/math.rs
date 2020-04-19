@@ -43,6 +43,26 @@ impl Vec2 {
     pub fn angled(angle: f32) -> Vec2 {
         vec2(angle.cos(), angle.sin())
     }
+
+    pub fn floor(self) -> Self {
+        vec2(self.x.floor(), self.y.floor())
+    }
+
+    pub fn round(self) -> Self {
+        vec2(self.x.round(), self.y.round())
+    }
+
+    pub fn ceil(self) -> Self {
+        vec2(self.x.ceil(), self.y.ceil())
+    }
+
+    pub fn min(self, other: Vec2) -> Self {
+        vec2(self.x.min(other.x), self.y.min(other.y))
+    }
+
+    pub fn max(self, other: Vec2) -> Self {
+        vec2(self.x.max(other.x), self.y.max(other.y))
+    }
 }
 
 impl std::ops::Neg for Vec2 {

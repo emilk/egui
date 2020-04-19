@@ -29,8 +29,16 @@ impl Memory {
         }
     }
 
+    /// default_rect: where to put it if it does NOT exist
+    pub fn get_window(&mut self, id: Id) -> Option<WindowState> {
+        self.windows.get(&id).cloned()
+    }
+
     pub fn set_window_state(&mut self, id: Id, state: WindowState) {
-        self.windows.insert(id, state);
+        let did_insert = self.windows.insert(id, state).is_none();
+        if did_insert {
+            self.window_order.push(id);
+        }
     }
 
     pub fn layer_at(&self, pos: Pos2) -> Layer {

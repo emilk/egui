@@ -118,6 +118,7 @@ impl Mesh {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Debug, Default)]
 pub struct PathPoint {
     pos: Pos2,
 
@@ -129,8 +130,8 @@ pub struct PathPoint {
     normal: Vec2,
 }
 
-#[derive(Default)]
-struct Path(Vec<PathPoint>);
+#[derive(Clone, Debug, Default)]
+pub struct Path(Vec<PathPoint>);
 
 impl Path {
     pub fn clear(&mut self) {
@@ -195,6 +196,17 @@ impl Path {
         }
     }
 
+    /// with x right, and y down (GUI coords) we have:
+    /// angle       = dir
+    /// 0 * TAU / 4 = right
+    ///    quadrant 0, right down
+    /// 1 * TAU / 4 = down
+    ///    quadrant 1, down left
+    /// 2 * TAU / 4 = left
+    ///    quadrant 2 left up
+    /// 3 * TAU / 4 = up
+    ///    quadrant 3 up rigth
+    /// 4 * TAU / 4 = right
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
         let n = 8;
         const RIGHT_ANGLE: f32 = TAU / 4.0;
@@ -419,6 +431,30 @@ impl Mesher {
                         path.clear();
                         path.add_line(points);
                         paint_path(&mut self.mesh, &self.options, Open, &path.0, *color, *width);
+                    }
+                }
+                PaintCmd::Path {
+                    path,
+                    closed,
+                    fill_color,
+                    outline,
+                } => {
+                    if let Some(fill_color) = fill_color {
+                        debug_assert!(
+                            *closed,
+                            "You asked to fill a path that is not closed. That makes no sense."
+                        );
+                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *fill_color);
+                    }
+                    if let Some(outline) = outline {
+                        paint_path(
+                            &mut self.mesh,
+                            &self.options,
+                            Closed,
+                            &path.0,
+                            outline.color,
+                            outline.width,
+                        );
                     }
                 }
                 PaintCmd::Rect {
