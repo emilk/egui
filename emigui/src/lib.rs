@@ -35,7 +35,7 @@ pub use {
     layout::Align,
     math::*,
     memory::Memory,
-    mesher::{Mesh, Vertex},
+    mesher::{Mesh, PaintBatches, Vertex},
     region::Region,
     style::Style,
     texture_atlas::Texture,

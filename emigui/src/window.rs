@@ -123,12 +123,15 @@ impl Window {
         let corner_radius = style.window.corner_radius;
         graphics.layer(layer).insert(
             where_to_put_background,
-            PaintCmd::Rect {
-                corner_radius,
-                fill_color: Some(style.background_fill_color()),
-                outline: Some(Outline::new(1.0, color::WHITE)),
-                rect: state.rect,
-            },
+            (
+                Rect::everything(),
+                PaintCmd::Rect {
+                    corner_radius,
+                    fill_color: Some(style.background_fill_color()),
+                    outline: Some(Outline::new(1.0, color::WHITE)),
+                    rect: state.rect,
+                },
+            ),
         );
 
         let corner_interact = if self.resizeable {
@@ -148,12 +151,15 @@ impl Window {
             path.add_point(corner_center, vec2(-1.0, 0.0));
             graphics.layer(layer).insert(
                 where_to_put_background + 1,
-                PaintCmd::Path {
-                    path,
-                    closed: true,
-                    fill_color: style.interact_fill_color(&corner_interact),
-                    outline: style.interact_outline(&corner_interact),
-                },
+                (
+                    Rect::everything(),
+                    PaintCmd::Path {
+                        path,
+                        closed: true,
+                        fill_color: style.interact_fill_color(&corner_interact),
+                        outline: style.interact_outline(&corner_interact),
+                    },
+                ),
             );
             corner_interact
         } else {

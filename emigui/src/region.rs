@@ -61,11 +61,20 @@ impl Region {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.ctx.graphics.lock().layer(self.layer).push(paint_cmd)
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .push((self.clip_rect(), paint_cmd))
     }
 
     pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
-        self.ctx.graphics.lock().layer(self.layer).append(&mut cmds)
+        let clip_rect = self.clip_rect();
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
     }
 
     /// Options for this region, and any child regions we may spawn.
@@ -83,6 +92,13 @@ impl Region {
 
     pub fn fonts(&self) -> &Fonts {
         &*self.ctx.fonts
+    }
+
+    /// Screen-space rectangle for clipping what we paint in this region.
+    /// This is used, for instance, to avoid painting outside a window that is smaller
+    /// than its contents.
+    pub fn clip_rect(&self) -> Rect {
+        self.rect
     }
 
     pub fn available_width(&self) -> f32 {

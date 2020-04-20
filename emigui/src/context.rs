@@ -82,7 +82,7 @@ impl Context {
         }
     }
 
-    pub fn drain_paint_lists(&self) -> Vec<PaintCmd> {
+    pub fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory.lock();
         self.graphics.lock().drain(&memory.window_order).collect()
     }
@@ -224,7 +224,10 @@ impl Context {
     }
 
     pub fn add_paint_cmd(&self, layer: Layer, paint_cmd: PaintCmd) {
-        self.graphics.lock().layer(layer).push(paint_cmd)
+        self.graphics
+            .lock()
+            .layer(layer)
+            .push((Rect::everything(), paint_cmd))
     }
 }
 

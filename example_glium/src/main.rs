@@ -102,10 +102,11 @@ fn main() {
             .show(region.ctx(), |region| {
                 region
                     .add_label("This window may shrink so small that its contents no longer fit.");
+                region.add_label("Maybe you can no longer read this, for instance");
+                region.add_label("And this line may be way too far down.");
             });
 
-        let mesh = emigui.paint();
-        painter.paint(&display, mesh, emigui.texture());
+        painter.paint_batches(&display, emigui.paint(), emigui.texture());
 
         let cursor = *emigui.ctx.cursor_icon.lock();
         let cursor = match cursor {

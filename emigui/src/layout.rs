@@ -70,6 +70,7 @@ pub enum Align {
     /// Right/Bottom
     /// Note: requires a bounded/known available_width.
     Max,
+    // TODO: Justified
 }
 
 impl Default for Align {
@@ -123,11 +124,14 @@ where
     let mut graphics = ctx.graphics.lock();
     graphics.layer(layer).insert(
         where_to_put_background,
-        PaintCmd::Rect {
-            corner_radius: 5.0,
-            fill_color: Some(style.background_fill_color()),
-            outline: Some(Outline::new(1.0, color::WHITE)),
-            rect,
-        },
+        (
+            Rect::everything(),
+            PaintCmd::Rect {
+                corner_radius: 5.0,
+                fill_color: Some(style.background_fill_color()),
+                outline: Some(Outline::new(1.0, color::WHITE)),
+                rect,
+            },
+        ),
     );
 }

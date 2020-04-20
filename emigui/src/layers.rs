@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Id, PaintCmd};
+use crate::{math::Rect, Id, PaintCmd};
 
 // TODO: support multiple windows
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
@@ -11,7 +11,8 @@ pub enum Layer {
     Popup,
 }
 
-type PaintList = Vec<PaintCmd>;
+/// Each PaintCmd is paired with a clip rectangle.
+type PaintList = Vec<(Rect, PaintCmd)>;
 
 /// TODO: improve this
 #[derive(Clone, Default)]
@@ -30,7 +31,10 @@ impl GraphicLayers {
         }
     }
 
-    pub fn drain(&mut self, window_oreder: &[Id]) -> impl ExactSizeIterator<Item = PaintCmd> {
+    pub fn drain(
+        &mut self,
+        window_oreder: &[Id],
+    ) -> impl ExactSizeIterator<Item = (Rect, PaintCmd)> {
         let mut all_commands: Vec<_> = self.bg.drain(..).collect();
 
         for id in window_oreder {

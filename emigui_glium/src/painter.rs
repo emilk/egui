@@ -1,8 +1,8 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    emigui::Mesh,
-    glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Surface},
+    emigui::{Mesh, PaintBatches, Rect},
+    glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Frame, Surface},
 };
 
 pub struct Painter {
@@ -17,29 +17,36 @@ impl Painter {
             140 => {
                     vertex: "
                         #version 140
+                        uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         in vec2 a_pos;
                         in vec4 a_color;
                         in vec2 a_tc;
+                        out vec2 v_pos;
                         out vec4 v_color;
                         out vec2 v_tc;
+                        out vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
+                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
+                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
                     fragment: "
                         #version 140
                         uniform sampler2D u_sampler;
+                        in vec2 v_pos;
                         in vec4 v_color;
                         in vec2 v_tc;
+                        in vec4 v_clip_rect;
                         out vec4 f_color;
 
                         // glium expects linear output.
@@ -51,6 +58,10 @@ impl Painter {
                         }
 
                         void main() {
+                            if (v_pos.x < v_clip_rect.x) { discard; }
+                            if (v_pos.y < v_clip_rect.y) { discard; }
+                            // if (v_pos.x < v_clip_rect.z) { discard; } // TODO
+                            // if (v_pos.y > v_clip_rect.w) { discard; } // TODO
                             f_color = v_color;
                             f_color.rgb = linear_from_srgb(f_color.rgb);
                             f_color.a *= texture(u_sampler, v_tc).r;
@@ -61,6 +72,7 @@ impl Painter {
             110 => {
                     vertex: "
                         #version 110
+                        uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         attribute vec2 a_pos;
@@ -104,6 +116,7 @@ impl Painter {
             100 => {
                     vertex: "
                         #version 100
+                        uniform mediump vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform mediump vec2 u_screen_size;
                         uniform mediump vec2 u_tex_size;
                         attribute mediump vec2 a_pos;
@@ -177,9 +190,30 @@ impl Painter {
         self.current_texture_id = Some(texture.id);
     }
 
-    pub fn paint(&mut self, display: &glium::Display, mesh: Mesh, texture: &emigui::Texture) {
+    pub fn paint_batches(
+        &mut self,
+        display: &glium::Display,
+        batches: PaintBatches,
+        texture: &emigui::Texture,
+    ) {
         self.upload_texture(display, texture);
 
+        let mut target = display.draw();
+        target.clear_color(0.0, 0.0, 0.0, 0.0);
+        for (clip_rect, mesh) in batches {
+            self.paint_batch(&mut target, display, &clip_rect, &mesh, texture)
+        }
+        target.finish().unwrap();
+    }
+
+    fn paint_batch(
+        &mut self,
+        target: &mut Frame,
+        display: &glium::Display,
+        clip_rect: &Rect,
+        mesh: &Mesh,
+        texture: &emigui::Texture,
+    ) {
         let vertex_buffer = {
             #[derive(Copy, Clone)]
             struct Vertex {
@@ -213,6 +247,8 @@ impl Painter {
         let height_points = height_pixels as f32 / pixels_per_point;
 
         let uniforms = uniform! {
+            u_clip_rect_min: [clip_rect.min().x, clip_rect.min().y],
+            u_clip_rect_max: [clip_rect.max().x, clip_rect.max().y],
             u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: &self.texture,
@@ -223,8 +259,6 @@ impl Painter {
             ..Default::default()
         };
 
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
         target
             .draw(
                 &vertex_buffer,
@@ -234,6 +268,5 @@ impl Painter {
                 &params,
             )
             .unwrap();
-        target.finish().unwrap();
     }
 }

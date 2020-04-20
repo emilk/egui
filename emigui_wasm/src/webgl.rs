@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{Color, Mesh, Texture};
+use emigui::{Color, Mesh, PaintBatches, Rect, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -143,10 +143,10 @@ impl Painter {
         self.current_texture_id = Some(texture.id);
     }
 
-    pub fn paint(
+    pub fn paint_batches(
         &mut self,
         bg_color: Color,
-        mesh: Mesh,
+        batches: PaintBatches,
         texture: &Texture,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
@@ -195,13 +195,15 @@ impl Painter {
         );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
-        for mesh in mesh.split_to_u16() {
-            self.paint_mesh(&mesh)?;
+        for (clip_rect, mesh) in batches {
+            for mesh in mesh.split_to_u16() {
+                self.paint_mesh(&clip_rect, &mesh)?;
+            }
         }
         Ok(())
     }
 
-    fn paint_mesh(&mut self, mesh: &Mesh) -> Result<(), JsValue> {
+    fn paint_mesh(&mut self, _clip_rec: &Rect, mesh: &Mesh) -> Result<(), JsValue> {
         let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());

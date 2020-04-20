@@ -4,6 +4,13 @@ pub struct Vec2 {
     pub y: f32,
 }
 
+impl PartialEq for Vec2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+impl Eq for Vec2 {}
+
 impl Vec2 {
     pub fn splat(v: impl Into<f32>) -> Vec2 {
         let v: f32 = v.into();
@@ -153,6 +160,13 @@ pub struct Pos2 {
     // implicit w = 1
 }
 
+impl PartialEq for Pos2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+impl Eq for Pos2 {}
+
 impl Pos2 {
     pub fn dist(self: Pos2, other: Pos2) -> f32 {
         (self - other).length()
@@ -238,13 +252,30 @@ pub fn pos2(x: f32, y: f32) -> Pos2 {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Rect {
     min: Pos2,
     max: Pos2,
 }
 
 impl Rect {
+    /// Infinite rectangle that contains everything
+    pub fn everything() -> Self {
+        let inf = std::f32::INFINITY;
+        Self {
+            min: pos2(-inf, -inf),
+            max: pos2(inf, inf),
+        }
+    }
+
+    pub fn nothing() -> Self {
+        let inf = std::f32::INFINITY;
+        Self {
+            min: pos2(inf, inf),
+            max: pos2(-inf, -inf),
+        }
+    }
+
     pub fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max: max }
     }

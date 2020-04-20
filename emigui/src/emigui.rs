@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use crate::{layout, mesher::Mesher, widgets::*, *};
+use crate::{layout, mesher::*, widgets::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct Stats {
+    num_batches: usize,
     num_vertices: usize,
     num_triangles: usize,
 }
@@ -55,16 +56,20 @@ impl Emigui {
         }
     }
 
-    pub fn paint(&mut self) -> Mesh {
+    pub fn paint(&mut self) -> PaintBatches {
+        let mesher_options = MesherOptions {
+            anti_alias: self.anti_alias,
+            aa_size: 1.0 / self.last_input.pixels_per_point,
+        };
         let paint_commands = self.ctx.drain_paint_lists();
-        let mut mesher = Mesher::new(self.last_input.pixels_per_point);
-        mesher.options.anti_alias = self.anti_alias;
-
-        mesher.paint(&self.ctx.fonts, &paint_commands);
-        let mesh = mesher.mesh;
-        self.stats.num_vertices = mesh.vertices.len();
-        self.stats.num_triangles = mesh.indices.len() / 3;
-        mesh
+        let batches = mesh_paint_commands(&mesher_options, &self.ctx.fonts, paint_commands);
+        self.stats = Default::default();
+        self.stats.num_batches = batches.len();
+        for (_, mesh) in &batches {
+            self.stats.num_vertices += mesh.vertices.len();
+            self.stats.num_triangles += mesh.indices.len() / 3;
+        }
+        batches
     }
 
     pub fn ui(&mut self, region: &mut Region) {
@@ -104,6 +109,7 @@ impl Emigui {
                 region.cursor().x,
                 region.cursor().y,
             ));
+            region.add(label!("num_batches: {}", self.stats.num_batches));
             region.add(label!("num_vertices: {}", self.stats.num_vertices));
             region.add(label!("num_triangles: {}", self.stats.num_triangles));
         });

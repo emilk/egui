@@ -15,14 +15,17 @@ pub struct Vertex {
     pub color: Color,
 }
 
-// ----------------------------------------------------------------------------
-
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
+
+/// Grouped by clip rectangles, in pixel coordinates
+pub type PaintBatches = Vec<(Rect, Mesh)>;
+
+// ----------------------------------------------------------------------------
 
 impl Mesh {
     pub fn append(&mut self, mesh: &Mesh) {
@@ -373,139 +376,141 @@ pub fn paint_path(
 
 // ----------------------------------------------------------------------------
 
-pub struct Mesher {
-    pub options: MesherOptions,
-
-    /// Where the output goes
-    pub mesh: Mesh,
-}
-
-impl Mesher {
-    pub fn new(pixels_per_point: f32) -> Mesher {
-        Mesher {
-            options: MesherOptions {
-                anti_alias: true,
-                aa_size: 1.0 / pixels_per_point,
-            },
-            mesh: Default::default(),
+pub fn mesh_command(
+    options: &MesherOptions,
+    fonts: &Fonts,
+    command: PaintCmd,
+    out_mesh: &mut Mesh,
+) {
+    match command {
+        PaintCmd::Circle {
+            center,
+            fill_color,
+            outline,
+            radius,
+        } => {
+            let mut path = Path::default();
+            path.add_circle(center, radius);
+            if let Some(color) = fill_color {
+                fill_closed_path(out_mesh, options, &path.0, color);
+            }
+            if let Some(outline) = outline {
+                paint_path(
+                    out_mesh,
+                    options,
+                    Closed,
+                    &path.0,
+                    outline.color,
+                    outline.width,
+                );
+            }
         }
-    }
-
-    pub fn paint(&mut self, fonts: &Fonts, commands: &[PaintCmd]) {
-        let mut path = Path::default();
-
-        for cmd in commands {
-            match cmd {
-                PaintCmd::Circle {
-                    center,
-                    fill_color,
-                    outline,
-                    radius,
-                } => {
-                    path.clear();
-                    path.add_circle(*center, *radius);
-                    if let Some(color) = fill_color {
-                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *color);
-                    }
-                    if let Some(outline) = outline {
-                        paint_path(
-                            &mut self.mesh,
-                            &self.options,
-                            Closed,
-                            &path.0,
-                            outline.color,
-                            outline.width,
-                        );
-                    }
-                }
-                PaintCmd::Mesh(cmd_frame) => {
-                    self.mesh.append(cmd_frame);
-                }
-                PaintCmd::Line {
-                    points,
-                    color,
-                    width,
-                } => {
-                    let n = points.len();
-                    if n >= 2 {
-                        path.clear();
-                        path.add_line(points);
-                        paint_path(&mut self.mesh, &self.options, Open, &path.0, *color, *width);
-                    }
-                }
-                PaintCmd::Path {
-                    path,
+        PaintCmd::Mesh(mesh) => {
+            out_mesh.append(&mesh);
+        }
+        PaintCmd::Line {
+            points,
+            color,
+            width,
+        } => {
+            let n = points.len();
+            if n >= 2 {
+                let mut path = Path::default();
+                path.add_line(&points);
+                paint_path(out_mesh, options, Open, &path.0, color, width);
+            }
+        }
+        PaintCmd::Path {
+            path,
+            closed,
+            fill_color,
+            outline,
+        } => {
+            if let Some(fill_color) = fill_color {
+                debug_assert!(
                     closed,
-                    fill_color,
-                    outline,
-                } => {
-                    if let Some(fill_color) = fill_color {
-                        debug_assert!(
-                            *closed,
-                            "You asked to fill a path that is not closed. That makes no sense."
-                        );
-                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *fill_color);
-                    }
-                    if let Some(outline) = outline {
-                        paint_path(
-                            &mut self.mesh,
-                            &self.options,
-                            Closed,
-                            &path.0,
-                            outline.color,
-                            outline.width,
-                        );
-                    }
-                }
-                PaintCmd::Rect {
-                    corner_radius,
-                    fill_color,
-                    outline,
-                    rect,
-                } => {
-                    path.clear();
-                    path.add_rounded_rectangle(rect, *corner_radius);
-                    if let Some(fill_color) = fill_color {
-                        fill_closed_path(&mut self.mesh, &self.options, &path.0, *fill_color);
-                    }
-                    if let Some(outline) = outline {
-                        paint_path(
-                            &mut self.mesh,
-                            &self.options,
-                            Closed,
-                            &path.0,
-                            outline.color,
-                            outline.width,
-                        );
-                    }
-                }
-                PaintCmd::Text {
-                    color,
-                    pos,
-                    text,
-                    text_style,
-                    x_offsets,
-                } => {
-                    let font = &fonts[*text_style];
-                    for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
-                        if let Some(glyph) = font.uv_rect(c) {
-                            let mut top_left = Vertex {
-                                pos: *pos + glyph.offset + vec2(*x_offset, 0.0),
-                                uv: glyph.min,
-                                color: *color,
-                            };
-                            top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
-                            top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
-                            let bottom_right = Vertex {
-                                pos: top_left.pos + glyph.size,
-                                uv: glyph.max,
-                                color: *color,
-                            };
-                            self.mesh.add_rect(top_left, bottom_right);
-                        }
-                    }
+                    "You asked to fill a path that is not closed. That makes no sense."
+                );
+                fill_closed_path(out_mesh, options, &path.0, fill_color);
+            }
+            if let Some(outline) = outline {
+                paint_path(
+                    out_mesh,
+                    options,
+                    Closed,
+                    &path.0,
+                    outline.color,
+                    outline.width,
+                );
+            }
+        }
+        PaintCmd::Rect {
+            corner_radius,
+            fill_color,
+            outline,
+            rect,
+        } => {
+            let mut path = Path::default();
+            path.add_rounded_rectangle(&rect, corner_radius);
+            if let Some(fill_color) = fill_color {
+                fill_closed_path(out_mesh, options, &path.0, fill_color);
+            }
+            if let Some(outline) = outline {
+                paint_path(
+                    out_mesh,
+                    options,
+                    Closed,
+                    &path.0,
+                    outline.color,
+                    outline.width,
+                );
+            }
+        }
+        PaintCmd::Text {
+            color,
+            pos,
+            text,
+            text_style,
+            x_offsets,
+        } => {
+            let font = &fonts[text_style];
+            for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
+                if let Some(glyph) = font.uv_rect(c) {
+                    let mut top_left = Vertex {
+                        pos: pos + glyph.offset + vec2(*x_offset, 0.0),
+                        uv: glyph.min,
+                        color: color,
+                    };
+                    top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
+                    top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
+                    let bottom_right = Vertex {
+                        pos: top_left.pos + glyph.size,
+                        uv: glyph.max,
+                        color: color,
+                    };
+                    out_mesh.add_rect(top_left, bottom_right);
                 }
             }
         }
     }
+}
+
+pub fn mesh_paint_commands(
+    options: &MesherOptions,
+    fonts: &Fonts,
+    commands: Vec<(Rect, PaintCmd)>,
+) -> Vec<(Rect, Mesh)> {
+    let mut batches = PaintBatches::default();
+    for (clip_rect, cmd) in commands {
+        // TODO: cull(clip_rect, cmd)
+
+        if batches.is_empty() || batches.last().unwrap().0 != clip_rect {
+            batches.push((clip_rect, Mesh::default()));
+        }
+
+        let out_mesh = &mut batches.last_mut().unwrap().1;
+        mesh_command(options, fonts, cmd, out_mesh);
+    }
+
+    batches
 }
