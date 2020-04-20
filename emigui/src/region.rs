@@ -231,7 +231,7 @@ impl Region {
             id: self.id,
             dir: self.dir,
             align: self.align,
-            rect: Rect::from_min_max(region_pos, self.rect.max()),
+            rect: Rect::from_min_size(region_pos, rect.size()),
             cursor: region_pos,
             bounding_size: vec2(0.0, 0.0),
         }
