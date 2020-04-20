@@ -163,9 +163,11 @@ impl Window {
         let win_interact = ctx.interact(layer, state.rect, Some(id.with(&"window")));
 
         if corner_interact.active {
-            let new_size = state.rect.size() + ctx.input().mouse_move;
-            let new_size = new_size.max(Vec2::splat(0.0));
-            state.rect = Rect::from_min_size(state.rect.min(), new_size);
+            if let Some(mouse_pos) = ctx.input().mouse_pos {
+                let new_size = mouse_pos - state.rect.min() + 0.5 * corner_interact.rect.size();
+                let new_size = new_size.max(Vec2::splat(0.0));
+                state.rect = Rect::from_min_size(state.rect.min(), new_size);
+            }
         } else if win_interact.active {
             state.rect = state.rect.translate(ctx.input().mouse_move);
         }
