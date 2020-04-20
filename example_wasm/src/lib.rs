@@ -12,7 +12,7 @@ use {
         example_app::ExampleApp,
         label,
         widgets::{Label, Separator},
-        Align, Emigui, RawInput, TextStyle,
+        Align, Emigui, RawInput, TextStyle, Window, *,
     },
     emigui_wasm::now_sec,
 };
@@ -44,10 +44,15 @@ impl State {
 
         let mut region = self.emigui.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
+        region.set_align(Align::Min);
         region.add(label!("Emigui!").text_style(TextStyle::Heading));
         region.add(label!("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
         region.add(label!(
-            "Everything you see is rendered as textured triangles. There is no DOM. There are not HTML elements."
+            "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
+        ));
+        region.add(label!("This not JavaScript. This is Rust code, running at 60 Hz. This is the web page, reinvented with game tech."));
+        region.add(label!(
+            "This is also work in progress, and not ready for production... yet :)"
         ));
         region.add(Separator::new());
         self.example_app.ui(&mut region);
@@ -61,6 +66,20 @@ impl State {
         region.add(
             label!("Everything: {:.1} ms", self.everything_ms).text_style(TextStyle::Monospace),
         );
+
+        Window::new("Test window").show(region.ctx(), |region| {
+            region.add(label!("Grab the window and move it around!"));
+
+            region.add(label!(
+                "This window can be reisized, but not smaller than the contents."
+            ));
+        });
+        Window::new("Another test window")
+            .default_pos(pos2(400.0, 100.0))
+            .show(region.ctx(), |region| {
+                region.add(label!("This might be on top of the other window?"));
+                region.add(label!("Second line of text"));
+            });
 
         let bg_color = srgba(16, 16, 16, 255);
         let mesh = self.emigui.paint();
