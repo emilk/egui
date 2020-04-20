@@ -63,6 +63,10 @@ impl Vec2 {
         vec2(self.x.ceil(), self.y.ceil())
     }
 
+    pub fn is_finite(&self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
+    }
+
     pub fn min(self, other: Vec2) -> Self {
         vec2(self.x.min(other.x), self.y.min(other.y))
     }
@@ -194,6 +198,10 @@ impl Pos2 {
 
     pub fn ceil(self) -> Self {
         pos2(self.x.ceil(), self.y.ceil())
+    }
+
+    pub fn is_finite(&self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
     }
 }
 
@@ -340,6 +348,14 @@ impl Rect {
     }
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.max.x < self.min.x || self.max.y < self.min.y
+    }
+
+    pub fn is_finite(&self) -> bool {
+        self.min.is_finite() && self.max.is_finite()
     }
 
     // Convenience functions (assumes origin is towards left top):

@@ -60,8 +60,8 @@ impl Painter {
                         void main() {
                             if (v_pos.x < v_clip_rect.x) { discard; }
                             if (v_pos.y < v_clip_rect.y) { discard; }
-                            // if (v_pos.x < v_clip_rect.z) { discard; } // TODO
-                            // if (v_pos.y > v_clip_rect.w) { discard; } // TODO
+                            if (v_pos.x > v_clip_rect.z) { discard; }
+                            if (v_pos.y > v_clip_rect.w) { discard; }
                             f_color = v_color;
                             f_color.rgb = linear_from_srgb(f_color.rgb);
                             f_color.a *= texture(u_sampler, v_tc).r;
@@ -86,8 +86,10 @@ impl Painter {
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
+                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
+                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
@@ -106,6 +108,10 @@ impl Painter {
                         }
 
                         void main() {
+                            if (v_pos.x < v_clip_rect.x) { discard; }
+                            if (v_pos.y < v_clip_rect.y) { discard; }
+                            if (v_pos.x > v_clip_rect.z) { discard; }
+                            if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
                             gl_FragColor.a *= texture2D(u_sampler, v_tc).r;
@@ -130,8 +136,10 @@ impl Painter {
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
+                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
+                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
@@ -150,6 +158,10 @@ impl Painter {
                         }
 
                         void main() {
+                            if (v_pos.x < v_clip_rect.x) { discard; }
+                            if (v_pos.y < v_clip_rect.y) { discard; }
+                            if (v_pos.x > v_clip_rect.z) { discard; }
+                            if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
                             gl_FragColor.a *= texture2D(u_sampler, v_tc).r;
@@ -247,8 +259,7 @@ impl Painter {
         let height_points = height_pixels as f32 / pixels_per_point;
 
         let uniforms = uniform! {
-            u_clip_rect_min: [clip_rect.min().x, clip_rect.min().y],
-            u_clip_rect_max: [clip_rect.max().x, clip_rect.max().y],
+            u_clip_rect: [clip_rect.min().x, clip_rect.min().y, clip_rect.max().x, clip_rect.max().y],
             u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: &self.texture,

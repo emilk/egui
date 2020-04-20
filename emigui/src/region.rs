@@ -6,39 +6,49 @@ use crate::{font::TextFragment, layout::*, widgets::*, *};
 /// with a type of layout (horizontal or vertical).
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region {
+    // TODO: remove pub(crate) from all members.
+    //
+    /// How we access input, output and memory
     pub(crate) ctx: Arc<Context>,
 
     /// Where to put the graphics output of this Region
     pub(crate) layer: Layer,
 
-    pub(crate) style: Style,
-
-    /// Unique ID of this region.
+    /// ID of this region.
+    /// Generated based on id of parent region together with
+    /// another source of child identity (e.g. window title).
+    /// Acts like a namespace for child regions.
+    /// Hopefully unique.
     pub(crate) id: Id,
 
+    /// The `rect` represents where in space the region is
+    /// and its max size (original available_space).
+    /// Note that the size may be infinite in one or both dimensions.
+    /// The widgets will TRY to fit within the rect,
+    /// but may overflow (which you will see in bounding_size).
+    /// It will use the rect (which never changes) as a
+    /// clip rect when painting the contents of the region.
+    pub(crate) rect: Rect, // TODO: rename desired_rect
+
+    /// Bounding box of children.
+    /// We keep track of our max-size along the orthogonal to self.dir
+    /// Initially set to zero.
+    /// TODO: make into `child_bounds: Rect`
+    pub(crate) bounding_size: Vec2,
+
+    /// Overide default style in this region
+    pub(crate) style: Style,
+
+    // Layout stuff follows. TODO: move to own type and abstract.
     /// Doesn't change.
     pub(crate) dir: Direction,
 
     pub(crate) align: Align,
 
-    // The `rect` represents where in space the region is
-    // and its max size (original available_space).
-    // Note that the size may be infinite in one or both dimensions.
-    // The widgets will TRY to fit within the rect,
-    // but may overflow (which you will see in bounding_size).
-    // It will use the rect (which never changes) as a
-    // clip rect when painting the contents of the region.
-    pub(crate) rect: Rect,
-
     /// Where the next widget will be put.
     /// Progresses along self.dir.
     /// Initially set to rect.min()
     pub(crate) cursor: Pos2,
-
-    /// Bounding box of children.
-    /// We keep track of our max-size along the orthogonal to self.dir
-    /// Initially set to zero.
-    pub(crate) bounding_size: Vec2,
 }
 
 impl Region {

@@ -120,10 +120,10 @@ pub enum PaintCmd {
         outline: Option<Outline>,
     },
     Rect {
+        rect: Rect,
         corner_radius: f32,
         fill_color: Option<Color>,
         outline: Option<Outline>,
-        rect: Rect,
     },
     /// Paint a single line of text
     Text {
