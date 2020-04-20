@@ -4,6 +4,18 @@ use parking_lot::Mutex;
 
 use crate::{layout::align_rect, *};
 
+#[derive(Clone, Copy)]
+pub enum CursorIcon {
+    Default,
+    ResizeNorthWestSouthEast,
+}
+
+impl Default for CursorIcon {
+    fn default() -> Self {
+        CursorIcon::Default
+    }
+}
+
 /// Contains the input, style and output of all GUI commands.
 pub struct Context {
     /// The default style for new regions
@@ -12,6 +24,9 @@ pub struct Context {
     pub(crate) input: GuiInput,
     pub(crate) memory: Mutex<Memory>,
     pub(crate) graphics: Mutex<GraphicLayers>,
+
+    /// Set each frame to what the mouse cursor should look like.
+    pub cursor_icon: Mutex<CursorIcon>,
 
     /// Used to debug name clashes of e.g. windows
     used_ids: Mutex<HashMap<Id, Pos2>>,
@@ -26,6 +41,7 @@ impl Clone for Context {
             input: self.input,
             memory: Mutex::new(self.memory.lock().clone()),
             graphics: Mutex::new(self.graphics.lock().clone()),
+            cursor_icon: Mutex::new(self.cursor_icon.lock().clone()),
             used_ids: Mutex::new(self.used_ids.lock().clone()),
         }
     }
@@ -39,6 +55,7 @@ impl Context {
             input: Default::default(),
             memory: Default::default(),
             graphics: Default::default(),
+            cursor_icon: Default::default(),
             used_ids: Default::default(),
         }
     }
@@ -59,6 +76,7 @@ impl Context {
     pub fn new_frame(&mut self, gui_input: GuiInput) {
         self.used_ids.lock().clear();
         self.input = gui_input;
+        *self.cursor_icon.lock() = CursorIcon::Default;
         if !gui_input.mouse_down || gui_input.mouse_pos.is_none() {
             self.memory.lock().active_id = None;
         }

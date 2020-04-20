@@ -170,6 +170,10 @@ impl Window {
             state.rect = state.rect.translate(ctx.input().mouse_move);
         }
 
+        if corner_interact.hovered || corner_interact.active {
+            *ctx.cursor_icon.lock() = CursorIcon::ResizeNorthWestSouthEast;
+        }
+
         let mut memory = ctx.memory.lock();
         if win_interact.active || corner_interact.active {
             memory.move_window_to_top(id);

@@ -28,7 +28,7 @@ mod window;
 pub use {
     crate::emigui::Emigui,
     color::Color,
-    context::Context,
+    context::{Context, CursorIcon},
     fonts::{FontDefinitions, Fonts, TextStyle},
     id::Id,
     layers::*,

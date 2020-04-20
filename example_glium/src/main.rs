@@ -8,7 +8,7 @@ use {
         label,
         math::*,
         widgets::{Button, Label},
-        Align, Emigui, Window,
+        Align, CursorIcon, Emigui, Window,
     },
     emigui_glium::Painter,
     glium::glutin,
@@ -110,5 +110,12 @@ fn main() {
 
         let mesh = emigui.paint();
         painter.paint(&display, mesh, emigui.texture());
+
+        let cursor = *emigui.ctx.cursor_icon.lock();
+        let cursor = match cursor {
+            CursorIcon::Default => glutin::MouseCursor::Default,
+            CursorIcon::ResizeNorthWestSouthEast => glutin::MouseCursor::NwseResize,
+        };
+        display.gl_window().set_cursor(cursor);
     }
 }
