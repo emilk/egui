@@ -82,10 +82,10 @@ impl State {
             });
 
         let bg_color = srgba(16, 16, 16, 255);
-        let mesh = self.emigui.paint();
-        let result = self.webgl_painter.paint(
+        let batches = self.emigui.paint();
+        let result = self.webgl_painter.paint_batches(
             bg_color,
-            mesh,
+            batches,
             self.emigui.texture(),
             raw_input.pixels_per_point,
         );
