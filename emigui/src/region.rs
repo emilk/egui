@@ -348,6 +348,12 @@ impl Region {
         widget.add_to(self)
     }
 
+    // Convenience functions:
+
+    pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
+        self.add(Label::new(text))
+    }
+
     // ------------------------------------------------------------------------
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {

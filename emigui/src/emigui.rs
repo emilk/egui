@@ -97,7 +97,7 @@ impl Emigui {
             if let Some(mouse_pos) = region.input().mouse_pos {
                 region.add(label!("mouse_pos: {} x {}", mouse_pos.x, mouse_pos.y,));
             } else {
-                region.add(label!("mouse_pos: None"));
+                region.add_label("mouse_pos: None");
             }
             region.add(label!(
                 "region cursor: {} x {}",

@@ -93,19 +93,15 @@ fn main() {
 
         // TODO: Make it even simpler to show a window
         Window::new("Test window").show(region.ctx(), |region| {
-            region.add(label!("Grab the window and move it around!"));
-
-            region.add(label!(
-                "This window can be reisized, but not smaller than the contents."
-            ));
+            region.add_label("Grab the window and move it around!");
+            region.add_label("This window can be reisized, but not smaller than the contents.");
         });
         Window::new("Resize me!")
             .default_pos(pos2(400.0, 100.0))
             .expand_to_fit_content(false)
             .show(region.ctx(), |region| {
-                region.add(label!(
-                    "This window may shrink so small that its contents no longer fit."
-                ));
+                region
+                    .add_label("This window may shrink so small that its contents no longer fit.");
             });
 
         let mesh = emigui.paint();

@@ -127,23 +127,25 @@ impl ExampleApp {
         });
 
         region.foldable("Name clash example", |region| {
-            region.add(label!("\
+            region.add_label("\
                 Regions that store state require unique identifiers so we can track their state between frames. \
-                Identifiers are normally derived from the titles of the widget."));
+                Identifiers are normally derived from the titles of the widget.");
 
-            region.add(label!("\
+            region.add_label("\
                 For instance, foldable regions needs to store wether or not they are open. \
                 If you fail to give them unique names then clicking one will open both. \
-                To help you debug this, a error message is printed on screen:"));
+                To help you debug this, a error message is printed on screen:");
 
             region.foldable("Foldable", |region| {
-                region.add(label!("Contents of first folddable region"));
+                region.add_label("Contents of first folddable region");
             });
             region.foldable("Foldable", |region| {
-                region.add(label!("Contents of second folddable region"));
+                region.add_label("Contents of second folddable region");
             });
 
-            region.add(label!("Most widgets don't need unique names, but are tracked based on their position on screen. For instance, buttons:"));
+            region.add_label("\
+                Most widgets don't need unique names, but are tracked \
+                based on their position on screen. For instance, buttons:");
             region.add(Button::new("Button"));
             region.add(Button::new("Button"));
         });
