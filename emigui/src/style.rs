@@ -26,6 +26,9 @@ pub struct Style {
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 
+    /// buttons etc
+    pub interaction_corner_radius: f32,
+
     // TODO: add ability to disable animations!
     /// How many seconds a typical animation should last
     pub animation_time: f32,
@@ -45,9 +48,10 @@ impl Default for Style {
             button_padding: vec2(5.0, 3.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
-            clickable_diameter: 34.0,
+            clickable_diameter: 28.0,
             start_icon_width: 20.0,
             line_width: 1.0,
+            interaction_corner_radius: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
         }
@@ -65,7 +69,7 @@ impl Default for Window {
 impl Style {
     /// e.g. the background of the slider
     pub fn background_fill_color(&self) -> Color {
-        gray(34, 230)
+        gray(34, 250)
     }
 
     pub fn text_color(&self) -> Color {
@@ -75,11 +79,11 @@ impl Style {
     /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
     pub fn interact_fill_color(&self, interact: &InteractInfo) -> Option<Color> {
         if interact.active {
-            Some(srgba(100, 100, 200, 255))
+            Some(srgba(200, 200, 200, 255))
         } else if interact.hovered {
             Some(srgba(100, 100, 150, 255))
         } else {
-            Some(srgba(60, 60, 70, 255))
+            Some(srgba(60, 60, 80, 255))
         }
     }
 
@@ -88,9 +92,9 @@ impl Style {
         if interact.active {
             gray(255, 255)
         } else if interact.hovered {
-            gray(255, 200)
+            gray(255, 255)
         } else {
-            gray(255, 170)
+            gray(220, 255) // Mustn't look grayed out!
         }
     }
 

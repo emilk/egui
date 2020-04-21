@@ -86,7 +86,7 @@ fn main() {
 
         emigui.new_frame(raw_input);
         let mut region = emigui.background_region();
-        let mut region = region.left_column(region.available_width().min(480.0));
+        let mut region = region.centered_column(region.available_width().min(480.0));
         region.set_align(Align::Min);
         region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
         if region.add(Button::new("Quit")).clicked {
@@ -96,12 +96,14 @@ fn main() {
         emigui.ui(&mut region);
 
         // TODO: Make it even simpler to show a window
-        Window::new("Test window").show(region.ctx(), |region| {
-            region.add_label("Grab the window and move it around!");
-            region.add_label("This window can be reisized, but not smaller than the contents.");
-        });
+        Window::new("Test window")
+            .default_pos(pos2(600.0, 100.0))
+            .show(region.ctx(), |region| {
+                region.add_label("Grab the window and move it around!");
+                region.add_label("This window can be reisized, but not smaller than the contents.");
+            });
         Window::new("Resize me!")
-            .default_pos(pos2(400.0, 100.0))
+            .default_pos(pos2(600.0, 500.0))
             .expand_to_fit_content(false)
             .show(region.ctx(), |region| {
                 region

@@ -88,14 +88,17 @@ impl Widget for Button {
         let mut size = text_size + 2.0 * padding;
         size.y = size.y.max(region.style().clickable_diameter);
         let interact = region.reserve_space(size, Some(id));
-        let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
+        let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
+        text_cursor.y += 2.0; // TODO: why is this needed?
         region.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: 10.0,
+            corner_radius: region.style().interaction_corner_radius,
             fill_color: region.style().interact_fill_color(&interact),
             outline: None,
             rect: interact.rect,
         });
-        region.add_text(text_cursor, text_style, text, self.text_color);
+        let stroke_color = region.style().interact_stroke_color(&interact);
+        let text_color = self.text_color.unwrap_or(stroke_color);
+        region.add_text(text_cursor, text_style, text, Some(text_color));
         region.response(interact)
     }
 }
@@ -165,7 +168,8 @@ impl<'a> Widget for Checkbox<'a> {
             });
         }
 
-        region.add_text(text_cursor, text_style, text, self.text_color);
+        let text_color = self.text_color.unwrap_or(stroke_color);
+        region.add_text(text_cursor, text_style, text, Some(text_color));
         region.response(interact)
     }
 }
@@ -236,7 +240,8 @@ impl Widget for RadioButton {
             });
         }
 
-        region.add_text(text_cursor, text_style, text, self.text_color);
+        let text_color = self.text_color.unwrap_or(stroke_color);
+        region.add_text(text_cursor, text_style, text, Some(text_color));
         region.response(interact)
     }
 }

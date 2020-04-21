@@ -113,7 +113,7 @@ impl ExampleApp {
                     corner_radius: self.corner_radius,
                     fill_color: Some(gray(136, 255)),
                     rect: Rect::from_min_size(
-                        pos2(pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
+                        pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                         self.size,
                     ),
                     outline: Some(Outline::new(self.stroke_width, gray(255, 255))),

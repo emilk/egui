@@ -174,7 +174,8 @@ impl Window {
         if corner_interact.active {
             if let Some(mouse_pos) = ctx.input().mouse_pos {
                 let new_size = mouse_pos - state.rect.min() + 0.5 * corner_interact.rect.size();
-                let new_size = new_size.max(Vec2::splat(0.0));
+                let min_size = 2.0 * window_padding + Vec2::splat(16.0); // TODO
+                let new_size = new_size.max(min_size);
                 state.rect = Rect::from_min_size(state.rect.min(), new_size);
             }
         } else if win_interact.active {
