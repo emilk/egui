@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{Color, Mesh, PaintBatches, Rect, Texture};
+use emigui::{Color, Mesh, PaintBatches, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -58,21 +58,26 @@ impl Painter {
             &gl,
             Gl::VERTEX_SHADER,
             r#"
+            uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
             uniform vec2 u_screen_size;
             uniform vec2 u_tex_size;
             attribute vec2 a_pos;
             attribute vec2 a_tc;
             attribute vec4 a_color;
-            varying vec2 v_tc;
+            varying vec2 v_pos;
             varying vec4 v_color;
+            varying vec2 v_tc;
+            varying vec4 v_clip_rect;
             void main() {
                 gl_Position = vec4(
                     2.0 * a_pos.x / u_screen_size.x - 1.0,
                     1.0 - 2.0 * a_pos.y / u_screen_size.y,
                     0.0,
                     1.0);
-                v_tc = a_tc / u_tex_size;
+                v_pos = a_pos;
                 v_color = a_color;
+                v_tc = a_tc / u_tex_size;
+                v_clip_rect = u_clip_rect;
             }
         "#,
         )?;
@@ -82,9 +87,15 @@ impl Painter {
             r#"
             uniform sampler2D u_sampler;
             precision highp float;
-            varying vec2 v_tc;
+            varying vec2 v_pos;
             varying vec4 v_color;
+            varying vec2 v_tc;
+            varying vec4 v_clip_rect;
             void main() {
+                if (v_pos.x < v_clip_rect.x) { discard; }
+                if (v_pos.y < v_clip_rect.y) { discard; }
+                if (v_pos.x > v_clip_rect.z) { discard; }
+                if (v_pos.y > v_clip_rect.w) { discard; }
                 gl_FragColor = v_color;
                 gl_FragColor.a *= texture2D(u_sampler, v_tc).a;
             }
@@ -160,6 +171,10 @@ impl Painter {
         gl.active_texture(Gl::TEXTURE0);
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
 
+        let u_clip_rect_loc = gl
+            .get_uniform_location(&self.program, "u_clip_rect")
+            .unwrap();
+
         let u_screen_size_loc = gl
             .get_uniform_location(&self.program, "u_screen_size")
             .unwrap();
@@ -196,14 +211,22 @@ impl Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, mesh) in batches {
+            gl.uniform4f(
+                Some(&u_clip_rect_loc),
+                clip_rect.min().x,
+                clip_rect.min().y,
+                clip_rect.max().x,
+                clip_rect.max().y,
+            );
+
             for mesh in mesh.split_to_u16() {
-                self.paint_mesh(&clip_rect, &mesh)?;
+                self.paint_mesh(&mesh)?;
             }
         }
         Ok(())
     }
 
-    fn paint_mesh(&mut self, _clip_rec: &Rect, mesh: &Mesh) -> Result<(), JsValue> {
+    fn paint_mesh(&self, mesh: &Mesh) -> Result<(), JsValue> {
         let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
