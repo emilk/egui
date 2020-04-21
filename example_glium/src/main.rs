@@ -36,6 +36,9 @@ fn main() {
 
     let mut quit = false;
 
+    // used to keep track of time for animations
+    let start_time = Instant::now();
+
     let mut frame_start = Instant::now();
 
     let mut example_app = ExampleApp::default();
@@ -49,6 +52,8 @@ fn main() {
             }
             frame_start = Instant::now();
         }
+
+        raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
 
         events_loop.poll_events(|event| {
             match event {

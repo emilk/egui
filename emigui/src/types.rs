@@ -21,6 +21,9 @@ pub struct RawInput {
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     pub pixels_per_point: f32,
+
+    /// Time in seconds. Relative to whatever. Used for animation.
+    pub time: f64,
 }
 
 /// What the gui maintains
@@ -46,6 +49,9 @@ pub struct GuiInput {
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     pub pixels_per_point: f32,
+
+    /// Time in seconds. Relative to whatever. Used for animation.
+    pub time: f64,
 }
 
 impl GuiInput {
@@ -62,6 +68,7 @@ impl GuiInput {
             mouse_move,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point,
+            time: new.time,
         }
     }
 }

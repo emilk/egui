@@ -81,6 +81,7 @@
                 mouse_pos: g_mouse_pos,
                 screen_size: { x: window.innerWidth, y: window.innerHeight },
                 pixels_per_point: pixels_per_point(),
+                time: window.performance.now() / 1000.0,
             };
         }
 
