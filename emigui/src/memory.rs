@@ -44,10 +44,11 @@ impl Memory {
         }
     }
 
+    /// TODO: call once at the start of the frame for the current mouse pos
     pub fn layer_at(&self, pos: Pos2) -> Layer {
         for window_id in self.window_order.iter().rev() {
             if let Some(state) = self.windows.get(window_id) {
-                if state.rect.contains(pos) {
+                if state.outer_rect.contains(pos) {
                     return Layer::Window(*window_id);
                 }
             }
