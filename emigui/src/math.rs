@@ -1,24 +1,21 @@
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default, Deserialize, Serialize)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
 }
 
-impl PartialEq for Vec2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
+pub fn vec2(x: f32, y: f32) -> Vec2 {
+    Vec2 { x, y }
 }
-impl Eq for Vec2 {}
 
 impl Vec2 {
-    pub fn splat(v: impl Into<f32>) -> Vec2 {
+    pub fn splat(v: impl Into<f32>) -> Self {
         let v: f32 = v.into();
-        Vec2 { x: v, y: v }
+        Self { x: v, y: v }
     }
 
     #[must_use]
-    pub fn normalized(self) -> Vec2 {
+    pub fn normalized(self) -> Self {
         let len = self.length();
         if len <= 0.0 {
             self
@@ -27,7 +24,7 @@ impl Vec2 {
         }
     }
 
-    pub fn rot90(self) -> Vec2 {
+    pub fn rot90(self) -> Self {
         vec2(self.y, -self.x)
     }
 
@@ -39,15 +36,15 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
-    pub fn dist(a: Vec2, b: Vec2) -> f32 {
+    pub fn dist(a: Self, b: Self) -> f32 {
         (a - b).length()
     }
 
-    pub fn dist_sq(a: Vec2, b: Vec2) -> f32 {
+    pub fn dist_sq(a: Self, b: Self) -> f32 {
         (a - b).length_sq()
     }
 
-    pub fn angled(angle: f32) -> Vec2 {
+    pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
     }
 
@@ -67,14 +64,21 @@ impl Vec2 {
         self.x.is_finite() && self.y.is_finite()
     }
 
-    pub fn min(self, other: Vec2) -> Self {
+    pub fn min(self, other: Self) -> Self {
         vec2(self.x.min(other.x), self.y.min(other.y))
     }
 
-    pub fn max(self, other: Vec2) -> Self {
+    pub fn max(self, other: Self) -> Self {
         vec2(self.x.max(other.x), self.y.max(other.y))
     }
 }
+
+impl PartialEq for Vec2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+impl Eq for Vec2 {}
 
 impl std::ops::Neg for Vec2 {
     type Output = Vec2;
@@ -150,33 +154,32 @@ impl std::ops::Div<f32> for Vec2 {
     }
 }
 
-pub fn vec2(x: f32, y: f32) -> Vec2 {
-    Vec2 { x, y }
+impl std::fmt::Debug for Vec2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{} {}]", self.x, self.y)
+    }
 }
 
 // ----------------------------------------------------------------------------
 
 /// Sometimes called a Point. I prefer the shorter Pos2 so it is equal length to Vec2
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default, Deserialize, Serialize)]
 pub struct Pos2 {
     pub x: f32,
     pub y: f32,
     // implicit w = 1
 }
 
-impl PartialEq for Pos2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
+pub fn pos2(x: f32, y: f32) -> Pos2 {
+    Pos2 { x, y }
 }
-impl Eq for Pos2 {}
 
 impl Pos2 {
-    pub fn dist(self: Pos2, other: Pos2) -> f32 {
+    pub fn dist(self: Self, other: Self) -> f32 {
         (self - other).length()
     }
 
-    pub fn dist_sq(self: Pos2, other: Pos2) -> f32 {
+    pub fn dist_sq(self: Self, other: Self) -> f32 {
         (self - other).length_sq()
     }
 
@@ -203,7 +206,22 @@ impl Pos2 {
     pub fn is_finite(&self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }
+
+    pub fn min(self, other: Self) -> Self {
+        pos2(self.x.min(other.x), self.y.min(other.y))
+    }
+
+    pub fn max(self, other: Self) -> Self {
+        pos2(self.x.max(other.x), self.y.max(other.y))
+    }
 }
+
+impl PartialEq for Pos2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+impl Eq for Pos2 {}
 
 impl std::ops::AddAssign<Vec2> for Pos2 {
     fn add_assign(&mut self, rhs: Vec2) {
@@ -254,13 +272,15 @@ impl std::ops::Sub<Vec2> for Pos2 {
     }
 }
 
-pub fn pos2(x: f32, y: f32) -> Pos2 {
-    Pos2 { x, y }
+impl std::fmt::Debug for Pos2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{} {}]", self.x, self.y)
+    }
 }
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Rect {
     min: Pos2,
     max: Pos2,
@@ -309,6 +329,13 @@ impl Rect {
 
     pub fn translate(self, amnt: Vec2) -> Self {
         Rect::from_min_size(self.min() + amnt, self.size())
+    }
+
+    pub fn intersect(self, other: Rect) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
     }
 
     // keep min
@@ -383,6 +410,12 @@ impl Rect {
     }
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.max().x, self.max().y)
+    }
+}
+
+impl std::fmt::Debug for Rect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{:?} - {:?}]", self.min, self.max)
     }
 }
 
