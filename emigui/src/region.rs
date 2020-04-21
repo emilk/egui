@@ -11,9 +11,6 @@ pub struct Region {
     /// How we access input, output and memory
     pub(crate) ctx: Arc<Context>,
 
-    /// Where to put the graphics output of this Region
-    pub(crate) layer: Layer,
-
     /// ID of this region.
     /// Generated based on id of parent region together with
     /// another source of child identity (e.g. window title).
@@ -21,14 +18,19 @@ pub struct Region {
     /// Hopefully unique.
     pub(crate) id: Id,
 
+    /// Where to put the graphics output of this Region
+    pub(crate) layer: Layer,
+
+    /// Everything painte in this rect will be clipped against this.
+    /// This means nothing outside of this rectangle will be visible on screen.
+    pub(crate) clip_rect: Rect,
+
     /// The `rect` represents where in space the region is
     /// and its max size (original available_space).
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in bounding_size).
-    /// It will use the rect (which never changes) as a
-    /// clip rect when painting the contents of the region.
-    pub(crate) rect: Rect, // TODO: rename desired_rect
+    pub(crate) desired_rect: Rect, // TODO: rename desired_rect
 
     /// Bounding box of children.
     /// We keep track of our max-size along the orthogonal to self.dir
@@ -56,14 +58,15 @@ impl Region {
         let style = ctx.style();
         Region {
             ctx,
-            layer,
-            style,
             id,
+            layer,
+            clip_rect: rect,
+            desired_rect: rect,
+            bounding_size: Vec2::default(),
+            style,
+            cursor: rect.min(),
             dir: Direction::Vertical,
             align: Align::Min,
-            rect,
-            cursor: rect.min(),
-            bounding_size: Vec2::default(),
         }
     }
 
@@ -108,21 +111,21 @@ impl Region {
     /// This is used, for instance, to avoid painting outside a window that is smaller
     /// than its contents.
     pub fn clip_rect(&self) -> Rect {
-        self.rect
+        self.clip_rect
     }
 
     pub fn available_width(&self) -> f32 {
-        self.rect.max().x - self.cursor.x
+        self.desired_rect.max().x - self.cursor.x
     }
 
     pub fn available_height(&self) -> f32 {
-        self.rect.max().y - self.cursor.y
+        self.desired_rect.max().y - self.cursor.y
     }
 
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
     pub fn available_space(&self) -> Vec2 {
-        self.rect.max() - self.cursor
+        self.desired_rect.max() - self.cursor
     }
 
     pub fn direction(&self) -> Direction {
@@ -230,37 +233,34 @@ impl Region {
         F: FnOnce(&mut Region),
     {
         let indent = vec2(self.style.indent, 0.0);
-        let region_pos = self.cursor + indent;
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max());
         let mut child_region = Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
+            clip_rect: self.clip_rect.intersect(child_rect),
+            desired_rect: child_rect,
+            bounding_size: vec2(0.0, 0.0),
+            cursor: child_rect.min(),
             dir: self.dir,
             align: Align::Min,
-            rect: Rect::from_min_max(region_pos, self.rect.max()),
-            cursor: region_pos,
-            bounding_size: vec2(0.0, 0.0),
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
         self.reserve_space_without_padding(indent + size);
     }
 
-    /// Return a sub-region relative to the parent
-    pub fn relative_region(&mut self, rect: Rect) -> Region {
-        let region_pos = self.cursor + rect.min().to_vec2();
-        Region {
-            ctx: self.ctx.clone(),
-            layer: self.layer,
-            style: self.style,
-            id: self.id,
-            dir: self.dir,
-            align: self.align,
-            rect: Rect::from_min_size(region_pos, rect.size()),
-            cursor: region_pos,
-            bounding_size: vec2(0.0, 0.0),
+    pub fn left_column(&mut self, width: f32) -> Region {
+        self.column(Align::Min, width)
+    }
+
+    pub fn centered_column(&mut self, width: f32) -> Region {
+        self.column(Align::Center, width)
         }
+
+    pub fn right_column(&mut self, width: f32) -> Region {
+        self.column(Align::Max, width)
     }
 
     /// A column region with a given width.
@@ -276,32 +276,40 @@ impl Region {
         ))
     }
 
-    pub fn left_column(&mut self, width: f32) -> Region {
-        self.column(Align::Min, width)
+    /// Return a sub-region relative to the parent
+    pub fn relative_region(&mut self, rect: Rect) -> Region {
+        let region_pos = self.cursor + rect.min().to_vec2();
+        let child_rect = Rect::from_min_size(region_pos, rect.size());
+        Region {
+            ctx: self.ctx.clone(),
+            layer: self.layer,
+            style: self.style,
+            id: self.id,
+            dir: self.dir,
+            align: self.align,
+            clip_rect: self.clip_rect.intersect(child_rect),
+            desired_rect: child_rect,
+            cursor: child_rect.min(),
+            bounding_size: vec2(0.0, 0.0),
     }
-
-    pub fn centered_column(&mut self, width: f32) -> Region {
-        self.column(Align::Center, width)
-    }
-
-    pub fn right_column(&mut self, width: f32) -> Region {
-        self.column(Align::Max, width)
     }
 
     pub fn inner_layout<F>(&mut self, dir: Direction, align: Align, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
+        let child_rect = Rect::from_min_max(self.cursor, self.desired_rect.max());
         let mut child_region = Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
-            dir,
-            align,
-            rect: Rect::from_min_max(self.cursor, self.rect.max()),
+            clip_rect: self.clip_rect.intersect(child_rect),
+            desired_rect: child_rect,
             cursor: self.cursor,
             bounding_size: vec2(0.0, 0.0),
+            dir,
+            align,
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
@@ -342,16 +350,20 @@ impl Region {
         let mut columns: Vec<Region> = (0..num_columns)
             .map(|col_idx| {
                 let pos = self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0);
+                let child_rect =
+                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.desired_rect.max().y));
                 Region {
                     ctx: self.ctx.clone(),
+                    id: self.make_child_region_id(&("column", col_idx)),
                     layer: self.layer,
                     style: self.style,
-                    id: self.make_child_region_id(&("column", col_idx)),
+
+                    clip_rect: self.clip_rect.intersect(child_rect),
+                    desired_rect: child_rect,
+                    bounding_size: vec2(0.0, 0.0),
+                    cursor: child_rect.min(),
                     dir: Direction::Vertical,
                     align: self.align,
-                    rect: Rect::from_min_max(pos, pos2(pos.x + column_width, self.rect.max().y)),
-                    cursor: pos,
-                    bounding_size: vec2(0.0, 0.0),
                 }
             })
             .collect();

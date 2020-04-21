@@ -43,16 +43,18 @@ impl Emigui {
 
     /// A region for the entire screen, behind any windows.
     pub fn background_region(&mut self) -> Region {
+        let child_rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
         Region {
             ctx: self.ctx.clone(),
-            layer: Layer::Background,
-            style: self.ctx.style(),
             id: Id::background(),
-            dir: layout::Direction::Vertical,
-            align: layout::Align::Center,
-            rect: Rect::from_min_size(Default::default(), self.ctx.input.screen_size),
+            layer: Layer::Background,
+            clip_rect: child_rect,
+            desired_rect: child_rect,
             cursor: Default::default(),
             bounding_size: Default::default(),
+            style: self.ctx.style(),
+            dir: layout::Direction::Vertical,
+            align: layout::Align::Center,
         }
     }
 

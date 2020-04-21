@@ -362,7 +362,7 @@ impl<'a> Widget for Slider<'a> {
                     let response = naked.add_to(&mut columns[0]);
 
                     // columns[1].available_space.y = response.rect.size().y;
-                    columns[1].rect.set_height(response.rect.size().y); // TODO: explain this line
+                    columns[1].desired_rect.set_height(response.rect.size().y); // TODO: explain this line
                     columns[1].horizontal(Align::Center, |region| {
                         region.add(Label::new(full_text));
                     });
