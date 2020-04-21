@@ -166,23 +166,21 @@ impl Region {
             Some(id),
         );
 
-        let open = {
+        let state = {
             let mut memory = self.ctx.memory.lock();
+            let mut state = memory.foldables.entry(id).or_default();
             if interact.clicked {
-                if memory.open_foldables.contains(&id) {
-                    memory.open_foldables.remove(&id);
-                } else {
-                    memory.open_foldables.insert(id);
-                }
+                state.open = !state.open;
+                state.toggle_time = self.ctx.input.time;
             }
-            memory.open_foldables.contains(&id)
+            *state
         };
 
         let fill_color = self.style.interact_fill_color(&interact);
         let stroke_color = self.style.interact_stroke_color(&interact);
 
         self.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: 5.0,
+            corner_radius: self.style.interaction_corner_radius,
             fill_color,
             outline: Some(Outline::new(1.0, color::WHITE)),
             rect: interact.rect,
@@ -198,7 +196,8 @@ impl Region {
             color: stroke_color,
             width: self.style.line_width,
         });
-        if !open {
+
+        if !state.open {
             // Draw it as a plus:
             self.add_paint_cmd(PaintCmd::Line {
                 points: vec![
@@ -217,7 +216,39 @@ impl Region {
             None,
         );
 
-        if open {
+        let animation_time = self.style().animation_time;
+        let time_since_toggle = (self.ctx.input.time - state.toggle_time) as f32;
+        if time_since_toggle < animation_time {
+            self.indent(id, |region| {
+                // animation time
+
+                let max_height = if state.open {
+                    remap(
+                        time_since_toggle,
+                        0.0,
+                        animation_time,
+                        50.0,   // Get instant feedback
+                        1500.0, // We don't expect to get bigger than this
+                    )
+                } else {
+                    remap_clamp(
+                        time_since_toggle,
+                        0.0,
+                        animation_time,
+                        50.0, // TODO: state.open_height
+                        0.0,
+                    )
+                };
+
+                region
+                    .clip_rect
+                    .set_height(region.clip_rect.height().min(max_height));
+
+                add_contents(region);
+
+                region.bounding_size.y = region.bounding_size.y.min(max_height);
+            });
+        } else if state.open {
             self.indent(id, add_contents);
         }
 

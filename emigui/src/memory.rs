@@ -1,6 +1,22 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{window::WindowState, *};
+
+// TODO: move together with foldable code into own file
+#[derive(Clone, Copy, Debug)]
+pub struct FoldableState {
+    pub open: bool,
+    pub toggle_time: f64,
+}
+
+impl Default for FoldableState {
+    fn default() -> Self {
+        Self {
+            open: false,
+            toggle_time: -std::f64::INFINITY,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
@@ -8,7 +24,7 @@ pub struct Memory {
     pub(crate) active_id: Option<Id>,
 
     /// Which foldable regions are open.
-    pub(crate) open_foldables: HashSet<Id>,
+    pub(crate) foldables: HashMap<Id, FoldableState>,
 
     windows: HashMap<Id, WindowState>,
 
