@@ -30,10 +30,12 @@ pub struct RawInput {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GuiInput {
     /// Is the button currently down?
+    /// true the frame when it is pressed,
+    /// false the frame it is released.
     pub mouse_down: bool,
 
     /// The mouse went from !down to down
-    pub mouse_clicked: bool,
+    pub mouse_pressed: bool,
 
     /// The mouse went from down to !down
     pub mouse_released: bool,
@@ -62,7 +64,7 @@ impl GuiInput {
             .unwrap_or_default();
         GuiInput {
             mouse_down: new.mouse_down,
-            mouse_clicked: !last.mouse_down && new.mouse_down,
+            mouse_pressed: !last.mouse_down && new.mouse_down,
             mouse_released: last.mouse_down && !new.mouse_down,
             mouse_pos: new.mouse_pos,
             mouse_move,
@@ -77,13 +79,13 @@ impl GuiInput {
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct InteractInfo {
-    /// The mouse is hovering above this
+    /// The mouse is hovering above this thing
     pub hovered: bool,
 
-    /// The mouse went got pressed on this thing this frame
+    /// The mouse pressed this thing ealier, and now released on this thing too.
     pub clicked: bool,
 
-    /// The mouse is interacting with this thing (e.g. dragging it)
+    /// The mouse is interacting with this thing (e.g. dragging it or holding it)
     pub active: bool,
 
     /// The region of the screen we are talking about

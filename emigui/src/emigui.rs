@@ -33,13 +33,17 @@ impl Emigui {
     }
 
     pub fn new_frame(&mut self, new_input: RawInput) {
+        if !self.last_input.mouse_down || self.last_input.mouse_pos.is_none() {
+            self.ctx.memory.lock().active_id = None;
+        }
+
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
         self.last_input = new_input;
 
         // TODO: avoid this clone
-        let mut new_data = (*self.ctx).clone();
-        new_data.new_frame(gui_input);
-        self.ctx = Arc::new(new_data);
+        let mut new_ctx = (*self.ctx).clone();
+        new_ctx.new_frame(gui_input);
+        self.ctx = Arc::new(new_ctx);
     }
 
     /// A region for the entire screen, behind any windows.
@@ -91,11 +95,11 @@ impl Emigui {
             font_definitions_ui(&mut new_font_definitions, region);
             self.ctx.fonts.texture().ui(region);
             if *old_font_definitions != new_font_definitions {
-                let mut new_data = (*self.ctx).clone();
+                let mut new_ctx = (*self.ctx).clone();
                 let fonts =
                     Fonts::from_definitions(new_font_definitions, self.ctx.input.pixels_per_point);
-                new_data.fonts = Arc::new(fonts);
-                self.ctx = Arc::new(new_data);
+                new_ctx.fonts = Arc::new(fonts);
+                self.ctx = Arc::new(new_ctx);
             }
         });
 

@@ -77,9 +77,6 @@ impl Context {
         self.used_ids.lock().clear();
         self.input = gui_input;
         *self.cursor_icon.lock() = CursorIcon::Default;
-        if !gui_input.mouse_down || gui_input.mouse_pos.is_none() {
-            self.memory.lock().active_id = None;
-        }
     }
 
     pub fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
@@ -130,35 +127,64 @@ impl Context {
 
     pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
         let mut memory = self.memory.lock();
+        let input = &self.input;
 
-        let hovered = if let Some(mouse_pos) = self.input.mouse_pos {
-            if rect.contains(mouse_pos) {
-                let is_something_else_active =
-                    memory.active_id.is_some() && memory.active_id != interaction_id;
+        let hovered = if let Some(mouse_pos) = input.mouse_pos {
+            rect.contains(mouse_pos) && layer == memory.layer_at(mouse_pos)
+        } else {
+            false
+        };
 
-                !is_something_else_active && layer == memory.layer_at(mouse_pos)
+        let active = interaction_id.is_some() && memory.active_id == interaction_id;
+
+        if input.mouse_pressed {
+            if hovered && interaction_id.is_some() {
+                if memory.active_id.is_some() {
+                    // Already clicked something else this frame
+                    InteractInfo {
+                        rect,
+                        hovered,
+                        clicked: false,
+                        active: false,
+                    }
+                } else {
+                    memory.active_id = interaction_id;
+                    InteractInfo {
+                        rect,
+                        hovered,
+                        clicked: false,
+                        active: true,
+                    }
+                }
             } else {
-                false
+                InteractInfo {
+                    rect,
+                    hovered,
+                    clicked: false,
+                    active: false,
+                }
+            }
+        } else if input.mouse_released {
+            InteractInfo {
+                rect,
+                hovered,
+                clicked: hovered && active,
+                active,
+            }
+        } else if input.mouse_down {
+            InteractInfo {
+                rect,
+                hovered: hovered && active,
+                clicked: false,
+                active,
             }
         } else {
-            false
-        };
-        let active = if interaction_id.is_some() {
-            if hovered && self.input.mouse_clicked {
-                memory.active_id = interaction_id;
+            InteractInfo {
+                rect,
+                hovered,
+                clicked: false,
+                active,
             }
-            memory.active_id == interaction_id
-        } else {
-            false
-        };
-
-        let clicked = hovered && self.input.mouse_released;
-
-        InteractInfo {
-            rect,
-            hovered,
-            clicked,
-            active,
         }
     }
 
