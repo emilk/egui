@@ -43,7 +43,7 @@ impl Default for Style {
             indent: 21.0,
             clickable_diameter: 34.0,
             start_icon_width: 20.0,
-            line_width: 2.0,
+            line_width: 1.0,
             window: Window::default(),
         }
     }

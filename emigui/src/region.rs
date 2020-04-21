@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{font::TextFragment, layout::*, widgets::*, *};
+use crate::{color::*, font::TextFragment, layout::*, widgets::*, *};
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
@@ -218,27 +218,28 @@ impl Region {
         );
 
         if open {
-            let old_id = self.id;
-            self.id = id;
-            self.indent(add_contents);
-            self.id = old_id;
+            self.indent(id, add_contents);
         }
 
         self.response(interact)
     }
 
     /// Create a child region which is indented to the right
-    pub fn indent<F>(&mut self, add_contents: F)
+    pub fn indent<F>(&mut self, id: Id, add_contents: F)
     where
         F: FnOnce(&mut Region),
     {
+        assert!(
+            self.dir == Direction::Vertical,
+            "You can only indent vertical layouts"
+        );
         let indent = vec2(self.style.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max());
         let mut child_region = Region {
             ctx: self.ctx.clone(),
+            id,
             layer: self.layer,
             style: self.style,
-            id: self.id,
             clip_rect: self.clip_rect.intersect(child_rect),
             desired_rect: child_rect,
             bounding_size: vec2(0.0, 0.0),
@@ -248,6 +249,17 @@ impl Region {
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size;
+
+        // draw a grey line on the left to mark the region
+        let line_start = child_rect.min() - indent + vec2(13.0, 2.0);
+        let line_start = line_start.round();
+        let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
+        self.add_paint_cmd(PaintCmd::Line {
+            points: vec![line_start, line_end],
+            color: gray(150, 255),
+            width: self.style.line_width,
+        });
+
         self.reserve_space_without_padding(indent + size);
     }
 
@@ -257,7 +269,7 @@ impl Region {
 
     pub fn centered_column(&mut self, width: f32) -> Region {
         self.column(Align::Center, width)
-        }
+    }
 
     pub fn right_column(&mut self, width: f32) -> Region {
         self.column(Align::Max, width)
@@ -291,7 +303,7 @@ impl Region {
             desired_rect: child_rect,
             cursor: child_rect.min(),
             bounding_size: vec2(0.0, 0.0),
-    }
+        }
     }
 
     pub fn inner_layout<F>(&mut self, dir: Direction, align: Align, add_contents: F)
