@@ -56,8 +56,7 @@ fn main() {
                     glutin::WindowEvent::CloseRequested => quit = true,
 
                     glutin::WindowEvent::Resized(glutin::dpi::LogicalSize { width, height }) => {
-                        raw_input.screen_size =
-                            vec2(width as f32, height as f32) / pixels_per_point;
+                        raw_input.screen_size = vec2(width as f32, height as f32);
                     }
                     glutin::WindowEvent::MouseInput { state, .. } => {
                         raw_input.mouse_down = state == glutin::ElementState::Pressed;
