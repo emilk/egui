@@ -17,19 +17,6 @@ pub struct Memory {
 }
 
 impl Memory {
-    /// default_rect: where to put it if it does NOT exist
-    pub fn get_or_create_window(&mut self, id: Id, default_rect: Rect) -> WindowState {
-        if let Some(state) = self.windows.get(&id) {
-            *state
-        } else {
-            let state = WindowState { rect: default_rect };
-            self.windows.insert(id, state);
-            self.window_order.push(id);
-            state
-        }
-    }
-
-    /// default_rect: where to put it if it does NOT exist
     pub fn get_window(&mut self, id: Id) -> Option<WindowState> {
         self.windows.get(&id).cloned()
     }
