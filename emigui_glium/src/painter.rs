@@ -78,8 +78,10 @@ impl Painter {
                         attribute vec2 a_pos;
                         attribute vec4 a_color;
                         attribute vec2 a_tc;
+                        varying vec2 v_pos;
                         varying vec4 v_color;
                         varying vec2 v_tc;
+                        varying vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
@@ -96,8 +98,10 @@ impl Painter {
                     fragment: "
                         #version 110
                         uniform sampler2D u_sampler;
+                        varying vec2 v_pos;
                         varying vec4 v_color;
                         varying vec2 v_tc;
+                        varying vec4 v_clip_rect;
 
                         // glium expects linear output.
                         vec3 linear_from_srgb(vec3 srgb) {
@@ -128,8 +132,10 @@ impl Painter {
                         attribute mediump vec2 a_pos;
                         attribute mediump vec4 a_color;
                         attribute mediump vec2 a_tc;
+                        varying mediump vec2 v_pos;
                         varying mediump vec4 v_color;
                         varying mediump vec2 v_tc;
+                        varying mediump vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
@@ -146,8 +152,10 @@ impl Painter {
                     fragment: "
                         #version 100
                         uniform sampler2D u_sampler;
+                        varying mediump vec2 v_pos;
                         varying mediump vec4 v_color;
                         varying mediump vec2 v_tc;
+                        varying mediump vec4 v_clip_rect
 
                         // glium expects linear output.
                         vec3 linear_from_srgb(vec3 srgb) {
