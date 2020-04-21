@@ -5,6 +5,8 @@ use crate::{mesher::Path, widgets::*, *};
 #[derive(Clone, Copy, Debug)]
 pub struct WindowState {
     /// Last known pos/size
+    /// TODO: replace with outer_pos and inner_rect
+    /// so we can change style without content resizing.
     pub rect: Rect,
 }
 
@@ -93,6 +95,7 @@ impl Window {
             state.rect.size() - 2.0 * window_padding,
         );
         let mut contents_region = Region::new(ctx.clone(), layer, id, inner_rect);
+        // TODO: handle contents_region.clip_rect while resizing
 
         // Show top bar:
         contents_region.add(Label::new(self.title).text_style(TextStyle::Heading));

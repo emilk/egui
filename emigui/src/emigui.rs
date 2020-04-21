@@ -10,6 +10,7 @@ struct Stats {
 }
 
 /// Encapsulates input, layout and painting for ease of use.
+/// TODO: merge into Context
 pub struct Emigui {
     pub last_input: RawInput,
     pub ctx: Arc<Context>,
