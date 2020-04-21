@@ -15,7 +15,7 @@ pub struct Emigui {
     pub last_input: RawInput,
     pub ctx: Arc<Context>,
     stats: Stats,
-    anti_alias: bool,
+    mesher_options: MesherOptions,
 }
 
 impl Emigui {
@@ -24,7 +24,7 @@ impl Emigui {
             last_input: Default::default(),
             ctx: Arc::new(Context::new(pixels_per_point)),
             stats: Default::default(),
-            anti_alias: true,
+            mesher_options: MesherOptions::default(),
         }
     }
 
@@ -60,12 +60,9 @@ impl Emigui {
     }
 
     pub fn paint(&mut self) -> PaintBatches {
-        let mesher_options = MesherOptions {
-            anti_alias: self.anti_alias,
-            aa_size: 1.0 / self.last_input.pixels_per_point,
-        };
+        self.mesher_options.aa_size = 1.0 / self.last_input.pixels_per_point;
         let paint_commands = self.ctx.drain_paint_lists();
-        let batches = mesh_paint_commands(&mesher_options, &self.ctx.fonts, paint_commands);
+        let batches = mesh_paint_commands(&self.mesher_options, &self.ctx.fonts, paint_commands);
         self.stats = Default::default();
         self.stats.num_batches = batches.len();
         for (_, mesh) in &batches {
@@ -77,7 +74,14 @@ impl Emigui {
 
     pub fn ui(&mut self, region: &mut Region) {
         region.foldable("Style", |region| {
-            region.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
+            region.add(Checkbox::new(
+                &mut self.mesher_options.anti_alias,
+                "Antialias",
+            ));
+            region.add(Checkbox::new(
+                &mut self.mesher_options.debug_paint_clip_rects,
+                "Paint Clip Rects (debug)",
+            ));
             self.ctx.style_ui(region);
         });
 

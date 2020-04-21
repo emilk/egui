@@ -1,7 +1,13 @@
 #![allow(clippy::identity_op)]
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
-use crate::{color::Color, fonts::Fonts, math::*, types::PaintCmd};
+use crate::{
+    color::{srgba, Color},
+    fonts::Fonts,
+    math::*,
+    types::PaintCmd,
+    Outline,
+};
 
 const WHITE_UV: (u16, u16) = (1, 1);
 
@@ -239,6 +245,17 @@ use self::PathType::*;
 pub struct MesherOptions {
     pub anti_alias: bool,
     pub aa_size: f32,
+    pub debug_paint_clip_rects: bool,
+}
+
+impl Default for MesherOptions {
+    fn default() -> Self {
+        Self {
+            anti_alias: true,
+            aa_size: 1.0,
+            debug_paint_clip_rects: false,
+        }
+    }
 }
 
 pub fn fill_closed_path(
@@ -506,6 +523,21 @@ pub fn mesh_paint_commands(
 
         if batches.is_empty() || batches.last().unwrap().0 != clip_rect {
             batches.push((clip_rect, Mesh::default()));
+
+            if options.debug_paint_clip_rects && !clip_rect.is_empty() {
+                let out_mesh = &mut batches.last_mut().unwrap().1;
+                mesh_command(
+                    options,
+                    fonts,
+                    PaintCmd::Rect {
+                        rect: clip_rect,
+                        corner_radius: 0.0,
+                        fill_color: Some(srgba(50, 100, 200, 64)),
+                        outline: Some(Outline::new(1.0, srgba(200, 200, 200, 255))),
+                    },
+                    out_mesh,
+                )
+            }
         }
 
         let out_mesh = &mut batches.last_mut().unwrap().1;
