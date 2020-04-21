@@ -359,6 +359,24 @@ impl Region {
         self.reserve_space_without_padding(size);
     }
 
+    /// Create a child region from current cursor with the given dimensions.
+    /// Does NOT move the cursor.
+    pub fn create_child_region(&self, size: Vec2) -> Self {
+        let child_rect = Rect::from_min_size(self.cursor, size);
+        Region {
+            ctx: self.ctx.clone(),
+            layer: self.layer,
+            style: self.style,
+            id: self.id,
+            clip_rect: self.clip_rect.intersect(child_rect),
+            desired_rect: child_rect,
+            cursor: self.cursor,
+            bounding_size: vec2(0.0, 0.0),
+            dir: self.dir,
+            align: self.align,
+        }
+    }
+
     /// Start a region with horizontal layout
     pub fn horizontal<F>(&mut self, align: Align, add_contents: F)
     where

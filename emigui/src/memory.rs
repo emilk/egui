@@ -17,6 +17,11 @@ impl Default for FoldableState {
         }
     }
 }
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ScrollState {
+    /// Positive offset means scrolling down/right
+    pub offset: Vec2,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
@@ -25,6 +30,7 @@ pub struct Memory {
 
     // states of various types of widgets
     pub(crate) foldables: HashMap<Id, FoldableState>,
+    pub(crate) scroll_areas: HashMap<Id, ScrollState>,
     windows: HashMap<Id, WindowState>,
 
     /// Top is last
