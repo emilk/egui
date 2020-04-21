@@ -24,7 +24,8 @@ pub struct State {
     example_app: ExampleApp,
     emigui: Emigui,
     webgl_painter: emigui_wasm::webgl::Painter,
-    everything_ms: f64,
+
+    frame_times: std::collections::VecDeque<f64>,
 }
 
 impl State {
@@ -33,7 +34,7 @@ impl State {
             example_app: Default::default(),
             emigui: Emigui::new(pixels_per_point),
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
-            everything_ms: 0.0,
+            frame_times: Default::default(),
         })
     }
 
@@ -61,8 +62,15 @@ impl State {
         region.indent(Id::new(&"webgl region"), |region| {
             region.add_label(self.webgl_painter.debug_info());
         });
+
+        let mean_frame_time = if self.frame_times.is_empty() {
+            0.0
+        } else {
+            self.frame_times.iter().sum::<f64>() / (self.frame_times.len() as f64)
+        };
         region.add(
-            label!("Everything: {:.1} ms", self.everything_ms).text_style(TextStyle::Monospace),
+            label!("Total CPU usage: {:.1} ms", 1e3 * mean_frame_time)
+                .text_style(TextStyle::Monospace),
         );
 
         // TODO: Make it even simpler to show a window
@@ -88,7 +96,10 @@ impl State {
             raw_input.pixels_per_point,
         );
 
-        self.everything_ms = 1000.0 * (now_sec() - everything_start);
+        self.frame_times.push_back(now_sec() - everything_start);
+        while self.frame_times.len() > 30 {
+            self.frame_times.pop_front();
+        }
 
         result
     }
