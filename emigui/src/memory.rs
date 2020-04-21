@@ -23,9 +23,8 @@ pub struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
     pub(crate) active_id: Option<Id>,
 
-    /// Which foldable regions are open.
+    // states of various types of widgets
     pub(crate) foldables: HashMap<Id, FoldableState>,
-
     windows: HashMap<Id, WindowState>,
 
     /// Top is last

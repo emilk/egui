@@ -37,10 +37,12 @@ impl Default for ExampleApp {
 impl ExampleApp {
     pub fn ui(&mut self, region: &mut Region) {
         region.foldable("About Emigui", |region| {
-            region.add(label!("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL."));
+            region.add(label!(
+                "Emigui is an experimental immediate mode GUI written in Rust."
+            ));
         });
 
-        region.foldable("Widget examples", |region| {
+        region.foldable("Widgets", |region| {
             region.horizontal(Align::Min, |region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
                 region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
@@ -134,7 +136,7 @@ impl ExampleApp {
             region.add_label("\
                 For instance, foldable regions needs to store wether or not they are open. \
                 If you fail to give them unique names then clicking one will open both. \
-                To help you debug this, a error message is printed on screen:");
+                To help you debug this, an error message is printed on screen:");
 
             region.foldable("Foldable", |region| {
                 region.add_label("Contents of first folddable region");

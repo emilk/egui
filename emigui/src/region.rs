@@ -319,7 +319,7 @@ impl Region {
         ))
     }
 
-    /// Return a sub-region relative to the parent
+    /// Return a sub-region relative to the cursor
     pub fn relative_region(&mut self, rect: Rect) -> Region {
         let region_pos = self.cursor + rect.min().to_vec2();
         let child_rect = Rect::from_min_size(region_pos, rect.size());

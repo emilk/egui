@@ -92,8 +92,18 @@ fn main() {
         if region.add(Button::new("Quit")).clicked {
             quit = true;
         }
-        example_app.ui(&mut region);
-        emigui.ui(&mut region);
+
+        Window::new("Example APP")
+            .default_pos(pos2(200.0, 100.0))
+            .show(region.ctx(), |region| {
+                example_app.ui(region);
+            });
+
+        Window::new("Emigui settings")
+            .default_pos(pos2(200.0, 500.0))
+            .show(region.ctx(), |region| {
+                emigui.ui(region);
+            });
 
         // TODO: Make it even simpler to show a window
         Window::new("Test window")

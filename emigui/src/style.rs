@@ -79,7 +79,7 @@ impl Style {
     /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
     pub fn interact_fill_color(&self, interact: &InteractInfo) -> Option<Color> {
         if interact.active {
-            Some(srgba(200, 200, 200, 255))
+            Some(srgba(120, 120, 200, 255))
         } else if interact.hovered {
             Some(srgba(100, 100, 150, 255))
         } else {

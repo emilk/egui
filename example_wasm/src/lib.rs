@@ -59,7 +59,7 @@ impl State {
 
         region.set_align(Align::Min);
         region.add_label("WebGl painter info:");
-        region.indent(Id::new(&"webgl region"), |region| {
+        region.indent(Id::new("webgl region"), |region| {
             region.add_label(self.webgl_painter.debug_info());
         });
 

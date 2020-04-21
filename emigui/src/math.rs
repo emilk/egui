@@ -1,3 +1,5 @@
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+
 #[derive(Clone, Copy, Default, Deserialize, Serialize)]
 pub struct Vec2 {
     pub x: f32,
@@ -80,7 +82,7 @@ impl PartialEq for Vec2 {
 }
 impl Eq for Vec2 {}
 
-impl std::ops::Neg for Vec2 {
+impl Neg for Vec2 {
     type Output = Vec2;
 
     fn neg(self) -> Vec2 {
@@ -88,7 +90,7 @@ impl std::ops::Neg for Vec2 {
     }
 }
 
-impl std::ops::AddAssign for Vec2 {
+impl AddAssign for Vec2 {
     fn add_assign(&mut self, rhs: Vec2) {
         *self = Vec2 {
             x: self.x + rhs.x,
@@ -97,7 +99,16 @@ impl std::ops::AddAssign for Vec2 {
     }
 }
 
-impl std::ops::Add for Vec2 {
+impl SubAssign for Vec2 {
+    fn sub_assign(&mut self, rhs: Vec2) {
+        *self = Vec2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        };
+    }
+}
+
+impl Add for Vec2 {
     type Output = Vec2;
     fn add(self, rhs: Vec2) -> Vec2 {
         Vec2 {
@@ -107,7 +118,7 @@ impl std::ops::Add for Vec2 {
     }
 }
 
-impl std::ops::Sub for Vec2 {
+impl Sub for Vec2 {
     type Output = Vec2;
     fn sub(self, rhs: Vec2) -> Vec2 {
         Vec2 {
@@ -117,14 +128,14 @@ impl std::ops::Sub for Vec2 {
     }
 }
 
-impl std::ops::MulAssign<f32> for Vec2 {
+impl MulAssign<f32> for Vec2 {
     fn mul_assign(&mut self, rhs: f32) {
         self.x *= rhs;
         self.y *= rhs;
     }
 }
 
-impl std::ops::Mul<f32> for Vec2 {
+impl Mul<f32> for Vec2 {
     type Output = Vec2;
     fn mul(self, factor: f32) -> Vec2 {
         Vec2 {
@@ -134,7 +145,7 @@ impl std::ops::Mul<f32> for Vec2 {
     }
 }
 
-impl std::ops::Mul<Vec2> for f32 {
+impl Mul<Vec2> for f32 {
     type Output = Vec2;
     fn mul(self, vec: Vec2) -> Vec2 {
         Vec2 {
@@ -144,7 +155,7 @@ impl std::ops::Mul<Vec2> for f32 {
     }
 }
 
-impl std::ops::Div<f32> for Vec2 {
+impl Div<f32> for Vec2 {
     type Output = Vec2;
     fn div(self, factor: f32) -> Vec2 {
         Vec2 {
@@ -223,7 +234,7 @@ impl PartialEq for Pos2 {
 }
 impl Eq for Pos2 {}
 
-impl std::ops::AddAssign<Vec2> for Pos2 {
+impl AddAssign<Vec2> for Pos2 {
     fn add_assign(&mut self, rhs: Vec2) {
         *self = Pos2 {
             x: self.x + rhs.x,
@@ -232,7 +243,16 @@ impl std::ops::AddAssign<Vec2> for Pos2 {
     }
 }
 
-impl std::ops::Add<Vec2> for Pos2 {
+impl SubAssign<Vec2> for Pos2 {
+    fn sub_assign(&mut self, rhs: Vec2) {
+        *self = Pos2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        };
+    }
+}
+
+impl Add<Vec2> for Pos2 {
     type Output = Pos2;
     fn add(self, rhs: Vec2) -> Pos2 {
         Pos2 {
@@ -242,17 +262,7 @@ impl std::ops::Add<Vec2> for Pos2 {
     }
 }
 
-// impl std::ops::Add<Pos2> for Vec2 {
-//     type Output = Pos2;
-//     fn add(self, rhs: Pos2) -> Pos2 {
-//         Pos2 {
-//             x: self.x + rhs.x,
-//             y: self.y + rhs.y,
-//         }
-//     }
-// }
-
-impl std::ops::Sub for Pos2 {
+impl Sub for Pos2 {
     type Output = Vec2;
     fn sub(self, rhs: Pos2) -> Vec2 {
         Vec2 {
@@ -262,7 +272,7 @@ impl std::ops::Sub for Pos2 {
     }
 }
 
-impl std::ops::Sub<Vec2> for Pos2 {
+impl Sub<Vec2> for Pos2 {
     type Output = Pos2;
     fn sub(self, rhs: Vec2) -> Pos2 {
         Pos2 {
@@ -323,14 +333,17 @@ impl Rect {
     }
 
     /// Expand by this much in each direction
+    #[must_use]
     pub fn expand(self, amnt: f32) -> Self {
         Rect::from_center_size(self.center(), self.size() + 2.0 * vec2(amnt, amnt))
     }
 
+    #[must_use]
     pub fn translate(self, amnt: Vec2) -> Self {
         Rect::from_min_size(self.min() + amnt, self.size())
     }
 
+    #[must_use]
     pub fn intersect(self, other: Rect) -> Self {
         Self {
             min: self.min.max(other.min),
@@ -423,8 +436,8 @@ impl std::fmt::Debug for Rect {
 
 pub fn lerp<T>(min: T, max: T, t: f32) -> T
 where
-    f32: std::ops::Mul<T, Output = T>,
-    T: std::ops::Add<T, Output = T>,
+    f32: Mul<T, Output = T>,
+    T: Add<T, Output = T>,
 {
     (1.0 - t) * min + t * max
 }
