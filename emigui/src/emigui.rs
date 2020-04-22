@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{layout, mesher::*, widgets::*, *};
+use crate::{mesher::*, widgets::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct Stats {
@@ -48,19 +48,8 @@ impl Emigui {
 
     /// A region for the entire screen, behind any windows.
     pub fn background_region(&mut self) -> Region {
-        let child_rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
-        Region {
-            ctx: self.ctx.clone(),
-            id: Id::background(),
-            layer: Layer::Background,
-            clip_rect: child_rect,
-            desired_rect: child_rect,
-            cursor: Default::default(),
-            bounding_size: Default::default(),
-            style: self.ctx.style(),
-            dir: layout::Direction::Vertical,
-            align: layout::Align::Center,
-        }
+        let rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
+        Region::new(self.ctx.clone(), Layer::Background, Id::background(), rect)
     }
 
     pub fn paint(&mut self) -> PaintBatches {

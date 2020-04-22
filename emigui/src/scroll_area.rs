@@ -51,7 +51,8 @@ impl ScrollArea {
         let inner_size = outer_size - vec2(scroll_bar_width, 0.0);
         let inner_rect = Rect::from_min_size(outer_region.cursor, inner_size);
 
-        let mut content_region = outer_region.create_child_region(inner_size);
+        let mut content_region =
+            outer_region.child_region(Rect::from_min_size(outer_region.cursor(), inner_size));
         content_region.cursor -= state.offset;
         content_region.desired_rect = content_region.desired_rect.translate(-state.offset);
         add_contents(&mut content_region);
