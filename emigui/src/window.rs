@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{mesher::Path, widgets::*, *};
 
 #[derive(Clone, Copy, Debug)]
-pub struct WindowState {
+pub struct State {
     /// Last known pos
     pub outer_pos: Pos2,
     pub inner_size: Vec2,
@@ -127,7 +127,7 @@ impl Window {
         let (mut state, is_new_window) = match ctx.memory.lock().get_window(id) {
             Some(state) => (state, false),
             None => {
-                let state = WindowState {
+                let state = State {
                     outer_pos: default_pos,
                     inner_size: default_inner_size,
                     outer_rect: Rect::from_min_size(
@@ -216,7 +216,7 @@ impl Window {
             state.outer_pos += ctx.input().mouse_move;
         }
 
-        state = WindowState {
+        state = State {
             outer_pos: state.outer_pos,
             inner_size: new_inner_size,
             outer_rect: outer_rect,

@@ -1,5 +1,11 @@
 use crate::*;
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct State {
+    /// Positive offset means scrolling down/right
+    pub offset: Vec2,
+}
+
 pub struct ScrollArea {
     max_height: f32,
 }

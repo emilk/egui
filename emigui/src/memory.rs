@@ -1,12 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{collapsing_header, window::WindowState, *};
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ScrollState {
-    /// Positive offset means scrolling down/right
-    pub offset: Vec2,
-}
+use crate::{collapsing_header, scroll_area, window, *};
 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
@@ -15,19 +9,19 @@ pub struct Memory {
 
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
-    pub(crate) scroll_areas: HashMap<Id, ScrollState>,
-    windows: HashMap<Id, WindowState>,
+    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
+    windows: HashMap<Id, window::State>,
 
     /// Top is last
     pub window_order: Vec<Id>,
 }
 
 impl Memory {
-    pub fn get_window(&mut self, id: Id) -> Option<WindowState> {
+    pub fn get_window(&mut self, id: Id) -> Option<window::State> {
         self.windows.get(&id).cloned()
     }
 
-    pub fn set_window_state(&mut self, id: Id, state: WindowState) {
+    pub fn set_window_state(&mut self, id: Id, state: window::State) {
         let did_insert = self.windows.insert(id, state).is_none();
         if did_insert {
             self.window_order.push(id);
