@@ -26,9 +26,6 @@ pub struct Style {
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 
-    /// buttons etc
-    pub interaction_corner_radius: f32,
-
     // TODO: add ability to disable animations!
     /// How many seconds a typical animation should last
     pub animation_time: f32,
@@ -51,7 +48,6 @@ impl Default for Style {
             clickable_diameter: 28.0,
             start_icon_width: 20.0,
             line_width: 1.0,
-            interaction_corner_radius: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
         }
@@ -98,6 +94,7 @@ impl Style {
         }
     }
 
+    /// For lines etc
     pub fn interact_stroke_width(&self, interact: &InteractInfo) -> f32 {
         if interact.active {
             2.0
@@ -111,10 +108,10 @@ impl Style {
     /// For rectangles
     pub fn interact_outline(&self, interact: &InteractInfo) -> Option<Outline> {
         if interact.active {
-        Some(Outline::new(
-            self.interact_stroke_width(interact),
-            self.interact_stroke_color(interact),
-        ))
+            Some(Outline::new(
+                self.interact_stroke_width(interact),
+                self.interact_stroke_color(interact),
+            ))
         } else if interact.hovered {
             None
         } else {
