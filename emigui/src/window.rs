@@ -120,7 +120,7 @@ impl Window {
             .unwrap_or(ctx.input.screen_size - 2.0 * window_padding);
 
         let default_pos = self.default_pos.unwrap_or(pos2(100.0, 100.0)); // TODO
-        let default_inner_size = self.default_size.unwrap_or(vec2(200.0, 200.0));
+        let default_inner_size = self.default_size.unwrap_or(vec2(250.0, 250.0));
 
         let id = ctx.make_unique_id(&self.title, default_pos);
 

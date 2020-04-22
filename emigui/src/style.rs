@@ -45,8 +45,8 @@ impl Default for Style {
             button_padding: vec2(5.0, 3.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
-            clickable_diameter: 28.0,
-            start_icon_width: 20.0,
+            clickable_diameter: 22.0,
+            start_icon_width: 16.0,
             line_width: 1.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
@@ -132,9 +132,9 @@ impl Style {
 
     /// Returns small icon rectangle and big icon rectangle
     pub fn icon_rectangles(&self, rect: &Rect) -> (Rect, Rect) {
-        let box_side = 16.0;
+        let box_side = self.start_icon_width;
         let big_icon_rect = Rect::from_center_size(
-            pos2(rect.left() + 4.0 + box_side * 0.5, rect.center().y),
+            pos2(rect.left() + box_side / 2.0, rect.center().y),
             vec2(box_side, box_side),
         );
 
@@ -145,20 +145,23 @@ impl Style {
 }
 
 impl Style {
+    #[rustfmt::skip]
     pub fn ui(&mut self, region: &mut crate::Region) {
         use crate::widgets::{Button, Slider};
         if region.add(Button::new("Reset style")).clicked {
             *self = Default::default();
         }
-        region.add(Slider::f32(&mut self.item_spacing.x, 0.0, 10.0).text("item_spacing.x"));
-        region.add(Slider::f32(&mut self.item_spacing.y, 0.0, 10.0).text("item_spacing.y"));
-        region.add(Slider::f32(&mut self.window_padding.x, 0.0, 10.0).text("window_padding.x"));
-        region.add(Slider::f32(&mut self.window_padding.y, 0.0, 10.0).text("window_padding.y"));
-        region.add(Slider::f32(&mut self.indent, 0.0, 100.0).text("indent"));
-        region.add(Slider::f32(&mut self.button_padding.x, 0.0, 20.0).text("button_padding.x"));
-        region.add(Slider::f32(&mut self.button_padding.y, 0.0, 20.0).text("button_padding.y"));
-        region.add(Slider::f32(&mut self.clickable_diameter, 0.0, 60.0).text("clickable_diameter"));
-        region.add(Slider::f32(&mut self.start_icon_width, 0.0, 60.0).text("start_icon_width"));
-        region.add(Slider::f32(&mut self.line_width, 0.0, 10.0).text("line_width"));
+
+
+        region.add(Slider::f32(&mut self.item_spacing.x, 0.0, 10.0).text("item_spacing.x").precision(0));
+        region.add(Slider::f32(&mut self.item_spacing.y, 0.0, 10.0).text("item_spacing.y").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.x, 0.0, 10.0).text("window_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.y, 0.0, 10.0).text("window_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.indent, 0.0, 100.0).text("indent").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.x, 0.0, 20.0).text("button_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.y, 0.0, 20.0).text("button_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.clickable_diameter, 0.0, 60.0).text("clickable_diameter").precision(0));
+        region.add(Slider::f32(&mut self.start_icon_width, 0.0, 60.0).text("start_icon_width").precision(0));
+        region.add(Slider::f32(&mut self.line_width, 0.0, 10.0).text("line_width").precision(0));
     }
 }

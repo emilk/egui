@@ -82,13 +82,13 @@ impl Default for Align {
 pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
     let x = match align.0 {
         Align::Min => rect.left(),
-        Align::Center => rect.left() - 0.5 * rect.size().x,
-        Align::Max => rect.left() - rect.size().x,
+        Align::Center => rect.left() - 0.5 * rect.width(),
+        Align::Max => rect.left() - rect.width(),
     };
     let y = match align.1 {
         Align::Min => rect.top(),
-        Align::Center => rect.top() - 0.5 * rect.size().y,
-        Align::Max => rect.top() - rect.size().y,
+        Align::Center => rect.top() - 0.5 * rect.height(),
+        Align::Max => rect.top() - rect.height(),
     };
     Rect::from_min_size(pos2(x, y), rect.size())
 }

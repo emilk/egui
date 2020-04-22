@@ -343,14 +343,19 @@ impl Rect {
         }
     }
 
-    // keep min
+    /// keep min
     pub fn set_width(&mut self, w: f32) {
         self.max.x = self.min.x + w;
     }
 
-    // keep min
+    /// keep min
     pub fn set_height(&mut self, h: f32) {
         self.max.y = self.min.y + h;
+    }
+
+    /// Keep size
+    pub fn set_center(&mut self, center: Pos2) {
+        *self = self.translate(center - self.center());
     }
 
     pub fn contains(&self, p: Pos2) -> bool {

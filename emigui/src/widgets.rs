@@ -228,7 +228,7 @@ impl Widget for RadioButton {
             center: big_icon_rect.center(),
             fill_color,
             outline: None,
-            radius: big_icon_rect.size().x / 2.0,
+            radius: big_icon_rect.width() / 2.0,
         });
 
         if self.checked {
@@ -236,7 +236,7 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 fill_color: Some(stroke_color),
                 outline: None,
-                radius: small_icon_rect.size().x / 2.0,
+                radius: small_icon_rect.width() / 2.0,
             });
         }
 
@@ -370,7 +370,7 @@ impl<'a> Widget for Slider<'a> {
                     // Place the text in line with the slider on the left:
                     columns[1]
                         .desired_rect
-                        .set_height(slider_response.rect.size().y);
+                        .set_height(slider_response.rect.height());
                     columns[1].horizontal(Align::Center, |region| {
                         region.add(Label::new(full_text));
                     });
@@ -380,9 +380,10 @@ impl<'a> Widget for Slider<'a> {
             }
         } else {
             let height = font.line_spacing().max(region.style().clickable_diameter);
-            let handle_radius = height / 3.0;
+            let handle_radius = height / 2.5;
 
-            let id = region.make_position_id();
+            let id = region.make_position_id(); // TODO: causes problems for style settings :/
+
             let interact = region.reserve_space(
                 Vec2 {
                     x: region.available_width(),
@@ -409,28 +410,28 @@ impl<'a> Widget for Slider<'a> {
                 let value = self.get_value_f32();
 
                 let rect = interact.rect;
-                let rail_radius = (height / 10.0).round().max(2.0);
+                let rail_radius = (height / 8.0).round().max(2.0);
                 let rail_rect = Rect::from_min_max(
-                    pos2(left - rail_radius, rect.center().y - rail_radius),
-                    pos2(right + rail_radius, rect.center().y + rail_radius),
+                    pos2(interact.rect.left(), rect.center().y - rail_radius),
+                    pos2(interact.rect.right(), rect.center().y + rail_radius),
                 );
                 let marker_center_x = remap_clamp(value, min, max, left, right);
 
                 region.add_paint_cmd(PaintCmd::Rect {
+                    rect: rail_rect,
                     corner_radius: rail_radius,
                     fill_color: Some(region.style().background_fill_color()),
                     outline: Some(Outline::new(1.0, color::gray(200, 255))), // TODO
-                    rect: rail_rect,
                 });
 
                 region.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, rail_rect.center().y),
+                    radius: handle_radius,
                     fill_color: region.style().interact_fill_color(&interact),
                     outline: Some(Outline::new(
                         region.style().interact_stroke_width(&interact),
                         region.style().interact_stroke_color(&interact),
                     )),
-                    radius: handle_radius,
                 });
             }
 

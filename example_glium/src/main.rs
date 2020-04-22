@@ -111,6 +111,8 @@ fn main() {
             quit = true;
         }
 
+        // TODO: Make it even simpler to show a window
+
         Window::new("Examples")
             .default_pos(pos2(100.0, 100.0))
             .default_size(vec2(300.0, 400.0))
@@ -119,26 +121,10 @@ fn main() {
             });
 
         Window::new("Emigui settings")
-            .default_pos(pos2(100.0, 550.0))
+            .default_pos(pos2(500.0, 100.0))
+            .default_size(vec2(500.0, 500.0))
             .show(region.ctx(), |region| {
                 emigui.ui(region);
-            });
-
-        // TODO: Make it even simpler to show a window
-        Window::new("Test window")
-            .default_pos(pos2(600.0, 100.0))
-            .show(region.ctx(), |region| {
-                region.add_label("Grab the window and move it around!");
-                region.add_label("This window can be reisized, but not smaller than the contents.");
-            });
-        Window::new("Resize me!")
-            .default_pos(pos2(600.0, 550.0))
-            .expand_to_fit_content(false)
-            .show(region.ctx(), |region| {
-                region
-                    .add_label("This window may shrink so small that its contents no longer fit.");
-                region.add_label("Maybe you can no longer read this, for instance");
-                region.add_label("And this line may be way too far down.");
             });
 
         painter.paint_batches(&display, emigui.paint(), emigui.texture());

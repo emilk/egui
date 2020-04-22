@@ -49,7 +49,7 @@ impl CollapsingHeader {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
         let (title, text_size) = font.layout_multiline(&title, region.available_width());
-        let text_cursor = region.cursor + region.style.button_padding;
+
         let interact = region.reserve_space(
             vec2(
                 region.available_width(),
@@ -81,7 +81,10 @@ impl CollapsingHeader {
         paint_icon(region, &state, &interact);
 
         region.add_text(
-            text_cursor + vec2(region.style.start_icon_width, 0.0),
+            pos2(
+                interact.rect.left() + region.style.indent,
+                interact.rect.center().y - text_size.y / 2.0,
+            ),
             text_style,
             title,
             Some(region.style.interact_stroke_color(&interact)),
@@ -131,7 +134,12 @@ fn paint_icon(region: &mut Region, state: &State, interact: &InteractInfo) {
     let stroke_color = region.style.interact_stroke_color(&interact);
     let stroke_width = region.style.interact_stroke_width(&interact);
 
-    let (small_icon_rect, _) = region.style.icon_rectangles(&interact.rect);
+    let (mut small_icon_rect, _) = region.style.icon_rectangles(&interact.rect);
+    small_icon_rect.set_center(pos2(
+        interact.rect.left() + region.style.indent / 2.0,
+        interact.rect.center().y,
+    ));
+
     // Draw a minus:
     region.add_paint_cmd(PaintCmd::Line {
         points: vec![

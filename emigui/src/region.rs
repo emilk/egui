@@ -182,7 +182,7 @@ impl Region {
         let size = child_region.bounding_size;
 
         // draw a grey line on the left to mark the region
-        let line_start = child_rect.min() - indent + vec2(13.0, 2.0);
+        let line_start = child_rect.min() - indent * 0.5;
         let line_start = line_start.round();
         let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
         self.add_paint_cmd(PaintCmd::Line {
