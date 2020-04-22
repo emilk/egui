@@ -16,7 +16,8 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
-    * [ ] Scroll-wheel input
+    * [x] Scroll-wheel input
+        * [ ] Scroll-wheel input in web verions
     * [x] Drag background to scroll
     * [ ] Kinetic scrolling
 * [ ] Menu bar (File, Edit, etc)

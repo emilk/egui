@@ -68,6 +68,13 @@ impl ScrollArea {
             state.offset.y -= ctx.input.mouse_move.y;
         }
 
+        // TODO: check that nothing else is being inteacted with
+        if ctx.contains_mouse_pos(outer_region.layer, &outer_rect)
+            && ctx.memory.lock().active_id.is_none()
+        {
+            state.offset.y -= ctx.input.scroll_delta.y;
+        }
+
         let show_scroll = content_size.y > inner_size.y;
         if show_scroll {
             let corner_radius = scroll_bar_width / 2.0;

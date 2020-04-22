@@ -8,13 +8,18 @@ use crate::{
 // ----------------------------------------------------------------------------
 
 /// What the integration gives to the gui.
+/// All coordinates in emigui is in point/logical coordinates.
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct RawInput {
     /// Is the button currently down?
     pub mouse_down: bool,
 
     /// Current position of the mouse in points.
     pub mouse_pos: Option<Pos2>,
+
+    /// How many pixels the user scrolled
+    pub scroll_delta: Vec2,
 
     /// Size of the screen in points.
     pub screen_size: Vec2,
@@ -46,6 +51,9 @@ pub struct GuiInput {
     /// How much the mouse moved compared to last frame, in points.
     pub mouse_move: Vec2,
 
+    /// How many pixels the user scrolled
+    pub scroll_delta: Vec2,
+
     /// Size of the screen in points.
     pub screen_size: Vec2,
 
@@ -68,6 +76,7 @@ impl GuiInput {
             mouse_released: last.mouse_down && !new.mouse_down,
             mouse_pos: new.mouse_pos,
             mouse_move,
+            scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point,
             time: new.time,

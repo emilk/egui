@@ -125,19 +125,21 @@ impl Context {
         }
     }
 
-    pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
-        let mut memory = self.memory.lock();
-        let input = &self.input;
-
-        let hovered = if let Some(mouse_pos) = input.mouse_pos {
-            rect.contains(mouse_pos) && layer == memory.layer_at(mouse_pos)
+    pub fn contains_mouse_pos(&self, layer: Layer, rect: &Rect) -> bool {
+        if let Some(mouse_pos) = self.input.mouse_pos {
+            rect.contains(mouse_pos) && layer == self.memory.lock().layer_at(mouse_pos)
         } else {
             false
-        };
+        }
+    }
 
+    pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
+        let hovered = self.contains_mouse_pos(layer, &rect);
+
+        let mut memory = self.memory.lock();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;
 
-        if input.mouse_pressed {
+        if self.input.mouse_pressed {
             if hovered && interaction_id.is_some() {
                 if memory.active_id.is_some() {
                     // Already clicked something else this frame
@@ -164,14 +166,14 @@ impl Context {
                     active: false,
                 }
             }
-        } else if input.mouse_released {
+        } else if self.input.mouse_released {
             InteractInfo {
                 rect,
                 hovered,
                 clicked: hovered && active,
                 active,
             }
-        } else if input.mouse_down {
+        } else if self.input.mouse_down {
             InteractInfo {
                 rect,
                 hovered: hovered && active,
