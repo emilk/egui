@@ -71,12 +71,16 @@ impl Region {
     }
 
     pub fn child_region(&self, child_rect: Rect) -> Self {
+        // Allow child widgets to be just on the border and still have an outline with some thickness
+        const CLIP_RECT_MARGIN: f32 = 3.0;
         Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
-            clip_rect: self.clip_rect.intersect(child_rect),
+            clip_rect: self
+                .clip_rect
+                .intersect(child_rect.expand(CLIP_RECT_MARGIN)),
             desired_rect: child_rect,
             cursor: child_rect.min(),
             bounding_size: vec2(0.0, 0.0),

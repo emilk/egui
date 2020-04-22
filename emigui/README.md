@@ -7,7 +7,8 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Button
 * [x] Checkbox
 * [x] Radiobutton
-* [x] Slider
+* [x] Horizontal slider
+* [ ] Vertical slider
 * [x] Collapsing header region
 * [x] Tooltip
 * [x] Movable/resizable windows
@@ -32,16 +33,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Separate Region::clip_rect from Region::rect
 * [x] Use clip rectangles when painting
 * [ ] Use clip rectangles when interacting
-
-When drawing children, they are drawn just on the edge of the clip rect.
-This means e.g. the leftmost side of a button or slider handle is clipped.
-We can fix this in three ways:
-
-* A) Each component minds its bounds, so button offset their position by their outline width + one pixel for AA
-* B) Each region enlarges the clip_rect slightly to handle inner children
-* C) Each region shrinks its rect slightly so children move further in in child regions (creates unintentional indentation. ugh)
-
-I think A) is the correct solution, but might be tedious to get right for every component. For instance, the outline may grow on mouse-over, but we don't want to move the component as a consequence.
+* [x] Adjust clip rects so edges of child widgets aren't clipped
 
 ### Other
 * [ ] Generalize Layout so we can create grid layouts etc
