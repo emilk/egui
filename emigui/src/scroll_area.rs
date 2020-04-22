@@ -40,8 +40,8 @@ impl ScrollArea {
             .unwrap_or_default();
 
         // content: size of contents (generally large)
-        // outer: size of scroll area including scroll bars
-        // inner: excluding scroll bars
+        // outer: size of scroll area including scroll bar(s)
+        // inner: excluding scroll bar(s). The area we clip the contents to.
 
         let scroll_bar_width = 16.0;
 
@@ -77,62 +77,57 @@ impl ScrollArea {
 
         let show_scroll = content_size.y > inner_size.y;
         if show_scroll {
-            let corner_radius = scroll_bar_width / 2.0;
-
-            let left = inner_rect.right();
+            let left = inner_rect.right() + 2.0;
             let right = outer_rect.right();
+            let corner_radius = (right - left) / 2.0;
+            let top = inner_rect.top();
+            let bottom = inner_rect.bottom();
 
             let outer_scroll_rect = Rect::from_min_max(
                 pos2(left, inner_rect.top()),
                 pos2(right, inner_rect.bottom()),
             );
 
-            let scroll_handle_min_y = remap_clamp(
-                state.offset.y,
-                0.0,
-                content_size.y,
-                inner_rect.top(),
-                inner_rect.bottom(),
+            let from_content = |content_y| remap_clamp(content_y, 0.0, content_size.y, top, bottom);
+
+            let handle_rect = Rect::from_min_max(
+                pos2(left, from_content(state.offset.y)),
+                pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
 
-            let scroll_handle_max_y = remap_clamp(
-                state.offset.y + inner_rect.height(),
-                0.0,
-                content_size.y,
-                inner_rect.top(),
-                inner_rect.bottom(),
-            );
+            // intentionally use same id for inside and outside of handle
+            let interact_id = Some(scroll_area_id.with("vertical"));
+            let handle_interact = ctx.interact(outer_region.layer, handle_rect, interact_id);
 
-            let scroll_handle_rect = Rect::from_min_max(
-                pos2(left, scroll_handle_min_y),
-                pos2(right, scroll_handle_max_y),
-            );
-
-            let scroll_handle_id = scroll_area_id.with("v_scroll_handle");
-            let handle_interact = ctx.interact(
-                outer_region.layer,
-                scroll_handle_rect,
-                Some(scroll_handle_id),
-            );
-
-            if handle_interact.active {
-                // state.offset.y = remap_clamp(
-                //     ctx.input.mouse_pos.y,
-                //     inner_rect.top(),
-                //     inner_rect.bottom(),
-                //     0.0,
-                //     content_size.y,
-                // );
-                if let Some(mouse_pos) = ctx.input.mouse_pos {
+            if let Some(mouse_pos) = ctx.input.mouse_pos {
+                if handle_interact.active {
                     if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
                             ctx.input.mouse_move.y * content_size.y / inner_rect.height();
                     }
+                } else {
+                    // Check for mouse down outside handle:
+                    let scroll_bg_interact =
+                        ctx.interact(outer_region.layer, outer_scroll_rect, interact_id);
+
+                    if scroll_bg_interact.active {
+                        // Center scroll at mouse pos:
+                        let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
+                        state.offset.y = remap(mpos_top, top, bottom, 0.0, content_size.y);
+                    }
                 }
             }
 
+            state.offset.y = state.offset.y.max(0.0);
+            state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
+
+            // Avoid frame-delay by calculating a new handle rect:
+            let handle_rect = Rect::from_min_max(
+                pos2(left, from_content(state.offset.y)),
+                pos2(right, from_content(state.offset.y + inner_rect.height())),
+            );
+
             let style = outer_region.style();
-            // let background_fill_color = style.background_fill_color();
             let handle_fill_color = style.interact_fill_color(&handle_interact);
             let handle_outline = style.interact_outline(&handle_interact);
 
@@ -144,7 +139,7 @@ impl ScrollArea {
             });
 
             outer_region.add_paint_cmd(PaintCmd::Rect {
-                rect: scroll_handle_rect,
+                rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill_color: handle_fill_color,
                 outline: handle_outline,
