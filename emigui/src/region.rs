@@ -143,118 +143,6 @@ impl Region {
     // ------------------------------------------------------------------------
     // Sub-regions:
 
-    pub fn foldable<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
-    where
-        S: Into<String>,
-        F: FnOnce(&mut Region),
-    {
-        assert!(
-            self.dir == Direction::Vertical,
-            "Horizontal foldable is unimplemented"
-        );
-        let text: String = text.into();
-        let id = self.make_unique_id(&text);
-        let text_style = TextStyle::Button;
-        let font = &self.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&text, self.available_width());
-        let text_cursor = self.cursor + self.style.button_padding;
-        let interact = self.reserve_space(
-            vec2(
-                self.available_width(),
-                text_size.y + 2.0 * self.style.button_padding.y,
-            ),
-            Some(id),
-        );
-
-        let state = {
-            let mut memory = self.ctx.memory.lock();
-            let mut state = memory.foldables.entry(id).or_default();
-            if interact.clicked {
-                state.open = !state.open;
-                state.toggle_time = self.ctx.input.time;
-            }
-            *state
-        };
-
-        let fill_color = self.style.interact_fill_color(&interact);
-        let stroke_color = self.style.interact_stroke_color(&interact);
-
-        self.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: self.style.interaction_corner_radius,
-            fill_color,
-            outline: Some(Outline::new(1.0, color::WHITE)),
-            rect: interact.rect,
-        });
-
-        let (small_icon_rect, _) = self.style.icon_rectangles(&interact.rect);
-        // Draw a minus:
-        self.add_paint_cmd(PaintCmd::Line {
-            points: vec![
-                pos2(small_icon_rect.min().x, small_icon_rect.center().y),
-                pos2(small_icon_rect.max().x, small_icon_rect.center().y),
-            ],
-            color: stroke_color,
-            width: self.style.line_width,
-        });
-
-        if !state.open {
-            // Draw it as a plus:
-            self.add_paint_cmd(PaintCmd::Line {
-                points: vec![
-                    pos2(small_icon_rect.center().x, small_icon_rect.min().y),
-                    pos2(small_icon_rect.center().x, small_icon_rect.max().y),
-                ],
-                color: stroke_color,
-                width: self.style.line_width,
-            });
-        }
-
-        self.add_text(
-            text_cursor + vec2(self.style.start_icon_width, 0.0),
-            text_style,
-            text,
-            None,
-        );
-
-        let animation_time = self.style().animation_time;
-        let time_since_toggle = (self.ctx.input.time - state.toggle_time) as f32;
-        if time_since_toggle < animation_time {
-            self.indent(id, |region| {
-                // animation time
-
-                let max_height = if state.open {
-                    remap(
-                        time_since_toggle,
-                        0.0,
-                        animation_time,
-                        50.0,   // Get instant feedback
-                        1500.0, // We don't expect to get bigger than this
-                    )
-                } else {
-                    remap_clamp(
-                        time_since_toggle,
-                        0.0,
-                        animation_time,
-                        50.0, // TODO: state.open_height
-                        0.0,
-                    )
-                };
-
-                region
-                    .clip_rect
-                    .set_height(region.clip_rect.height().min(max_height));
-
-                add_contents(region);
-
-                region.bounding_size.y = region.bounding_size.y.min(max_height);
-            });
-        } else if state.open {
-            self.indent(id, add_contents);
-        }
-
-        self.response(interact)
-    }
-
     /// Create a child region which is indented to the right
     pub fn indent<F>(&mut self, id: Id, add_contents: F)
     where
@@ -451,6 +339,14 @@ impl Region {
 
     pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
         self.add(Label::new(text))
+    }
+
+    pub fn collapsing<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
+    where
+        S: Into<String>,
+        F: FnOnce(&mut Region),
+    {
+        CollapsingHeader::new(text).show(self, add_contents)
     }
 
     // ------------------------------------------------------------------------

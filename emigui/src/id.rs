@@ -6,7 +6,7 @@
 //! moved outside the slider.
 //!
 //! For some widgets `Id`s are also used to GUIpersist some state about the
-//! widgets, such as Window position or wether not a Foldable region is open.
+//! widgets, such as Window position or wether not a collapsing header region is open.
 //!
 //! This implicated that the `Id`s must be unqiue.
 //!
@@ -15,10 +15,10 @@
 //! For instance, a slider only needs a unique and persistent ID while you are
 //! dragging the sldier. As long as it is still while moving, that is fine.
 //!
-//! For things that need to persist state even after moving (windows, foldables)
+//! For things that need to persist state even after moving (windows, collapsing headers)
 //! the location of the widgets is obviously not good enough. For instance,
 //! a fodlable region needs to remember wether or not it is open even
-//! if the layout next frame is different and the foldable is not lower down
+//! if the layout next frame is different and the collapsing is not lower down
 //! on the screen.
 //!
 //! Then there are widgets that need no identifiers at all, like labels,

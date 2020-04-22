@@ -1,22 +1,7 @@
 use std::collections::HashMap;
 
-use crate::{window::WindowState, *};
+use crate::{collapsing_header, window::WindowState, *};
 
-// TODO: move together with foldable code into own file
-#[derive(Clone, Copy, Debug)]
-pub struct FoldableState {
-    pub open: bool,
-    pub toggle_time: f64,
-}
-
-impl Default for FoldableState {
-    fn default() -> Self {
-        Self {
-            open: false,
-            toggle_time: -std::f64::INFINITY,
-        }
-    }
-}
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ScrollState {
     /// Positive offset means scrolling down/right
@@ -29,7 +14,7 @@ pub struct Memory {
     pub(crate) active_id: Option<Id>,
 
     // states of various types of widgets
-    pub(crate) foldables: HashMap<Id, FoldableState>,
+    pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) scroll_areas: HashMap<Id, ScrollState>,
     windows: HashMap<Id, WindowState>,
 

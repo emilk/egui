@@ -8,7 +8,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Checkbox
 * [x] Radiobutton
 * [x] Slider
-* [x] Foldable region
+* [x] Collapsing header region
 * [x] Tooltip
 * [x] Movable/resizable windows
     * [ ] Kinetic windows
@@ -26,7 +26,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:
-* [x] Animate foldables with clip_rect
+* [x] Animate collapsing headers with clip_rect
 
 ### Clip rects
 * [x] Separate Region::clip_rect from Region::rect
@@ -52,7 +52,6 @@ I think A) is the correct solution, but might be tedious to get right for every 
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui
-    * Foldable -> Collapsible etc
 * [ ] Combine Emigui and Context
 * [ ] Rename Region to something shorter?
     * `region: &Region` `region.add(...)` :/
@@ -60,4 +59,4 @@ I think A) is the correct solution, but might be tedious to get right for every 
     * `ui: &Ui` `ui.add(...)` :)
 
 ### Global widget search
-Ability to do a search for any widget. The search works even for closed windows and foldables. This is implemented like this: while searching, all region are layed out and their add_content functions are run. If none of the contents matches the search, the layout is reverted and nothing is shown. So windows will get temporarily opened and run, but if the search is not a match in the window it is closed again. This means then when searching your whole GUI is being run, which may be a bit slower, but it would be a really awesome feature.
+Ability to do a search for any widget. The search works even for collapsed regions and closed windows and menus. This is implemented like this: while searching, all region are layed out and their add_content functions are run. If none of the contents matches the search, the layout is reverted and nothing is shown. So windows will get temporarily opened and run, but if the search is not a match in the window it is closed again. This means then when searching your whole GUI is being run, which may be a bit slower, but it would be a really awesome feature.

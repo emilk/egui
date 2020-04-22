@@ -1,4 +1,7 @@
-use crate::{color::*, label, math::*, widgets::*, Align, Outline, PaintCmd, Region, ScrollArea};
+use crate::{
+    color::*, label, math::*, widgets::*, Align, CollapsingHeader, Outline, PaintCmd, Region,
+    ScrollArea,
+};
 
 /// Showcase some region code
 pub struct ExampleApp {
@@ -36,13 +39,13 @@ impl Default for ExampleApp {
 
 impl ExampleApp {
     pub fn ui(&mut self, region: &mut Region) {
-        region.foldable("About Emigui", |region| {
+        region.collapsing("About Emigui", |region| {
             region.add(label!(
                 "Emigui is an experimental immediate mode GUI written in Rust."
             ));
         });
 
-        region.foldable("Widgets", |region| {
+        region.collapsing("Widgets", |region| {
             region.horizontal(Align::Min, |region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
                 region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
@@ -87,7 +90,7 @@ impl ExampleApp {
             region.add(label!("Value: {}", value));
         });
 
-        region.foldable("Layouts", |region| {
+        region.collapsing("Layouts", |region| {
             region.add(Slider::usize(&mut self.num_columns, 1, 10).text("Columns"));
             region.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
@@ -101,7 +104,7 @@ impl ExampleApp {
             });
         });
 
-        region.foldable("Test box rendering", |region| {
+        region.collapsing("Test box rendering", |region| {
             region.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
             region.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
             region.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
@@ -131,26 +134,28 @@ impl ExampleApp {
             region.add_paint_cmds(cmds);
         });
 
-        region.foldable("Scroll area", |region| {
-            ScrollArea::default().show(region, |region| {
-                region.add_label(LOREM_IPSUM);
+        CollapsingHeader::new("Scroll area")
+            .default_open()
+            .show(region, |region| {
+                ScrollArea::default().show(region, |region| {
+                    region.add_label(LOREM_IPSUM);
+                });
             });
-        });
 
-        region.foldable("Name clash example", |region| {
+        region.collapsing("Name clash example", |region| {
             region.add_label("\
                 Regions that store state require unique identifiers so we can track their state between frames. \
                 Identifiers are normally derived from the titles of the widget.");
 
             region.add_label("\
-                For instance, foldable regions needs to store wether or not they are open. \
+                For instance, collapsing regions needs to store wether or not they are open. \
                 If you fail to give them unique names then clicking one will open both. \
                 To help you debug this, an error message is printed on screen:");
 
-            region.foldable("Foldable", |region| {
+            region.collapsing("Collapsing header", |region| {
                 region.add_label("Contents of first folddable region");
             });
-            region.foldable("Foldable", |region| {
+            region.collapsing("Collapsing header", |region| {
                 region.add_label("Contents of second folddable region");
             });
 

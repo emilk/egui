@@ -11,13 +11,13 @@ pub struct Style {
     /// Horizontal and vertical spacing between widgets
     pub item_spacing: Vec2,
 
-    /// Indent foldable regions etc by this much.
+    /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
     /// Anything clickable is (at least) this wide.
     pub clickable_diameter: f32,
 
-    /// Checkboxes, radio button and foldables have an icon at the start.
+    /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// The text starts after this many pixels.
     pub start_icon_width: f32,
 
@@ -108,11 +108,29 @@ impl Style {
         }
     }
 
+    /// For rectangles
     pub fn interact_outline(&self, interact: &InteractInfo) -> Option<Outline> {
+        if interact.active {
         Some(Outline::new(
             self.interact_stroke_width(interact),
             self.interact_stroke_color(interact),
         ))
+        } else if interact.hovered {
+            None
+        } else {
+            None
+        }
+    }
+
+    /// Buttons etc
+    pub fn interact_corner_radius(&self, interact: &InteractInfo) -> f32 {
+        if interact.active {
+            5.0
+        } else if interact.hovered {
+            5.0
+        } else {
+            0.0
+        }
     }
 
     /// Returns small icon rectangle and big icon rectangle

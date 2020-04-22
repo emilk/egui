@@ -77,7 +77,7 @@ impl Emigui {
     }
 
     pub fn ui(&mut self, region: &mut Region) {
-        region.foldable("Style", |region| {
+        region.collapsing("Style", |region| {
             region.add(Checkbox::new(
                 &mut self.mesher_options.anti_alias,
                 "Antialias",
@@ -89,7 +89,7 @@ impl Emigui {
             self.ctx.style_ui(region);
         });
 
-        region.foldable("Fonts", |region| {
+        region.collapsing("Fonts", |region| {
             let old_font_definitions = self.ctx.fonts.definitions();
             let mut new_font_definitions = old_font_definitions.clone();
             font_definitions_ui(&mut new_font_definitions, region);
@@ -103,7 +103,7 @@ impl Emigui {
             }
         });
 
-        region.foldable("Stats", |region| {
+        region.collapsing("Stats", |region| {
             region.add(label!(
                 "Screen size: {} x {} points, pixels_per_point: {}",
                 region.input().screen_size.x,

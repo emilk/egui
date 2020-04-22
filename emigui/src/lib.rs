@@ -6,6 +6,7 @@ extern crate serde;
 #[macro_use] // TODO: get rid of this
 extern crate serde_derive;
 
+mod collapsing_header;
 pub mod color;
 mod context;
 mod emigui;
@@ -28,12 +29,13 @@ mod window;
 
 pub use {
     crate::emigui::Emigui,
+    collapsing_header::CollapsingHeader,
     color::Color,
     context::{Context, CursorIcon},
     fonts::{FontDefinitions, Fonts, TextStyle},
     id::Id,
     layers::*,
-    layout::Align,
+    layout::{Align, GuiResponse},
     math::*,
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},
