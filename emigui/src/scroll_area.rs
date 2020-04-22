@@ -51,6 +51,16 @@ impl ScrollArea {
         add_contents(&mut content_region);
         let content_size = content_region.bounding_size;
 
+        let content_interact = ctx.interact(
+            outer_region.layer,
+            inner_rect,
+            Some(scroll_area_id.with("area")),
+        );
+        if content_interact.active {
+            // Dragging scroll area to scroll:
+            state.offset.y -= ctx.input.mouse_move.y;
+        }
+
         let show_scroll = content_size.y > inner_size.y;
         if show_scroll {
             let corner_radius = scroll_bar_width / 2.0;
@@ -103,8 +113,6 @@ impl ScrollArea {
                     if inner_rect.min().y <= mouse_pos.y && mouse_pos.y <= inner_rect.max().y {
                         state.offset.y +=
                             ctx.input.mouse_move.y * content_size.y / inner_rect.height();
-                        state.offset.y = state.offset.y.max(0.0);
-                        state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
                     }
                 }
             }
@@ -131,6 +139,9 @@ impl ScrollArea {
 
         let size = content_size.min(content_region.clip_rect.size());
         outer_region.reserve_space_without_padding(size);
+
+        state.offset.y = state.offset.y.max(0.0);
+        state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
 
         outer_region
             .ctx()

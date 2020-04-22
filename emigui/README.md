@@ -13,8 +13,14 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Movable/resizable windows
     * [ ] Kinetic windows
 * [ ] Scroll areas
+    * [x] Vertical scrolling
+    * [ ] Horizontal scrolling
+    * [ ] Scroll-wheel input
+    * [x] Drag background to scroll
+    * [ ] Kinetic scrolling
 * [ ] Menu bar (File, Edit, etc)
 * [ ] One-line TextField
+    * [ ] Clipboard copy/paste
 * [ ] Color picker
 * [ ] Style editor
 
@@ -45,6 +51,8 @@ I think A) is the correct solution, but might be tedious to get right for every 
     * [ ] Draw as hotmap
 
 ### Names and structure
+* [ ] Rename things to be more consistent with Dear ImGui
+    * Foldable -> Collapsible etc
 * [ ] Combine Emigui and Context
 * [ ] Rename Region to something shorter?
     * `region: &Region` `region.add(...)` :/
