@@ -194,14 +194,6 @@ impl Pos2 {
         (self - other).length_sq()
     }
 
-    // TODO: remove?
-    pub fn to_vec2(self) -> Vec2 {
-        Vec2 {
-            x: self.x,
-            y: self.y,
-        }
-    }
-
     pub fn floor(self) -> Self {
         pos2(self.x.floor(), self.y.floor())
     }
