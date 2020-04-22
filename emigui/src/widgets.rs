@@ -355,32 +355,33 @@ impl<'a> Widget for Slider<'a> {
             let value = (self.get_set_value)(None);
             let full_text = format!("{}: {:.*}", text, self.precision, value);
 
-            let naked = Slider { text: None, ..self };
+            let slider_sans_text = Slider { text: None, ..self };
 
             if text_on_top {
                 let (text, text_size) = font.layout_multiline(&full_text, region.available_width());
                 let pos = region.reserve_space_without_padding(text_size);
                 region.add_text(pos, text_style, text, text_color);
-                naked.add_to(region)
+                slider_sans_text.add_to(region)
             } else {
                 region.columns(2, |columns| {
-                    let response = naked.add_to(&mut columns[0]);
+                    // Slider on the left:
+                    let slider_response = columns[0].add(slider_sans_text);
 
-                    // columns[1].available_space.y = response.rect.size().y;
-                    columns[1].desired_rect.set_height(response.rect.size().y); // TODO: explain this line
+                    // Place the text in line with the slider on the left:
+                    columns[1]
+                        .desired_rect
+                        .set_height(slider_response.rect.size().y);
                     columns[1].horizontal(Align::Center, |region| {
                         region.add(Label::new(full_text));
                     });
 
-                    response
+                    slider_response
                 })
             }
         } else {
             let height = font.line_spacing().max(region.style().clickable_diameter);
+            let handle_radius = height / 3.0;
 
-            let min = self.min;
-            let max = self.max;
-            debug_assert!(min <= max);
             let id = region.make_position_id();
             let interact = region.reserve_space(
                 Vec2 {
@@ -390,15 +391,16 @@ impl<'a> Widget for Slider<'a> {
                 Some(id),
             );
 
+            let left = interact.rect.left() + handle_radius;
+            let right = interact.rect.right() - handle_radius;
+
+            let min = self.min;
+            let max = self.max;
+            debug_assert!(min <= max);
+
             if let Some(mouse_pos) = region.input().mouse_pos {
                 if interact.active {
-                    self.set_value_f32(remap_clamp(
-                        mouse_pos.x,
-                        interact.rect.min().x,
-                        interact.rect.max().x,
-                        min,
-                        max,
-                    ));
+                    self.set_value_f32(remap_clamp(mouse_pos.x, left, right, min, max));
                 }
             }
 
@@ -407,26 +409,28 @@ impl<'a> Widget for Slider<'a> {
                 let value = self.get_value_f32();
 
                 let rect = interact.rect;
-                let thickness = rect.size().y;
-                let thin_size = vec2(rect.size().x, thickness / 5.0);
-                let thin_rect = Rect::from_center_size(rect.center(), thin_size);
-                let marker_center_x = remap_clamp(value, min, max, rect.min().x, rect.max().x);
+                let rail_radius = (height / 10.0).round().max(2.0);
+                let rail_rect = Rect::from_min_max(
+                    pos2(left - rail_radius, rect.center().y - rail_radius),
+                    pos2(right + rail_radius, rect.center().y + rail_radius),
+                );
+                let marker_center_x = remap_clamp(value, min, max, left, right);
 
                 region.add_paint_cmd(PaintCmd::Rect {
-                    corner_radius: 4.0,
+                    corner_radius: rail_radius,
                     fill_color: Some(region.style().background_fill_color()),
                     outline: Some(Outline::new(1.0, color::gray(200, 255))), // TODO
-                    rect: thin_rect,
+                    rect: rail_rect,
                 });
 
                 region.add_paint_cmd(PaintCmd::Circle {
-                    center: pos2(marker_center_x, thin_rect.center().y),
+                    center: pos2(marker_center_x, rail_rect.center().y),
                     fill_color: region.style().interact_fill_color(&interact),
                     outline: Some(Outline::new(
-                        1.5,
+                        region.style().interact_stroke_width(&interact),
                         region.style().interact_stroke_color(&interact),
                     )),
-                    radius: thickness / 3.0,
+                    radius: handle_radius,
                 });
             }
 

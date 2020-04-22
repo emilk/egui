@@ -82,12 +82,10 @@ impl ExampleApp {
                 ));
             });
 
-            let value = &mut self.slider_value;
-            region.add(Slider::usize(value, 1, 1000));
+            region.add(Slider::usize(&mut self.slider_value, 1, 1000).text("value"));
             if region.add(Button::new("Double it")).clicked {
-                *value *= 2;
+                self.slider_value *= 2;
             }
-            region.add(label!("Value: {}", value));
         });
 
         region.collapsing("Layouts", |region| {
