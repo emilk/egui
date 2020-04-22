@@ -134,7 +134,7 @@ impl Style {
     pub fn icon_rectangles(&self, rect: &Rect) -> (Rect, Rect) {
         let box_side = 16.0;
         let big_icon_rect = Rect::from_center_size(
-            pos2(rect.min().x + 4.0 + box_side * 0.5, rect.center().y),
+            pos2(rect.left() + 4.0 + box_side * 0.5, rect.center().y),
             vec2(box_side, box_side),
         );
 

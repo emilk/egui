@@ -159,9 +159,9 @@ impl<'a> Widget for Checkbox<'a> {
         if *self.checked {
             region.add_paint_cmd(PaintCmd::Line {
                 points: vec![
-                    pos2(small_icon_rect.min().x, small_icon_rect.center().y),
-                    pos2(small_icon_rect.center().x, small_icon_rect.max().y),
-                    pos2(small_icon_rect.max().x, small_icon_rect.min().y),
+                    pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                    pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                    pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 color: stroke_color,
                 width: region.style().line_width,
@@ -479,13 +479,14 @@ impl Separator {
 impl Widget for Separator {
     fn add_to(self, region: &mut Region) -> GuiResponse {
         let available_space = region.available_space();
+        let extra = self.extra;
         let (points, interact) = match region.direction() {
             Direction::Horizontal => {
                 let interact = region.reserve_space(vec2(self.min_length, available_space.y), None);
                 (
                     vec![
-                        pos2(interact.rect.center().x, interact.rect.min().y - self.extra),
-                        pos2(interact.rect.center().x, interact.rect.max().y + self.extra),
+                        pos2(interact.rect.center().x, interact.rect.top() - extra),
+                        pos2(interact.rect.center().x, interact.rect.bottom() + extra),
                     ],
                     interact,
                 )
@@ -494,8 +495,8 @@ impl Widget for Separator {
                 let interact = region.reserve_space(vec2(available_space.x, self.min_length), None);
                 (
                     vec![
-                        pos2(interact.rect.min().x - self.extra, interact.rect.center().y),
-                        pos2(interact.rect.max().x + self.extra, interact.rect.center().y),
+                        pos2(interact.rect.left() - extra, interact.rect.center().y),
+                        pos2(interact.rect.right() + extra, interact.rect.center().y),
                     ],
                     interact,
                 )

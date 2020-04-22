@@ -130,11 +130,11 @@ impl Region {
     }
 
     pub fn available_width(&self) -> f32 {
-        self.desired_rect.max().x - self.cursor.x
+        self.desired_rect.right() - self.cursor.x
     }
 
     pub fn available_height(&self) -> f32 {
-        self.desired_rect.max().y - self.cursor.y
+        self.desired_rect.bottom() - self.cursor.y
     }
 
     /// This how much more space we can take up without overflowing our parent.
@@ -265,7 +265,7 @@ impl Region {
             .map(|col_idx| {
                 let pos = self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0);
                 let child_rect =
-                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.desired_rect.max().y));
+                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.desired_rect.bottom()));
 
                 Region {
                     id: self.make_child_region_id(&("column", col_idx)),

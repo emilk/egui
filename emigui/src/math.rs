@@ -399,30 +399,41 @@ impl Rect {
     }
 
     // Convenience functions (assumes origin is towards left top):
-
+    pub fn left(&self) -> f32 {
+        self.min.x
+    }
+    pub fn right(&self) -> f32 {
+        self.max.x
+    }
+    pub fn top(&self) -> f32 {
+        self.min.y
+    }
+    pub fn bottom(&self) -> f32 {
+        self.max.y
+    }
     pub fn left_top(&self) -> Pos2 {
-        pos2(self.min().x, self.min().y)
+        pos2(self.left(), self.top())
     }
     pub fn center_top(&self) -> Pos2 {
-        pos2(self.center().x, self.min().y)
+        pos2(self.center().x, self.top())
     }
     pub fn right_top(&self) -> Pos2 {
-        pos2(self.max().x, self.min().y)
+        pos2(self.right(), self.top())
     }
     pub fn left_center(&self) -> Pos2 {
-        pos2(self.min().x, self.center().y)
+        pos2(self.left(), self.center().y)
     }
     pub fn right_center(&self) -> Pos2 {
-        pos2(self.max().x, self.center().y)
+        pos2(self.right(), self.center().y)
     }
     pub fn left_bottom(&self) -> Pos2 {
-        pos2(self.min().x, self.max().y)
+        pos2(self.left(), self.bottom())
     }
     pub fn center_bottom(&self) -> Pos2 {
-        pos2(self.center().x, self.max().y)
+        pos2(self.center().x, self.bottom())
     }
     pub fn right_bottom(&self) -> Pos2 {
-        pos2(self.max().x, self.max().y)
+        pos2(self.right(), self.bottom())
     }
 }
 

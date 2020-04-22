@@ -72,28 +72,28 @@ impl ScrollArea {
         if show_scroll {
             let corner_radius = scroll_bar_width / 2.0;
 
-            let left = inner_rect.max().x;
-            let right = outer_rect.max().x;
+            let left = inner_rect.right();
+            let right = outer_rect.right();
 
             let outer_scroll_rect = Rect::from_min_max(
-                pos2(left, inner_rect.min().y),
-                pos2(right, inner_rect.max().y),
+                pos2(left, inner_rect.top()),
+                pos2(right, inner_rect.bottom()),
             );
 
             let scroll_handle_min_y = remap_clamp(
                 state.offset.y,
                 0.0,
                 content_size.y,
-                inner_rect.min().y,
-                inner_rect.max().y,
+                inner_rect.top(),
+                inner_rect.bottom(),
             );
 
             let scroll_handle_max_y = remap_clamp(
                 state.offset.y + inner_rect.height(),
                 0.0,
                 content_size.y,
-                inner_rect.min().y,
-                inner_rect.max().y,
+                inner_rect.top(),
+                inner_rect.bottom(),
             );
 
             let scroll_handle_rect = Rect::from_min_max(
@@ -111,13 +111,13 @@ impl ScrollArea {
             if handle_interact.active {
                 // state.offset.y = remap_clamp(
                 //     ctx.input.mouse_pos.y,
-                //     inner_rect.min().y,
-                //     inner_rect.max().y,
+                //     inner_rect.top(),
+                //     inner_rect.bottom(),
                 //     0.0,
                 //     content_size.y,
                 // );
                 if let Some(mouse_pos) = ctx.input.mouse_pos {
-                    if inner_rect.min().y <= mouse_pos.y && mouse_pos.y <= inner_rect.max().y {
+                    if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
                             ctx.input.mouse_move.y * content_size.y / inner_rect.height();
                     }

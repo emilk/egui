@@ -135,8 +135,8 @@ fn paint_icon(region: &mut Region, state: &State, interact: &InteractInfo) {
     // Draw a minus:
     region.add_paint_cmd(PaintCmd::Line {
         points: vec![
-            pos2(small_icon_rect.min().x, small_icon_rect.center().y),
-            pos2(small_icon_rect.max().x, small_icon_rect.center().y),
+            pos2(small_icon_rect.left(), small_icon_rect.center().y),
+            pos2(small_icon_rect.right(), small_icon_rect.center().y),
         ],
         color: stroke_color,
         width: stroke_width,
@@ -146,8 +146,8 @@ fn paint_icon(region: &mut Region, state: &State, interact: &InteractInfo) {
         // Draw it as a plus:
         region.add_paint_cmd(PaintCmd::Line {
             points: vec![
-                pos2(small_icon_rect.center().x, small_icon_rect.min().y),
-                pos2(small_icon_rect.center().x, small_icon_rect.max().y),
+                pos2(small_icon_rect.center().x, small_icon_rect.top()),
+                pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
             ],
             color: stroke_color,
             width: stroke_width,
