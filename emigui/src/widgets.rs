@@ -260,6 +260,7 @@ pub struct Slider<'a> {
     precision: usize,
     text_color: Option<Color>,
     text_on_top: Option<bool>,
+    id: Option<Id>,
 }
 
 impl<'a> Slider<'a> {
@@ -272,6 +273,7 @@ impl<'a> Slider<'a> {
             precision: 3,
             text_on_top: None,
             text_color: None,
+            id: None,
         }
     }
 
@@ -350,6 +352,10 @@ impl<'a> Widget for Slider<'a> {
         let font = &region.fonts()[text_style];
 
         if let Some(text) = &self.text {
+            if self.id.is_none() {
+                self.id = Some(Id::new(text));
+            }
+
             let text_on_top = self.text_on_top.unwrap_or_default();
             let text_color = self.text_color;
             let value = (self.get_set_value)(None);
@@ -382,7 +388,7 @@ impl<'a> Widget for Slider<'a> {
             let height = font.line_spacing().max(region.style().clickable_diameter);
             let handle_radius = height / 2.5;
 
-            let id = region.make_position_id(); // TODO: causes problems for style settings :/
+            let id = self.id.unwrap_or_else(|| region.make_position_id());
 
             let interact = region.reserve_space(
                 Vec2 {
