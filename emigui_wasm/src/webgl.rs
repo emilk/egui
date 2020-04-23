@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{Color, Mesh, PaintBatches, Texture};
+use emigui::{vec2, Color, Mesh, PaintBatches, Pos2, Texture};
 
 type Gl = WebGlRenderingContext;
 
@@ -178,10 +178,12 @@ impl Painter {
         let u_screen_size_loc = gl
             .get_uniform_location(&self.program, "u_screen_size")
             .unwrap();
+        let screen_size_pixels = vec2(self.canvas.width() as f32, self.canvas.height() as f32);
+        let screen_size_points = screen_size_pixels / pixels_per_point;
         gl.uniform2f(
             Some(&u_screen_size_loc),
-            self.canvas.width() as f32 / pixels_per_point,
-            self.canvas.height() as f32 / pixels_per_point,
+            screen_size_points.x,
+            screen_size_points.y,
         );
 
         let u_tex_size_loc = gl
@@ -211,12 +213,16 @@ impl Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, mesh) in batches {
+            // Avoid infinities in shader:
+            let clip_min = clip_rect.min().max(Pos2::default());
+            let clip_max = clip_rect.max().min(Pos2::default() + screen_size_points);
+
             gl.uniform4f(
                 Some(&u_clip_rect_loc),
-                clip_rect.min().x,
-                clip_rect.min().y,
-                clip_rect.max().x,
-                clip_rect.max().y,
+                clip_min.x,
+                clip_min.y,
+                clip_max.x,
+                clip_max.y,
             );
 
             for mesh in mesh.split_to_u16() {
