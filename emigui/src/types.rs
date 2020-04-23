@@ -46,6 +46,7 @@ pub struct GuiInput {
     pub mouse_released: bool,
 
     /// Current position of the mouse in points.
+    /// None for touch screens when finger is not down.
     pub mouse_pos: Option<Pos2>,
 
     /// How much the mouse moved compared to last frame, in points.
@@ -71,7 +72,7 @@ impl GuiInput {
             .and_then(|new| last.mouse_pos.map(|last| new - last))
             .unwrap_or_default();
         GuiInput {
-            mouse_down: new.mouse_down,
+            mouse_down: new.mouse_down && new.mouse_pos.is_some(),
             mouse_pressed: !last.mouse_down && new.mouse_down,
             mouse_released: last.mouse_down && !new.mouse_down,
             mouse_pos: new.mouse_pos,

@@ -91,7 +91,7 @@ impl State {
                 self.emigui.ui(region);
             });
 
-        let bg_color = srgba(16, 16, 16, 255);
+        let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.emigui.end_frame();
         self.webgl_painter.paint_batches(
             bg_color,

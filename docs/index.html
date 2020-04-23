@@ -16,12 +16,15 @@
         }
 
         body {
-            background: #000000;
+            background: #101010;
         }
 
+        /* Allow canvas to fill entire web page: */
         html,
         body {
             overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
         }
     </style>
 </head>
@@ -80,12 +83,11 @@
         // ----------------------------------------------------------------------------
         var g_mouse_pos = null;
         var g_mouse_down = false;
-        var g_is_touch = false;
+        var g_is_touch = false; // we don't know yet
         var g_scroll_delta_x = 0;
         var g_scroll_delta_y = 0;
 
         function pixels_per_point() {
-            // return 1.0;
             return window.devicePixelRatio || 1.0;
         }
 
@@ -218,7 +220,7 @@
             paint_and_schedule();
         }
     </script>
-    <!-- TODO: make this cover the entire screen, with resize and all -->
+    <!-- We later make this cover the entire screen even when resized -->
     <canvas id="canvas" width="1024" height="1024"></canvas>
 </body>
 
