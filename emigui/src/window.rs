@@ -239,6 +239,14 @@ impl Window {
             outer_rect: outer_rect,
         };
 
+        // Constrain to screen:
+        let margin = 32.0;
+        state.outer_pos = state.outer_pos.max(pos2(margin - outer_rect.width(), 0.0));
+        state.outer_pos = state.outer_pos.min(pos2(
+            ctx.input.screen_size.x - margin,
+            ctx.input.screen_size.y - margin,
+        ));
+
         if win_interact.active || corner_interact.active || mouse_pressed_on_window(ctx, id) {
             ctx.memory.lock().move_window_to_top(id);
         }
