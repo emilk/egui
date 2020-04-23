@@ -193,9 +193,9 @@
             canvas.addEventListener("touchend", function (event) {
                 g_is_touch = true;
                 g_mouse_down = false; // First release mouse to click...
-                update_gui()();
+                paint();
                 g_mouse_pos = null; // ...remove hover effect
-                update_gui()();
+                invalidate();
                 event.stopPropagation();
                 event.preventDefault();
             });
