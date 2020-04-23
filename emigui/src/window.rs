@@ -26,10 +26,12 @@ pub struct Window {
     resizeable: bool,
 
     // If true, won't allow you to make window so big that it creates spacing
-    shrink_to_fit_content: bool,
+    shrink_width_to_fit_content: bool,
+    shrink_height_to_fit_content: bool,
 
     // If true, won't allow you to resize smaller than that everything fits.
-    expand_to_fit_content: bool,
+    expand_width_to_fit_content: bool,
+    expand_height_to_fit_content: bool,
 
     min_size: Vec2,
     max_size: Option<Vec2>,
@@ -42,8 +44,10 @@ impl Default for Window {
             default_pos: None,
             default_size: None,
             resizeable: true,
-            shrink_to_fit_content: false, // Normally you want this when resizable = false
-            expand_to_fit_content: true,
+            shrink_width_to_fit_content: false,
+            shrink_height_to_fit_content: true,
+            expand_width_to_fit_content: true,
+            expand_height_to_fit_content: true,
             min_size: Vec2::splat(16.0),
             max_size: None,
         }
@@ -79,9 +83,10 @@ impl Window {
     }
 
     pub fn fixed_size(mut self, size: Vec2) -> Self {
-        self.shrink_to_fit_content = false;
-        self.shrink_to_fit_content = false;
-        self.expand_to_fit_content = false;
+        self.shrink_width_to_fit_content = false;
+        self.shrink_height_to_fit_content = false;
+        self.expand_width_to_fit_content = false;
+        self.expand_height_to_fit_content = false;
         self.default_size = Some(size);
         self.min_size = size;
         self.max_size = Some(size);
@@ -95,15 +100,15 @@ impl Window {
         self
     }
 
-    pub fn shrink_to_fit_content(mut self, shrink_to_fit_content: bool) -> Self {
-        self.shrink_to_fit_content = shrink_to_fit_content;
-        self
-    }
+    // pub fn shrink_to_fit_content(mut self, shrink_to_fit_content: bool) -> Self {
+    //     self.shrink_to_fit_content = shrink_to_fit_content;
+    //     self
+    // }
 
-    pub fn expand_to_fit_content(mut self, expand_to_fit_content: bool) -> Self {
-        self.expand_to_fit_content = expand_to_fit_content;
-        self
-    }
+    // pub fn expand_to_fit_content(mut self, expand_to_fit_content: bool) -> Self {
+    //     self.expand_to_fit_content = expand_to_fit_content;
+    //     self
+    // }
 }
 
 impl Window {
@@ -113,11 +118,6 @@ impl Window {
     {
         let style = ctx.style();
         let window_padding = style.window_padding;
-
-        let min_inner_size = self.min_size;
-        let max_inner_size = self
-            .max_size
-            .unwrap_or(ctx.input.screen_size - 2.0 * window_padding);
 
         let default_pos = self.default_pos.unwrap_or(pos2(100.0, 100.0)); // TODO
         let default_inner_size = self.default_size.unwrap_or(vec2(250.0, 250.0));
@@ -139,6 +139,11 @@ impl Window {
             }
         };
 
+        let min_inner_size = self.min_size;
+        let max_inner_size = self
+            .max_size
+            .unwrap_or(Pos2::default() + ctx.input.screen_size - state.outer_pos);
+
         let layer = Layer::Window(id);
         let where_to_put_background = ctx.graphics.lock().layer(layer).len();
 
@@ -157,11 +162,17 @@ impl Window {
         let desired_inner_size = desired_inner_size.ceil(); // Avoid rounding errors in math
 
         let mut new_inner_size = state.inner_size;
-        if self.shrink_to_fit_content {
-            new_inner_size = new_inner_size.min(desired_inner_size);
+        if self.shrink_width_to_fit_content {
+            new_inner_size.x = new_inner_size.x.min(desired_inner_size.x);
         }
-        if self.expand_to_fit_content || is_new_window {
-            new_inner_size = new_inner_size.max(desired_inner_size);
+        if self.shrink_height_to_fit_content {
+            new_inner_size.y = new_inner_size.y.min(desired_inner_size.y);
+        }
+        if self.expand_width_to_fit_content || is_new_window {
+            new_inner_size.x = new_inner_size.x.max(desired_inner_size.x);
+        }
+        if self.expand_height_to_fit_content || is_new_window {
+            new_inner_size.y = new_inner_size.y.max(desired_inner_size.y);
         }
         new_inner_size = new_inner_size.max(min_inner_size);
         new_inner_size = new_inner_size.min(max_inner_size);
