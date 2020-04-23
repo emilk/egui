@@ -158,7 +158,7 @@ impl Font {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
-    /// In points
+    /// Height of one line of text. In points
     pub fn line_spacing(&self) -> f32 {
         self.scale_in_pixels / self.pixels_per_point
     }

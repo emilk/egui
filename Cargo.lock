@@ -187,6 +187,7 @@ dependencies = [
  "emigui 0.1.0",
  "emigui_glium 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -828,6 +829,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "webbrowser"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "widestring 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "widestring"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "winapi"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -994,6 +1009,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum wayland-scanner 0.21.13 (registry+https://github.com/rust-lang/crates.io-index)" = "bf3828c568714507315ee425a9529edc4a4aa9901409e373e9e0027e7622b79e"
 "checksum wayland-sys 0.21.13 (registry+https://github.com/rust-lang/crates.io-index)" = "520ab0fd578017a0ee2206623ba9ef4afe5e8f23ca7b42f6acfba2f4e66b1628"
 "checksum web-sys 0.3.37 (registry+https://github.com/rust-lang/crates.io-index)" = "2d6f51648d8c56c366144378a33290049eafdd784071077f6fe37dae64c1c4cb"
+"checksum webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "97d468a911faaaeb783693b004e1c62e0063e646b0afae5c146cd144e566e66d"
+"checksum widestring 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "effc0e4ff8085673ea7b9b2e3c73f6bd4d118810c9009ed8f1e16bd96c331db6"
 "checksum winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "8093091eeb260906a183e6ae1abdba2ef5ef2257a21801128899c3fc699229c6"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-util 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "fa515c5163a99cc82bab70fd3bfdd36d827be85de63737b40fcef2ce084a436e"

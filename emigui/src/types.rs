@@ -84,6 +84,28 @@ impl GuiInput {
     }
 }
 
+#[derive(Clone, Default, Serialize)]
+pub struct Output {
+    pub cursor_icon: CursorIcon,
+    /// If set, open this url.
+    pub open_url: Option<String>,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CursorIcon {
+    Default,
+    /// Pointing hand, used for e.g. web links
+    PointingHand,
+    ResizeNwSe,
+}
+
+impl Default for CursorIcon {
+    fn default() -> Self {
+        CursorIcon::Default
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]

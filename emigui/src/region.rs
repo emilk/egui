@@ -109,6 +109,10 @@ impl Region {
             .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
     }
 
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        self.ctx.round_to_pixel(point)
+    }
+
     /// Options for this region, and any child regions we may spawn.
     pub fn style(&self) -> &Style {
         &self.style
@@ -183,7 +187,7 @@ impl Region {
 
         // draw a grey line on the left to mark the region
         let line_start = child_rect.min() - indent * 0.5;
-        let line_start = line_start.round();
+        let line_start = line_start.round(); // TODO: round to pixel instead
         let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
         self.add_paint_cmd(PaintCmd::Line {
             points: vec![line_start, line_end],
@@ -272,7 +276,7 @@ impl Region {
                     Rect::from_min_max(pos, pos2(pos.x + column_width, self.desired_rect.bottom()));
 
                 Region {
-                    id: self.make_child_region_id(&("column", col_idx)),
+                    id: self.make_child_id(&("column", col_idx)),
                     dir: Direction::Vertical,
                     ..self.child_region(child_rect)
                 }
@@ -301,6 +305,10 @@ impl Region {
 
     pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
         self.add(Label::new(text))
+    }
+
+    pub fn add_hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
+        self.add(Hyperlink::new(url))
     }
 
     pub fn collapsing<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
@@ -365,7 +373,7 @@ impl Region {
         self.id.with(&Id::from_pos(self.cursor))
     }
 
-    pub fn make_child_region_id<H: Hash>(&self, child_id: &H) -> Id {
+    pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
         self.id.with(child_id)
     }
 

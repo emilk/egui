@@ -19,6 +19,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [x] Scroll-wheel input
     * [x] Drag background to scroll
     * [ ] Kinetic scrolling
+* [x] Add support for clicking links
 * [ ] Menu bar (File, Edit, etc)
 * [ ] One-line TextField
     * [ ] Clipboard copy/paste
@@ -28,8 +29,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 
 ### Web version:
 * [x] Scroll input
-* [ ] Add support for clicking links
-* [ ] Change to resize cursor on hover
+* [x] Change to resize cursor on hover
 
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:
@@ -44,6 +44,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 ### Other
 * [ ] Generalize Layout so we can create grid layouts etc
 * [ ] Persist UI state in external storage
+* [ ] Pixel-perfect rendering (round positions to nearest pixel).
 * [ ] Build in a profiler which tracks which region in which window takes up CPU.
     * [ ] Draw as flame graph
     * [ ] Draw as hotmap

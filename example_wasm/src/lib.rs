@@ -38,10 +38,10 @@ impl State {
         })
     }
 
-    fn run(&mut self, raw_input: RawInput) -> Result<(), JsValue> {
+    fn run(&mut self, raw_input: RawInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
-        self.emigui.new_frame(raw_input);
+        self.emigui.begin_frame(raw_input);
 
         let mut region = self.emigui.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
@@ -53,6 +53,10 @@ impl State {
         );
         region.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
         region.add_label("This is also work in progress, and not ready for production... yet :)");
+        region.horizontal(Align::Min, |region| {
+            region.add_label("Project home page:");
+            region.add_hyperlink("https://github.com/emilk/emigui/");
+        });
         region.add(Separator::new());
 
         region.set_align(Align::Min);
@@ -88,20 +92,20 @@ impl State {
             });
 
         let bg_color = srgba(16, 16, 16, 255);
-        let batches = self.emigui.paint();
-        let result = self.webgl_painter.paint_batches(
+        let (output, batches) = self.emigui.end_frame();
+        self.webgl_painter.paint_batches(
             bg_color,
             batches,
             self.emigui.texture(),
             raw_input.pixels_per_point,
-        );
+        )?;
 
         self.frame_times.push_back(now_sec() - everything_start);
         while self.frame_times.len() > 30 {
             self.frame_times.pop_front();
         }
 
-        result
+        Ok(output)
     }
 }
 
@@ -111,8 +115,9 @@ pub fn new_webgl_gui(canvas_id: &str, pixels_per_point: f32) -> Result<State, Js
 }
 
 #[wasm_bindgen]
-pub fn run_gui(state: &mut State, raw_input_json: &str) -> Result<(), JsValue> {
+pub fn run_gui(state: &mut State, raw_input_json: &str) -> Result<String, JsValue> {
     // TODO: nicer interface than JSON
     let raw_input: RawInput = serde_json::from_str(raw_input_json).unwrap();
-    state.run(raw_input)
+    let output = state.run(raw_input)?;
+    Ok(serde_json::to_string(&output).unwrap())
 }

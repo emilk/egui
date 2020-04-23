@@ -139,6 +139,8 @@ impl Window {
             }
         };
 
+        state.outer_pos = state.outer_pos.round(); // TODO: round to pixel
+
         let min_inner_size = self.min_size;
         let max_inner_size = self
             .max_size
@@ -227,15 +229,15 @@ impl Window {
             state.outer_pos += ctx.input().mouse_move;
         }
 
+        if corner_interact.hovered || corner_interact.active {
+            ctx.output.lock().cursor_icon = CursorIcon::ResizeNwSe;
+        }
+
         state = State {
             outer_pos: state.outer_pos,
             inner_size: new_inner_size,
             outer_rect: outer_rect,
         };
-
-        if corner_interact.hovered || corner_interact.active {
-            *ctx.cursor_icon.lock() = CursorIcon::ResizeNorthWestSouthEast;
-        }
 
         if win_interact.active || corner_interact.active || mouse_pressed_on_window(ctx, id) {
             ctx.memory.lock().move_window_to_top(id);

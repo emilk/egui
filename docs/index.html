@@ -56,8 +56,27 @@
             if (g_wasm_app === null) {
                 g_wasm_app = wasm_bindgen.new_webgl_gui("canvas", pixels_per_point());
             }
-            wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input));
+
+            let output = JSON.parse(wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input)));
+            // console.log(`output: ${JSON.stringify(output)}`);
+            document.body.style.cursor = from_emigui_cursor(output.cursor_icon);
+            if (output.open_url) {
+                window.open(output.open_url, "_self");
+            }
         }
+
+        function from_emigui_cursor(cursor) {
+            if (cursor == "no_drop") { return "no-drop"; }
+            else if (cursor == "not_allowed") { return "not-allowed"; }
+            else if (cursor == "resize_nw_se") { return "nwse-resize"; }
+            else if (cursor == "pointing_hand") { return "pointer"; }
+            // TODO: more
+            else {
+                // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move, grab, grabbing,
+                return cursor;
+            }
+        }
+
         // ----------------------------------------------------------------------------
         var g_mouse_pos = null;
         var g_mouse_down = false;

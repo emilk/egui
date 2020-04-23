@@ -59,6 +59,62 @@ impl Widget for Label {
 
 // ----------------------------------------------------------------------------
 
+pub struct Hyperlink {
+    url: String,
+    text: String,
+}
+
+impl Hyperlink {
+    pub fn new(url: impl Into<String>) -> Self {
+        let url = url.into();
+        Self {
+            text: url.clone(),
+            url,
+        }
+    }
+}
+
+impl Widget for Hyperlink {
+    fn add_to(self, region: &mut Region) -> GuiResponse {
+        let color = color::LIGHT_BLUE;
+        let text_style = TextStyle::Body;
+        let id = region.make_child_id(&self.url);
+        let font = &region.fonts()[text_style];
+        let line_spacing = font.line_spacing();
+        // TODO: underline
+        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
+        let interact = region.reserve_space(text_size, Some(id));
+        if interact.hovered {
+            region.ctx().output.lock().cursor_icon = CursorIcon::PointingHand;
+        }
+        if interact.clicked {
+            region.ctx().output.lock().open_url = Some(self.url.clone());
+        }
+
+        if interact.hovered {
+            // Underline:
+            for fragment in &text {
+                let pos = interact.rect.min();
+                let y = pos.y + fragment.y_offset + line_spacing;
+                let y = region.round_to_pixel(y);
+                let min_x = pos.x + fragment.min_x();
+                let max_x = pos.x + fragment.max_x();
+                region.add_paint_cmd(PaintCmd::Line {
+                    points: vec![pos2(min_x, y), pos2(max_x, y)],
+                    color,
+                    width: region.style().line_width,
+                });
+            }
+        }
+
+        region.add_text(interact.rect.min(), text_style, text, Some(color));
+
+        region.response(interact)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct Button {
     text: String,
     text_color: Option<Color>,
@@ -416,7 +472,7 @@ impl<'a> Widget for Slider<'a> {
                 let value = self.get_value_f32();
 
                 let rect = interact.rect;
-                let rail_radius = (height / 8.0).round().max(2.0);
+                let rail_radius = region.round_to_pixel((height / 8.0).max(2.0));
                 let rail_rect = Rect::from_min_max(
                     pos2(interact.rect.left(), rect.center().y - rail_radius),
                     pos2(interact.rect.right(), rect.center().y + rail_radius),

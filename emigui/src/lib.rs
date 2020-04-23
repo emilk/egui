@@ -31,7 +31,7 @@ pub use {
     crate::emigui::Emigui,
     collapsing_header::CollapsingHeader,
     color::Color,
-    context::{Context, CursorIcon},
+    context::Context,
     fonts::{FontDefinitions, Fonts, TextStyle},
     id::Id,
     layers::*,

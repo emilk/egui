@@ -43,6 +43,11 @@ impl ExampleApp {
             region.add(label!(
                 "Emigui is an experimental immediate mode GUI written in Rust."
             ));
+
+            region.horizontal(Align::Min, |region| {
+                region.add_label("Project home page:");
+                region.add_hyperlink("https://github.com/emilk/emigui/");
+            });
         });
 
         CollapsingHeader::new("Widgets")

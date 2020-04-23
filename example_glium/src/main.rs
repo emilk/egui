@@ -102,7 +102,7 @@ fn main() {
             _ => (),
         });
 
-        emigui.new_frame(raw_input);
+        emigui.begin_frame(raw_input);
         let mut region = emigui.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
         region.set_align(Align::Min);
@@ -127,13 +127,21 @@ fn main() {
                 emigui.ui(region);
             });
 
-        painter.paint_batches(&display, emigui.paint(), emigui.texture());
+        let (output, paint_batches) = emigui.end_frame();
+        painter.paint_batches(&display, paint_batches, emigui.texture());
 
-        let cursor = *emigui.ctx.cursor_icon.lock();
-        let cursor = match cursor {
+        let cursor = match output.cursor_icon {
             CursorIcon::Default => glutin::MouseCursor::Default,
-            CursorIcon::ResizeNorthWestSouthEast => glutin::MouseCursor::NwseResize,
+            CursorIcon::PointingHand => glutin::MouseCursor::Hand,
+            CursorIcon::ResizeNwSe => glutin::MouseCursor::NwseResize,
         };
+
+        if let Some(url) = output.open_url {
+            if let Err(err) = webbrowser::open(&url) {
+                eprintln!("Failed to open url: {}", err); // TODO show error in imgui
+            }
+        }
+
         display.gl_window().set_cursor(cursor);
     }
 }

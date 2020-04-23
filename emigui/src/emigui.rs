@@ -32,7 +32,7 @@ impl Emigui {
         self.ctx.fonts.texture()
     }
 
-    pub fn new_frame(&mut self, new_input: RawInput) {
+    pub fn begin_frame(&mut self, new_input: RawInput) {
         if !self.last_input.mouse_down || self.last_input.mouse_pos.is_none() {
             self.ctx.memory.lock().active_id = None;
         }
@@ -42,17 +42,17 @@ impl Emigui {
 
         // TODO: avoid this clone
         let mut new_ctx = (*self.ctx).clone();
-        new_ctx.new_frame(gui_input);
+        new_ctx.begin_frame(gui_input);
         self.ctx = Arc::new(new_ctx);
     }
 
-    /// A region for the entire screen, behind any windows.
-    pub fn background_region(&mut self) -> Region {
-        let rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
-        Region::new(self.ctx.clone(), Layer::Background, Id::background(), rect)
+    pub fn end_frame(&mut self) -> (Output, PaintBatches) {
+        let output = self.ctx.end_frame();
+        let paint_batches = self.paint();
+        (output, paint_batches)
     }
 
-    pub fn paint(&mut self) -> PaintBatches {
+    fn paint(&mut self) -> PaintBatches {
         self.mesher_options.aa_size = 1.0 / self.last_input.pixels_per_point;
         let paint_commands = self.ctx.drain_paint_lists();
         let batches = mesh_paint_commands(&self.mesher_options, &self.ctx.fonts, paint_commands);
@@ -65,6 +65,14 @@ impl Emigui {
         batches
     }
 
+    /// A region for the entire screen, behind any windows.
+    pub fn background_region(&mut self) -> Region {
+        let rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
+        Region::new(self.ctx.clone(), Layer::Background, Id::background(), rect)
+    }
+}
+
+impl Emigui {
     pub fn ui(&mut self, region: &mut Region) {
         region.collapsing("Style", |region| {
             region.add(Checkbox::new(

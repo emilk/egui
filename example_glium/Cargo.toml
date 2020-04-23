@@ -9,3 +9,4 @@ emigui = { path = "../emigui" }
 emigui_glium = { path = "../emigui_glium" }
 
 glium = "0.24"
+webbrowser = "0.5"

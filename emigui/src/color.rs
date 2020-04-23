@@ -36,3 +36,4 @@ pub const BLACK: Color = srgba(0, 0, 0, 255);
 pub const RED: Color = srgba(255, 0, 0, 255);
 pub const GREEN: Color = srgba(0, 255, 0, 255);
 pub const BLUE: Color = srgba(0, 0, 255, 255);
+pub const LIGHT_BLUE: Color = srgba(140, 160, 255, 255);

@@ -196,12 +196,20 @@ function _assertClass(instance, klass) {
 /**
 * @param {State} state
 * @param {string} raw_input_json
+* @returns {string}
 */
 __exports.run_gui = function(state, raw_input_json) {
-    _assertClass(state, State);
-    var ptr0 = passStringToWasm0(raw_input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len0 = WASM_VECTOR_LEN;
-    wasm.run_gui(state.ptr, ptr0, len0);
+    try {
+        _assertClass(state, State);
+        var ptr0 = passStringToWasm0(raw_input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        wasm.run_gui(8, state.ptr, ptr0, len0);
+        var r0 = getInt32Memory0()[8 / 4 + 0];
+        var r1 = getInt32Memory0()[8 / 4 + 1];
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_free(r0, r1);
+    }
 };
 
 function isLikeNone(x) {
