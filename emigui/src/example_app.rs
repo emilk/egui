@@ -45,7 +45,9 @@ impl ExampleApp {
             ));
         });
 
-        region.collapsing("Widgets", |region| {
+        CollapsingHeader::new("Widgets")
+            .default_open()
+            .show(region, |region| {
             region.horizontal(Align::Min, |region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
                 region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
@@ -133,7 +135,7 @@ impl ExampleApp {
         });
 
         CollapsingHeader::new("Scroll area")
-            .default_open()
+            // .default_open()
             .show(region, |region| {
                 ScrollArea::default().show(region, |region| {
                     region.add_label(LOREM_IPSUM);

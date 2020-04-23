@@ -51,11 +51,9 @@ impl State {
         region.add_label(
             "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
         );
-        region.add_label("This not JavaScript. This is Rust code, running at 60 Hz. This is the web page, reinvented with game tech.");
+        region.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
         region.add_label("This is also work in progress, and not ready for production... yet :)");
         region.add(Separator::new());
-        self.example_app.ui(&mut region);
-        self.emigui.ui(&mut region);
 
         region.set_align(Align::Min);
         region.add_label("WebGl painter info:");
@@ -75,16 +73,18 @@ impl State {
 
         // TODO: Make it even simpler to show a window
 
-        Window::new("Test window").show(region.ctx(), |region| {
-            region.add_label("Grab the window and move it around!");
-
-            region.add_label("This window can be reisized, but not smaller than the contents.");
-        });
-        Window::new("Another test window")
-            .default_pos(pos2(400.0, 100.0))
+        Window::new("Examples")
+            .default_pos(pos2(32.0, 300.0))
+            .default_size(vec2(300.0, 400.0))
             .show(region.ctx(), |region| {
-                region.add_label("This might be on top of the other window?");
-                region.add_label("Second line of text");
+                self.example_app.ui(region);
+            });
+
+        Window::new("Emigui settings")
+            .default_pos(pos2(400.0, 300.0))
+            .default_size(vec2(400.0, 400.0))
+            .show(region.ctx(), |region| {
+                self.emigui.ui(region);
             });
 
         let bg_color = srgba(16, 16, 16, 255);

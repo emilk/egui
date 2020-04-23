@@ -23,3 +23,5 @@ FOLDER_NAME=${PWD##*/}
 TARGET_NAME="example_wasm.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
+
+open http://localhost:8888

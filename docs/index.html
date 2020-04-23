@@ -62,6 +62,8 @@
         var g_mouse_pos = null;
         var g_mouse_down = false;
         var g_is_touch = false;
+        var g_scroll_delta_x = 0;
+        var g_scroll_delta_y = 0;
 
         function pixels_per_point() {
             // return 1.0;
@@ -76,14 +78,17 @@
         }
 
         function get_input(canvas) {
-            return {
+            var input = {
                 mouse_down: g_mouse_down,
                 mouse_pos: g_mouse_pos,
-                // TODO: scroll_delta
+                scroll_delta: { x: -g_scroll_delta_x, y: -g_scroll_delta_y }, // TODO: standardize scroll direction
                 screen_size: { x: window.innerWidth, y: window.innerHeight },
                 pixels_per_point: pixels_per_point(),
                 time: window.performance.now() / 1000.0,
             };
+            g_scroll_delta_x = 0;
+            g_scroll_delta_y = 0;
+            return input;
         }
 
         function mouse_pos_from_event(canvas, event) {
@@ -94,6 +99,9 @@
             };
         }
 
+        // If true, paint at full framerate always.
+        // If false, only paint on input.
+        // TODO: if this is turned off we must turn off animations too (which hasn't been implemented yet).
         const ANIMATION_FRAME = true;
 
         function paint() {
@@ -169,6 +177,14 @@
                 update_gui()();
                 g_mouse_pos = null; // ...remove hover effect
                 update_gui()();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+
+            canvas.addEventListener("wheel", function (event) {
+                g_scroll_delta_x += event.deltaX;
+                g_scroll_delta_y += event.deltaY;
+                invalidate();
                 event.stopPropagation();
                 event.preventDefault();
             });

@@ -419,6 +419,9 @@ async function init(input) {
     imports.wbg.__wbg_uniform2f_c1a2fa4599b15748 = function(arg0, arg1, arg2, arg3) {
         getObject(arg0).uniform2f(getObject(arg1), arg2, arg3);
     };
+    imports.wbg.__wbg_uniform4f_6e9aa69017843be0 = function(arg0, arg1, arg2, arg3, arg4, arg5) {
+        getObject(arg0).uniform4f(getObject(arg1), arg2, arg3, arg4, arg5);
+    };
     imports.wbg.__wbg_useProgram_324a22a196d1f113 = function(arg0, arg1) {
         getObject(arg0).useProgram(getObject(arg1));
     };
