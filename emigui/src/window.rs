@@ -268,18 +268,36 @@ fn paint_resize_corner(
     style: &Style,
     interact: &InteractInfo,
 ) -> PaintCmd {
-    // TODO: Path::circle_sector() or something
-    let quadrant = 0.0; // Bottom-right
-    let mut path = Path::default();
-    path.add_point(center, vec2(0.0, -1.0));
-    path.add_point(center + vec2(radius, 0.0), vec2(0.0, -1.0));
-    path.add_circle_quadrant(center, radius, quadrant);
-    path.add_point(center + vec2(0.0, radius), vec2(-1.0, 0.0));
-    path.add_point(center, vec2(-1.0, 0.0));
-    PaintCmd::Path {
-        path,
-        closed: true,
-        fill_color: style.interact_fill_color(&interact),
-        outline: style.interact_outline(&interact),
+    if false {
+        // TODO: Path::circle_sector() or something
+        let quadrant = 0.0; // Bottom-right
+        let mut path = Path::default();
+        path.add_point(center, vec2(0.0, -1.0));
+        path.add_point(center + vec2(radius, 0.0), vec2(0.0, -1.0));
+        path.add_circle_quadrant(center, radius, quadrant);
+        path.add_point(center + vec2(0.0, radius), vec2(-1.0, 0.0));
+        path.add_point(center, vec2(-1.0, 0.0));
+        PaintCmd::Path {
+            path,
+            closed: true,
+            fill_color: style.interact_fill_color(&interact),
+            outline: style.interact_outline(&interact),
+        }
+    } else {
+        let offset = 3.0;
+        let center = center;
+        let radius = radius - offset;
+        let quadrant = 0.0; // Bottom-right
+        let mut path = Path::default();
+        path.add_circle_quadrant(center, radius, quadrant);
+        PaintCmd::Path {
+            path,
+            closed: false,
+            fill_color: None,
+            outline: Some(Outline::new(
+                style.interact_stroke_width(&interact),
+                style.interact_stroke_color(&interact),
+            )),
+        }
     }
 }
