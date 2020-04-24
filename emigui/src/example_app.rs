@@ -17,6 +17,8 @@ pub struct ExampleApp {
     num_columns: usize,
 
     slider_value: usize,
+
+    painting: Painting,
 }
 
 impl Default for ExampleApp {
@@ -33,6 +35,8 @@ impl Default for ExampleApp {
             num_columns: 2,
 
             slider_value: 100,
+
+            painting: Default::default(),
         }
     }
 }
@@ -51,7 +55,7 @@ impl ExampleApp {
         });
 
         CollapsingHeader::new("Widgets")
-            .default_open()
+            // .default_open()
             .show(region, |region| {
             region.horizontal(Align::Min, |region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
@@ -147,6 +151,10 @@ impl ExampleApp {
                 });
             });
 
+        CollapsingHeader::new("Painting")
+            .default_open()
+            .show(region, |region| self.painting.ui(region));
+
         region.collapsing("Name clash example", |region| {
             region.add_label("\
                 Regions that store state require unique identifiers so we can track their state between frames. \
@@ -169,6 +177,62 @@ impl ExampleApp {
                 based on their position on screen. For instance, buttons:");
             region.add(Button::new("Button"));
             region.add(Button::new("Button"));
+        });
+    }
+}
+
+#[derive(Default)]
+struct Painting {
+    lines: Vec<Vec<Pos2>>,
+    current_line: Vec<Pos2>,
+}
+
+impl Painting {
+    pub fn ui(&mut self, region: &mut Region) {
+        region.add_label("Draw with your mouse to paint");
+        if region.add(Button::new("Clear")).clicked {
+            self.lines.clear();
+            self.current_line.clear();
+        }
+
+        region.add_custom_contents(vec2(std::f32::INFINITY, 200.0), |region| {
+            let interact = region.reserve_space(region.available_space(), Some(region.id));
+            region.clip_rect = interact.rect; // Make sure we don't paint out of bounds
+
+            if interact.active {
+                if let Some(mouse_pos) = region.input().mouse_pos {
+                    if self.current_line.last() != Some(&mouse_pos) {
+                        self.current_line.push(mouse_pos);
+                    }
+                }
+            } else if !self.current_line.is_empty() {
+                self.lines.push(std::mem::take(&mut self.current_line));
+            }
+
+            for line in &self.lines {
+                if line.len() >= 2 {
+                    region.add_paint_cmd(PaintCmd::Line {
+                        points: line.clone(),
+                        color: LIGHT_GRAY,
+                        width: 2.0,
+                    });
+                }
+            }
+            if self.current_line.len() >= 2 {
+                region.add_paint_cmd(PaintCmd::Line {
+                    points: self.current_line.clone(),
+                    color: WHITE,
+                    width: 2.0,
+                });
+            }
+
+            // Frame it:
+            region.add_paint_cmd(PaintCmd::Rect {
+                rect: region.desired_rect,
+                corner_radius: 0.0,
+                fill_color: None,
+                outline: Some(Outline::new(1.0, WHITE)),
+            });
         });
     }
 }

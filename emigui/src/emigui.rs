@@ -112,11 +112,6 @@ impl Emigui {
             } else {
                 region.add_label("mouse_pos: None");
             }
-            region.add(label!(
-                "region cursor: {} x {}",
-                region.cursor().x,
-                region.cursor().y,
-            ));
             region.add(label!("num_batches: {}", self.stats.num_batches));
             region.add(label!("num_vertices: {}", self.stats.num_vertices));
             region.add(label!("num_triangles: {}", self.stats.num_triangles));

@@ -166,11 +166,25 @@ impl Region {
     // ------------------------------------------------------------------------
     // Sub-regions:
 
+    /// Create a child region at the current cursor.
+    /// `size` is the desired size.
+    /// Actual size may be much smaller if `avilable_size()` is not enough.
+    /// Set `size` to `Vec::infinity()` to get as much space as possible.
+    /// Just because you ask for a lot of space does not mean you have to use it!
+    /// After `add_contents` is called the contents of `bounding_size`
+    /// will decide how much space will be used in the parent region.
+    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Region)) {
+        let size = size.min(self.available_space());
+        let child_rect = Rect::from_min_size(self.cursor, size);
+        let mut child_region = Region {
+            ..self.child_region(child_rect)
+        };
+        add_contents(&mut child_region);
+        self.reserve_space_without_padding(child_region.bounding_size);
+    }
+
     /// Create a child region which is indented to the right
-    pub fn indent<F>(&mut self, id: Id, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn indent(&mut self, id_source: impl Hash, add_contents: impl FnOnce(&mut Region)) {
         assert!(
             self.dir == Direction::Vertical,
             "You can only indent vertical layouts"
@@ -178,7 +192,7 @@ impl Region {
         let indent = vec2(self.style.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max());
         let mut child_region = Region {
-            id,
+            id: self.id.with(id_source),
             align: Align::Min,
             ..self.child_region(child_rect)
         };
@@ -297,6 +311,14 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
+    /// Check for clicks on this entire region (desired_rect)
+    pub fn interact(&self) -> InteractInfo {
+        self.ctx
+            .interact(self.layer, self.desired_rect, Some(self.id))
+    }
+
+    // ------------------------------------------------------------------------
+
     pub fn add<W: Widget>(&mut self, widget: W) -> GuiResponse {
         widget.add_to(self)
     }
@@ -355,15 +377,14 @@ impl Region {
 
     /// Will warn if the returned id is not guaranteed unique.
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
-    /// If the child_id_source is not unique within this region
+    /// If the id_source is not unique within this region
     /// then an error will be printed at the current cursor position.
-    pub fn make_unique_id<IdSource>(&self, child_id_source: &IdSource) -> Id
+    pub fn make_unique_id<IdSource>(&self, id_source: &IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {
-        let id = self.id.with(child_id_source);
-        self.ctx
-            .register_unique_id(id, child_id_source, self.cursor)
+        let id = self.id.with(id_source);
+        self.ctx.register_unique_id(id, id_source, self.cursor)
     }
 
     /// Make an Id that is unique to this positon.
@@ -373,8 +394,8 @@ impl Region {
         self.id.with(&Id::from_pos(self.cursor))
     }
 
-    pub fn make_child_id<H: Hash>(&self, child_id: &H) -> Id {
-        self.id.with(child_id)
+    pub fn make_child_id(&self, id_seed: impl Hash) -> Id {
+        self.id.with(id_seed)
     }
 
     /// Show some text anywhere in the region.

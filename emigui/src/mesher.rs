@@ -451,10 +451,11 @@ pub fn mesh_command(
                 fill_closed_path(out_mesh, options, &path.0, fill_color);
             }
             if let Some(outline) = outline {
+                let typ = if closed { Closed } else { Open };
                 paint_path(
                     out_mesh,
                     options,
-                    Closed,
+                    typ,
                     &path.0,
                     outline.color,
                     outline.width,
