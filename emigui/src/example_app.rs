@@ -104,10 +104,8 @@ impl ExampleApp {
             region.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.add(label!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns {
-                        if col.add(Button::new("Delete this")).clicked {
-                            self.num_columns -= 1;
-                        }
+                    if i + 1 == self.num_columns && col.add(Button::new("Delete this")).clicked {
+                        self.num_columns -= 1;
                     }
                 }
             });

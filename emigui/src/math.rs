@@ -62,7 +62,7 @@ impl Vec2 {
         vec2(self.x.ceil(), self.y.ceil())
     }
 
-    pub fn is_finite(&self) -> bool {
+    pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }
 
@@ -206,7 +206,7 @@ impl Pos2 {
         pos2(self.x.ceil(), self.y.ceil())
     }
 
-    pub fn is_finite(&self) -> bool {
+    pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }
 
@@ -307,7 +307,7 @@ impl Rect {
     }
 
     pub fn from_min_max(min: Pos2, max: Pos2) -> Self {
-        Rect { min, max: max }
+        Rect { min, max }
     }
 
     pub fn from_min_size(min: Pos2, size: Vec2) -> Self {
@@ -478,7 +478,7 @@ pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
 
 /// For t=[0,1], returns [0,1] with a derivate of zero at both ends
 pub fn ease_in_ease_out(t: f32) -> f32 {
-    return 3.0 * t * t - 2.0 * t * t * t;
+    3.0 * t * t - 2.0 * t * t * t
 }
 
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;

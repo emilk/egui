@@ -237,10 +237,12 @@ impl Region {
         ))
     }
 
-    pub fn inner_layout<F>(&mut self, dir: Direction, align: Align, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn inner_layout(
+        &mut self,
+        dir: Direction,
+        align: Align,
+        add_contents: impl FnOnce(&mut Region),
+    ) {
         let child_rect = Rect::from_min_max(self.cursor, self.desired_rect.max());
         let mut child_region = Region {
             dir,
@@ -253,18 +255,12 @@ impl Region {
     }
 
     /// Start a region with horizontal layout
-    pub fn horizontal<F>(&mut self, align: Align, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn horizontal(&mut self, align: Align, add_contents: impl FnOnce(&mut Region)) {
         self.inner_layout(Direction::Horizontal, align, add_contents)
     }
 
     /// Start a region with vertical layout
-    pub fn vertical<F>(&mut self, align: Align, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn vertical(&mut self, align: Align, add_contents: impl FnOnce(&mut Region)) {
         self.inner_layout(Direction::Vertical, align, add_contents)
     }
 
@@ -319,7 +315,7 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
-    pub fn add<W: Widget>(&mut self, widget: W) -> GuiResponse {
+    pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
         widget.add_to(self)
     }
 
@@ -333,11 +329,11 @@ impl Region {
         self.add(Hyperlink::new(url))
     }
 
-    pub fn collapsing<S, F>(&mut self, text: S, add_contents: F) -> GuiResponse
-    where
-        S: Into<String>,
-        F: FnOnce(&mut Region),
-    {
+    pub fn collapsing(
+        &mut self,
+        text: impl Into<String>,
+        add_contents: impl FnOnce(&mut Region),
+    ) -> GuiResponse {
         CollapsingHeader::new(text).show(self, add_contents)
     }
 

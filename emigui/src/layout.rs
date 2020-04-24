@@ -24,10 +24,7 @@ pub struct GuiResponse {
 
 impl GuiResponse {
     /// Show some stuff if the item was hovered
-    pub fn tooltip<F>(&mut self, add_contents: F) -> &mut Self
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Region)) -> &mut Self {
         if self.hovered {
             if let Some(mouse_pos) = self.ctx.input().mouse_pos {
                 let window_pos = mouse_pos + vec2(16.0, 16.0);
@@ -38,7 +35,7 @@ impl GuiResponse {
     }
 
     /// Show this text if the item was hovered
-    pub fn tooltip_text<S: Into<String>>(&mut self, text: S) -> &mut Self {
+    pub fn tooltip_text(&mut self, text: impl Into<String>) -> &mut Self {
         self.tooltip(|popup| {
             popup.add(Label::new(text));
         })
@@ -97,10 +94,7 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // TODO: move show_popup, and expand its features (default size, autosize, etc)
 /// Show a pop-over window
-pub fn show_popup<F>(ctx: &Arc<Context>, window_pos: Pos2, add_contents: F)
-where
-    F: FnOnce(&mut Region),
-{
+pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnce(&mut Region)) {
     let layer = Layer::Popup;
     let where_to_put_background = ctx.graphics.lock().layer(layer).len();
 

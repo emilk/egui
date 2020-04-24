@@ -1,4 +1,4 @@
-#![allow(clippy::new_without_default_derive)]
+#![allow(clippy::new_without_default)]
 
 use crate::{
     layout::{Direction, GuiResponse},
@@ -21,7 +21,7 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn new<S: Into<String>>(text: S) -> Self {
+    pub fn new(text: impl Into<String>) -> Self {
         Label {
             text: text.into(),
             text_style: TextStyle::Body,
@@ -88,7 +88,7 @@ impl Widget for Hyperlink {
             region.ctx().output.lock().cursor_icon = CursorIcon::PointingHand;
         }
         if interact.clicked {
-            region.ctx().output.lock().open_url = Some(self.url.clone());
+            region.ctx().output.lock().open_url = Some(self.url);
         }
 
         if interact.hovered {
@@ -121,7 +121,7 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new<S: Into<String>>(text: S) -> Self {
+    pub fn new(text: impl Into<String>) -> Self {
         Button {
             text: text.into(),
             text_color: None,
@@ -169,7 +169,7 @@ pub struct Checkbox<'a> {
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new<S: Into<String>>(checked: &'a mut bool, text: S) -> Self {
+    pub fn new(checked: &'a mut bool, text: impl Into<String>) -> Self {
         Checkbox {
             checked,
             text: text.into(),
@@ -240,7 +240,7 @@ pub struct RadioButton {
 }
 
 impl RadioButton {
-    pub fn new<S: Into<String>>(checked: bool, text: S) -> Self {
+    pub fn new(checked: bool, text: impl Into<String>) -> Self {
         RadioButton {
             checked,
             text: text.into(),
@@ -254,7 +254,7 @@ impl RadioButton {
     }
 }
 
-pub fn radio<S: Into<String>>(checked: bool, text: S) -> RadioButton {
+pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
     RadioButton::new(checked, text)
 }
 
@@ -375,7 +375,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    pub fn text<S: Into<String>>(mut self, text: S) -> Self {
+    pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = Some(text.into());
         self
     }

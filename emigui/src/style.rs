@@ -1,3 +1,5 @@
+#![allow(clippy::if_same_then_else)]
+
 use crate::{color::*, math::*, types::*};
 
 #[derive(Clone, Copy, Debug, Serialize)]

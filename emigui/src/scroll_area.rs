@@ -24,10 +24,7 @@ impl ScrollArea {
 }
 
 impl ScrollArea {
-    pub fn show<F>(self, outer_region: &mut Region, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn show(self, outer_region: &mut Region, add_contents: impl FnOnce(&mut Region)) {
         let ctx = outer_region.ctx().clone();
 
         let scroll_area_id = outer_region.id.with("scroll_area");

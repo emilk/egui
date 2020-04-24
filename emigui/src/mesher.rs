@@ -121,7 +121,7 @@ impl Mesh {
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
             });
         }
-        return output;
+        output
     }
 }
 
@@ -497,14 +497,14 @@ pub fn mesh_command(
                     let mut top_left = Vertex {
                         pos: pos + glyph.offset + vec2(*x_offset, 0.0),
                         uv: glyph.min,
-                        color: color,
+                        color,
                     };
                     top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
                     top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
                     let bottom_right = Vertex {
                         pos: top_left.pos + glyph.size,
                         uv: glyph.max,
-                        color: color,
+                        color,
                     };
                     out_mesh.add_rect(top_left, bottom_right);
                 }

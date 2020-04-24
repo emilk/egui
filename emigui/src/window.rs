@@ -55,7 +55,7 @@ impl Default for Window {
 }
 
 impl Window {
-    pub fn new<S: Into<String>>(title: S) -> Self {
+    pub fn new(title: impl Into<String>) -> Self {
         Self {
             title: title.into(),
             ..Default::default()
@@ -112,15 +112,12 @@ impl Window {
 }
 
 impl Window {
-    pub fn show<F>(self, ctx: &Arc<Context>, add_contents: F)
-    where
-        F: FnOnce(&mut Region),
-    {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Region)) {
         let style = ctx.style();
         let window_padding = style.window_padding;
 
-        let default_pos = self.default_pos.unwrap_or(pos2(100.0, 100.0)); // TODO
-        let default_inner_size = self.default_size.unwrap_or(vec2(250.0, 250.0));
+        let default_pos = self.default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
+        let default_inner_size = self.default_size.unwrap_or_else(|| vec2(250.0, 250.0));
 
         let id = ctx.make_unique_id(&self.title, default_pos);
 
@@ -236,7 +233,7 @@ impl Window {
         state = State {
             outer_pos: state.outer_pos,
             inner_size: new_inner_size,
-            outer_rect: outer_rect,
+            outer_rect,
         };
 
         // Constrain to screen:
