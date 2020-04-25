@@ -86,15 +86,15 @@ impl Context {
 
     /// Generate a id from the given source.
     /// If it is not unique, an error will be printed at the given position.
-    pub fn make_unique_id<IdSource>(&self, source: &IdSource, pos: Pos2) -> Id
+    pub fn make_unique_id<IdSource>(&self, source: IdSource, pos: Pos2) -> Id
     where
-        IdSource: std::hash::Hash + std::fmt::Debug,
+        IdSource: std::hash::Hash + std::fmt::Debug + Copy,
     {
         self.register_unique_id(Id::new(source), source, pos)
     }
 
     /// If the given Id is not unique, an error will be printed at the given position.
-    pub fn register_unique_id(&self, id: Id, source_name: &impl std::fmt::Debug, pos: Pos2) -> Id {
+    pub fn register_unique_id(&self, id: Id, source_name: impl std::fmt::Debug, pos: Pos2) -> Id {
         if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
             if clash_pos.dist(pos) < 4.0 {
                 self.show_error(

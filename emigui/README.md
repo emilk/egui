@@ -41,6 +41,13 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] Use clip rectangles when interacting
 * [x] Adjust clip rects so edges of child widgets aren't clipped
 
+### Modularity
+* [x] `trait Widget` (`Label`, `Slider`, `Checkbox`, ...)
+* [ ] `trait Container` (`Frame`, `Resize`, `ScrollArea`, ...)
+* [ ] `widget::TextButton` implemented as a `container::Button` which contains a `widget::Label`.
+* [ ] Easily chain `Container`s without nested closures.
+    * e.g. `region.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
+
 ### Other
 * [ ] Generalize Layout so we can create grid layouts etc
 * [ ] Persist UI state in external storage
@@ -56,6 +63,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
     * `region: &Region` `region.add(...)` :/
     * `gui: &Gui` `gui.add(...)` :)
     * `ui: &Ui` `ui.add(...)` :)
+* [ ] Maybe find a shorter name for the library like `egui`?
 
 ### Global widget search
 Ability to do a search for any widget. The search works even for collapsed regions and closed windows and menus. This is implemented like this: while searching, all region are layed out and their add_content functions are run. If none of the contents matches the search, the layout is reverted and nothing is shown. So windows will get temporarily opened and run, but if the search is not a match in the window it is closed again. This means then when searching your whole GUI is being run, which may be a bit slower, but it would be a really awesome feature.

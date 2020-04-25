@@ -53,6 +53,9 @@ pub struct Region {
     pub(crate) cursor: Pos2,
 }
 
+// Allow child widgets to be just on the border and still have an outline with some thickness
+const CLIP_RECT_MARGIN: f32 = 3.0;
+
 impl Region {
     pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
         let style = ctx.style();
@@ -60,7 +63,7 @@ impl Region {
             ctx,
             id,
             layer,
-            clip_rect: rect,
+            clip_rect: rect.expand(CLIP_RECT_MARGIN),
             desired_rect: rect,
             bounding_size: Vec2::default(),
             style,
@@ -71,16 +74,15 @@ impl Region {
     }
 
     pub fn child_region(&self, child_rect: Rect) -> Self {
-        // Allow child widgets to be just on the border and still have an outline with some thickness
-        const CLIP_RECT_MARGIN: f32 = 3.0;
+        let clip_rect = self
+            .clip_rect
+            .intersect(child_rect.expand(CLIP_RECT_MARGIN));
         Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
             id: self.id,
-            clip_rect: self
-                .clip_rect
-                .intersect(child_rect.expand(CLIP_RECT_MARGIN)),
+            clip_rect,
             desired_rect: child_rect,
             cursor: child_rect.min(),
             bounding_size: vec2(0.0, 0.0),
@@ -107,6 +109,19 @@ impl Region {
             .lock()
             .layer(self.layer)
             .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
+    }
+
+    /// Insert a paint cmd before existing ones
+    pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .insert(pos, (self.clip_rect(), paint_cmd));
+    }
+
+    pub fn paint_list_len(&self) -> usize {
+        self.ctx.graphics.lock().layer(self.layer).len()
     }
 
     pub fn round_to_pixel(&self, point: f32) -> f32 {
@@ -348,7 +363,11 @@ impl Region {
     // ------------------------------------------------------------------------
 
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
-        let pos = self.reserve_space_without_padding(size + self.style.item_spacing);
+        let padded_size = match self.dir {
+            Direction::Horizontal => vec2(size.x + self.style.item_spacing.x, size.y),
+            Direction::Vertical => vec2(size.x, size.y + self.style.item_spacing.y),
+        };
+        let pos = self.reserve_space_without_padding(padded_size);
         let rect = Rect::from_min_size(pos, size);
         self.ctx.interact(self.layer, &rect, interaction_id)
     }

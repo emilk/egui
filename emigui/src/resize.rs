@@ -43,8 +43,21 @@ impl Resize {
         self
     }
 
+    pub fn default_size(mut self, default_size: Vec2) -> Self {
+        self.default_size = default_size;
+        self
+    }
+
     pub fn as_wide_as_possible(mut self) -> Self {
         self.min_size.x = f32::INFINITY;
+        self
+    }
+
+    /// true: prevent from resizing to smaller than contents.
+    /// false: allow shrinking to smaller than contents.
+    pub fn auto_expand(mut self, auto_expand: bool) -> Self {
+        self.expand_width_to_fit_content = auto_expand;
+        self.expand_height_to_fit_content = auto_expand;
         self
     }
 }

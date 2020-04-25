@@ -11,8 +11,10 @@ pub mod color;
 mod context;
 mod emigui;
 pub mod example_app;
+mod floating;
 mod font;
 mod fonts;
+mod frame;
 mod id;
 mod layers;
 mod layout;
@@ -33,7 +35,9 @@ pub use {
     collapsing_header::CollapsingHeader,
     color::Color,
     context::Context,
+    floating::Floating,
     fonts::{FontDefinitions, Fonts, TextStyle},
+    frame::Frame,
     id::Id,
     layers::*,
     layout::{Align, GuiResponse},
