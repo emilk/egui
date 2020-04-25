@@ -135,6 +135,7 @@ impl Resize {
         };
 
         state.size = state.size.clamp(self.min_size..=self.max_size);
+        let last_frame_size = state.size;
 
         let position = region.cursor();
 
@@ -148,6 +149,8 @@ impl Resize {
 
         if corner_interact.active {
             if let Some(mouse_pos) = region.input().mouse_pos {
+                // This is the desired size. We may not be able to achieve it.
+
                 state.size = mouse_pos - position + 0.5 * corner_interact.rect.size();
                 // We don't clamp to max size, because we want to be able to push against outer bounds.
                 // For instance, if we are inside a bigger Resize region, we want to expand that.
@@ -161,6 +164,16 @@ impl Resize {
         let inner_rect = Rect::from_min_size(region.cursor(), state.size);
         let desired_size = {
             let mut contents_region = region.child_region(inner_rect);
+
+            // If we pull the resize handle to shrink, we want to TRY to shink it.
+            // After laying out the contents, we might be much bigger.
+            // In those cases we don't want the clip_rect too be smaller, because
+            // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
+            contents_region.clip_rect.max = contents_region
+                .clip_rect
+                .max
+                .max(contents_region.clip_rect.min + last_frame_size);
+
             add_contents(&mut contents_region);
             contents_region.bounding_size()
         };

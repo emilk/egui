@@ -29,8 +29,8 @@ pub struct Region {
     /// and its max size (original available_space).
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
-    /// but may overflow (which you will see in bounding_size).
-    pub(crate) desired_rect: Rect, // TODO: rename
+    /// but may overflow (which you will see in child_bounds).
+    pub(crate) desired_rect: Rect, // TODO: rename?
 
     /// Bounding box of children.
     /// Initially set to Rect::nothing().
@@ -154,18 +154,26 @@ impl Region {
         self.clip_rect
     }
 
-    pub fn available_width(&self) -> f32 {
-        self.desired_rect.right() - self.cursor.x
-    }
-
-    pub fn available_height(&self) -> f32 {
-        self.desired_rect.bottom() - self.cursor.y
-    }
-
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
     pub fn available_space(&self) -> Vec2 {
-        self.desired_rect.max - self.cursor
+        // self.desired_rect.max - self.cursor
+
+        // If a child doesn't fit in desired_rect, we have effectively expanded:
+        self.bottom_right() - self.cursor
+    }
+
+    pub fn bottom_right(&self) -> Pos2 {
+        // If a child doesn't fit in desired_rect, we have effectively expanded:
+        self.desired_rect.max.max(self.child_bounds.max)
+    }
+
+    pub fn available_width(&self) -> f32 {
+        self.available_space().x
+    }
+
+    pub fn available_height(&self) -> f32 {
+        self.available_space().y
     }
 
     /// Size of content
@@ -212,7 +220,7 @@ impl Region {
             "You can only indent vertical layouts"
         );
         let indent = vec2(self.style.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max);
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
         let mut child_region = Region {
             id: self.id.with(id_source),
             align: Align::Min,
@@ -265,7 +273,7 @@ impl Region {
         align: Align,
         add_contents: impl FnOnce(&mut Region),
     ) {
-        let child_rect = Rect::from_min_max(self.cursor, self.desired_rect.max);
+        let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_region = Region {
             dir,
             align,
@@ -305,7 +313,7 @@ impl Region {
             .map(|col_idx| {
                 let pos = self.cursor + vec2((col_idx as f32) * (column_width + padding), 0.0);
                 let child_rect =
-                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.desired_rect.bottom()));
+                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.bottom_right().y));
 
                 Region {
                     id: self.make_child_id(&("column", col_idx)),

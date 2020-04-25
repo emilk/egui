@@ -48,6 +48,11 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] Easily chain `Container`s without nested closures.
     * e.g. `region.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
 
+### Input
+* [ ] Distinguish between clicks and drags
+* [ ] Double-click
+* [ ] Text
+
 ### Other
 * [ ] Generalize Layout so we can create grid layouts etc
 * [ ] Persist UI state in external storage
