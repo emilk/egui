@@ -99,18 +99,16 @@ impl CollapsingHeader {
                 let max_height = if state.open {
                     remap(
                         time_since_toggle,
-                        0.0,
-                        animation_time,
-                        50.0,   // Get instant feedback
-                        1500.0, // We don't expect to get bigger than this
+                        0.0..=animation_time,
+                        // Get instant feedback, and we don't expect to get bigger than this
+                        50.0..=1500.0,
                     )
                 } else {
                     remap_clamp(
                         time_since_toggle,
-                        0.0,
-                        animation_time,
-                        50.0, // TODO: state.open_height
-                        0.0,
+                        0.0..=animation_time,
+                        // TODO: state.open_height
+                        50.0..=0.0,
                     )
                 };
 

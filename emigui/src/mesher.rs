@@ -154,7 +154,7 @@ impl Path {
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
         let n = 32; // TODO: parameter
         for i in 0..n {
-            let angle = remap(i as f32, 0.0, n as f32, 0.0, TAU);
+            let angle = remap(i as f32, 0.0..=n as f32, 0.0..=TAU);
             let normal = vec2(angle.cos(), angle.sin());
             self.add_point(center + radius * normal, normal);
         }
@@ -222,10 +222,8 @@ impl Path {
         for i in 0..=n {
             let angle = remap(
                 i as f32,
-                0.0,
-                n as f32,
-                quadrant * RIGHT_ANGLE,
-                (quadrant + 1.0) * RIGHT_ANGLE,
+                0.0..=n as f32,
+                quadrant * RIGHT_ANGLE..=(quadrant + 1.0) * RIGHT_ANGLE,
             );
             let normal = vec2(angle.cos(), angle.sin());
             self.add_point(center + radius * normal, normal);

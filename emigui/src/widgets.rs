@@ -457,13 +457,12 @@ impl<'a> Widget for Slider<'a> {
             let left = interact.rect.left() + handle_radius;
             let right = interact.rect.right() - handle_radius;
 
-            let min = *self.range.start();
-            let max = *self.range.end();
-            debug_assert!(min <= max);
+            let range = self.range.clone();
+            debug_assert!(range.start() <= range.end());
 
             if let Some(mouse_pos) = region.input().mouse_pos {
                 if interact.active {
-                    self.set_value_f32(remap_clamp(mouse_pos.x, left, right, min, max));
+                    self.set_value_f32(remap_clamp(mouse_pos.x, left..=right, range.clone()));
                 }
             }
 
@@ -477,7 +476,7 @@ impl<'a> Widget for Slider<'a> {
                     pos2(interact.rect.left(), rect.center().y - rail_radius),
                     pos2(interact.rect.right(), rect.center().y + rail_radius),
                 );
-                let marker_center_x = remap_clamp(value, min, max, left, right);
+                let marker_center_x = remap_clamp(value, range, left..=right);
 
                 region.add_paint_cmd(PaintCmd::Rect {
                     rect: rail_rect,

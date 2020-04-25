@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
 #[derive(Clone, Copy, Default, Deserialize, Serialize)]
 pub struct Vec2 {
@@ -387,6 +387,14 @@ impl Rect {
         self.max.y - self.min.y
     }
 
+    pub fn range_x(&self) -> RangeInclusive<f32> {
+        self.min.x..=self.max.x
+    }
+
+    pub fn range_y(&self) -> RangeInclusive<f32> {
+        self.min.y..=self.max.y
+    }
+
     pub fn is_empty(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
@@ -450,20 +458,20 @@ where
     (1.0 - t) * min + t * max
 }
 
-pub fn remap(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max: f32) -> f32 {
-    let t = (from - from_min) / (from_max - from_min);
-    lerp(to_min, to_max, t)
+pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    let t = (x - from.start()) / (from.end() - from.start());
+    lerp(*to.start(), *to.end(), t)
 }
 
-pub fn remap_clamp(from: f32, from_min: f32, from_max: f32, to_min: f32, to_max: f32) -> f32 {
-    let t = if from <= from_min {
+pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    let t = if x <= *from.start() {
         0.0
-    } else if from >= from_max {
+    } else if x >= *from.end() {
         1.0
     } else {
-        (from - from_min) / (from_max - from_min)
+        (x - from.start()) / (from.end() - from.start())
     };
-    lerp(to_min, to_max, t)
+    lerp(*to.start(), *to.end(), t)
 }
 
 pub fn clamp(x: f32, min: f32, max: f32) -> f32 {

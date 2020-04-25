@@ -126,22 +126,11 @@ impl Texture {
             if interact.hovered {
                 show_popup(region.ctx(), mouse_pos, |region| {
                     let zoom_rect = region.reserve_space(vec2(128.0, 128.0), None).rect;
-                    let u = remap_clamp(
-                        mouse_pos.x,
-                        rect.min().x,
-                        rect.max().x,
-                        0.0,
-                        self.width as f32 - 1.0,
-                    )
-                    .round();
-                    let v = remap_clamp(
-                        mouse_pos.y,
-                        rect.min().y,
-                        rect.max().y,
-                        0.0,
-                        self.height as f32 - 1.0,
-                    )
-                    .round();
+                    let u = remap_clamp(mouse_pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0)
+                        .round();
+                    let v =
+                        remap_clamp(mouse_pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0)
+                            .round();
 
                     let texel_radius = 32.0;
                     let u = clamp(u, texel_radius, self.width as f32 - 1.0 - texel_radius);

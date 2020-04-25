@@ -85,7 +85,8 @@ impl ScrollArea {
                 pos2(right, inner_rect.bottom()),
             );
 
-            let from_content = |content_y| remap_clamp(content_y, 0.0, content_size.y, top, bottom);
+            let from_content =
+                |content_y| remap_clamp(content_y, 0.0..=content_size.y, top..=bottom);
 
             let handle_rect = Rect::from_min_max(
                 pos2(left, from_content(state.offset.y)),
@@ -110,7 +111,7 @@ impl ScrollArea {
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:
                         let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
-                        state.offset.y = remap(mpos_top, top, bottom, 0.0, content_size.y);
+                        state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
                     }
                 }
             }
