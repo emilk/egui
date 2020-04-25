@@ -23,10 +23,10 @@ fn main() {
     display
         .gl_window()
         .set_inner_size(glutin::dpi::LogicalSize {
-            width: 1200.0,
+            width: 1024.0,
             height: 800.0,
         });
-    display.gl_window().set_position((16, 32).into()); // Useful when debugging and constantly restarting it
+    display.gl_window().set_position((0, 24).into()); // Useful when ddeveloping and constantly restarting it
 
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
@@ -114,15 +114,15 @@ fn main() {
         // TODO: Make it even simpler to show a window
 
         Window::new("Examples")
-            .default_pos(pos2(100.0, 100.0))
+            .default_pos(pos2(50.0, 100.0))
             .default_size(vec2(300.0, 400.0))
             .show(region.ctx(), |region| {
                 example_app.ui(region);
             });
 
         Window::new("Emigui settings")
-            .default_pos(pos2(500.0, 100.0))
-            .default_size(vec2(500.0, 500.0))
+            .default_pos(pos2(450.0, 100.0))
+            .default_size(vec2(450.0, 500.0))
             .show(region.ctx(), |region| {
                 emigui.ui(region);
             });
