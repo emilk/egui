@@ -450,17 +450,17 @@ impl std::fmt::Debug for Rect {
 
 // ----------------------------------------------------------------------------
 
-pub fn lerp<T>(min: T, max: T, t: f32) -> T
+pub fn lerp<T>(range: RangeInclusive<T>, t: f32) -> T
 where
     f32: Mul<T, Output = T>,
-    T: Add<T, Output = T>,
+    T: Add<T, Output = T> + Copy,
 {
-    (1.0 - t) * min + t * max
+    (1.0 - t) * *range.start() + t * *range.end()
 }
 
 pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
     let t = (x - from.start()) / (from.end() - from.start());
-    lerp(*to.start(), *to.end(), t)
+    lerp(to, t)
 }
 
 pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
@@ -471,14 +471,14 @@ pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -
     } else {
         (x - from.start()) / (from.end() - from.start())
     };
-    lerp(*to.start(), *to.end(), t)
+    lerp(to, t)
 }
 
-pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
-    if x <= min {
-        min
-    } else if x >= max {
-        max
+pub fn clamp(x: f32, range: RangeInclusive<f32>) -> f32 {
+    if x <= *range.start() {
+        *range.start()
+    } else if x >= *range.end() {
+        *range.end()
     } else {
         x
     }

@@ -133,8 +133,8 @@ impl Texture {
                             .round();
 
                     let texel_radius = 32.0;
-                    let u = clamp(u, texel_radius, self.width as f32 - 1.0 - texel_radius);
-                    let v = clamp(v, texel_radius, self.height as f32 - 1.0 - texel_radius);
+                    let u = clamp(u, texel_radius..=self.width as f32 - 1.0 - texel_radius);
+                    let v = clamp(v, texel_radius..=self.height as f32 - 1.0 - texel_radius);
 
                     let top_left = Vertex {
                         pos: zoom_rect.min(),
