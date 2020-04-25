@@ -66,7 +66,7 @@ impl Floating {
             Rect::from_min_size(state.outer_pos, Vec2::infinity()),
         );
         add_contents(&mut region);
-        let size = region.bounding_size.ceil();
+        let size = region.bounding_size().ceil();
 
         state.outer_rect = Rect::from_min_size(state.outer_pos, size);
         let move_interact = ctx.interact(layer, &state.outer_rect, Some(id.with("move")));

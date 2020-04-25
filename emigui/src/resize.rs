@@ -103,8 +103,7 @@ impl Resize {
         let desired_size = {
             let mut contents_region = region.child_region(inner_rect);
             add_contents(&mut contents_region);
-            let desired_size = contents_region.bounding_size;
-            desired_size
+            contents_region.bounding_size()
         };
         let desired_size = desired_size.ceil(); // Avoid rounding errors in math
 

@@ -118,7 +118,11 @@ impl CollapsingHeader {
 
                 add_contents(region);
 
-                region.bounding_size.y = region.bounding_size.y.min(max_height);
+                region.child_bounds.max.y = region
+                    .child_bounds
+                    .max
+                    .y
+                    .min(region.child_bounds.min.y + max_height);
             });
         } else if state.open {
             region.indent(id, add_contents);

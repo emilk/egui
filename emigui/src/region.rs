@@ -30,13 +30,11 @@ pub struct Region {
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in bounding_size).
-    pub(crate) desired_rect: Rect, // TODO: rename desired_rect
+    pub(crate) desired_rect: Rect, // TODO: rename
 
     /// Bounding box of children.
-    /// We keep track of our max-size along the orthogonal to self.dir
-    /// Initially set to zero.
-    /// TODO: make into `child_bounds: Rect`
-    pub(crate) bounding_size: Vec2,
+    /// Initially set to Rect::nothing().
+    pub(crate) child_bounds: Rect,
 
     /// Overide default style in this region
     pub(crate) style: Style,
@@ -65,7 +63,7 @@ impl Region {
             layer,
             clip_rect: rect.expand(CLIP_RECT_MARGIN),
             desired_rect: rect,
-            bounding_size: Vec2::default(),
+            child_bounds: Rect::from_min_size(rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style,
             cursor: rect.min,
             dir: Direction::Vertical,
@@ -85,7 +83,7 @@ impl Region {
             clip_rect,
             desired_rect: child_rect,
             cursor: child_rect.min,
-            bounding_size: vec2(0.0, 0.0),
+            child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             dir: self.dir,
             align: self.align,
         }
@@ -170,6 +168,11 @@ impl Region {
         self.desired_rect.max - self.cursor
     }
 
+    /// Size of content
+    pub fn bounding_size(&self) -> Vec2 {
+        self.child_bounds.max - self.desired_rect.min
+    }
+
     pub fn direction(&self) -> Direction {
         self.dir
     }
@@ -199,7 +202,7 @@ impl Region {
             ..self.child_region(child_rect)
         };
         add_contents(&mut child_region);
-        self.reserve_space_without_padding(child_region.bounding_size);
+        self.reserve_space_without_padding(child_region.bounding_size());
     }
 
     /// Create a child region which is indented to the right
@@ -216,7 +219,7 @@ impl Region {
             ..self.child_region(child_rect)
         };
         add_contents(&mut child_region);
-        let size = child_region.bounding_size;
+        let size = child_region.bounding_size();
 
         // draw a grey line on the left to mark the region
         let line_start = child_rect.min - indent * 0.5;
@@ -269,7 +272,7 @@ impl Region {
             ..self.child_region(child_rect)
         };
         add_contents(&mut child_region);
-        let size = child_region.bounding_size;
+        let size = child_region.bounding_size();
         self.reserve_space_without_padding(size);
     }
 
@@ -316,7 +319,7 @@ impl Region {
 
         let mut max_height = 0.0;
         for region in columns {
-            let size = region.bounding_size;
+            let size = region.bounding_size();
             max_height = size.y.max(max_height);
         }
 
@@ -382,18 +385,16 @@ impl Region {
                 Align::Center => 0.5 * (self.available_height() - size.y),
                 Align::Max => self.available_height() - size.y,
             };
+            self.child_bounds.extend_with(self.cursor + size);
             self.cursor.x += size.x;
-            self.bounding_size.x += size.x;
-            self.bounding_size.y = self.bounding_size.y.max(size.y);
         } else {
             pos.x += match self.align {
                 Align::Min => 0.0,
                 Align::Center => 0.5 * (self.available_width() - size.x),
                 Align::Max => self.available_width() - size.x,
             };
+            self.child_bounds.extend_with(self.cursor + size);
             self.cursor.y += size.y;
-            self.bounding_size.y += size.y;
-            self.bounding_size.x = self.bounding_size.x.max(size.x);
         }
         pos
     }

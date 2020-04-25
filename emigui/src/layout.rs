@@ -110,7 +110,7 @@ pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnc
     // Now insert popup background:
 
     // TODO: handle the last item_spacing in a nicer way
-    let inner_size = contents_region.bounding_size - style.item_spacing;
+    let inner_size = contents_region.bounding_size() - style.item_spacing;
     let outer_size = inner_size + 2.0 * window_padding;
 
     let rect = Rect::from_min_size(window_pos, outer_size);

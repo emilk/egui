@@ -157,7 +157,7 @@ impl Window {
         add_contents(&mut contents_region);
 
         // TODO: handle the last item_spacing in a nicer way
-        let desired_inner_size = contents_region.bounding_size - style.item_spacing;
+        let desired_inner_size = contents_region.bounding_size() - style.item_spacing;
         let desired_inner_size = desired_inner_size.ceil(); // Avoid rounding errors in math
 
         let mut new_inner_size = state.inner_size;

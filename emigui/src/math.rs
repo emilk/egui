@@ -392,11 +392,17 @@ impl Rect {
         *self = self.translate(center - self.center());
     }
 
+    #[must_use]
     pub fn contains(&self, p: Pos2) -> bool {
         self.min.x <= p.x
             && p.x <= self.min.x + self.size().x
             && self.min.y <= p.y
             && p.y <= self.min.y + self.size().y
+    }
+
+    pub fn extend_with(&mut self, p: Pos2) {
+        self.min = self.min.min(p);
+        self.max = self.max.max(p);
     }
 
     pub fn center(&self) -> Pos2 {

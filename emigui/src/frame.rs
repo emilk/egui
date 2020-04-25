@@ -19,7 +19,7 @@ impl Frame {
         add_contents(&mut child_region);
 
         // TODO: handle the last item_spacing in a nicer way
-        let inner_size = child_region.bounding_size;
+        let inner_size = child_region.bounding_size();
         let inner_size = inner_size.ceil(); // TODO: round to pixel
 
         let outer_rect = Rect::from_min_size(outer_pos, margin + inner_size + margin);
@@ -36,6 +36,9 @@ impl Frame {
             },
         );
 
-        region.bounding_size = margin + child_region.bounding_size + margin; // TODO: this is not really right
+        // TODO: move up corsor?
+        region
+            .child_bounds
+            .extend_with(child_region.child_bounds.max + margin);
     }
 }

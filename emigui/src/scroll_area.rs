@@ -53,7 +53,7 @@ impl ScrollArea {
         content_region.cursor -= state.offset;
         content_region.desired_rect = content_region.desired_rect.translate(-state.offset);
         add_contents(&mut content_region);
-        let content_size = content_region.bounding_size;
+        let content_size = content_region.bounding_size();
 
         let content_interact = ctx.interact(
             outer_region.layer,
