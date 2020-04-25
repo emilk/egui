@@ -93,14 +93,14 @@ impl ExampleApp {
                 ));
             });
 
-            region.add(Slider::usize(&mut self.slider_value, 1, 1000).text("value"));
+            region.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
             if region.add(Button::new("Double it")).clicked {
                 self.slider_value *= 2;
             }
         });
 
         region.collapsing("Layouts", |region| {
-            region.add(Slider::usize(&mut self.num_columns, 1, 10).text("Columns"));
+            region.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
             region.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.add(label!("Column {} out of {}", i + 1, self.num_columns));
@@ -112,11 +112,11 @@ impl ExampleApp {
         });
 
         region.collapsing("Test box rendering", |region| {
-            region.add(Slider::f32(&mut self.size.x, 0.0, 500.0).text("width"));
-            region.add(Slider::f32(&mut self.size.y, 0.0, 500.0).text("height"));
-            region.add(Slider::f32(&mut self.corner_radius, 0.0, 50.0).text("corner_radius"));
-            region.add(Slider::f32(&mut self.stroke_width, 0.0, 10.0).text("stroke_width"));
-            region.add(Slider::usize(&mut self.num_boxes, 0, 5).text("num_boxes"));
+            region.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
+            region.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
+            region.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
+            region.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
+            region.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
 
             let pos = region
                 .reserve_space(

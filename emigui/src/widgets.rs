@@ -1,5 +1,7 @@
 #![allow(clippy::new_without_default)]
 
+use std::ops::RangeInclusive;
+
 use crate::{
     layout::{Direction, GuiResponse},
     *,
@@ -310,8 +312,7 @@ type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
 
 pub struct Slider<'a> {
     get_set_value: SliderGetSet<'a>,
-    min: f32,
-    max: f32,
+    range: RangeInclusive<f32>,
     text: Option<String>,
     precision: usize,
     text_color: Option<Color>,
@@ -320,11 +321,13 @@ pub struct Slider<'a> {
 }
 
 impl<'a> Slider<'a> {
-    fn from_get_set(get_set_value: impl 'a + FnMut(Option<f32>) -> f32) -> Self {
+    fn from_get_set(
+        range: RangeInclusive<f32>,
+        get_set_value: impl 'a + FnMut(Option<f32>) -> f32,
+    ) -> Self {
         Slider {
             get_set_value: Box::new(get_set_value),
-            min: f32::NAN,
-            max: f32::NAN,
+            range,
             text: None,
             precision: 3,
             text_on_top: None,
@@ -333,12 +336,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    pub fn f32(value: &'a mut f32, min: f32, max: f32) -> Self {
+    // TODO: use range syntax
+    pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         Slider {
-            min,
-            max,
             precision: 3,
-            ..Self::from_get_set(move |v: Option<f32>| {
+            ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v
                 }
@@ -347,12 +349,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    pub fn i32(value: &'a mut i32, min: i32, max: i32) -> Self {
+    pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
+        let range = (*range.start() as f32)..=(*range.end() as f32);
         Slider {
-            min: min as f32,
-            max: max as f32,
             precision: 0,
-            ..Self::from_get_set(move |v: Option<f32>| {
+            ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as i32
                 }
@@ -361,12 +362,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    pub fn usize(value: &'a mut usize, min: usize, max: usize) -> Self {
+    pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
+        let range = (*range.start() as f32)..=(*range.end() as f32);
         Slider {
-            min: min as f32,
-            max: max as f32,
             precision: 0,
-            ..Self::from_get_set(move |v: Option<f32>| {
+            ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as usize
                 }
@@ -457,8 +457,8 @@ impl<'a> Widget for Slider<'a> {
             let left = interact.rect.left() + handle_radius;
             let right = interact.rect.right() - handle_radius;
 
-            let min = self.min;
-            let max = self.max;
+            let min = *self.range.start();
+            let max = *self.range.end();
             debug_assert!(min <= max);
 
             if let Some(mouse_pos) = region.input().mouse_pos {

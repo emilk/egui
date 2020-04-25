@@ -123,7 +123,7 @@ fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Regi
     for (text_style, (_family, size)) in font_definitions.iter_mut() {
         // TODO: radiobutton for family
         region.add(
-            Slider::f32(size, 4.0, 40.0)
+            Slider::f32(size, 4.0..=40.0)
                 .precision(0)
                 .text(format!("{:?}", text_style)),
         );

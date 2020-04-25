@@ -155,15 +155,15 @@ impl Style {
         }
 
 
-        region.add(Slider::f32(&mut self.item_spacing.x, 0.0, 10.0).text("item_spacing.x").precision(0));
-        region.add(Slider::f32(&mut self.item_spacing.y, 0.0, 10.0).text("item_spacing.y").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.x, 0.0, 10.0).text("window_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.y, 0.0, 10.0).text("window_padding.y").precision(0));
-        region.add(Slider::f32(&mut self.indent, 0.0, 100.0).text("indent").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.x, 0.0, 20.0).text("button_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.y, 0.0, 20.0).text("button_padding.y").precision(0));
-        region.add(Slider::f32(&mut self.clickable_diameter, 0.0, 60.0).text("clickable_diameter").precision(0));
-        region.add(Slider::f32(&mut self.start_icon_width, 0.0, 60.0).text("start_icon_width").precision(0));
-        region.add(Slider::f32(&mut self.line_width, 0.0, 10.0).text("line_width").precision(0));
+        region.add(Slider::f32(&mut self.item_spacing.x, 0.0..=10.0).text("item_spacing.x").precision(0));
+        region.add(Slider::f32(&mut self.item_spacing.y, 0.0..=10.0).text("item_spacing.y").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.x, 0.0..=10.0).text("window_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.y, 0.0..=10.0).text("window_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.indent, 0.0..=100.0).text("indent").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.x, 0.0..=20.0).text("button_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.y, 0.0..=20.0).text("button_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.clickable_diameter, 0.0..=60.0).text("clickable_diameter").precision(0));
+        region.add(Slider::f32(&mut self.start_icon_width, 0.0..=60.0).text("start_icon_width").precision(0));
+        region.add(Slider::f32(&mut self.line_width, 0.0..=10.0).text("line_width").precision(0));
     }
 }
