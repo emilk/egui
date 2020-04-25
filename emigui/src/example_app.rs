@@ -193,9 +193,9 @@ impl Painting {
             self.current_line.clear();
         }
 
-        region.add_custom_contents(vec2(std::f32::INFINITY, 200.0), |region| {
+        region.add_custom_contents(vec2(f32::INFINITY, 200.0), |region| {
             let interact = region.reserve_space(region.available_space(), Some(region.id));
-            region.clip_rect = interact.rect; // Make sure we don't paint out of bounds
+            region.clip_rect = region.clip_rect.intersect(interact.rect); // Make sure we don't paint out of bounds
 
             if interact.active {
                 if let Some(mouse_pos) = region.input().mouse_pos {

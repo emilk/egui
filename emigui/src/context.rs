@@ -190,7 +190,7 @@ impl Context {
         let layer = Layer::Popup; // TODO: Layer::Error
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
-        let (text, size) = font.layout_multiline(text, std::f32::INFINITY);
+        let (text, size) = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_paint_cmd(
             layer,
@@ -216,7 +216,7 @@ impl Context {
         text_color: Option<Color>,
     ) -> Vec2 {
         let font = &self.fonts[text_style];
-        let (text, size) = font.layout_multiline(text, std::f32::INFINITY);
+        let (text, size) = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_text(layer, rect.min(), text_style, text, text_color);
         size

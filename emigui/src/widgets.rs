@@ -323,8 +323,8 @@ impl<'a> Slider<'a> {
     fn from_get_set(get_set_value: impl 'a + FnMut(Option<f32>) -> f32) -> Self {
         Slider {
             get_set_value: Box::new(get_set_value),
-            min: std::f32::NAN,
-            max: std::f32::NAN,
+            min: f32::NAN,
+            max: f32::NAN,
             text: None,
             precision: 3,
             text_on_top: None,

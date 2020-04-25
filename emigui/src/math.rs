@@ -291,7 +291,7 @@ pub struct Rect {
 impl Rect {
     /// Infinite rectangle that contains everything
     pub fn everything() -> Self {
-        let inf = std::f32::INFINITY;
+        let inf = f32::INFINITY;
         Self {
             min: pos2(-inf, -inf),
             max: pos2(inf, inf),
@@ -299,7 +299,7 @@ impl Rect {
     }
 
     pub fn nothing() -> Self {
-        let inf = std::f32::INFINITY;
+        let inf = f32::INFINITY;
         Self {
             min: pos2(inf, inf),
             max: pos2(-inf, -inf),

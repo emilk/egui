@@ -407,7 +407,7 @@ impl Region {
         text_color: Option<Color>,
     ) -> Vec2 {
         let font = &self.fonts()[text_style];
-        let (text, size) = font.layout_multiline(text, std::f32::INFINITY);
+        let (text, size) = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_text(rect.min(), text_style, text, text_color);
         size

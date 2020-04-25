@@ -101,7 +101,7 @@ pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnc
     let style = ctx.style();
     let window_padding = style.window_padding;
 
-    let size = vec2(ctx.input.screen_size.x.min(350.0), std::f32::INFINITY); // TODO: popup/tooltip width
+    let size = vec2(ctx.input.screen_size.x.min(350.0), f32::INFINITY); // TODO: popup/tooltip width
     let inner_rect = Rect::from_min_size(window_pos + window_padding, size);
     let mut contents_region = Region::new(ctx.clone(), layer, Id::popup(), inner_rect);
 
