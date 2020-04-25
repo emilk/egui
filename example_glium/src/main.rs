@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use {
-    emigui::{example_app::ExampleApp, widgets::*, *},
+    emigui::{containers::*, example_app::ExampleApp, widgets::*, *},
     emigui_glium::Painter,
     glium::glutin,
 };
@@ -120,19 +120,6 @@ fn main() {
             .show(region.ctx(), |region| {
                 emigui.ui(region);
             });
-
-        Floating::new().show(region.ctx(), "Floating", |region| {
-            Frame::default().show(region, |region| {
-                Resize::default()
-                    .default_size(vec2(300.0, 200.0))
-                    .auto_expand(true)
-                    .show(region, |region| {
-                        region.add(Label::new("Fake Window").text_style(TextStyle::Heading));
-                        region.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-                        region.add(label!("Floating Frame Resize"));
-                    });
-            });
-        });
 
         let (output, paint_batches) = emigui.end_frame();
         painter.paint_batches(&display, paint_batches, emigui.texture());

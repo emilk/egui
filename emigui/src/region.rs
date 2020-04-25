@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{color::*, font::TextFragment, layout::*, widgets::*, *};
+use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, *};
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).

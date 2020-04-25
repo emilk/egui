@@ -1,8 +1,8 @@
 //! Frame container
-//!
+
 use crate::*;
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Frame {}
 
 impl Frame {

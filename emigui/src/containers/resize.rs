@@ -8,6 +8,9 @@ pub struct State {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
+    /// If false, we are no enabled
+    resizable: bool,
+
     // Will still try to stay within parent region bounds
     min_size: Vec2,
     max_size: Vec2,
@@ -15,24 +18,28 @@ pub struct Resize {
     default_size: Vec2,
 
     // If true, won't allow you to make window so big that it creates spacing
-    shrink_width_to_fit_content: bool,
-    shrink_height_to_fit_content: bool,
+    auto_shrink_width: bool,
+    auto_shrink_height: bool,
 
     // If true, won't allow you to resize smaller than that everything fits.
     expand_width_to_fit_content: bool,
     expand_height_to_fit_content: bool,
+
+    handle_offset: Vec2,
 }
 
 impl Default for Resize {
     fn default() -> Self {
         Self {
+            resizable: true,
             min_size: Vec2::splat(32.0),
             max_size: Vec2::infinity(),
             default_size: vec2(f32::INFINITY, 200.0), // TODO
-            shrink_width_to_fit_content: false,
-            shrink_height_to_fit_content: false,
+            auto_shrink_width: false,
+            auto_shrink_height: false,
             expand_width_to_fit_content: true,
             expand_height_to_fit_content: true,
+            handle_offset: Default::default(),
         }
     }
 }
@@ -48,6 +55,35 @@ impl Resize {
         self
     }
 
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
+
+    pub fn max_size(mut self, max_size: Vec2) -> Self {
+        self.max_size = max_size;
+        self
+    }
+
+    /// Can you resize it with the mouse?
+    /// Note that a window can still auto-resize
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    pub fn fixed_size(mut self, size: Vec2) -> Self {
+        self.auto_shrink_width = false;
+        self.auto_shrink_height = false;
+        self.expand_width_to_fit_content = false;
+        self.expand_height_to_fit_content = false;
+        self.default_size = size;
+        self.min_size = size;
+        self.max_size = size;
+        self.resizable = false;
+        self
+    }
+
     pub fn as_wide_as_possible(mut self) -> Self {
         self.min_size.x = f32::INFINITY;
         self
@@ -60,11 +96,31 @@ impl Resize {
         self.expand_height_to_fit_content = auto_expand;
         self
     }
+
+    /// Offset the position of the resize handle by this much
+    pub fn handle_offset(mut self, handle_offset: Vec2) -> Self {
+        self.handle_offset = handle_offset;
+        self
+    }
+
+    pub fn auto_shrink_width(mut self, auto_shrink_width: bool) -> Self {
+        self.auto_shrink_width = auto_shrink_width;
+        self
+    }
+
+    pub fn auto_shrink_height(mut self, auto_shrink_height: bool) -> Self {
+        self.auto_shrink_height = auto_shrink_height;
+        self
+    }
 }
 
 // TODO: a common trait for Things that follow this pattern
 impl Resize {
     pub fn show(mut self, region: &mut Region, add_contents: impl FnOnce(&mut Region)) {
+        if !self.resizable {
+            return add_contents(region);
+        }
+
         let id = region.make_child_id("scroll");
         self.min_size = self.min_size.min(region.available_space());
         self.max_size = self.max_size.min(region.available_space());
@@ -84,7 +140,10 @@ impl Resize {
 
         // Resize-corner:
         let corner_size = Vec2::splat(16.0); // TODO: style
-        let corner_rect = Rect::from_min_size(position + state.size - corner_size, corner_size);
+        let corner_rect = Rect::from_min_size(
+            position + state.size + self.handle_offset - corner_size,
+            corner_size,
+        );
         let corner_interact = region.interact_rect(&corner_rect, id.with("corner"));
 
         if corner_interact.active {
@@ -109,10 +168,10 @@ impl Resize {
 
         // ------------------------------
 
-        if self.shrink_width_to_fit_content {
+        if self.auto_shrink_width {
             state.size.x = state.size.x.min(desired_size.x);
         }
-        if self.shrink_height_to_fit_content {
+        if self.auto_shrink_height {
             state.size.y = state.size.y.min(desired_size.y);
         }
         if self.expand_width_to_fit_content || is_new {

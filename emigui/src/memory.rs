@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{collapsing_header, resize, scroll_area, window, *};
+use crate::{
+    containers::{collapsing_header, floating, resize, scroll_area},
+    Id, Layer, Pos2, Rect,
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
@@ -11,43 +14,44 @@ pub struct Memory {
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) resize: HashMap<Id, resize::State>,
-    windows: HashMap<Id, window::State>,
+    floating: HashMap<Id, floating::State>,
 
     /// Top is last
-    pub window_order: Vec<Id>,
+    pub floating_order: Vec<Id>,
 }
 
 impl Memory {
-    pub fn get_window(&mut self, id: Id) -> Option<window::State> {
-        self.windows.get(&id).cloned()
+    pub fn get_floating(&mut self, id: Id) -> Option<floating::State> {
+        self.floating.get(&id).cloned()
     }
 
-    pub fn set_window_state(&mut self, id: Id, state: window::State) {
-        let did_insert = self.windows.insert(id, state).is_none();
+    pub fn set_floating_state(&mut self, id: Id, state: floating::State) {
+        let did_insert = self.floating.insert(id, state).is_none();
         if did_insert {
-            self.window_order.push(id);
+            self.floating_order.push(id);
         }
     }
 
     /// TODO: call once at the start of the frame for the current mouse pos
     pub fn layer_at(&self, pos: Pos2) -> Layer {
-        for window_id in self.window_order.iter().rev() {
-            if let Some(state) = self.windows.get(window_id) {
-                if state.outer_rect.contains(pos) {
-                    return Layer::Window(*window_id);
+        for floating_id in self.floating_order.iter().rev() {
+            if let Some(state) = self.floating.get(floating_id) {
+                let rect = Rect::from_min_size(state.pos, state.size);
+                if rect.contains(pos) {
+                    return Layer::Window(*floating_id);
                 }
             }
         }
         Layer::Background
     }
 
-    pub fn move_window_to_top(&mut self, id: Id) {
-        if self.window_order.last() == Some(&id) {
+    pub fn move_floating_to_top(&mut self, id: Id) {
+        if self.floating_order.last() == Some(&id) {
             return; // common case early-out
         }
-        if let Some(index) = self.window_order.iter().position(|x| *x == id) {
-            self.window_order.remove(index);
+        if let Some(index) = self.floating_order.iter().position(|x| *x == id) {
+            self.floating_order.remove(index);
         }
-        self.window_order.push(id);
+        self.floating_order.push(id);
     }
 }

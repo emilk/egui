@@ -1,4 +1,4 @@
-use crate::{color::*, widgets::*, *};
+use crate::{color::*, containers::*, widgets::*, *};
 
 /// Showcase some region code
 pub struct ExampleApp {

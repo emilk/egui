@@ -76,7 +76,7 @@ impl Context {
 
     pub fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory.lock();
-        self.graphics.lock().drain(&memory.window_order).collect()
+        self.graphics.lock().drain(&memory.floating_order).collect()
     }
 
     /// Is the user interacting with anything?

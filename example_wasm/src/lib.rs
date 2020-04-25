@@ -9,10 +9,11 @@ extern crate emigui_wasm;
 use {
     emigui::{
         color::srgba,
+        containers::*,
         example_app::ExampleApp,
         label,
         widgets::{Label, Separator},
-        Align, Emigui, RawInput, TextStyle, Window, *,
+        Align, Emigui, RawInput, TextStyle, *,
     },
     emigui_wasm::now_sec,
 };

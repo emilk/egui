@@ -6,15 +6,13 @@ extern crate serde;
 #[macro_use] // TODO: get rid of this
 extern crate serde_derive;
 
-mod collapsing_header;
 pub mod color;
+pub mod containers;
 mod context;
 mod emigui;
 pub mod example_app;
-mod floating;
 mod font;
 mod fonts;
-mod frame;
 mod id;
 mod layers;
 mod layout;
@@ -22,22 +20,16 @@ pub mod math;
 mod memory;
 pub mod mesher;
 mod region;
-mod resize;
-mod scroll_area;
 mod style;
 mod texture_atlas;
 mod types;
 pub mod widgets;
-mod window;
 
 pub use {
     crate::emigui::Emigui,
-    collapsing_header::CollapsingHeader,
     color::Color,
     context::Context,
-    floating::Floating,
     fonts::{FontDefinitions, Fonts, TextStyle},
-    frame::Frame,
     id::Id,
     layers::*,
     layout::{Align, GuiResponse},
@@ -45,10 +37,7 @@ pub use {
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},
     region::Region,
-    resize::Resize,
-    scroll_area::ScrollArea,
     style::Style,
     texture_atlas::Texture,
     types::*,
-    window::Window,
 };
