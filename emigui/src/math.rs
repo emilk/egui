@@ -318,8 +318,8 @@ impl std::fmt::Debug for Pos2 {
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Rect {
-    min: Pos2,
-    max: Pos2,
+    pub min: Pos2,
+    pub max: Pos2,
 }
 
 impl Rect {
@@ -366,7 +366,7 @@ impl Rect {
 
     #[must_use]
     pub fn translate(self, amnt: Vec2) -> Self {
-        Rect::from_min_size(self.min() + amnt, self.size())
+        Rect::from_min_size(self.min + amnt, self.size())
     }
 
     #[must_use]
@@ -404,12 +404,6 @@ impl Rect {
             x: self.min.x + self.size().x / 2.0,
             y: self.min.y + self.size().y / 2.0,
         }
-    }
-    pub fn min(&self) -> Pos2 {
-        self.min
-    }
-    pub fn max(&self) -> Pos2 {
-        self.max
     }
     pub fn size(&self) -> Vec2 {
         self.max - self.min

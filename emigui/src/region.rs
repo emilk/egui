@@ -49,7 +49,7 @@ pub struct Region {
 
     /// Where the next widget will be put.
     /// Progresses along self.dir.
-    /// Initially set to rect.min()
+    /// Initially set to rect.min
     pub(crate) cursor: Pos2,
 }
 
@@ -67,7 +67,7 @@ impl Region {
             desired_rect: rect,
             bounding_size: Vec2::default(),
             style,
-            cursor: rect.min(),
+            cursor: rect.min,
             dir: Direction::Vertical,
             align: Align::Min,
         }
@@ -84,7 +84,7 @@ impl Region {
             id: self.id,
             clip_rect,
             desired_rect: child_rect,
-            cursor: child_rect.min(),
+            cursor: child_rect.min,
             bounding_size: vec2(0.0, 0.0),
             dir: self.dir,
             align: self.align,
@@ -167,7 +167,7 @@ impl Region {
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
     pub fn available_space(&self) -> Vec2 {
-        self.desired_rect.max() - self.cursor
+        self.desired_rect.max - self.cursor
     }
 
     pub fn direction(&self) -> Direction {
@@ -209,7 +209,7 @@ impl Region {
             "You can only indent vertical layouts"
         );
         let indent = vec2(self.style.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max());
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.desired_rect.max);
         let mut child_region = Region {
             id: self.id.with(id_source),
             align: Align::Min,
@@ -219,7 +219,7 @@ impl Region {
         let size = child_region.bounding_size;
 
         // draw a grey line on the left to mark the region
-        let line_start = child_rect.min() - indent * 0.5;
+        let line_start = child_rect.min - indent * 0.5;
         let line_start = line_start.round(); // TODO: round to pixel instead
         let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
         self.add_paint_cmd(PaintCmd::Line {
@@ -262,7 +262,7 @@ impl Region {
         align: Align,
         add_contents: impl FnOnce(&mut Region),
     ) {
-        let child_rect = Rect::from_min_max(self.cursor, self.desired_rect.max());
+        let child_rect = Rect::from_min_max(self.cursor, self.desired_rect.max);
         let mut child_region = Region {
             dir,
             align,
@@ -443,7 +443,7 @@ impl Region {
         let font = &self.fonts()[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(&Rect::from_min_size(pos, size), align);
-        self.add_text(rect.min(), text_style, text, text_color);
+        self.add_text(rect.min, text_style, text, text_color);
         size
     }
 

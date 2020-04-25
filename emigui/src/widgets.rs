@@ -54,7 +54,7 @@ impl Widget for Label {
         let font = &region.fonts()[self.text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
         let interact = region.reserve_space(text_size, None);
-        region.add_text(interact.rect.min(), self.text_style, text, self.text_color);
+        region.add_text(interact.rect.min, self.text_style, text, self.text_color);
         region.response(interact)
     }
 }
@@ -96,7 +96,7 @@ impl Widget for Hyperlink {
         if interact.hovered {
             // Underline:
             for fragment in &text {
-                let pos = interact.rect.min();
+                let pos = interact.rect.min;
                 let y = pos.y + fragment.y_offset + line_spacing;
                 let y = region.round_to_pixel(y);
                 let min_x = pos.x + fragment.min_x();
@@ -109,7 +109,7 @@ impl Widget for Hyperlink {
             }
         }
 
-        region.add_text(interact.rect.min(), text_style, text, Some(color));
+        region.add_text(interact.rect.min, text_style, text, Some(color));
 
         region.response(interact)
     }
@@ -198,7 +198,7 @@ impl<'a> Widget for Checkbox<'a> {
                 + region.style().button_padding,
             Some(id),
         );
-        let text_cursor = interact.rect.min()
+        let text_cursor = interact.rect.min
             + region.style().button_padding
             + vec2(region.style().start_icon_width, 0.0);
         if interact.clicked {
@@ -273,7 +273,7 @@ impl Widget for RadioButton {
                 + region.style().button_padding,
             Some(id),
         );
-        let text_cursor = interact.rect.min()
+        let text_cursor = interact.rect.min
             + region.style().button_padding
             + vec2(region.style().start_icon_width, 0.0);
 

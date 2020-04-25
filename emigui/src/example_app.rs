@@ -121,7 +121,7 @@ impl ExampleApp {
                     None,
                 )
                 .rect
-                .min();
+                .min;
 
             let mut cmds = vec![];
             for i in 0..self.num_boxes {

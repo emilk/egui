@@ -201,7 +201,7 @@ impl Context {
                 rect: rect.expand(2.0),
             },
         );
-        self.add_text(layer, rect.min(), text_style, text, Some(color::RED));
+        self.add_text(layer, rect.min, text_style, text, Some(color::RED));
     }
 
     pub fn debug_text(&self, pos: Pos2, text: &str) {
@@ -231,7 +231,7 @@ impl Context {
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(&Rect::from_min_size(pos, size), align);
-        self.add_text(layer, rect.min(), text_style, text, text_color);
+        self.add_text(layer, rect.min, text_style, text, text_color);
         size
     }
 

@@ -267,7 +267,7 @@ impl Painter {
         let height_points = height_pixels as f32 / pixels_per_point;
 
         let uniforms = uniform! {
-            u_clip_rect: [clip_rect.min().x, clip_rect.min().y, clip_rect.max().x, clip_rect.max().y],
+            u_clip_rect: [clip_rect.min.x, clip_rect.min.y, clip_rect.max.x, clip_rect.max.y],
             u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: &self.texture,

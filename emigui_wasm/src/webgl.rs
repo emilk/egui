@@ -214,8 +214,8 @@ impl Painter {
 
         for (clip_rect, mesh) in batches {
             // Avoid infinities in shader:
-            let clip_min = clip_rect.min().max(Pos2::default());
-            let clip_max = clip_rect.max().min(Pos2::default() + screen_size_points);
+            let clip_min = clip_rect.min.max(Pos2::default());
+            let clip_max = clip_rect.max.min(Pos2::default() + screen_size_points);
 
             gl.uniform4f(
                 Some(&u_clip_rect_loc),

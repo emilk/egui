@@ -179,8 +179,8 @@ impl Path {
     }
 
     pub fn add_rectangle(&mut self, rect: &Rect) {
-        let min = rect.min();
-        let max = rect.max();
+        let min = rect.min;
+        let max = rect.max;
         self.add_point(pos2(min.x, min.y), vec2(-1.0, -1.0));
         self.add_point(pos2(max.x, min.y), vec2(1.0, -1.0));
         self.add_point(pos2(max.x, max.y), vec2(1.0, 1.0));
@@ -188,8 +188,8 @@ impl Path {
     }
 
     pub fn add_rounded_rectangle(&mut self, rect: &Rect, corner_radius: f32) {
-        let min = rect.min();
-        let max = rect.max();
+        let min = rect.min;
+        let max = rect.max;
 
         let cr = corner_radius
             .min(rect.width() * 0.5)

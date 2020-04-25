@@ -198,7 +198,7 @@ impl Window {
 
         let corner_interact = if self.resizeable {
             // Resize-corner:
-            let corner_center = outer_rect.max() - Vec2::splat(corner_radius);
+            let corner_center = outer_rect.max - Vec2::splat(corner_radius);
             let corner_rect = Rect::from_min_size(corner_center, Vec2::splat(corner_radius));
 
             let corner_interact = ctx.interact(layer, &corner_rect, Some(id.with("corner")));

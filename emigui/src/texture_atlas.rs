@@ -109,12 +109,12 @@ impl Texture {
         let interact = region.reserve_space(size, None);
         let rect = interact.rect;
         let top_left = Vertex {
-            pos: rect.min(),
+            pos: rect.min,
             uv: (0, 0),
             color: WHITE,
         };
         let bottom_right = Vertex {
-            pos: rect.max(),
+            pos: rect.max,
             uv: (self.width as u16 - 1, self.height as u16 - 1),
             color: WHITE,
         };
@@ -137,12 +137,12 @@ impl Texture {
                     let v = clamp(v, texel_radius..=self.height as f32 - 1.0 - texel_radius);
 
                     let top_left = Vertex {
-                        pos: zoom_rect.min(),
+                        pos: zoom_rect.min,
                         uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
                         color: WHITE,
                     };
                     let bottom_right = Vertex {
-                        pos: zoom_rect.max(),
+                        pos: zoom_rect.max,
                         uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
                         color: WHITE,
                     };
