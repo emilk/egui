@@ -180,3 +180,13 @@ pub enum PaintCmd {
     /// Low-level triangle mesh
     Mesh(Mesh),
 }
+
+impl PaintCmd {
+    pub fn line_segment(seg: (Pos2, Pos2), color: Color, width: f32) -> Self {
+        Self::Line {
+            points: vec![seg.0, seg.1],
+            color,
+            width,
+        }
+    }
+}

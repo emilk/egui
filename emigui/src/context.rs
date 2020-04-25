@@ -128,7 +128,7 @@ impl Context {
         }
     }
 
-    pub fn interact(&self, layer: Layer, rect: Rect, interaction_id: Option<Id>) -> InteractInfo {
+    pub fn interact(&self, layer: Layer, rect: &Rect, interaction_id: Option<Id>) -> InteractInfo {
         let hovered = self.contains_mouse_pos(layer, &rect);
 
         let mut memory = self.memory.lock();
@@ -139,7 +139,7 @@ impl Context {
                 if memory.active_id.is_some() {
                     // Already clicked something else this frame
                     InteractInfo {
-                        rect,
+                        rect: *rect,
                         hovered,
                         clicked: false,
                         active: false,
@@ -147,7 +147,7 @@ impl Context {
                 } else {
                     memory.active_id = interaction_id;
                     InteractInfo {
-                        rect,
+                        rect: *rect,
                         hovered,
                         clicked: false,
                         active: true,
@@ -155,7 +155,7 @@ impl Context {
                 }
             } else {
                 InteractInfo {
-                    rect,
+                    rect: *rect,
                     hovered,
                     clicked: false,
                     active: false,
@@ -163,21 +163,21 @@ impl Context {
             }
         } else if self.input.mouse_released {
             InteractInfo {
-                rect,
+                rect: *rect,
                 hovered,
                 clicked: hovered && active,
                 active,
             }
         } else if self.input.mouse_down {
             InteractInfo {
-                rect,
+                rect: *rect,
                 hovered: hovered && active,
                 clicked: false,
                 active,
             }
         } else {
             InteractInfo {
-                rect,
+                rect: *rect,
                 hovered,
                 clicked: false,
                 active,
@@ -187,11 +187,11 @@ impl Context {
 
     pub fn show_error(&self, pos: Pos2, text: &str) {
         let align = (Align::Min, Align::Min);
-        let layer = Layer::Popup; // TODO: Layer::Error
+        let layer = Layer::Popup; // TODO: Layer::Debug
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
+        let rect = align_rect(&Rect::from_min_size(pos, size), align);
         self.add_paint_cmd(
             layer,
             PaintCmd::Rect {
@@ -202,6 +202,19 @@ impl Context {
             },
         );
         self.add_text(layer, rect.min(), text_style, text, Some(color::RED));
+    }
+
+    pub fn debug_text(&self, pos: Pos2, text: &str) {
+        let layer = Layer::Popup; // TODO: Layer::Debug
+        let align = (Align::Min, Align::Min);
+        self.floating_text(
+            layer,
+            pos,
+            text,
+            TextStyle::Monospace,
+            align,
+            Some(color::YELLOW),
+        );
     }
 
     /// Show some text anywhere on screen.
@@ -217,7 +230,7 @@ impl Context {
     ) -> Vec2 {
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
+        let rect = align_rect(&Rect::from_min_size(pos, size), align);
         self.add_text(layer, rect.min(), text_style, text, text_color);
         size
     }

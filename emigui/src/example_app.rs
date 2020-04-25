@@ -1,7 +1,4 @@
-use crate::{
-    color::*, label, math::*, widgets::*, Align, CollapsingHeader, Outline, PaintCmd, Region,
-    ScrollArea,
-};
+use crate::{color::*, widgets::*, *};
 
 /// Showcase some region code
 pub struct ExampleApp {
@@ -150,8 +147,20 @@ impl ExampleApp {
             });
 
         CollapsingHeader::new("Painting")
-            .default_open()
+            // .default_open()
             .show(region, |region| self.painting.ui(region));
+
+        CollapsingHeader::new("Resize")
+            .default_open()
+            .show(region, |region| {
+                Resize::default()
+                    .default_height(200.0)
+                    // .as_wide_as_possible()
+                    .show(region, |region| {
+                        region.add(label!("This region can be resized!"));
+                        region.add(label!("Just pull the handle on the bottom right"));
+                    });
+            });
 
         region.collapsing("Name clash example", |region| {
             region.add_label("\

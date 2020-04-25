@@ -20,6 +20,7 @@ pub mod math;
 mod memory;
 pub mod mesher;
 mod region;
+mod resize;
 mod scroll_area;
 mod style;
 mod texture_atlas;
@@ -40,6 +41,7 @@ pub use {
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},
     region::Region,
+    resize::Resize,
     scroll_area::ScrollArea,
     style::Style,
     texture_atlas::Texture,

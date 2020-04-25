@@ -126,6 +126,10 @@ impl Region {
         self.ctx.input()
     }
 
+    pub fn memory(&self) -> parking_lot::MutexGuard<Memory> {
+        self.ctx.memory.lock()
+    }
+
     pub fn fonts(&self) -> &Fonts {
         &*self.ctx.fonts
     }
@@ -308,9 +312,13 @@ impl Region {
     // ------------------------------------------------------------------------
 
     /// Check for clicks on this entire region (desired_rect)
-    pub fn interact(&self) -> InteractInfo {
+    pub fn interact_whole(&self) -> InteractInfo {
         self.ctx
-            .interact(self.layer, self.desired_rect, Some(self.id))
+            .interact(self.layer, &self.desired_rect, Some(self.id))
+    }
+
+    pub fn interact_rect(&self, rect: &Rect, id: Id) -> InteractInfo {
+        self.ctx.interact(self.layer, rect, Some(id))
     }
 
     // ------------------------------------------------------------------------
@@ -342,7 +350,7 @@ impl Region {
     pub fn reserve_space(&mut self, size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let pos = self.reserve_space_without_padding(size + self.style.item_spacing);
         let rect = Rect::from_min_size(pos, size);
-        self.ctx.interact(self.layer, rect, interaction_id)
+        self.ctx.interact(self.layer, &rect, interaction_id)
     }
 
     /// Reserve this much space and move the cursor.
@@ -394,6 +402,13 @@ impl Region {
         self.id.with(id_seed)
     }
 
+    // ------------------------------------------------
+
+    /// Paint some debug text at current cursor
+    pub fn debug_text(&self, text: &str) {
+        self.ctx.debug_text(self.cursor, text);
+    }
+
     /// Show some text anywhere in the region.
     /// To center the text at the given position, use `align: (Center, Center)`.
     /// If you want to draw text floating on top of everything,
@@ -408,7 +423,7 @@ impl Region {
     ) -> Vec2 {
         let font = &self.fonts()[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
+        let rect = align_rect(&Rect::from_min_size(pos, size), align);
         self.add_text(rect.min(), text_style, text, text_color);
         size
     }

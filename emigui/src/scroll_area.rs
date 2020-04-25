@@ -57,7 +57,7 @@ impl ScrollArea {
 
         let content_interact = ctx.interact(
             outer_region.layer,
-            inner_rect,
+            &inner_rect,
             Some(scroll_area_id.with("area")),
         );
         if content_interact.active {
@@ -95,7 +95,7 @@ impl ScrollArea {
 
             // intentionally use same id for inside and outside of handle
             let interact_id = Some(scroll_area_id.with("vertical"));
-            let handle_interact = ctx.interact(outer_region.layer, handle_rect, interact_id);
+            let handle_interact = ctx.interact(outer_region.layer, &handle_rect, interact_id);
 
             if let Some(mouse_pos) = ctx.input.mouse_pos {
                 if handle_interact.active {
@@ -106,7 +106,7 @@ impl ScrollArea {
                 } else {
                     // Check for mouse down outside handle:
                     let scroll_bg_interact =
-                        ctx.interact(outer_region.layer, outer_scroll_rect, interact_id);
+                        ctx.interact(outer_region.layer, &outer_scroll_rect, interact_id);
 
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:

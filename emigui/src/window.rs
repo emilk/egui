@@ -45,7 +45,7 @@ impl Default for Window {
             default_size: None,
             resizeable: true,
             shrink_width_to_fit_content: false,
-            shrink_height_to_fit_content: true,
+            shrink_height_to_fit_content: false,
             expand_width_to_fit_content: true,
             expand_height_to_fit_content: true,
             min_size: Vec2::splat(16.0),
@@ -121,7 +121,7 @@ impl Window {
 
         let id = ctx.make_unique_id(&self.title, default_pos);
 
-        let (mut state, is_new_window) = match ctx.memory.lock().get_window(id) {
+        let (mut state, is_new) = match ctx.memory.lock().get_window(id) {
             Some(state) => (state, false),
             None => {
                 let state = State {
@@ -167,10 +167,10 @@ impl Window {
         if self.shrink_height_to_fit_content {
             new_inner_size.y = new_inner_size.y.min(desired_inner_size.y);
         }
-        if self.expand_width_to_fit_content || is_new_window {
+        if self.expand_width_to_fit_content || is_new {
             new_inner_size.x = new_inner_size.x.max(desired_inner_size.x);
         }
-        if self.expand_height_to_fit_content || is_new_window {
+        if self.expand_height_to_fit_content || is_new {
             new_inner_size.y = new_inner_size.y.max(desired_inner_size.y);
         }
         new_inner_size = new_inner_size.max(min_inner_size);
@@ -201,7 +201,7 @@ impl Window {
             let corner_center = outer_rect.max() - Vec2::splat(corner_radius);
             let corner_rect = Rect::from_min_size(corner_center, Vec2::splat(corner_radius));
 
-            let corner_interact = ctx.interact(layer, corner_rect, Some(id.with("corner")));
+            let corner_interact = ctx.interact(layer, &corner_rect, Some(id.with("corner")));
 
             graphics.layer(layer).push((
                 Rect::everything(),
@@ -212,7 +212,7 @@ impl Window {
             InteractInfo::default()
         };
 
-        let win_interact = ctx.interact(layer, outer_rect, Some(id.with("window")));
+        let win_interact = ctx.interact(layer, &outer_rect, Some(id.with("window")));
 
         if corner_interact.active {
             if let Some(mouse_pos) = ctx.input().mouse_pos {

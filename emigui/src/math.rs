@@ -11,6 +11,17 @@ pub fn vec2(x: f32, y: f32) -> Vec2 {
 }
 
 impl Vec2 {
+    pub fn zero() -> Self {
+        Self { x: 0.0, y: 0.0 }
+    }
+
+    pub fn infinity() -> Self {
+        Self {
+            x: f32::INFINITY,
+            y: f32::INFINITY,
+        }
+    }
+
     pub fn splat(v: impl Into<f32>) -> Self {
         let v: f32 = v.into();
         Self { x: v, y: v }
@@ -50,14 +61,17 @@ impl Vec2 {
         vec2(angle.cos(), angle.sin())
     }
 
+    #[must_use]
     pub fn floor(self) -> Self {
         vec2(self.x.floor(), self.y.floor())
     }
 
+    #[must_use]
     pub fn round(self) -> Self {
         vec2(self.x.round(), self.y.round())
     }
 
+    #[must_use]
     pub fn ceil(self) -> Self {
         vec2(self.x.ceil(), self.y.ceil())
     }
@@ -66,12 +80,22 @@ impl Vec2 {
         self.x.is_finite() && self.y.is_finite()
     }
 
+    #[must_use]
     pub fn min(self, other: Self) -> Self {
         vec2(self.x.min(other.x), self.y.min(other.y))
     }
 
+    #[must_use]
     pub fn max(self, other: Self) -> Self {
         vec2(self.x.max(other.x), self.y.max(other.y))
+    }
+
+    #[must_use]
+    pub fn clamp(self, range: RangeInclusive<Self>) -> Self {
+        Self {
+            x: clamp(self.x, range.start().x..=range.end().x),
+            y: clamp(self.y, range.start().y..=range.end().y),
+        }
     }
 }
 
@@ -210,12 +234,22 @@ impl Pos2 {
         self.x.is_finite() && self.y.is_finite()
     }
 
+    #[must_use]
     pub fn min(self, other: Self) -> Self {
         pos2(self.x.min(other.x), self.y.min(other.y))
     }
 
+    #[must_use]
     pub fn max(self, other: Self) -> Self {
         pos2(self.x.max(other.x), self.y.max(other.y))
+    }
+
+    #[must_use]
+    pub fn clamp(self, range: RangeInclusive<Self>) -> Self {
+        Self {
+            x: clamp(self.x, range.start().x..=range.end().x),
+            y: clamp(self.y, range.start().y..=range.end().y),
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{collapsing_header, scroll_area, window, *};
+use crate::{collapsing_header, resize, scroll_area, window, *};
 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
@@ -10,6 +10,7 @@ pub struct Memory {
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
+    pub(crate) resize: HashMap<Id, resize::State>,
     windows: HashMap<Id, window::State>,
 
     /// Top is last

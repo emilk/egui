@@ -115,7 +115,7 @@ fn main() {
 
         Window::new("Examples")
             .default_pos(pos2(50.0, 100.0))
-            .default_size(vec2(300.0, 400.0))
+            .default_size(vec2(300.0, 600.0))
             .show(region.ctx(), |region| {
                 example_app.ui(region);
             });
