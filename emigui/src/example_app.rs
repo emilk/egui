@@ -190,8 +190,7 @@ impl ExampleApp {
 
 #[derive(Default)]
 struct Painting {
-    lines: Vec<Vec<Pos2>>,
-    current_line: Vec<Pos2>,
+    lines: Vec<Vec<Vec2>>,
 }
 
 impl Painting {
@@ -199,38 +198,38 @@ impl Painting {
         region.add_label("Draw with your mouse to paint");
         if region.add(Button::new("Clear")).clicked {
             self.lines.clear();
-            self.current_line.clear();
         }
 
         region.add_custom_contents(vec2(f32::INFINITY, 200.0), |region| {
+            let canvas_corner = region.cursor();
             let interact = region.reserve_space(region.available_space(), Some(region.id));
-            region.clip_rect = region.clip_rect.intersect(interact.rect); // Make sure we don't paint out of bounds
+            region.clip_rect = region.clip_rect.intersect(&interact.rect); // Make sure we don't paint out of bounds
+
+            if self.lines.is_empty() {
+                self.lines.push(vec![]);
+            }
+
+            let current_line = self.lines.last_mut().unwrap();
 
             if interact.active {
                 if let Some(mouse_pos) = region.input().mouse_pos {
-                    if self.current_line.last() != Some(&mouse_pos) {
-                        self.current_line.push(mouse_pos);
+                    let canvas_pos = mouse_pos - canvas_corner;
+                    if current_line.last() != Some(&canvas_pos) {
+                        current_line.push(canvas_pos);
                     }
                 }
-            } else if !self.current_line.is_empty() {
-                self.lines.push(std::mem::take(&mut self.current_line));
+            } else if !current_line.is_empty() {
+                self.lines.push(vec![]);
             }
 
             for line in &self.lines {
                 if line.len() >= 2 {
                     region.add_paint_cmd(PaintCmd::Line {
-                        points: line.clone(),
+                        points: line.iter().map(|p| canvas_corner + *p).collect(),
                         color: LIGHT_GRAY,
                         width: 2.0,
                     });
                 }
-            }
-            if self.current_line.len() >= 2 {
-                region.add_paint_cmd(PaintCmd::Line {
-                    points: self.current_line.clone(),
-                    color: WHITE,
-                    width: 2.0,
-                });
             }
 
             // Frame it:
