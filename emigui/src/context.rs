@@ -120,7 +120,8 @@ impl Context {
         }
     }
 
-    pub fn contains_mouse_pos(&self, layer: Layer, rect: &Rect) -> bool {
+    pub fn contains_mouse(&self, layer: Layer, clip_rect: &Rect, rect: &Rect) -> bool {
+        let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse_pos {
             rect.contains(mouse_pos) && layer == self.memory.lock().layer_at(mouse_pos)
         } else {
@@ -128,8 +129,14 @@ impl Context {
         }
     }
 
-    pub fn interact(&self, layer: Layer, rect: &Rect, interaction_id: Option<Id>) -> InteractInfo {
-        let hovered = self.contains_mouse_pos(layer, &rect);
+    pub fn interact(
+        &self,
+        layer: Layer,
+        clip_rect: &Rect,
+        rect: &Rect,
+        interaction_id: Option<Id>,
+    ) -> InteractInfo {
+        let hovered = self.contains_mouse(layer, clip_rect, &rect);
 
         let mut memory = self.memory.lock();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;

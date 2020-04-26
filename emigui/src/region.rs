@@ -74,7 +74,7 @@ impl Region {
     pub fn child_region(&self, child_rect: Rect) -> Self {
         let clip_rect = self
             .clip_rect
-            .intersect(child_rect.expand(CLIP_RECT_MARGIN));
+            .intersect(&child_rect.expand(CLIP_RECT_MARGIN));
         Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
@@ -339,12 +339,21 @@ impl Region {
 
     /// Check for clicks on this entire region (desired_rect)
     pub fn interact_whole(&self) -> InteractInfo {
-        self.ctx
-            .interact(self.layer, &self.desired_rect, Some(self.id))
+        self.ctx.interact(
+            self.layer,
+            &self.clip_rect,
+            &self.desired_rect,
+            Some(self.id),
+        )
     }
 
     pub fn interact_rect(&self, rect: &Rect, id: Id) -> InteractInfo {
-        self.ctx.interact(self.layer, rect, Some(id))
+        self.ctx
+            .interact(self.layer, &self.clip_rect, rect, Some(id))
+    }
+
+    pub fn contains_mouse(&self, rect: &Rect) -> bool {
+        self.ctx.contains_mouse(self.layer, &self.clip_rect, rect)
     }
 
     // ------------------------------------------------------------------------
@@ -380,7 +389,8 @@ impl Region {
         };
         let pos = self.reserve_space_without_padding(padded_size);
         let rect = Rect::from_min_size(pos, size);
-        self.ctx.interact(self.layer, &rect, interaction_id)
+        self.ctx
+            .interact(self.layer, &self.clip_rect, &rect, interaction_id)
     }
 
     /// Reserve this much space and move the cursor.

@@ -108,7 +108,7 @@ impl Emigui {
                 region.input().pixels_per_point,
             ));
             if let Some(mouse_pos) = region.input().mouse_pos {
-                region.add(label!("mouse_pos: {} x {}", mouse_pos.x, mouse_pos.y,));
+                region.add(label!("mouse_pos: {:.2} x {:.2}", mouse_pos.x, mouse_pos.y,));
             } else {
                 region.add_label("mouse_pos: None");
             }

@@ -370,7 +370,7 @@ impl Rect {
     }
 
     #[must_use]
-    pub fn intersect(self, other: Rect) -> Self {
+    pub fn intersect(self, other: &Rect) -> Self {
         Self {
             min: self.min.max(other.min),
             max: self.max.min(other.max),

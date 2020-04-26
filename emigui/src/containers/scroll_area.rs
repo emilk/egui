@@ -4,21 +4,40 @@ use crate::*;
 pub struct State {
     /// Positive offset means scrolling down/right
     pub offset: Vec2,
+
+    pub show_scroll: bool, // TODO: default value?
 }
 
+#[derive(Clone, Debug)]
 pub struct ScrollArea {
     max_height: f32,
+    always_show_scroll: bool,
+    auto_hide_scroll: bool,
 }
 
 impl Default for ScrollArea {
     fn default() -> Self {
-        Self { max_height: 200.0 }
+        Self {
+            max_height: 200.0,
+            always_show_scroll: false,
+            auto_hide_scroll: true,
+        }
     }
 }
 
 impl ScrollArea {
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.max_height = max_height;
+        self
+    }
+
+    pub fn always_show_scroll(mut self, always_show_scroll: bool) -> Self {
+        self.always_show_scroll = always_show_scroll;
+        self
+    }
+
+    pub fn auto_hide_scroll(mut self, auto_hide_scroll: bool) -> Self {
+        self.auto_hide_scroll = auto_hide_scroll;
         self
     }
 }
@@ -42,38 +61,40 @@ impl ScrollArea {
 
         let scroll_bar_width = 16.0;
 
-        let outer_size = vec2(outer_region.available_width(), self.max_height);
+        let outer_size = vec2(
+            outer_region.available_width(),
+            outer_region.available_height().min(self.max_height),
+        );
         let outer_rect = Rect::from_min_size(outer_region.cursor, outer_size);
 
-        let inner_size = outer_size - vec2(scroll_bar_width, 0.0);
+        let inner_size = if state.show_scroll || !self.auto_hide_scroll {
+            outer_size - vec2(scroll_bar_width, 0.0) // TODO: animate?
+        } else {
+            outer_size
+        };
         let inner_rect = Rect::from_min_size(outer_region.cursor, inner_size);
 
-        let mut content_region =
-            outer_region.child_region(Rect::from_min_size(outer_region.cursor(), inner_size));
-        content_region.cursor -= state.offset;
-        content_region.desired_rect = content_region.desired_rect.translate(-state.offset);
+        let mut content_region = outer_region.child_region(Rect::from_min_size(
+            outer_region.cursor() - state.offset,
+            vec2(inner_size.x, f32::INFINITY),
+        ));
+        content_region.clip_rect = outer_region.clip_rect().intersect(&inner_rect);
         add_contents(&mut content_region);
         let content_size = content_region.bounding_size();
 
-        let content_interact = ctx.interact(
-            outer_region.layer,
-            &inner_rect,
-            Some(scroll_area_id.with("area")),
-        );
+        let content_interact = outer_region.interact_rect(&inner_rect, scroll_area_id.with("area"));
         if content_interact.active {
             // Dragging scroll area to scroll:
             state.offset.y -= ctx.input.mouse_move.y;
         }
 
         // TODO: check that nothing else is being inteacted with
-        if ctx.contains_mouse_pos(outer_region.layer, &outer_rect)
-            && ctx.memory.lock().active_id.is_none()
-        {
+        if outer_region.contains_mouse(&outer_rect) && ctx.memory.lock().active_id.is_none() {
             state.offset.y -= ctx.input.scroll_delta.y;
         }
 
-        let show_scroll = content_size.y > inner_size.y;
-        if show_scroll {
+        let show_scroll_this_frame = content_size.y > inner_size.y || self.always_show_scroll;
+        if show_scroll_this_frame || state.show_scroll {
             let left = inner_rect.right() + 2.0;
             let right = outer_rect.right();
             let corner_radius = (right - left) / 2.0;
@@ -94,8 +115,8 @@ impl ScrollArea {
             );
 
             // intentionally use same id for inside and outside of handle
-            let interact_id = Some(scroll_area_id.with("vertical"));
-            let handle_interact = ctx.interact(outer_region.layer, &handle_rect, interact_id);
+            let interact_id = scroll_area_id.with("vertical");
+            let handle_interact = outer_region.interact_rect(&handle_rect, interact_id);
 
             if let Some(mouse_pos) = ctx.input.mouse_pos {
                 if handle_interact.active {
@@ -106,7 +127,7 @@ impl ScrollArea {
                 } else {
                     // Check for mouse down outside handle:
                     let scroll_bg_interact =
-                        ctx.interact(outer_region.layer, &outer_scroll_rect, interact_id);
+                        outer_region.interact_rect(&outer_scroll_rect, interact_id);
 
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:
@@ -132,7 +153,7 @@ impl ScrollArea {
             outer_region.add_paint_cmd(PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill_color: Some(color::BLACK),
+                fill_color: Some(color::gray(0, 196)), // TODO style
                 outline: None,
             });
 
@@ -144,11 +165,12 @@ impl ScrollArea {
             });
         }
 
-        let size = content_size.min(content_region.clip_rect.size());
+        let size = content_size.min(inner_rect.size());
         outer_region.reserve_space_without_padding(size);
 
-        state.offset.y = state.offset.y.max(0.0);
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
+        state.offset.y = state.offset.y.max(0.0);
+        state.show_scroll = show_scroll_this_frame;
 
         outer_region
             .ctx()

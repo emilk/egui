@@ -4,13 +4,14 @@ use crate::{widgets::*, *};
 
 use super::*;
 
-// TODO: separate out resizing into a contained and reusable Resize-region.
+/// A wrapper around other containers for things you often want in a window
 #[derive(Clone, Debug)]
 pub struct Window {
     title: String,
     floating: Floating,
     frame: Frame,
     resize: Resize,
+    scroll: ScrollArea,
 }
 
 impl Window {
@@ -22,7 +23,11 @@ impl Window {
             frame: Frame::default(),
             resize: Resize::default()
                 .handle_offset(Vec2::splat(4.0))
-                .auto_shrink_height(true),
+                .auto_shrink_height(false)
+                .auto_expand(false),
+            scroll: ScrollArea::default()
+                .always_show_scroll(false)
+                .max_height(f32::INFINITY), // As large as we can be
         }
     }
 
@@ -66,15 +71,17 @@ impl Window {
             floating,
             frame,
             resize,
+            scroll,
         } = self;
+        // TODO: easier way to compose these
         floating.show(ctx, |region| {
             frame.show(region, |region| {
                 resize.show(region, |region| {
                     region.add(Label::new(title).text_style(TextStyle::Heading));
                     region.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-                    add_contents(region);
-                });
-            });
-        });
+                    scroll.show(region, |region| add_contents(region))
+                })
+            })
+        })
     }
 }

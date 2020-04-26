@@ -172,7 +172,8 @@ impl Resize {
             contents_region.clip_rect.max = contents_region
                 .clip_rect
                 .max
-                .max(contents_region.clip_rect.min + last_frame_size);
+                .max(contents_region.clip_rect.min + last_frame_size)
+                .min(region.clip_rect.max); // Respect parent region
 
             add_contents(&mut contents_region);
             contents_region.bounding_size()

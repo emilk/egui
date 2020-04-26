@@ -165,5 +165,6 @@ impl Style {
         region.add(Slider::f32(&mut self.clickable_diameter, 0.0..=60.0).text("clickable_diameter").precision(0));
         region.add(Slider::f32(&mut self.start_icon_width, 0.0..=60.0).text("start_icon_width").precision(0));
         region.add(Slider::f32(&mut self.line_width, 0.0..=10.0).text("line_width").precision(0));
+        region.add(Slider::f32(&mut self.animation_time, 0.0..=1.0).text("animation_time").precision(2));
     }
 }

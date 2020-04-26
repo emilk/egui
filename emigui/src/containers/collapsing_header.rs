@@ -92,16 +92,15 @@ impl CollapsingHeader {
 
         let animation_time = region.style().animation_time;
         let time_since_toggle = (region.ctx.input.time - state.toggle_time) as f32;
-        if time_since_toggle < animation_time {
+        let animate = time_since_toggle < animation_time;
+        if animate {
             region.indent(id, |region| {
-                // animation time
-
                 let max_height = if state.open {
                     remap(
                         time_since_toggle,
                         0.0..=animation_time,
                         // Get instant feedback, and we don't expect to get bigger than this
-                        50.0..=1500.0,
+                        100.0..=1500.0,
                     )
                 } else {
                     remap_clamp(
@@ -112,17 +111,12 @@ impl CollapsingHeader {
                     )
                 };
 
-                region
-                    .clip_rect
-                    .set_height(region.clip_rect.height().min(max_height));
+                region.clip_rect.max.y = region.clip_rect.max.y.min(region.cursor.y + max_height);
 
                 add_contents(region);
 
-                region.child_bounds.max.y = region
-                    .child_bounds
-                    .max
-                    .y
-                    .min(region.child_bounds.min.y + max_height);
+                region.child_bounds.max.y =
+                    region.child_bounds.max.y.min(region.cursor.y + max_height);
             });
         } else if state.open {
             region.indent(id, add_contents);

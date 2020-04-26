@@ -156,6 +156,7 @@ impl ExampleApp {
                 Resize::default()
                     .default_height(200.0)
                     // .as_wide_as_possible()
+                    .auto_shrink_height(false)
                     .show(region, |region| {
                         region.add(label!("This region can be resized!"));
                         region.add(label!("Just pull the handle on the bottom right"));

@@ -13,6 +13,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Tooltip
 * [x] Movable/resizable windows
     * [ ] Kinetic windows
+    * [ ] BUG FIX: Don't catch clicks on closed windows
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
@@ -26,6 +27,10 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Color picker
 * [ ] Style editor
 * [ ] Table with resizable columns
+* [ ] Layout
+    * [ ] Generalize Layout (separate from Region)
+    * [ ] Cascading layout: same lite if it fits, else next line. Like text.
+    * [ ] Grid layout
 
 ### Web version:
 * [x] Scroll input
@@ -38,7 +43,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 ### Clip rects
 * [x] Separate Region::clip_rect from Region::rect
 * [x] Use clip rectangles when painting
-* [ ] Use clip rectangles when interacting
+* [x] Use clip rectangles when interacting
 * [x] Adjust clip rects so edges of child widgets aren't clipped
 
 ### Modularity
@@ -54,7 +59,6 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] Text
 
 ### Other
-* [ ] Generalize Layout so we can create grid layouts etc
 * [ ] Persist UI state in external storage
 * [ ] Pixel-perfect rendering (round positions to nearest pixel).
 * [ ] Build in a profiler which tracks which region in which window takes up CPU.

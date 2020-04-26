@@ -72,7 +72,8 @@ impl Floating {
         state.size = region.bounding_size().ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
-        let move_interact = ctx.interact(layer, &rect, Some(id.with("move")));
+        let clip_rect = Rect::everything();
+        let move_interact = ctx.interact(layer, &clip_rect, &rect, Some(id.with("move")));
 
         if move_interact.active {
             state.pos += ctx.input().mouse_move;
