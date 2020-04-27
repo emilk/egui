@@ -9,6 +9,8 @@ pub enum Layer {
     Window(Id),
     /// Tooltips etc
     Popup,
+    /// Debug text
+    Debug,
 }
 
 /// Each PaintCmd is paired with a clip rectangle.
@@ -20,6 +22,7 @@ pub struct GraphicLayers {
     bg: PaintList,
     windows: HashMap<Id, PaintList>,
     popup: PaintList,
+    debug: PaintList,
 }
 
 impl GraphicLayers {
@@ -28,6 +31,7 @@ impl GraphicLayers {
             Layer::Background => &mut self.bg,
             Layer::Window(id) => self.windows.entry(id).or_default(),
             Layer::Popup => &mut self.popup,
+            Layer::Debug => &mut self.debug,
         }
     }
 
@@ -44,6 +48,7 @@ impl GraphicLayers {
         }
 
         all_commands.extend(self.popup.drain(..));
+        all_commands.extend(self.debug.drain(..));
         all_commands.into_iter()
     }
 }

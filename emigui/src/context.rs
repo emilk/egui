@@ -194,7 +194,7 @@ impl Context {
 
     pub fn show_error(&self, pos: Pos2, text: &str) {
         let align = (Align::Min, Align::Min);
-        let layer = Layer::Popup; // TODO: Layer::Debug
+        let layer = Layer::Debug;
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
@@ -212,7 +212,7 @@ impl Context {
     }
 
     pub fn debug_text(&self, pos: Pos2, text: &str) {
-        let layer = Layer::Popup; // TODO: Layer::Debug
+        let layer = Layer::Debug;
         let align = (Align::Min, Align::Min);
         self.floating_text(
             layer,
