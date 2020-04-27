@@ -129,9 +129,6 @@ impl Painter {
         let gl = &self.gl;
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
 
-        // TODO: remove once https://github.com/rustwasm/wasm-bindgen/issues/1005 is fixed.
-        let mut pixels: Vec<_> = texture.pixels.to_vec();
-
         let level = 0;
         let internal_format = Gl::ALPHA;
         let border = 0;
@@ -146,7 +143,7 @@ impl Painter {
             border,
             src_format,
             src_type,
-            Some(&mut pixels),
+            Some(&texture.pixels),
         )
         .unwrap();
 
