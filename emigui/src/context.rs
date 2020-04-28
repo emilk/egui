@@ -9,6 +9,8 @@ pub struct Context {
     /// The default style for new regions
     pub(crate) style: Mutex<Style>,
     pub(crate) fonts: Arc<Fonts>,
+    /// Raw input from last frame. Use `input()` instead.
+    pub(crate) last_raw_input: RawInput,
     pub(crate) input: GuiInput,
     pub(crate) memory: Mutex<Memory>,
     pub(crate) graphics: Mutex<GraphicLayers>,
@@ -25,7 +27,8 @@ impl Clone for Context {
         Context {
             style: Mutex::new(self.style()),
             fonts: self.fonts.clone(),
-            input: self.input,
+            last_raw_input: self.last_raw_input.clone(),
+            input: self.input.clone(),
             memory: Mutex::new(self.memory.lock().clone()),
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
@@ -39,6 +42,7 @@ impl Context {
         Context {
             style: Default::default(),
             fonts: Arc::new(Fonts::new(pixels_per_point)),
+            last_raw_input: Default::default(),
             input: Default::default(),
             memory: Default::default(),
             graphics: Default::default(),
@@ -50,6 +54,11 @@ impl Context {
     /// Useful for pixel-perfect rendering
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.input.pixels_per_point).round() / self.input.pixels_per_point
+    }
+
+    /// Raw input from last frame. Use `input()` instead.
+    pub fn last_raw_input(&self) -> &RawInput {
+        &self.last_raw_input
     }
 
     pub fn input(&self) -> &GuiInput {

@@ -9,7 +9,7 @@ use crate::{
 
 /// What the integration gives to the gui.
 /// All coordinates in emigui is in point/logical coordinates.
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct RawInput {
     /// Is the button currently down?
@@ -29,10 +29,19 @@ pub struct RawInput {
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
+
+    /// Text input, e.g. via keyboard or paste action
+    pub text: String,
+
+    /// Files has been dropped into the window.
+    pub dropped_files: Vec<std::path::PathBuf>,
+
+    /// Someone is threatening to drop these on us.
+    pub hovered_files: Vec<std::path::PathBuf>,
 }
 
 /// What the gui maintains
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct GuiInput {
     /// Is the button currently down?
     /// true the frame when it is pressed,
@@ -63,6 +72,15 @@ pub struct GuiInput {
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
+
+    /// Text input, e.g. via keyboard or paste action
+    pub text: String,
+
+    /// Files has been dropped into the window.
+    pub dropped_files: Vec<std::path::PathBuf>,
+
+    /// Someone is threatening to drop these on us.
+    pub hovered_files: Vec<std::path::PathBuf>,
 }
 
 impl GuiInput {
@@ -81,6 +99,9 @@ impl GuiInput {
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point,
             time: new.time,
+            text: new.text.clone(),
+            dropped_files: new.dropped_files.clone(),
+            hovered_files: new.hovered_files.clone(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{mesher::*, widgets::*, *};
+use crate::{containers::*, mesher::*, widgets::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct Stats {
@@ -38,10 +38,12 @@ impl Emigui {
         }
 
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);
-        self.last_input = new_input;
+        self.last_input = new_input.clone(); // TODO: also stored in Context. Remove this one
 
         // TODO: avoid this clone
         let mut new_ctx = (*self.ctx).clone();
+
+        new_ctx.last_raw_input = new_input;
         new_ctx.begin_frame(gui_input);
         self.ctx = Arc::new(new_ctx);
     }
@@ -100,6 +102,17 @@ impl Emigui {
             }
         });
 
+        region.collapsing("Input", |region| {
+            CollapsingHeader::new("Raw Input")
+                .default_open()
+                .show(region, |region| {
+                    region.ctx().last_raw_input().clone().ui(region)
+                });
+            CollapsingHeader::new("Input")
+                .default_open()
+                .show(region, |region| region.input().clone().ui(region));
+        });
+
         region.collapsing("Stats", |region| {
             region.add(label!(
                 "Screen size: {} x {} points, pixels_per_point: {}",
@@ -130,5 +143,37 @@ fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Regi
     }
     if region.add(Button::new("Reset fonts")).clicked {
         *font_definitions = crate::fonts::default_font_definitions();
+    }
+}
+
+impl RawInput {
+    pub fn ui(&self, region: &mut Region) {
+        // TODO: simpler way to show values, e.g. `region.value("Mouse Pos:", self.mouse_pos);
+        region.add(label!("mouse_down: {}", self.mouse_down));
+        region.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
+        region.add(label!("scroll_delta: {:?}", self.scroll_delta));
+        region.add(label!("screen_size: {:?}", self.screen_size));
+        region.add(label!("pixels_per_point: {}", self.pixels_per_point));
+        region.add(label!("time: {:.3} s", self.time));
+        region.add(label!("text: {:?}", self.text));
+        // region.add(label!("dropped_files: {}", self.dropped_files));
+        // region.add(label!("hovered_files: {}", self.hovered_files));
+    }
+}
+
+impl GuiInput {
+    pub fn ui(&self, region: &mut Region) {
+        region.add(label!("mouse_down: {}", self.mouse_down));
+        region.add(label!("mouse_pressed: {}", self.mouse_pressed));
+        region.add(label!("mouse_released: {}", self.mouse_released));
+        region.add(label!("mouse_pos: {:?}", self.mouse_pos));
+        region.add(label!("mouse_move: {:?}", self.mouse_move));
+        region.add(label!("scroll_delta: {:?}", self.scroll_delta));
+        region.add(label!("screen_size: {:?}", self.screen_size));
+        region.add(label!("pixels_per_point: {}", self.pixels_per_point));
+        region.add(label!("time: {}", self.time));
+        region.add(label!("text: {:?}", self.text));
+        // region.add(label!("dropped_files: {}", self.dropped_files));
+        // region.add(label!("hovered_files: {}", self.hovered_files));
     }
 }

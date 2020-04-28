@@ -36,7 +36,7 @@ fn main() {
         ..Default::default()
     };
 
-    let mut quit = false;
+    let mut running = true;
 
     // used to keep track of time for animations
     let start_time = Instant::now();
@@ -45,7 +45,7 @@ fn main() {
 
     let mut example_app = ExampleApp::default();
 
-    while !quit {
+    while running {
         {
             // Keep smooth frame rate. TODO: proper vsync
             let frame_duration = frame_start.elapsed();
@@ -55,54 +55,22 @@ fn main() {
             frame_start = Instant::now();
         }
 
-        raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
-        raw_input.scroll_delta = vec2(0.0, 0.0);
+        {
+            raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            raw_input.scroll_delta = vec2(0.0, 0.0);
+            raw_input.text.clear();
+            raw_input.dropped_files.clear();
+            raw_input.hovered_files.clear();
+            events_loop.poll_events(|event| input_event(event, &mut raw_input, &mut running));
+        }
 
-        events_loop.poll_events(|event| match event {
-            glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::CloseRequested => quit = true,
-
-                glutin::WindowEvent::Resized(glutin::dpi::LogicalSize { width, height }) => {
-                    raw_input.screen_size = vec2(width as f32, height as f32);
-                }
-                glutin::WindowEvent::MouseInput { state, .. } => {
-                    raw_input.mouse_down = state == glutin::ElementState::Pressed;
-                }
-                glutin::WindowEvent::CursorMoved { position, .. } => {
-                    raw_input.mouse_pos = Some(pos2(position.x as f32, position.y as f32));
-                }
-                glutin::WindowEvent::KeyboardInput { input, .. } => {
-                    if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q)
-                        && input.modifiers.logo
-                    {
-                        quit = true;
-                    }
-                }
-                glutin::WindowEvent::MouseWheel { delta, .. } => {
-                    match delta {
-                        glutin::MouseScrollDelta::LineDelta(x, y) => {
-                            raw_input.scroll_delta = vec2(x, y) * 24.0;
-                        }
-                        glutin::MouseScrollDelta::PixelDelta(delta) => {
-                            // Actually point delta
-                            raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
-                        }
-                    }
-                }
-                _ => {
-                    // dbg!(event);
-                }
-            },
-            _ => (),
-        });
-
-        emigui.begin_frame(raw_input);
+        emigui.begin_frame(raw_input.clone()); // TODO: avoid clone
         let mut region = emigui.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
         region.set_align(Align::Min);
         region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
         if region.add(Button::new("Quit")).clicked {
-            quit = true;
+            running = false;
         }
 
         // TODO: Make it even simpler to show a window
@@ -137,5 +105,55 @@ fn main() {
         }
 
         display.gl_window().set_cursor(cursor);
+    }
+}
+
+fn input_event(event: glutin::Event, raw_input: &mut RawInput, running: &mut bool) {
+    use glutin::WindowEvent::*;
+    match event {
+        glutin::Event::WindowEvent { event, .. } => match event {
+            CloseRequested | Destroyed => *running = false,
+
+            DroppedFile(path) => raw_input.dropped_files.push(path),
+            HoveredFile(path) => raw_input.hovered_files.push(path),
+
+            Resized(glutin::dpi::LogicalSize { width, height }) => {
+                raw_input.screen_size = vec2(width as f32, height as f32);
+            }
+            MouseInput { state, .. } => {
+                raw_input.mouse_down = state == glutin::ElementState::Pressed;
+            }
+            CursorMoved { position, .. } => {
+                raw_input.mouse_pos = Some(pos2(position.x as f32, position.y as f32));
+            }
+            CursorLeft { .. } => {
+                raw_input.mouse_pos = None;
+            }
+            ReceivedCharacter(ch) => {
+                raw_input.text.push(ch);
+            }
+            KeyboardInput { input, .. } => {
+                if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q) && input.modifiers.logo
+                {
+                    *running = false;
+                }
+            }
+            MouseWheel { delta, .. } => {
+                match delta {
+                    glutin::MouseScrollDelta::LineDelta(x, y) => {
+                        raw_input.scroll_delta = vec2(x, y) * 24.0;
+                    }
+                    glutin::MouseScrollDelta::PixelDelta(delta) => {
+                        // Actually point delta
+                        raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
+                    }
+                }
+            }
+            // TODO: HiDpiFactorChanged
+            _ => {
+                // dbg!(event);
+            }
+        },
+        _ => (),
     }
 }

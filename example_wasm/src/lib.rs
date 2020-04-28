@@ -42,6 +42,7 @@ impl State {
     fn run(&mut self, raw_input: RawInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
+        let pixels_per_point = raw_input.pixels_per_point;
         self.emigui.begin_frame(raw_input);
 
         let mut region = self.emigui.background_region();
@@ -98,7 +99,7 @@ impl State {
             bg_color,
             batches,
             self.emigui.texture(),
-            raw_input.pixels_per_point,
+            pixels_per_point,
         )?;
 
         self.frame_times.push_back(now_sec() - everything_start);
