@@ -7,6 +7,9 @@ use crate::{
     *,
 };
 
+mod text_edit;
+pub use text_edit::*;
+
 // ----------------------------------------------------------------------------
 
 /// Anything implementing Widget can be added to a Region with Region::add
@@ -336,7 +339,6 @@ impl<'a> Slider<'a> {
         }
     }
 
-    // TODO: use range syntax
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         Slider {
             precision: 3,

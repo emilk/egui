@@ -4,9 +4,11 @@
 An immediate mode GUI library written in Rust. For web apps or native apps.
 
 ## Goals:
-* Easy to use
+* Lightweight
+* Short, conveniant syntax
+* Responsive (60 Hz without breaking a sweat)
+* Portable
 * Platform independent (the same code works on the web and as a native app)
-* Responsive
 
 ## How it works:
 Loop:

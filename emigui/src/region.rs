@@ -143,6 +143,10 @@ impl Region {
         self.ctx.memory.lock()
     }
 
+    pub fn output(&self) -> parking_lot::MutexGuard<Output> {
+        self.ctx.output.lock()
+    }
+
     pub fn fonts(&self) -> &Fonts {
         &*self.ctx.fonts
     }
@@ -281,7 +285,7 @@ impl Region {
         };
         add_contents(&mut child_region);
         let size = child_region.bounding_size();
-        self.reserve_space_without_padding(size);
+        self.reserve_space(size, None);
     }
 
     /// Start a region with horizontal layout
@@ -354,6 +358,14 @@ impl Region {
 
     pub fn contains_mouse(&self, rect: &Rect) -> bool {
         self.ctx.contains_mouse(self.layer, &self.clip_rect, rect)
+    }
+
+    pub fn has_kb_focus(&self, id: Id) -> bool {
+        self.memory().kb_focus_id == Some(id)
+    }
+
+    pub fn request_kb_focus(&self, id: Id) {
+        self.memory().kb_focus_id = Some(id);
     }
 
     // ------------------------------------------------------------------------

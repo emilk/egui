@@ -10,6 +10,9 @@ pub struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
     pub(crate) active_id: Option<Id>,
 
+    /// The widget with keyboard focus (i.e. a text input field).
+    pub(crate) kb_focus_id: Option<Id>,
+
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,

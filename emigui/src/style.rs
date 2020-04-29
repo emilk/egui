@@ -28,6 +28,9 @@ pub struct Style {
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 
+    pub cursor_blink_hz: f32,
+    pub text_cursor_width: f32,
+
     // TODO: add ability to disable animations!
     /// How many seconds a typical animation should last
     pub animation_time: f32,
@@ -50,6 +53,8 @@ impl Default for Style {
             clickable_diameter: 22.0,
             start_icon_width: 16.0,
             line_width: 1.0,
+            cursor_blink_hz: 1.0,
+            text_cursor_width: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
         }

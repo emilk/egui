@@ -5,6 +5,7 @@ pub struct ExampleApp {
     checked: bool,
     count: usize,
     radio: usize,
+    text_inputs: [String; 3],
 
     size: Vec2,
     corner_radius: f32,
@@ -24,6 +25,8 @@ impl Default for ExampleApp {
             checked: true,
             radio: 0,
             count: 0,
+            text_inputs: Default::default(),
+
             size: vec2(100.0, 50.0),
             corner_radius: 5.0,
             stroke_width: 2.0,
@@ -52,7 +55,7 @@ impl ExampleApp {
         });
 
         CollapsingHeader::new("Widgets")
-            // .default_open()
+            .default_open()
             .show(region, |region| {
             region.horizontal(Align::Min, |region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
@@ -93,6 +96,13 @@ impl ExampleApp {
             region.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
             if region.add(Button::new("Double it")).clicked {
                 self.slider_value *= 2;
+            }
+
+            for (i, text) in self.text_inputs.iter_mut().enumerate() {
+                region.horizontal(Align::Min, |region|{
+                    region.add(label!("Text input {}: ", i));
+                    region.add(TextEdit::new(text).id(i));
+                }); // TODO: .tooltip_text("Enter text to edit me")
             }
         });
 
@@ -151,7 +161,7 @@ impl ExampleApp {
             .show(region, |region| self.painting.ui(region));
 
         CollapsingHeader::new("Resize")
-            .default_open()
+            // .default_open()
             .show(region, |region| {
                 Resize::default()
                     .default_height(200.0)

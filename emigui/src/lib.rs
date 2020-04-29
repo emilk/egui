@@ -40,4 +40,5 @@ pub use {
     style::Style,
     texture_atlas::Texture,
     types::*,
+    widgets::Widget,
 };

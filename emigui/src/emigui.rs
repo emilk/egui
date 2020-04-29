@@ -149,15 +149,16 @@ fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Regi
 impl RawInput {
     pub fn ui(&self, region: &mut Region) {
         // TODO: simpler way to show values, e.g. `region.value("Mouse Pos:", self.mouse_pos);
+        // TODO: easily change default font!
         region.add(label!("mouse_down: {}", self.mouse_down));
         region.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
         region.add(label!("scroll_delta: {:?}", self.scroll_delta));
         region.add(label!("screen_size: {:?}", self.screen_size));
         region.add(label!("pixels_per_point: {}", self.pixels_per_point));
         region.add(label!("time: {:.3} s", self.time));
-        region.add(label!("text: {:?}", self.text));
-        // region.add(label!("dropped_files: {}", self.dropped_files));
-        // region.add(label!("hovered_files: {}", self.hovered_files));
+        region.add(label!("events: {:?}", self.events));
+        region.add(label!("dropped_files: {:?}", self.dropped_files));
+        region.add(label!("hovered_files: {:?}", self.hovered_files));
     }
 }
 
@@ -172,8 +173,8 @@ impl GuiInput {
         region.add(label!("screen_size: {:?}", self.screen_size));
         region.add(label!("pixels_per_point: {}", self.pixels_per_point));
         region.add(label!("time: {}", self.time));
-        region.add(label!("text: {:?}", self.text));
-        // region.add(label!("dropped_files: {}", self.dropped_files));
-        // region.add(label!("hovered_files: {}", self.hovered_files));
+        region.add(label!("events: {:?}", self.events));
+        region.add(label!("dropped_files: {:?}", self.dropped_files));
+        region.add(label!("hovered_files: {:?}", self.hovered_files));
     }
 }

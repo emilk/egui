@@ -8,5 +8,6 @@ edition = "2018"
 emigui = { path = "../emigui" }
 emigui_glium = { path = "../emigui_glium" }
 
+clipboard = "0.5"
 glium = "0.24"
 webbrowser = "0.5"

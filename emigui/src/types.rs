@@ -30,17 +30,17 @@ pub struct RawInput {
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
 
-    /// Text input, e.g. via keyboard or paste action
-    pub text: String,
-
     /// Files has been dropped into the window.
     pub dropped_files: Vec<std::path::PathBuf>,
 
     /// Someone is threatening to drop these on us.
     pub hovered_files: Vec<std::path::PathBuf>,
+
+    /// In-order events received this frame
+    pub events: Vec<Event>,
 }
 
-/// What the gui maintains
+/// What emigui maintains
 #[derive(Clone, Debug, Default)]
 pub struct GuiInput {
     /// Is the button currently down?
@@ -73,14 +73,52 @@ pub struct GuiInput {
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
 
-    /// Text input, e.g. via keyboard or paste action
-    pub text: String,
-
     /// Files has been dropped into the window.
     pub dropped_files: Vec<std::path::PathBuf>,
 
     /// Someone is threatening to drop these on us.
     pub hovered_files: Vec<std::path::PathBuf>,
+
+    /// In-order events received this frame
+    pub events: Vec<Event>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Event {
+    Copy,
+    Cut,
+    /// Text input, e.g. via keyboard or paste action
+    Text(String),
+    Key {
+        key: Key,
+        pressed: bool,
+    },
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Key {
+    Alt,
+    Backspace,
+    Control,
+    Delete,
+    Down,
+    End,
+    Escape,
+    Home,
+    Insert,
+    Left,
+    /// Windows key or Mac Command key
+    Logo,
+    PageDown,
+    PageUp,
+    Return,
+    Right,
+    Shift,
+    // Space,
+    Tab,
+    Up,
 }
 
 impl GuiInput {
@@ -99,9 +137,9 @@ impl GuiInput {
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point,
             time: new.time,
-            text: new.text.clone(),
             dropped_files: new.dropped_files.clone(),
             hovered_files: new.hovered_files.clone(),
+            events: new.events.clone(),
         }
     }
 }
@@ -109,8 +147,12 @@ impl GuiInput {
 #[derive(Clone, Default, Serialize)]
 pub struct Output {
     pub cursor_icon: CursorIcon,
+
     /// If set, open this url.
     pub open_url: Option<String>,
+
+    /// Response to Event::Copy or Event::Cut. Ignore if empty.
+    pub copied_text: String,
 }
 
 #[derive(Clone, Copy, Serialize)]
@@ -120,6 +162,7 @@ pub enum CursorIcon {
     /// Pointing hand, used for e.g. web links
     PointingHand,
     ResizeNwSe,
+    Text,
 }
 
 impl Default for CursorIcon {

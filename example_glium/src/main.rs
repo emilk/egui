@@ -3,10 +3,13 @@
 use std::time::{Duration, Instant};
 
 use {
+    clipboard::{ClipboardContext, ClipboardProvider},
     emigui::{containers::*, example_app::ExampleApp, widgets::*, *},
     emigui_glium::Painter,
-    glium::glutin,
+    glium::glutin::{self, VirtualKeyCode},
 };
+
+// TODO: move more code into emigui_glium care
 
 fn main() {
     let mut events_loop = glutin::EventsLoop::new();
@@ -47,6 +50,14 @@ fn main() {
 
     let mut example_app = ExampleApp::default();
 
+    let mut clipboard: Option<ClipboardContext> = match ClipboardContext::new() {
+        Ok(clipboard) => Some(clipboard),
+        Err(err) => {
+            eprintln!("Failed to initialize clipboard: {}", err);
+            None
+        }
+    };
+
     while running {
         {
             // Keep smooth frame rate. TODO: proper vsync
@@ -60,12 +71,15 @@ fn main() {
         {
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
             raw_input.scroll_delta = vec2(0.0, 0.0);
-            raw_input.text.clear();
             raw_input.dropped_files.clear();
             raw_input.hovered_files.clear();
-            events_loop.poll_events(|event| input_event(event, &mut raw_input, &mut running));
+            raw_input.events.clear();
+            events_loop.poll_events(|event| {
+                input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)
+            });
         }
 
+        let emigui_start = Instant::now();
         emigui.begin_frame(raw_input.clone()); // TODO: avoid clone
         let mut region = emigui.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
@@ -117,6 +131,7 @@ fn main() {
             CursorIcon::Default => glutin::MouseCursor::Default,
             CursorIcon::PointingHand => glutin::MouseCursor::Hand,
             CursorIcon::ResizeNwSe => glutin::MouseCursor::NwseResize,
+            CursorIcon::Text => glutin::MouseCursor::Text,
         };
 
         if let Some(url) = output.open_url {
@@ -125,11 +140,24 @@ fn main() {
             }
         }
 
+        if !output.copied_text.is_empty() {
+            if let Some(clipboard) = clipboard.as_mut() {
+                if let Err(err) = clipboard.set_contents(output.copied_text) {
+                    eprintln!("Copy/Cut error: {}", err);
+                }
+            }
+        }
+
         display.gl_window().set_cursor(cursor);
     }
 }
 
-fn input_event(event: glutin::Event, raw_input: &mut RawInput, running: &mut bool) {
+fn input_event(
+    event: glutin::Event,
+    clipboard: Option<&mut ClipboardContext>,
+    raw_input: &mut RawInput,
+    running: &mut bool,
+) {
     use glutin::WindowEvent::*;
     match event {
         glutin::Event::WindowEvent { event, .. } => match event {
@@ -151,12 +179,39 @@ fn input_event(event: glutin::Event, raw_input: &mut RawInput, running: &mut boo
                 raw_input.mouse_pos = None;
             }
             ReceivedCharacter(ch) => {
-                raw_input.text.push(ch);
+                raw_input.events.push(Event::Text(ch.to_string()));
             }
             KeyboardInput { input, .. } => {
-                if input.virtual_keycode == Some(glutin::VirtualKeyCode::Q) && input.modifiers.logo
-                {
-                    *running = false;
+                if let Some(virtual_keycode) = input.virtual_keycode {
+                    // TODO: If mac
+                    if input.modifiers.logo && virtual_keycode == VirtualKeyCode::Q {
+                        *running = false;
+                    }
+
+                    match virtual_keycode {
+                        VirtualKeyCode::Paste => {
+                            if let Some(clipboard) = clipboard {
+                                match clipboard.get_contents() {
+                                    Ok(contents) => {
+                                        raw_input.events.push(Event::Text(contents));
+                                    }
+                                    Err(err) => {
+                                        eprintln!("Paste error: {}", err);
+                                    }
+                                }
+                            }
+                        }
+                        VirtualKeyCode::Copy => raw_input.events.push(Event::Copy),
+                        VirtualKeyCode::Cut => raw_input.events.push(Event::Cut),
+                        _ => {
+                            if let Some(key) = translate_virtual_key_code(virtual_keycode) {
+                                raw_input.events.push(Event::Key {
+                                    key,
+                                    pressed: input.state == glutin::ElementState::Pressed,
+                                });
+                            }
+                        }
+                    }
                 }
             }
             MouseWheel { delta, .. } => {
@@ -177,4 +232,35 @@ fn input_event(event: glutin::Event, raw_input: &mut RawInput, running: &mut boo
         },
         _ => (),
     }
+}
+
+fn translate_virtual_key_code(key: glutin::VirtualKeyCode) -> Option<emigui::Key> {
+    use VirtualKeyCode::*;
+
+    Some(match key {
+        Escape => Key::Escape,
+        Insert => Key::Insert,
+        Home => Key::Home,
+        Delete => Key::Delete,
+        End => Key::End,
+        PageDown => Key::PageDown,
+        PageUp => Key::PageUp,
+        Left => Key::Left,
+        Up => Key::Up,
+        Right => Key::Right,
+        Down => Key::Down,
+        Back => Key::Backspace,
+        Return => Key::Return,
+        // Space => Key::Space,
+        Tab => Key::Tab,
+
+        LAlt | RAlt => Key::Alt,
+        LShift | RShift => Key::Shift,
+        LControl | RControl => Key::Control,
+        LWin | RWin => Key::Logo,
+
+        _ => {
+            return None;
+        }
+    })
 }

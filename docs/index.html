@@ -86,6 +86,7 @@
         var g_is_touch = false; // we don't know yet
         var g_scroll_delta_x = 0;
         var g_scroll_delta_y = 0;
+        var g_events = [];
 
         function pixels_per_point() {
             return window.devicePixelRatio || 1.0;
@@ -106,9 +107,11 @@
                 screen_size: { x: window.innerWidth, y: window.innerHeight },
                 pixels_per_point: pixels_per_point(),
                 time: window.performance.now() / 1000.0,
+                events: g_events,
             };
             g_scroll_delta_x = 0;
             g_scroll_delta_y = 0;
+            g_events = [];
             return input;
         }
 
@@ -210,6 +213,37 @@
                 event.preventDefault();
             });
 
+            document.addEventListener("keydown", function (event) {
+                console.log(`keydown: '${event.key}'`);
+                var key = translate_key(event.key);
+                if (key) {
+                    g_events.push({ "key": { "key": key, 'pressed': true } });
+                } else {
+                    g_events.push({ "text": event.key });
+                }
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+
+            // document.addEventListener("keypress", function (event) {
+            //     console.log(`keypress: ${event.key} ${JSON.stringify(event)}`);
+            //     invalidate();
+            //     event.stopPropagation();
+            //     event.preventDefault();
+            // });
+
+            document.addEventListener("keyup", function (event) {
+                // console.log(`keyup: ${event.key} ${JSON.stringify(event)}`);
+                var key = translate_key(event.key);
+                if (key) {
+                    g_events.push({ "key": { "key": key, 'pressed': false } });
+                }
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+
             if (!ANIMATION_FRAME) {
                 window.addEventListener("load", invalidate);
                 window.addEventListener("pagehide", invalidate);
@@ -218,6 +252,29 @@
             }
 
             paint_and_schedule();
+        }
+
+        function translate_key(key) {
+            if (key == "Alt") { return "alt"; }
+            if (key == "Backspace") { return "backspace"; }
+            if (key == "Control") { return "control"; }
+            if (key == "Delete") { return "delete"; }
+            if (key == "ArrowDown") { return "down"; }
+            if (key == "End") { return "end"; }
+            if (key == "Escape") { return "escape"; }
+            if (key == "Home") { return "home"; }
+            if (key == "Help") { return "insert"; }
+            if (key == "ArrowLeft") { return "left"; }
+            if (key == "Meta") { return "logo"; }
+            if (key == "PageDown") { return "page_down"; }
+            if (key == "PageUp") { return "page_up"; }
+            if (key == "Enter") { return "return"; }
+            if (key == "ArrowRight") { return "right"; }
+            if (key == "Shift") { return "shift"; }
+            // if (key == " ") { return "space"; }
+            if (key == "Tab") { return "tab"; }
+            if (key == "ArrowUp") { return "up"; }
+            return null;
         }
     </script>
     <!-- We later make this cover the entire screen even when resized -->
