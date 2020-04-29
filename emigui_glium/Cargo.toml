@@ -7,4 +7,6 @@ edition = "2018"
 [dependencies]
 emigui = { path = "../emigui" }
 
+clipboard = "0.5"
 glium = "0.24"
+webbrowser = "0.5"

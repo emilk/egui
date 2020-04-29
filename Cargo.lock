@@ -189,8 +189,10 @@ dependencies = [
 name = "emigui_glium"
 version = "0.1.0"
 dependencies = [
+ "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "emigui 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -209,11 +211,9 @@ dependencies = [
 name = "example_glium"
 version = "0.1.0"
 dependencies = [
- "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "emigui 0.1.0",
  "emigui_glium 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

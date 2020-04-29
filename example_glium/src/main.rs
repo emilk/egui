@@ -3,13 +3,9 @@
 use std::time::{Duration, Instant};
 
 use {
-    clipboard::{ClipboardContext, ClipboardProvider},
     emigui::{containers::*, example_app::ExampleApp, widgets::*, *},
-    emigui_glium::Painter,
-    glium::glutin::{self, VirtualKeyCode},
+    glium::glutin,
 };
-
-// TODO: move more code into emigui_glium care
 
 fn main() {
     let mut events_loop = glutin::EventsLoop::new();
@@ -28,7 +24,7 @@ fn main() {
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
     let mut emigui = Emigui::new(pixels_per_point);
-    let mut painter = Painter::new(&display);
+    let mut painter = emigui_glium::Painter::new(&display);
 
     let mut raw_input = emigui::RawInput {
         screen_size: {
@@ -39,24 +35,13 @@ fn main() {
         ..Default::default()
     };
 
-    let mut running = true;
-
     // used to keep track of time for animations
     let start_time = Instant::now();
-
+    let mut running = true;
     let mut frame_start = Instant::now();
-
     let mut frame_times = std::collections::VecDeque::new();
-
     let mut example_app = ExampleApp::default();
-
-    let mut clipboard: Option<ClipboardContext> = match ClipboardContext::new() {
-        Ok(clipboard) => Some(clipboard),
-        Err(err) => {
-            eprintln!("Failed to initialize clipboard: {}", err);
-            None
-        }
-    };
+    let mut clipboard = emigui_glium::init_clipboard();
 
     while running {
         {
@@ -75,7 +60,7 @@ fn main() {
             raw_input.hovered_files.clear();
             raw_input.events.clear();
             events_loop.poll_events(|event| {
-                input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)
+                emigui_glium::input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)
             });
         }
 
@@ -126,141 +111,6 @@ fn main() {
         }
 
         painter.paint_batches(&display, paint_batches, emigui.texture());
-
-        let cursor = match output.cursor_icon {
-            CursorIcon::Default => glutin::MouseCursor::Default,
-            CursorIcon::PointingHand => glutin::MouseCursor::Hand,
-            CursorIcon::ResizeNwSe => glutin::MouseCursor::NwseResize,
-            CursorIcon::Text => glutin::MouseCursor::Text,
-        };
-
-        if let Some(url) = output.open_url {
-            if let Err(err) = webbrowser::open(&url) {
-                eprintln!("Failed to open url: {}", err); // TODO show error in imgui
-            }
-        }
-
-        if !output.copied_text.is_empty() {
-            if let Some(clipboard) = clipboard.as_mut() {
-                if let Err(err) = clipboard.set_contents(output.copied_text) {
-                    eprintln!("Copy/Cut error: {}", err);
-                }
-            }
-        }
-
-        display.gl_window().set_cursor(cursor);
+        emigui_glium::handle_output(output, &display, clipboard.as_mut());
     }
-}
-
-fn input_event(
-    event: glutin::Event,
-    clipboard: Option<&mut ClipboardContext>,
-    raw_input: &mut RawInput,
-    running: &mut bool,
-) {
-    use glutin::WindowEvent::*;
-    match event {
-        glutin::Event::WindowEvent { event, .. } => match event {
-            CloseRequested | Destroyed => *running = false,
-
-            DroppedFile(path) => raw_input.dropped_files.push(path),
-            HoveredFile(path) => raw_input.hovered_files.push(path),
-
-            Resized(glutin::dpi::LogicalSize { width, height }) => {
-                raw_input.screen_size = vec2(width as f32, height as f32);
-            }
-            MouseInput { state, .. } => {
-                raw_input.mouse_down = state == glutin::ElementState::Pressed;
-            }
-            CursorMoved { position, .. } => {
-                raw_input.mouse_pos = Some(pos2(position.x as f32, position.y as f32));
-            }
-            CursorLeft { .. } => {
-                raw_input.mouse_pos = None;
-            }
-            ReceivedCharacter(ch) => {
-                raw_input.events.push(Event::Text(ch.to_string()));
-            }
-            KeyboardInput { input, .. } => {
-                if let Some(virtual_keycode) = input.virtual_keycode {
-                    // TODO: If mac
-                    if input.modifiers.logo && virtual_keycode == VirtualKeyCode::Q {
-                        *running = false;
-                    }
-
-                    match virtual_keycode {
-                        VirtualKeyCode::Paste => {
-                            if let Some(clipboard) = clipboard {
-                                match clipboard.get_contents() {
-                                    Ok(contents) => {
-                                        raw_input.events.push(Event::Text(contents));
-                                    }
-                                    Err(err) => {
-                                        eprintln!("Paste error: {}", err);
-                                    }
-                                }
-                            }
-                        }
-                        VirtualKeyCode::Copy => raw_input.events.push(Event::Copy),
-                        VirtualKeyCode::Cut => raw_input.events.push(Event::Cut),
-                        _ => {
-                            if let Some(key) = translate_virtual_key_code(virtual_keycode) {
-                                raw_input.events.push(Event::Key {
-                                    key,
-                                    pressed: input.state == glutin::ElementState::Pressed,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            MouseWheel { delta, .. } => {
-                match delta {
-                    glutin::MouseScrollDelta::LineDelta(x, y) => {
-                        raw_input.scroll_delta = vec2(x, y) * 24.0;
-                    }
-                    glutin::MouseScrollDelta::PixelDelta(delta) => {
-                        // Actually point delta
-                        raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
-                    }
-                }
-            }
-            // TODO: HiDpiFactorChanged
-            _ => {
-                // dbg!(event);
-            }
-        },
-        _ => (),
-    }
-}
-
-fn translate_virtual_key_code(key: glutin::VirtualKeyCode) -> Option<emigui::Key> {
-    use VirtualKeyCode::*;
-
-    Some(match key {
-        Escape => Key::Escape,
-        Insert => Key::Insert,
-        Home => Key::Home,
-        Delete => Key::Delete,
-        End => Key::End,
-        PageDown => Key::PageDown,
-        PageUp => Key::PageUp,
-        Left => Key::Left,
-        Up => Key::Up,
-        Right => Key::Right,
-        Down => Key::Down,
-        Back => Key::Backspace,
-        Return => Key::Return,
-        // Space => Key::Space,
-        Tab => Key::Tab,
-
-        LAlt | RAlt => Key::Alt,
-        LShift | RShift => Key::Shift,
-        LControl | RControl => Key::Control,
-        LWin | RWin => Key::Logo,
-
-        _ => {
-            return None;
-        }
-    })
 }
