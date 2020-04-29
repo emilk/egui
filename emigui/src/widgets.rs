@@ -14,8 +14,7 @@ pub use text_edit::*;
 
 /// Anything implementing Widget can be added to a Region with Region::add
 pub trait Widget {
-    // TODO: rename .ui(
-    fn add_to(self, region: &mut Region) -> GuiResponse;
+    fn ui(self, region: &mut Region) -> GuiResponse;
 }
 
 // ----------------------------------------------------------------------------
@@ -54,7 +53,7 @@ macro_rules! label {
 }
 
 impl Widget for Label {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let font = &region.fonts()[self.text_style];
         let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
         let interact = region.reserve_space(text_size, None);
@@ -81,7 +80,7 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let color = color::LIGHT_BLUE;
         let text_style = TextStyle::Body;
         let id = region.make_child_id(&self.url);
@@ -141,7 +140,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
@@ -190,7 +189,7 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
@@ -265,7 +264,7 @@ pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let id = region.make_position_id();
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
@@ -407,7 +406,7 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn add_to(mut self, region: &mut Region) -> GuiResponse {
+    fn ui(mut self, region: &mut Region) -> GuiResponse {
         let text_style = TextStyle::Button;
         let font = &region.fonts()[text_style];
 
@@ -427,7 +426,7 @@ impl<'a> Widget for Slider<'a> {
                 let (text, text_size) = font.layout_multiline(&full_text, region.available_width());
                 let pos = region.reserve_space_without_padding(text_size);
                 region.add_text(pos, text_style, text, text_color);
-                slider_sans_text.add_to(region)
+                slider_sans_text.ui(region)
             } else {
                 region.columns(2, |columns| {
                     // Slider on the left:
@@ -547,7 +546,7 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let available_space = region.available_space();
         let extra = self.extra;
         let (points, interact) = match region.direction() {

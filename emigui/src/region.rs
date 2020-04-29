@@ -371,7 +371,7 @@ impl Region {
     // ------------------------------------------------------------------------
 
     pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
-        widget.add_to(self)
+        widget.ui(self)
     }
 
     // Convenience functions:

@@ -35,7 +35,7 @@ impl<'t> TextEdit<'t> {
 }
 
 impl<'t> Widget for TextEdit<'t> {
-    fn add_to(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, region: &mut Region) -> GuiResponse {
         let id = region.make_child_id(self.id);
 
         let font = &region.fonts()[self.text_style];
