@@ -14,6 +14,7 @@ pub use text_edit::*;
 
 /// Anything implementing Widget can be added to a Region with Region::add
 pub trait Widget {
+    // TODO: rename .ui(
     fn add_to(self, region: &mut Region) -> GuiResponse;
 }
 
@@ -316,6 +317,7 @@ type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
 pub struct Slider<'a> {
     get_set_value: SliderGetSet<'a>,
     range: RangeInclusive<f32>,
+    // TODO: label: Option<Label>
     text: Option<String>,
     precision: usize,
     text_color: Option<Color>,

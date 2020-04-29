@@ -16,7 +16,7 @@ pub struct State {
     pub size: Vec2,
 }
 
-// TODO: rename Floating to something else.
+// TODO: rename Floating to something else. Area?
 #[derive(Clone, Copy, Debug)]
 pub struct Floating {
     id: Id,

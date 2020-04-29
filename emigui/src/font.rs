@@ -159,6 +159,7 @@ impl Font {
     }
 
     /// Height of one line of text. In points
+    /// TODO: rename height ?
     pub fn line_spacing(&self) -> f32 {
         self.scale_in_pixels / self.pixels_per_point
     }

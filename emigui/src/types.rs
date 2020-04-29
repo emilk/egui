@@ -43,6 +43,8 @@ pub struct RawInput {
 /// What emigui maintains
 #[derive(Clone, Debug, Default)]
 pub struct GuiInput {
+    // TODO: mouse: Mouse as separate
+    //
     /// Is the button currently down?
     /// true the frame when it is pressed,
     /// false the frame it is released.

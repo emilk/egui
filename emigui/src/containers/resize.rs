@@ -6,6 +6,7 @@ pub struct State {
     pub size: Vec2,
 }
 
+// TODO: auto-shink/grow should be part of another container!
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
     /// If false, we are no enabled
