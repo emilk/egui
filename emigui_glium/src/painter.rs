@@ -226,6 +226,7 @@ impl Painter {
         target.finish().unwrap();
     }
 
+    #[inline(never)] // Easier profiling
     fn paint_batch(
         &mut self,
         target: &mut Frame,

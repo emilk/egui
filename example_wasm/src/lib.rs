@@ -73,8 +73,11 @@ impl State {
             self.frame_times.iter().sum::<f64>() / (self.frame_times.len() as f64)
         };
         region.add(
-            label!("Total CPU usage: {:.1} ms", 1e3 * mean_frame_time)
-                .text_style(TextStyle::Monospace),
+            label!(
+                "Frame time: {:.1} ms (excludes painting)",
+                1e3 * mean_frame_time
+            )
+            .text_style(TextStyle::Monospace),
         );
 
         // TODO: Make it even simpler to show a window
@@ -95,17 +98,18 @@ impl State {
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.emigui.end_frame();
+
+        self.frame_times.push_back(now_sec() - everything_start);
+        while self.frame_times.len() > 30 {
+            self.frame_times.pop_front();
+        }
+
         self.webgl_painter.paint_batches(
             bg_color,
             batches,
             self.emigui.texture(),
             pixels_per_point,
         )?;
-
-        self.frame_times.push_back(now_sec() - everything_start);
-        while self.frame_times.len() > 30 {
-            self.frame_times.pop_front();
-        }
 
         Ok(output)
     }

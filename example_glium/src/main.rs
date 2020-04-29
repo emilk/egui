@@ -43,6 +43,8 @@ fn main() {
 
     let mut frame_start = Instant::now();
 
+    let mut frame_times = std::collections::VecDeque::new();
+
     let mut example_app = ExampleApp::default();
 
     while running {
@@ -73,6 +75,19 @@ fn main() {
             running = false;
         }
 
+        let mean_frame_time = if frame_times.is_empty() {
+            0.0
+        } else {
+            frame_times.iter().sum::<f64>() / (frame_times.len() as f64)
+        };
+        region.add(
+            label!(
+                "Frame time: {:.1} ms (excludes painting)",
+                1e3 * mean_frame_time
+            )
+            .text_style(TextStyle::Monospace),
+        );
+
         // TODO: Make it even simpler to show a window
 
         Window::new("Examples")
@@ -90,6 +105,12 @@ fn main() {
             });
 
         let (output, paint_batches) = emigui.end_frame();
+
+        frame_times.push_back((Instant::now() - emigui_start).as_secs_f64());
+        while frame_times.len() > 30 {
+            frame_times.pop_front();
+        }
+
         painter.paint_batches(&display, paint_batches, emigui.texture());
 
         let cursor = match output.cursor_icon {
