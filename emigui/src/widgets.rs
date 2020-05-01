@@ -448,7 +448,8 @@ impl<'a> Widget for Slider<'a> {
                     columns[1]
                         .desired_rect
                         .set_height(slider_response.rect.height());
-                    columns[1].horizontal(Align::Center, |region| {
+                    columns[1].horizontal(|region| {
+                        region.align = Align::Center;
                         region.add(Label::new(full_text).multiline(false));
                     });
 

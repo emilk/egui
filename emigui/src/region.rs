@@ -93,38 +93,7 @@ impl Region {
         }
     }
 
-    /// It is up to the caller to make sure there is room for this.
-    /// Can be used for free painting.
-    /// NOTE: all coordinates are screen coordinates!
-    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.ctx
-            .graphics
-            .lock()
-            .layer(self.layer)
-            .push((self.clip_rect(), paint_cmd))
-    }
-
-    pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
-        let clip_rect = self.clip_rect();
-        self.ctx
-            .graphics
-            .lock()
-            .layer(self.layer)
-            .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
-    }
-
-    /// Insert a paint cmd before existing ones
-    pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
-        self.ctx
-            .graphics
-            .lock()
-            .layer(self.layer)
-            .insert(pos, (self.clip_rect(), paint_cmd));
-    }
-
-    pub fn paint_list_len(&self) -> usize {
-        self.ctx.graphics.lock().layer(self.layer).len()
-    }
+    // -------------------------------------------------
 
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx.round_to_pixel(point)
@@ -211,6 +180,20 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
+    pub fn contains_mouse(&self, rect: &Rect) -> bool {
+        self.ctx.contains_mouse(self.layer, &self.clip_rect, rect)
+    }
+
+    pub fn has_kb_focus(&self, id: Id) -> bool {
+        self.memory().kb_focus_id == Some(id)
+    }
+
+    pub fn request_kb_focus(&self, id: Id) {
+        self.memory().kb_focus_id = Some(id);
+    }
+
+    // ------------------------------------------------------------------------
+
     /// Will warn if the returned id is not guaranteed unique.
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
     /// If the id_source is not unique within this region
@@ -261,193 +244,6 @@ impl Region {
             rect: interact.rect,
             ctx: self.ctx.clone(),
         }
-    }
-
-    // ------------------------------------------------------------------------
-    // Sub-regions:
-
-    /// Create a child region at the current cursor.
-    /// `size` is the desired size.
-    /// Actual size may be much smaller if `avilable_size()` is not enough.
-    /// Set `size` to `Vec::infinity()` to get as much space as possible.
-    /// Just because you ask for a lot of space does not mean you have to use it!
-    /// After `add_contents` is called the contents of `bounding_size`
-    /// will decide how much space will be used in the parent region.
-    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Region)) {
-        let size = size.min(self.available_space());
-        let child_rect = Rect::from_min_size(self.cursor, size);
-        let mut child_region = Region {
-            ..self.child_region(child_rect)
-        };
-        add_contents(&mut child_region);
-        self.reserve_space(child_region.bounding_size(), None);
-    }
-
-    /// Create a child region which is indented to the right
-    pub fn indent(&mut self, id_source: impl Hash, add_contents: impl FnOnce(&mut Region)) {
-        assert!(
-            self.dir == Direction::Vertical,
-            "You can only indent vertical layouts"
-        );
-        let indent = vec2(self.style.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
-        let mut child_region = Region {
-            id: self.id.with(id_source),
-            align: Align::Min,
-            ..self.child_region(child_rect)
-        };
-        add_contents(&mut child_region);
-        let size = child_region.bounding_size();
-
-        // draw a grey line on the left to mark the region
-        let line_start = child_rect.min - indent * 0.5;
-        let line_start = line_start.round(); // TODO: round to pixel instead
-        let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
-        self.add_paint_cmd(PaintCmd::Line {
-            points: vec![line_start, line_end],
-            color: gray(150, 255),
-            width: self.style.line_width,
-        });
-
-        self.reserve_space(indent + size, None);
-    }
-
-    pub fn left_column(&mut self, width: f32) -> Region {
-        self.column(Align::Min, width)
-    }
-
-    pub fn centered_column(&mut self, width: f32) -> Region {
-        self.column(Align::Center, width)
-    }
-
-    pub fn right_column(&mut self, width: f32) -> Region {
-        self.column(Align::Max, width)
-    }
-
-    /// A column region with a given width.
-    pub fn column(&mut self, column_position: Align, width: f32) -> Region {
-        let x = match column_position {
-            Align::Min => 0.0,
-            Align::Center => self.available_width() / 2.0 - width / 2.0,
-            Align::Max => self.available_width() - width,
-        };
-        self.child_region(Rect::from_min_size(
-            self.cursor + vec2(x, 0.0),
-            vec2(width, self.available_height()),
-        ))
-    }
-
-    /// Start a region with horizontal layout
-    // TODO: remove first argument
-    pub fn horizontal(&mut self, align: Align, add_contents: impl FnOnce(&mut Region)) {
-        self.inner_layout(Direction::Horizontal, align, add_contents)
-    }
-
-    /// Start a region with vertical layout
-    pub fn vertical(&mut self, align: Align, add_contents: impl FnOnce(&mut Region)) {
-        self.inner_layout(Direction::Vertical, align, add_contents)
-    }
-
-    pub fn inner_layout(
-        &mut self,
-        dir: Direction,
-        align: Align,
-        add_contents: impl FnOnce(&mut Region),
-    ) {
-        let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
-        let mut child_region = Region {
-            dir,
-            align,
-            ..self.child_region(child_rect)
-        };
-        add_contents(&mut child_region);
-        let size = child_region.bounding_size();
-        self.reserve_space(size, None);
-    }
-
-    /// Temporarily split split a vertical layout into several columns.
-    ///
-    /// region.columns(2, |columns| {
-    ///     columns[0].add(emigui::widgets::label!("First column"));
-    ///     columns[1].add(emigui::widgets::label!("Second column"));
-    /// });
-    pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
-    where
-        F: FnOnce(&mut [Region]) -> R,
-    {
-        // TODO: ensure there is space
-        let spacing = self.style.item_spacing.x;
-        let total_spacing = spacing * (num_columns as f32 - 1.0);
-        let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
-
-        let mut columns: Vec<Region> = (0..num_columns)
-            .map(|col_idx| {
-                let pos = self.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
-                let child_rect =
-                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.bottom_right().y));
-
-                Region {
-                    id: self.make_child_id(&("column", col_idx)),
-                    dir: Direction::Vertical,
-                    ..self.child_region(child_rect)
-                }
-            })
-            .collect();
-
-        let result = add_contents(&mut columns[..]);
-
-        let mut sum_width = total_spacing;
-        for column in &columns {
-            sum_width += column.child_bounds.width();
-        }
-
-        let mut max_height = 0.0;
-        for region in columns {
-            let size = region.bounding_size();
-            max_height = size.y.max(max_height);
-        }
-
-        let size = vec2(self.available_width().max(sum_width), max_height);
-        self.reserve_space(size, None);
-        result
-    }
-
-    // ------------------------------------------------------------------------
-
-    pub fn contains_mouse(&self, rect: &Rect) -> bool {
-        self.ctx.contains_mouse(self.layer, &self.clip_rect, rect)
-    }
-
-    pub fn has_kb_focus(&self, id: Id) -> bool {
-        self.memory().kb_focus_id == Some(id)
-    }
-
-    pub fn request_kb_focus(&self, id: Id) {
-        self.memory().kb_focus_id = Some(id);
-    }
-
-    // ------------------------------------------------------------------------
-
-    pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
-        widget.ui(self)
-    }
-
-    // Convenience functions:
-
-    pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
-        self.add(Label::new(text))
-    }
-
-    pub fn add_hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
-        self.add(Hyperlink::new(url))
-    }
-
-    pub fn collapsing(
-        &mut self,
-        text: impl Into<String>,
-        add_contents: impl FnOnce(&mut Region),
-    ) -> GuiResponse {
-        CollapsingHeader::new(text).show(self, add_contents)
     }
 
     // ------------------------------------------------------------------------
@@ -539,7 +335,42 @@ impl Region {
 
         child_pos
     }
+
     // ------------------------------------------------
+    // Painting related stuff
+
+    /// It is up to the caller to make sure there is room for this.
+    /// Can be used for free painting.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .push((self.clip_rect(), paint_cmd))
+    }
+
+    pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
+        let clip_rect = self.clip_rect();
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
+    }
+
+    /// Insert a paint cmd before existing ones
+    pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
+        self.ctx
+            .graphics
+            .lock()
+            .layer(self.layer)
+            .insert(pos, (self.clip_rect(), paint_cmd));
+    }
+
+    pub fn paint_list_len(&self) -> usize {
+        self.ctx.graphics.lock().layer(self.layer).len()
+    }
 
     /// Paint some debug text at current cursor
     pub fn debug_text(&self, text: &str) {
@@ -584,4 +415,179 @@ impl Region {
             });
         }
     }
+
+    // ------------------------------------------------------------------------
+    // Addding Widgets
+
+    pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
+        widget.ui(self)
+    }
+
+    // Convenience functions:
+
+    pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
+        self.add(Label::new(text))
+    }
+
+    pub fn add_hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
+        self.add(Hyperlink::new(url))
+    }
+
+    // ------------------------------------------------------------------------
+    // Addding Containers / Sub-Regions:
+
+    pub fn collapsing(
+        &mut self,
+        text: impl Into<String>,
+        add_contents: impl FnOnce(&mut Region),
+    ) -> GuiResponse {
+        CollapsingHeader::new(text).show(self, add_contents)
+    }
+
+    /// Create a child region at the current cursor.
+    /// `size` is the desired size.
+    /// Actual size may be much smaller if `avilable_size()` is not enough.
+    /// Set `size` to `Vec::infinity()` to get as much space as possible.
+    /// Just because you ask for a lot of space does not mean you have to use it!
+    /// After `add_contents` is called the contents of `bounding_size`
+    /// will decide how much space will be used in the parent region.
+    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Region)) {
+        let size = size.min(self.available_space());
+        let child_rect = Rect::from_min_size(self.cursor, size);
+        let mut child_region = Region {
+            ..self.child_region(child_rect)
+        };
+        add_contents(&mut child_region);
+        self.reserve_space(child_region.bounding_size(), None);
+    }
+
+    /// Create a child region which is indented to the right
+    pub fn indent(&mut self, id_source: impl Hash, add_contents: impl FnOnce(&mut Region)) {
+        assert!(
+            self.dir == Direction::Vertical,
+            "You can only indent vertical layouts"
+        );
+        let indent = vec2(self.style.indent, 0.0);
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
+        let mut child_region = Region {
+            id: self.id.with(id_source),
+            align: Align::Min,
+            ..self.child_region(child_rect)
+        };
+        add_contents(&mut child_region);
+        let size = child_region.bounding_size();
+
+        // draw a grey line on the left to mark the region
+        let line_start = child_rect.min - indent * 0.5;
+        let line_start = line_start.round(); // TODO: round to pixel instead
+        let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
+        self.add_paint_cmd(PaintCmd::Line {
+            points: vec![line_start, line_end],
+            color: gray(150, 255),
+            width: self.style.line_width,
+        });
+
+        self.reserve_space(indent + size, None);
+    }
+
+    pub fn left_column(&mut self, width: f32) -> Region {
+        self.column(Align::Min, width)
+    }
+
+    pub fn centered_column(&mut self, width: f32) -> Region {
+        self.column(Align::Center, width)
+    }
+
+    pub fn right_column(&mut self, width: f32) -> Region {
+        self.column(Align::Max, width)
+    }
+
+    /// A column region with a given width.
+    pub fn column(&mut self, column_position: Align, width: f32) -> Region {
+        let x = match column_position {
+            Align::Min => 0.0,
+            Align::Center => self.available_width() / 2.0 - width / 2.0,
+            Align::Max => self.available_width() - width,
+        };
+        self.child_region(Rect::from_min_size(
+            self.cursor + vec2(x, 0.0),
+            vec2(width, self.available_height()),
+        ))
+    }
+
+    /// Start a region with horizontal layout
+    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Region)) {
+        self.inner_layout(Direction::Horizontal, Align::Min, add_contents)
+    }
+
+    /// Start a region with vertical layout
+    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Region)) {
+        self.inner_layout(Direction::Vertical, Align::Min, add_contents)
+    }
+
+    pub fn inner_layout(
+        &mut self,
+        dir: Direction,
+        align: Align,
+        add_contents: impl FnOnce(&mut Region),
+    ) {
+        let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
+        let mut child_region = Region {
+            dir,
+            align,
+            ..self.child_region(child_rect)
+        };
+        add_contents(&mut child_region);
+        let size = child_region.bounding_size();
+        self.reserve_space(size, None);
+    }
+
+    /// Temporarily split split a vertical layout into several columns.
+    ///
+    /// region.columns(2, |columns| {
+    ///     columns[0].add(emigui::widgets::label!("First column"));
+    ///     columns[1].add(emigui::widgets::label!("Second column"));
+    /// });
+    pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
+    where
+        F: FnOnce(&mut [Region]) -> R,
+    {
+        // TODO: ensure there is space
+        let spacing = self.style.item_spacing.x;
+        let total_spacing = spacing * (num_columns as f32 - 1.0);
+        let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
+
+        let mut columns: Vec<Region> = (0..num_columns)
+            .map(|col_idx| {
+                let pos = self.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let child_rect =
+                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.bottom_right().y));
+
+                Region {
+                    id: self.make_child_id(&("column", col_idx)),
+                    dir: Direction::Vertical,
+                    ..self.child_region(child_rect)
+                }
+            })
+            .collect();
+
+        let result = add_contents(&mut columns[..]);
+
+        let mut sum_width = total_spacing;
+        for column in &columns {
+            sum_width += column.child_bounds.width();
+        }
+
+        let mut max_height = 0.0;
+        for region in columns {
+            let size = region.bounding_size();
+            max_height = size.y.max(max_height);
+        }
+
+        let size = vec2(self.available_width().max(sum_width), max_height);
+        self.reserve_space(size, None);
+        result
+    }
+
+    // ------------------------------------------------
 }

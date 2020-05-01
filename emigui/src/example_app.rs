@@ -50,7 +50,7 @@ impl ExampleWindow {
                 "Emigui is an experimental immediate mode GUI written in Rust."
             ));
 
-            region.horizontal(Align::Min, |region| {
+            region.horizontal(|region| {
                 region.add_label("Project home page:");
                 region.add_hyperlink("https://github.com/emilk/emigui/");
             });
@@ -59,7 +59,7 @@ impl ExampleWindow {
         CollapsingHeader::new("Widgets")
             .default_open()
             .show(region, |region| {
-            region.horizontal(Align::Min, |region| {
+            region.horizontal(|region| {
                 region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
                 region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
                 region.add(label!("and tooltips (hover me)")).tooltip_text(
@@ -69,7 +69,7 @@ impl ExampleWindow {
 
             region.add(Checkbox::new(&mut self.checked, "checkbox"));
 
-            region.horizontal(Align::Min, |region| {
+            region.horizontal(|region| {
                 if region.add(radio(self.radio == 0, "First")).clicked {
                     self.radio = 0;
                 }
@@ -81,7 +81,7 @@ impl ExampleWindow {
                 }
             });
 
-            region.horizontal(Align::Min, |region| {
+            region.horizontal(|region| {
                 if region
                     .add(Button::new("Click me"))
                     .tooltip_text("This will just increase a counter.")
@@ -101,7 +101,7 @@ impl ExampleWindow {
             }
 
             for (i, text) in self.text_inputs.iter_mut().enumerate() {
-                region.horizontal(Align::Min, |region|{
+                region.horizontal(|region|{
                     region.add(label!("Text input {}: ", i));
                     region.add(TextEdit::new(text).id(i));
                 }); // TODO: .tooltip_text("Enter text to edit me")

@@ -55,7 +55,7 @@ impl State {
         );
         region.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
         region.add_label("This is also work in progress, and not ready for production... yet :)");
-        region.horizontal(Align::Min, |region| {
+        region.horizontal(|region| {
             region.add_label("Project home page:");
             region.add_hyperlink("https://github.com/emilk/emigui/");
         });
