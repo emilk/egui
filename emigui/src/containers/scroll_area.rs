@@ -8,6 +8,7 @@ pub struct State {
     pub show_scroll: bool, // TODO: default value?
 }
 
+// TODO: rename VScroll
 #[derive(Clone, Debug)]
 pub struct ScrollArea {
     max_height: f32,
@@ -59,28 +60,43 @@ impl ScrollArea {
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
 
-        let scroll_bar_width = 16.0;
+        let max_scroll_bar_width = 16.0;
+
+        let current_scroll_bar_width = if state.show_scroll || !self.auto_hide_scroll {
+            max_scroll_bar_width // TODO: animate?
+        } else {
+            0.0
+        };
 
         let outer_size = vec2(
             outer_region.available_width(),
             outer_region.available_height().min(self.max_height),
         );
-        let outer_rect = Rect::from_min_size(outer_region.cursor, outer_size);
 
-        let inner_size = if state.show_scroll || !self.auto_hide_scroll {
-            outer_size - vec2(scroll_bar_width, 0.0) // TODO: animate?
-        } else {
-            outer_size
-        };
+        let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
         let inner_rect = Rect::from_min_size(outer_region.cursor, inner_size);
 
         let mut content_region = outer_region.child_region(Rect::from_min_size(
             outer_region.cursor() - state.offset,
             vec2(inner_size.x, f32::INFINITY),
         ));
-        content_region.clip_rect = outer_region.clip_rect().intersect(&inner_rect);
+        // content_region.clip_rect = outer_region.clip_rect().intersect(&inner_rect);
+        content_region.clip_rect = outer_region.clip_rect(); // Nice handling of forced resizing beyon the possible
         add_contents(&mut content_region);
         let content_size = content_region.bounding_size();
+
+        let inner_rect = Rect::from_min_size(
+            inner_rect.min,
+            vec2(
+                inner_rect.width().max(content_size.x), // Expand width to fit content
+                inner_rect.height(),
+            ),
+        );
+
+        let outer_rect = Rect::from_min_size(
+            inner_rect.min,
+            inner_rect.size() + vec2(current_scroll_bar_width, 0.0),
+        );
 
         let content_interact = outer_region.interact_rect(&inner_rect, scroll_area_id.with("area"));
         if content_interact.active {
@@ -166,10 +182,11 @@ impl ScrollArea {
         }
 
         // let size = content_size.min(inner_rect.size());
-        let size = vec2(
-            content_size.x, // ignore inner_rect, i.e. try to expand horizontally if necessary
-            content_size.y.min(inner_rect.size().y), // respect vertical height.
-        );
+        // let size = vec2(
+        //     content_size.x, // ignore inner_rect, i.e. try to expand horizontally if necessary
+        //     content_size.y.min(inner_rect.size().y), // respect vertical height.
+        // );
+        let size = outer_rect.size();
         outer_region.reserve_space(size, None);
 
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());

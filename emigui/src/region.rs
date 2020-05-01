@@ -52,9 +52,6 @@ pub struct Region {
     pub(crate) cursor: Pos2,
 }
 
-// Allow child widgets to be just on the border and still have an outline with some thickness
-const CLIP_RECT_MARGIN: f32 = 3.0;
-
 impl Region {
     // ------------------------------------------------------------------------
     // Creation:
@@ -65,7 +62,7 @@ impl Region {
             ctx,
             id,
             layer,
-            clip_rect: rect.expand(CLIP_RECT_MARGIN),
+            clip_rect: rect.expand(style.clip_rect_margin),
             desired_rect: rect,
             child_bounds: Rect::from_min_size(rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style,
@@ -76,9 +73,10 @@ impl Region {
     }
 
     pub fn child_region(&self, child_rect: Rect) -> Self {
-        let clip_rect = self
-            .clip_rect
-            .intersect(&child_rect.expand(CLIP_RECT_MARGIN));
+        // let clip_rect = self
+        //     .clip_rect
+        //     .intersect(&child_rect.expand(self.style().clip_rect_margin));
+        let clip_rect = self.clip_rect(); // Keep it unless the child explciitly desires differently
         Region {
             ctx: self.ctx.clone(),
             layer: self.layer,
@@ -374,7 +372,11 @@ impl Region {
 
     /// Paint some debug text at current cursor
     pub fn debug_text(&self, text: &str) {
-        self.ctx.debug_text(self.cursor, text);
+        self.debug_text_at(self.cursor, text);
+    }
+
+    pub fn debug_text_at(&self, pos: Pos2, text: &str) {
+        self.ctx.debug_text(pos, text);
     }
 
     /// Show some text anywhere in the region.

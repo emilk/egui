@@ -37,6 +37,9 @@ pub struct Style {
 
     pub window: Window,
 
+    /// Allow child widgets to be just on the border and still have an outline with some thickness
+    pub clip_rect_margin: f32,
+
     // -----------------------------------------------
     // Debug rendering:
     pub debug_regions: bool,
@@ -61,6 +64,7 @@ impl Default for Style {
             text_cursor_width: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
+            clip_rect_margin: 3.0,
             debug_regions: false,
         }
     }
