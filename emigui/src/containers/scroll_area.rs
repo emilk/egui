@@ -165,8 +165,12 @@ impl ScrollArea {
             });
         }
 
-        let size = content_size.min(inner_rect.size());
-        outer_region.reserve_space_without_padding(size);
+        // let size = content_size.min(inner_rect.size());
+        let size = vec2(
+            content_size.x, // ignore inner_rect, i.e. try to expand horizontally if necessary
+            content_size.y.min(inner_rect.size().y), // respect vertical height.
+        );
+        outer_region.reserve_space(size, None);
 
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
         state.offset.y = state.offset.y.max(0.0);

@@ -7,11 +7,11 @@ use super::*;
 /// A wrapper around other containers for things you often want in a window
 #[derive(Clone, Debug)]
 pub struct Window {
-    title: String,
-    floating: Floating,
-    frame: Frame,
-    resize: Resize,
-    scroll: ScrollArea,
+    pub title: String,
+    pub floating: Floating,
+    pub frame: Frame,
+    pub resize: Resize,
+    pub scroll: ScrollArea,
 }
 
 impl Window {
@@ -23,12 +23,28 @@ impl Window {
             frame: Frame::default(),
             resize: Resize::default()
                 .handle_offset(Vec2::splat(4.0))
+                .auto_shrink_width(true)
+                .auto_expand_width(true)
                 .auto_shrink_height(false)
-                .auto_expand(false),
+                .auto_expand_height(false),
             scroll: ScrollArea::default()
                 .always_show_scroll(false)
                 .max_height(f32::INFINITY), // As large as we can be
         }
+    }
+
+    /// This is quite a crap idea
+    /// Usage: `Winmdow::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
+    pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
+        mutate(&mut self);
+        self
+    }
+
+    /// This is quite a crap idea
+    /// Usage: `Winmdow::new(...).resize(|r| r.auto_expand_width(true))`
+    pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
+        self.resize = mutate(self.resize);
+        self
     }
 
     pub fn default_pos(mut self, default_pos: Pos2) -> Self {

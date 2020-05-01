@@ -1,9 +1,12 @@
 #![deny(warnings)]
 #[allow(clippy::single_match)]
-use std::time::{Duration, Instant};
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use {
-    emigui::{containers::*, example_app::ExampleApp, widgets::*, *},
+    emigui::{containers::*, example_app::ExampleWindow, widgets::*, *},
     glium::glutin,
 };
 
@@ -39,8 +42,8 @@ fn main() {
     let start_time = Instant::now();
     let mut running = true;
     let mut frame_start = Instant::now();
-    let mut frame_times = std::collections::VecDeque::new();
-    let mut example_app = ExampleApp::default();
+    let mut frame_times = VecDeque::new();
+    let mut example_app = ExampleWindow::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
     while running {
@@ -74,15 +77,10 @@ fn main() {
             running = false;
         }
 
-        let mean_frame_time = if frame_times.is_empty() {
-            0.0
-        } else {
-            frame_times.iter().sum::<f64>() / (frame_times.len() as f64)
-        };
         region.add(
             label!(
                 "Frame time: {:.1} ms (excludes painting)",
-                1e3 * mean_frame_time
+                1e3 * mean_frame_time(&frame_times)
             )
             .text_style(TextStyle::Monospace),
         );
@@ -92,6 +90,8 @@ fn main() {
         Window::new("Examples")
             .default_pos(pos2(50.0, 100.0))
             .default_size(vec2(300.0, 600.0))
+            // .mutate(|w| w.resize = w.resize.auto_expand_width(true))
+            // .resize(|r| r.auto_expand_width(true))
             .show(region.ctx(), |region| {
                 example_app.ui(region);
             });
@@ -112,5 +112,13 @@ fn main() {
 
         painter.paint_batches(&display, paint_batches, emigui.texture());
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
+    }
+}
+
+pub fn mean_frame_time(frame_times: &VecDeque<f64>) -> f64 {
+    if frame_times.is_empty() {
+        0.0
+    } else {
+        frame_times.iter().sum::<f64>() / (frame_times.len() as f64)
     }
 }

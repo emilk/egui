@@ -36,6 +36,10 @@ pub struct Style {
     pub animation_time: f32,
 
     pub window: Window,
+
+    // -----------------------------------------------
+    // Debug rendering:
+    pub debug_regions: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -57,6 +61,7 @@ impl Default for Style {
             text_cursor_width: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
+            debug_regions: false,
         }
     }
 }
@@ -154,22 +159,28 @@ impl Style {
 impl Style {
     #[rustfmt::skip]
     pub fn ui(&mut self, region: &mut crate::Region) {
-        use crate::widgets::{Button, Slider};
+        use crate::{widgets::*, *};
         if region.add(Button::new("Reset style")).clicked {
             *self = Default::default();
         }
 
 
-        region.add(Slider::f32(&mut self.item_spacing.x, 0.0..=10.0).text("item_spacing.x").precision(0));
-        region.add(Slider::f32(&mut self.item_spacing.y, 0.0..=10.0).text("item_spacing.y").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.x, 0.0..=10.0).text("window_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.y, 0.0..=10.0).text("window_padding.y").precision(0));
-        region.add(Slider::f32(&mut self.indent, 0.0..=100.0).text("indent").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.x, 0.0..=20.0).text("button_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.y, 0.0..=20.0).text("button_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
+        region.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.x,   0.0..=10.0).text("window_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.window_padding.y,   0.0..=10.0).text("window_padding.y").precision(0));
+        region.add(Slider::f32(&mut self.indent,             0.0..=100.0).text("indent").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.x,   0.0..=20.0).text("button_padding.x").precision(0));
+        region.add(Slider::f32(&mut self.button_padding.y,   0.0..=20.0).text("button_padding.y").precision(0));
         region.add(Slider::f32(&mut self.clickable_diameter, 0.0..=60.0).text("clickable_diameter").precision(0));
-        region.add(Slider::f32(&mut self.start_icon_width, 0.0..=60.0).text("start_icon_width").precision(0));
-        region.add(Slider::f32(&mut self.line_width, 0.0..=10.0).text("line_width").precision(0));
-        region.add(Slider::f32(&mut self.animation_time, 0.0..=1.0).text("animation_time").precision(2));
+        region.add(Slider::f32(&mut self.start_icon_width,   0.0..=60.0).text("start_icon_width").precision(0));
+        region.add(Slider::f32(&mut self.line_width,         0.0..=10.0).text("line_width").precision(0));
+        region.add(Slider::f32(&mut self.animation_time,     0.0..=1.0).text("animation_time").precision(2));
+
+
+        // TODO: region.section("Heading", |ui| ui.add(contents))
+        region.add(Separator::new());
+        region.add(label!("Debug:").text_style(TextStyle::Heading));
+        region.add(Checkbox::new(&mut self.debug_regions, "debug_regions"));
     }
 }

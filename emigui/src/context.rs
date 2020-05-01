@@ -56,6 +56,14 @@ impl Context {
         (point * self.input.pixels_per_point).round() / self.input.pixels_per_point
     }
 
+    pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
+        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
+    }
+
+    pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
+        vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
+    }
+
     /// Raw input from last frame. Use `input()` instead.
     pub fn last_raw_input(&self) -> &RawInput {
         &self.last_raw_input

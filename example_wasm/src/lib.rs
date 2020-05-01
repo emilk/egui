@@ -10,7 +10,7 @@ use {
     emigui::{
         color::srgba,
         containers::*,
-        example_app::ExampleApp,
+        example_app::ExampleWindow,
         label,
         widgets::{Label, Separator},
         Align, Emigui, RawInput, TextStyle, *,
@@ -22,7 +22,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 
 pub struct State {
-    example_app: ExampleApp,
+    example_app: ExampleWindow,
     emigui: Emigui,
     webgl_painter: emigui_wasm::webgl::Painter,
 

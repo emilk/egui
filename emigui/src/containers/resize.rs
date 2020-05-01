@@ -98,6 +98,20 @@ impl Resize {
         self
     }
 
+    /// true: prevent from resizing to smaller than contents.
+    /// false: allow shrinking to smaller than contents.
+    pub fn auto_expand_width(mut self, auto_expand: bool) -> Self {
+        self.expand_width_to_fit_content = auto_expand;
+        self
+    }
+
+    /// true: prevent from resizing to smaller than contents.
+    /// false: allow shrinking to smaller than contents.
+    pub fn auto_expand_height(mut self, auto_expand: bool) -> Self {
+        self.expand_height_to_fit_content = auto_expand;
+        self
+    }
+
     /// Offset the position of the resize handle by this much
     pub fn handle_offset(mut self, handle_offset: Vec2) -> Self {
         self.handle_offset = handle_offset;
@@ -200,7 +214,7 @@ impl Resize {
         // state.size = state.size.clamp(self.min_size..=self.max_size);
         state.size = state.size.round(); // TODO: round to pixels
 
-        region.reserve_space_without_padding(state.size);
+        region.reserve_space(state.size, None);
 
         // ------------------------------
 

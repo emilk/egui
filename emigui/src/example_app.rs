@@ -1,7 +1,9 @@
+// #![allow(dead_code, unused_variables)] // should be commented out
+
 use crate::{color::*, containers::*, widgets::*, *};
 
 /// Showcase some region code
-pub struct ExampleApp {
+pub struct ExampleWindow {
     checked: bool,
     count: usize,
     radio: usize,
@@ -19,9 +21,9 @@ pub struct ExampleApp {
     painting: Painting,
 }
 
-impl Default for ExampleApp {
-    fn default() -> ExampleApp {
-        ExampleApp {
+impl Default for ExampleWindow {
+    fn default() -> ExampleWindow {
+        ExampleWindow {
             checked: true,
             radio: 0,
             count: 0,
@@ -41,7 +43,7 @@ impl Default for ExampleApp {
     }
 }
 
-impl ExampleApp {
+impl ExampleWindow {
     pub fn ui(&mut self, region: &mut Region) {
         region.collapsing("About Emigui", |region| {
             region.add(label!(

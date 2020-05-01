@@ -29,6 +29,14 @@ impl TextFragment {
     }
 }
 
+// pub fn fn_text_width(fragmens: &[TextFragment]) -> f32 {
+//     if fragmens.is_empty() {
+//         0.0
+//     } else {
+//         fragmens.last().unwrap().max_x() - fragmens.first().unwrap().min_x()
+//     }
+// }
+
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
@@ -93,6 +101,27 @@ impl Font {
         font
     }
 
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    /// Height of one line of text. In points
+    /// TODO: rename height ?
+    pub fn line_spacing(&self) -> f32 {
+        self.scale_in_pixels / self.pixels_per_point
+    }
+    pub fn height(&self) -> f32 {
+        self.scale_in_pixels / self.pixels_per_point
+    }
+
+    pub fn uv_rect(&self, c: char) -> Option<UvRect> {
+        self.glyph_infos.get(&c).and_then(|gi| gi.uv_rect)
+    }
+
+    fn glyph_info(&self, c: char) -> Option<&GlyphInfo> {
+        self.glyph_infos.get(&c)
+    }
+
     fn add_char(&mut self, c: char) {
         let glyph = self.font.glyph(c);
         assert_ne!(
@@ -154,26 +183,10 @@ impl Font {
         );
     }
 
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
-    }
-
-    /// Height of one line of text. In points
-    /// TODO: rename height ?
-    pub fn line_spacing(&self) -> f32 {
-        self.scale_in_pixels / self.pixels_per_point
-    }
-
-    pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        self.glyph_infos.get(&c).and_then(|gi| gi.uv_rect)
-    }
-
-    fn glyph_info(&self, c: char) -> Option<&GlyphInfo> {
-        self.glyph_infos.get(&c)
-    }
-
     /// Returns the a single line of characters separated into words
-    pub fn layout_single_line(&self, text: &str) -> Vec<TextFragment> {
+    /// Always returns at least one frament. TODO: Vec1
+    /// Returns total size.
+    pub fn layout_single_line(&self, text: &str) -> (Vec<TextFragment>, Vec2) {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
         let mut current_fragment = TextFragment {
@@ -220,7 +233,16 @@ impl Font {
         if !current_fragment.text.is_empty() {
             all_fragments.push(current_fragment)
         }
-        all_fragments
+
+        let width = if all_fragments.is_empty() {
+            0.0
+        } else {
+            all_fragments.last().unwrap().max_x()
+        };
+
+        let size = vec2(width, self.height());
+
+        (all_fragments, size)
     }
 
     /// A paragraph is text with no line break character in it.
@@ -229,8 +251,8 @@ impl Font {
         text: &str,
         max_width_in_points: f32,
     ) -> Vec<TextFragment> {
-        let mut words = self.layout_single_line(text);
-        if words.is_empty() || words.last().unwrap().max_x() <= max_width_in_points {
+        let (mut words, size) = self.layout_single_line(text);
+        if words.is_empty() || size.x <= max_width_in_points {
             return words; // Early-out
         }
 

@@ -21,6 +21,7 @@ pub trait Widget {
 
 pub struct Label {
     text: String,
+    multiline: bool,
     text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the region"
     text_color: Option<Color>,
 }
@@ -29,9 +30,15 @@ impl Label {
     pub fn new(text: impl Into<String>) -> Self {
         Label {
             text: text.into(),
+            multiline: true,
             text_style: TextStyle::Body,
             text_color: None,
         }
+    }
+
+    pub fn multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
     }
 
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
@@ -55,7 +62,11 @@ macro_rules! label {
 impl Widget for Label {
     fn ui(self, region: &mut Region) -> GuiResponse {
         let font = &region.fonts()[self.text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
+        let (text, text_size) = if self.multiline {
+            font.layout_multiline(&self.text, region.available_width())
+        } else {
+            font.layout_single_line(&self.text)
+        };
         let interact = region.reserve_space(text_size, None);
         region.add_text(interact.rect.min, self.text_style, text, self.text_color);
         region.response(interact)
@@ -423,8 +434,9 @@ impl<'a> Widget for Slider<'a> {
             let slider_sans_text = Slider { text: None, ..self };
 
             if text_on_top {
-                let (text, text_size) = font.layout_multiline(&full_text, region.available_width());
-                let pos = region.reserve_space_without_padding(text_size);
+                // let (text, text_size) = font.layout_multiline(&full_text, region.available_width());
+                let (text, text_size) = font.layout_single_line(&full_text);
+                let pos = region.reserve_space(text_size, None).rect.min;
                 region.add_text(pos, text_style, text, text_color);
                 slider_sans_text.ui(region)
             } else {
@@ -437,7 +449,7 @@ impl<'a> Widget for Slider<'a> {
                         .desired_rect
                         .set_height(slider_response.rect.height());
                     columns[1].horizontal(Align::Center, |region| {
-                        region.add(Label::new(full_text));
+                        region.add(Label::new(full_text).multiline(false));
                     });
 
                     slider_response
