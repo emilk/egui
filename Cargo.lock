@@ -192,6 +192,7 @@ dependencies = [
  "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "emigui 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.51 (registry+https://github.com/rust-lang/crates.io-index)",
  "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

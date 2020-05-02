@@ -165,3 +165,32 @@ pub fn handle_output(
         .gl_window()
         .set_cursor(translate_cursor(output.cursor_icon));
 }
+
+// ----------------------------------------------------------------------------
+
+pub fn read_memory(ctx: &Context, memory_json_path: impl AsRef<std::path::Path>) {
+    match std::fs::File::open(memory_json_path) {
+        Ok(file) => {
+            let reader = std::io::BufReader::new(file);
+            match serde_json::from_reader(reader) {
+                Ok(memory) => {
+                    *ctx.memory() = memory;
+                }
+                Err(err) => {
+                    eprintln!("ERROR: Failed to parse memory json: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("ERROR: Failed to read memory file: {}", err);
+        }
+    }
+}
+
+pub fn write_memory(
+    ctx: &Context,
+    memory_json_path: impl AsRef<std::path::Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    serde_json::to_writer(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
+    Ok(())
+}

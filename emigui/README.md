@@ -41,6 +41,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 ### Web version:
 * [x] Scroll input
 * [x] Change to resize cursor on hover
+* [ ] Make it a JS library for easily creating your own stuff
 
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:
@@ -63,10 +64,15 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 ### Input
 * [ ] Distinguish between clicks and drags
 * [ ] Double-click
-* [ ] Text
+* [x] Text
+
+### Debugability / Inspection
+* [x] Widget debug rectangles
+* [ ] Easily debug why something keeps expanding
+
 
 ### Other
-* [ ] Persist UI state in external storage
+* [x] Persist UI state in external storage
 * [ ] Pixel-perfect rendering (round positions to nearest pixel).
 * [ ] Build in a profiler which tracks which region in which window takes up CPU.
     * [ ] Draw as flame graph

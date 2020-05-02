@@ -1,9 +1,9 @@
 #![allow(unused_variables)] // TODO
 use crate::*;
 
-#[derive(Clone, Copy, Debug)]
-pub struct State {
-    pub size: Vec2,
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub(crate) struct State {
+    size: Vec2,
 }
 
 // TODO: auto-shink/grow should be part of another container!
@@ -229,7 +229,7 @@ impl Resize {
         paint_resize_corner(region, &corner_rect, &corner_interact);
 
         if corner_interact.hovered || corner_interact.active {
-            region.ctx().output.lock().cursor_icon = CursorIcon::ResizeNwSe;
+            region.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
         }
 
         region.memory().resize.insert(id, state);

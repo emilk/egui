@@ -31,9 +31,11 @@ pub struct State {
 
 impl State {
     fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
+        let emigui = Emigui::new(pixels_per_point);
+        emigui_wasm::load_memory(emigui.ctx());
         Ok(State {
             example_app: Default::default(),
-            emigui: Emigui::new(pixels_per_point),
+            emigui,
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
             frame_times: Default::default(),
         })
@@ -110,6 +112,8 @@ impl State {
             self.emigui.texture(),
             pixels_per_point,
         )?;
+
+        emigui_wasm::save_memory(self.emigui.ctx()); // TODO: don't save every frame
 
         Ok(output)
     }

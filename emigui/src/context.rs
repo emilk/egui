@@ -12,10 +12,10 @@ pub struct Context {
     /// Raw input from last frame. Use `input()` instead.
     pub(crate) last_raw_input: RawInput,
     pub(crate) input: GuiInput,
-    pub(crate) memory: Mutex<Memory>,
+    memory: Mutex<Memory>,
     pub(crate) graphics: Mutex<GraphicLayers>,
 
-    pub output: Mutex<Output>,
+    output: Mutex<Output>,
 
     /// Used to debug name clashes of e.g. windows
     used_ids: Mutex<HashMap<Id, Pos2>>,
@@ -51,6 +51,31 @@ impl Context {
         }
     }
 
+    pub fn memory(&self) -> parking_lot::MutexGuard<Memory> {
+        self.memory.lock()
+    }
+
+    pub fn output(&self) -> parking_lot::MutexGuard<Output> {
+        self.output.lock()
+    }
+
+    pub fn input(&self) -> &GuiInput {
+        &self.input
+    }
+
+    /// Raw input from last frame. Use `input()` instead.
+    pub fn last_raw_input(&self) -> &RawInput {
+        &self.last_raw_input
+    }
+
+    pub fn style(&self) -> Style {
+        *self.style.lock()
+    }
+
+    pub fn set_style(&self, style: Style) {
+        *self.style.lock() = style;
+    }
+
     /// Useful for pixel-perfect rendering
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.input.pixels_per_point).round() / self.input.pixels_per_point
@@ -62,23 +87,6 @@ impl Context {
 
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
-    }
-
-    /// Raw input from last frame. Use `input()` instead.
-    pub fn last_raw_input(&self) -> &RawInput {
-        &self.last_raw_input
-    }
-
-    pub fn input(&self) -> &GuiInput {
-        &self.input
-    }
-
-    pub fn style(&self) -> Style {
-        *self.style.lock()
-    }
-
-    pub fn set_style(&self, style: Style) {
-        *self.style.lock() = style;
     }
 
     // TODO: move

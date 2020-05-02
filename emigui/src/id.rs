@@ -31,7 +31,7 @@ use std::{collections::hash_map::DefaultHasher, hash::Hash};
 
 use crate::math::Pos2;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Id(u64);
 
 impl Id {

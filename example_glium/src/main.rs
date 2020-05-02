@@ -46,6 +46,9 @@ fn main() {
     let mut example_app = ExampleWindow::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
+    let memory_path = "emigui.json";
+    emigui_glium::read_memory(&emigui.ctx(), memory_path);
+
     while running {
         {
             // Keep smooth frame rate. TODO: proper vsync
@@ -112,6 +115,10 @@ fn main() {
 
         painter.paint_batches(&display, paint_batches, emigui.texture());
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
+    }
+
+    if let Err(err) = emigui_glium::write_memory(&emigui.ctx(), memory_path) {
+        eprintln!("ERROR: Failed to save emigui state: {}", err);
     }
 }
 

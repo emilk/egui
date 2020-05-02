@@ -36,11 +36,15 @@ Mostly a tech demo at this point. I hope to find time to work more on this in th
 
 Features:
 
-* Text
+* Labels
 * Buttons, checkboxes, radio buttons and sliders
 * Horizontal or vertical layout
 * Column layout
 * Collapsible headers (sections)
+* Windows
+* Resizable regions
+* Vertical scolling
+* Simple text input
 * Anti-aliased rendering of circles, rounded rectangles and lines.
 
 

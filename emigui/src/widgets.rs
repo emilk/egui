@@ -101,10 +101,10 @@ impl Widget for Hyperlink {
         let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
         let interact = region.reserve_space(text_size, Some(id));
         if interact.hovered {
-            region.ctx().output.lock().cursor_icon = CursorIcon::PointingHand;
+            region.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if interact.clicked {
-            region.ctx().output.lock().open_url = Some(self.url);
+            region.ctx().output().open_url = Some(self.url);
         }
 
         if interact.hovered {

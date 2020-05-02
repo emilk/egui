@@ -12,8 +12,8 @@ struct Stats {
 /// Encapsulates input, layout and painting for ease of use.
 /// TODO: merge into Context
 pub struct Emigui {
-    pub last_input: RawInput,
-    pub ctx: Arc<Context>,
+    last_input: RawInput,
+    ctx: Arc<Context>,
     stats: Stats,
     mesher_options: MesherOptions,
 }
@@ -28,13 +28,17 @@ impl Emigui {
         }
     }
 
+    pub fn ctx(&self) -> &Arc<Context> {
+        &self.ctx
+    }
+
     pub fn texture(&self) -> &Texture {
         self.ctx.fonts.texture()
     }
 
     pub fn begin_frame(&mut self, new_input: RawInput) {
         if !self.last_input.mouse_down || self.last_input.mouse_pos.is_none() {
-            self.ctx.memory.lock().active_id = None;
+            self.ctx.memory().active_id = None;
         }
 
         let gui_input = GuiInput::from_last_and_new(&self.last_input, &new_input);

@@ -119,11 +119,11 @@ impl Region {
     }
 
     pub fn memory(&self) -> parking_lot::MutexGuard<Memory> {
-        self.ctx.memory.lock()
+        self.ctx.memory()
     }
 
     pub fn output(&self) -> parking_lot::MutexGuard<Output> {
-        self.ctx.output.lock()
+        self.ctx.output()
     }
 
     pub fn fonts(&self) -> &Fonts {

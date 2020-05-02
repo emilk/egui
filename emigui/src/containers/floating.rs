@@ -7,8 +7,8 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use crate::*;
 
-#[derive(Clone, Copy, Debug)]
-pub struct State {
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub(crate) struct State {
     /// Last known pos
     pub pos: Pos2,
 
@@ -50,7 +50,7 @@ impl Floating {
         let id = ctx.register_unique_id(self.id, "Floating", default_pos);
         let layer = Layer::Window(id);
 
-        let (mut state, _is_new) = match ctx.memory.lock().get_floating(id) {
+        let (mut state, _is_new) = match ctx.memory().get_floating(id) {
             Some(state) => (state, false),
             None => {
                 let state = State {
@@ -90,15 +90,15 @@ impl Floating {
         state.pos = state.pos.round();
 
         if move_interact.active || mouse_pressed_on_floating(ctx, id) {
-            ctx.memory.lock().move_floating_to_top(id);
+            ctx.memory().move_floating_to_top(id);
         }
-        ctx.memory.lock().set_floating_state(id, state);
+        ctx.memory().set_floating_state(id, state);
     }
 }
 
 fn mouse_pressed_on_floating(ctx: &Context, id: Id) -> bool {
     if let Some(mouse_pos) = ctx.input.mouse_pos {
-        ctx.input.mouse_pressed && ctx.memory.lock().layer_at(mouse_pos) == Layer::Window(id)
+        ctx.input.mouse_pressed && ctx.memory().layer_at(mouse_pos) == Layer::Window(id)
     } else {
         false
     }

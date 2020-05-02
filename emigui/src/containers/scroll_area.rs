@@ -1,11 +1,12 @@
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct State {
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub(crate) struct State {
     /// Positive offset means scrolling down/right
-    pub offset: Vec2,
+    offset: Vec2,
 
-    pub show_scroll: bool, // TODO: default value?
+    show_scroll: bool, // TODO: default value?
 }
 
 // TODO: rename VScroll
@@ -49,8 +50,7 @@ impl ScrollArea {
 
         let scroll_area_id = outer_region.id.with("scroll_area");
         let mut state = ctx
-            .memory
-            .lock()
+            .memory()
             .scroll_areas
             .get(&scroll_area_id)
             .cloned()
@@ -105,7 +105,7 @@ impl ScrollArea {
         }
 
         // TODO: check that nothing else is being inteacted with
-        if outer_region.contains_mouse(&outer_rect) && ctx.memory.lock().active_id.is_none() {
+        if outer_region.contains_mouse(&outer_rect) && ctx.memory().active_id.is_none() {
             state.offset.y -= ctx.input.scroll_delta.y;
         }
 
@@ -194,9 +194,7 @@ impl ScrollArea {
         state.show_scroll = show_scroll_this_frame;
 
         outer_region
-            .ctx()
-            .memory
-            .lock()
+            .memory()
             .scroll_areas
             .insert(scroll_area_id, state);
     }

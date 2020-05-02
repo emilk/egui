@@ -57,7 +57,7 @@ impl<'t> Widget for TextEdit<'t> {
                 match event {
                     Event::Copy | Event::Cut => {
                         // TODO: cut
-                        region.ctx().output.lock().copied_text = self.text.clone();
+                        region.ctx().output().copied_text = self.text.clone();
                     }
                     Event::Text(text) => {
                         if text == "\u{7f}" {

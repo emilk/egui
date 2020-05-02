@@ -1,16 +1,18 @@
 use crate::{layout::Direction, *};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct State {
-    pub open: bool,
-    pub toggle_time: f64,
+    open: bool,
+    #[serde(skip)] // Times are relative, and we don't want to continue animations anyway
+    toggle_time: f64,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             open: false,
-            toggle_time: -std::f64::INFINITY,
+            toggle_time: -f64::INFINITY,
         }
     }
 }
@@ -59,7 +61,7 @@ impl CollapsingHeader {
         );
 
         let state = {
-            let mut memory = region.ctx.memory.lock();
+            let mut memory = region.ctx.memory();
             let mut state = memory.collapsing_headers.entry(id).or_insert(State {
                 open: default_open,
                 ..Default::default()

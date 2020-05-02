@@ -5,12 +5,15 @@ use crate::{
     Id, Layer, Pos2, Rect,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).
+    #[serde(skip)]
     pub(crate) active_id: Option<Id>,
 
     /// The widget with keyboard focus (i.e. a text input field).
+    #[serde(skip)]
     pub(crate) kb_focus_id: Option<Id>,
 
     // states of various types of widgets
@@ -24,11 +27,11 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn get_floating(&mut self, id: Id) -> Option<floating::State> {
+    pub(crate) fn get_floating(&mut self, id: Id) -> Option<floating::State> {
         self.floating.get(&id).cloned()
     }
 
-    pub fn set_floating_state(&mut self, id: Id, state: floating::State) {
+    pub(crate) fn set_floating_state(&mut self, id: Id, state: floating::State) {
         let did_insert = self.floating.insert(id, state).is_none();
         if did_insert {
             self.floating_order.push(id);
