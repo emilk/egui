@@ -14,11 +14,13 @@ pub mod example_app;
 mod font;
 mod fonts;
 mod id;
+mod input;
 mod layers;
 mod layout;
 pub mod math;
 mod memory;
 pub mod mesher;
+mod movement_tracker;
 mod region;
 mod style;
 mod texture_atlas;
@@ -31,11 +33,13 @@ pub use {
     context::Context,
     fonts::{FontDefinitions, Fonts, TextStyle},
     id::Id,
+    input::*,
     layers::*,
     layout::{Align, GuiResponse},
     math::*,
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},
+    movement_tracker::MovementTracker,
     region::Region,
     style::Style,
     texture_atlas::Texture,

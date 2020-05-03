@@ -92,10 +92,7 @@ impl TextureAtlas {
 
 impl Texture {
     pub fn ui(&self, region: &mut crate::Region) {
-        use crate::{
-            color::WHITE, label, layout::show_popup, math::*, widgets::Label, Mesh, PaintCmd,
-            Vertex,
-        };
+        use crate::{color::WHITE, label, layout::show_popup, math::*, Mesh, PaintCmd, Vertex};
 
         region.add(label!(
             "Texture size: {} x {} (hover to zoom)",

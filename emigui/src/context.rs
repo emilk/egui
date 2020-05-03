@@ -10,8 +10,9 @@ pub struct Context {
     pub(crate) style: Mutex<Style>,
     pub(crate) fonts: Arc<Fonts>,
     /// Raw input from last frame. Use `input()` instead.
-    pub(crate) last_raw_input: RawInput,
+    last_raw_input: RawInput,
     pub(crate) input: GuiInput,
+    mouse_tracker: MovementTracker<Pos2>,
     memory: Mutex<Memory>,
     pub(crate) graphics: Mutex<GraphicLayers>,
 
@@ -29,6 +30,7 @@ impl Clone for Context {
             fonts: self.fonts.clone(),
             last_raw_input: self.last_raw_input.clone(),
             input: self.input.clone(),
+            mouse_tracker: self.mouse_tracker.clone(),
             memory: Mutex::new(self.memory.lock().clone()),
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
@@ -44,6 +46,7 @@ impl Context {
             fonts: Arc::new(Fonts::new(pixels_per_point)),
             last_raw_input: Default::default(),
             input: Default::default(),
+            mouse_tracker: MovementTracker::new(1000, 0.1),
             memory: Default::default(),
             graphics: Default::default(),
             output: Default::default(),
@@ -63,6 +66,11 @@ impl Context {
         &self.input
     }
 
+    /// Smoothed mouse velocity, in points per second
+    pub fn mouse_vel(&self) -> Vec2 {
+        self.mouse_tracker.velocity().unwrap_or_default()
+    }
+
     /// Raw input from last frame. Use `input()` instead.
     pub fn last_raw_input(&self) -> &RawInput {
         &self.last_raw_input
@@ -74,6 +82,10 @@ impl Context {
 
     pub fn set_style(&self, style: Style) {
         *self.style.lock() = style;
+    }
+
+    pub fn pixels_per_point(&self) -> f32 {
+        self.input.pixels_per_point
     }
 
     /// Useful for pixel-perfect rendering
@@ -89,10 +101,21 @@ impl Context {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
-    // TODO: move
-    pub fn begin_frame(&mut self, gui_input: GuiInput) {
+    pub fn begin_frame(&mut self, new_input: RawInput) {
+        if !self.last_raw_input.mouse_down || self.last_raw_input.mouse_pos.is_none() {
+            self.memory().active_id = None;
+        }
+
         self.used_ids.lock().clear();
-        self.input = gui_input;
+
+        if let Some(mouse_pos) = new_input.mouse_pos {
+            self.mouse_tracker.add(new_input.time, mouse_pos);
+        } else {
+            self.mouse_tracker.clear();
+        }
+        self.input = GuiInput::from_last_and_new(&self.last_raw_input, &new_input);
+        self.input.mouse_velocity = self.mouse_vel();
+        self.last_raw_input = new_input;
     }
 
     pub fn end_frame(&self) -> Output {

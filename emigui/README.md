@@ -12,7 +12,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Collapsing header region
 * [x] Tooltip
 * [x] Movable/resizable windows
-    * [ ] Kinetic windows
+    * [x] Kinetic windows
     * [ ] BUG FIX: Don't catch clicks on closed windows
 * [ ] Scroll areas
     * [x] Vertical scrolling

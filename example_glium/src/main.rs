@@ -1,9 +1,6 @@
 #![deny(warnings)]
 #[allow(clippy::single_match)]
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use {
     emigui::{containers::*, example_app::ExampleWindow, widgets::*, *},
@@ -42,7 +39,7 @@ fn main() {
     let start_time = Instant::now();
     let mut running = true;
     let mut frame_start = Instant::now();
-    let mut frame_times = VecDeque::new();
+    let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
     let mut example_app = ExampleWindow::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
@@ -82,8 +79,15 @@ fn main() {
 
         region.add(
             label!(
-                "Frame time: {:.1} ms (excludes painting)",
-                1e3 * mean_frame_time(&frame_times)
+                "CPU usage: {:.2} ms (excludes painting)",
+                1e3 * frame_times.average().unwrap_or_default()
+            )
+            .text_style(TextStyle::Monospace),
+        );
+        region.add(
+            label!(
+                "FPS: {:.1}",
+                1.0 / frame_times.mean_time_interval().unwrap_or_default()
             )
             .text_style(TextStyle::Monospace),
         );
@@ -108,10 +112,10 @@ fn main() {
 
         let (output, paint_batches) = emigui.end_frame();
 
-        frame_times.push_back((Instant::now() - emigui_start).as_secs_f64());
-        while frame_times.len() > 30 {
-            frame_times.pop_front();
-        }
+        frame_times.add(
+            raw_input.time,
+            (Instant::now() - emigui_start).as_secs_f64() as f32,
+        );
 
         painter.paint_batches(&display, paint_batches, emigui.texture());
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
@@ -119,13 +123,5 @@ fn main() {
 
     if let Err(err) = emigui_glium::write_memory(&emigui.ctx(), memory_path) {
         eprintln!("ERROR: Failed to save emigui state: {}", err);
-    }
-}
-
-pub fn mean_frame_time(frame_times: &VecDeque<f64>) -> f64 {
-    if frame_times.is_empty() {
-        0.0
-    } else {
-        frame_times.iter().sum::<f64>() / (frame_times.len() as f64)
     }
 }

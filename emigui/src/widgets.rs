@@ -55,8 +55,8 @@ impl Label {
 /// Usage:  label!("Foo: {}", bar)
 #[macro_export]
 macro_rules! label {
-    ($fmt:expr) => (Label::new($fmt));
-    ($fmt:expr, $($arg:tt)*) => (Label::new(format!($fmt, $($arg)*)));
+    ($fmt:expr) => ($crate::widgets::Label::new($fmt));
+    ($fmt:expr, $($arg:tt)*) => ($crate::widgets::Label::new(format!($fmt, $($arg)*)));
 }
 
 impl Widget for Label {

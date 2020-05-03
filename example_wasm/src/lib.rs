@@ -26,7 +26,7 @@ pub struct State {
     emigui: Emigui,
     webgl_painter: emigui_wasm::webgl::Painter,
 
-    frame_times: std::collections::VecDeque<f64>,
+    frame_times: emigui::MovementTracker<f32>,
 }
 
 impl State {
@@ -37,7 +37,7 @@ impl State {
             example_app: Default::default(),
             emigui,
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
-            frame_times: Default::default(),
+            frame_times: emigui::MovementTracker::new(1000, 1.0),
         })
     }
 
@@ -69,15 +69,17 @@ impl State {
             region.add_label(self.webgl_painter.debug_info());
         });
 
-        let mean_frame_time = if self.frame_times.is_empty() {
-            0.0
-        } else {
-            self.frame_times.iter().sum::<f64>() / (self.frame_times.len() as f64)
-        };
         region.add(
             label!(
-                "Frame time: {:.1} ms (excludes painting)",
-                1e3 * mean_frame_time
+                "CPU usage: {:.2} ms (excludes painting)",
+                1e3 * self.frame_times.average().unwrap_or_default()
+            )
+            .text_style(TextStyle::Monospace),
+        );
+        region.add(
+            label!(
+                "FPS: {:.1}",
+                1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
             )
             .text_style(TextStyle::Monospace),
         );
@@ -101,10 +103,8 @@ impl State {
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.emigui.end_frame();
 
-        self.frame_times.push_back(now_sec() - everything_start);
-        while self.frame_times.len() > 30 {
-            self.frame_times.pop_front();
-        }
+        let now = now_sec();
+        self.frame_times.add(now, (now - everything_start) as f32);
 
         self.webgl_painter.paint_batches(
             bg_color,

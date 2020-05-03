@@ -14,6 +14,10 @@ pub(crate) struct State {
 
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
+
+    /// You can throw a Floating thing. It's fun.
+    #[serde(skip)]
+    pub vel: Vec2,
 }
 
 // TODO: rename Floating to something else. Area?
@@ -56,6 +60,7 @@ impl Floating {
                 let state = State {
                     pos: default_pos,
                     size: Vec2::zero(),
+                    vel: Vec2::zero(),
                 };
                 (state, true)
             }
@@ -75,8 +80,21 @@ impl Floating {
         let clip_rect = Rect::everything();
         let move_interact = ctx.interact(layer, &clip_rect, &rect, Some(id.with("move")));
 
+        let input = ctx.input();
         if move_interact.active {
-            state.pos += ctx.input().mouse_move;
+            state.pos += input.mouse_move;
+            state.vel = input.mouse_velocity;
+        } else {
+            let stop_speed = 20.0; // Pixels per second.
+            let friction_coeff = 1000.0; // Pixels per second squared.
+
+            let friction = friction_coeff * input.dt;
+            if friction > state.vel.length() || state.vel.length() < stop_speed {
+                state.vel = Vec2::zero();
+            } else {
+                state.vel -= friction * state.vel.normalized();
+                state.pos += state.vel * input.dt;
+            }
         }
 
         // Constrain to screen:
