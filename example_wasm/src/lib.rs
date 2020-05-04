@@ -8,12 +8,8 @@ extern crate emigui_wasm;
 
 use {
     emigui::{
-        color::srgba,
-        containers::*,
-        example_app::ExampleWindow,
-        label,
-        widgets::{Label, Separator},
-        Align, Emigui, RawInput, TextStyle, *,
+        color::srgba, containers::*, example_app::ExampleWindow, label, widgets::Separator, Align,
+        Emigui, RawInput, TextStyle, *,
     },
     emigui_wasm::now_sec,
 };

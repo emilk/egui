@@ -31,7 +31,7 @@ impl Emigui {
     }
 
     pub fn texture(&self) -> &Texture {
-        self.ctx.fonts.texture()
+        self.ctx.fonts().texture()
     }
 
     pub fn begin_frame(&mut self, new_input: RawInput) {
@@ -51,7 +51,7 @@ impl Emigui {
     fn paint(&mut self) -> PaintBatches {
         self.mesher_options.aa_size = 1.0 / self.ctx().pixels_per_point();
         let paint_commands = self.ctx.drain_paint_lists();
-        let batches = mesh_paint_commands(&self.mesher_options, &self.ctx.fonts, paint_commands);
+        let batches = mesh_paint_commands(&self.mesher_options, self.ctx.fonts(), paint_commands);
         self.stats = Default::default();
         self.stats.num_batches = batches.len();
         for (_, mesh) in &batches {
@@ -63,7 +63,7 @@ impl Emigui {
 
     /// A region for the entire screen, behind any windows.
     pub fn background_region(&mut self) -> Region {
-        let rect = Rect::from_min_size(Default::default(), self.ctx.input.screen_size);
+        let rect = Rect::from_min_size(Default::default(), self.ctx.input().screen_size);
         Region::new(self.ctx.clone(), Layer::Background, Id::background(), rect)
     }
 }
@@ -83,15 +83,17 @@ impl Emigui {
         });
 
         region.collapsing("Fonts", |region| {
-            let old_font_definitions = self.ctx.fonts.definitions();
+            let old_font_definitions = self.ctx.fonts().definitions();
             let mut new_font_definitions = old_font_definitions.clone();
             font_definitions_ui(&mut new_font_definitions, region);
-            self.ctx.fonts.texture().ui(region);
+            self.ctx.fonts().texture().ui(region);
             if *old_font_definitions != new_font_definitions {
                 let mut new_ctx = (*self.ctx).clone();
-                let fonts =
-                    Fonts::from_definitions(new_font_definitions, self.ctx.input.pixels_per_point);
-                new_ctx.fonts = Arc::new(fonts);
+                let fonts = Fonts::from_definitions(
+                    new_font_definitions,
+                    self.ctx.input().pixels_per_point,
+                );
+                new_ctx.set_fonts(fonts);
                 self.ctx = Arc::new(new_ctx);
             }
         });

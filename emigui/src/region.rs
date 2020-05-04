@@ -127,7 +127,7 @@ impl Region {
     }
 
     pub fn fonts(&self) -> &Fonts {
-        &*self.ctx.fonts
+        self.ctx.fonts()
     }
 
     /// Screen-space rectangle for clipping what we paint in this region.
@@ -342,8 +342,7 @@ impl Region {
     /// NOTE: all coordinates are screen coordinates!
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
         self.ctx
-            .graphics
-            .lock()
+            .graphics()
             .layer(self.layer)
             .push((self.clip_rect(), paint_cmd))
     }
@@ -351,8 +350,7 @@ impl Region {
     pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
         let clip_rect = self.clip_rect();
         self.ctx
-            .graphics
-            .lock()
+            .graphics()
             .layer(self.layer)
             .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
     }
@@ -360,14 +358,13 @@ impl Region {
     /// Insert a paint cmd before existing ones
     pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
         self.ctx
-            .graphics
-            .lock()
+            .graphics()
             .layer(self.layer)
             .insert(pos, (self.clip_rect(), paint_cmd));
     }
 
     pub fn paint_list_len(&self) -> usize {
-        self.ctx.graphics.lock().layer(self.layer).len()
+        self.ctx.graphics().layer(self.layer).len()
     }
 
     /// Paint some debug text at current cursor

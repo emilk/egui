@@ -101,8 +101,8 @@ impl Floating {
         let margin = 32.0;
         state.pos = state.pos.max(pos2(margin - state.size.x, 0.0));
         state.pos = state.pos.min(pos2(
-            ctx.input.screen_size.x - margin,
-            ctx.input.screen_size.y - margin,
+            ctx.input().screen_size.x - margin,
+            ctx.input().screen_size.y - margin,
         ));
 
         state.pos = state.pos.round();
@@ -115,8 +115,8 @@ impl Floating {
 }
 
 fn mouse_pressed_on_floating(ctx: &Context, id: Id) -> bool {
-    if let Some(mouse_pos) = ctx.input.mouse_pos {
-        ctx.input.mouse_pressed && ctx.memory().layer_at(mouse_pos) == Layer::Window(id)
+    if let Some(mouse_pos) = ctx.input().mouse_pos {
+        ctx.input().mouse_pressed && ctx.memory().layer_at(mouse_pos) == Layer::Window(id)
     } else {
         false
     }

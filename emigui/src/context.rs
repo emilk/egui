@@ -5,21 +5,26 @@ use parking_lot::Mutex;
 use crate::{layout::align_rect, *};
 
 /// Contains the input, style and output of all GUI commands.
+/// Regions keep an Arc pointer to this.
+/// This allows us to create several child regions at once,
+/// all working against the same shared Context.
 pub struct Context {
     /// The default style for new regions
-    pub(crate) style: Mutex<Style>,
-    pub(crate) fonts: Arc<Fonts>,
-    /// Raw input from last frame. Use `input()` instead.
-    last_raw_input: RawInput,
-    pub(crate) input: GuiInput,
-    mouse_tracker: MovementTracker<Pos2>,
+    style: Mutex<Style>,
+    fonts: Arc<Fonts>,
     memory: Mutex<Memory>,
-    pub(crate) graphics: Mutex<GraphicLayers>,
-
-    output: Mutex<Output>,
-
     /// Used to debug name clashes of e.g. windows
     used_ids: Mutex<HashMap<Id, Pos2>>,
+
+    // Input releated stuff:
+    /// Raw input from last frame. Use `input()` instead.
+    last_raw_input: RawInput,
+    input: GuiInput,
+    mouse_tracker: MovementTracker<Pos2>,
+
+    // The output of a frame:
+    graphics: Mutex<GraphicLayers>,
+    output: Mutex<Output>,
 }
 
 // TODO: remove this impl.
@@ -58,6 +63,10 @@ impl Context {
         self.memory.lock()
     }
 
+    pub fn graphics(&self) -> parking_lot::MutexGuard<GraphicLayers> {
+        self.graphics.lock()
+    }
+
     pub fn output(&self) -> parking_lot::MutexGuard<Output> {
         self.output.lock()
     }
@@ -74,6 +83,14 @@ impl Context {
     /// Raw input from last frame. Use `input()` instead.
     pub fn last_raw_input(&self) -> &RawInput {
         &self.last_raw_input
+    }
+
+    pub fn fonts(&self) -> &Fonts {
+        &*self.fonts
+    }
+
+    pub fn set_fonts(&mut self, fonts: Fonts) {
+        self.fonts = Arc::new(fonts);
     }
 
     pub fn style(&self) -> Style {
@@ -119,17 +136,17 @@ impl Context {
     }
 
     pub fn end_frame(&self) -> Output {
-        std::mem::take(&mut self.output.lock())
+        std::mem::take(&mut self.output())
     }
 
     pub fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
-        let memory = self.memory.lock();
-        self.graphics.lock().drain(&memory.floating_order).collect()
+        let memory = self.memory();
+        self.graphics().drain(&memory.floating_order).collect()
     }
 
     /// Is the user interacting with anything?
     pub fn any_active(&self) -> bool {
-        self.memory.lock().active_id.is_some()
+        self.memory().active_id.is_some()
     }
 
     /// Generate a id from the given source.
@@ -171,7 +188,7 @@ impl Context {
     pub fn contains_mouse(&self, layer: Layer, clip_rect: &Rect, rect: &Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse_pos {
-            rect.contains(mouse_pos) && layer == self.memory.lock().layer_at(mouse_pos)
+            rect.contains(mouse_pos) && layer == self.memory().layer_at(mouse_pos)
         } else {
             false
         }
@@ -186,7 +203,7 @@ impl Context {
     ) -> InteractInfo {
         let hovered = self.contains_mouse(layer, clip_rect, &rect);
 
-        let mut memory = self.memory.lock();
+        let mut memory = self.memory();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;
 
         if self.input.mouse_pressed {
@@ -315,8 +332,7 @@ impl Context {
     }
 
     pub fn add_paint_cmd(&self, layer: Layer, paint_cmd: PaintCmd) {
-        self.graphics
-            .lock()
+        self.graphics()
             .layer(layer)
             .push((Rect::everything(), paint_cmd))
     }

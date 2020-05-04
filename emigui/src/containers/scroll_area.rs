@@ -101,12 +101,12 @@ impl ScrollArea {
         let content_interact = outer_region.interact_rect(&inner_rect, scroll_area_id.with("area"));
         if content_interact.active {
             // Dragging scroll area to scroll:
-            state.offset.y -= ctx.input.mouse_move.y;
+            state.offset.y -= ctx.input().mouse_move.y;
         }
 
         // TODO: check that nothing else is being inteacted with
         if outer_region.contains_mouse(&outer_rect) && ctx.memory().active_id.is_none() {
-            state.offset.y -= ctx.input.scroll_delta.y;
+            state.offset.y -= ctx.input().scroll_delta.y;
         }
 
         let show_scroll_this_frame = content_size.y > inner_size.y || self.always_show_scroll;
@@ -134,11 +134,11 @@ impl ScrollArea {
             let interact_id = scroll_area_id.with("vertical");
             let handle_interact = outer_region.interact_rect(&handle_rect, interact_id);
 
-            if let Some(mouse_pos) = ctx.input.mouse_pos {
+            if let Some(mouse_pos) = ctx.input().mouse_pos {
                 if handle_interact.active {
                     if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
-                            ctx.input.mouse_move.y * content_size.y / inner_rect.height();
+                            ctx.input().mouse_move.y * content_size.y / inner_rect.height();
                     }
                 } else {
                     // Check for mouse down outside handle:

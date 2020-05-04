@@ -68,7 +68,7 @@ impl CollapsingHeader {
             });
             if interact.clicked {
                 state.open = !state.open;
-                state.toggle_time = region.ctx.input.time;
+                state.toggle_time = region.ctx.input().time;
             }
             *state
         };
@@ -93,7 +93,7 @@ impl CollapsingHeader {
         );
 
         let animation_time = region.style().animation_time;
-        let time_since_toggle = (region.ctx.input.time - state.toggle_time) as f32;
+        let time_since_toggle = (region.ctx.input().time - state.toggle_time) as f32;
         let animate = time_since_toggle < animation_time;
         if animate {
             region.indent(id, |region| {
