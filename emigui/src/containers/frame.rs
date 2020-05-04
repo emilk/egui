@@ -18,7 +18,6 @@ impl Frame {
         let mut child_region = region.child_region(inner_rect);
         add_contents(&mut child_region);
 
-        // TODO: handle the last item_spacing in a nicer way
         let inner_size = child_region.bounding_size();
         let inner_size = inner_size.ceil(); // TODO: round to pixel
 
