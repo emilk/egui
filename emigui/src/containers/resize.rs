@@ -166,7 +166,8 @@ impl Resize {
             if let Some(mouse_pos) = region.input().mouse_pos {
                 // This is the desired size. We may not be able to achieve it.
 
-                state.size = mouse_pos - position + 0.5 * corner_interact.rect.size();
+                state.size =
+                    mouse_pos - position + 0.5 * corner_interact.rect.size() - self.handle_offset;
                 // We don't clamp to max size, because we want to be able to push against outer bounds.
                 // For instance, if we are inside a bigger Resize region, we want to expand that.
                 // state.size = state.size.clamp(self.min_size..=self.max_size);
@@ -226,7 +227,7 @@ impl Resize {
 
         // ------------------------------
 
-        paint_resize_corner(region, &corner_rect, &corner_interact);
+        paint_resize_corner(region, &corner_interact);
 
         if corner_interact.hovered || corner_interact.active {
             region.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
@@ -236,11 +237,11 @@ impl Resize {
     }
 }
 
-fn paint_resize_corner(region: &mut Region, rect: &Rect, interact: &InteractInfo) {
+fn paint_resize_corner(region: &mut Region, interact: &InteractInfo) {
     let color = region.style().interact_stroke_color(&interact);
     let width = region.style().interact_stroke_width(&interact);
 
-    let corner = rect.right_bottom().round(); // TODO: round to pixels
+    let corner = interact.rect.right_bottom().round(); // TODO: round to pixels
     let mut w = 2.0;
 
     while w < 12.0 {
