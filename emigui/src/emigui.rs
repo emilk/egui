@@ -5,6 +5,7 @@ use crate::{containers::*, mesher::*, widgets::*, *};
 #[derive(Clone, Copy, Default)]
 struct Stats {
     num_batches: usize,
+    num_primitives: usize,
     num_vertices: usize,
     num_triangles: usize,
 }
@@ -51,9 +52,11 @@ impl Emigui {
     fn paint(&mut self) -> PaintBatches {
         self.mesher_options.aa_size = 1.0 / self.ctx().pixels_per_point();
         let paint_commands = self.ctx.drain_paint_lists();
+        let num_primitives = paint_commands.len();
         let batches = mesh_paint_commands(&self.mesher_options, self.ctx.fonts(), paint_commands);
         self.stats = Default::default();
         self.stats.num_batches = batches.len();
+        self.stats.num_primitives = num_primitives;
         for (_, mesh) in &batches {
             self.stats.num_vertices += mesh.vertices.len();
             self.stats.num_triangles += mesh.indices.len() / 3;
@@ -121,9 +124,15 @@ impl Emigui {
             } else {
                 region.add_label("mouse_pos: None");
             }
-            region.add(label!("num_batches: {}", self.stats.num_batches));
-            region.add(label!("num_vertices: {}", self.stats.num_vertices));
-            region.add(label!("num_triangles: {}", self.stats.num_triangles));
+            region.add(label!("Rendering:").text_style(TextStyle::Heading));
+            region
+                .add(label!("Batches: {}", self.stats.num_batches))
+                .tooltip_text("Number of separate clip rectanlges");
+            region
+                .add(label!("Primitives: {}", self.stats.num_primitives))
+                .tooltip_text("Boxes, circles, text areas etc");
+            region.add(label!("Vertices: {}", self.stats.num_vertices));
+            region.add(label!("Triangles: {}", self.stats.num_triangles));
         });
     }
 }
