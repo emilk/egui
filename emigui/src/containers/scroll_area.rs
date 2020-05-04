@@ -48,7 +48,7 @@ impl ScrollArea {
     pub fn show(self, outer_region: &mut Region, add_contents: impl FnOnce(&mut Region)) {
         let ctx = outer_region.ctx().clone();
 
-        let scroll_area_id = outer_region.id.with("scroll_area");
+        let scroll_area_id = outer_region.make_child_id("scroll_area");
         let mut state = ctx
             .memory()
             .scroll_areas
@@ -74,7 +74,7 @@ impl ScrollArea {
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
-        let inner_rect = Rect::from_min_size(outer_region.cursor, inner_size);
+        let inner_rect = Rect::from_min_size(outer_region.cursor(), inner_size);
 
         let mut content_region = outer_region.child_region(Rect::from_min_size(
             outer_region.cursor() - state.offset,

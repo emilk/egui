@@ -8,17 +8,17 @@ use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, 
 pub struct Region {
     // TODO: remove pub(crate) from all members.
     /// How we access input, output and memory
-    pub(crate) ctx: Arc<Context>,
+    ctx: Arc<Context>,
 
     /// ID of this region.
     /// Generated based on id of parent region together with
     /// another source of child identity (e.g. window title).
     /// Acts like a namespace for child regions.
     /// Hopefully unique.
-    pub(crate) id: Id,
+    id: Id,
 
     /// Where to put the graphics output of this Region
-    pub(crate) layer: Layer,
+    layer: Layer,
 
     /// Everything painte in this rect will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
@@ -36,20 +36,20 @@ pub struct Region {
     pub(crate) child_bounds: Rect,
 
     /// Overide default style in this region
-    pub(crate) style: Style,
+    style: Style,
 
     // Layout stuff follows. TODO: move to own type and abstract.
     /// Doesn't change.
-    pub(crate) dir: Direction,
+    dir: Direction,
 
-    pub(crate) align: Align,
+    align: Align,
 
     /// Where the next widget will be put.
     /// Progresses along self.dir.
     /// Initially set to rect.min
     /// If something has already been added, this will point ot style.item_spacing beyond the latest child.
     /// The cursor can thus be style.item_spacing pixels outside of the child_bounds.
-    pub(crate) cursor: Pos2,
+    cursor: Pos2,
 }
 
 impl Region {
@@ -103,6 +103,10 @@ impl Region {
 
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx.round_pos_to_pixels(pos)
+    }
+
+    pub fn id(&self) -> Id {
+        self.id
     }
 
     /// Options for this region, and any child regions we may spawn.
