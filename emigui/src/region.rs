@@ -186,7 +186,7 @@ impl Region {
 
     /// Size of content
     pub fn bounding_size(&self) -> Vec2 {
-        self.child_bounds.max - self.desired_rect.min
+        self.child_bounds.max - self.top_left()
     }
 
     /// Expand the bounding rect of this region to include a child at the given rect.
@@ -218,9 +218,6 @@ impl Region {
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
     pub fn available_space(&self) -> Vec2 {
-        // self.desired_rect.max - self.cursor
-
-        // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.bottom_right() - self.cursor
     }
 
@@ -278,14 +275,9 @@ impl Region {
     // ------------------------------------------------------------------------
     // Interaction
 
-    /// Check for clicks on this entire region (desired_rect)
+    /// Check for clicks on this entire region (rect())
     pub fn interact_whole(&self) -> InteractInfo {
-        self.ctx.interact(
-            self.layer,
-            &self.clip_rect,
-            &self.desired_rect,
-            Some(self.id),
-        )
+        self.interact_rect(&self.rect(), self.id)
     }
 
     pub fn interact_rect(&self, rect: &Rect, id: Id) -> InteractInfo {

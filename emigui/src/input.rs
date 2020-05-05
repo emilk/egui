@@ -185,7 +185,7 @@ impl GuiInput {
         region.add(label!("scroll_delta: {:?}", self.scroll_delta));
         region.add(label!("screen_size: {:?}", self.screen_size));
         region.add(label!("pixels_per_point: {}", self.pixels_per_point));
-        region.add(label!("time: {}", self.time));
+        region.add(label!("time: {:.3} s", self.time));
         region.add(label!("events: {:?}", self.events));
         region.add(label!("dropped_files: {:?}", self.dropped_files));
         region.add(label!("hovered_files: {:?}", self.hovered_files));
