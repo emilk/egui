@@ -216,12 +216,12 @@ function isLikeNone(x) {
     return x === undefined || x === null;
 }
 
-function getArrayU8FromWasm0(ptr, len) {
-    return getUint8Memory0().subarray(ptr / 1, ptr / 1 + len);
-}
-
 function handleError(e) {
     wasm.__wbindgen_exn_store(addHeapObject(e));
+}
+
+function getArrayU8FromWasm0(ptr, len) {
+    return getUint8Memory0().subarray(ptr / 1, ptr / 1 + len);
 }
 /**
 */
@@ -306,6 +306,14 @@ async function init(input) {
     imports.wbg.__wbg_performance_cc98652048194dbe = function(arg0) {
         var ret = getObject(arg0).performance;
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
+    };
+    imports.wbg.__wbg_localStorage_48f33617aec46f3f = function(arg0) {
+        try {
+            var ret = getObject(arg0).localStorage;
+            return isLikeNone(ret) ? 0 : addHeapObject(ret);
+        } catch (e) {
+            handleError(e)
+        }
     };
     imports.wbg.__wbg_getElementById_633c94a971ae0eb9 = function(arg0, arg1, arg2) {
         var ret = getObject(arg0).getElementById(getStringFromWasm0(arg1, arg2));
@@ -439,6 +447,9 @@ async function init(input) {
     imports.wbg.__wbg_viewport_e581bdce9dbf078f = function(arg0, arg1, arg2, arg3, arg4) {
         getObject(arg0).viewport(arg1, arg2, arg3, arg4);
     };
+    imports.wbg.__wbg_log_c180b836187d3c94 = function(arg0) {
+        console.log(getObject(arg0));
+    };
     imports.wbg.__wbg_now_ce4a6a89baf241c9 = function(arg0) {
         var ret = getObject(arg0).now();
         return ret;
@@ -459,6 +470,24 @@ async function init(input) {
         try {
             var ret = getObject(arg0).getContext(getStringFromWasm0(arg1, arg2));
             return isLikeNone(ret) ? 0 : addHeapObject(ret);
+        } catch (e) {
+            handleError(e)
+        }
+    };
+    imports.wbg.__wbg_getItem_6f2992539addebe8 = function(arg0, arg1, arg2, arg3) {
+        try {
+            var ret = getObject(arg1).getItem(getStringFromWasm0(arg2, arg3));
+            var ptr0 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len0 = WASM_VECTOR_LEN;
+            getInt32Memory0()[arg0 / 4 + 1] = len0;
+            getInt32Memory0()[arg0 / 4 + 0] = ptr0;
+        } catch (e) {
+            handleError(e)
+        }
+    };
+    imports.wbg.__wbg_setItem_56835e22c5609ad0 = function(arg0, arg1, arg2, arg3, arg4) {
+        try {
+            getObject(arg0).setItem(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
         } catch (e) {
             handleError(e)
         }
