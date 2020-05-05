@@ -7,6 +7,9 @@ pub(crate) struct State {
 
     #[serde(skip)] // Times are relative, and we don't want to continue animations anyway
     toggle_time: f64,
+
+    /// Height open the region when open. Used for animations
+    open_height: Option<f32>,
 }
 
 impl Default for State {
@@ -14,6 +17,7 @@ impl Default for State {
         Self {
             open: false,
             toggle_time: -f64::INFINITY,
+            open_height: None,
         }
     }
 }
@@ -61,7 +65,7 @@ impl CollapsingHeader {
             Some(id),
         );
 
-        let state = {
+        let mut state = {
             let mut memory = region.memory();
             let mut state = memory.collapsing_headers.entry(id).or_insert(State {
                 open: default_open,
@@ -95,23 +99,16 @@ impl CollapsingHeader {
 
         let animation_time = region.style().animation_time;
         let time_since_toggle = (region.input().time - state.toggle_time) as f32;
+        let time_since_toggle = time_since_toggle + region.input().dt; // Instant feedback
         let animate = time_since_toggle < animation_time;
         if animate {
             region.indent(id, |child_region| {
                 let max_height = if state.open {
-                    remap(
-                        time_since_toggle,
-                        0.0..=animation_time,
-                        // Get instant feedback, and we don't expect to get bigger than this
-                        100.0..=1500.0,
-                    )
+                    let full_height = state.open_height.unwrap_or(1000.0);
+                    remap(time_since_toggle, 0.0..=animation_time, 0.0..=full_height)
                 } else {
-                    remap_clamp(
-                        time_since_toggle,
-                        0.0..=animation_time,
-                        // TODO: state.open_height
-                        50.0..=0.0,
-                    )
+                    let full_height = state.open_height.unwrap_or_default();
+                    remap_clamp(time_since_toggle, 0.0..=animation_time, full_height..=0.0)
                 };
 
                 let mut clip_rect = child_region.clip_rect();
@@ -121,15 +118,19 @@ impl CollapsingHeader {
                 let top_left = child_region.top_left();
                 add_contents(child_region);
 
+                state.open_height = Some(child_region.bounding_size().y);
+
                 // Pretend children took up less space:
                 let mut child_bounds = child_region.child_bounds();
                 child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
                 child_region.force_set_child_bounds(child_bounds);
             });
         } else if state.open {
-            region.indent(id, add_contents);
+            let full_size = region.indent(id, add_contents).rect.size();
+            state.open_height = Some(full_size.y);
         }
 
+        region.memory().collapsing_headers.insert(id, state);
         region.response(interact)
     }
 }

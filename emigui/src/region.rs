@@ -513,7 +513,11 @@ impl Region {
     }
 
     /// Create a child region which is indented to the right
-    pub fn indent(&mut self, id_source: impl Hash, add_contents: impl FnOnce(&mut Region)) {
+    pub fn indent(
+        &mut self,
+        id_source: impl Hash,
+        add_contents: impl FnOnce(&mut Region),
+    ) -> InteractInfo {
         assert!(
             self.dir == Direction::Vertical,
             "You can only indent vertical layouts"
@@ -538,7 +542,7 @@ impl Region {
             width: self.style.line_width,
         });
 
-        self.reserve_space(indent + size, None);
+        self.reserve_space(indent + size, None)
     }
 
     pub fn left_column(&mut self, width: f32) -> Region {
