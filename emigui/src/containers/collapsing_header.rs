@@ -4,6 +4,7 @@ use crate::{layout::Direction, *};
 #[serde(default)]
 pub(crate) struct State {
     open: bool,
+
     #[serde(skip)] // Times are relative, and we don't want to continue animations anyway
     toggle_time: f64,
 }
@@ -96,7 +97,7 @@ impl CollapsingHeader {
         let time_since_toggle = (region.input().time - state.toggle_time) as f32;
         let animate = time_since_toggle < animation_time;
         if animate {
-            region.indent(id, |region| {
+            region.indent(id, |child_region| {
                 let max_height = if state.open {
                     remap(
                         time_since_toggle,
@@ -113,17 +114,15 @@ impl CollapsingHeader {
                     )
                 };
 
-                let mut clip_rect = region.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(region.cursor().y + max_height);
-                region.set_clip_rect(clip_rect);
+                let mut clip_rect = child_region.clip_rect();
+                clip_rect.max.y = clip_rect.max.y.min(child_region.cursor().y + max_height);
+                child_region.set_clip_rect(clip_rect);
 
-                add_contents(region);
-
-                region.child_bounds.max.y = region
-                    .child_bounds
-                    .max
-                    .y
-                    .min(region.cursor().y + max_height);
+                let top_left = child_region.top_left();
+                add_contents(child_region);
+                // Pretend children took up less space than they did:
+                child_region.child_bounds.max.y =
+                    child_region.child_bounds.max.y.min(top_left.y + max_height);
             });
         } else if state.open {
             region.indent(id, add_contents);
