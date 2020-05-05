@@ -107,6 +107,11 @@ impl Floating {
 
         state.pos = state.pos.round();
 
+        // ctx.debug_rect(
+        //     Rect::from_min_size(state.pos, state.size),
+        //     &format!("Floating size: {:?}", state.size),
+        // );
+
         if move_interact.active || mouse_pressed_on_floating(ctx, id) {
             ctx.memory().move_floating_to_top(id);
         }

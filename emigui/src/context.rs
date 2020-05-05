@@ -289,6 +289,22 @@ impl Context {
         );
     }
 
+    pub fn debug_rect(&self, rect: Rect, text: &str) {
+        let layer = Layer::Debug;
+        self.add_paint_cmd(
+            layer,
+            PaintCmd::Rect {
+                corner_radius: 0.0,
+                fill_color: None,
+                outline: Some(Outline::new(1.0, color::RED)),
+                rect,
+            },
+        );
+        let align = (Align::Min, Align::Min);
+        let text_style = TextStyle::Monospace;
+        self.floating_text(layer, rect.min, text, text_style, align, Some(color::RED));
+    }
+
     /// Show some text anywhere on screen.
     /// To center the text at the given position, use `align: (Center, Center)`.
     pub fn floating_text(

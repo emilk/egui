@@ -35,7 +35,7 @@ impl Frame {
             },
         );
 
-        region.expand_to_include_child(child_region.rect().expand2(margin));
+        region.expand_to_include_child(child_region.child_bounds().expand2(margin));
         // TODO: move up cursor?
     }
 }
