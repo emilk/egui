@@ -80,8 +80,10 @@ impl ScrollArea {
             outer_region.cursor() - state.offset,
             vec2(inner_size.x, f32::INFINITY),
         ));
-        // content_region.clip_rect = outer_region.clip_rect().intersect(&inner_rect);
-        content_region.clip_rect = outer_region.clip_rect(); // Nice handling of forced resizing beyon the possible
+        let mut content_clip_rect = outer_region.clip_rect().intersect(&inner_rect);
+        content_clip_rect.max.x = outer_region.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
+        content_region.set_clip_rect(content_clip_rect);
+
         add_contents(&mut content_region);
         let content_size = content_region.bounding_size();
 

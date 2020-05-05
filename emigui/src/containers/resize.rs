@@ -179,26 +179,22 @@ impl Resize {
 
         let inner_rect = Rect::from_min_size(region.cursor(), state.size);
         let desired_size = {
-            let mut contents_region = region.child_region(inner_rect);
-            contents_region.clip_rect = region
+            let mut content_clip_rect = region
                 .clip_rect()
                 .intersect(&inner_rect.expand(region.style().clip_rect_margin));
-
-            // region.debug_text_at(
-            //     inner_rect.min + last_frame_size,
-            //     &format!("last_frame_size: {:?}", last_frame_size),
-            // );
 
             // If we pull the resize handle to shrink, we want to TRY to shink it.
             // After laying out the contents, we might be much bigger.
             // In those cases we don't want the clip_rect to be smaller, because
             // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
-            contents_region.clip_rect.max = contents_region
-                .clip_rect
+            // So we use the memory of last_frame_size to make the clip rect large enough.
+            content_clip_rect.max = content_clip_rect
                 .max
-                .max(contents_region.clip_rect.min + last_frame_size)
-                .min(region.clip_rect.max); // Respect parent region
+                .max(content_clip_rect.min + last_frame_size)
+                .min(region.clip_rect().max); // Respect parent region
 
+            let mut contents_region = region.child_region(inner_rect);
+            contents_region.set_clip_rect(content_clip_rect);
             add_contents(&mut contents_region);
             contents_region.bounding_size()
         };

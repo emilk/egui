@@ -141,6 +141,10 @@ impl Region {
         self.clip_rect
     }
 
+    pub fn set_clip_rect(&mut self, clip_rect: Rect) {
+        self.clip_rect = clip_rect;
+    }
+
     pub fn bottom_right(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.max.max(self.child_bounds.max)
