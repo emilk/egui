@@ -113,7 +113,9 @@ impl CollapsingHeader {
                     )
                 };
 
-                region.clip_rect.max.y = region.clip_rect.max.y.min(region.cursor().y + max_height);
+                let mut clip_rect = region.clip_rect();
+                clip_rect.max.y = clip_rect.max.y.min(region.cursor().y + max_height);
+                region.set_clip_rect(clip_rect);
 
                 add_contents(region);
 

@@ -22,7 +22,7 @@ pub struct Region {
 
     /// Everything painte in this rect will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
-    pub(crate) clip_rect: Rect,
+    clip_rect: Rect,
 
     /// The `rect` represents where in space the region is
     /// and its max size (original available_space).
