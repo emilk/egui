@@ -147,7 +147,7 @@ impl Style {
     }
 
     /// Returns small icon rectangle and big icon rectangle
-    pub fn icon_rectangles(&self, rect: &Rect) -> (Rect, Rect) {
+    pub fn icon_rectangles(&self, rect: Rect) -> (Rect, Rect) {
         let box_side = self.start_icon_width;
         let big_icon_rect = Rect::from_center_size(
             pos2(rect.left() + box_side / 2.0, rect.center().y),

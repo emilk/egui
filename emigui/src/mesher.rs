@@ -178,7 +178,7 @@ impl Path {
         );
     }
 
-    pub fn add_rectangle(&mut self, rect: &Rect) {
+    pub fn add_rectangle(&mut self, rect: Rect) {
         let min = rect.min;
         let max = rect.max;
         self.add_point(pos2(min.x, min.y), vec2(-1.0, -1.0));
@@ -187,7 +187,7 @@ impl Path {
         self.add_point(pos2(min.x, max.y), vec2(-1.0, 1.0));
     }
 
-    pub fn add_rounded_rectangle(&mut self, rect: &Rect, corner_radius: f32) {
+    pub fn add_rounded_rectangle(&mut self, rect: Rect, corner_radius: f32) {
         let min = rect.min;
         let max = rect.max;
 
@@ -467,7 +467,7 @@ pub fn mesh_command(
             rect,
         } => {
             let mut path = Path::default();
-            path.add_rounded_rectangle(&rect, corner_radius);
+            path.add_rounded_rectangle(rect, corner_radius);
             if let Some(fill_color) = fill_color {
                 fill_closed_path(out_mesh, options, &path.0, fill_color);
             }

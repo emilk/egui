@@ -221,7 +221,7 @@ impl Painter {
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
         for (clip_rect, mesh) in batches {
-            self.paint_batch(&mut target, display, &clip_rect, &mesh, texture)
+            self.paint_batch(&mut target, display, clip_rect, &mesh, texture)
         }
         target.finish().unwrap();
     }
@@ -231,7 +231,7 @@ impl Painter {
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
-        clip_rect: &Rect,
+        clip_rect: Rect,
         mesh: &Mesh,
         texture: &emigui::Texture,
     ) {

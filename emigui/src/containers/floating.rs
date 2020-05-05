@@ -78,7 +78,7 @@ impl Floating {
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything();
-        let move_interact = ctx.interact(layer, &clip_rect, &rect, Some(id.with("move")));
+        let move_interact = ctx.interact(layer, clip_rect, rect, Some(id.with("move")));
 
         let input = ctx.input();
         if move_interact.active {

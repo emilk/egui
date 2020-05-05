@@ -138,7 +138,7 @@ fn paint_icon(region: &mut Region, state: &State, interact: &InteractInfo) {
     let stroke_color = region.style().interact_stroke_color(&interact);
     let stroke_width = region.style().interact_stroke_width(&interact);
 
-    let (mut small_icon_rect, _) = region.style().icon_rectangles(&interact.rect);
+    let (mut small_icon_rect, _) = region.style().icon_rectangles(interact.rect);
     small_icon_rect.set_center(pos2(
         interact.rect.left() + region.style().indent / 2.0,
         interact.rect.center().y,

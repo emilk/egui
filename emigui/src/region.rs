@@ -235,8 +235,8 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
-    pub fn contains_mouse(&self, rect: &Rect) -> bool {
-        self.ctx.contains_mouse(self.layer, &self.clip_rect, rect)
+    pub fn contains_mouse(&self, rect: Rect) -> bool {
+        self.ctx.contains_mouse(self.layer, self.clip_rect, rect)
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {
@@ -277,12 +277,12 @@ impl Region {
 
     /// Check for clicks on this entire region (rect())
     pub fn interact_whole(&self) -> InteractInfo {
-        self.interact_rect(&self.rect(), self.id)
+        self.interact_rect(self.rect(), self.id)
     }
 
-    pub fn interact_rect(&self, rect: &Rect, id: Id) -> InteractInfo {
+    pub fn interact_rect(&self, rect: Rect, id: Id) -> InteractInfo {
         self.ctx
-            .interact(self.layer, &self.clip_rect, rect, Some(id))
+            .interact(self.layer, self.clip_rect, rect, Some(id))
     }
 
     pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
@@ -356,7 +356,7 @@ impl Region {
         }
 
         self.ctx
-            .interact(self.layer, &self.clip_rect, &rect, interaction_id)
+            .interact(self.layer, self.clip_rect, rect, interaction_id)
     }
 
     /// Reserve this much space and move the cursor.
@@ -442,7 +442,7 @@ impl Region {
     ) -> Vec2 {
         let font = &self.fonts()[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(&Rect::from_min_size(pos, size), align);
+        let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_text(rect.min, text_style, text, text_color);
         size
     }

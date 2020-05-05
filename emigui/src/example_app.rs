@@ -216,7 +216,7 @@ impl Painting {
         region.add_custom_contents(vec2(f32::INFINITY, 200.0), |region| {
             let canvas_corner = region.cursor();
             let interact = region.reserve_space(region.available_space(), Some(region.id()));
-            region.set_clip_rect(region.clip_rect().intersect(&interact.rect)); // Make sure we don't paint out of bounds
+            region.set_clip_rect(region.clip_rect().intersect(interact.rect)); // Make sure we don't paint out of bounds
 
             if self.lines.is_empty() {
                 self.lines.push(vec![]);

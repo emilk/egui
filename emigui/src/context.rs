@@ -185,7 +185,7 @@ impl Context {
         }
     }
 
-    pub fn contains_mouse(&self, layer: Layer, clip_rect: &Rect, rect: &Rect) -> bool {
+    pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse_pos {
             rect.contains(mouse_pos) && layer == self.memory().layer_at(mouse_pos)
@@ -197,11 +197,11 @@ impl Context {
     pub fn interact(
         &self,
         layer: Layer,
-        clip_rect: &Rect,
-        rect: &Rect,
+        clip_rect: Rect,
+        rect: Rect,
         interaction_id: Option<Id>,
     ) -> InteractInfo {
-        let hovered = self.contains_mouse(layer, clip_rect, &rect);
+        let hovered = self.contains_mouse(layer, clip_rect, rect);
 
         let mut memory = self.memory();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;
@@ -211,7 +211,7 @@ impl Context {
                 if memory.active_id.is_some() {
                     // Already clicked something else this frame
                     InteractInfo {
-                        rect: *rect,
+                        rect,
                         hovered,
                         clicked: false,
                         active: false,
@@ -219,7 +219,7 @@ impl Context {
                 } else {
                     memory.active_id = interaction_id;
                     InteractInfo {
-                        rect: *rect,
+                        rect,
                         hovered,
                         clicked: false,
                         active: true,
@@ -227,7 +227,7 @@ impl Context {
                 }
             } else {
                 InteractInfo {
-                    rect: *rect,
+                    rect,
                     hovered,
                     clicked: false,
                     active: false,
@@ -235,21 +235,21 @@ impl Context {
             }
         } else if self.input.mouse_released {
             InteractInfo {
-                rect: *rect,
+                rect,
                 hovered,
                 clicked: hovered && active,
                 active,
             }
         } else if self.input.mouse_down {
             InteractInfo {
-                rect: *rect,
+                rect,
                 hovered: hovered && active,
                 clicked: false,
                 active,
             }
         } else {
             InteractInfo {
-                rect: *rect,
+                rect,
                 hovered,
                 clicked: false,
                 active,
@@ -263,7 +263,7 @@ impl Context {
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(&Rect::from_min_size(pos, size), align);
+        let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_paint_cmd(
             layer,
             PaintCmd::Rect {
@@ -302,7 +302,7 @@ impl Context {
     ) -> Vec2 {
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(&Rect::from_min_size(pos, size), align);
+        let rect = align_rect(Rect::from_min_size(pos, size), align);
         self.add_text(layer, rect.min, text_style, text, text_color);
         size
     }

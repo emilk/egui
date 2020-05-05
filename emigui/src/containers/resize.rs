@@ -160,7 +160,7 @@ impl Resize {
             position + state.size + self.handle_offset - corner_size,
             corner_size,
         );
-        let corner_interact = region.interact_rect(&corner_rect, id.with("corner"));
+        let corner_interact = region.interact_rect(corner_rect, id.with("corner"));
 
         if corner_interact.active {
             if let Some(mouse_pos) = region.input().mouse_pos {
@@ -181,7 +181,7 @@ impl Resize {
         let desired_size = {
             let mut content_clip_rect = region
                 .clip_rect()
-                .intersect(&inner_rect.expand(region.style().clip_rect_margin));
+                .intersect(inner_rect.expand(region.style().clip_rect_margin));
 
             // If we pull the resize handle to shrink, we want to TRY to shink it.
             // After laying out the contents, we might be much bigger.

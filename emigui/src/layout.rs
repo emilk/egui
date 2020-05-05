@@ -76,7 +76,7 @@ impl Default for Align {
     }
 }
 
-pub fn align_rect(rect: &Rect, align: (Align, Align)) -> Rect {
+pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
     let x = match align.0 {
         Align::Min => rect.left(),
         Align::Center => rect.left() - 0.5 * rect.width(),

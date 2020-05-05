@@ -80,7 +80,7 @@ impl ScrollArea {
             outer_region.cursor() - state.offset,
             vec2(inner_size.x, f32::INFINITY),
         ));
-        let mut content_clip_rect = outer_region.clip_rect().intersect(&inner_rect);
+        let mut content_clip_rect = outer_region.clip_rect().intersect(inner_rect);
         content_clip_rect.max.x = outer_region.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
         content_region.set_clip_rect(content_clip_rect);
 
@@ -100,14 +100,14 @@ impl ScrollArea {
             inner_rect.size() + vec2(current_scroll_bar_width, 0.0),
         );
 
-        let content_interact = outer_region.interact_rect(&inner_rect, scroll_area_id.with("area"));
+        let content_interact = outer_region.interact_rect(inner_rect, scroll_area_id.with("area"));
         if content_interact.active {
             // Dragging scroll area to scroll:
             state.offset.y -= ctx.input().mouse_move.y;
         }
 
         // TODO: check that nothing else is being inteacted with
-        if outer_region.contains_mouse(&outer_rect) && ctx.memory().active_id.is_none() {
+        if outer_region.contains_mouse(outer_rect) && ctx.memory().active_id.is_none() {
             state.offset.y -= ctx.input().scroll_delta.y;
         }
 
@@ -134,7 +134,7 @@ impl ScrollArea {
 
             // intentionally use same id for inside and outside of handle
             let interact_id = scroll_area_id.with("vertical");
-            let handle_interact = outer_region.interact_rect(&handle_rect, interact_id);
+            let handle_interact = outer_region.interact_rect(handle_rect, interact_id);
 
             if let Some(mouse_pos) = ctx.input().mouse_pos {
                 if handle_interact.active {
@@ -145,7 +145,7 @@ impl ScrollArea {
                 } else {
                     // Check for mouse down outside handle:
                     let scroll_bg_interact =
-                        outer_region.interact_rect(&outer_scroll_rect, interact_id);
+                        outer_region.interact_rect(outer_scroll_rect, interact_id);
 
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:

@@ -218,7 +218,7 @@ impl<'a> Widget for Checkbox<'a> {
         if interact.clicked {
             *self.checked = !*self.checked;
         }
-        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(&interact.rect);
+        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(interact.rect);
         region.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 3.0,
             fill_color: region.style().interact_fill_color(&interact),
@@ -294,7 +294,7 @@ impl Widget for RadioButton {
         let fill_color = region.style().interact_fill_color(&interact);
         let stroke_color = region.style().interact_stroke_color(&interact);
 
-        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(&interact.rect);
+        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(interact.rect);
 
         region.add_paint_cmd(PaintCmd::Circle {
             center: big_icon_rect.center(),
