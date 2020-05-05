@@ -30,9 +30,10 @@ pub struct Region {
     /// but may overflow (which you will see in child_bounds).
     desired_rect: Rect, // TODO: rename?
 
-    /// Bounding box of children.
-    // TODO: remove pub(crate)
-    pub(crate) child_bounds: Rect,
+    /// Bounding box of all children.
+    /// This is used to see how large a region actually
+    /// needs to be after all children has been added.
+    child_bounds: Rect,
 
     /// Overide default style in this region
     style: Style,
@@ -186,6 +187,21 @@ impl Region {
     /// Size of content
     pub fn bounding_size(&self) -> Vec2 {
         self.child_bounds.max - self.desired_rect.min
+    }
+
+    /// Expand the bounding rect of this region to include a child at the given rect.
+    pub fn expand_to_include_child(&mut self, rect: Rect) {
+        self.child_bounds.extend_with(rect.min);
+        self.child_bounds.extend_with(rect.max);
+    }
+
+    /// Bounding box of all contained children
+    pub fn child_bounds(&self) -> Rect {
+        self.child_bounds
+    }
+
+    pub fn force_set_child_bounds(&mut self, child_bounds: Rect) {
+        self.child_bounds = child_bounds;
     }
 
     // ------------------------------------------------------------------------

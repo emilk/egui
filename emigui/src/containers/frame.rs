@@ -35,9 +35,7 @@ impl Frame {
             },
         );
 
-        // TODO: move up corsor?
-        region
-            .child_bounds
-            .extend_with(child_region.child_bounds.max + margin);
+        region.expand_to_include_child(child_region.rect().expand2(margin));
+        // TODO: move up cursor?
     }
 }

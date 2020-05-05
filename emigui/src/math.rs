@@ -358,10 +358,16 @@ impl Rect {
         }
     }
 
-    /// Expand by this much in each direction
+    /// Expand by this much in each direction, keeping the center
     #[must_use]
     pub fn expand(self, amnt: f32) -> Self {
         Rect::from_center_size(self.center(), self.size() + 2.0 * vec2(amnt, amnt))
+    }
+
+    /// Expand by this much in each direction, keeping the center
+    #[must_use]
+    pub fn expand2(self, amnt: Vec2) -> Self {
+        Rect::from_center_size(self.center(), self.size() + 2.0 * amnt)
     }
 
     #[must_use]

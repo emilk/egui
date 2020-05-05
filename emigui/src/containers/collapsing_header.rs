@@ -120,9 +120,11 @@ impl CollapsingHeader {
 
                 let top_left = child_region.top_left();
                 add_contents(child_region);
-                // Pretend children took up less space than they did:
-                child_region.child_bounds.max.y =
-                    child_region.child_bounds.max.y.min(top_left.y + max_height);
+
+                // Pretend children took up less space:
+                let mut child_bounds = child_region.child_bounds();
+                child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
+                child_region.force_set_child_bounds(child_bounds);
             });
         } else if state.open {
             region.indent(id, add_contents);
