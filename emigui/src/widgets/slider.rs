@@ -127,9 +127,7 @@ impl<'a> Widget for Slider<'a> {
                     let slider_response = columns[0].add(slider_sans_text);
 
                     // Place the text in line with the slider on the left:
-                    columns[1]
-                        .desired_rect
-                        .set_height(slider_response.rect.height());
+                    columns[1].set_height(slider_response.rect.height());
                     columns[1].horizontal(|region| {
                         region.set_align(Align::Center);
                         region.add(Label::new(full_text).multiline(false));

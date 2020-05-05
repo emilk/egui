@@ -6,7 +6,6 @@ use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, 
 /// with a type of layout (horizontal or vertical).
 /// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
 pub struct Region {
-    // TODO: remove pub(crate) from all members.
     /// How we access input, output and memory
     ctx: Arc<Context>,
 
@@ -29,10 +28,10 @@ pub struct Region {
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in child_bounds).
-    pub(crate) desired_rect: Rect, // TODO: rename?
+    desired_rect: Rect, // TODO: rename?
 
     /// Bounding box of children.
-    /// Initially set to Rect::nothing().
+    // TODO: remove pub(crate)
     pub(crate) child_bounds: Rect,
 
     /// Overide default style in this region
@@ -145,10 +144,52 @@ impl Region {
         self.clip_rect = clip_rect;
     }
 
+    // ------------------------------------------------------------------------
+
+    /// Screen-space position of this Region.
+    /// This may have moved from its original if a child overflowed to the left or up (rare).
+    pub fn top_left(&self) -> Pos2 {
+        // If a child doesn't fit in desired_rect, we have effectively expanded:
+        self.desired_rect.min.min(self.child_bounds.min)
+    }
+
+    /// Screen-space position of the current bottom right corner of this Region.
+    /// This may move when we add children that overflow our desired rectangle bounds.
     pub fn bottom_right(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.max.max(self.child_bounds.max)
     }
+
+    /// Position and current size of the region.
+    /// The size is the maximum of the origional (minimum/desired) size and
+    /// the size of the containted children.
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_max(self.top_left(), self.bottom_right())
+    }
+
+    /// Set the width of the region.
+    /// You won't be able to shrink it beyond its current child bounds.
+    pub fn set_width(&mut self, width: f32) {
+        let min_width = self.child_bounds.max.x - self.top_left().x;
+        let width = width.max(min_width);
+        self.desired_rect.max.x = self.top_left().x + width;
+    }
+
+    /// Set the height of the region.
+    /// You won't be able to shrink it beyond its current child bounds.
+    pub fn set_height(&mut self, height: f32) {
+        let min_height = self.child_bounds.max.y - self.top_left().y;
+        let height = height.max(min_height);
+        self.desired_rect.max.y = self.top_left().y + height;
+    }
+
+    /// Size of content
+    pub fn bounding_size(&self) -> Vec2 {
+        self.child_bounds.max - self.desired_rect.min
+    }
+
+    // ------------------------------------------------------------------------
+    // Layout related measures:
 
     pub fn available_width(&self) -> f32 {
         self.available_space().x
@@ -165,11 +206,6 @@ impl Region {
 
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.bottom_right() - self.cursor
-    }
-
-    /// Size of content
-    pub fn bounding_size(&self) -> Vec2 {
-        self.child_bounds.max - self.desired_rect.min
     }
 
     pub fn direction(&self) -> Direction {

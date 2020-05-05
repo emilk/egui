@@ -247,7 +247,7 @@ impl Painting {
 
             // Frame it:
             region.add_paint_cmd(PaintCmd::Rect {
-                rect: region.desired_rect,
+                rect: region.rect(),
                 corner_radius: 0.0,
                 fill_color: None,
                 outline: Some(Outline::new(1.0, WHITE)),
