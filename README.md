@@ -23,6 +23,7 @@ Wherever you can render textured triangles you can use Emigui.
 Currently two backends have been tested:
 * WebAssembly (emigui_wasm) for making a web app
 * [Glium](https://github.com/glium/glium) for native apps (see example_glium).
+* [miniquad](https://github.com/not-fl3/emigui-miniquad) [web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs)
 
 The same application code can thus be compiled to either into a native app or a web app.
 
