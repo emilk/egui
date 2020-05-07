@@ -90,7 +90,7 @@ impl ExampleWindow {
                     self.count += 1;
                 }
                 region.add(label!(
-                    "The button have been clicked {} times",
+                    "The button has been clicked {} times",
                     self.count
                 ));
             });
