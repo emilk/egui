@@ -1,11 +1,11 @@
 //! Emigui tracks widgets frame-to-frame using `Id`s.
 //!
 //! For instance, if you start dragging a slider one frame, emigui stores
-//! the sldiers Id as the current interact_id so that next frame when
+//! the sldiers Id as the current `interact_id` so that next frame when
 //! you move the mouse the same slider changes, even if the mouse has
 //! moved outside the slider.
 //!
-//! For some widgets `Id`s are also used to GUIpersist some state about the
+//! For some widgets `Id`s are also used to persist some state about the
 //! widgets, such as Window position or wether not a collapsing header region is open.
 //!
 //! This implicated that the `Id`s must be unqiue.
@@ -24,14 +24,16 @@
 //! Then there are widgets that need no identifiers at all, like labels,
 //! because they have no state nor are interacted with.
 //!
-//! So we have two type of Ids: PositionId and UniqueId.
-//! TODO: have separate types for PositionId and UniqueId.
+//! So we have two type of Ids: `PositionId` and `UniqueId`.
+//! TODO: have separate types for `PositionId` and `UniqueId`.
 
 use std::{collections::hash_map::DefaultHasher, hash::Hash};
 
 use crate::math::Pos2;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Hash, Eq, PartialEq, serde_derive::Deserialize, serde_derive::Serialize,
+)]
 pub struct Id(u64);
 
 impl Id {

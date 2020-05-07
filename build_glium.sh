@@ -3,6 +3,6 @@ set -eu
 
 cargo fmt --all -- --check
 cargo check --all-features
-cargo clippy
+cargo clean -p emigui && cargo clippy
 
 cargo run --bin example_glium --release

@@ -1,7 +1,8 @@
 #![allow(unused_variables)] // TODO
+
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 pub(crate) struct State {
     size: Vec2,
 }
@@ -142,7 +143,7 @@ impl Resize {
         self.max_size = self.max_size.max(self.min_size);
 
         let (is_new, mut state) = match region.memory().resize.get(&id) {
-            Some(state) => (false, state.clone()),
+            Some(state) => (false, *state),
             None => {
                 let default_size = self.default_size.clamp(self.min_size..=self.max_size);
                 (true, State { size: default_size })
@@ -234,8 +235,8 @@ impl Resize {
 }
 
 fn paint_resize_corner(region: &mut Region, interact: &InteractInfo) {
-    let color = region.style().interact_stroke_color(&interact);
-    let width = region.style().interact_stroke_width(&interact);
+    let color = region.style().interact_stroke_color(interact);
+    let width = region.style().interact_stroke_width(interact);
 
     let corner = interact.rect.right_bottom().round(); // TODO: round to pixels
     let mut w = 2.0;

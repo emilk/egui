@@ -1,5 +1,5 @@
-/// 0-255 sRGBA
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+/// 0-255 `sRGBA`. TODO: rename `sRGBA` for clarity.
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, serde_derive::Serialize)]
 pub struct Color {
     pub r: u8,
     pub g: u8,

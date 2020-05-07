@@ -1,6 +1,6 @@
 use crate::{layout::Direction, *};
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 #[serde(default)]
 pub(crate) struct State {
     open: bool,
@@ -136,8 +136,8 @@ impl CollapsingHeader {
 }
 
 fn paint_icon(region: &mut Region, state: &State, interact: &InteractInfo) {
-    let stroke_color = region.style().interact_stroke_color(&interact);
-    let stroke_width = region.style().interact_stroke_width(&interact);
+    let stroke_color = region.style().interact_stroke_color(interact);
+    let stroke_width = region.style().interact_stroke_width(interact);
 
     let (mut small_icon_rect, _) = region.style().icon_rectangles(interact.rect);
     small_icon_rect.set_center(pos2(

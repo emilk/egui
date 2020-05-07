@@ -288,7 +288,7 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut text_fragments = Vec::new();
         for line in text.split('\n') {
-            let mut line_fragments = self.layout_paragraph_max_width(&line, max_width_in_points);
+            let mut line_fragments = self.layout_paragraph_max_width(line, max_width_in_points);
             if let Some(last_word) = line_fragments.last() {
                 let line_height = last_word.y_offset + line_spacing;
                 for fragment in &mut line_fragments {

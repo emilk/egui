@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#[allow(clippy::single_match)]
 use std::time::{Duration, Instant};
 
 use {

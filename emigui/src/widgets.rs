@@ -12,7 +12,7 @@ pub use {slider::*, text_edit::*};
 
 // ----------------------------------------------------------------------------
 
-/// Anything implementing Widget can be added to a Region with Region::add
+/// Anything implementing Widget can be added to a Region with `Region::add`
 pub trait Widget {
     fn ui(self, region: &mut Region) -> GuiResponse;
 }
@@ -28,7 +28,7 @@ pub struct Label {
 
 impl Label {
     pub fn new(text: impl Into<String>) -> Self {
-        Label {
+        Self {
             text: text.into(),
             multiline: true,
             text_style: TextStyle::Body,
@@ -138,7 +138,7 @@ pub struct Button {
 
 impl Button {
     pub fn new(text: impl Into<String>) -> Self {
-        Button {
+        Self {
             text: text.into(),
             text_color: None,
         }
@@ -257,7 +257,7 @@ pub struct RadioButton {
 
 impl RadioButton {
     pub fn new(checked: bool, text: impl Into<String>) -> Self {
-        RadioButton {
+        Self {
             checked,
             text: text.into(),
             text_color: None,
@@ -328,8 +328,8 @@ pub struct Separator {
 }
 
 impl Separator {
-    pub fn new() -> Separator {
-        Separator {
+    pub fn new() -> Self {
+        Self {
             line_width: 2.0,
             min_length: 6.0,
             extra: 0.0,

@@ -1,3 +1,5 @@
+use serde_derive::Serialize;
+
 use crate::{
     color::Color,
     fonts::TextStyle,
@@ -30,7 +32,7 @@ pub enum CursorIcon {
 
 impl Default for CursorIcon {
     fn default() -> Self {
-        CursorIcon::Default
+        Self::Default
     }
 }
 

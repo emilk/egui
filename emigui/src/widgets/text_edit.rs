@@ -67,11 +67,8 @@ impl<'t> Widget for TextEdit<'t> {
                         }
                     }
                     Event::Key { key, pressed: true } => {
-                        match key {
-                            Key::Backspace => {
-                                self.text.pop(); // TODO: unicode aware
-                            }
-                            _ => {}
+                        if *key == Key::Backspace {
+                            self.text.pop(); // TODO: unicode aware
                         }
                     }
                     _ => {}

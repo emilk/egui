@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
+use serde_derive::{Deserialize, Serialize};
+
 #[derive(Clone, Copy, Default, Deserialize, Serialize)]
 pub struct Vec2 {
     pub x: f32,

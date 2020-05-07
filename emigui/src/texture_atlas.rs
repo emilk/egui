@@ -37,7 +37,7 @@ pub struct TextureAtlas {
 
 impl TextureAtlas {
     pub fn new(width: usize, height: usize) -> Self {
-        TextureAtlas {
+        Self {
             texture: Texture {
                 id: 0,
                 width,

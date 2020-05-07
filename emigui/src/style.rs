@@ -1,8 +1,10 @@
 #![allow(clippy::if_same_then_else)]
 
+use serde_derive::{Deserialize, Serialize};
+
 use crate::{color::*, math::*, types::*};
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Style {
     /// Horizontal and vertical padding within a window frame.
     pub window_padding: Vec2,
@@ -45,14 +47,14 @@ pub struct Style {
     pub debug_regions: bool,
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Window {
     pub corner_radius: f32,
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Style {
+        Self {
             window_padding: vec2(6.0, 6.0),
             button_padding: vec2(5.0, 3.0),
             item_spacing: vec2(8.0, 4.0),
@@ -72,7 +74,7 @@ impl Default for Style {
 
 impl Default for Window {
     fn default() -> Self {
-        Window {
+        Self {
             corner_radius: 10.0,
         }
     }

@@ -59,15 +59,15 @@ impl Context {
         }
     }
 
-    pub fn memory(&self) -> parking_lot::MutexGuard<Memory> {
+    pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
         self.memory.lock()
     }
 
-    pub fn graphics(&self) -> parking_lot::MutexGuard<GraphicLayers> {
+    pub fn graphics(&self) -> parking_lot::MutexGuard<'_, GraphicLayers> {
         self.graphics.lock()
     }
 
-    pub fn output(&self) -> parking_lot::MutexGuard<Output> {
+    pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
         self.output.lock()
     }
 

@@ -13,7 +13,7 @@ pub enum Layer {
     Debug,
 }
 
-/// Each PaintCmd is paired with a clip rectangle.
+/// Each `PaintCmd` is paired with a clip rectangle.
 type PaintList = Vec<(Rect, PaintCmd)>;
 
 /// TODO: improve this

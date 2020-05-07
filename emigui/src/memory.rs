@@ -5,7 +5,7 @@ use crate::{
     Id, Layer, Pos2, Rect,
 };
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
 #[serde(default)]
 pub struct Memory {
     /// The widget being interacted with (e.g. dragged, in case of a slider).

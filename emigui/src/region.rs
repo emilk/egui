@@ -4,7 +4,7 @@ use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, 
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
-/// TODO: make Region a trait so we can have type-safe HorizontalRegion etc?
+/// TODO: make Region a trait so we can have type-safe `HorizontalRegion` etc?
 pub struct Region {
     /// How we access input, output and memory
     ctx: Arc<Context>,
@@ -122,11 +122,11 @@ impl Region {
         self.ctx.input()
     }
 
-    pub fn memory(&self) -> parking_lot::MutexGuard<Memory> {
+    pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
         self.ctx.memory()
     }
 
-    pub fn output(&self) -> parking_lot::MutexGuard<Output> {
+    pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
         self.ctx.output()
     }
 
@@ -251,7 +251,7 @@ impl Region {
 
     /// Will warn if the returned id is not guaranteed unique.
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
-    /// If the id_source is not unique within this region
+    /// If the `id_source` is not unique within this region
     /// then an error will be printed at the current cursor position.
     pub fn make_unique_id<IdSource>(&self, id_source: &IdSource) -> Id
     where
@@ -304,7 +304,7 @@ impl Region {
     /// # How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
-    /// If you want to fill the space, ask about available_space() and use that.
+    /// If you want to fill the space, ask about `available_space()` and use that.
     /// NOTE: we always get the size we ask for (at the moment).
     pub fn reserve_space(&mut self, child_size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let child_size = self.round_vec_to_pixels(child_size);
@@ -431,7 +431,7 @@ impl Region {
     /// Show some text anywhere in the region.
     /// To center the text at the given position, use `align: (Center, Center)`.
     /// If you want to draw text floating on top of everything,
-    /// consider using Context.floating_text instead.
+    /// consider using `Context.floating_text` instead.
     pub fn floating_text(
         &mut self,
         pos: Pos2,
@@ -584,10 +584,10 @@ impl Region {
         &mut self,
         dir: Direction,
         align: Align,
-        add_contents: impl FnOnce(&mut Region),
+        add_contents: impl FnOnce(&mut Self),
     ) {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
-        let mut child_region = Region {
+        let mut child_region = Self {
             dir,
             align,
             ..self.child_region(child_rect)
@@ -599,26 +599,28 @@ impl Region {
 
     /// Temporarily split split a vertical layout into several columns.
     ///
+    /// ``` ignore
     /// region.columns(2, |columns| {
     ///     columns[0].add(emigui::widgets::label!("First column"));
     ///     columns[1].add(emigui::widgets::label!("Second column"));
     /// });
+    /// ```
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
     where
-        F: FnOnce(&mut [Region]) -> R,
+        F: FnOnce(&mut [Self]) -> R,
     {
         // TODO: ensure there is space
         let spacing = self.style.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
 
-        let mut columns: Vec<Region> = (0..num_columns)
+        let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
                 let pos = self.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
                 let child_rect =
                     Rect::from_min_max(pos, pos2(pos.x + column_width, self.bottom_right().y));
 
-                Region {
+                Self {
                     id: self.make_child_id(&("column", col_idx)),
                     dir: Direction::Vertical,
                     ..self.child_region(child_rect)

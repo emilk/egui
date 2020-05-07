@@ -1,5 +1,5 @@
 #![deny(warnings)]
-
+#![allow(clippy::single_match)]
 mod painter;
 
 pub use painter::Painter;

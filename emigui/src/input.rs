@@ -2,7 +2,7 @@ use crate::math::*;
 
 /// What the integration gives to the gui.
 /// All coordinates in emigui is in point/logical coordinates.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
 #[serde(default)]
 pub struct RawInput {
     /// Is the button currently down?
@@ -84,7 +84,7 @@ pub struct GuiInput {
     pub events: Vec<Event>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde_derive::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
     Copy,
@@ -97,7 +97,7 @@ pub enum Event {
     },
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde_derive::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Key {
     Alt,

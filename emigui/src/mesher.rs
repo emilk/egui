@@ -11,7 +11,7 @@ use crate::{
 
 const WHITE_UV: (u16, u16) = (1, 1);
 
-#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[derive(Clone, Copy, Debug, Default, serde_derive::Serialize)]
 pub struct Vertex {
     /// Pixel coordinates
     pub pos: Pos2,
@@ -21,7 +21,7 @@ pub struct Vertex {
     pub color: Color,
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, serde_derive::Serialize)]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
@@ -238,7 +238,7 @@ pub enum PathType {
     Open,
     Closed,
 }
-use self::PathType::*;
+use self::PathType::{Closed, Open};
 
 pub struct MesherOptions {
     pub anti_alias: bool,

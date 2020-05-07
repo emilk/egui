@@ -50,7 +50,7 @@ where
         self.flush(now);
     }
 
-    /// Mean time difference between values in this MovementTracker.
+    /// Mean time difference between values in this `MovementTracker`.
     pub fn mean_time_interval(&self) -> Option<f32> {
         if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
             let n = self.len();

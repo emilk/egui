@@ -7,7 +7,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 pub(crate) struct State {
     /// Last known pos
     pub pos: Pos2,
