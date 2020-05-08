@@ -20,10 +20,11 @@ pub trait Widget {
 // ----------------------------------------------------------------------------
 
 pub struct Label {
-    text: String,
-    multiline: bool,
-    text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the region"
-    text_color: Option<Color>,
+    // TODO: not pub
+    pub(crate) text: String,
+    pub(crate) multiline: bool,
+    pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the region"
+    pub(crate) text_color: Option<Color>,
 }
 
 impl Label {
@@ -50,6 +51,24 @@ impl Label {
         self.text_color = Some(text_color);
         self
     }
+
+    pub fn layout(&self, pos: Pos2, region: &Region) -> (Vec<font::TextFragment>, Vec2) {
+        let font = &region.fonts()[self.text_style];
+        let max_width = region.rect().right() - pos.x;
+        if self.multiline {
+            font.layout_multiline(&self.text, max_width)
+        } else {
+            font.layout_single_line(&self.text)
+        }
+    }
+
+    // TODO: this should return a LabelLayout which has a paint method.
+    // We can then split Widget::Ui in two: layout + allocating space, and painting.
+    // this allows us to assemble lables, THEN detect interaction, THEN chose color style based on that.
+    // pub fn layout(self, region: &mut region) -> LabelLayout { }
+
+    // TODO: a paint method for painting anywhere in a region.
+    // This should be the easiest method of putting text anywhere.
 }
 
 /// Usage:  label!("Foo: {}", bar)
@@ -61,15 +80,22 @@ macro_rules! label {
 
 impl Widget for Label {
     fn ui(self, region: &mut Region) -> GuiResponse {
-        let font = &region.fonts()[self.text_style];
-        let (text, text_size) = if self.multiline {
-            font.layout_multiline(&self.text, region.available_width())
-        } else {
-            font.layout_single_line(&self.text)
-        };
+        let (text, text_size) = self.layout(region.cursor(), region);
         let interact = region.reserve_space(text_size, None);
         region.add_text(interact.rect.min, self.text_style, text, self.text_color);
         region.response(interact)
+    }
+}
+
+impl Into<Label> for &str {
+    fn into(self) -> Label {
+        Label::new(self)
+    }
+}
+
+impl Into<Label> for String {
+    fn into(self) -> Label {
+        Label::new(self)
     }
 }
 
@@ -322,7 +348,7 @@ impl Widget for RadioButton {
 
 pub struct Separator {
     line_width: f32,
-    min_length: f32,
+    min_spacing: f32,
     extra: f32,
     color: Color,
 }
@@ -331,7 +357,7 @@ impl Separator {
     pub fn new() -> Self {
         Self {
             line_width: 2.0,
-            min_length: 6.0,
+            min_spacing: 6.0,
             extra: 0.0,
             color: color::WHITE,
         }
@@ -342,8 +368,8 @@ impl Separator {
         self
     }
 
-    pub fn min_length(mut self, min_length: f32) -> Self {
-        self.min_length = min_length;
+    pub fn min_spacing(mut self, min_spacing: f32) -> Self {
+        self.min_spacing = min_spacing;
         self
     }
 
@@ -365,7 +391,8 @@ impl Widget for Separator {
         let extra = self.extra;
         let (points, interact) = match region.direction() {
             Direction::Horizontal => {
-                let interact = region.reserve_space(vec2(self.min_length, available_space.y), None);
+                let interact =
+                    region.reserve_space(vec2(self.min_spacing, available_space.y), None);
                 (
                     vec![
                         pos2(interact.rect.center().x, interact.rect.top() - extra),
@@ -375,7 +402,8 @@ impl Widget for Separator {
                 )
             }
             Direction::Vertical => {
-                let interact = region.reserve_space(vec2(available_space.x, self.min_length), None);
+                let interact =
+                    region.reserve_space(vec2(available_space.x, self.min_spacing), None);
                 (
                     vec![
                         pos2(interact.rect.left() - extra, interact.rect.center().y),

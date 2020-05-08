@@ -3,12 +3,21 @@
 use crate::*;
 
 #[derive(Clone, Debug, Default)]
-pub struct Frame {}
+pub struct Frame {
+    pub margin: Option<Vec2>,
+}
+
+impl Frame {
+    pub fn margin(mut self, margin: Vec2) -> Self {
+        self.margin = Some(margin);
+        self
+    }
+}
 
 impl Frame {
     pub fn show(self, region: &mut Region, add_contents: impl FnOnce(&mut Region)) {
         let style = region.style();
-        let margin = style.window_padding;
+        let margin = self.margin.unwrap_or_default();
 
         let outer_pos = region.cursor();
         let inner_rect =

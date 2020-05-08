@@ -19,7 +19,7 @@ pub struct Region {
     /// Where to put the graphics output of this Region
     layer: Layer,
 
-    /// Everything painte in this rect will be clipped against this.
+    /// Everything painted in this region will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
 
@@ -28,12 +28,14 @@ pub struct Region {
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in child_bounds).
-    desired_rect: Rect, // TODO: rename?
+    /// Some widgets (like separator lines) will try to fill the full desired width of the region.
+    desired_rect: Rect, // TODO: rename as max_rect ?
 
     /// Bounding box of all children.
     /// This is used to see how large a region actually
     /// needs to be after all children has been added.
-    child_bounds: Rect,
+    /// You can think of this as the minimum size.
+    child_bounds: Rect, // TODO: rename as min_rect ?
 
     /// Overide default style in this region
     style: Style,
@@ -170,7 +172,7 @@ impl Region {
 
     /// Set the width of the region.
     /// You won't be able to shrink it beyond its current child bounds.
-    pub fn set_width(&mut self, width: f32) {
+    pub fn set_desired_width(&mut self, width: f32) {
         let min_width = self.child_bounds.max.x - self.top_left().x;
         let width = width.max(min_width);
         self.desired_rect.max.x = self.top_left().x + width;
@@ -178,7 +180,7 @@ impl Region {
 
     /// Set the height of the region.
     /// You won't be able to shrink it beyond its current child bounds.
-    pub fn set_height(&mut self, height: f32) {
+    pub fn set_desired_height(&mut self, height: f32) {
         let min_height = self.child_bounds.max.y - self.top_left().y;
         let height = height.max(min_height);
         self.desired_rect.max.y = self.top_left().y + height;
@@ -193,6 +195,10 @@ impl Region {
     pub fn expand_to_include_child(&mut self, rect: Rect) {
         self.child_bounds.extend_with(rect.min);
         self.child_bounds.extend_with(rect.max);
+    }
+
+    pub fn expand_to_size(&mut self, size: Vec2) {
+        self.child_bounds.extend_with(self.top_left() + size);
     }
 
     /// Bounding box of all contained children
@@ -258,6 +264,7 @@ impl Region {
         IdSource: Hash + std::fmt::Debug,
     {
         let id = self.id.with(id_source);
+        // TODO: clip name clash error messages to clip rect
         self.ctx.register_unique_id(id, id_source, self.cursor)
     }
 
@@ -434,6 +441,7 @@ impl Region {
         self.debug_text_at(self.cursor, text);
     }
 
+    // TODO: AsRef<str>
     pub fn debug_text_at(&self, pos: Pos2, text: &str) {
         self.ctx.debug_text(pos, text);
     }

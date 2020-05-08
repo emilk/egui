@@ -5,9 +5,8 @@ use crate::{widgets::*, *};
 use super::*;
 
 /// A wrapper around other containers for things you often want in a window
-#[derive(Clone, Debug)]
 pub struct Window {
-    pub title: String,
+    pub title_label: Label,
     pub floating: Floating,
     pub frame: Frame,
     pub resize: Resize,
@@ -15,11 +14,16 @@ pub struct Window {
 }
 
 impl Window {
+    // TODO: Into<Label>
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
+        let floating = Floating::new(&title);
+        let title_label = Label::new(title)
+            .text_style(TextStyle::Heading)
+            .multiline(false);
         Self {
-            title: title.clone(),
-            floating: Floating::new(title),
+            title_label,
+            floating,
             frame: Frame::default(),
             resize: Resize::default()
                 .handle_offset(Vec2::splat(4.0))
@@ -83,17 +87,19 @@ impl Window {
 impl Window {
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Region)) {
         let Window {
-            title,
+            title_label,
             floating,
-            frame,
+            mut frame,
             resize,
             scroll,
         } = self;
+        frame.margin = Some(frame.margin.unwrap_or_else(|| ctx.style().window_padding));
+
         // TODO: easier way to compose these
         floating.show(ctx, |region| {
             frame.show(region, |region| {
                 resize.show(region, |region| {
-                    region.add(Label::new(title).text_style(TextStyle::Heading));
+                    region.add(title_label);
                     region.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
                     scroll.show(region, |region| add_contents(region))
                 })

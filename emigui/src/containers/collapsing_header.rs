@@ -1,4 +1,4 @@
-use crate::{layout::Direction, *};
+use crate::{layout::Direction, widgets::Label, *};
 
 #[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 #[serde(default)]
@@ -23,14 +23,16 @@ impl Default for State {
 }
 
 pub struct CollapsingHeader {
-    title: String,
+    label: Label,
     default_open: bool,
 }
 
 impl CollapsingHeader {
-    pub fn new(title: impl Into<String>) -> Self {
+    pub fn new(label: impl Into<String>) -> Self {
         Self {
-            title: title.into(),
+            label: Label::new(label)
+                .text_style(TextStyle::Button)
+                .multiline(false),
             default_open: false,
         }
     }
@@ -48,22 +50,27 @@ impl CollapsingHeader {
             "Horizontal collapsing is unimplemented"
         );
         let Self {
-            title,
+            label,
             default_open,
         } = self;
 
-        let id = region.make_unique_id(&title);
-        let text_style = TextStyle::Button;
-        let font = &region.fonts()[text_style];
-        let (title, text_size) = font.layout_multiline(&title, region.available_width());
+        // TODO: horizontal layout, with icon and text as labels. Inser background behind using Frame.
+
+        let title = &label.text; // TODO: not this
+        let id = region.make_unique_id(title);
+        let text_pos = region.cursor() + vec2(region.style().indent, 0.0);
+        let (title, text_size) = label.layout(text_pos, region);
+        let text_max_x = text_pos.x + text_size.x;
+        let desired_width = region.available_width().max(text_max_x - region.cursor().x);
 
         let interact = region.reserve_space(
             vec2(
-                region.available_width(),
+                desired_width,
                 text_size.y + 2.0 * region.style().button_padding.y,
             ),
             Some(id),
         );
+        let text_pos = pos2(text_pos.x, interact.rect.center().y - text_size.y / 2.0);
 
         let mut state = {
             let mut memory = region.memory();
@@ -78,24 +85,28 @@ impl CollapsingHeader {
             *state
         };
 
-        region.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: region.style().interact_corner_radius(&interact),
-            fill_color: region.style().interact_fill_color(&interact),
-            outline: region.style().interact_outline(&interact),
-            rect: interact.rect,
-        });
+        let where_to_put_background = region.paint_list_len();
 
         paint_icon(region, &state, &interact);
 
         region.add_text(
-            pos2(
-                interact.rect.left() + region.style().indent,
-                interact.rect.center().y - text_size.y / 2.0,
-            ),
-            text_style,
+            text_pos,
+            label.text_style,
             title,
             Some(region.style().interact_stroke_color(&interact)),
         );
+
+        region.insert_paint_cmd(
+            where_to_put_background,
+            PaintCmd::Rect {
+                corner_radius: region.style().interact_corner_radius(&interact),
+                fill_color: region.style().interact_fill_color(&interact),
+                outline: region.style().interact_outline(&interact),
+                rect: interact.rect,
+            },
+        );
+
+        region.expand_to_include_child(interact.rect); // TODO: remove, just a test
 
         let animation_time = region.style().animation_time;
         let time_since_toggle = (region.input().time - state.toggle_time) as f32;
