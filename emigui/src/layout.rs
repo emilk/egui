@@ -15,7 +15,7 @@ pub struct GuiResponse {
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
 
-    /// The region of the screen we are talking about
+    /// The area of the screen we are talking about
     pub rect: Rect,
 
     /// Used for optionally showing a tooltip
@@ -24,7 +24,7 @@ pub struct GuiResponse {
 
 impl GuiResponse {
     /// Show some stuff if the item was hovered
-    pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Region)) -> &mut Self {
+    pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> &mut Self {
         if self.hovered {
             if let Some(mouse_pos) = self.ctx.input().mouse_pos {
                 let window_pos = mouse_pos + vec2(16.0, 16.0);
@@ -94,7 +94,7 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // TODO: move show_popup, and expand its features (default size, autosize, etc)
 /// Show a pop-over window
-pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnce(&mut Region)) {
+pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnce(&mut Ui)) {
     let layer = Layer::Popup;
     let where_to_put_background = ctx.graphics().layer(layer).len();
 
@@ -103,13 +103,13 @@ pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnc
 
     let size = vec2(ctx.input().screen_size.x.min(350.0), f32::INFINITY); // TODO: popup/tooltip width
     let inner_rect = Rect::from_min_size(window_pos + window_padding, size);
-    let mut contents_region = Region::new(ctx.clone(), layer, Id::popup(), inner_rect);
+    let mut contents_ui = Ui::new(ctx.clone(), layer, Id::popup(), inner_rect);
 
-    add_contents(&mut contents_region);
+    add_contents(&mut contents_ui);
 
     // Now insert popup background:
 
-    let inner_size = contents_region.bounding_size();
+    let inner_size = contents_ui.bounding_size();
     let outer_size = inner_size + 2.0 * window_padding;
 
     let rect = Rect::from_min_size(window_pos, outer_size);

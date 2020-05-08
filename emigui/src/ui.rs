@@ -4,40 +4,39 @@ use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, 
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
-/// TODO: make Region a trait so we can have type-safe `HorizontalRegion` etc?
-pub struct Region {
+pub struct Ui {
     /// How we access input, output and memory
     ctx: Arc<Context>,
 
-    /// ID of this region.
-    /// Generated based on id of parent region together with
+    /// ID of this ui.
+    /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
-    /// Acts like a namespace for child regions.
+    /// Acts like a namespace for child uis.
     /// Hopefully unique.
     id: Id,
 
-    /// Where to put the graphics output of this Region
+    /// Where to put the graphics output of this Ui
     layer: Layer,
 
-    /// Everything painted in this region will be clipped against this.
+    /// Everything painted in this ui will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
 
-    /// The `rect` represents where in space the region is
+    /// The `rect` represents where in screen-space the ui is
     /// and its max size (original available_space).
     /// Note that the size may be infinite in one or both dimensions.
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in child_bounds).
-    /// Some widgets (like separator lines) will try to fill the full desired width of the region.
+    /// Some widgets (like separator lines) will try to fill the full desired width of the ui.
     desired_rect: Rect, // TODO: rename as max_rect ?
 
     /// Bounding box of all children.
-    /// This is used to see how large a region actually
+    /// This is used to see how large a ui actually
     /// needs to be after all children has been added.
     /// You can think of this as the minimum size.
     child_bounds: Rect, // TODO: rename as min_rect ?
 
-    /// Overide default style in this region
+    /// Overide default style in this ui
     style: Style,
 
     // Layout stuff follows. TODO: move to own type and abstract.
@@ -54,13 +53,13 @@ pub struct Region {
     cursor: Pos2,
 }
 
-impl Region {
+impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
     pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
         let style = ctx.style();
-        Region {
+        Ui {
             ctx,
             id,
             layer,
@@ -74,12 +73,12 @@ impl Region {
         }
     }
 
-    pub fn child_region(&self, child_rect: Rect) -> Self {
+    pub fn child_ui(&self, child_rect: Rect) -> Self {
         // let clip_rect = self
         //     .clip_rect
         //     .intersect(&child_rect.expand(self.style().clip_rect_margin));
         let clip_rect = self.clip_rect(); // Keep it unless the child explciitly desires differently
-        Region {
+        Ui {
             ctx: self.ctx.clone(),
             layer: self.layer,
             style: self.style,
@@ -111,7 +110,7 @@ impl Region {
         self.id
     }
 
-    /// Options for this region, and any child regions we may spawn.
+    /// Options for this ui, and any child uis we may spawn.
     pub fn style(&self) -> &Style {
         &self.style
     }
@@ -136,7 +135,7 @@ impl Region {
         self.ctx.fonts()
     }
 
-    /// Screen-space rectangle for clipping what we paint in this region.
+    /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller
     /// than its contents.
     pub fn clip_rect(&self) -> Rect {
@@ -149,28 +148,28 @@ impl Region {
 
     // ------------------------------------------------------------------------
 
-    /// Screen-space position of this Region.
+    /// Screen-space position of this Ui.
     /// This may have moved from its original if a child overflowed to the left or up (rare).
     pub fn top_left(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.min.min(self.child_bounds.min)
     }
 
-    /// Screen-space position of the current bottom right corner of this Region.
+    /// Screen-space position of the current bottom right corner of this Ui.
     /// This may move when we add children that overflow our desired rectangle bounds.
     pub fn bottom_right(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.max.max(self.child_bounds.max)
     }
 
-    /// Position and current size of the region.
+    /// Position and current size of the ui.
     /// The size is the maximum of the origional (minimum/desired) size and
     /// the size of the containted children.
     pub fn rect(&self) -> Rect {
         Rect::from_min_max(self.top_left(), self.bottom_right())
     }
 
-    /// Set the width of the region.
+    /// Set the width of the ui.
     /// You won't be able to shrink it beyond its current child bounds.
     pub fn set_desired_width(&mut self, width: f32) {
         let min_width = self.child_bounds.max.x - self.top_left().x;
@@ -178,7 +177,7 @@ impl Region {
         self.desired_rect.max.x = self.top_left().x + width;
     }
 
-    /// Set the height of the region.
+    /// Set the height of the ui.
     /// You won't be able to shrink it beyond its current child bounds.
     pub fn set_desired_height(&mut self, height: f32) {
         let min_height = self.child_bounds.max.y - self.top_left().y;
@@ -191,7 +190,7 @@ impl Region {
         self.child_bounds.max - self.top_left()
     }
 
-    /// Expand the bounding rect of this region to include a child at the given rect.
+    /// Expand the bounding rect of this ui to include a child at the given rect.
     pub fn expand_to_include_child(&mut self, rect: Rect) {
         self.child_bounds.extend_with(rect.min);
         self.child_bounds.extend_with(rect.max);
@@ -257,7 +256,7 @@ impl Region {
 
     /// Will warn if the returned id is not guaranteed unique.
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
-    /// If the `id_source` is not unique within this region
+    /// If the `id_source` is not unique within this ui
     /// then an error will be printed at the current cursor position.
     pub fn make_unique_id<IdSource>(&self, id_source: &IdSource) -> Id
     where
@@ -282,7 +281,7 @@ impl Region {
     // ------------------------------------------------------------------------
     // Interaction
 
-    /// Check for clicks on this entire region (rect())
+    /// Check for clicks on this entire ui (rect())
     pub fn interact_whole(&self) -> InteractInfo {
         self.interact_rect(self.rect(), self.id)
     }
@@ -304,7 +303,7 @@ impl Region {
     }
 
     // ------------------------------------------------------------------------
-    // Stuff that moves the cursor, i.e. allocates space in this region!
+    // Stuff that moves the cursor, i.e. allocates space in this ui!
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
@@ -324,7 +323,7 @@ impl Region {
         let child_pos = self.reserve_space_impl(child_size);
         let rect = Rect::from_min_size(child_pos, child_size);
 
-        if self.style().debug_regions {
+        if self.style().debug_uis {
             self.add_paint_cmd(PaintCmd::Rect {
                 rect,
                 corner_radius: 0.0,
@@ -446,7 +445,7 @@ impl Region {
         self.ctx.debug_text(pos, text);
     }
 
-    /// Show some text anywhere in the region.
+    /// Show some text anywhere in the ui.
     /// To center the text at the given position, use `align: (Center, Center)`.
     /// If you want to draw text floating on top of everything,
     /// consider using `Context.floating_text` instead.
@@ -503,38 +502,38 @@ impl Region {
     }
 
     // ------------------------------------------------------------------------
-    // Addding Containers / Sub-Regions:
+    // Addding Containers / Sub-uis:
 
     pub fn collapsing(
         &mut self,
         text: impl Into<String>,
-        add_contents: impl FnOnce(&mut Region),
+        add_contents: impl FnOnce(&mut Ui),
     ) -> GuiResponse {
         CollapsingHeader::new(text).show(self, add_contents)
     }
 
-    /// Create a child region at the current cursor.
+    /// Create a child ui at the current cursor.
     /// `size` is the desired size.
     /// Actual size may be much smaller if `avilable_size()` is not enough.
     /// Set `size` to `Vec::infinity()` to get as much space as possible.
     /// Just because you ask for a lot of space does not mean you have to use it!
     /// After `add_contents` is called the contents of `bounding_size`
-    /// will decide how much space will be used in the parent region.
-    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Region)) {
+    /// will decide how much space will be used in the parent ui.
+    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) {
         let size = size.min(self.available_space());
         let child_rect = Rect::from_min_size(self.cursor, size);
-        let mut child_region = Region {
-            ..self.child_region(child_rect)
+        let mut child_ui = Ui {
+            ..self.child_ui(child_rect)
         };
-        add_contents(&mut child_region);
-        self.reserve_space(child_region.bounding_size(), None);
+        add_contents(&mut child_ui);
+        self.reserve_space(child_ui.bounding_size(), None);
     }
 
-    /// Create a child region which is indented to the right
+    /// Create a child ui which is indented to the right
     pub fn indent(
         &mut self,
         id_source: impl Hash,
-        add_contents: impl FnOnce(&mut Region),
+        add_contents: impl FnOnce(&mut Ui),
     ) -> InteractInfo {
         assert!(
             self.dir == Direction::Vertical,
@@ -542,15 +541,15 @@ impl Region {
         );
         let indent = vec2(self.style.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
-        let mut child_region = Region {
+        let mut child_ui = Ui {
             id: self.id.with(id_source),
             align: Align::Min,
-            ..self.child_region(child_rect)
+            ..self.child_ui(child_rect)
         };
-        add_contents(&mut child_region);
-        let size = child_region.bounding_size();
+        add_contents(&mut child_ui);
+        let size = child_ui.bounding_size();
 
-        // draw a grey line on the left to mark the region
+        // draw a grey line on the left to mark the indented section
         let line_start = child_rect.min - indent * 0.5;
         let line_start = line_start.round(); // TODO: round to pixel instead
         let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
@@ -563,38 +562,38 @@ impl Region {
         self.reserve_space(indent + size, None)
     }
 
-    pub fn left_column(&mut self, width: f32) -> Region {
+    pub fn left_column(&mut self, width: f32) -> Ui {
         self.column(Align::Min, width)
     }
 
-    pub fn centered_column(&mut self, width: f32) -> Region {
+    pub fn centered_column(&mut self, width: f32) -> Ui {
         self.column(Align::Center, width)
     }
 
-    pub fn right_column(&mut self, width: f32) -> Region {
+    pub fn right_column(&mut self, width: f32) -> Ui {
         self.column(Align::Max, width)
     }
 
-    /// A column region with a given width.
-    pub fn column(&mut self, column_position: Align, width: f32) -> Region {
+    /// A column ui with a given width.
+    pub fn column(&mut self, column_position: Align, width: f32) -> Ui {
         let x = match column_position {
             Align::Min => 0.0,
             Align::Center => self.available_width() / 2.0 - width / 2.0,
             Align::Max => self.available_width() - width,
         };
-        self.child_region(Rect::from_min_size(
+        self.child_ui(Rect::from_min_size(
             self.cursor + vec2(x, 0.0),
             vec2(width, self.available_height()),
         ))
     }
 
-    /// Start a region with horizontal layout
-    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Region)) {
+    /// Start a ui with horizontal layout
+    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self.inner_layout(Direction::Horizontal, Align::Min, add_contents)
     }
 
-    /// Start a region with vertical layout
-    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Region)) {
+    /// Start a ui with vertical layout
+    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self.inner_layout(Direction::Vertical, Align::Min, add_contents)
     }
 
@@ -605,20 +604,20 @@ impl Region {
         add_contents: impl FnOnce(&mut Self),
     ) {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
-        let mut child_region = Self {
+        let mut child_ui = Self {
             dir,
             align,
-            ..self.child_region(child_rect)
+            ..self.child_ui(child_rect)
         };
-        add_contents(&mut child_region);
-        let size = child_region.bounding_size();
+        add_contents(&mut child_ui);
+        let size = child_ui.bounding_size();
         self.reserve_space(size, None);
     }
 
     /// Temporarily split split a vertical layout into several columns.
     ///
     /// ``` ignore
-    /// region.columns(2, |columns| {
+    /// ui.columns(2, |columns| {
     ///     columns[0].add(emigui::widgets::label!("First column"));
     ///     columns[1].add(emigui::widgets::label!("Second column"));
     /// });
@@ -641,7 +640,7 @@ impl Region {
                 Self {
                     id: self.make_child_id(&("column", col_idx)),
                     dir: Direction::Vertical,
-                    ..self.child_region(child_rect)
+                    ..self.child_ui(child_rect)
                 }
             })
             .collect();
@@ -654,8 +653,8 @@ impl Region {
         }
 
         let mut max_height = 0.0;
-        for region in columns {
-            let size = region.bounding_size();
+        for ui in columns {
+            let size = ui.bounding_size();
             max_height = size.y.max(max_height);
         }
 

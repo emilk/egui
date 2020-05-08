@@ -38,36 +38,36 @@ impl State {
         let pixels_per_point = raw_input.pixels_per_point;
         self.ctx.begin_frame(raw_input);
 
-        let mut region = self.ctx.background_region();
-        let mut region = region.centered_column(region.available_width().min(480.0));
-        region.set_align(Align::Min);
-        region.add(label!("Emigui!").text_style(TextStyle::Heading));
-        region.add_label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-        region.add_label(
+        let mut ui = self.ctx.fullscreen_ui();
+        let mut ui = ui.centered_column(ui.available_width().min(480.0));
+        ui.set_align(Align::Min);
+        ui.add(label!("Emigui!").text_style(TextStyle::Heading));
+        ui.add_label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+        ui.add_label(
             "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
         );
-        region.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
-        region.add_label("This is also work in progress, and not ready for production... yet :)");
-        region.horizontal(|region| {
-            region.add_label("Project home page:");
-            region.add_hyperlink("https://github.com/emilk/emigui/");
+        ui.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
+        ui.add_label("This is also work in progress, and not ready for production... yet :)");
+        ui.horizontal(|ui| {
+            ui.add_label("Project home page:");
+            ui.add_hyperlink("https://github.com/emilk/emigui/");
         });
-        region.add(Separator::new());
+        ui.add(Separator::new());
 
-        region.set_align(Align::Min);
-        region.add_label("WebGl painter info:");
-        region.indent("webgl region", |region| {
-            region.add_label(self.webgl_painter.debug_info());
+        ui.set_align(Align::Min);
+        ui.add_label("WebGl painter info:");
+        ui.indent("webgl region id", |ui| {
+            ui.add_label(self.webgl_painter.debug_info());
         });
 
-        region.add(
+        ui.add(
             label!(
                 "CPU usage: {:.2} ms (excludes painting)",
                 1e3 * self.frame_times.average().unwrap_or_default()
             )
             .text_style(TextStyle::Monospace),
         );
-        region.add(
+        ui.add(
             label!(
                 "FPS: {:.1}",
                 1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
@@ -80,15 +80,15 @@ impl State {
         Window::new("Examples")
             .default_pos(pos2(32.0, 300.0))
             .default_size(vec2(300.0, 400.0))
-            .show(region.ctx(), |region| {
-                self.example_app.ui(region);
+            .show(ui.ctx(), |ui| {
+                self.example_app.ui(ui);
             });
 
         Window::new("Emigui settings")
             .default_pos(pos2(400.0, 300.0))
             .default_size(vec2(400.0, 400.0))
-            .show(region.ctx(), |region| {
-                self.ctx.ui(region);
+            .show(ui.ctx(), |ui| {
+                self.ctx.ui(ui);
             });
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.

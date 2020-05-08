@@ -12,10 +12,10 @@ pub use {
 
 // TODO
 // pub trait Container {
-//     fn show(self, region: &mut Region, add_contents: impl FnOnce(&mut Region));
+//     fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui));
 // }
 
 // pub trait Container {
-//     fn begin(&mut self, parent: &mut Region) -> Region;
-//     fn end(self, parent: &mut Region, content: Region);
+//     fn begin(&mut self, parent: &mut Ui) -> Ui;
+//     fn end(self, parent: &mut Ui, content: Ui);
 // }

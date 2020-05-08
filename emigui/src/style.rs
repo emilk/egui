@@ -44,7 +44,7 @@ pub struct Style {
 
     // -----------------------------------------------
     // Debug rendering:
-    pub debug_regions: bool,
+    pub debug_uis: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -67,7 +67,7 @@ impl Default for Style {
             animation_time: 1.0 / 20.0,
             window: Window::default(),
             clip_rect_margin: 3.0,
-            debug_regions: false,
+            debug_uis: false,
         }
     }
 }
@@ -164,33 +164,33 @@ impl Style {
 
 impl Style {
     #[rustfmt::skip]
-    pub fn ui(&mut self, region: &mut crate::Region) {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
         use crate::{widgets::*, *};
-        if region.add(Button::new("Reset style")).clicked {
+        if ui.add(Button::new("Reset style")).clicked {
             *self = Default::default();
         }
 
-        region.add(label!("Debug:").text_style(TextStyle::Heading));
-        region.add(Checkbox::new(&mut self.debug_regions, "debug_regions"));
-        region.add(Separator::new());
-        // TODO: region.section("Heading", |ui| ui.add(contents))
+        ui.add(label!("Debug:").text_style(TextStyle::Heading));
+        ui.add(Checkbox::new(&mut self.debug_uis, "debug_uis"));
+        ui.add(Separator::new());
+        // TODO: ui.section("Heading", |ui| ui.add(contents))
 
-        region.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
-        region.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.x,   0.0..=10.0).text("window_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.window_padding.y,   0.0..=10.0).text("window_padding.y").precision(0));
-        region.add(Slider::f32(&mut self.indent,             0.0..=100.0).text("indent").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.x,   0.0..=20.0).text("button_padding.x").precision(0));
-        region.add(Slider::f32(&mut self.button_padding.y,   0.0..=20.0).text("button_padding.y").precision(0));
-        region.add(Slider::f32(&mut self.clickable_diameter, 0.0..=60.0).text("clickable_diameter").precision(0));
-        region.add(Slider::f32(&mut self.start_icon_width,   0.0..=60.0).text("start_icon_width").precision(0));
-        region.add(Slider::f32(&mut self.line_width,         0.0..=10.0).text("line_width").precision(0));
-        region.add(Slider::f32(&mut self.animation_time,     0.0..=1.0).text("animation_time").precision(2));
+        ui.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
+        ui.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));
+        ui.add(Slider::f32(&mut self.window_padding.x,   0.0..=10.0).text("window_padding.x").precision(0));
+        ui.add(Slider::f32(&mut self.window_padding.y,   0.0..=10.0).text("window_padding.y").precision(0));
+        ui.add(Slider::f32(&mut self.indent,             0.0..=100.0).text("indent").precision(0));
+        ui.add(Slider::f32(&mut self.button_padding.x,   0.0..=20.0).text("button_padding.x").precision(0));
+        ui.add(Slider::f32(&mut self.button_padding.y,   0.0..=20.0).text("button_padding.y").precision(0));
+        ui.add(Slider::f32(&mut self.clickable_diameter, 0.0..=60.0).text("clickable_diameter").precision(0));
+        ui.add(Slider::f32(&mut self.start_icon_width,   0.0..=60.0).text("start_icon_width").precision(0));
+        ui.add(Slider::f32(&mut self.line_width,         0.0..=10.0).text("line_width").precision(0));
+        ui.add(Slider::f32(&mut self.animation_time,     0.0..=1.0).text("animation_time").precision(2));
 
 
-        // TODO: region.section("Heading", |ui| ui.add(contents))
-        region.add(Separator::new());
-        region.add(label!("Debug:").text_style(TextStyle::Heading));
-        region.add(Checkbox::new(&mut self.debug_regions, "debug_regions"));
+        // TODO: ui.section("Heading", |ui| ui.add(contents))
+        ui.add(Separator::new());
+        ui.add(label!("Debug:").text_style(TextStyle::Heading));
+        ui.add(Checkbox::new(&mut self.debug_uis, "debug_uis"));
     }
 }

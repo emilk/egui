@@ -153,41 +153,41 @@ impl GuiInput {
 }
 
 impl RawInput {
-    pub fn ui(&self, region: &mut crate::Region) {
+    pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::label;
-        // TODO: simpler way to show values, e.g. `region.value("Mouse Pos:", self.mouse_pos);
+        // TODO: simpler way to show values, e.g. `ui.value("Mouse Pos:", self.mouse_pos);
         // TODO: easily change default font!
-        region.add(label!("mouse_down: {}", self.mouse_down));
-        region.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
-        region.add(label!("scroll_delta: {:?}", self.scroll_delta));
-        region.add(label!("screen_size: {:?}", self.screen_size));
-        region.add(label!("pixels_per_point: {}", self.pixels_per_point));
-        region.add(label!("time: {:.3} s", self.time));
-        region.add(label!("events: {:?}", self.events));
-        region.add(label!("dropped_files: {:?}", self.dropped_files));
-        region.add(label!("hovered_files: {:?}", self.hovered_files));
+        ui.add(label!("mouse_down: {}", self.mouse_down));
+        ui.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
+        ui.add(label!("scroll_delta: {:?}", self.scroll_delta));
+        ui.add(label!("screen_size: {:?}", self.screen_size));
+        ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
+        ui.add(label!("time: {:.3} s", self.time));
+        ui.add(label!("events: {:?}", self.events));
+        ui.add(label!("dropped_files: {:?}", self.dropped_files));
+        ui.add(label!("hovered_files: {:?}", self.hovered_files));
     }
 }
 
 impl GuiInput {
-    pub fn ui(&self, region: &mut crate::Region) {
+    pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::label;
-        region.add(label!("mouse_down: {}", self.mouse_down));
-        region.add(label!("mouse_pressed: {}", self.mouse_pressed));
-        region.add(label!("mouse_released: {}", self.mouse_released));
-        region.add(label!("mouse_pos: {:?}", self.mouse_pos));
-        region.add(label!("mouse_move: {:?}", self.mouse_move));
-        region.add(label!(
+        ui.add(label!("mouse_down: {}", self.mouse_down));
+        ui.add(label!("mouse_pressed: {}", self.mouse_pressed));
+        ui.add(label!("mouse_released: {}", self.mouse_released));
+        ui.add(label!("mouse_pos: {:?}", self.mouse_pos));
+        ui.add(label!("mouse_move: {:?}", self.mouse_move));
+        ui.add(label!(
             "mouse_velocity: [{:3.0} {:3.0}] points/sec",
             self.mouse_velocity.x,
             self.mouse_velocity.y
         ));
-        region.add(label!("scroll_delta: {:?}", self.scroll_delta));
-        region.add(label!("screen_size: {:?}", self.screen_size));
-        region.add(label!("pixels_per_point: {}", self.pixels_per_point));
-        region.add(label!("time: {:.3} s", self.time));
-        region.add(label!("events: {:?}", self.events));
-        region.add(label!("dropped_files: {:?}", self.dropped_files));
-        region.add(label!("hovered_files: {:?}", self.hovered_files));
+        ui.add(label!("scroll_delta: {:?}", self.scroll_delta));
+        ui.add(label!("screen_size: {:?}", self.screen_size));
+        ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
+        ui.add(label!("time: {:.3} s", self.time));
+        ui.add(label!("events: {:?}", self.events));
+        ui.add(label!("dropped_files: {:?}", self.dropped_files));
+        ui.add(label!("hovered_files: {:?}", self.hovered_files));
     }
 }

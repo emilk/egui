@@ -99,9 +99,9 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn ui(mut self, region: &mut Region) -> GuiResponse {
+    fn ui(mut self, ui: &mut Ui) -> GuiResponse {
         let text_style = TextStyle::Button;
-        let font = &region.fonts()[text_style];
+        let font = &ui.fonts()[text_style];
 
         if let Some(text) = &self.text {
             if self.id.is_none() {
@@ -116,35 +116,35 @@ impl<'a> Widget for Slider<'a> {
             let slider_sans_text = Slider { text: None, ..self };
 
             if text_on_top {
-                // let (text, text_size) = font.layout_multiline(&full_text, region.available_width());
+                // let (text, text_size) = font.layout_multiline(&full_text, ui.available_width());
                 let (text, text_size) = font.layout_single_line(&full_text);
-                let pos = region.reserve_space(text_size, None).rect.min;
-                region.add_text(pos, text_style, text, text_color);
-                slider_sans_text.ui(region)
+                let pos = ui.reserve_space(text_size, None).rect.min;
+                ui.add_text(pos, text_style, text, text_color);
+                slider_sans_text.ui(ui)
             } else {
-                region.columns(2, |columns| {
+                ui.columns(2, |columns| {
                     // Slider on the left:
                     let slider_response = columns[0].add(slider_sans_text);
 
                     // Place the text in line with the slider on the left:
                     columns[1].set_desired_height(slider_response.rect.height());
-                    columns[1].horizontal(|region| {
-                        region.set_align(Align::Center);
-                        region.add(Label::new(full_text).multiline(false));
+                    columns[1].horizontal(|ui| {
+                        ui.set_align(Align::Center);
+                        ui.add(Label::new(full_text).multiline(false));
                     });
 
                     slider_response
                 })
             }
         } else {
-            let height = font.line_spacing().max(region.style().clickable_diameter);
+            let height = font.line_spacing().max(ui.style().clickable_diameter);
             let handle_radius = height / 2.5;
 
-            let id = self.id.unwrap_or_else(|| region.make_position_id());
+            let id = self.id.unwrap_or_else(|| ui.make_position_id());
 
-            let interact = region.reserve_space(
+            let interact = ui.reserve_space(
                 Vec2 {
-                    x: region.available_width(),
+                    x: ui.available_width(),
                     y: height,
                 },
                 Some(id),
@@ -156,7 +156,7 @@ impl<'a> Widget for Slider<'a> {
             let range = self.range.clone();
             debug_assert!(range.start() <= range.end());
 
-            if let Some(mouse_pos) = region.input().mouse_pos {
+            if let Some(mouse_pos) = ui.input().mouse_pos {
                 if interact.active {
                     self.set_value_f32(remap_clamp(mouse_pos.x, left..=right, range.clone()));
                 }
@@ -167,32 +167,32 @@ impl<'a> Widget for Slider<'a> {
                 let value = self.get_value_f32();
 
                 let rect = interact.rect;
-                let rail_radius = region.round_to_pixel((height / 8.0).max(2.0));
+                let rail_radius = ui.round_to_pixel((height / 8.0).max(2.0));
                 let rail_rect = Rect::from_min_max(
                     pos2(interact.rect.left(), rect.center().y - rail_radius),
                     pos2(interact.rect.right(), rect.center().y + rail_radius),
                 );
                 let marker_center_x = remap_clamp(value, range, left..=right);
 
-                region.add_paint_cmd(PaintCmd::Rect {
+                ui.add_paint_cmd(PaintCmd::Rect {
                     rect: rail_rect,
                     corner_radius: rail_radius,
-                    fill_color: Some(region.style().background_fill_color()),
+                    fill_color: Some(ui.style().background_fill_color()),
                     outline: Some(Outline::new(1.0, color::gray(200, 255))), // TODO
                 });
 
-                region.add_paint_cmd(PaintCmd::Circle {
+                ui.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, rail_rect.center().y),
                     radius: handle_radius,
-                    fill_color: region.style().interact_fill_color(&interact),
+                    fill_color: ui.style().interact_fill_color(&interact),
                     outline: Some(Outline::new(
-                        region.style().interact_stroke_width(&interact),
-                        region.style().interact_stroke_color(&interact),
+                        ui.style().interact_stroke_width(&interact),
+                        ui.style().interact_stroke_color(&interact),
                     )),
                 });
             }
 
-            region.response(interact)
+            ui.response(interact)
         }
     }
 }

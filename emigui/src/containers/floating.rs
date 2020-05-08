@@ -1,4 +1,4 @@
-//! A Floating is a region that has no parent, it floats on the background.
+//! A Floating is an Ui that has no parent, it floats on the background.
 //! It is potentioally movable.
 //! It has no frame or own size.
 //! It is the foundation for a window
@@ -49,7 +49,7 @@ impl Floating {
 }
 
 impl Floating {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Region)) {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
         let default_pos = self.default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
         let id = ctx.register_unique_id(self.id, "Floating", default_pos);
         let layer = Layer::Window(id);
@@ -67,14 +67,14 @@ impl Floating {
         };
         state.pos = state.pos.round();
 
-        let mut region = Region::new(
+        let mut ui = Ui::new(
             ctx.clone(),
             layer,
             id,
             Rect::from_min_size(state.pos, Vec2::infinity()),
         );
-        add_contents(&mut region);
-        state.size = region.bounding_size().ceil();
+        add_contents(&mut ui);
+        state.size = ui.bounding_size().ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything();

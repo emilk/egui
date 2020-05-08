@@ -88,10 +88,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] Solve which parts of Context are behind a mutex
     * [ ] All of Context behind one mutex?
     * [ } Break up Context into Input, State, Output ?
-* [ ] Rename Region to something shorter?
-    * `region: &Region` `region.add(...)` :/
-    * `gui: &Gui` `gui.add(...)` :)
-    * `ui: &Ui` `ui.add(...)` :)
+* [x] Rename Region to Ui
 * [ ] Maybe find a shorter name for the library like `egui`?
 
 ### Global widget search

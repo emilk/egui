@@ -2,7 +2,7 @@
 
 use crate::{color::*, containers::*, widgets::*, *};
 
-/// Showcase some region code
+/// Showcase some ui code
 pub struct ExampleWindow {
     checked: bool,
     count: usize,
@@ -44,73 +44,73 @@ impl Default for ExampleWindow {
 }
 
 impl ExampleWindow {
-    pub fn ui(&mut self, region: &mut Region) {
-        region.collapsing("About Emigui", |region| {
-            region.add(label!(
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.collapsing("About Emigui", |ui| {
+            ui.add(label!(
                 "Emigui is an experimental immediate mode GUI written in Rust."
             ));
 
-            region.horizontal(|region| {
-                region.add_label("Project home page:");
-                region.add_hyperlink("https://github.com/emilk/emigui/");
+            ui.horizontal(|ui| {
+                ui.add_label("Project home page:");
+                ui.add_hyperlink("https://github.com/emilk/emigui/");
             });
         });
 
         CollapsingHeader::new("Widgets")
             .default_open()
-            .show(region, |region| {
-            region.horizontal(|region| {
-                region.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
-                region.add(label!("color").text_color(srgba(128, 140, 255, 255)));
-                region.add(label!("and tooltips (hover me)")).tooltip_text(
+            .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
+                ui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
+                ui.add(label!("and tooltips (hover me)")).tooltip_text(
                     "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
                 );
             });
 
-            region.add(Checkbox::new(&mut self.checked, "checkbox"));
+            ui.add(Checkbox::new(&mut self.checked, "checkbox"));
 
-            region.horizontal(|region| {
-                if region.add(radio(self.radio == 0, "First")).clicked {
+            ui.horizontal(|ui| {
+                if ui.add(radio(self.radio == 0, "First")).clicked {
                     self.radio = 0;
                 }
-                if region.add(radio(self.radio == 1, "Second")).clicked {
+                if ui.add(radio(self.radio == 1, "Second")).clicked {
                     self.radio = 1;
                 }
-                if region.add(radio(self.radio == 2, "Final")).clicked {
+                if ui.add(radio(self.radio == 2, "Final")).clicked {
                     self.radio = 2;
                 }
             });
 
-            region.horizontal(|region| {
-                if region
+            ui.horizontal(|ui| {
+                if ui
                     .add(Button::new("Click me"))
                     .tooltip_text("This will just increase a counter.")
                     .clicked
                 {
                     self.count += 1;
                 }
-                region.add(label!(
+                ui.add(label!(
                     "The button has been clicked {} times",
                     self.count
                 ));
             });
 
-            region.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
-            if region.add(Button::new("Double it")).clicked {
+            ui.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
+            if ui.add(Button::new("Double it")).clicked {
                 self.slider_value *= 2;
             }
 
             for (i, text) in self.text_inputs.iter_mut().enumerate() {
-                region.horizontal(|region|{
-                    region.add(label!("Text input {}: ", i));
-                    region.add(TextEdit::new(text).id(i));
+                ui.horizontal(|ui|{
+                    ui.add(label!("Text input {}: ", i));
+                    ui.add(TextEdit::new(text).id(i));
                 }); // TODO: .tooltip_text("Enter text to edit me")
             }
         });
 
-        region.collapsing("Layouts", |region| {
-            region.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
-            region.columns(self.num_columns, |cols| {
+        ui.collapsing("Layouts", |ui| {
+            ui.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
+            ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.add(label!("Column {} out of {}", i + 1, self.num_columns));
                     if i + 1 == self.num_columns && col.add(Button::new("Delete this")).clicked {
@@ -120,14 +120,14 @@ impl ExampleWindow {
             });
         });
 
-        region.collapsing("Test box rendering", |region| {
-            region.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
-            region.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
-            region.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
-            region.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
-            region.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
+        ui.collapsing("Test box rendering", |ui| {
+            ui.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
+            ui.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
+            ui.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
+            ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
+            ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
 
-            let pos = region
+            let pos = ui
                 .reserve_space(
                     vec2(self.size.x * (self.num_boxes as f32), self.size.y),
                     None,
@@ -147,56 +147,56 @@ impl ExampleWindow {
                     outline: Some(Outline::new(self.stroke_width, gray(255, 255))),
                 });
             }
-            region.add_paint_cmds(cmds);
+            ui.add_paint_cmds(cmds);
         });
 
         CollapsingHeader::new("Scroll area")
             // .default_open()
-            .show(region, |region| {
-                ScrollArea::default().show(region, |region| {
-                    region.add_label(LOREM_IPSUM);
+            .show(ui, |ui| {
+                ScrollArea::default().show(ui, |ui| {
+                    ui.add_label(LOREM_IPSUM);
                 });
             });
 
         CollapsingHeader::new("Painting")
             // .default_open()
-            .show(region, |region| self.painting.ui(region));
+            .show(ui, |ui| self.painting.ui(ui));
 
         CollapsingHeader::new("Resize")
             // .default_open()
-            .show(region, |region| {
+            .show(ui, |ui| {
                 Resize::default()
                     .default_height(200.0)
                     // .as_wide_as_possible()
                     .auto_shrink_height(false)
-                    .show(region, |region| {
-                        region.add(label!("This region can be resized!"));
-                        region.add(label!("Just pull the handle on the bottom right"));
+                    .show(ui, |ui| {
+                        ui.add(label!("This ui can be resized!"));
+                        ui.add(label!("Just pull the handle on the bottom right"));
                     });
             });
 
-        region.collapsing("Name clash example", |region| {
-            region.add_label("\
-                Regions that store state require unique identifiers so we can track their state between frames. \
+        ui.collapsing("Name clash example", |ui| {
+            ui.add_label("\
+                Widgets that store state require unique identifiers so we can track their state between frames. \
                 Identifiers are normally derived from the titles of the widget.");
 
-            region.add_label("\
-                For instance, collapsing regions needs to store wether or not they are open. \
+            ui.add_label("\
+                For instance, collapsable headers needs to store wether or not they are open. \
                 If you fail to give them unique names then clicking one will open both. \
                 To help you debug this, an error message is printed on screen:");
 
-            region.collapsing("Collapsing header", |region| {
-                region.add_label("Contents of first folddable region");
+            ui.collapsing("Collapsing header", |ui| {
+                ui.add_label("Contents of first folddable ui");
             });
-            region.collapsing("Collapsing header", |region| {
-                region.add_label("Contents of second folddable region");
+            ui.collapsing("Collapsing header", |ui| {
+                ui.add_label("Contents of second folddable ui");
             });
 
-            region.add_label("\
+            ui.add_label("\
                 Most widgets don't need unique names, but are tracked \
                 based on their position on screen. For instance, buttons:");
-            region.add(Button::new("Button"));
-            region.add(Button::new("Button"));
+            ui.add(Button::new("Button"));
+            ui.add(Button::new("Button"));
         });
     }
 }
@@ -207,16 +207,16 @@ struct Painting {
 }
 
 impl Painting {
-    pub fn ui(&mut self, region: &mut Region) {
-        region.add_label("Draw with your mouse to paint");
-        if region.add(Button::new("Clear")).clicked {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.add_label("Draw with your mouse to paint");
+        if ui.add(Button::new("Clear")).clicked {
             self.lines.clear();
         }
 
-        region.add_custom_contents(vec2(f32::INFINITY, 200.0), |region| {
-            let canvas_corner = region.cursor();
-            let interact = region.reserve_space(region.available_space(), Some(region.id()));
-            region.set_clip_rect(region.clip_rect().intersect(interact.rect)); // Make sure we don't paint out of bounds
+        ui.add_custom_contents(vec2(f32::INFINITY, 200.0), |ui| {
+            let canvas_corner = ui.cursor();
+            let interact = ui.reserve_space(ui.available_space(), Some(ui.id()));
+            ui.set_clip_rect(ui.clip_rect().intersect(interact.rect)); // Make sure we don't paint out of bounds
 
             if self.lines.is_empty() {
                 self.lines.push(vec![]);
@@ -225,7 +225,7 @@ impl Painting {
             let current_line = self.lines.last_mut().unwrap();
 
             if interact.active {
-                if let Some(mouse_pos) = region.input().mouse_pos {
+                if let Some(mouse_pos) = ui.input().mouse_pos {
                     let canvas_pos = mouse_pos - canvas_corner;
                     if current_line.last() != Some(&canvas_pos) {
                         current_line.push(canvas_pos);
@@ -237,7 +237,7 @@ impl Painting {
 
             for line in &self.lines {
                 if line.len() >= 2 {
-                    region.add_paint_cmd(PaintCmd::Line {
+                    ui.add_paint_cmd(PaintCmd::Line {
                         points: line.iter().map(|p| canvas_corner + *p).collect(),
                         color: LIGHT_GRAY,
                         width: 2.0,
@@ -246,8 +246,8 @@ impl Painting {
             }
 
             // Frame it:
-            region.add_paint_cmd(PaintCmd::Rect {
-                rect: region.rect(),
+            ui.add_paint_cmd(PaintCmd::Rect {
+                rect: ui.rect(),
                 corner_radius: 0.0,
                 fill_color: None,
                 outline: Some(Outline::new(1.0, WHITE)),

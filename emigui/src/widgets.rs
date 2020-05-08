@@ -12,9 +12,9 @@ pub use {slider::*, text_edit::*};
 
 // ----------------------------------------------------------------------------
 
-/// Anything implementing Widget can be added to a Region with `Region::add`
+/// Anything implementing Widget can be added to a Ui with `Ui::add`
 pub trait Widget {
-    fn ui(self, region: &mut Region) -> GuiResponse;
+    fn ui(self, ui: &mut Ui) -> GuiResponse;
 }
 
 // ----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
     pub(crate) multiline: bool,
-    pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the region"
+    pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the ui"
     pub(crate) text_color: Option<Color>,
 }
 
@@ -52,9 +52,9 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, pos: Pos2, region: &Region) -> (Vec<font::TextFragment>, Vec2) {
-        let font = &region.fonts()[self.text_style];
-        let max_width = region.rect().right() - pos.x;
+    pub fn layout(&self, pos: Pos2, ui: &Ui) -> (Vec<font::TextFragment>, Vec2) {
+        let font = &ui.fonts()[self.text_style];
+        let max_width = ui.rect().right() - pos.x;
         if self.multiline {
             font.layout_multiline(&self.text, max_width)
         } else {
@@ -65,9 +65,9 @@ impl Label {
     // TODO: this should return a LabelLayout which has a paint method.
     // We can then split Widget::Ui in two: layout + allocating space, and painting.
     // this allows us to assemble lables, THEN detect interaction, THEN chose color style based on that.
-    // pub fn layout(self, region: &mut region) -> LabelLayout { }
+    // pub fn layout(self, ui: &mut ui) -> LabelLayout { }
 
-    // TODO: a paint method for painting anywhere in a region.
+    // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
 }
 
@@ -79,11 +79,11 @@ macro_rules! label {
 }
 
 impl Widget for Label {
-    fn ui(self, region: &mut Region) -> GuiResponse {
-        let (text, text_size) = self.layout(region.cursor(), region);
-        let interact = region.reserve_space(text_size, None);
-        region.add_text(interact.rect.min, self.text_style, text, self.text_color);
-        region.response(interact)
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let (text, text_size) = self.layout(ui.cursor(), ui);
+        let interact = ui.reserve_space(text_size, None);
+        ui.add_text(interact.rect.min, self.text_style, text, self.text_color);
+        ui.response(interact)
     }
 }
 
@@ -117,20 +117,20 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn ui(self, region: &mut Region) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
         let color = color::LIGHT_BLUE;
         let text_style = TextStyle::Body;
-        let id = region.make_child_id(&self.url);
-        let font = &region.fonts()[text_style];
+        let id = ui.make_child_id(&self.url);
+        let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
         // TODO: underline
-        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
-        let interact = region.reserve_space(text_size, Some(id));
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let interact = ui.reserve_space(text_size, Some(id));
         if interact.hovered {
-            region.ctx().output().cursor_icon = CursorIcon::PointingHand;
+            ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if interact.clicked {
-            region.ctx().output().open_url = Some(self.url);
+            ui.ctx().output().open_url = Some(self.url);
         }
 
         if interact.hovered {
@@ -138,20 +138,20 @@ impl Widget for Hyperlink {
             for fragment in &text {
                 let pos = interact.rect.min;
                 let y = pos.y + fragment.y_offset + line_spacing;
-                let y = region.round_to_pixel(y);
+                let y = ui.round_to_pixel(y);
                 let min_x = pos.x + fragment.min_x();
                 let max_x = pos.x + fragment.max_x();
-                region.add_paint_cmd(PaintCmd::Line {
+                ui.add_paint_cmd(PaintCmd::Line {
                     points: vec![pos2(min_x, y), pos2(max_x, y)],
                     color,
-                    width: region.style().line_width,
+                    width: ui.style().line_width,
                 });
             }
         }
 
-        region.add_text(interact.rect.min, text_style, text, Some(color));
+        ui.add_text(interact.rect.min, text_style, text, Some(color));
 
-        region.response(interact)
+        ui.response(interact)
     }
 }
 
@@ -177,27 +177,27 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn ui(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_position_id();
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let id = ui.make_position_id();
         let text_style = TextStyle::Button;
-        let font = &region.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
-        let padding = region.style().button_padding;
+        let font = &ui.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let padding = ui.style().button_padding;
         let mut size = text_size + 2.0 * padding;
-        size.y = size.y.max(region.style().clickable_diameter);
-        let interact = region.reserve_space(size, Some(id));
+        size.y = size.y.max(ui.style().clickable_diameter);
+        let interact = ui.reserve_space(size, Some(id));
         let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         text_cursor.y += 2.0; // TODO: why is this needed?
-        region.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: region.style().interact_corner_radius(&interact),
-            fill_color: region.style().interact_fill_color(&interact),
-            outline: region.style().interact_outline(&interact),
+        ui.add_paint_cmd(PaintCmd::Rect {
+            corner_radius: ui.style().interact_corner_radius(&interact),
+            fill_color: ui.style().interact_fill_color(&interact),
+            outline: ui.style().interact_outline(&interact),
             rect: interact.rect,
         });
-        let stroke_color = region.style().interact_stroke_color(&interact);
+        let stroke_color = ui.style().interact_stroke_color(&interact);
         let text_color = self.text_color.unwrap_or(stroke_color);
-        region.add_text(text_cursor, text_style, text, Some(text_color));
-        region.response(interact)
+        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.response(interact)
     }
 }
 
@@ -226,49 +226,48 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn ui(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_position_id();
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let id = ui.make_position_id();
         let text_style = TextStyle::Button;
-        let font = &region.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
-        let interact = region.reserve_space(
-            region.style().button_padding
-                + vec2(region.style().start_icon_width, 0.0)
+        let font = &ui.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let interact = ui.reserve_space(
+            ui.style().button_padding
+                + vec2(ui.style().start_icon_width, 0.0)
                 + text_size
-                + region.style().button_padding,
+                + ui.style().button_padding,
             Some(id),
         );
-        let text_cursor = interact.rect.min
-            + region.style().button_padding
-            + vec2(region.style().start_icon_width, 0.0);
+        let text_cursor =
+            interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
         if interact.clicked {
             *self.checked = !*self.checked;
         }
-        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(interact.rect);
-        region.add_paint_cmd(PaintCmd::Rect {
+        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
+        ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 3.0,
-            fill_color: region.style().interact_fill_color(&interact),
+            fill_color: ui.style().interact_fill_color(&interact),
             outline: None,
             rect: big_icon_rect,
         });
 
-        let stroke_color = region.style().interact_stroke_color(&interact);
+        let stroke_color = ui.style().interact_stroke_color(&interact);
 
         if *self.checked {
-            region.add_paint_cmd(PaintCmd::Line {
+            ui.add_paint_cmd(PaintCmd::Line {
                 points: vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 color: stroke_color,
-                width: region.style().line_width,
+                width: ui.style().line_width,
             });
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        region.add_text(text_cursor, text_style, text, Some(text_color));
-        region.response(interact)
+        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.response(interact)
     }
 }
 
@@ -301,28 +300,27 @@ pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn ui(self, region: &mut Region) -> GuiResponse {
-        let id = region.make_position_id();
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let id = ui.make_position_id();
         let text_style = TextStyle::Button;
-        let font = &region.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, region.available_width());
-        let interact = region.reserve_space(
-            region.style().button_padding
-                + vec2(region.style().start_icon_width, 0.0)
+        let font = &ui.fonts()[text_style];
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let interact = ui.reserve_space(
+            ui.style().button_padding
+                + vec2(ui.style().start_icon_width, 0.0)
                 + text_size
-                + region.style().button_padding,
+                + ui.style().button_padding,
             Some(id),
         );
-        let text_cursor = interact.rect.min
-            + region.style().button_padding
-            + vec2(region.style().start_icon_width, 0.0);
+        let text_cursor =
+            interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
-        let fill_color = region.style().interact_fill_color(&interact);
-        let stroke_color = region.style().interact_stroke_color(&interact);
+        let fill_color = ui.style().interact_fill_color(&interact);
+        let stroke_color = ui.style().interact_stroke_color(&interact);
 
-        let (small_icon_rect, big_icon_rect) = region.style().icon_rectangles(interact.rect);
+        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
 
-        region.add_paint_cmd(PaintCmd::Circle {
+        ui.add_paint_cmd(PaintCmd::Circle {
             center: big_icon_rect.center(),
             fill_color,
             outline: None,
@@ -330,7 +328,7 @@ impl Widget for RadioButton {
         });
 
         if self.checked {
-            region.add_paint_cmd(PaintCmd::Circle {
+            ui.add_paint_cmd(PaintCmd::Circle {
                 center: small_icon_rect.center(),
                 fill_color: Some(stroke_color),
                 outline: None,
@@ -339,8 +337,8 @@ impl Widget for RadioButton {
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        region.add_text(text_cursor, text_style, text, Some(text_color));
-        region.response(interact)
+        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.response(interact)
     }
 }
 
@@ -386,13 +384,12 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn ui(self, region: &mut Region) -> GuiResponse {
-        let available_space = region.available_space();
+    fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let available_space = ui.available_space();
         let extra = self.extra;
-        let (points, interact) = match region.direction() {
+        let (points, interact) = match ui.direction() {
             Direction::Horizontal => {
-                let interact =
-                    region.reserve_space(vec2(self.min_spacing, available_space.y), None);
+                let interact = ui.reserve_space(vec2(self.min_spacing, available_space.y), None);
                 (
                     vec![
                         pos2(interact.rect.center().x, interact.rect.top() - extra),
@@ -402,8 +399,7 @@ impl Widget for Separator {
                 )
             }
             Direction::Vertical => {
-                let interact =
-                    region.reserve_space(vec2(available_space.x, self.min_spacing), None);
+                let interact = ui.reserve_space(vec2(available_space.x, self.min_spacing), None);
                 (
                     vec![
                         pos2(interact.rect.left() - extra, interact.rect.center().y),
@@ -413,11 +409,11 @@ impl Widget for Separator {
                 )
             }
         };
-        region.add_paint_cmd(PaintCmd::Line {
+        ui.add_paint_cmd(PaintCmd::Line {
             points,
             color: self.color,
             width: self.line_width,
         });
-        region.response(interact)
+        ui.response(interact)
     }
 }

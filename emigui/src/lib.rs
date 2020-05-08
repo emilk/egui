@@ -36,10 +36,10 @@ pub mod math;
 mod memory;
 pub mod mesher;
 mod movement_tracker;
-mod region;
 mod style;
 mod texture_atlas;
 mod types;
+mod ui;
 pub mod widgets;
 
 pub use {
@@ -54,9 +54,9 @@ pub use {
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},
     movement_tracker::MovementTracker,
-    region::Region,
     style::Style,
     texture_atlas::Texture,
     types::*,
+    ui::Ui,
     widgets::Widget,
 };

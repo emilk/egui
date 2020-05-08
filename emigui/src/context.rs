@@ -13,11 +13,11 @@ struct PaintStats {
 }
 
 /// Contains the input, style and output of all GUI commands.
-/// Regions keep an Arc pointer to this.
-/// This allows us to create several child regions at once,
+/// `Ui`:s keep an Arc pointer to this.
+/// This allows us to create several child `Ui`:s at once,
 /// all working against the same shared Context.
 pub struct Context {
-    /// The default style for new regions
+    /// The default style for new `Ui`:s
     style: Mutex<Style>,
     mesher_options: Mutex<mesher::MesherOptions>,
     fonts: Arc<Fonts>,
@@ -207,10 +207,10 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// A region for the entire screen, behind any windows.
-    pub fn background_region(self: &Arc<Self>) -> Region {
+    /// An ui for the entire screen, behind any windows.
+    pub fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
-        Region::new(self.clone(), Layer::Background, Id::background(), rect)
+        Ui::new(self.clone(), Layer::Background, Id::background(), rect)
     }
 
     // ---------------------------------------------------------------------
@@ -428,19 +428,19 @@ impl Context {
 }
 
 impl Context {
-    pub fn ui(&self, region: &mut Region) {
+    pub fn ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        region.collapsing("Style", |region| {
-            self.mesher_options.lock().ui(region);
-            self.style_ui(region);
+        ui.collapsing("Style", |ui| {
+            self.mesher_options.lock().ui(ui);
+            self.style_ui(ui);
         });
 
-        region.collapsing("Fonts", |region| {
+        ui.collapsing("Fonts", |ui| {
             let old_font_definitions = self.fonts().definitions();
             let mut new_font_definitions = old_font_definitions.clone();
-            font_definitions_ui(&mut new_font_definitions, region);
-            self.fonts().texture().ui(region);
+            font_definitions_ui(&mut new_font_definitions, ui);
+            self.fonts().texture().ui(ui);
             if *old_font_definitions != new_font_definitions {
                 let fonts =
                     Fonts::from_definitions(new_font_definitions, self.input().pixels_per_point);
@@ -448,64 +448,62 @@ impl Context {
             }
         });
 
-        region.collapsing("Input", |region| {
+        ui.collapsing("Input", |ui| {
             CollapsingHeader::new("Raw Input")
                 .default_open()
-                .show(region, |region| {
-                    region.ctx().last_raw_input().clone().ui(region)
-                });
+                .show(ui, |ui| ui.ctx().last_raw_input().clone().ui(ui));
             CollapsingHeader::new("Input")
                 .default_open()
-                .show(region, |region| region.input().clone().ui(region));
+                .show(ui, |ui| ui.input().clone().ui(ui));
         });
 
-        region.collapsing("Stats", |region| {
-            region.add(label!(
+        ui.collapsing("Stats", |ui| {
+            ui.add(label!(
                 "Screen size: {} x {} points, pixels_per_point: {}",
-                region.input().screen_size.x,
-                region.input().screen_size.y,
-                region.input().pixels_per_point,
+                ui.input().screen_size.x,
+                ui.input().screen_size.y,
+                ui.input().pixels_per_point,
             ));
-            if let Some(mouse_pos) = region.input().mouse_pos {
-                region.add(label!("mouse_pos: {:.2} x {:.2}", mouse_pos.x, mouse_pos.y,));
+            if let Some(mouse_pos) = ui.input().mouse_pos {
+                ui.add(label!("mouse_pos: {:.2} x {:.2}", mouse_pos.x, mouse_pos.y,));
             } else {
-                region.add_label("mouse_pos: None");
+                ui.add_label("mouse_pos: None");
             }
 
-            region.add(label!("Painting:").text_style(TextStyle::Heading));
-            self.paint_stats.lock().ui(region);
+            ui.add(label!("Painting:").text_style(TextStyle::Heading));
+            self.paint_stats.lock().ui(ui);
         });
     }
 }
 
-fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Region) {
+fn font_definitions_ui(font_definitions: &mut FontDefinitions, ui: &mut Ui) {
     use crate::widgets::*;
     for (text_style, (_family, size)) in font_definitions.iter_mut() {
         // TODO: radiobutton for family
-        region.add(
+        ui.add(
             Slider::f32(size, 4.0..=40.0)
                 .precision(0)
                 .text(format!("{:?}", text_style)),
         );
     }
-    if region.add(Button::new("Reset fonts")).clicked {
+    if ui.add(Button::new("Reset fonts")).clicked {
         *font_definitions = crate::fonts::default_font_definitions();
     }
 }
 
 impl Context {
-    pub fn style_ui(&self, region: &mut Region) {
+    pub fn style_ui(&self, ui: &mut Ui) {
         let mut style = self.style();
-        style.ui(region);
+        style.ui(ui);
         self.set_style(style);
     }
 }
 
 impl mesher::MesherOptions {
-    pub fn ui(&mut self, region: &mut Region) {
+    pub fn ui(&mut self, ui: &mut Ui) {
         use crate::widgets::*;
-        region.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
-        region.add(Checkbox::new(
+        ui.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
+        ui.add(Checkbox::new(
             &mut self.debug_paint_clip_rects,
             "Paint Clip Rects (debug)",
         ));
@@ -513,14 +511,12 @@ impl mesher::MesherOptions {
 }
 
 impl PaintStats {
-    pub fn ui(&self, region: &mut Region) {
-        region
-            .add(label!("Batches: {}", self.num_batches))
+    pub fn ui(&self, ui: &mut Ui) {
+        ui.add(label!("Batches: {}", self.num_batches))
             .tooltip_text("Number of separate clip rectanlges");
-        region
-            .add(label!("Primitives: {}", self.num_primitives))
+        ui.add(label!("Primitives: {}", self.num_primitives))
             .tooltip_text("Boxes, circles, text areas etc");
-        region.add(label!("Vertices: {}", self.num_vertices));
-        region.add(label!("Triangles: {}", self.num_triangles));
+        ui.add(label!("Vertices: {}", self.num_vertices));
+        ui.add(label!("Triangles: {}", self.num_triangles));
     }
 }

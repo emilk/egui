@@ -17,7 +17,7 @@
 //!
 //! For things that need to persist state even after moving (windows, collapsing headers)
 //! the location of the widgets is obviously not good enough. For instance,
-//! a fodlable region needs to remember wether or not it is open even
+//! a collapsing region needs to remember wether or not it is open even
 //! if the layout next frame is different and the collapsing is not lower down
 //! on the screen.
 //!

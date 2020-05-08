@@ -85,7 +85,7 @@ impl Window {
 }
 
 impl Window {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Region)) {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
         let Window {
             title_label,
             floating,
@@ -96,12 +96,12 @@ impl Window {
         frame.margin = Some(frame.margin.unwrap_or_else(|| ctx.style().window_padding));
 
         // TODO: easier way to compose these
-        floating.show(ctx, |region| {
-            frame.show(region, |region| {
-                resize.show(region, |region| {
-                    region.add(title_label);
-                    region.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-                    scroll.show(region, |region| add_contents(region))
+        floating.show(ctx, |ui| {
+            frame.show(ui, |ui| {
+                resize.show(ui, |ui| {
+                    ui.add(title_label);
+                    ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+                    scroll.show(ui, |ui| add_contents(ui))
                 })
             })
         })

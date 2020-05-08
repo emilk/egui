@@ -13,7 +13,7 @@ pub struct Resize {
     /// If false, we are no enabled
     resizable: bool,
 
-    // Will still try to stay within parent region bounds
+    // Will still try to stay within parent ui bounds
     min_size: Vec2,
     max_size: Vec2,
 
@@ -132,17 +132,17 @@ impl Resize {
 
 // TODO: a common trait for Things that follow this pattern
 impl Resize {
-    pub fn show(mut self, region: &mut Region, add_contents: impl FnOnce(&mut Region)) {
+    pub fn show(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
         if !self.resizable {
-            return add_contents(region);
+            return add_contents(ui);
         }
 
-        let id = region.make_child_id("scroll");
-        self.min_size = self.min_size.min(region.available_space());
-        self.max_size = self.max_size.min(region.available_space());
+        let id = ui.make_child_id("scroll");
+        self.min_size = self.min_size.min(ui.available_space());
+        self.max_size = self.max_size.min(ui.available_space());
         self.max_size = self.max_size.max(self.min_size);
 
-        let (is_new, mut state) = match region.memory().resize.get(&id) {
+        let (is_new, mut state) = match ui.memory().resize.get(&id) {
             Some(state) => (false, *state),
             None => {
                 let default_size = self.default_size.clamp(self.min_size..=self.max_size);
@@ -153,7 +153,7 @@ impl Resize {
         state.size = state.size.clamp(self.min_size..=self.max_size);
         let last_frame_size = state.size;
 
-        let position = region.cursor();
+        let position = ui.cursor();
 
         // Resize-corner:
         let corner_size = Vec2::splat(16.0); // TODO: style
@@ -161,10 +161,10 @@ impl Resize {
             position + state.size + self.handle_offset - corner_size,
             corner_size,
         );
-        let corner_interact = region.interact_rect(corner_rect, id.with("corner"));
+        let corner_interact = ui.interact_rect(corner_rect, id.with("corner"));
 
         if corner_interact.active {
-            if let Some(mouse_pos) = region.input().mouse_pos {
+            if let Some(mouse_pos) = ui.input().mouse_pos {
                 // This is the desired size. We may not be able to achieve it.
 
                 state.size =
@@ -178,11 +178,11 @@ impl Resize {
 
         // ------------------------------
 
-        let inner_rect = Rect::from_min_size(region.cursor(), state.size);
+        let inner_rect = Rect::from_min_size(ui.cursor(), state.size);
         let desired_size = {
-            let mut content_clip_rect = region
+            let mut content_clip_rect = ui
                 .clip_rect()
-                .intersect(inner_rect.expand(region.style().clip_rect_margin));
+                .intersect(inner_rect.expand(ui.style().clip_rect_margin));
 
             // If we pull the resize handle to shrink, we want to TRY to shink it.
             // After laying out the contents, we might be much bigger.
@@ -192,12 +192,12 @@ impl Resize {
             content_clip_rect.max = content_clip_rect
                 .max
                 .max(content_clip_rect.min + last_frame_size)
-                .min(region.clip_rect().max); // Respect parent region
+                .min(ui.clip_rect().max); // Respect parent region
 
-            let mut contents_region = region.child_region(inner_rect);
-            contents_region.set_clip_rect(content_clip_rect);
-            add_contents(&mut contents_region);
-            contents_region.bounding_size()
+            let mut contents_ui = ui.child_ui(inner_rect);
+            contents_ui.set_clip_rect(content_clip_rect);
+            add_contents(&mut contents_ui);
+            contents_ui.bounding_size()
         };
         let desired_size = desired_size.ceil(); // Avoid rounding errors in math
 
@@ -220,29 +220,29 @@ impl Resize {
         // state.size = state.size.clamp(self.min_size..=self.max_size);
         state.size = state.size.round(); // TODO: round to pixels
 
-        region.reserve_space(state.size, None);
+        ui.reserve_space(state.size, None);
 
         // ------------------------------
 
-        paint_resize_corner(region, &corner_interact);
+        paint_resize_corner(ui, &corner_interact);
 
         if corner_interact.hovered || corner_interact.active {
-            region.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
+            ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
         }
 
-        region.memory().resize.insert(id, state);
+        ui.memory().resize.insert(id, state);
     }
 }
 
-fn paint_resize_corner(region: &mut Region, interact: &InteractInfo) {
-    let color = region.style().interact_stroke_color(interact);
-    let width = region.style().interact_stroke_width(interact);
+fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
+    let color = ui.style().interact_stroke_color(interact);
+    let width = ui.style().interact_stroke_width(interact);
 
     let corner = interact.rect.right_bottom().round(); // TODO: round to pixels
     let mut w = 2.0;
 
     while w < 12.0 {
-        region.add_paint_cmd(PaintCmd::line_segment(
+        ui.add_paint_cmd(PaintCmd::line_segment(
             (pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)),
             color,
             width,

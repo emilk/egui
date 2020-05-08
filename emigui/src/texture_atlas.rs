@@ -91,19 +91,19 @@ impl TextureAtlas {
 }
 
 impl Texture {
-    pub fn ui(&self, region: &mut crate::Region) {
+    pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::{color::WHITE, label, layout::show_popup, math::*, Mesh, PaintCmd, Vertex};
 
-        region.add(label!(
+        ui.add(label!(
             "Texture size: {} x {} (hover to zoom)",
             self.width,
             self.height
         ));
         let mut size = vec2(self.width as f32, self.height as f32);
-        if size.x > region.available_width() {
-            size *= region.available_width() / size.x;
+        if size.x > ui.available_width() {
+            size *= ui.available_width() / size.x;
         }
-        let interact = region.reserve_space(size, None);
+        let interact = ui.reserve_space(size, None);
         let rect = interact.rect;
         let top_left = Vertex {
             pos: rect.min,
@@ -117,12 +117,12 @@ impl Texture {
         };
         let mut mesh = Mesh::default();
         mesh.add_rect(top_left, bottom_right);
-        region.add_paint_cmd(PaintCmd::Mesh(mesh));
+        ui.add_paint_cmd(PaintCmd::Mesh(mesh));
 
-        if let Some(mouse_pos) = region.input().mouse_pos {
+        if let Some(mouse_pos) = ui.input().mouse_pos {
             if interact.hovered {
-                show_popup(region.ctx(), mouse_pos, |region| {
-                    let zoom_rect = region.reserve_space(vec2(128.0, 128.0), None).rect;
+                show_popup(ui.ctx(), mouse_pos, |ui| {
+                    let zoom_rect = ui.reserve_space(vec2(128.0, 128.0), None).rect;
                     let u = remap_clamp(mouse_pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0)
                         .round();
                     let v =
@@ -145,7 +145,7 @@ impl Texture {
                     };
                     let mut mesh = Mesh::default();
                     mesh.add_rect(top_left, bottom_right);
-                    region.add_paint_cmd(PaintCmd::Mesh(mesh));
+                    ui.add_paint_cmd(PaintCmd::Mesh(mesh));
                 });
             }
         }

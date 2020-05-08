@@ -68,22 +68,22 @@ fn main() {
 
         let emigui_start = Instant::now();
         ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
-        let mut region = ctx.background_region();
-        let mut region = region.centered_column(region.available_width().min(480.0));
-        region.set_align(Align::Min);
-        region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
-        if region.add(Button::new("Quit")).clicked {
+        let mut ui = ctx.fullscreen_ui();
+        let mut ui = ui.centered_column(ui.available_width().min(480.0));
+        ui.set_align(Align::Min);
+        ui.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
+        if ui.add(Button::new("Quit")).clicked {
             running = false;
         }
 
-        region.add(
+        ui.add(
             label!(
                 "CPU usage: {:.2} ms (excludes painting)",
                 1e3 * frame_times.average().unwrap_or_default()
             )
             .text_style(TextStyle::Monospace),
         );
-        region.add(
+        ui.add(
             label!(
                 "FPS: {:.1}",
                 1.0 / frame_times.mean_time_interval().unwrap_or_default()
@@ -98,15 +98,15 @@ fn main() {
             .default_size(vec2(300.0, 600.0))
             // .mutate(|w| w.resize = w.resize.auto_expand_width(true))
             // .resize(|r| r.auto_expand_width(true))
-            .show(region.ctx(), |region| {
-                example_app.ui(region);
+            .show(ui.ctx(), |ui| {
+                example_app.ui(ui);
             });
 
         Window::new("Emigui settings")
             .default_pos(pos2(450.0, 100.0))
             .default_size(vec2(450.0, 500.0))
-            .show(region.ctx(), |region| {
-                ctx.ui(region);
+            .show(ui.ctx(), |ui| {
+                ctx.ui(ui);
             });
 
         let (output, paint_batches) = ctx.end_frame();
