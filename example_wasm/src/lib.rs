@@ -1,11 +1,4 @@
 #![deny(warnings)]
-
-extern crate serde_json;
-extern crate wasm_bindgen;
-
-extern crate emigui;
-extern crate emigui_wasm;
-
 use std::sync::Arc;
 
 use {
