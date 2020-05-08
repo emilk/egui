@@ -323,7 +323,7 @@ impl Ui {
         let child_pos = self.reserve_space_impl(child_size);
         let rect = Rect::from_min_size(child_pos, child_size);
 
-        if self.style().debug_uis {
+        if self.style().debug_widget_rects {
             self.add_paint_cmd(PaintCmd::Rect {
                 rect,
                 corner_radius: 0.0,

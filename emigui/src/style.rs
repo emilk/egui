@@ -44,7 +44,7 @@ pub struct Style {
 
     // -----------------------------------------------
     // Debug rendering:
-    pub debug_uis: bool,
+    pub debug_widget_rects: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -67,7 +67,7 @@ impl Default for Style {
             animation_time: 1.0 / 20.0,
             window: Window::default(),
             clip_rect_margin: 3.0,
-            debug_uis: false,
+            debug_widget_rects: false,
         }
     }
 }
@@ -165,15 +165,12 @@ impl Style {
 impl Style {
     #[rustfmt::skip]
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        use crate::{widgets::*, *};
+        use crate::{widgets::*};
         if ui.add(Button::new("Reset style")).clicked {
             *self = Default::default();
         }
 
-        ui.add(label!("Debug:").text_style(TextStyle::Heading));
-        ui.add(Checkbox::new(&mut self.debug_uis, "debug_uis"));
-        ui.add(Separator::new());
-        // TODO: ui.section("Heading", |ui| ui.add(contents))
+        ui.add(Checkbox::new(&mut self.debug_widget_rects, "Paint debug rectangles around widgets"));
 
         ui.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
         ui.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));
@@ -186,11 +183,5 @@ impl Style {
         ui.add(Slider::f32(&mut self.start_icon_width,   0.0..=60.0).text("start_icon_width").precision(0));
         ui.add(Slider::f32(&mut self.line_width,         0.0..=10.0).text("line_width").precision(0));
         ui.add(Slider::f32(&mut self.animation_time,     0.0..=1.0).text("animation_time").precision(2));
-
-
-        // TODO: ui.section("Heading", |ui| ui.add(contents))
-        ui.add(Separator::new());
-        ui.add(label!("Debug:").text_style(TextStyle::Heading));
-        ui.add(Checkbox::new(&mut self.debug_uis, "debug_uis"));
     }
 }
