@@ -325,12 +325,17 @@ impl Region {
                 fill_color: None,
             });
 
-            let color = color::srgba(255, 0, 0, 128);
+            let color = color::srgba(200, 0, 0, 255);
             let width = 2.5;
 
             if too_wide {
                 self.add_paint_cmd(PaintCmd::line_segment(
                     (rect.left_top(), rect.left_bottom()),
+                    color,
+                    width,
+                ));
+                self.add_paint_cmd(PaintCmd::line_segment(
+                    (rect.left_center(), rect.right_center()),
                     color,
                     width,
                 ));
@@ -344,6 +349,11 @@ impl Region {
             if too_high {
                 self.add_paint_cmd(PaintCmd::line_segment(
                     (rect.left_top(), rect.right_top()),
+                    color,
+                    width,
+                ));
+                self.add_paint_cmd(PaintCmd::line_segment(
+                    (rect.center_top(), rect.center_bottom()),
                     color,
                     width,
                 ));
