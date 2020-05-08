@@ -506,20 +506,25 @@ pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 
 }
 
 pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
-    let t = if x <= *from.start() {
-        0.0
-    } else if x >= *from.end() {
-        1.0
+    if x <= *from.start() {
+        *to.start()
+    } else if *from.end() <= x {
+        *to.end()
     } else {
-        (x - from.start()) / (from.end() - from.start())
-    };
-    lerp(to, t)
+        let t = (x - from.start()) / (from.end() - from.start());
+        // Ensure no numerical inaccurcies sneak in:
+        if 1.0 <= t {
+            *to.end()
+        } else {
+            lerp(to, t)
+        }
+    }
 }
 
 pub fn clamp(x: f32, range: RangeInclusive<f32>) -> f32 {
     if x <= *range.start() {
         *range.start()
-    } else if x >= *range.end() {
+    } else if *range.end() <= x {
         *range.end()
     } else {
         x

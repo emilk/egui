@@ -11,7 +11,7 @@ struct Stats {
 }
 
 /// Encapsulates input, layout and painting for ease of use.
-/// TODO: merge into Context
+/// TODO: merge into Context, and have generations of Context instead.
 pub struct Emigui {
     ctx: Arc<Context>,
     stats: Stats,

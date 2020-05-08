@@ -14,6 +14,8 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Movable/resizable windows
     * [x] Kinetic windows
     * [ ] BUG FIX: Don't catch clicks on closed windows
+    * [ ] Windows should open from Regions and be boxed by parent region.
+        * Then we could open the example app inside a window in the example app, recursively.
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
@@ -37,11 +39,13 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [ ] Generalize Layout (separate from Region)
     * [ ] Cascading layout: same lite if it fits, else next line. Like text.
     * [ ] Grid layout
+* [ ] Image support
 
 ### Web version:
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [ ] Make it a JS library for easily creating your own stuff
+* [ ] Read url fragment and redirect to a subpage (e.g. different examples apps)
 
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:

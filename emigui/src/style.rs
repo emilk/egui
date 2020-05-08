@@ -170,6 +170,10 @@ impl Style {
             *self = Default::default();
         }
 
+        region.add(label!("Debug:").text_style(TextStyle::Heading));
+        region.add(Checkbox::new(&mut self.debug_regions, "debug_regions"));
+        region.add(Separator::new());
+        // TODO: region.section("Heading", |ui| ui.add(contents))
 
         region.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
         region.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));
