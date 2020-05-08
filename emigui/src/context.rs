@@ -4,6 +4,14 @@ use parking_lot::Mutex;
 
 use crate::{layout::align_rect, *};
 
+#[derive(Clone, Copy, Default)]
+struct PaintStats {
+    num_batches: usize,
+    num_primitives: usize,
+    num_vertices: usize,
+    num_triangles: usize,
+}
+
 /// Contains the input, style and output of all GUI commands.
 /// Regions keep an Arc pointer to this.
 /// This allows us to create several child regions at once,
@@ -11,10 +19,11 @@ use crate::{layout::align_rect, *};
 pub struct Context {
     /// The default style for new regions
     style: Mutex<Style>,
+    mesher_options: Mutex<mesher::MesherOptions>,
     fonts: Arc<Fonts>,
-    memory: Mutex<Memory>,
-    /// Used to debug name clashes of e.g. windows
-    used_ids: Mutex<HashMap<Id, Pos2>>,
+    /// HACK: set a new font next frame
+    new_fonts: Mutex<Option<Arc<Fonts>>>,
+    memory: Arc<Mutex<Memory>>,
 
     // Input releated stuff:
     /// Raw input from last frame. Use `input()` instead.
@@ -25,6 +34,10 @@ pub struct Context {
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
     output: Mutex<Output>,
+    /// Used to debug name clashes of e.g. windows
+    used_ids: Mutex<HashMap<Id, Pos2>>,
+
+    paint_stats: Mutex<PaintStats>,
 }
 
 // TODO: remove this impl.
@@ -32,31 +45,39 @@ impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
             style: Mutex::new(self.style()),
+            mesher_options: Mutex::new(*self.mesher_options.lock()),
             fonts: self.fonts.clone(),
+            new_fonts: Mutex::new(self.new_fonts.lock().clone()),
+            memory: self.memory.clone(),
             last_raw_input: self.last_raw_input.clone(),
             input: self.input.clone(),
             mouse_tracker: self.mouse_tracker.clone(),
-            memory: Mutex::new(self.memory.lock().clone()),
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
             used_ids: Mutex::new(self.used_ids.lock().clone()),
+            paint_stats: Mutex::new(*self.paint_stats.lock()),
         }
     }
 }
 
 impl Context {
-    pub fn new(pixels_per_point: f32) -> Context {
-        Context {
+    pub fn new(pixels_per_point: f32) -> Arc<Context> {
+        Arc::new(Context {
             style: Default::default(),
+            mesher_options: Default::default(),
             fonts: Arc::new(Fonts::new(pixels_per_point)),
+            new_fonts: Default::default(),
+            memory: Default::default(),
+
             last_raw_input: Default::default(),
             input: Default::default(),
             mouse_tracker: MovementTracker::new(1000, 0.1),
-            memory: Default::default(),
+
             graphics: Default::default(),
             output: Default::default(),
             used_ids: Default::default(),
-        }
+            paint_stats: Default::default(),
+        })
     }
 
     pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
@@ -89,8 +110,13 @@ impl Context {
         &*self.fonts
     }
 
-    pub fn set_fonts(&mut self, fonts: Fonts) {
-        self.fonts = Arc::new(fonts);
+    pub fn texture(&self) -> &Texture {
+        self.fonts().texture()
+    }
+
+    /// Will become active next frame
+    pub fn set_fonts(&self, fonts: Fonts) {
+        *self.new_fonts.lock() = Some(Arc::new(fonts));
     }
 
     pub fn style(&self) -> Style {
@@ -118,12 +144,24 @@ impl Context {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
-    pub fn begin_frame(&mut self, new_input: RawInput) {
+    // ---------------------------------------------------------------------
+
+    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
+        let mut self_: Self = (**self).clone();
+        self_.begin_frame_mut(new_input);
+        *self = Arc::new(self_);
+    }
+
+    fn begin_frame_mut(&mut self, new_input: RawInput) {
         if !self.last_raw_input.mouse_down || self.last_raw_input.mouse_pos.is_none() {
             self.memory().active_id = None;
         }
 
         self.used_ids.lock().clear();
+
+        if let Some(new_fonts) = self.new_fonts.lock().take() {
+            self.fonts = new_fonts;
+        }
 
         if let Some(mouse_pos) = new_input.mouse_pos {
             self.mouse_tracker.add(new_input.time, mouse_pos);
@@ -135,14 +173,47 @@ impl Context {
         self.last_raw_input = new_input;
     }
 
-    pub fn end_frame(&self) -> Output {
-        std::mem::take(&mut self.output())
+    pub fn end_frame(&self) -> (Output, PaintBatches) {
+        let output: Output = std::mem::take(&mut self.output());
+        let paint_batches = self.paint();
+        (output, paint_batches)
     }
 
-    pub fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
+    fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory();
         self.graphics().drain(&memory.floating_order).collect()
     }
+
+    fn paint(&self) -> PaintBatches {
+        let mut mesher_options = *self.mesher_options.lock();
+        mesher_options.aa_size = 1.0 / self.pixels_per_point();
+        let paint_commands = self.drain_paint_lists();
+        let num_primitives = paint_commands.len();
+        let batches = mesher::mesh_paint_commands(mesher_options, self.fonts(), paint_commands);
+
+        {
+            let mut stats = PaintStats::default();
+            stats.num_batches = batches.len();
+            stats.num_primitives = num_primitives;
+            for (_, mesh) in &batches {
+                stats.num_vertices += mesh.vertices.len();
+                stats.num_triangles += mesh.indices.len() / 3;
+            }
+            *self.paint_stats.lock() = stats;
+        }
+
+        batches
+    }
+
+    // ---------------------------------------------------------------------
+
+    /// A region for the entire screen, behind any windows.
+    pub fn background_region(self: &Arc<Self>) -> Region {
+        let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
+        Region::new(self.clone(), Layer::Background, Id::background(), rect)
+    }
+
+    // ---------------------------------------------------------------------
 
     /// Is the user interacting with anything?
     pub fn any_active(&self) -> bool {
@@ -257,6 +328,8 @@ impl Context {
         }
     }
 
+    // ---------------------------------------------------------------------
+
     pub fn show_error(&self, pos: Pos2, text: &str) {
         let align = (Align::Min, Align::Min);
         let layer = Layer::Debug;
@@ -355,9 +428,99 @@ impl Context {
 }
 
 impl Context {
+    pub fn ui(&self, region: &mut Region) {
+        use crate::containers::*;
+
+        region.collapsing("Style", |region| {
+            self.mesher_options.lock().ui(region);
+            self.style_ui(region);
+        });
+
+        region.collapsing("Fonts", |region| {
+            let old_font_definitions = self.fonts().definitions();
+            let mut new_font_definitions = old_font_definitions.clone();
+            font_definitions_ui(&mut new_font_definitions, region);
+            self.fonts().texture().ui(region);
+            if *old_font_definitions != new_font_definitions {
+                let fonts =
+                    Fonts::from_definitions(new_font_definitions, self.input().pixels_per_point);
+                self.set_fonts(fonts);
+            }
+        });
+
+        region.collapsing("Input", |region| {
+            CollapsingHeader::new("Raw Input")
+                .default_open()
+                .show(region, |region| {
+                    region.ctx().last_raw_input().clone().ui(region)
+                });
+            CollapsingHeader::new("Input")
+                .default_open()
+                .show(region, |region| region.input().clone().ui(region));
+        });
+
+        region.collapsing("Stats", |region| {
+            region.add(label!(
+                "Screen size: {} x {} points, pixels_per_point: {}",
+                region.input().screen_size.x,
+                region.input().screen_size.y,
+                region.input().pixels_per_point,
+            ));
+            if let Some(mouse_pos) = region.input().mouse_pos {
+                region.add(label!("mouse_pos: {:.2} x {:.2}", mouse_pos.x, mouse_pos.y,));
+            } else {
+                region.add_label("mouse_pos: None");
+            }
+
+            region.add(label!("Painting:").text_style(TextStyle::Heading));
+            self.paint_stats.lock().ui(region);
+        });
+    }
+}
+
+fn font_definitions_ui(font_definitions: &mut FontDefinitions, region: &mut Region) {
+    use crate::widgets::*;
+    for (text_style, (_family, size)) in font_definitions.iter_mut() {
+        // TODO: radiobutton for family
+        region.add(
+            Slider::f32(size, 4.0..=40.0)
+                .precision(0)
+                .text(format!("{:?}", text_style)),
+        );
+    }
+    if region.add(Button::new("Reset fonts")).clicked {
+        *font_definitions = crate::fonts::default_font_definitions();
+    }
+}
+
+impl Context {
     pub fn style_ui(&self, region: &mut Region) {
         let mut style = self.style();
         style.ui(region);
         self.set_style(style);
+    }
+}
+
+impl mesher::MesherOptions {
+    pub fn ui(&mut self, region: &mut Region) {
+        use crate::widgets::*;
+        region.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
+        region.add(Checkbox::new(
+            &mut self.debug_paint_clip_rects,
+            "Paint Clip Rects (debug)",
+        ));
+    }
+}
+
+impl PaintStats {
+    pub fn ui(&self, region: &mut Region) {
+        region
+            .add(label!("Batches: {}", self.num_batches))
+            .tooltip_text("Number of separate clip rectanlges");
+        region
+            .add(label!("Primitives: {}", self.num_primitives))
+            .tooltip_text("Boxes, circles, text areas etc");
+        region.add(label!("Vertices: {}", self.num_vertices));
+        region.add(label!("Triangles: {}", self.num_triangles));
     }
 }

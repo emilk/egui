@@ -240,6 +240,7 @@ pub enum PathType {
 }
 use self::PathType::{Closed, Open};
 
+#[derive(Clone, Copy)]
 pub struct MesherOptions {
     pub anti_alias: bool,
     pub aa_size: f32,
@@ -256,12 +257,7 @@ impl Default for MesherOptions {
     }
 }
 
-pub fn fill_closed_path(
-    mesh: &mut Mesh,
-    options: &MesherOptions,
-    path: &[PathPoint],
-    color: Color,
-) {
+pub fn fill_closed_path(mesh: &mut Mesh, options: MesherOptions, path: &[PathPoint], color: Color) {
     let n = path.len() as u32;
     let vert = |pos, color| Vertex {
         pos,
@@ -297,7 +293,7 @@ pub fn fill_closed_path(
 
 pub fn paint_path(
     mesh: &mut Mesh,
-    options: &MesherOptions,
+    options: MesherOptions,
     path_type: PathType,
     path: &[PathPoint],
     color: Color,
@@ -391,12 +387,7 @@ pub fn paint_path(
 
 // ----------------------------------------------------------------------------
 
-pub fn mesh_command(
-    options: &MesherOptions,
-    fonts: &Fonts,
-    command: PaintCmd,
-    out_mesh: &mut Mesh,
-) {
+pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, out_mesh: &mut Mesh) {
     match command {
         PaintCmd::Circle {
             center,
@@ -512,7 +503,7 @@ pub fn mesh_command(
 }
 
 pub fn mesh_paint_commands(
-    options: &MesherOptions,
+    options: MesherOptions,
     fonts: &Fonts,
     commands: Vec<(Rect, PaintCmd)>,
 ) -> Vec<(Rect, Mesh)> {

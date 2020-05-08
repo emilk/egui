@@ -22,7 +22,7 @@ fn main() {
 
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
-    let mut emigui = Emigui::new(pixels_per_point);
+    let mut ctx = Context::new(pixels_per_point);
     let mut painter = emigui_glium::Painter::new(&display);
 
     let mut raw_input = emigui::RawInput {
@@ -43,7 +43,7 @@ fn main() {
     let mut clipboard = emigui_glium::init_clipboard();
 
     let memory_path = "emigui.json";
-    emigui_glium::read_memory(&emigui.ctx(), memory_path);
+    emigui_glium::read_memory(&ctx, memory_path);
 
     while running {
         {
@@ -67,8 +67,8 @@ fn main() {
         }
 
         let emigui_start = Instant::now();
-        emigui.begin_frame(raw_input.clone()); // TODO: avoid clone
-        let mut region = emigui.background_region();
+        ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
+        let mut region = ctx.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
         region.set_align(Align::Min);
         region.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
@@ -106,21 +106,21 @@ fn main() {
             .default_pos(pos2(450.0, 100.0))
             .default_size(vec2(450.0, 500.0))
             .show(region.ctx(), |region| {
-                emigui.ui(region);
+                ctx.ui(region);
             });
 
-        let (output, paint_batches) = emigui.end_frame();
+        let (output, paint_batches) = ctx.end_frame();
 
         frame_times.add(
             raw_input.time,
             (Instant::now() - emigui_start).as_secs_f64() as f32,
         );
 
-        painter.paint_batches(&display, paint_batches, emigui.texture());
+        painter.paint_batches(&display, paint_batches, ctx.texture());
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
     }
 
-    if let Err(err) = emigui_glium::write_memory(&emigui.ctx(), memory_path) {
+    if let Err(err) = emigui_glium::write_memory(&ctx, memory_path) {
         eprintln!("ERROR: Failed to save emigui state: {}", err);
     }
 }

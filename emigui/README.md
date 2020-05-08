@@ -84,7 +84,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui
-* [ ] Combine Emigui and Context?
+* [x] Combine Emigui and Context?
 * [ ] Solve which parts of Context are behind a mutex
     * [ ] All of Context behind one mutex?
     * [ } Break up Context into Input, State, Output ?

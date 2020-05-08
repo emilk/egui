@@ -6,20 +6,22 @@ extern crate wasm_bindgen;
 extern crate emigui;
 extern crate emigui_wasm;
 
+use std::sync::Arc;
+
 use {
     emigui::{
         color::srgba, containers::*, example_app::ExampleWindow, label, widgets::Separator, Align,
-        Emigui, RawInput, TextStyle, *,
+        RawInput, TextStyle, *,
     },
     emigui_wasm::now_sec,
 };
 
 use wasm_bindgen::prelude::*;
-#[wasm_bindgen]
 
+#[wasm_bindgen]
 pub struct State {
     example_app: ExampleWindow,
-    emigui: Emigui,
+    ctx: Arc<Context>,
     webgl_painter: emigui_wasm::webgl::Painter,
 
     frame_times: emigui::MovementTracker<f32>,
@@ -27,11 +29,11 @@ pub struct State {
 
 impl State {
     fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
-        let emigui = Emigui::new(pixels_per_point);
-        emigui_wasm::load_memory(emigui.ctx());
+        let ctx = Context::new(pixels_per_point);
+        emigui_wasm::load_memory(&ctx);
         Ok(State {
             example_app: Default::default(),
-            emigui,
+            ctx,
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
             frame_times: emigui::MovementTracker::new(1000, 1.0),
         })
@@ -41,9 +43,9 @@ impl State {
         let everything_start = now_sec();
 
         let pixels_per_point = raw_input.pixels_per_point;
-        self.emigui.begin_frame(raw_input);
+        self.ctx.begin_frame(raw_input);
 
-        let mut region = self.emigui.background_region();
+        let mut region = self.ctx.background_region();
         let mut region = region.centered_column(region.available_width().min(480.0));
         region.set_align(Align::Min);
         region.add(label!("Emigui!").text_style(TextStyle::Heading));
@@ -93,11 +95,11 @@ impl State {
             .default_pos(pos2(400.0, 300.0))
             .default_size(vec2(400.0, 400.0))
             .show(region.ctx(), |region| {
-                self.emigui.ui(region);
+                self.ctx.ui(region);
             });
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
-        let (output, batches) = self.emigui.end_frame();
+        let (output, batches) = self.ctx.end_frame();
 
         let now = now_sec();
         self.frame_times.add(now, (now - everything_start) as f32);
@@ -105,11 +107,11 @@ impl State {
         self.webgl_painter.paint_batches(
             bg_color,
             batches,
-            self.emigui.texture(),
+            self.ctx.texture(),
             pixels_per_point,
         )?;
 
-        emigui_wasm::save_memory(self.emigui.ctx()); // TODO: don't save every frame
+        emigui_wasm::save_memory(&self.ctx); // TODO: don't save every frame
 
         Ok(output)
     }

@@ -25,7 +25,6 @@
 pub mod color;
 pub mod containers;
 mod context;
-mod emigui;
 pub mod example_app;
 mod font;
 mod fonts;
@@ -44,7 +43,6 @@ mod types;
 pub mod widgets;
 
 pub use {
-    crate::emigui::Emigui,
     color::Color,
     context::Context,
     fonts::{FontDefinitions, Fonts, TextStyle},
