@@ -459,6 +459,7 @@ pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, ou
         } => {
             // Common bug is to accidentally create an infinitely sized ractangle.
             // Make sure we can visualize that:
+            rect.min = rect.min.max(pos2(-1e7, -1e7));
             rect.max = rect.max.min(pos2(1e7, 1e7));
 
             let mut path = Path::default();
