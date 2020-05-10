@@ -54,14 +54,14 @@ impl CollapsingHeader {
             default_open,
         } = self;
 
-        // TODO: horizontal layout, with icon and text as labels. Inser background behind using Frame.
+        // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let title = &label.text; // TODO: not this
         let id = ui.make_unique_id(title);
         let text_pos = ui.cursor() + vec2(ui.style().indent, 0.0);
         let (title, text_size) = label.layout(text_pos, ui);
         let text_max_x = text_pos.x + text_size.x;
-        let desired_width = ui.available_width().max(text_max_x - ui.cursor().x);
+        let desired_width = ui.available_space_min().x.max(text_max_x - ui.cursor().x);
 
         let interact = ui.reserve_space(
             vec2(

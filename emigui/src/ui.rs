@@ -28,6 +28,8 @@ pub struct Ui {
     /// The widgets will TRY to fit within the rect,
     /// but may overflow (which you will see in child_bounds).
     /// Some widgets (like separator lines) will try to fill the full desired width of the ui.
+    /// If the desired size is zero, it is a signal that child widgets should be as small as possible.
+    /// If the desired size is initie, it is a signal that child widgets should take up as much room as they want.
     desired_rect: Rect, // TODO: rename as max_rect ?
 
     /// Bounding box of all children.
@@ -161,9 +163,22 @@ impl Ui {
 
     /// Screen-space position of the current bottom right corner of this Ui.
     /// This may move when we add children that overflow our desired rectangle bounds.
+    /// This position may be at inifnity if the desired rect is initinite,
+    /// which mappens when a parent widget says "be as big as you want to be".
     pub fn bottom_right(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.max.max(self.child_bounds.max)
+    }
+
+    pub fn finite_bottom_right(&self) -> Pos2 {
+        let mut bottom_right = self.child_bounds.max;
+        if self.desired_rect.max.x.is_finite() {
+            bottom_right.x = bottom_right.x.max(self.desired_rect.max.x);
+        }
+        if self.desired_rect.max.y.is_finite() {
+            bottom_right.y = bottom_right.y.max(self.desired_rect.max.y);
+        }
+        bottom_right
     }
 
     /// Position and current size of the ui.
@@ -216,18 +231,29 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Layout related measures:
 
+    /// A zero should be intepreted as "as little as possible".
+    /// An infinite value should be intereted as "as much as you want"
     pub fn available_width(&self) -> f32 {
         self.available_space().x
     }
 
+    /// A zero should be intepreted as "as little as possible".
+    /// An infinite value should be intereted as "as much as you want"
     pub fn available_height(&self) -> f32 {
         self.available_space().y
     }
 
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as cursor increments.
+    /// A zero size should be intepreted as "as little as possible".
+    /// An infinite size should be intereted as "as much as you want"
     pub fn available_space(&self) -> Vec2 {
         self.bottom_right() - self.cursor
+    }
+
+    /// Use this for components that want to grow witout bounds.
+    pub fn available_space_min(&self) -> Vec2 {
+        self.finite_bottom_right() - self.cursor
     }
 
     pub fn direction(&self) -> Direction {

@@ -23,6 +23,7 @@ pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
     pub(crate) multiline: bool,
+    auto_shrink: bool,
     pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the ui"
     pub(crate) text_color: Option<Color>,
 }
@@ -32,6 +33,7 @@ impl Label {
         Self {
             text: text.into(),
             multiline: true,
+            auto_shrink: false,
             text_style: TextStyle::Body,
             text_color: None,
         }
@@ -43,6 +45,13 @@ impl Label {
 
     pub fn multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
+        self
+    }
+
+    /// If true, will word wrap to the width of the current child_bounds.
+    /// If false (defailt), will word wrap to the available width
+    pub fn auto_shrink(mut self) -> Self {
+        self.auto_shrink = true;
         self
     }
 
@@ -58,7 +67,13 @@ impl Label {
 
     pub fn layout(&self, pos: Pos2, ui: &Ui) -> (Vec<font::TextFragment>, Vec2) {
         let font = &ui.fonts()[self.text_style];
-        let max_width = ui.rect().right() - pos.x;
+
+        let max_width = if self.auto_shrink {
+            ui.child_bounds().right() - pos.x
+        } else {
+            ui.rect().right() - pos.x
+        };
+
         if self.multiline {
             font.layout_multiline(&self.text, max_width)
         } else {
@@ -389,7 +404,8 @@ impl Separator {
 
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
-        let available_space = ui.available_space();
+        let available_space = ui.available_space_min();
+
         let extra = self.extra;
         let (points, interact) = match ui.direction() {
             Direction::Horizontal => {
