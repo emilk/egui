@@ -181,8 +181,8 @@ pub fn read_memory(ctx: &Context, memory_json_path: impl AsRef<std::path::Path>)
                 }
             }
         }
-        Err(err) => {
-            eprintln!("ERROR: Failed to read memory file: {}", err);
+        Err(_err) => {
+            // File probably doesn't exist. That's fine.
         }
     }
 }
@@ -191,6 +191,6 @@ pub fn write_memory(
     ctx: &Context,
     memory_json_path: impl AsRef<std::path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    serde_json::to_writer(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
+    serde_json::to_writer_pretty(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
     Ok(())
 }
