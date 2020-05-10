@@ -7,5 +7,8 @@ edition = "2018"
 [dependencies]
 emigui = { path = "../emigui" }
 emigui_glium = { path = "../emigui_glium" }
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
 
 glium = "0.24"

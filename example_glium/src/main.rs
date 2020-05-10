@@ -8,20 +8,57 @@ use {
     glium::glutin,
 };
 
+#[derive(Default, serde_derive::Deserialize, serde_derive::Serialize)]
+struct Window {
+    pos: Option<Pos2>,
+    size: Option<Vec2>,
+}
+
+fn read_state(memory_json_path: impl AsRef<std::path::Path>) -> Option<Window> {
+    match std::fs::File::open(memory_json_path) {
+        Ok(file) => {
+            let reader = std::io::BufReader::new(file);
+            match serde_json::from_reader(reader) {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    eprintln!("ERROR: Failed to parse json: {}", err);
+                    None
+                }
+            }
+        }
+        Err(_err) => {
+            // File probably doesn't exist. That's fine.
+            None
+        }
+    }
+}
+
 fn main() {
+    // TODO: combine
+    let memory_path = "emigui.json";
+    let settings_json_path: &str = "window.json";
+
+    let mut window_settings: Window = read_state(settings_json_path).unwrap_or_default();
+
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_title("Emigui example");
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
-    // TODO: persist position/size
+    let size = window_settings.size.unwrap_or(vec2(1024.0, 800.0));
+
     display
         .gl_window()
         .set_inner_size(glutin::dpi::LogicalSize {
-            width: 1024.0,
-            height: 800.0,
+            width: size.x as f64,
+            height: size.y as f64,
         });
-    display.gl_window().set_position((0, 24).into()); // Useful when ddeveloping and constantly restarting it
+
+    if let Some(pos) = window_settings.pos {
+        display
+            .gl_window()
+            .set_position((pos.x as f64, pos.y as f64).into());
+    }
 
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
@@ -45,7 +82,6 @@ fn main() {
     let mut example_app = ExampleApp::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
-    let memory_path = "emigui.json";
     emigui_glium::read_memory(&ctx, memory_path);
 
     while running {
@@ -107,7 +143,22 @@ fn main() {
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
     }
 
+    window_settings.pos = display
+        .gl_window()
+        .get_position()
+        .map(|p| pos2(p.x as f32, p.y as f32));
+    window_settings.size = display
+        .gl_window()
+        .get_inner_size()
+        .map(|size| vec2(size.width as f32, size.height as f32));
+
     if let Err(err) = emigui_glium::write_memory(&ctx, memory_path) {
         eprintln!("ERROR: Failed to save emigui state: {}", err);
     }
+
+    serde_json::to_writer_pretty(
+        std::fs::File::create(settings_json_path).unwrap(),
+        &window_settings,
+    )
+    .unwrap();
 }
