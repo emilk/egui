@@ -182,7 +182,7 @@ impl Context {
 
     fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory();
-        self.graphics().drain(memory.floating_order()).collect()
+        self.graphics().drain(memory.area_order()).collect()
     }
 
     fn paint(&self) -> PaintBatches {
@@ -208,7 +208,7 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// An ui for the entire screen, behind any windows.
+    /// A `Ui` for the entire screen, behind any windows.
     pub fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
         Ui::new(self.clone(), Layer::Background, Id::background(), rect)

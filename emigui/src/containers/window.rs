@@ -7,7 +7,7 @@ use super::*;
 /// A wrapper around other containers for things you often want in a window
 pub struct Window {
     pub title_label: Label,
-    pub floating: Floating,
+    pub area: Area,
     pub frame: Option<Frame>,
     pub resize: Resize,
     pub scroll: ScrollArea,
@@ -17,13 +17,13 @@ impl Window {
     // TODO: Into<Label>
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
-        let floating = Floating::new(&title);
+        let area = Area::new(&title);
         let title_label = Label::new(title)
             .text_style(TextStyle::Heading)
             .multiline(false);
         Self {
             title_label,
-            floating,
+            area,
             frame: None,
             resize: Resize::default()
                 .handle_offset(Vec2::splat(4.0))
@@ -52,7 +52,7 @@ impl Window {
     }
 
     pub fn default_pos(mut self, default_pos: Pos2) -> Self {
-        self.floating = self.floating.default_pos(default_pos);
+        self.area = self.area.default_pos(default_pos);
         self
     }
 
@@ -88,7 +88,7 @@ impl Window {
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         let Window {
             title_label,
-            floating,
+            area,
             frame,
             resize,
             scroll,
@@ -96,7 +96,7 @@ impl Window {
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         // TODO: easier way to compose these
-        floating.show(ctx, |ui| {
+        area.show(ctx, |ui| {
             frame.show(ui, |ui| {
                 resize.show(ui, |ui| {
                     ui.add(title_label);

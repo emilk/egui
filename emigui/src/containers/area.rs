@@ -1,7 +1,6 @@
-//! A Floating is an Ui that has no parent, it floats on the background.
-//! It is potentioally movable.
-//! It has no frame or own size.
-//! It is the foundation for a window
+//! Area is a `Ui` that has no parent, it floats on the background.
+//! It has no frame or own size. It is potentioally movable.
+//! It is the foundation for windows and popups.
 
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
@@ -15,14 +14,14 @@ pub(crate) struct State {
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
 
-    /// You can throw a Floating thing. It's fun.
+    /// You can throw a moveable Area. It's fun.
+    /// TODO: separate out moveable to container?
     #[serde(skip)]
     pub vel: Vec2,
 }
 
-// TODO: rename Floating to something else. Area?
 #[derive(Clone, Copy, Debug)]
-pub struct Floating {
+pub struct Area {
     id: Id,
     movable: bool,
     always_on_top: bool,
@@ -30,7 +29,7 @@ pub struct Floating {
     fixed_pos: Option<Pos2>,
 }
 
-impl Floating {
+impl Area {
     pub fn new(id_source: impl Hash) -> Self {
         Self {
             id: Id::new(id_source),
@@ -46,7 +45,7 @@ impl Floating {
         self
     }
 
-    /// Always show as top Floating
+    /// Always show as top Area
     pub fn always_on_top(mut self) -> Self {
         self.always_on_top = true;
         self
@@ -65,14 +64,14 @@ impl Floating {
     }
 }
 
-impl Floating {
+impl Area {
     // TODO
     // pub fn show(self, ui: &Ui, add_contents: impl FnOnce(&mut Ui)) {
     //     let default_pos = self.default_pos.unwrap_or_else(|| ui.top_left() + pos2(100.0, 100.0)); // TODO
     // }
 
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-        let Floating {
+        let Area {
             id,
             movable,
             always_on_top,
@@ -81,10 +80,10 @@ impl Floating {
         } = self;
 
         let default_pos = default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
-        let id = ctx.register_unique_id(id, "Floating", default_pos);
+        let id = ctx.register_unique_id(id, "Area", default_pos);
         let layer = Layer::Window(id);
 
-        let (mut state, _is_new) = match ctx.memory().get_floating(id) {
+        let (mut state, _is_new) = match ctx.memory().get_area(id) {
             Some(state) => (state, false),
             None => {
                 let state = State {
@@ -142,19 +141,19 @@ impl Floating {
 
         // ctx.debug_rect(
         //     Rect::from_min_size(state.pos, state.size),
-        //     &format!("Floating size: {:?}", state.size),
+        //     &format!("Area size: {:?}", state.size),
         // );
 
-        if move_interact.active || mouse_pressed_on_floating(ctx, id) || always_on_top {
-            ctx.memory().move_floating_to_top(id);
+        if move_interact.active || mouse_pressed_on_area(ctx, id) || always_on_top {
+            ctx.memory().move_area_to_top(id);
         }
-        ctx.memory().set_floating_state(id, state);
+        ctx.memory().set_area_state(id, state);
 
         move_interact
     }
 }
 
-fn mouse_pressed_on_floating(ctx: &Context, id: Id) -> bool {
+fn mouse_pressed_on_area(ctx: &Context, id: Id) -> bool {
     if let Some(mouse_pos) = ctx.input().mouse_pos {
         ctx.input().mouse_pressed && ctx.memory().layer_at(mouse_pos) == Layer::Window(id)
     } else {

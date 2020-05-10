@@ -35,13 +35,10 @@ impl GraphicLayers {
         }
     }
 
-    pub fn drain(
-        &mut self,
-        window_order: &[Id],
-    ) -> impl ExactSizeIterator<Item = (Rect, PaintCmd)> {
+    pub fn drain(&mut self, area_order: &[Id]) -> impl ExactSizeIterator<Item = (Rect, PaintCmd)> {
         let mut all_commands: Vec<_> = self.bg.drain(..).collect();
 
-        for id in window_order {
+        for id in area_order {
             if let Some(window) = self.windows.get_mut(id) {
                 all_commands.extend(window.drain(..));
             }

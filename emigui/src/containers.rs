@@ -1,12 +1,12 @@
+pub mod area;
 pub mod collapsing_header;
-pub mod floating;
 pub mod frame;
 pub mod resize;
 pub mod scroll_area;
 pub mod window;
 
 pub use {
-    collapsing_header::CollapsingHeader, floating::Floating, frame::Frame, resize::Resize,
+    area::Area, collapsing_header::CollapsingHeader, frame::Frame, resize::Resize,
     scroll_area::ScrollArea, window::Window,
 };
 
