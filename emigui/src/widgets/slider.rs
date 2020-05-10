@@ -184,10 +184,10 @@ impl<'a> Widget for Slider<'a> {
                 ui.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, rail_rect.center().y),
                     radius: handle_radius,
-                    fill_color: ui.style().interact_fill_color(&interact),
+                    fill_color: ui.style().interact(&interact).fill_color,
                     outline: Some(Outline::new(
-                        ui.style().interact_stroke_width(&interact),
-                        ui.style().interact_stroke_color(&interact),
+                        ui.style().interact(&interact).stroke_width,
+                        ui.style().interact(&interact).stroke_color,
                     )),
                 });
             }

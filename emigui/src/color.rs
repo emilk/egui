@@ -1,5 +1,7 @@
+use serde_derive::{Deserialize, Serialize};
+
 /// 0-255 `sRGBA`. TODO: rename `sRGBA` for clarity.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, serde_derive::Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -27,6 +29,15 @@ pub const fn gray(l: u8, a: u8) -> Color {
         r: l,
         g: l,
         b: l,
+        a,
+    }
+}
+
+pub const fn white(a: u8) -> Color {
+    Color {
+        r: 255,
+        g: 255,
+        b: 255,
         a,
     }
 }

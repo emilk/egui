@@ -25,6 +25,8 @@ pub struct Style {
     /// The text starts after this many pixels.
     pub start_icon_width: f32,
 
+    pub interact: Interact,
+
     // -----------------------------------------------
     // Purely visual:
     /// For stuff like check marks in check boxes.
@@ -39,17 +41,14 @@ pub struct Style {
 
     pub window: Window,
 
+    pub menu_bar: MenuBar,
+
     /// Allow child widgets to be just on the border and still have an outline with some thickness
     pub clip_rect_margin: f32,
 
     // -----------------------------------------------
     // Debug rendering:
     pub debug_widget_rects: bool,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub struct Window {
-    pub corner_radius: f32,
 }
 
 impl Default for Style {
@@ -61,15 +60,87 @@ impl Default for Style {
             indent: 21.0,
             clickable_diameter: 22.0,
             start_icon_width: 16.0,
+            interact: Default::default(),
             line_width: 1.0,
             cursor_blink_hz: 1.0,
             text_cursor_width: 2.0,
             animation_time: 1.0 / 20.0,
             window: Window::default(),
+            menu_bar: MenuBar::default(),
             clip_rect_margin: 3.0,
             debug_widget_rects: false,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct Interact {
+    pub active: WidgetStyle,
+    pub hovered: WidgetStyle,
+    pub inactive: WidgetStyle,
+}
+
+impl Default for Interact {
+    fn default() -> Self {
+        Self {
+            active: WidgetStyle {
+                fill_color: Some(srgba(120, 120, 200, 255)),
+                stroke_color: WHITE,
+                stroke_width: 2.0,
+                outline: Some(Outline::new(2.0, WHITE)),
+                corner_radius: 5.0,
+            },
+            hovered: WidgetStyle {
+                fill_color: Some(srgba(100, 100, 150, 255)),
+                stroke_color: WHITE,
+                stroke_width: 1.5,
+                outline: None,
+                corner_radius: 5.0,
+            },
+            inactive: WidgetStyle {
+                fill_color: Some(srgba(60, 60, 80, 255)),
+                stroke_color: gray(220, 255), // Mustn't look grayed out!
+                stroke_width: 1.0,
+                outline: None,
+                corner_radius: 0.0,
+            },
+        }
+    }
+}
+
+impl Interact {
+    pub fn style(&self, interact: &InteractInfo) -> &WidgetStyle {
+        if interact.active {
+            &self.active
+        } else if interact.hovered {
+            &self.hovered
+        } else {
+            &self.inactive
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct WidgetStyle {
+    /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
+    pub fill_color: Option<Color>,
+
+    /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
+    pub stroke_color: Color,
+
+    /// For lines etc
+    pub stroke_width: f32,
+
+    /// For rectangles
+    pub outline: Option<Outline>,
+
+    /// Button frames etdc
+    pub corner_radius: f32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct Window {
+    pub corner_radius: f32,
 }
 
 impl Default for Window {
@@ -77,6 +148,17 @@ impl Default for Window {
         Self {
             corner_radius: 10.0,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct MenuBar {
+    pub height: f32,
+}
+
+impl Default for MenuBar {
+    fn default() -> Self {
+        Self { height: 16.0 }
     }
 }
 
@@ -90,62 +172,9 @@ impl Style {
         gray(255, 200)
     }
 
-    /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
-    pub fn interact_fill_color(&self, interact: &InteractInfo) -> Option<Color> {
-        if interact.active {
-            Some(srgba(120, 120, 200, 255))
-        } else if interact.hovered {
-            Some(srgba(100, 100, 150, 255))
-        } else {
-            Some(srgba(60, 60, 80, 255))
-        }
-    }
-
-    /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
-    pub fn interact_stroke_color(&self, interact: &InteractInfo) -> Color {
-        if interact.active {
-            gray(255, 255)
-        } else if interact.hovered {
-            gray(255, 255)
-        } else {
-            gray(220, 255) // Mustn't look grayed out!
-        }
-    }
-
-    /// For lines etc
-    pub fn interact_stroke_width(&self, interact: &InteractInfo) -> f32 {
-        if interact.active {
-            2.0
-        } else if interact.hovered {
-            1.5
-        } else {
-            1.0
-        }
-    }
-
-    /// For rectangles
-    pub fn interact_outline(&self, interact: &InteractInfo) -> Option<Outline> {
-        if interact.active {
-            Some(Outline::new(
-                self.interact_stroke_width(interact),
-                self.interact_stroke_color(interact),
-            ))
-        } else if interact.hovered {
-            None
-        } else {
-            None
-        }
-    }
-
-    /// Buttons etc
-    pub fn interact_corner_radius(&self, interact: &InteractInfo) -> f32 {
-        if interact.active {
-            5.0
-        } else if interact.hovered {
-            5.0
-        } else {
-            0.0
-        }
+    /// Use this style for interactive things
+    pub fn interact(&self, interact: &InteractInfo) -> &WidgetStyle {
+        self.interact.style(interact)
     }
 
     /// Returns small icon rectangle and big icon rectangle

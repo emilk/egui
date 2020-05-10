@@ -115,6 +115,10 @@ impl Ui {
         &self.style
     }
 
+    pub fn set_style(&mut self, style: Style) {
+        self.style = style
+    }
+
     pub fn ctx(&self) -> &Arc<Context> {
         &self.ctx
     }

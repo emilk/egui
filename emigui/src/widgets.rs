@@ -37,6 +37,10 @@ impl Label {
         }
     }
 
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
     pub fn multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
         self
@@ -189,12 +193,12 @@ impl Widget for Button {
         let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         text_cursor.y += 2.0; // TODO: why is this needed?
         ui.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: ui.style().interact_corner_radius(&interact),
-            fill_color: ui.style().interact_fill_color(&interact),
-            outline: ui.style().interact_outline(&interact),
+            corner_radius: ui.style().interact(&interact).corner_radius,
+            fill_color: ui.style().interact(&interact).fill_color,
+            outline: ui.style().interact(&interact).outline,
             rect: interact.rect,
         });
-        let stroke_color = ui.style().interact_stroke_color(&interact);
+        let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = self.text_color.unwrap_or(stroke_color);
         ui.add_text(text_cursor, text_style, text, Some(text_color));
         ui.response(interact)
@@ -246,12 +250,12 @@ impl<'a> Widget for Checkbox<'a> {
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 3.0,
-            fill_color: ui.style().interact_fill_color(&interact),
+            fill_color: ui.style().interact(&interact).fill_color,
             outline: None,
             rect: big_icon_rect,
         });
 
-        let stroke_color = ui.style().interact_stroke_color(&interact);
+        let stroke_color = ui.style().interact(&interact).stroke_color;
 
         if *self.checked {
             ui.add_paint_cmd(PaintCmd::Line {
@@ -315,8 +319,8 @@ impl Widget for RadioButton {
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
-        let fill_color = ui.style().interact_fill_color(&interact);
-        let stroke_color = ui.style().interact_stroke_color(&interact);
+        let fill_color = ui.style().interact(&interact).fill_color;
+        let stroke_color = ui.style().interact(&interact).stroke_color;
 
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
 

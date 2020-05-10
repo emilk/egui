@@ -164,8 +164,8 @@ impl ScrollArea {
             );
 
             let style = outer_ui.style();
-            let handle_fill_color = style.interact_fill_color(&handle_interact);
-            let handle_outline = style.interact_outline(&handle_interact);
+            let handle_fill_color = style.interact(&handle_interact).fill_color;
+            let handle_outline = style.interact(&handle_interact).outline;
 
             outer_ui.add_paint_cmd(PaintCmd::Rect {
                 rect: outer_scroll_rect,

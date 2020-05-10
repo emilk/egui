@@ -80,7 +80,7 @@ impl<'t> Widget for TextEdit<'t> {
             rect: interact.rect,
             corner_radius: 0.0,
             // fill_color: Some(color::BLACK),
-            fill_color: ui.style().interact_fill_color(&interact),
+            fill_color: ui.style().interact(&interact).fill_color,
             // fill_color: Some(ui.style().background_fill_color()),
             outline: None, //Some(Outline::new(1.0, color::WHITE)),
         });

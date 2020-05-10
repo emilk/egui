@@ -93,15 +93,15 @@ impl CollapsingHeader {
             text_pos,
             label.text_style,
             title,
-            Some(ui.style().interact_stroke_color(&interact)),
+            Some(ui.style().interact(&interact).stroke_color),
         );
 
         ui.insert_paint_cmd(
             where_to_put_background,
             PaintCmd::Rect {
-                corner_radius: ui.style().interact_corner_radius(&interact),
-                fill_color: ui.style().interact_fill_color(&interact),
-                outline: ui.style().interact_outline(&interact),
+                corner_radius: ui.style().interact(&interact).corner_radius,
+                fill_color: ui.style().interact(&interact).fill_color,
+                outline: ui.style().interact(&interact).outline,
                 rect: interact.rect,
             },
         );
@@ -147,8 +147,8 @@ impl CollapsingHeader {
 }
 
 fn paint_icon(ui: &mut Ui, state: &State, interact: &InteractInfo) {
-    let stroke_color = ui.style().interact_stroke_color(interact);
-    let stroke_width = ui.style().interact_stroke_width(interact);
+    let stroke_color = ui.style().interact(interact).stroke_color;
+    let stroke_width = ui.style().interact(interact).stroke_width;
 
     let (mut small_icon_rect, _) = ui.style().icon_rectangles(interact.rect);
     small_icon_rect.set_center(pos2(

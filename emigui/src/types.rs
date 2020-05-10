@@ -1,4 +1,4 @@
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     color::Color,
@@ -55,7 +55,7 @@ pub struct InteractInfo {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Outline {
     pub width: f32,
     pub color: Color,
@@ -101,7 +101,7 @@ pub enum PaintCmd {
         /// Top left corner of the first character.
         pos: Pos2,
         text: String,
-        text_style: TextStyle,
+        text_style: TextStyle, // TODO: Font
         /// Start each character in the text, as offset from pos.
         x_offsets: Vec<f32>,
         // TODO: font info
