@@ -8,7 +8,7 @@ use super::*;
 pub struct Window {
     pub title_label: Label,
     pub floating: Floating,
-    pub frame: Frame,
+    pub frame: Option<Frame>,
     pub resize: Resize,
     pub scroll: ScrollArea,
 }
@@ -24,7 +24,7 @@ impl Window {
         Self {
             title_label,
             floating,
-            frame: Frame::default(),
+            frame: None,
             resize: Resize::default()
                 .handle_offset(Vec2::splat(4.0))
                 .auto_shrink_width(true)
@@ -85,15 +85,15 @@ impl Window {
 }
 
 impl Window {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         let Window {
             title_label,
             floating,
-            mut frame,
+            frame,
             resize,
             scroll,
         } = self;
-        frame.margin = Some(frame.margin.unwrap_or_else(|| ctx.style().window_padding));
+        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         // TODO: easier way to compose these
         floating.show(ctx, |ui| {
@@ -101,7 +101,7 @@ impl Window {
                 resize.show(ui, |ui| {
                     ui.add(title_label);
                     ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-                    scroll.show(ui, |ui| add_contents(ui))
+                    scroll.show(ui, add_contents)
                 })
             })
         })
