@@ -179,6 +179,8 @@ impl Widget for Hyperlink {
 pub struct Button {
     text: String,
     text_color: Option<Color>,
+    /// None means default for interact
+    fill_color: Option<Color>,
 }
 
 impl Button {
@@ -186,11 +188,17 @@ impl Button {
         Self {
             text: text.into(),
             text_color: None,
+            fill_color: None,
         }
     }
 
     pub fn text_color(mut self, text_color: Color) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn fill_color(mut self, fill_color: Option<Color>) -> Self {
+        self.fill_color = fill_color;
         self
     }
 }
@@ -207,9 +215,12 @@ impl Widget for Button {
         let interact = ui.reserve_space(size, Some(id));
         let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         text_cursor.y += 2.0; // TODO: why is this needed?
+        let fill_color = self
+            .fill_color
+            .or(ui.style().interact(&interact).fill_color);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
-            fill_color: ui.style().interact(&interact).fill_color,
+            fill_color: fill_color,
             outline: ui.style().interact(&interact).outline,
             rect: interact.rect,
         });

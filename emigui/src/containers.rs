@@ -1,6 +1,7 @@
 pub mod area;
 pub mod collapsing_header;
 pub mod frame;
+pub mod menu;
 pub mod resize;
 pub mod scroll_area;
 pub mod window;
