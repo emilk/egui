@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     containers::{collapsing_header, floating, resize, scroll_area},
@@ -20,10 +20,12 @@ pub struct Memory {
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) resize: HashMap<Id, resize::State>,
-    floating: HashMap<Id, floating::State>,
 
+    floating: HashMap<Id, floating::State>,
     /// Top is last
-    pub floating_order: Vec<Id>,
+    floating_order: Vec<Id>,
+    floating_visible_last_frame: HashSet<Id>,
+    floating_visible_current_frame: HashSet<Id>,
 }
 
 impl Memory {
@@ -31,7 +33,12 @@ impl Memory {
         self.floating.get(&id).cloned()
     }
 
+    pub(crate) fn floating_order(&self) -> &[Id] {
+        &self.floating_order
+    }
+
     pub(crate) fn set_floating_state(&mut self, id: Id, state: floating::State) {
+        self.floating_visible_current_frame.insert(id);
         let did_insert = self.floating.insert(id, state).is_none();
         if did_insert {
             self.floating_order.push(id);
@@ -41,10 +48,14 @@ impl Memory {
     /// TODO: call once at the start of the frame for the current mouse pos
     pub fn layer_at(&self, pos: Pos2) -> Layer {
         for floating_id in self.floating_order.iter().rev() {
-            if let Some(state) = self.floating.get(floating_id) {
-                let rect = Rect::from_min_size(state.pos, state.size);
-                if rect.contains(pos) {
-                    return Layer::Window(*floating_id);
+            if self.floating_visible_last_frame.contains(floating_id)
+                || self.floating_visible_current_frame.contains(floating_id)
+            {
+                if let Some(state) = self.floating.get(floating_id) {
+                    let rect = Rect::from_min_size(state.pos, state.size);
+                    if rect.contains(pos) {
+                        return Layer::Window(*floating_id);
+                    }
                 }
             }
         }
@@ -59,5 +70,10 @@ impl Memory {
             self.floating_order.remove(index);
         }
         self.floating_order.push(id);
+        self.floating_visible_current_frame.insert(id);
+    }
+
+    pub(crate) fn begin_frame(&mut self) {
+        self.floating_visible_last_frame = std::mem::take(&mut self.floating_visible_current_frame);
     }
 }

@@ -13,7 +13,6 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Tooltip
 * [x] Movable/resizable windows
     * [x] Kinetic windows
-    * [ ] BUG FIX: Don't catch clicks on closed windows
     * [ ] Windows should open from Regions and be boxed by parent region.
         * Then we could open the example app inside a window in the example app, recursively.
 * [ ] Scroll areas

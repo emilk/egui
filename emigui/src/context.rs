@@ -156,6 +156,7 @@ impl Context {
         if !self.last_raw_input.mouse_down || self.last_raw_input.mouse_pos.is_none() {
             self.memory().active_id = None;
         }
+        self.memory().begin_frame();
 
         self.used_ids.lock().clear();
 
@@ -181,7 +182,7 @@ impl Context {
 
     fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory();
-        self.graphics().drain(&memory.floating_order).collect()
+        self.graphics().drain(memory.floating_order()).collect()
     }
 
     fn paint(&self) -> PaintBatches {
