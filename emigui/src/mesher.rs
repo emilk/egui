@@ -455,8 +455,12 @@ pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, ou
             corner_radius,
             fill_color,
             outline,
-            rect,
+            mut rect,
         } => {
+            // Common bug is to accidentally create an infinitely sized ractangle.
+            // Make sure we can visualize that:
+            rect.max = rect.max.min(pos2(1e7, 1e7));
+
             let mut path = Path::default();
             path.add_rounded_rectangle(rect, corner_radius);
             if let Some(fill_color) = fill_color {
