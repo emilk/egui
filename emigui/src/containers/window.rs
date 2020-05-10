@@ -5,15 +5,16 @@ use crate::{widgets::*, *};
 use super::*;
 
 /// A wrapper around other containers for things you often want in a window
-pub struct Window {
+pub struct Window<'open> {
     pub title_label: Label,
+    open: Option<&'open mut bool>,
     pub area: Area,
     pub frame: Option<Frame>,
     pub resize: Resize,
     pub scroll: Option<ScrollArea>,
 }
 
-impl Window {
+impl<'open> Window<'open> {
     // TODO: Into<Label>
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
@@ -23,6 +24,7 @@ impl Window {
             .multiline(false);
         Self {
             title_label,
+            open: None,
             area,
             frame: None,
             resize: Resize::default()
@@ -33,10 +35,17 @@ impl Window {
                 .auto_expand_height(false),
             scroll: Some(
                 ScrollArea::default()
-                .always_show_scroll(false)
+                    .always_show_scroll(false)
                     .max_height(f32::INFINITY),
             ), // As large as we can be
         }
+    }
+
+    /// If the given bool is false, the window will not be visible.
+    /// If the given bool is true, the window will have a close button that sets this bool to false.
+    pub fn open(mut self, open: &'open mut bool) -> Self {
+        self.open = Some(open);
+        self
     }
 
     /// This is quite a crap idea
@@ -97,22 +106,36 @@ impl<'open> Window<'open> {
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         let Window {
             title_label,
+            open,
             area,
             frame,
             resize,
             scroll,
         } = self;
+
+        if matches!(open, Some(false)) {
+            return Default::default();
+        }
+
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         // TODO: easier way to compose these
         area.show(ctx, |ui| {
             frame.show(ui, |ui| {
                 resize.show(ui, |ui| {
-                    ui.add(title_label);
+                    ui.horizontal(|ui| {
+                        // TODO: prettier close button, and to the right of the window
+                        if let Some(open) = open {
+                            if ui.add(Button::new("X")).clicked {
+                                *open = false;
+                            }
+                        }
+                        ui.add(title_label);
+                    });
                     ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
 
                     if let Some(scroll) = scroll {
-                    scroll.show(ui, add_contents)
+                        scroll.show(ui, add_contents)
                     } else {
                         add_contents(ui)
                     }
