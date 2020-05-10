@@ -1,8 +1,10 @@
 #![deny(warnings)]
+#![warn(clippy::all)]
+
 use std::time::{Duration, Instant};
 
 use {
-    emigui::{containers::*, example_app::ExampleWindow, widgets::*, *},
+    emigui::{example_app::ExampleApp, widgets::*, *},
     glium::glutin,
 };
 
@@ -12,6 +14,7 @@ fn main() {
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
+    // TODO: persist position/size
     display
         .gl_window()
         .set_inner_size(glutin::dpi::LogicalSize {
@@ -39,7 +42,7 @@ fn main() {
     let mut running = true;
     let mut frame_start = Instant::now();
     let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
-    let mut example_app = ExampleWindow::default();
+    let mut example_app = ExampleApp::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
     let memory_path = "emigui.json";
@@ -49,8 +52,8 @@ fn main() {
         {
             // Keep smooth frame rate. TODO: proper vsync
             let frame_duration = frame_start.elapsed();
-            if frame_duration < Duration::from_millis(16) {
-                std::thread::sleep(Duration::from_millis(16) - frame_duration);
+            if frame_duration < Duration::from_millis(33) {
+                std::thread::sleep(Duration::from_millis(33) - frame_duration);
             }
             frame_start = Instant::now();
         }
@@ -91,23 +94,7 @@ fn main() {
             .text_style(TextStyle::Monospace),
         );
 
-        // TODO: Make it even simpler to show a window
-
-        Window::new("Examples")
-            .default_pos(pos2(50.0, 100.0))
-            .default_size(vec2(300.0, 600.0))
-            // .mutate(|w| w.resize = w.resize.auto_expand_width(true))
-            // .resize(|r| r.auto_expand_width(true))
-            .show(ui.ctx(), |ui| {
-                example_app.ui(ui);
-            });
-
-        Window::new("Emigui settings")
-            .default_pos(pos2(450.0, 100.0))
-            .default_size(vec2(450.0, 500.0))
-            .show(ui.ctx(), |ui| {
-                ctx.ui(ui);
-            });
+        example_app.ui(&ctx);
 
         let (output, paint_batches) = ctx.end_frame();
 

@@ -445,25 +445,35 @@ impl Context {
 }
 
 impl Context {
-    pub fn ui(&self, ui: &mut Ui) {
+    pub fn settings_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        ui.collapsing("Style", |ui| {
-            self.mesher_options.lock().ui(ui);
-            self.style_ui(ui);
-        });
+        CollapsingHeader::new("Style")
+            // .default_open()
+            .show(ui, |ui| {
+                self.mesher_options.lock().ui(ui);
+                self.style_ui(ui);
+            });
 
-        ui.collapsing("Fonts", |ui| {
-            let old_font_definitions = self.fonts().definitions();
-            let mut new_font_definitions = old_font_definitions.clone();
-            font_definitions_ui(&mut new_font_definitions, ui);
-            self.fonts().texture().ui(ui);
-            if *old_font_definitions != new_font_definitions {
-                let fonts =
-                    Fonts::from_definitions(new_font_definitions, self.input().pixels_per_point);
-                self.set_fonts(fonts);
-            }
-        });
+        CollapsingHeader::new("Fonts")
+            // .default_open()
+            .show(ui, |ui| {
+                let old_font_definitions = self.fonts().definitions();
+                let mut new_font_definitions = old_font_definitions.clone();
+                font_definitions_ui(&mut new_font_definitions, ui);
+                self.fonts().texture().ui(ui);
+                if *old_font_definitions != new_font_definitions {
+                    let fonts = Fonts::from_definitions(
+                        new_font_definitions,
+                        self.input().pixels_per_point,
+                    );
+                    self.set_fonts(fonts);
+                }
+            });
+    }
+
+    pub fn inspection_ui(&self, ui: &mut Ui) {
+        use crate::containers::*;
 
         ui.collapsing("Input", |ui| {
             CollapsingHeader::new("Raw Input")
@@ -481,15 +491,68 @@ impl Context {
                 ui.input().screen_size.y,
                 ui.input().pixels_per_point,
             ));
-            if let Some(mouse_pos) = ui.input().mouse_pos {
-                ui.add(label!("mouse_pos: {:.2} x {:.2}", mouse_pos.x, mouse_pos.y,));
-            } else {
-                ui.add_label("mouse_pos: None");
-            }
 
             ui.add(label!("Painting:").text_style(TextStyle::Heading));
             self.paint_stats.lock().ui(ui);
         });
+    }
+
+    pub fn memory_ui(&self, ui: &mut crate::Ui) {
+        use crate::widgets::*;
+
+        if ui
+            .add(Button::new("Reset all"))
+            .tooltip_text("Reset all Emigui state")
+            .clicked
+        {
+            *self.memory() = Default::default();
+        }
+
+        ui.horizontal(|ui| {
+            ui.add(label!(
+                "{} areas (window positions)",
+                self.memory().areas.count()
+            ));
+            if ui.add(Button::new("Reset")).clicked {
+                self.memory().areas = Default::default();
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(label!(
+                "{} collapsing headers",
+                self.memory().collapsing_headers.len()
+            ));
+            if ui.add(Button::new("Reset")).clicked {
+                self.memory().collapsing_headers = Default::default();
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(label!("{} menu bars", self.memory().menu_bar.len()));
+            if ui.add(Button::new("Reset")).clicked {
+                self.memory().menu_bar = Default::default();
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(label!("{} scroll areas", self.memory().scroll_areas.len()));
+            if ui.add(Button::new("Reset")).clicked {
+                self.memory().scroll_areas = Default::default();
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(label!("{} resize areas", self.memory().resize.len()));
+            if ui.add(Button::new("Reset")).clicked {
+                self.memory().resize = Default::default();
+            }
+        });
+
+        ui.add(
+            label!("NOTE: the position of this window cannot be reset from within itself.")
+                .auto_shrink(),
+        );
     }
 }
 

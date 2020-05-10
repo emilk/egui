@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![warn(clippy::all)]
 
 pub mod webgl;
 

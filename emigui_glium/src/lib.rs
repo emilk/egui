@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![warn(clippy::all)]
 #![allow(clippy::single_match)]
 mod painter;
 

@@ -1,8 +1,94 @@
 // #![allow(dead_code, unused_variables)] // should be commented out
+use std::sync::Arc;
+
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{color::*, containers::*, widgets::*, *};
 
+// ----------------------------------------------------------------------------
+
+#[derive(Default, Deserialize, Serialize)]
+pub struct ExampleApp {
+    example_window: ExampleWindow,
+    open_windows: OpenWindows,
+}
+
+impl ExampleApp {
+    pub fn ui(&mut self, ctx: &Arc<Context>) {
+        // TODO: Make it even simpler to show a window
+        Window::new("Examples")
+            .default_pos(pos2(32.0, 100.0))
+            .default_size(vec2(430.0, 600.0))
+            .show(ctx, |ui| {
+                show_menu_bar(ui, &mut self.open_windows);
+                self.example_window.ui(ui);
+            });
+
+        Window::new("Settings")
+            .open(&mut self.open_windows.settings)
+            .default_pos(pos2(500.0, 100.0))
+            .default_size(vec2(350.0, 200.0))
+            .show(ctx, |ui| {
+                ctx.settings_ui(ui);
+            });
+
+        Window::new("Inspection")
+            .open(&mut self.open_windows.inspection)
+            .default_pos(pos2(500.0, 400.0))
+            .default_size(vec2(400.0, 300.0))
+            .show(ctx, |ui| {
+                ctx.inspection_ui(ui);
+            });
+
+        Window::new("Memory")
+            .open(&mut self.open_windows.memory)
+            .default_pos(pos2(700.0, 350.0))
+            .auto_sized()
+            .show(ctx, |ui| {
+                ctx.memory_ui(ui);
+            });
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct OpenWindows {
+    settings: bool,
+    inspection: bool,
+    memory: bool,
+}
+
+impl Default for OpenWindows {
+    fn default() -> Self {
+        Self {
+            settings: false,
+            inspection: true,
+            memory: false,
+        }
+    }
+}
+
+fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
+    menu::bar(ui, |ui| {
+        menu::menu(ui, "File", |ui| {
+            ui.add(Button::new("Do nothing"));
+            ui.add(Button::new("Carry on"));
+            ui.add(Button::new("Don't Quit"));
+        });
+        menu::menu(ui, "Windows", |ui| {
+            ui.add(Checkbox::new(&mut windows.settings, "Settings"));
+            ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));
+            ui.add(Checkbox::new(&mut windows.memory, "Memory"));
+        });
+        menu::menu(ui, "About", |ui| {
+            ui.add(label!("This is Emigui, but you already knew that!"));
+        });
+    });
+}
+
+// ----------------------------------------------------------------------------
+
 /// Showcase some ui code
+#[derive(Deserialize, Serialize)]
 pub struct ExampleWindow {
     checked: bool,
     count: usize,
@@ -27,7 +113,7 @@ impl Default for ExampleWindow {
             checked: true,
             radio: 0,
             count: 0,
-            text_inputs: Default::default(),
+            text_inputs: ["Hello".to_string(), "World".to_string(), "".to_string()],
 
             size: vec2(100.0, 50.0),
             corner_radius: 5.0,
@@ -201,7 +287,9 @@ impl ExampleWindow {
     }
 }
 
-#[derive(Default)]
+// ----------------------------------------------------------------------------
+
+#[derive(Default, Deserialize, Serialize)]
 struct Painting {
     lines: Vec<Vec<Vec2>>,
 }
@@ -255,6 +343,8 @@ impl Painting {
         });
     }
 }
+
+// ----------------------------------------------------------------------------
 
 const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 

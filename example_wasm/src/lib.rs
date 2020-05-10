@@ -1,10 +1,12 @@
 #![deny(warnings)]
+#![warn(clippy::all)]
+
 use std::sync::Arc;
 
 use {
     emigui::{
-        color::srgba, containers::*, example_app::ExampleWindow, label, widgets::Separator, Align,
-        RawInput, TextStyle, *,
+        color::srgba, example_app::ExampleApp, label, widgets::Separator, Align, RawInput,
+        TextStyle, *,
     },
     emigui_wasm::now_sec,
 };
@@ -13,7 +15,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct State {
-    example_app: ExampleWindow,
+    example_app: ExampleApp,
     ctx: Arc<Context>,
     webgl_painter: emigui_wasm::webgl::Painter,
 
@@ -75,21 +77,7 @@ impl State {
             .text_style(TextStyle::Monospace),
         );
 
-        // TODO: Make it even simpler to show a window
-
-        Window::new("Examples")
-            .default_pos(pos2(32.0, 300.0))
-            .default_size(vec2(300.0, 400.0))
-            .show(ui.ctx(), |ui| {
-                self.example_app.ui(ui);
-            });
-
-        Window::new("Emigui settings")
-            .default_pos(pos2(400.0, 300.0))
-            .default_size(vec2(400.0, 400.0))
-            .show(ui.ctx(), |ui| {
-                self.ctx.ui(ui);
-            });
+        self.example_app.ui(&self.ctx);
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.ctx.end_frame();

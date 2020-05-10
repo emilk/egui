@@ -193,7 +193,7 @@ impl Div<f32> for Vec2 {
 
 impl std::fmt::Debug for Vec2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{} {}]", self.x, self.y)
+        write!(f, "[{:.1} {:.1}]", self.x, self.y)
     }
 }
 
@@ -312,7 +312,7 @@ impl Sub<Vec2> for Pos2 {
 
 impl std::fmt::Debug for Pos2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{} {}]", self.x, self.y)
+        write!(f, "[{:.1} {:.1}]", self.x, self.y)
     }
 }
 
