@@ -99,18 +99,12 @@ impl Area {
         let id = ctx.register_unique_id(id, "Area", default_pos);
         let layer = Layer { order, id };
 
-        let (mut state, _is_new) = match ctx.memory().get_area(id) {
-            Some(state) => (state, false),
-            None => {
-                let state = State {
-                    pos: default_pos,
-                    size: Vec2::zero(),
-                    interactable,
-                    vel: Vec2::zero(),
-                };
-                (state, true)
-            }
-        };
+        let mut state = ctx.memory().areas.get(id).unwrap_or_else(|| State {
+            pos: default_pos,
+            size: Vec2::zero(),
+            interactable,
+            vel: Vec2::zero(),
+        });
         state.pos = fixed_pos.unwrap_or(state.pos);
         state.pos = state.pos.round();
 
@@ -162,9 +156,9 @@ impl Area {
         // );
 
         if move_interact.active || mouse_pressed_on_area(ctx, layer) {
-            ctx.memory().move_area_to_top(layer);
+            ctx.memory().areas.move_to_top(layer);
         }
-        ctx.memory().set_area_state(layer, state);
+        ctx.memory().areas.set_state(layer, state);
 
         move_interact
     }

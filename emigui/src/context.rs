@@ -183,7 +183,7 @@ impl Context {
 
     fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
         let memory = self.memory();
-        self.graphics().drain(memory.area_order()).collect()
+        self.graphics().drain(memory.areas.order()).collect()
     }
 
     fn paint(&self) -> PaintBatches {
@@ -218,7 +218,7 @@ impl Context {
             id,
         };
         // Ensure we register the background area so it is painted:
-        self.memory().set_area_state(
+        self.memory().areas.set_state(
             layer,
             containers::area::State {
                 pos: rect.min,
