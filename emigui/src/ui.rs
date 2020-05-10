@@ -315,7 +315,11 @@ impl Ui {
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available_space()` and use that.
-    /// NOTE: we always get the size we ask for (at the moment).
+    ///
+    /// You may get MORE space than you asked for, for instance
+    /// for `Justified` aligned layouts, like in menus.
+    ///
+    /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn reserve_space(&mut self, child_size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
         let child_size = self.round_vec_to_pixels(child_size);
         self.cursor = self.round_pos_to_pixels(self.cursor);
@@ -324,8 +328,7 @@ impl Ui {
         let too_wide = child_size.x > self.available_width();
         let too_high = child_size.x > self.available_height();
 
-        let child_pos = self.reserve_space_impl(child_size);
-        let rect = Rect::from_min_size(child_pos, child_size);
+        let rect = self.reserve_space_impl(child_size);
 
         if self.style().debug_widget_rects {
             self.add_paint_cmd(PaintCmd::Rect {
@@ -381,29 +384,37 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    fn reserve_space_impl(&mut self, child_size: Vec2) -> Pos2 {
+    fn reserve_space_impl(&mut self, mut child_size: Vec2) -> Rect {
         let mut child_pos = self.cursor;
         if self.dir == Direction::Horizontal {
             child_pos.y += match self.align {
-                Align::Min => 0.0,
+                Align::Min | Align::Justified => 0.0,
                 Align::Center => 0.5 * (self.available_height() - child_size.y),
                 Align::Max => self.available_height() - child_size.y,
             };
+            if self.align == Align::Justified && self.available_height().is_finite() {
+                // Fill full height
+                child_size.y = child_size.y.max(self.available_height());
+            }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.x += child_size.x;
             self.cursor.x += self.style.item_spacing.x; // Where to put next thing, if there is a next thing
         } else {
             child_pos.x += match self.align {
-                Align::Min => 0.0,
+                Align::Min | Align::Justified => 0.0,
                 Align::Center => 0.5 * (self.available_width() - child_size.x),
                 Align::Max => self.available_width() - child_size.x,
             };
+            if self.align == Align::Justified && self.available_width().is_finite() {
+                // Fill full width
+                child_size.x = child_size.x.max(self.available_width());
+            }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.y += child_size.y;
             self.cursor.y += self.style.item_spacing.y; // Where to put next thing, if there is a next thing
         }
 
-        child_pos
+        Rect::from_min_size(child_pos, child_size)
     }
 
     // ------------------------------------------------
@@ -579,11 +590,15 @@ impl Ui {
     }
 
     /// A column ui with a given width.
-    pub fn column(&mut self, column_position: Align, width: f32) -> Ui {
+    pub fn column(&mut self, column_position: Align, mut width: f32) -> Ui {
         let x = match column_position {
             Align::Min => 0.0,
             Align::Center => self.available_width() / 2.0 - width / 2.0,
             Align::Max => self.available_width() - width,
+            Align::Justified => {
+                width = self.available_width();
+                0.0
+            }
         };
         self.child_ui(Rect::from_min_size(
             self.cursor + vec2(x, 0.0),

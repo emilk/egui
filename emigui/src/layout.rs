@@ -67,7 +67,10 @@ pub enum Align {
     /// Right/Bottom
     /// Note: requires a bounded/known available_width.
     Max,
-    // TODO: Justified
+
+    /// Full width/height.
+    /// Use this when you want
+    Justified,
 }
 
 impl Default for Align {
@@ -76,14 +79,15 @@ impl Default for Align {
     }
 }
 
+/// Give a position within the rect, specified by the aligns
 pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
     let x = match align.0 {
-        Align::Min => rect.left(),
+        Align::Min | Align::Justified => rect.left(),
         Align::Center => rect.left() - 0.5 * rect.width(),
         Align::Max => rect.left() - rect.width(),
     };
     let y = match align.1 {
-        Align::Min => rect.top(),
+        Align::Min | Align::Justified => rect.top(),
         Align::Center => rect.top() - 0.5 * rect.height(),
         Align::Max => rect.top() - rect.height(),
     };
