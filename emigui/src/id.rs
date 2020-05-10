@@ -41,7 +41,7 @@ impl Id {
         Self(0)
     }
 
-    pub fn popup() -> Self {
+    pub fn tooltip() -> Self {
         Self(1)
     }
 

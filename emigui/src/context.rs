@@ -119,6 +119,7 @@ impl Context {
         *self.new_fonts.lock() = Some(Arc::new(fonts));
     }
 
+    // TODO: return MutexGuard
     pub fn style(&self) -> Style {
         *self.style.lock()
     }
@@ -211,7 +212,22 @@ impl Context {
     /// A `Ui` for the entire screen, behind any windows.
     pub fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
-        Ui::new(self.clone(), Layer::Background, Id::background(), rect)
+        let id = Id::background();
+        let layer = Layer {
+            order: Order::Background,
+            id,
+        };
+        // Ensure we register the background area so it is painted:
+        self.memory().set_area_state(
+            layer,
+            containers::area::State {
+                pos: rect.min,
+                size: rect.size(),
+                interactable: true,
+                vel: Default::default(),
+            },
+        );
+        Ui::new(self.clone(), layer, id, rect)
     }
 
     // ---------------------------------------------------------------------
@@ -260,7 +276,7 @@ impl Context {
     pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse_pos {
-            rect.contains(mouse_pos) && layer == self.memory().layer_at(mouse_pos)
+            rect.contains(mouse_pos) && self.memory().layer_at(mouse_pos) == Some(layer)
         } else {
             false
         }
@@ -333,7 +349,7 @@ impl Context {
 
     pub fn show_error(&self, pos: Pos2, text: &str) {
         let align = (Align::Min, Align::Min);
-        let layer = Layer::Debug;
+        let layer = Layer::debug();
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
         let (text, size) = font.layout_multiline(text, f32::INFINITY);
@@ -351,7 +367,7 @@ impl Context {
     }
 
     pub fn debug_text(&self, pos: Pos2, text: &str) {
-        let layer = Layer::Debug;
+        let layer = Layer::debug();
         let align = (Align::Min, Align::Min);
         self.floating_text(
             layer,
@@ -364,7 +380,7 @@ impl Context {
     }
 
     pub fn debug_rect(&self, rect: Rect, text: &str) {
-        let layer = Layer::Debug;
+        let layer = Layer::debug();
         self.add_paint_cmd(
             layer,
             PaintCmd::Rect {

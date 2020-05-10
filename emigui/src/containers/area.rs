@@ -14,6 +14,10 @@ pub(crate) struct State {
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
 
+    /// If false, clicks goes stright throught to what is behind us.
+    /// Good for tooltips etc.
+    pub interactable: bool,
+
     /// You can throw a moveable Area. It's fun.
     /// TODO: separate out moveable to container?
     #[serde(skip)]
@@ -24,7 +28,8 @@ pub(crate) struct State {
 pub struct Area {
     id: Id,
     movable: bool,
-    always_on_top: bool,
+    interactable: bool,
+    order: Order,
     default_pos: Option<Pos2>,
     fixed_pos: Option<Pos2>,
 }
@@ -34,7 +39,8 @@ impl Area {
         Self {
             id: Id::new(id_source),
             movable: true,
-            always_on_top: false,
+            interactable: true,
+            order: Order::Middle,
             default_pos: None,
             fixed_pos: None,
         }
@@ -42,12 +48,21 @@ impl Area {
 
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
+        self.interactable |= movable;
         self
     }
 
-    /// Always show as top Area
-    pub fn always_on_top(mut self) -> Self {
-        self.always_on_top = true;
+    /// If false, clicks goes stright throught to what is behind us.
+    /// Good for tooltips etc.
+    pub fn interactable(mut self, interactable: bool) -> Self {
+        self.interactable = interactable;
+        self.movable &= interactable;
+        self
+    }
+
+    /// `order(Order::Foreground)` for an Area that should always be on top
+    pub fn order(mut self, order: Order) -> Self {
+        self.order = order;
         self
     }
 
@@ -74,14 +89,15 @@ impl Area {
         let Area {
             id,
             movable,
-            always_on_top,
+            order,
+            interactable,
             default_pos,
             fixed_pos,
         } = self;
 
         let default_pos = default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
         let id = ctx.register_unique_id(id, "Area", default_pos);
-        let layer = Layer::Window(id);
+        let layer = Layer { order, id };
 
         let (mut state, _is_new) = match ctx.memory().get_area(id) {
             Some(state) => (state, false),
@@ -89,6 +105,7 @@ impl Area {
                 let state = State {
                     pos: default_pos,
                     size: Vec2::zero(),
+                    interactable,
                     vel: Vec2::zero(),
                 };
                 (state, true)
@@ -144,18 +161,18 @@ impl Area {
         //     &format!("Area size: {:?}", state.size),
         // );
 
-        if move_interact.active || mouse_pressed_on_area(ctx, id) || always_on_top {
-            ctx.memory().move_area_to_top(id);
+        if move_interact.active || mouse_pressed_on_area(ctx, layer) {
+            ctx.memory().move_area_to_top(layer);
         }
-        ctx.memory().set_area_state(id, state);
+        ctx.memory().set_area_state(layer, state);
 
         move_interact
     }
 }
 
-fn mouse_pressed_on_area(ctx: &Context, id: Id) -> bool {
+fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
     if let Some(mouse_pos) = ctx.input().mouse_pos {
-        ctx.input().mouse_pressed && ctx.memory().layer_at(mouse_pos) == Layer::Window(id)
+        ctx.input().mouse_pressed && ctx.memory().layer_at(mouse_pos) == Some(layer)
     } else {
         false
     }

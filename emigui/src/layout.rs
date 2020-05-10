@@ -26,10 +26,7 @@ impl GuiResponse {
     /// Show some stuff if the item was hovered
     pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> &mut Self {
         if self.hovered {
-            if let Some(mouse_pos) = self.ctx.input().mouse_pos {
-                let window_pos = mouse_pos + vec2(16.0, 16.0);
-                show_popup(&self.ctx, window_pos, add_contents);
-            }
+            show_tooltip(&self.ctx, add_contents);
         }
         self
     }
@@ -96,39 +93,26 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // ----------------------------------------------------------------------------
 
-// TODO: move show_popup, and expand its features (default size, autosize, etc)
+pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
+    if let Some(mouse_pos) = ctx.input().mouse_pos {
+        //  TODO: default size
+        let id = Id::tooltip();
+        let window_pos = mouse_pos + vec2(16.0, 16.0);
+        show_popup(ctx, id, window_pos, add_contents);
+    }
+}
+
 /// Show a pop-over window
-pub fn show_popup(ctx: &Arc<Context>, window_pos: Pos2, add_contents: impl FnOnce(&mut Ui)) {
-    let layer = Layer::Popup;
-    let where_to_put_background = ctx.graphics().layer(layer).len();
-
-    let style = ctx.style();
-    let window_padding = style.window_padding;
-
-    let size = vec2(ctx.input().screen_size.x.min(350.0), f32::INFINITY); // TODO: popup/tooltip width
-    let inner_rect = Rect::from_min_size(window_pos + window_padding, size);
-    let mut contents_ui = Ui::new(ctx.clone(), layer, Id::popup(), inner_rect);
-
-    add_contents(&mut contents_ui);
-
-    // Now insert popup background:
-
-    let inner_size = contents_ui.bounding_size();
-    let outer_size = inner_size + 2.0 * window_padding;
-
-    let rect = Rect::from_min_size(window_pos, outer_size);
-
-    let mut graphics = ctx.graphics();
-    graphics.layer(layer).insert(
-        where_to_put_background,
-        (
-            Rect::everything(),
-            PaintCmd::Rect {
-                corner_radius: 5.0,
-                fill_color: Some(style.background_fill_color()),
-                outline: Some(Outline::new(1.0, color::WHITE)),
-                rect,
-            },
-        ),
-    );
+pub fn show_popup(
+    ctx: &Arc<Context>,
+    id: Id,
+    window_pos: Pos2,
+    add_contents: impl FnOnce(&mut Ui),
+) -> InteractInfo {
+    use containers::*;
+    Area::new(id)
+        .order(Order::Foreground)
+        .fixed_pos(window_pos)
+        .interactable(false)
+        .show(ctx, |ui| Frame::popup(&ctx.style()).show(ui, add_contents))
 }

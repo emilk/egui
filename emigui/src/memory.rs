@@ -23,9 +23,9 @@ pub struct Memory {
 
     area: HashMap<Id, area::State>,
     /// Top is last
-    area_order: Vec<Id>,
-    area_visible_last_frame: HashSet<Id>,
-    area_visible_current_frame: HashSet<Id>,
+    area_order: Vec<Layer>,
+    area_visible_last_frame: HashSet<Layer>,
+    area_visible_current_frame: HashSet<Layer>,
 }
 
 impl Memory {
@@ -33,44 +33,53 @@ impl Memory {
         self.area.get(&id).cloned()
     }
 
-    pub(crate) fn area_order(&self) -> &[Id] {
+    pub(crate) fn area_order(&self) -> &[Layer] {
         &self.area_order
     }
 
-    pub(crate) fn set_area_state(&mut self, id: Id, state: area::State) {
-        self.area_visible_current_frame.insert(id);
-        let did_insert = self.area.insert(id, state).is_none();
+    pub(crate) fn set_area_state(&mut self, layer: Layer, state: area::State) {
+        self.area_visible_current_frame.insert(layer);
+        let did_insert = self.area.insert(layer.id, state).is_none();
         if did_insert {
-            self.area_order.push(id);
+            self.area_order.push(layer);
+            self.area_order.sort_by_key(|layer| layer.order);
         }
     }
 
     /// TODO: call once at the start of the frame for the current mouse pos
-    pub fn layer_at(&self, pos: Pos2) -> Layer {
-        for area_id in self.area_order.iter().rev() {
-            if self.area_visible_last_frame.contains(area_id)
-                || self.area_visible_current_frame.contains(area_id)
-            {
-                if let Some(state) = self.area.get(area_id) {
-                    let rect = Rect::from_min_size(state.pos, state.size);
-                    if rect.contains(pos) {
-                        return Layer::Window(*area_id);
+    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+        for layer in self.area_order.iter().rev() {
+            if self.is_area_visible(layer) {
+                if let Some(state) = self.area.get(&layer.id) {
+                    if state.interactable {
+                        let rect = Rect::from_min_size(state.pos, state.size);
+                        if rect.contains(pos) {
+                            return Some(*layer);
+                        }
                     }
                 }
             }
         }
-        Layer::Background
+        None
     }
 
-    pub fn move_area_to_top(&mut self, id: Id) {
-        if self.area_order.last() == Some(&id) {
+    pub fn is_area_visible(&self, layer: &Layer) -> bool {
+        self.area_visible_last_frame.contains(layer)
+            || self.area_visible_current_frame.contains(layer)
+    }
+
+    pub fn move_area_to_top(&mut self, layer: Layer) {
+        self.area_visible_current_frame.insert(layer);
+
+        if self.area_order.last() == Some(&layer) {
             return; // common case early-out
         }
-        if let Some(index) = self.area_order.iter().position(|x| *x == id) {
+        if let Some(index) = self.area_order.iter().position(|x| *x == layer) {
             self.area_order.remove(index);
         }
-        self.area_order.push(id);
-        self.area_visible_current_frame.insert(id);
+        self.area_order.push(layer);
+
+        self.area_order.sort_by_key(|layer| layer.order);
     }
 
     pub(crate) fn begin_frame(&mut self) {

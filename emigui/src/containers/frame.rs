@@ -28,6 +28,15 @@ impl Frame {
             outline: Some(Outline::new(1.0, color::white(128))),
         }
     }
+
+    pub fn popup(style: &Style) -> Self {
+        Self {
+            margin: style.window_padding,
+            corner_radius: 5.0,
+            fill_color: Some(style.background_fill_color()),
+            outline: Some(Outline::new(1.0, color::white(128))),
+        }
+    }
 }
 
 impl Frame {

@@ -92,7 +92,7 @@ impl TextureAtlas {
 
 impl Texture {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        use crate::{color::WHITE, label, layout::show_popup, math::*, Mesh, PaintCmd, Vertex};
+        use crate::{color::WHITE, label, layout::show_tooltip, math::*, Mesh, PaintCmd, Vertex};
 
         ui.add(label!(
             "Texture size: {} x {} (hover to zoom)",
@@ -119,35 +119,31 @@ impl Texture {
         mesh.add_rect(top_left, bottom_right);
         ui.add_paint_cmd(PaintCmd::Mesh(mesh));
 
-        if let Some(mouse_pos) = ui.input().mouse_pos {
-            if interact.hovered {
-                show_popup(ui.ctx(), mouse_pos, |ui| {
-                    let zoom_rect = ui.reserve_space(vec2(128.0, 128.0), None).rect;
-                    let u = remap_clamp(mouse_pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0)
-                        .round();
-                    let v =
-                        remap_clamp(mouse_pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0)
-                            .round();
+        if interact.hovered {
+            show_tooltip(ui.ctx(), |ui| {
+                let pos = ui.top_left();
+                let zoom_rect = ui.reserve_space(vec2(128.0, 128.0), None).rect;
+                let u = remap_clamp(pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0).round();
+                let v = remap_clamp(pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0).round();
 
-                    let texel_radius = 32.0;
-                    let u = clamp(u, texel_radius..=self.width as f32 - 1.0 - texel_radius);
-                    let v = clamp(v, texel_radius..=self.height as f32 - 1.0 - texel_radius);
+                let texel_radius = 32.0;
+                let u = clamp(u, texel_radius..=self.width as f32 - 1.0 - texel_radius);
+                let v = clamp(v, texel_radius..=self.height as f32 - 1.0 - texel_radius);
 
-                    let top_left = Vertex {
-                        pos: zoom_rect.min,
-                        uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
-                        color: WHITE,
-                    };
-                    let bottom_right = Vertex {
-                        pos: zoom_rect.max,
-                        uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
-                        color: WHITE,
-                    };
-                    let mut mesh = Mesh::default();
-                    mesh.add_rect(top_left, bottom_right);
-                    ui.add_paint_cmd(PaintCmd::Mesh(mesh));
-                });
-            }
+                let top_left = Vertex {
+                    pos: zoom_rect.min,
+                    uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
+                    color: WHITE,
+                };
+                let bottom_right = Vertex {
+                    pos: zoom_rect.max,
+                    uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
+                    color: WHITE,
+                };
+                let mut mesh = Mesh::default();
+                mesh.add_rect(top_left, bottom_right);
+                ui.add_paint_cmd(PaintCmd::Mesh(mesh));
+            });
         }
     }
 }

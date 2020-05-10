@@ -74,6 +74,14 @@ impl Resize {
         self
     }
 
+    pub fn auto_sized(self) -> Self {
+        self.resizable(false)
+            .auto_shrink_width(true)
+            .auto_expand_width(true)
+            .auto_shrink_height(true)
+            .auto_expand_height(true)
+    }
+
     pub fn fixed_size(mut self, size: Vec2) -> Self {
         self.auto_shrink_width = false;
         self.auto_shrink_height = false;
