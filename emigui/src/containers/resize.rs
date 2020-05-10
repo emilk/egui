@@ -133,10 +133,6 @@ impl Resize {
 // TODO: a common trait for Things that follow this pattern
 impl Resize {
     pub fn show(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
-        if !self.resizable {
-            return add_contents(ui);
-        }
-
         let id = ui.make_child_id("scroll");
         self.min_size = self.min_size.min(ui.available_space());
         self.max_size = self.max_size.min(ui.available_space());
@@ -155,26 +151,31 @@ impl Resize {
 
         let position = ui.cursor();
 
-        // Resize-corner:
-        let corner_size = Vec2::splat(16.0); // TODO: style
-        let corner_rect = Rect::from_min_size(
-            position + state.size + self.handle_offset - corner_size,
-            corner_size,
-        );
-        let corner_interact = ui.interact_rect(corner_rect, id.with("corner"));
+        let corner_interact = if self.resizable {
+            // Resize-corner:
+            let corner_size = Vec2::splat(16.0); // TODO: style
+            let corner_rect = Rect::from_min_size(
+                position + state.size + self.handle_offset - corner_size,
+                corner_size,
+            );
+            let corner_interact = ui.interact_rect(corner_rect, id.with("corner"));
 
-        if corner_interact.active {
-            if let Some(mouse_pos) = ui.input().mouse_pos {
-                // This is the desired size. We may not be able to achieve it.
+            if corner_interact.active {
+                if let Some(mouse_pos) = ui.input().mouse_pos {
+                    // This is the desired size. We may not be able to achieve it.
 
-                state.size =
-                    mouse_pos - position + 0.5 * corner_interact.rect.size() - self.handle_offset;
-                // We don't clamp to max size, because we want to be able to push against outer bounds.
-                // For instance, if we are inside a bigger Resize region, we want to expand that.
-                // state.size = state.size.clamp(self.min_size..=self.max_size);
-                state.size = state.size.max(self.min_size);
+                    state.size = mouse_pos - position + 0.5 * corner_interact.rect.size()
+                        - self.handle_offset;
+                    // We don't clamp to max size, because we want to be able to push against outer bounds.
+                    // For instance, if we are inside a bigger Resize region, we want to expand that.
+                    // state.size = state.size.clamp(self.min_size..=self.max_size);
+                    state.size = state.size.max(self.min_size);
+                }
             }
-        }
+            Some(corner_interact)
+        } else {
+            None
+        };
 
         // ------------------------------
 
@@ -224,10 +225,12 @@ impl Resize {
 
         // ------------------------------
 
-        paint_resize_corner(ui, &corner_interact);
+        if let Some(corner_interact) = corner_interact {
+            paint_resize_corner(ui, &corner_interact);
 
-        if corner_interact.hovered || corner_interact.active {
-            ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
+            if corner_interact.hovered || corner_interact.active {
+                ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
+            }
         }
 
         ui.memory().resize.insert(id, state);
