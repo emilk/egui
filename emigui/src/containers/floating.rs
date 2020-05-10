@@ -25,7 +25,9 @@ pub(crate) struct State {
 pub struct Floating {
     id: Id,
     movable: bool,
+    always_on_top: bool,
     default_pos: Option<Pos2>,
+    fixed_pos: Option<Pos2>,
 }
 
 impl Floating {
@@ -33,7 +35,9 @@ impl Floating {
         Self {
             id: Id::new(id_source),
             movable: true,
+            always_on_top: false,
             default_pos: None,
+            fixed_pos: None,
         }
     }
 
@@ -42,16 +46,42 @@ impl Floating {
         self
     }
 
+    /// Always show as top Floating
+    pub fn always_on_top(mut self) -> Self {
+        self.always_on_top = true;
+        self
+    }
+
     pub fn default_pos(mut self, default_pos: Pos2) -> Self {
         self.default_pos = Some(default_pos);
+        self
+    }
+
+    pub fn fixed_pos(mut self, fixed_pos: Pos2) -> Self {
+        self.default_pos = Some(fixed_pos);
+        self.fixed_pos = Some(fixed_pos);
+        self.movable = false;
         self
     }
 }
 
 impl Floating {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
-        let default_pos = self.default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
-        let id = ctx.register_unique_id(self.id, "Floating", default_pos);
+    // TODO
+    // pub fn show(self, ui: &Ui, add_contents: impl FnOnce(&mut Ui)) {
+    //     let default_pos = self.default_pos.unwrap_or_else(|| ui.top_left() + pos2(100.0, 100.0)); // TODO
+    // }
+
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+        let Floating {
+            id,
+            movable,
+            always_on_top,
+            default_pos,
+            fixed_pos,
+        } = self;
+
+        let default_pos = default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
+        let id = ctx.register_unique_id(id, "Floating", default_pos);
         let layer = Layer::Window(id);
 
         let (mut state, _is_new) = match ctx.memory().get_floating(id) {
@@ -65,6 +95,7 @@ impl Floating {
                 (state, true)
             }
         };
+        state.pos = fixed_pos.unwrap_or(state.pos);
         state.pos = state.pos.round();
 
         let mut ui = Ui::new(
@@ -77,8 +108,10 @@ impl Floating {
         state.size = ui.bounding_size().ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
-        let clip_rect = Rect::everything();
-        let move_interact = ctx.interact(layer, clip_rect, rect, Some(id.with("move")));
+        let clip_rect = Rect::everything(); // TODO: get from context
+
+        let interact_id = if movable { Some(id.with("move")) } else { None };
+        let move_interact = ctx.interact(layer, clip_rect, rect, interact_id);
 
         let input = ctx.input();
         if move_interact.active {
@@ -112,10 +145,12 @@ impl Floating {
         //     &format!("Floating size: {:?}", state.size),
         // );
 
-        if move_interact.active || mouse_pressed_on_floating(ctx, id) {
+        if move_interact.active || mouse_pressed_on_floating(ctx, id) || always_on_top {
             ctx.memory().move_floating_to_top(id);
         }
         ctx.memory().set_floating_state(id, state);
+
+        move_interact
     }
 }
 
