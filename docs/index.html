@@ -214,7 +214,6 @@
             });
 
             document.addEventListener("keydown", function (event) {
-                console.log(`keydown: '${event.key}'`);
                 var key = translate_key(event.key);
                 if (key) {
                     g_events.push({ "key": { "key": key, 'pressed': true } });
