@@ -10,7 +10,7 @@ pub struct Window {
     pub area: Area,
     pub frame: Option<Frame>,
     pub resize: Resize,
-    pub scroll: ScrollArea,
+    pub scroll: Option<ScrollArea>,
 }
 
 impl Window {
@@ -31,9 +31,11 @@ impl Window {
                 .auto_expand_width(true)
                 .auto_shrink_height(false)
                 .auto_expand_height(false),
-            scroll: ScrollArea::default()
+            scroll: Some(
+                ScrollArea::default()
                 .always_show_scroll(false)
-                .max_height(f32::INFINITY), // As large as we can be
+                    .max_height(f32::INFINITY),
+            ), // As large as we can be
         }
     }
 
@@ -82,9 +84,16 @@ impl Window {
         self.resize = self.resize.resizable(resizable);
         self
     }
+
+    /// Not resizable, just takes the size of its contents.
+    pub fn auto_sized(mut self) -> Self {
+        self.resize = self.resize.auto_sized();
+        self.scroll = None;
+        self
+    }
 }
 
-impl Window {
+impl<'open> Window<'open> {
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         let Window {
             title_label,
@@ -101,7 +110,12 @@ impl Window {
                 resize.show(ui, |ui| {
                     ui.add(title_label);
                     ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+
+                    if let Some(scroll) = scroll {
                     scroll.show(ui, add_contents)
+                    } else {
+                        add_contents(ui)
+                    }
                 })
             })
         })

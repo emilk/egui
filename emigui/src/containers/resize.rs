@@ -74,8 +74,10 @@ impl Resize {
         self
     }
 
+    /// Not resizable, just takes the size of its contents.
     pub fn auto_sized(self) -> Self {
-        self.resizable(false)
+        self.default_size(Vec2::splat(f32::INFINITY))
+            .resizable(false)
             .auto_shrink_width(true)
             .auto_expand_width(true)
             .auto_shrink_height(true)
