@@ -257,7 +257,7 @@ impl Painter {
             glium::VertexBuffer::new(display, &vertices).unwrap()
         };
 
-        let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
+        let indices: Vec<u32> = mesh.indices.iter().map(|idx| *idx as u32).collect();
 
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
