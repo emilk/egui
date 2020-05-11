@@ -64,7 +64,7 @@ impl Painter {
                             if (v_pos.y > v_clip_rect.w) { discard; }
                             f_color = v_color;
                             f_color.rgb = linear_from_srgb(f_color.rgb);
-                            f_color.a *= texture(u_sampler, v_tc).r;
+                            f_color *= texture(u_sampler, v_tc).r;
                         }
                     "
             },
@@ -118,7 +118,7 @@ impl Painter {
                             if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
-                            gl_FragColor.a *= texture2D(u_sampler, v_tc).r;
+                            gl_FragColor *= texture2D(u_sampler, v_tc).r;
                         }
                     ",
             },
@@ -172,7 +172,7 @@ impl Painter {
                             if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
-                            gl_FragColor.a *= texture2D(u_sampler, v_tc).r;
+                            gl_FragColor *= texture2D(u_sampler, v_tc).r;
                         }
                     ",
             },
@@ -274,8 +274,19 @@ impl Painter {
             u_sampler: &self.texture,
         };
 
+        // Emilib outputs colors with premultiplied alpha:
+        let blend_func = glium::BlendingFunction::Addition {
+            source: glium::LinearBlendingFactor::One,
+            destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
+        };
+        let blend = glium::Blend {
+            color: blend_func,
+            alpha: blend_func,
+            ..Default::default()
+        };
+
         let params = glium::DrawParameters {
-            blend: glium::Blend::alpha_blending(),
+            blend,
             ..Default::default()
         };
 

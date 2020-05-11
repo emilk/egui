@@ -2,7 +2,7 @@
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use crate::{
-    color::{srgba, Color},
+    color::{self, srgba, Color},
     fonts::Fonts,
     math::*,
     types::PaintCmd,
@@ -17,7 +17,7 @@ pub struct Vertex {
     pub pos: Pos2,
     /// Texel indices into the texture
     pub uv: (u16, u16),
-    /// sRGBA
+    /// sRGBA, premultiplied alpha
     pub color: Color,
 }
 
@@ -255,6 +255,7 @@ use self::PathType::{Closed, Open};
 #[derive(Clone, Copy)]
 pub struct MesherOptions {
     pub anti_alias: bool,
+    /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
     pub debug_paint_clip_rects: bool,
 }
@@ -270,6 +271,10 @@ impl Default for MesherOptions {
 }
 
 pub fn fill_closed_path(mesh: &mut Mesh, options: MesherOptions, path: &[PathPoint], color: Color) {
+    if color == color::TRANSPARENT {
+        return;
+    }
+
     let n = path.len() as u32;
     let vert = |pos, color| Vertex {
         pos,
@@ -277,7 +282,7 @@ pub fn fill_closed_path(mesh: &mut Mesh, options: MesherOptions, path: &[PathPoi
         color,
     };
     if options.anti_alias {
-        let color_outer = color.transparent();
+        let color_outer = color::TRANSPARENT;
         let idx_inner = mesh.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
         for i in 2..n {
@@ -311,8 +316,11 @@ pub fn paint_path(
     color: Color,
     width: f32,
 ) {
+    if color == color::TRANSPARENT {
+        return;
+    }
+
     let n = path.len() as u32;
-    let hw = width / 2.0;
     let idx = mesh.vertices.len() as u32;
 
     let vert = |pos, color| Vertex {
@@ -322,18 +330,27 @@ pub fn paint_path(
     };
 
     if options.anti_alias {
-        let color_outer = color.transparent();
-        let thin_line = width <= 1.0;
-        let mut color_inner = color;
+        let color_inner = color;
+        let color_outer = color::TRANSPARENT;
+
+        let thin_line = width <= options.aa_size;
         if thin_line {
+            /*
+            We paint the line using three edges: outer, inner, outer.
+
+            .       o   i   o      outer, inner, outer
+            .       |---|          aa_size (pixel width)
+            */
+
             // Fade out as it gets thinner:
-            color_inner.a = (f32::from(color_inner.a) * width).round() as u8;
-        }
-        // TODO: line caps ?
-        let mut i0 = n - 1;
-        for i1 in 0..n {
-            let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-            if thin_line {
+            let color_inner = mul_color(color_inner, width / options.aa_size);
+            if color_inner == color::TRANSPARENT {
+                return;
+            }
+
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let connect_with_previous = path_type == PathType::Closed || i1 > 0;
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
@@ -350,17 +367,33 @@ pub fn paint_path(
                     mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
                     mesh.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
                 }
-            } else {
-                let hw = (width - options.aa_size) * 0.5;
+                i0 = i1;
+            }
+        } else {
+            // TODO: line caps for really thick lines?
+
+            /*
+            We paint the line using four edges: outer, inner, inner, outer
+
+            .       o   i     p    i   o   outer, inner, point, inner, outer
+            .       |---|                  aa_size (pixel width)
+            .         |--------------|     width
+            .       |---------|            outer_rad
+            .           |-----|            inner_rad
+            */
+
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let connect_with_previous = path_type == PathType::Closed || i1 > 0;
+                let inner_rad = 0.5 * (width - options.aa_size);
+                let outer_rad = 0.5 * (width + options.aa_size);
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                mesh.vertices
-                    .push(vert(p + n * (hw + options.aa_size), color_outer));
-                mesh.vertices.push(vert(p + n * (hw + 0.0), color_inner));
-                mesh.vertices.push(vert(p - n * (hw + 0.0), color_inner));
-                mesh.vertices
-                    .push(vert(p - n * (hw + options.aa_size), color_outer));
+                mesh.vertices.push(vert(p + n * outer_rad, color_outer));
+                mesh.vertices.push(vert(p + n * inner_rad, color_inner));
+                mesh.vertices.push(vert(p - n * inner_rad, color_inner));
+                mesh.vertices.push(vert(p - n * outer_rad, color_outer));
 
                 if connect_with_previous {
                     mesh.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -372,8 +405,8 @@ pub fn paint_path(
                     mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
                     mesh.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
                 }
+                i0 = i1;
             }
-            i0 = i1;
         }
     } else {
         let last_index = if path_type == Closed { n } else { n - 1 };
@@ -390,10 +423,36 @@ pub fn paint_path(
             );
         }
 
-        for p in path {
-            mesh.vertices.push(vert(p.pos + hw * p.normal, color));
-            mesh.vertices.push(vert(p.pos - hw * p.normal, color));
+        let thin_line = width <= options.aa_size;
+        if thin_line {
+            // Fade out thin lines rather than making them thinner
+            let radius = options.aa_size / 2.0;
+            let color = mul_color(color, width / options.aa_size);
+            if color == color::TRANSPARENT {
+                return;
+            }
+            for p in path {
+                mesh.vertices.push(vert(p.pos + radius * p.normal, color));
+                mesh.vertices.push(vert(p.pos - radius * p.normal, color));
+            }
+        } else {
+            let radius = width / 2.0;
+            for p in path {
+                mesh.vertices.push(vert(p.pos + radius * p.normal, color));
+                mesh.vertices.push(vert(p.pos - radius * p.normal, color));
+            }
         }
+    }
+}
+
+fn mul_color(color: Color, factor: f32) -> Color {
+    // TODO: sRGBA correct fading
+    debug_assert!(0.0 <= factor && factor <= 1.0);
+    Color {
+        r: (f32::from(color.r) * factor).round() as u8,
+        g: (f32::from(color.g) * factor).round() as u8,
+        b: (f32::from(color.b) * factor).round() as u8,
+        a: (f32::from(color.a) * factor).round() as u8,
     }
 }
 

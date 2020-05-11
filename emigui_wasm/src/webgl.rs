@@ -97,7 +97,7 @@ impl Painter {
                 if (v_pos.x > v_clip_rect.z) { discard; }
                 if (v_pos.y > v_clip_rect.w) { discard; }
                 gl_FragColor = v_color;
-                gl_FragColor.a *= texture2D(u_sampler, v_tc).a;
+                gl_FragColor *= texture2D(u_sampler, v_tc).a;
             }
         "#,
         )?;
@@ -163,7 +163,7 @@ impl Painter {
         let gl = &self.gl;
 
         gl.enable(Gl::BLEND);
-        gl.blend_func(Gl::SRC_ALPHA, Gl::ONE_MINUS_SRC_ALPHA);
+        gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
         gl.use_program(Some(&self.program));
         gl.active_texture(Gl::TEXTURE0);
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));

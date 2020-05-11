@@ -1,23 +1,13 @@
 use serde_derive::{Deserialize, Serialize};
 
 /// 0-255 `sRGBA`. TODO: rename `sRGBA` for clarity.
+/// Uses premultiplied alpha.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
     pub a: u8,
-}
-
-impl Color {
-    pub fn transparent(self) -> Color {
-        Color {
-            r: self.r,
-            g: self.g,
-            b: self.b,
-            a: 0,
-        }
-    }
 }
 
 pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
@@ -33,15 +23,34 @@ pub const fn gray(l: u8, a: u8) -> Color {
     }
 }
 
-pub const fn white(a: u8) -> Color {
+pub const fn black(a: u8) -> Color {
     Color {
-        r: 255,
-        g: 255,
-        b: 255,
+        r: 0,
+        g: 0,
+        b: 0,
         a,
     }
 }
 
+pub const fn white(a: u8) -> Color {
+    Color {
+        r: a,
+        g: a,
+        b: a,
+        a,
+    }
+}
+
+pub const fn additive_gray(l: u8) -> Color {
+    Color {
+        r: l,
+        g: l,
+        b: l,
+        a: 0,
+    }
+}
+
+pub const TRANSPARENT: Color = srgba(0, 0, 0, 0);
 pub const BLACK: Color = srgba(0, 0, 0, 255);
 pub const LIGHT_GRAY: Color = srgba(220, 220, 220, 255);
 pub const WHITE: Color = srgba(255, 255, 255, 255);

@@ -48,6 +48,9 @@ Features:
 * Simple text input
 * Anti-aliased rendering of circles, rounded rectangles and lines.
 
+## Conventions
+* All coordinates are screen space coordinates, in locial "points" (which may consist of many physical pixels).
+* All colors have premultiplied alpha
 
 ## Inspiration
 The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immediate Mode GUI for C++ which works with many backends. That library revolutionized how I think about GUI code from something I hated to do to something I now like to do.
