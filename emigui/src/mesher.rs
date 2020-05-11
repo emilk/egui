@@ -605,26 +605,27 @@ pub fn mesh_paint_commands(
 
         if batches.is_empty() || batches.last().unwrap().0 != clip_rect {
             batches.push((clip_rect, Mesh::default()));
-
-            if options.debug_paint_clip_rects && !clip_rect.is_empty() {
-                let out_mesh = &mut batches.last_mut().unwrap().1;
-                mesh_command(
-                    &mut reused_path,
-                    options,
-                    fonts,
-                    PaintCmd::Rect {
-                        rect: clip_rect,
-                        corner_radius: 0.0,
-                        fill_color: Some(srgba(50, 100, 200, 64)),
-                        outline: Some(Outline::new(1.0, srgba(200, 200, 200, 255))),
-                    },
-                    out_mesh,
-                )
-            }
         }
 
         let out_mesh = &mut batches.last_mut().unwrap().1;
         mesh_command(&mut reused_path, options, fonts, cmd, out_mesh);
+    }
+
+    if options.debug_paint_clip_rects {
+        for (clip_rect, mesh) in &mut batches {
+            mesh_command(
+                &mut reused_path,
+                options,
+                fonts,
+                PaintCmd::Rect {
+                    rect: *clip_rect,
+                    corner_radius: 0.0,
+                    fill_color: None,
+                    outline: Some(Outline::new(2.0, srgba(150, 255, 150, 255))),
+                },
+                mesh,
+            )
+        }
     }
 
     batches
