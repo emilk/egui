@@ -221,8 +221,8 @@
                     g_events.push({ "text": event.key });
                 }
                 invalidate();
-                event.stopPropagation();
-                event.preventDefault();
+                // event.stopPropagation();
+                // event.preventDefault();
             });
 
             // document.addEventListener("keypress", function (event) {
@@ -239,8 +239,8 @@
                     g_events.push({ "key": { "key": key, 'pressed': false } });
                 }
                 invalidate();
-                event.stopPropagation();
-                event.preventDefault();
+                // event.stopPropagation();
+                // event.preventDefault();
             });
 
             if (!ANIMATION_FRAME) {
