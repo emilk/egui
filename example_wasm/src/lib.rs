@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use {
     emigui::{
-        color::srgba, example_app::ExampleApp, label, widgets::Separator, Align, RawInput,
-        TextStyle, *,
+        color::srgba, examples::ExampleApp, label, widgets::Separator, Align, RawInput, TextStyle,
+        *,
     },
     emigui_wasm::now_sec,
 };
@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct State {
-    example_app: ExampleApp,
+    examples: ExampleApp,
     ctx: Arc<Context>,
     webgl_painter: emigui_wasm::webgl::Painter,
 
@@ -27,7 +27,7 @@ impl State {
         let ctx = Context::new(pixels_per_point);
         emigui_wasm::load_memory(&ctx);
         Ok(State {
-            example_app: Default::default(),
+            examples: Default::default(),
             ctx,
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
             frame_times: emigui::MovementTracker::new(1000, 1.0),
@@ -77,7 +77,7 @@ impl State {
             .text_style(TextStyle::Monospace),
         );
 
-        self.example_app.ui(&self.ctx);
+        self.examples.ui(&self.ctx);
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.ctx.end_frame();

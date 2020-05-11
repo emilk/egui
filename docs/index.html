@@ -107,12 +107,23 @@
                 screen_size: { x: window.innerWidth, y: window.innerHeight },
                 pixels_per_point: pixels_per_point(),
                 time: window.performance.now() / 1000.0,
+                seconds_since_midnight: seconds_since_midnight(),
                 events: g_events,
+
+                web: {
+                    location: window.location.toString(),
+                    location_hash: window.location.hash.toString(), // i.e. #fragment
+                },
             };
             g_scroll_delta_x = 0;
             g_scroll_delta_y = 0;
             g_events = [];
             return input;
+        }
+
+        function seconds_since_midnight() {
+            var d = new Date();
+            return (d.getHours() * 60.0 + d.getMinutes()) * 60.0 + d.getSeconds() + 1e-3 * d.getMilliseconds();
         }
 
         function mouse_pos_from_event(canvas, event) {

@@ -13,8 +13,9 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Tooltip
 * [x] Movable/resizable windows
     * [x] Kinetic windows
-    * [ ] Windows should open from Regions and be boxed by parent region.
+    * [ ] Windows should open from `UI`s and be boxed by parent ui.
         * Then we could open the example app inside a window in the example app, recursively.
+    * [ ] Resize any side and corner on windows
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
@@ -22,7 +23,9 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [x] Drag background to scroll
     * [ ] Kinetic scrolling
 * [x] Add support for clicking links
-* [ ] Menu bar (File, Edit, etc)
+* [x] Menu bar (File, Edit, etc)
+    * [ ] Sub-menus
+    * [ ] Keyboard shortcuts
 * [ ] Text input
     * [x] Input events (key presses)
     * [x] Text focus
@@ -35,7 +38,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Style editor
 * [ ] Table with resizable columns
 * [ ] Layout
-    * [ ] Generalize Layout (separate from Region)
+    * [ ] Generalize Layout (separate from Ui)
     * [ ] Cascading layout: same lite if it fits, else next line. Like text.
     * [ ] Grid layout
 * [ ] Image support
@@ -46,12 +49,17 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Make it a JS library for easily creating your own stuff
 * [ ] Read url fragment and redirect to a subpage (e.g. different examples apps)
 
+### Painting
+* [ ] Pixel-perfect painting (round positions to nearest pixel).
+* [ ] Make sure alpha blending is correct (different between web and glium)
+* [ ] sRGBA correct colors
+
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Animate collapsing headers with clip_rect
 
 ### Clip rects
-* [x] Separate Region::clip_rect from Region::rect
+* [x] Separate Ui::clip_rect from Ui::rect
 * [x] Use clip rectangles when painting
 * [x] Use clip rectangles when interacting
 * [x] Adjust clip rects so edges of child widgets aren't clipped
@@ -62,7 +70,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] `trait Container` (`Frame`, `Resize`, `ScrollArea`, ...)
 * [ ] `widget::TextButton` implemented as a `container::Button` which contains a `widget::Label`.
 * [ ] Easily chain `Container`s without nested closures.
-    * e.g. `region.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
+    * e.g. `ui.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
 
 ### Input
 * [ ] Distinguish between clicks and drags
@@ -71,22 +79,19 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 
 ### Debugability / Inspection
 * [x] Widget debug rectangles
-* [ ] Easily debug why something keeps expanding
-
+* [x] Easily debug why something keeps expanding
 
 ### Other
 * [x] Persist UI state in external storage
-* [ ] Pixel-perfect rendering (round positions to nearest pixel).
-* [ ] Build in a profiler which tracks which region in which window takes up CPU.
+* [ ] Persist Example App state
+* [ ] Build in a profiler which tracks which `Ui` in which window takes up CPU.
     * [ ] Draw as flame graph
     * [ ] Draw as hotmap
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui
 * [x] Combine Emigui and Context?
-* [ ] Solve which parts of Context are behind a mutex
-    * [ ] All of Context behind one mutex?
-    * [ } Break up Context into Input, State, Output ?
+* [x] Solve which parts of Context are behind a mutex
 * [x] Rename Region to Ui
 * [ ] Maybe find a shorter name for the library like `egui`?
 

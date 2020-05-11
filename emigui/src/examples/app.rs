@@ -3,37 +3,62 @@ use std::sync::Arc;
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{color::*, containers::*, widgets::*, *};
+use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct ExampleApp {
+    has_initialized: bool,
     example_window: ExampleWindow,
     open_windows: OpenWindows,
+    fractal_clock: FractalClock,
 }
 
 impl ExampleApp {
     pub fn ui(&mut self, ctx: &Arc<Context>) {
         // TODO: Make it even simpler to show a window
+
+        // TODO: window manager for automatic positioning?
+
+        let ExampleApp {
+            has_initialized,
+            example_window,
+            open_windows,
+            fractal_clock,
+        } = self;
+
+        if !*has_initialized {
+            // #fragment end of URL:
+            let location_hash = ctx
+                .input()
+                .web
+                .as_ref()
+                .map(|web| web.location_hash.as_str());
+            if location_hash == Some("#clock") {
+                open_windows.fractal_clock = true;
+            }
+            *has_initialized = true;
+        }
+
         Window::new("Examples")
             .default_pos(pos2(32.0, 100.0))
             .default_size(vec2(430.0, 600.0))
             .show(ctx, |ui| {
-                show_menu_bar(ui, &mut self.open_windows);
-                self.example_window.ui(ui);
+                show_menu_bar(ui, open_windows);
+                example_window.ui(ui);
             });
 
         Window::new("Settings")
-            .open(&mut self.open_windows.settings)
+            .open(&mut open_windows.settings)
             .default_pos(pos2(500.0, 100.0))
-            .default_size(vec2(350.0, 200.0))
+            .default_size(vec2(350.0, 400.0))
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         Window::new("Inspection")
-            .open(&mut self.open_windows.inspection)
+            .open(&mut open_windows.inspection)
             .default_pos(pos2(500.0, 400.0))
             .default_size(vec2(400.0, 300.0))
             .show(ctx, |ui| {
@@ -41,12 +66,14 @@ impl ExampleApp {
             });
 
         Window::new("Memory")
-            .open(&mut self.open_windows.memory)
+            .open(&mut open_windows.memory)
             .default_pos(pos2(700.0, 350.0))
             .auto_sized()
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
+
+        fractal_clock.window(ctx, &mut open_windows.fractal_clock);
     }
 }
 
@@ -55,6 +82,7 @@ struct OpenWindows {
     settings: bool,
     inspection: bool,
     memory: bool,
+    fractal_clock: bool,
 }
 
 impl Default for OpenWindows {
@@ -63,6 +91,7 @@ impl Default for OpenWindows {
             settings: false,
             inspection: true,
             memory: false,
+            fractal_clock: false,
         }
     }
 }
@@ -75,9 +104,13 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             ui.add(Button::new("Don't Quit"));
         });
         menu::menu(ui, "Windows", |ui| {
+            // TODO: open on top when clicking a new.
+            // Maybe an Window or Area can detect that: if wasn't open last frame, but is now,
+            // then automatically go to front?
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));
             ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));
             ui.add(Checkbox::new(&mut windows.memory, "Memory"));
+            ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
         });
         menu::menu(ui, "About", |ui| {
             ui.add(label!("This is Emigui, but you already knew that!"));
@@ -325,7 +358,7 @@ impl Painting {
 
             for line in &self.lines {
                 if line.len() >= 2 {
-                    ui.add_paint_cmd(PaintCmd::Line {
+                    ui.add_paint_cmd(PaintCmd::LinePath {
                         points: line.iter().map(|p| canvas_corner + *p).collect(),
                         color: LIGHT_GRAY,
                         width: 2.0,

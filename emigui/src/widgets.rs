@@ -133,6 +133,12 @@ impl Hyperlink {
             url,
         }
     }
+
+    /// Show some other text than the url
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = text.into();
+        self
+    }
 }
 
 impl Widget for Hyperlink {
@@ -154,6 +160,7 @@ impl Widget for Hyperlink {
 
         if interact.hovered {
             // Underline:
+            // TODO: underline spaces between words too.
             for fragment in &text {
                 let pos = interact.rect.min;
                 let y = pos.y + fragment.y_offset + line_spacing;
@@ -260,7 +267,7 @@ impl<'a> Widget for Checkbox<'a> {
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let (text, text_size) = font.layout_single_line(&self.text);
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)

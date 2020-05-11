@@ -256,6 +256,10 @@ impl Ui {
         self.finite_bottom_right() - self.cursor
     }
 
+    pub fn available_rect_min(&self) -> Rect {
+        Rect::from_min_size(self.cursor, self.available_space_min())
+    }
+
     pub fn direction(&self) -> Direction {
         self.dir
     }

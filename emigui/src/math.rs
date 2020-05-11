@@ -65,6 +65,16 @@ impl Vec2 {
         vec2(angle.cos(), angle.sin())
     }
 
+    /// Use this vector as a rotor, rotating something else.
+    /// Example: Vec2::angled(angle).rotate_other(some_vec)
+    #[must_use]
+    pub fn rotate_other(self, v: Vec2) -> Self {
+        Self {
+            x: v.x * self.x + v.y * -self.y,
+            y: v.x * self.y + v.y * self.x,
+        }
+    }
+
     #[must_use]
     pub fn floor(self) -> Self {
         vec2(self.x.floor(), self.y.floor())

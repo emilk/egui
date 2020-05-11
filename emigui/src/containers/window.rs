@@ -48,17 +48,24 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// This is quite a crap idea
     /// Usage: `Winmdow::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
+    /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
-    /// This is quite a crap idea
     /// Usage: `Winmdow::new(...).resize(|r| r.auto_expand_width(true))`
+    /// Not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
+        self
+    }
+
+    /// Usage: `Winmdow::new(...).frame(|f| f.fill_color(Some(BLUE)))`
+    /// Not sure this is a good interface for this.
+    pub fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
         self
     }
 
@@ -70,6 +77,10 @@ impl<'open> Window<'open> {
     pub fn default_size(mut self, default_size: Vec2) -> Self {
         self.resize = self.resize.default_size(default_size);
         self
+    }
+
+    pub fn default_rect(self, rect: Rect) -> Self {
+        self.default_pos(rect.min).default_size(rect.size())
     }
 
     pub fn min_size(mut self, min_size: Vec2) -> Self {
@@ -98,6 +109,13 @@ impl<'open> Window<'open> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = None;
+        self
+    }
+
+    pub fn scroll(mut self, scroll: bool) -> Self {
+        if !scroll {
+            self.scroll = None;
+        }
         self
     }
 }

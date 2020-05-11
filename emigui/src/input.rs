@@ -1,8 +1,10 @@
+use serde_derive::Deserialize;
+
 use crate::math::*;
 
 /// What the integration gives to the gui.
 /// All coordinates in emigui is in point/logical coordinates.
-#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct RawInput {
     /// Is the button currently down?
@@ -15,6 +17,7 @@ pub struct RawInput {
     pub scroll_delta: Vec2,
 
     /// Size of the screen in points.
+    /// TODO: this should be screen_rect for easy sandboxing.
     pub screen_size: Vec2,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
@@ -22,6 +25,9 @@ pub struct RawInput {
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
+
+    /// Local time. Only used for the clock in the example app.
+    pub seconds_since_midnight: Option<f64>,
 
     /// Files has been dropped into the window.
     pub dropped_files: Vec<std::path::PathBuf>,
@@ -31,6 +37,9 @@ pub struct RawInput {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
+
+    /// Web-only input
+    pub web: Option<Web>,
 }
 
 /// What emigui maintains
@@ -74,6 +83,9 @@ pub struct GuiInput {
     /// Time since last frame, in seconds.
     pub dt: f32,
 
+    /// Local time. Only used for the clock in the example app.
+    pub seconds_since_midnight: Option<f64>,
+
     /// Files has been dropped into the window.
     pub dropped_files: Vec<std::path::PathBuf>,
 
@@ -82,9 +94,20 @@ pub struct GuiInput {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
+
+    /// Web-only input
+    pub web: Option<Web>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde_derive::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[serde(default)]
+pub struct Web {
+    pub location: String,
+    /// i.e. "#fragment"
+    pub location_hash: String,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
     Copy,
@@ -97,7 +120,7 @@ pub enum Event {
     },
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde_derive::Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Key {
     Alt,
@@ -145,9 +168,11 @@ impl GuiInput {
             pixels_per_point: new.pixels_per_point,
             time: new.time,
             dt,
+            seconds_since_midnight: new.seconds_since_midnight,
             dropped_files: new.dropped_files.clone(),
             hovered_files: new.hovered_files.clone(),
             events: new.events.clone(),
+            web: new.web.clone(),
         }
     }
 }
@@ -166,6 +191,9 @@ impl RawInput {
         ui.add(label!("events: {:?}", self.events));
         ui.add(label!("dropped_files: {:?}", self.dropped_files));
         ui.add(label!("hovered_files: {:?}", self.hovered_files));
+        if let Some(web) = &self.web {
+            web.ui(ui);
+        }
     }
 }
 
@@ -189,5 +217,16 @@ impl GuiInput {
         ui.add(label!("events: {:?}", self.events));
         ui.add(label!("dropped_files: {:?}", self.dropped_files));
         ui.add(label!("hovered_files: {:?}", self.hovered_files));
+        if let Some(web) = &self.web {
+            web.ui(ui);
+        }
+    }
+}
+
+impl Web {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        use crate::label;
+        ui.add(label!("location: '{}'", self.location));
+        ui.add(label!("location_hash: '{}'", self.location_hash));
     }
 }

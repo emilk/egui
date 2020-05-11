@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use {
-    emigui::{example_app::ExampleApp, widgets::*, *},
+    emigui::{examples::ExampleApp, widgets::*, *},
     glium::glutin,
 };
 
@@ -79,7 +79,7 @@ fn main() {
     let mut running = true;
     let mut frame_start = Instant::now();
     let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
-    let mut example_app = ExampleApp::default();
+    let mut examples = ExampleApp::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
     emigui_glium::read_memory(&ctx, memory_path);
@@ -96,6 +96,7 @@ fn main() {
 
         {
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            raw_input.seconds_since_midnight = Some(emigui_glium::local_time_of_day());
             raw_input.scroll_delta = vec2(0.0, 0.0);
             raw_input.dropped_files.clear();
             raw_input.hovered_files.clear();
@@ -130,7 +131,7 @@ fn main() {
             .text_style(TextStyle::Monospace),
         );
 
-        example_app.ui(&ctx);
+        examples.ui(&ctx);
 
         let (output, paint_batches) = ctx.end_frame();
 

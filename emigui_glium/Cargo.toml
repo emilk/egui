@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 emigui = { path = "../emigui" }
 
+chrono = { version = "0.4" }
 clipboard = "0.5"
 glium = "0.24"
 serde_json = "1"

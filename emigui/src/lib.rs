@@ -25,7 +25,7 @@
 pub mod color;
 pub mod containers;
 mod context;
-pub mod example_app;
+pub mod examples;
 mod font;
 mod fonts;
 mod id;

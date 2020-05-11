@@ -195,3 +195,12 @@ pub fn write_memory(
     serde_json::to_writer_pretty(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
     Ok(())
 }
+
+// ----------------------------------------------------------------------------
+
+/// Time of day as seconds since midnight. Used for clock in example app.
+pub fn local_time_of_day() -> f64 {
+    use chrono::Timelike;
+    let time = chrono::Local::now().time();
+    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
+}

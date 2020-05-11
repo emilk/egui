@@ -28,7 +28,7 @@ Currently two backends have been tested:
 The same application code can thus be compiled to either into a native app or a web app.
 
 ## Demos
-[Emigui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/emigui/src/example_app.rs
+[Emigui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/emigui/src/examples/app.rs
 
 [Hobogo: A small game using Emigui](https://emilk.github.io/hobogo/index.html), source: https://github.com/emilk/hobogo
 

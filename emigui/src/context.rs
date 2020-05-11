@@ -80,6 +80,10 @@ impl Context {
         })
     }
 
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(pos2(0.0, 0.0), self.input.screen_size)
+    }
+
     pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
         self.memory.lock()
     }

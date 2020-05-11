@@ -37,6 +37,16 @@ impl Frame {
             outline: Some(Outline::new(1.0, color::white(128))),
         }
     }
+
+    pub fn fill_color(mut self, fill_color: Option<Color>) -> Self {
+        self.fill_color = fill_color;
+        self
+    }
+
+    pub fn outline(mut self, outline: Option<Outline>) -> Self {
+        self.outline = outline;
+        self
+    }
 }
 
 impl Frame {
