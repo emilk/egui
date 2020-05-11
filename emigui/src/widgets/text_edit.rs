@@ -96,7 +96,7 @@ impl<'t> Widget for TextEdit<'t> {
                     interact.rect.min
                 };
                 ui.add_paint_cmd(PaintCmd::line_segment(
-                    (cursor_pos, cursor_pos + vec2(0.0, line_spacing)),
+                    [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
                     color::WHITE,
                     ui.style().text_cursor_width,
                 ));

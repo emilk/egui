@@ -160,11 +160,11 @@ impl Widget for Hyperlink {
                 let y = ui.round_to_pixel(y);
                 let min_x = pos.x + fragment.min_x();
                 let max_x = pos.x + fragment.max_x();
-                ui.add_paint_cmd(PaintCmd::Line {
-                    points: vec![pos2(min_x, y), pos2(max_x, y)],
+                ui.add_paint_cmd(PaintCmd::line_segment(
+                    [pos2(min_x, y), pos2(max_x, y)],
                     color,
-                    width: ui.style().line_width,
-                });
+                    ui.style().line_width,
+                ));
             }
         }
 
@@ -284,7 +284,7 @@ impl<'a> Widget for Checkbox<'a> {
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
         if *self.checked {
-            ui.add_paint_cmd(PaintCmd::Line {
+            ui.add_paint_cmd(PaintCmd::LinePath {
                 points: vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
@@ -422,7 +422,7 @@ impl Widget for Separator {
             Direction::Horizontal => {
                 let interact = ui.reserve_space(vec2(self.min_spacing, available_space.y), None);
                 (
-                    vec![
+                    [
                         pos2(interact.rect.center().x, interact.rect.top() - extra),
                         pos2(interact.rect.center().x, interact.rect.bottom() + extra),
                     ],
@@ -432,7 +432,7 @@ impl Widget for Separator {
             Direction::Vertical => {
                 let interact = ui.reserve_space(vec2(available_space.x, self.min_spacing), None);
                 (
-                    vec![
+                    [
                         pos2(interact.rect.left() - extra, interact.rect.center().y),
                         pos2(interact.rect.right() + extra, interact.rect.center().y),
                     ],
@@ -440,7 +440,7 @@ impl Widget for Separator {
                 )
             }
         };
-        ui.add_paint_cmd(PaintCmd::Line {
+        ui.add_paint_cmd(PaintCmd::LineSegment {
             points,
             color: self.color,
             width: self.line_width,

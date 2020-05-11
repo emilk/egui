@@ -369,17 +369,17 @@ impl Ui {
 
             if too_wide {
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.left_top(), rect.left_bottom()),
+                    [rect.left_top(), rect.left_bottom()],
                     color,
                     width,
                 ));
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.left_center(), rect.right_center()),
+                    [rect.left_center(), rect.right_center()],
                     color,
                     width,
                 ));
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.right_top(), rect.right_bottom()),
+                    [rect.right_top(), rect.right_bottom()],
                     color,
                     width,
                 ));
@@ -387,17 +387,17 @@ impl Ui {
 
             if too_high {
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.left_top(), rect.right_top()),
+                    [rect.left_top(), rect.right_top()],
                     color,
                     width,
                 ));
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.center_top(), rect.center_bottom()),
+                    [rect.center_top(), rect.center_bottom()],
                     color,
                     width,
                 ));
                 self.add_paint_cmd(PaintCmd::line_segment(
-                    (rect.left_bottom(), rect.right_bottom()),
+                    [rect.left_bottom(), rect.right_bottom()],
                     color,
                     width,
                 ));
@@ -594,11 +594,11 @@ impl Ui {
         let line_start = child_rect.min - indent * 0.5;
         let line_start = line_start.round(); // TODO: round to pixel instead
         let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
-        self.add_paint_cmd(PaintCmd::Line {
-            points: vec![line_start, line_end],
-            color: gray(150, 255),
-            width: self.style.line_width,
-        });
+        self.add_paint_cmd(PaintCmd::line_segment(
+            [line_start, line_end],
+            gray(150, 255),
+            self.style.line_width,
+        ));
 
         self.reserve_space(indent + size, None)
     }

@@ -157,8 +157,8 @@ fn paint_icon(ui: &mut Ui, state: &State, interact: &InteractInfo) {
     ));
 
     // Draw a minus:
-    ui.add_paint_cmd(PaintCmd::Line {
-        points: vec![
+    ui.add_paint_cmd(PaintCmd::LineSegment {
+        points: [
             pos2(small_icon_rect.left(), small_icon_rect.center().y),
             pos2(small_icon_rect.right(), small_icon_rect.center().y),
         ],
@@ -168,8 +168,8 @@ fn paint_icon(ui: &mut Ui, state: &State, interact: &InteractInfo) {
 
     if !state.open {
         // Draw it as a plus:
-        ui.add_paint_cmd(PaintCmd::Line {
-            points: vec![
+        ui.add_paint_cmd(PaintCmd::LineSegment {
+            points: [
                 pos2(small_icon_rect.center().x, small_icon_rect.top()),
                 pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
             ],

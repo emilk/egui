@@ -147,6 +147,7 @@ impl Path {
         self.0.clear();
     }
 
+    #[inline(always)]
     pub fn add_point(&mut self, pos: Pos2, normal: Vec2) {
         self.0.push(PathPoint { pos, normal });
     }
@@ -160,22 +161,33 @@ impl Path {
         }
     }
 
+    pub fn add_line_segment(&mut self, points: [Pos2; 2]) {
+        let normal = (points[1] - points[0]).normalized().rot90();
+        self.add_point(points[0], normal);
+        self.add_point(points[1], normal);
+    }
+
     pub fn add_line(&mut self, points: &[Pos2]) {
         let n = points.len();
         assert!(n >= 2);
 
-        self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
-        for i in 1..n - 1 {
-            let n0 = (points[i] - points[i - 1]).normalized().rot90();
-            let n1 = (points[i + 1] - points[i]).normalized().rot90();
-            let v = (n0 + n1) / 2.0;
-            let normal = v / v.length_sq();
-            self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
+        if n == 2 {
+            // Common case optimization:
+            self.add_line_segment([points[0], points[1]]);
+        } else {
+            self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
+            for i in 1..n - 1 {
+                let n0 = (points[i] - points[i - 1]).normalized().rot90();
+                let n1 = (points[i + 1] - points[i]).normalized().rot90();
+                let v = (n0 + n1) / 2.0;
+                let normal = v / v.length_sq();
+                self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
+            }
+            self.add_point(
+                points[n - 1],
+                (points[n - 1] - points[n - 2]).normalized().rot90(),
+            );
         }
-        self.add_point(
-            points[n - 1],
-            (points[n - 1] - points[n - 2]).normalized().rot90(),
-        );
     }
 
     pub fn add_rectangle(&mut self, rect: Rect) {
@@ -387,7 +399,16 @@ pub fn paint_path(
 
 // ----------------------------------------------------------------------------
 
-pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, out_mesh: &mut Mesh) {
+/// path: only used to reuse memory
+pub fn mesh_command(
+    path: &mut Path,
+    options: MesherOptions,
+    fonts: &Fonts,
+    command: PaintCmd,
+    out_mesh: &mut Mesh,
+) {
+    path.clear();
+
     match command {
         PaintCmd::Circle {
             center,
@@ -395,7 +416,6 @@ pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, ou
             outline,
             radius,
         } => {
-            let mut path = Path::default();
             path.add_circle(center, radius);
             if let Some(color) = fill_color {
                 fill_closed_path(out_mesh, options, &path.0, color);
@@ -414,14 +434,21 @@ pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, ou
         PaintCmd::Mesh(mesh) => {
             out_mesh.append(&mesh);
         }
-        PaintCmd::Line {
+        PaintCmd::LineSegment {
+            points,
+            color,
+            width,
+        } => {
+            path.add_line_segment(points);
+            paint_path(out_mesh, options, Open, &path.0, color, width);
+        }
+        PaintCmd::LinePath {
             points,
             color,
             width,
         } => {
             let n = points.len();
             if n >= 2 {
-                let mut path = Path::default();
                 path.add_line(&points);
                 paint_path(out_mesh, options, Open, &path.0, color, width);
             }
@@ -462,7 +489,6 @@ pub fn mesh_command(options: MesherOptions, fonts: &Fonts, command: PaintCmd, ou
             rect.min = rect.min.max(pos2(-1e7, -1e7));
             rect.max = rect.max.min(pos2(1e7, 1e7));
 
-            let mut path = Path::default();
             path.add_rounded_rectangle(rect, corner_radius);
             if let Some(fill_color) = fill_color {
                 fill_closed_path(out_mesh, options, &path.0, fill_color);
@@ -512,6 +538,8 @@ pub fn mesh_paint_commands(
     fonts: &Fonts,
     commands: Vec<(Rect, PaintCmd)>,
 ) -> Vec<(Rect, Mesh)> {
+    let mut reused_path = Path::default();
+
     let mut batches = PaintBatches::default();
     for (clip_rect, cmd) in commands {
         // TODO: cull(clip_rect, cmd)
@@ -522,6 +550,7 @@ pub fn mesh_paint_commands(
             if options.debug_paint_clip_rects && !clip_rect.is_empty() {
                 let out_mesh = &mut batches.last_mut().unwrap().1;
                 mesh_command(
+                    &mut reused_path,
                     options,
                     fonts,
                     PaintCmd::Rect {
@@ -536,7 +565,7 @@ pub fn mesh_paint_commands(
         }
 
         let out_mesh = &mut batches.last_mut().unwrap().1;
-        mesh_command(options, fonts, cmd, out_mesh);
+        mesh_command(&mut reused_path, options, fonts, cmd, out_mesh);
     }
 
     batches

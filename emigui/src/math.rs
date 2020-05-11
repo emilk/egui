@@ -8,6 +8,7 @@ pub struct Vec2 {
     pub y: f32,
 }
 
+#[inline(always)]
 pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
@@ -39,6 +40,7 @@ impl Vec2 {
         }
     }
 
+    #[inline(always)]
     pub fn rot90(self) -> Self {
         vec2(self.y, -self.x)
     }
@@ -212,6 +214,13 @@ pub fn pos2(x: f32, y: f32) -> Pos2 {
 }
 
 impl Pos2 {
+    pub fn to_vec2(self) -> Vec2 {
+        Vec2 {
+            x: self.x,
+            y: self.y,
+        }
+    }
+
     pub fn dist(self: Self, other: Self) -> f32 {
         (self - other).length()
     }

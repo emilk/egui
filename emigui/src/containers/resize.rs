@@ -256,7 +256,7 @@ fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
 
     while w < 12.0 {
         ui.add_paint_cmd(PaintCmd::line_segment(
-            (pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)),
+            [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
             color,
             width,
         ));

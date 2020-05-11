@@ -78,7 +78,12 @@ pub enum PaintCmd {
         outline: Option<Outline>,
         radius: f32,
     },
-    Line {
+    LineSegment {
+        points: [Pos2; 2],
+        color: Color,
+        width: f32,
+    },
+    LinePath {
         points: Vec<Pos2>,
         color: Color,
         width: f32,
@@ -111,9 +116,9 @@ pub enum PaintCmd {
 }
 
 impl PaintCmd {
-    pub fn line_segment(seg: (Pos2, Pos2), color: Color, width: f32) -> Self {
-        Self::Line {
-            points: vec![seg.0, seg.1],
+    pub fn line_segment(points: [Pos2; 2], color: Color, width: f32) -> Self {
+        Self::LineSegment {
+            points,
             color,
             width,
         }
