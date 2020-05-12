@@ -44,30 +44,37 @@ impl FractalClock {
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
+        if !self.paused {
+            self.time = ui
+                .input()
+                .seconds_since_midnight
+                .unwrap_or_else(|| ui.input().time);
+        }
+
         self.fractal_ui(ui);
 
-        // TODO: background frame etc
-        Frame::popup(ui.style())
+        let frame = Frame::popup(ui.style())
             .fill_color(Some(color::gray(34, 160)))
-            .outline(None)
-            .show(&mut ui.left_column(320.0), |ui| self.options_ui(ui));
+            .outline(None);
+
+        frame.show(&mut ui.left_column(320.0), |ui| {
+            CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
+        });
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
-        let time = if let Some(seconds_since_midnight) = ui.input().seconds_since_midnight {
+        if ui.input().seconds_since_midnight.is_some() {
             ui.add(label!(
                 "Local time: {:02}:{:02}:{:02}.{:03}",
-                (seconds_since_midnight.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),
-                (seconds_since_midnight.rem_euclid(60.0 * 60.0) / 60.0).floor(),
-                (seconds_since_midnight.rem_euclid(60.0)).floor(),
-                (seconds_since_midnight.rem_euclid(1.0) * 1000.0).floor()
+                (self.time.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),
+                (self.time.rem_euclid(60.0 * 60.0) / 60.0).floor(),
+                (self.time.rem_euclid(60.0)).floor(),
+                (self.time.rem_euclid(1.0) * 1000.0).floor()
             ));
-            seconds_since_midnight
         } else {
             ui.add(label!(
                 "The fractal_clock clock is not showing the correct time"
             ));
-            ui.input().time
         };
 
         ui.add(Checkbox::new(&mut self.paused, "Paused"));
@@ -79,10 +86,6 @@ impl FractalClock {
         ui.add(Slider::f32(&mut self.width_factor, 0.0..=1.0).text("width factor"));
         if ui.add(Button::new("Reset")).clicked {
             *self = Default::default();
-        }
-
-        if !self.paused {
-            self.time = time;
         }
 
         ui.add(
@@ -133,8 +136,8 @@ impl FractalClock {
         };
 
         let hand_rotations = [
-            hands[0].angle - hands[2].angle,
-            hands[1].angle - hands[2].angle,
+            hands[0].angle - hands[2].angle + TAU / 2.0,
+            hands[1].angle - hands[2].angle + TAU / 2.0,
         ];
 
         let hand_rotors = [
