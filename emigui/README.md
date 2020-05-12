@@ -87,6 +87,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [ ] Build in a profiler which tracks which `Ui` in which window takes up CPU.
     * [ ] Draw as flame graph
     * [ ] Draw as hotmap
+* [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui

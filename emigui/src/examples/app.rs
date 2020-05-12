@@ -85,6 +85,8 @@ impl ExampleApp {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Deserialize, Serialize)]
 struct OpenWindows {
     examples: bool,
@@ -141,40 +143,22 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
 /// Showcase some ui code
 #[derive(Deserialize, Serialize)]
 pub struct ExampleWindow {
-    checked: bool,
-    count: usize,
-    radio: usize,
-    text_inputs: [String; 3],
-
-    size: Vec2,
-    corner_radius: f32,
-    stroke_width: f32,
-    num_boxes: usize,
-
     num_columns: usize,
 
-    slider_value: usize,
-
+    widgets: Widgets,
+    layout: LayoutExample,
+    box_painting: BoxPainting,
     painting: Painting,
 }
 
 impl Default for ExampleWindow {
     fn default() -> ExampleWindow {
         ExampleWindow {
-            checked: true,
-            radio: 0,
-            count: 0,
-            text_inputs: ["Hello".to_string(), "World".to_string(), "".to_string()],
-
-            size: vec2(100.0, 50.0),
-            corner_radius: 5.0,
-            stroke_width: 2.0,
-            num_boxes: 1,
-
             num_columns: 2,
 
-            slider_value: 100,
-
+            widgets: Default::default(),
+            layout: Default::default(),
+            box_painting: Default::default(),
             painting: Default::default(),
         }
     }
@@ -196,56 +180,14 @@ impl ExampleWindow {
         CollapsingHeader::new("Widgets")
             .default_open()
             .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
-                ui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
-                ui.add(label!("and tooltips (hover me)")).tooltip_text(
-                    "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-                );
+                self.widgets.ui(ui);
             });
 
-            ui.add(Checkbox::new(&mut self.checked, "checkbox"));
+        CollapsingHeader::new("Layout")
+            .default_open()
+            .show(ui, |ui| self.layout.ui(ui));
 
-            ui.horizontal(|ui| {
-                if ui.add(radio(self.radio == 0, "First")).clicked {
-                    self.radio = 0;
-                }
-                if ui.add(radio(self.radio == 1, "Second")).clicked {
-                    self.radio = 1;
-                }
-                if ui.add(radio(self.radio == 2, "Final")).clicked {
-                    self.radio = 2;
-                }
-            });
-
-            ui.horizontal(|ui| {
-                if ui
-                    .add(Button::new("Click me"))
-                    .tooltip_text("This will just increase a counter.")
-                    .clicked
-                {
-                    self.count += 1;
-                }
-                ui.add(label!(
-                    "The button has been clicked {} times",
-                    self.count
-                ));
-            });
-
-            ui.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
-            if ui.add(Button::new("Double it")).clicked {
-                self.slider_value *= 2;
-            }
-
-            for (i, text) in self.text_inputs.iter_mut().enumerate() {
-                ui.horizontal(|ui|{
-                    ui.add(label!("Text input {}: ", i));
-                    ui.add(TextEdit::new(text).id(i));
-                }); // TODO: .tooltip_text("Enter text to edit me")
-            }
-        });
-
-        ui.collapsing("Layouts", |ui| {
+        ui.collapsing("Columns", |ui| {
             ui.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
@@ -257,35 +199,7 @@ impl ExampleWindow {
             });
         });
 
-        ui.collapsing("Test box rendering", |ui| {
-            ui.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
-            ui.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
-            ui.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
-            ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
-            ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
-
-            let pos = ui
-                .reserve_space(
-                    vec2(self.size.x * (self.num_boxes as f32), self.size.y),
-                    None,
-                )
-                .rect
-                .min;
-
-            let mut cmds = vec![];
-            for i in 0..self.num_boxes {
-                cmds.push(PaintCmd::Rect {
-                    corner_radius: self.corner_radius,
-                    fill_color: Some(gray(136, 255)),
-                    rect: Rect::from_min_size(
-                        pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
-                        self.size,
-                    ),
-                    outline: Some(Outline::new(self.stroke_width, gray(255, 255))),
-                });
-            }
-            ui.add_paint_cmds(cmds);
-        });
+        ui.collapsing("Test box rendering", |ui| self.box_painting.ui(ui));
 
         CollapsingHeader::new("Scroll area")
             // .default_open()
@@ -340,7 +254,135 @@ impl ExampleWindow {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Deserialize, Serialize)]
+#[serde(default)]
+struct Widgets {
+    checked: bool,
+    count: usize,
+    radio: usize,
+    slider_value: usize,
+    text_inputs: [String; 3],
+}
+
+impl Default for Widgets {
+    fn default() -> Self {
+        Self {
+            checked: true,
+            radio: 0,
+            count: 0,
+            slider_value: 100,
+            text_inputs: ["Hello".to_string(), "World".to_string(), "".to_string()],
+        }
+    }
+}
+
+impl Widgets {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+                ui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
+                ui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
+                ui.add(label!("and tooltips (hover me)")).tooltip_text(
+                    "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+                );
+            });
+
+        ui.add(Checkbox::new(&mut self.checked, "checkbox"));
+
+        ui.horizontal(|ui| {
+            if ui.add(radio(self.radio == 0, "First")).clicked {
+                self.radio = 0;
+            }
+            if ui.add(radio(self.radio == 1, "Second")).clicked {
+                self.radio = 1;
+            }
+            if ui.add(radio(self.radio == 2, "Final")).clicked {
+                self.radio = 2;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(Button::new("Click me"))
+                .tooltip_text("This will just increase a counter.")
+                .clicked
+            {
+                self.count += 1;
+            }
+            ui.add(label!("The button has been clicked {} times", self.count));
+        });
+
+        ui.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
+        if ui.add(Button::new("Double it")).clicked {
+            self.slider_value *= 2;
+        }
+
+        for (i, text) in self.text_inputs.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add(label!("Text input {}: ", i));
+                ui.add(TextEdit::new(text).id(i));
+            }); // TODO: .tooltip_text("Enter text to edit me")
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Deserialize, Serialize)]
+#[serde(default)]
+struct BoxPainting {
+    size: Vec2,
+    corner_radius: f32,
+    stroke_width: f32,
+    num_boxes: usize,
+}
+
+impl Default for BoxPainting {
+    fn default() -> Self {
+        Self {
+            size: vec2(100.0, 50.0),
+            corner_radius: 5.0,
+            stroke_width: 2.0,
+            num_boxes: 1,
+        }
+    }
+}
+
+impl BoxPainting {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
+        ui.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
+        ui.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
+        ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
+        ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
+
+        let pos = ui
+            .reserve_space(
+                vec2(self.size.x * (self.num_boxes as f32), self.size.y),
+                None,
+            )
+            .rect
+            .min;
+
+        let mut cmds = vec![];
+        for i in 0..self.num_boxes {
+            cmds.push(PaintCmd::Rect {
+                corner_radius: self.corner_radius,
+                fill_color: Some(gray(136, 255)),
+                rect: Rect::from_min_size(
+                    pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
+                    self.size,
+                ),
+                outline: Some(Outline::new(self.stroke_width, gray(255, 255))),
+            });
+        }
+        ui.add_paint_cmds(cmds);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default, Deserialize, Serialize)]
+#[serde(default)]
 struct Painting {
     lines: Vec<Vec<Vec2>>,
 }
@@ -392,6 +434,66 @@ impl Painting {
                 outline: Some(Outline::new(1.0, WHITE)),
             });
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+use crate::layout::*;
+
+#[derive(Deserialize, Serialize)]
+#[serde(default)]
+struct LayoutExample {
+    dir: Direction,
+    align: Align,
+}
+
+impl Default for LayoutExample {
+    fn default() -> Self {
+        Self {
+            dir: Direction::Vertical,
+            align: Align::Min,
+        }
+    }
+}
+
+impl LayoutExample {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.set_direction(self.dir);
+        ui.set_align(self.align);
+
+        ui.add(label!("Available space: {:?}", ui.available().size()));
+        if ui.add(Button::new("Reset")).clicked {
+            *self = Default::default();
+        }
+        ui.add(Separator::new());
+        ui.add(label!("Direction:"));
+
+        // TODO: enum iter
+
+        for &dir in &[Direction::Horizontal, Direction::Vertical] {
+            if ui
+                .add(RadioButton::new(self.dir == dir, format!("{:?}", dir)))
+                .clicked
+            {
+                self.dir = dir;
+            }
+        }
+
+        ui.add(Separator::new());
+        ui.add(label!("Align:"));
+
+        for &align in &[Align::Min, Align::Center, Align::Max, Align::Justified] {
+            if ui
+                .add(RadioButton::new(
+                    self.align == align,
+                    format!("{:?}", align),
+                ))
+                .clicked
+            {
+                self.align = align;
+            }
+        }
     }
 }
 

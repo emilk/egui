@@ -50,6 +50,7 @@ impl Label {
 
     /// If true, will word wrap to `ui.available_finite().width()`.
     /// If false (default), will word wrap to `ui.available().width()`.
+    /// This only makes a difference for auto-sized parents.
     pub fn auto_shrink(mut self) -> Self {
         self.auto_shrink = true;
         self

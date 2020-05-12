@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use serde_derive::{Deserialize, Serialize};
+
 use crate::{widgets::*, *};
 
 // ----------------------------------------------------------------------------
@@ -41,7 +43,8 @@ impl GuiResponse {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Direction {
     Horizontal,
     Vertical,
@@ -53,7 +56,8 @@ impl Default for Direction {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Align {
     /// Left/Top
     Min,

@@ -254,6 +254,11 @@ impl Ui {
     }
 
     // TODO: remove
+    pub fn set_direction(&mut self, dir: Direction) {
+        self.dir = dir;
+    }
+
+    // TODO: remove
     pub fn set_align(&mut self, align: Align) {
         self.align = align;
     }
@@ -380,16 +385,19 @@ impl Ui {
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     fn reserve_space_impl(&mut self, mut child_size: Vec2) -> Rect {
+        let available_size = self.available_finite().size();
+        let available_size = available_size.max(child_size);
+
         let mut child_pos = self.cursor;
         if self.dir == Direction::Horizontal {
             child_pos.y += match self.align {
                 Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (self.available().height() - child_size.y),
-                Align::Max => self.available().height() - child_size.y,
+                Align::Center => 0.5 * (available_size.y - child_size.y),
+                Align::Max => available_size.y - child_size.y,
             };
-            if self.align == Align::Justified && self.available().height().is_finite() {
+            if self.align == Align::Justified && available_size.y.is_finite() {
                 // Fill full height
-                child_size.y = child_size.y.max(self.available().height());
+                child_size.y = child_size.y.max(available_size.y);
             }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.x += child_size.x;
@@ -397,12 +405,12 @@ impl Ui {
         } else {
             child_pos.x += match self.align {
                 Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (self.available().width() - child_size.x),
-                Align::Max => self.available().width() - child_size.x,
+                Align::Center => 0.5 * (available_size.x - child_size.x),
+                Align::Max => available_size.x - child_size.x,
             };
-            if self.align == Align::Justified && self.available().width().is_finite() {
+            if self.align == Align::Justified && available_size.x.is_finite() {
                 // Fill full width
-                child_size.x = child_size.x.max(self.available().width());
+                child_size.x = child_size.x.max(available_size.x);
             }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.y += child_size.y;
