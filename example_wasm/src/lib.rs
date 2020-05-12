@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct State {
-    examples: ExampleApp,
+    example_app: ExampleApp,
     ctx: Arc<Context>,
     webgl_painter: emigui_wasm::webgl::Painter,
 
@@ -27,7 +27,7 @@ impl State {
         let ctx = Context::new(pixels_per_point);
         emigui_wasm::load_memory(&ctx);
         Ok(State {
-            examples: Default::default(),
+            example_app: Default::default(),
             ctx,
             webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
             frame_times: emigui::MovementTracker::new(1000, 1.0),
@@ -41,6 +41,7 @@ impl State {
         self.ctx.begin_frame(raw_input);
 
         let mut ui = self.ctx.fullscreen_ui();
+        self.example_app.ui(&mut ui);
         let mut ui = ui.centered_column(ui.available_width().min(480.0));
         ui.set_align(Align::Min);
         ui.add(label!("Emigui!").text_style(TextStyle::Heading));
@@ -76,8 +77,6 @@ impl State {
             )
             .text_style(TextStyle::Monospace),
         );
-
-        self.examples.ui(&self.ctx);
 
         let bg_color = srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.ctx.end_frame();

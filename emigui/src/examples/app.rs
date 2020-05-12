@@ -16,7 +16,13 @@ pub struct ExampleApp {
 }
 
 impl ExampleApp {
-    pub fn ui(&mut self, ctx: &Arc<Context>) {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        show_menu_bar(ui, &mut self.open_windows);
+        ui.add(Separator::new());
+        self.windows(ui.ctx());
+    }
+
+    pub fn windows(&mut self, ctx: &Arc<Context>) {
         // TODO: Make it even simpler to show a window
 
         // TODO: window manager for automatic positioning?
@@ -42,10 +48,10 @@ impl ExampleApp {
         }
 
         Window::new("Examples")
+            .open(&mut open_windows.examples)
             .default_pos(pos2(32.0, 100.0))
             .default_size(vec2(430.0, 600.0))
             .show(ctx, |ui| {
-                show_menu_bar(ui, open_windows);
                 example_window.ui(ui);
             });
 
@@ -79,6 +85,7 @@ impl ExampleApp {
 
 #[derive(Deserialize, Serialize)]
 struct OpenWindows {
+    examples: bool,
     settings: bool,
     inspection: bool,
     memory: bool,
@@ -88,8 +95,9 @@ struct OpenWindows {
 impl Default for OpenWindows {
     fn default() -> Self {
         Self {
+            examples: true,
             settings: false,
-            inspection: true,
+            inspection: false,
             memory: false,
             fractal_clock: false,
         }
@@ -107,13 +115,15 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             // TODO: open on top when clicking a new.
             // Maybe an Window or Area can detect that: if wasn't open last frame, but is now,
             // then automatically go to front?
+            ui.add(Checkbox::new(&mut windows.examples, "Examples"));
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));
             ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));
             ui.add(Checkbox::new(&mut windows.memory, "Memory"));
             ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
         });
         menu::menu(ui, "About", |ui| {
-            ui.add(label!("This is Emigui, but you already knew that!"));
+            ui.add(label!("This is Emigui"));
+            ui.add(Hyperlink::new("https://github.com/emilk/emigui/").text("Emigui home page"));
         });
     });
 }

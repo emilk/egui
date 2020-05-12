@@ -79,7 +79,7 @@ fn main() {
     let mut running = true;
     let mut frame_start = Instant::now();
     let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
-    let mut examples = ExampleApp::default();
+    let mut example_app = ExampleApp::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
     emigui_glium::read_memory(&ctx, memory_path);
@@ -109,6 +109,7 @@ fn main() {
         let emigui_start = Instant::now();
         ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
         let mut ui = ctx.fullscreen_ui();
+        example_app.ui(&mut ui);
         let mut ui = ui.centered_column(ui.available_width().min(480.0));
         ui.set_align(Align::Min);
         ui.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
@@ -130,8 +131,6 @@ fn main() {
             )
             .text_style(TextStyle::Monospace),
         );
-
-        examples.ui(&ctx);
 
         let (output, paint_batches) = ctx.end_frame();
 
