@@ -155,7 +155,10 @@ impl Area {
         //     &format!("Area size: {:?}", state.size),
         // );
 
-        if move_interact.active || mouse_pressed_on_area(ctx, layer) {
+        if move_interact.active
+            || mouse_pressed_on_area(ctx, layer)
+            || !ctx.memory().areas.visible_last_frame(&layer)
+        {
             ctx.memory().areas.move_to_top(layer);
         }
         ctx.memory().areas.set_state(layer, state);

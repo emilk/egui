@@ -112,9 +112,6 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             ui.add(Button::new("Don't Quit"));
         });
         menu::menu(ui, "Windows", |ui| {
-            // TODO: open on top when clicking a new.
-            // Maybe an Window or Area can detect that: if wasn't open last frame, but is now,
-            // then automatically go to front?
             ui.add(Checkbox::new(&mut windows.examples, "Examples"));
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));
             ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));

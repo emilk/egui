@@ -161,7 +161,6 @@ impl Context {
         if !self.last_raw_input.mouse_down || self.last_raw_input.mouse_pos.is_none() {
             self.memory().active_id = None;
         }
-        self.memory().begin_frame();
 
         self.used_ids.lock().clear();
 
@@ -180,6 +179,7 @@ impl Context {
     }
 
     pub fn end_frame(&self) -> (Output, PaintBatches) {
+        self.memory().end_frame();
         let output: Output = std::mem::take(&mut self.output());
         let paint_batches = self.paint();
         (output, paint_batches)

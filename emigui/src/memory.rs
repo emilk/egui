@@ -33,11 +33,18 @@ pub struct Areas {
     order: Vec<Layer>,
     visible_last_frame: HashSet<Layer>,
     visible_current_frame: HashSet<Layer>,
+
+    /// When an area want to be on top, it is put in here.
+    /// At the end of the frame, this is used to reorder the layers.
+    /// This means if several layers want to be on top, they will keep their relative order.
+    /// So if you close three windows and then reopen them all in one frame,
+    /// they will all be sent to the top, but keep their previous internal order.
+    wants_to_be_on_top: HashSet<Layer>,
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(&mut self) {
-        self.areas.begin_frame()
+    pub(crate) fn end_frame(&mut self) {
+        self.areas.end_frame()
     }
 
     /// TODO: call once at the start of the frame for the current mouse pos
@@ -64,7 +71,6 @@ impl Areas {
         let did_insert = self.areas.insert(layer.id, state).is_none();
         if did_insert {
             self.order.push(layer);
-            self.order.sort_by_key(|layer| layer.order);
         }
     }
 
@@ -85,25 +91,34 @@ impl Areas {
         None
     }
 
+    pub fn visible_last_frame(&self, layer: &Layer) -> bool {
+        self.visible_last_frame.contains(layer)
+    }
+
     pub fn is_visible(&self, layer: &Layer) -> bool {
         self.visible_last_frame.contains(layer) || self.visible_current_frame.contains(layer)
     }
 
     pub fn move_to_top(&mut self, layer: Layer) {
         self.visible_current_frame.insert(layer);
+        self.wants_to_be_on_top.insert(layer);
 
-        if self.order.last() == Some(&layer) {
-            return; // common case early-out
+        if self.order.iter().find(|x| **x == layer).is_none() {
+            self.order.push(layer);
         }
-        if let Some(index) = self.order.iter().position(|x| *x == layer) {
-            self.order.remove(index);
-        }
-        self.order.push(layer);
-
-        self.order.sort_by_key(|layer| layer.order);
     }
 
-    pub(crate) fn begin_frame(&mut self) {
-        self.visible_last_frame = std::mem::take(&mut self.visible_current_frame);
+    pub(crate) fn end_frame(&mut self) {
+        let Self {
+            visible_last_frame,
+            visible_current_frame,
+            order,
+            wants_to_be_on_top,
+            ..
+        } = self;
+
+        *visible_last_frame = std::mem::take(visible_current_frame);
+        order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
+        wants_to_be_on_top.clear();
     }
 }
