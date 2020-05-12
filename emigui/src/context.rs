@@ -26,8 +26,8 @@ pub struct Context {
     memory: Arc<Mutex<Memory>>,
 
     // Input releated stuff:
-    /// Raw input from last frame. Use `input()` instead.
-    last_raw_input: RawInput,
+    raw_input: RawInput,
+    previus_input: GuiInput,
     input: GuiInput,
     mouse_tracker: MovementTracker<Pos2>,
 
@@ -49,7 +49,8 @@ impl Clone for Context {
             fonts: self.fonts.clone(),
             new_fonts: Mutex::new(self.new_fonts.lock().clone()),
             memory: self.memory.clone(),
-            last_raw_input: self.last_raw_input.clone(),
+            raw_input: self.raw_input.clone(),
+            previus_input: self.previus_input.clone(),
             input: self.input.clone(),
             mouse_tracker: self.mouse_tracker.clone(),
             graphics: Mutex::new(self.graphics.lock().clone()),
@@ -69,7 +70,8 @@ impl Context {
             new_fonts: Default::default(),
             memory: Default::default(),
 
-            last_raw_input: Default::default(),
+            raw_input: Default::default(),
+            previus_input: Default::default(),
             input: Default::default(),
             mouse_tracker: MovementTracker::new(1000, 0.1),
 
@@ -96,6 +98,11 @@ impl Context {
         self.output.lock()
     }
 
+    /// Input previous frame. Compare to `input()` to check for changes.
+    pub fn previus_input(&self) -> &GuiInput {
+        &self.previus_input
+    }
+
     pub fn input(&self) -> &GuiInput {
         &self.input
     }
@@ -103,11 +110,6 @@ impl Context {
     /// Smoothed mouse velocity, in points per second
     pub fn mouse_vel(&self) -> Vec2 {
         self.mouse_tracker.velocity().unwrap_or_default()
-    }
-
-    /// Raw input from last frame. Use `input()` instead.
-    pub fn last_raw_input(&self) -> &RawInput {
-        &self.last_raw_input
     }
 
     pub fn fonts(&self) -> &Fonts {
@@ -157,8 +159,8 @@ impl Context {
         *self = Arc::new(self_);
     }
 
-    fn begin_frame_mut(&mut self, new_input: RawInput) {
-        if !self.last_raw_input.mouse_down || self.last_raw_input.mouse_pos.is_none() {
+    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+        if !self.raw_input.mouse_down || self.raw_input.mouse_pos.is_none() {
             self.memory().active_id = None;
         }
 
@@ -168,14 +170,15 @@ impl Context {
             self.fonts = new_fonts;
         }
 
-        if let Some(mouse_pos) = new_input.mouse_pos {
-            self.mouse_tracker.add(new_input.time, mouse_pos);
+        if let Some(mouse_pos) = new_raw_input.mouse_pos {
+            self.mouse_tracker.add(new_raw_input.time, mouse_pos);
         } else {
             self.mouse_tracker.clear();
         }
-        self.input = GuiInput::from_last_and_new(&self.last_raw_input, &new_input);
+        let new_input = GuiInput::from_last_and_new(&self.raw_input, &new_raw_input);
+        self.previus_input = std::mem::replace(&mut self.input, new_input);
         self.input.mouse_velocity = self.mouse_vel();
-        self.last_raw_input = new_input;
+        self.raw_input = new_raw_input;
     }
 
     pub fn end_frame(&self) -> (Output, PaintBatches) {
@@ -480,9 +483,7 @@ impl Context {
         use crate::containers::*;
 
         ui.collapsing("Input", |ui| {
-            CollapsingHeader::new("Raw Input")
-                .default_open()
-                .show(ui, |ui| ui.ctx().last_raw_input().clone().ui(ui));
+            CollapsingHeader::new("Raw Input").show(ui, |ui| ui.ctx().raw_input.clone().ui(ui));
             CollapsingHeader::new("Input")
                 .default_open()
                 .show(ui, |ui| ui.input().clone().ui(ui));

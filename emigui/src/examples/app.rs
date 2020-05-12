@@ -8,8 +8,8 @@ use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
 // ----------------------------------------------------------------------------
 
 #[derive(Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct ExampleApp {
-    has_initialized: bool,
     example_window: ExampleWindow,
     open_windows: OpenWindows,
     fractal_clock: FractalClock,
@@ -28,23 +28,25 @@ impl ExampleApp {
         // TODO: window manager for automatic positioning?
 
         let ExampleApp {
-            has_initialized,
             example_window,
             open_windows,
             fractal_clock,
         } = self;
 
-        if !*has_initialized {
-            // #fragment end of URL:
+        if ctx.previus_input().web != ctx.input().web {
             let location_hash = ctx
                 .input()
                 .web
                 .as_ref()
                 .map(|web| web.location_hash.as_str());
+
+            // #fragment end of URL:
             if location_hash == Some("#clock") {
-                open_windows.fractal_clock = true;
+                *open_windows = OpenWindows {
+                    fractal_clock: true,
+                    ..OpenWindows::none()
+                };
             }
-            *has_initialized = true;
         }
 
         Window::new("Examples")
@@ -96,6 +98,15 @@ impl Default for OpenWindows {
     fn default() -> Self {
         Self {
             examples: true,
+            ..OpenWindows::none()
+        }
+    }
+}
+
+impl OpenWindows {
+    fn none() -> Self {
+        Self {
+            examples: false,
             settings: false,
             inspection: false,
             memory: false,
