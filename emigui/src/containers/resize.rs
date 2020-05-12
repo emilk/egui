@@ -143,9 +143,9 @@ impl Resize {
 // TODO: a common trait for Things that follow this pattern
 impl Resize {
     pub fn show(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
-        let id = ui.make_child_id("scroll");
-        self.min_size = self.min_size.min(ui.available_space());
-        self.max_size = self.max_size.min(ui.available_space());
+        let id = ui.make_child_id("resize");
+        self.min_size = self.min_size.min(ui.available().size());
+        self.max_size = self.max_size.min(ui.available().size());
         self.max_size = self.max_size.max(self.min_size);
 
         let (is_new, mut state) = match ui.memory().resize.get(&id) {

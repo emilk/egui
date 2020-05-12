@@ -61,7 +61,11 @@ impl CollapsingHeader {
         let text_pos = ui.cursor() + vec2(ui.style().indent, 0.0);
         let (title, text_size) = label.layout(text_pos, ui);
         let text_max_x = text_pos.x + text_size.x;
-        let desired_width = ui.available_space_min().x.max(text_max_x - ui.cursor().x);
+        let desired_width = ui
+            .available_finite()
+            .size()
+            .x
+            .max(text_max_x - ui.cursor().x);
 
         let interact = ui.reserve_space(
             vec2(
@@ -115,15 +119,21 @@ impl CollapsingHeader {
         if animate {
             ui.indent(id, |child_ui| {
                 let max_height = if state.open {
-                    let full_height = state.open_height.unwrap_or(1000.0);
-                    remap(time_since_toggle, 0.0..=animation_time, 0.0..=full_height)
+                    if let Some(full_height) = state.open_height {
+                        remap(time_since_toggle, 0.0..=animation_time, 0.0..=full_height)
+                    } else {
+                        // First frame of expansion.
+                        // We don't know full height yet, but we will next frame.
+                        // Just use a placehodler value that shows some movement:
+                        10.0
+                    }
                 } else {
                     let full_height = state.open_height.unwrap_or_default();
                     remap_clamp(time_since_toggle, 0.0..=animation_time, full_height..=0.0)
                 };
 
                 let mut clip_rect = child_ui.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(child_ui.cursor().y + max_height);
+                clip_rect.max.y = clip_rect.max.y.min(child_ui.rect().top() + max_height);
                 child_ui.set_clip_rect(clip_rect);
 
                 let top_left = child_ui.top_left();

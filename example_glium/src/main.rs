@@ -110,7 +110,7 @@ fn main() {
         ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
         let mut ui = ctx.fullscreen_ui();
         example_app.ui(&mut ui);
-        let mut ui = ui.centered_column(ui.available_width().min(480.0));
+        let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_align(Align::Min);
         ui.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
         if ui.add(Button::new("Quit")).clicked {

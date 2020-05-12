@@ -42,7 +42,7 @@ impl State {
 
         let mut ui = self.ctx.fullscreen_ui();
         self.example_app.ui(&mut ui);
-        let mut ui = ui.centered_column(ui.available_width().min(480.0));
+        let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_align(Align::Min);
         ui.add(label!("Emigui!").text_style(TextStyle::Heading));
         ui.add_label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");

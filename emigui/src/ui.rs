@@ -231,33 +231,19 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Layout related measures:
 
-    /// A zero should be intepreted as "as little as possible".
-    /// An infinite value should be intereted as "as much as you want"
-    pub fn available_width(&self) -> f32 {
-        self.available_space().x
-    }
-
-    /// A zero should be intepreted as "as little as possible".
-    /// An infinite value should be intereted as "as much as you want"
-    pub fn available_height(&self) -> f32 {
-        self.available_space().y
-    }
-
+    /// The available space at the moment, given the current cursor.
     /// This how much more space we can take up without overflowing our parent.
-    /// Shrinks as cursor increments.
-    /// A zero size should be intepreted as "as little as possible".
-    /// An infinite size should be intereted as "as much as you want"
-    pub fn available_space(&self) -> Vec2 {
-        self.bottom_right() - self.cursor
+    /// Shrinks as widgets allocate space and the cursor moves.
+    /// A small rectangle should be intepreted as "as little as possible".
+    /// An infinite rectangle should be interpred as "as much as you want"
+    pub fn available(&self) -> Rect {
+        Rect::from_min_max(self.cursor, self.bottom_right())
     }
 
-    /// Use this for components that want to grow witout bounds.
-    pub fn available_space_min(&self) -> Vec2 {
-        self.finite_bottom_right() - self.cursor
-    }
-
-    pub fn available_rect_min(&self) -> Rect {
-        Rect::from_min_size(self.cursor, self.available_space_min())
+    /// This is like `available()`, but will never be infinite.
+    /// Use this for components that want to grow without bounds (but shouldn't).
+    pub fn available_finite(&self) -> Rect {
+        Rect::from_min_max(self.cursor, self.finite_bottom_right())
     }
 
     pub fn direction(&self) -> Direction {
@@ -344,7 +330,7 @@ impl Ui {
     /// # How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
-    /// If you want to fill the space, ask about `available_space()` and use that.
+    /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
     /// for `Justified` aligned layouts, like in menus.
@@ -355,8 +341,8 @@ impl Ui {
         self.cursor = self.round_pos_to_pixels(self.cursor);
 
         // For debug rendering
-        let too_wide = child_size.x > self.available_width();
-        let too_high = child_size.x > self.available_height();
+        let too_wide = child_size.x > self.available().width();
+        let too_high = child_size.x > self.available().height();
 
         let rect = self.reserve_space_impl(child_size);
 
@@ -371,40 +357,19 @@ impl Ui {
             let color = color::srgba(200, 0, 0, 255);
             let width = 2.5;
 
+            let mut paint_line_seg =
+                |a, b| self.add_paint_cmd(PaintCmd::line_segment([a, b], color, width));
+
             if too_wide {
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.left_top(), rect.left_bottom()],
-                    color,
-                    width,
-                ));
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.left_center(), rect.right_center()],
-                    color,
-                    width,
-                ));
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.right_top(), rect.right_bottom()],
-                    color,
-                    width,
-                ));
+                paint_line_seg(rect.left_top(), rect.left_bottom());
+                paint_line_seg(rect.left_center(), rect.right_center());
+                paint_line_seg(rect.right_top(), rect.right_bottom());
             }
 
             if too_high {
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.left_top(), rect.right_top()],
-                    color,
-                    width,
-                ));
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.center_top(), rect.center_bottom()],
-                    color,
-                    width,
-                ));
-                self.add_paint_cmd(PaintCmd::line_segment(
-                    [rect.left_bottom(), rect.right_bottom()],
-                    color,
-                    width,
-                ));
+                paint_line_seg(rect.left_top(), rect.right_top());
+                paint_line_seg(rect.center_top(), rect.center_bottom());
+                paint_line_seg(rect.left_bottom(), rect.right_bottom());
             }
         }
 
@@ -419,12 +384,12 @@ impl Ui {
         if self.dir == Direction::Horizontal {
             child_pos.y += match self.align {
                 Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (self.available_height() - child_size.y),
-                Align::Max => self.available_height() - child_size.y,
+                Align::Center => 0.5 * (self.available().height() - child_size.y),
+                Align::Max => self.available().height() - child_size.y,
             };
-            if self.align == Align::Justified && self.available_height().is_finite() {
+            if self.align == Align::Justified && self.available().height().is_finite() {
                 // Fill full height
-                child_size.y = child_size.y.max(self.available_height());
+                child_size.y = child_size.y.max(self.available().height());
             }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.x += child_size.x;
@@ -432,12 +397,12 @@ impl Ui {
         } else {
             child_pos.x += match self.align {
                 Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (self.available_width() - child_size.x),
-                Align::Max => self.available_width() - child_size.x,
+                Align::Center => 0.5 * (self.available().width() - child_size.x),
+                Align::Max => self.available().width() - child_size.x,
             };
-            if self.align == Align::Justified && self.available_width().is_finite() {
+            if self.align == Align::Justified && self.available().width().is_finite() {
                 // Fill full width
-                child_size.x = child_size.x.max(self.available_width());
+                child_size.x = child_size.x.max(self.available().width());
             }
             self.child_bounds.extend_with(self.cursor + child_size);
             self.cursor.y += child_size.y;
@@ -488,6 +453,18 @@ impl Ui {
     // TODO: AsRef<str>
     pub fn debug_text_at(&self, pos: Pos2, text: &str) {
         self.ctx.debug_text(pos, text);
+    }
+
+    pub fn debug_rect(&mut self, rect: Rect, text: &str) {
+        self.add_paint_cmd(PaintCmd::Rect {
+            corner_radius: 0.0,
+            fill_color: None,
+            outline: Some(Outline::new(1.0, color::RED)),
+            rect,
+        });
+        let align = (Align::Min, Align::Min);
+        let text_style = TextStyle::Monospace;
+        self.floating_text(rect.min, text, text_style, align, Some(color::RED));
     }
 
     /// Show some text anywhere in the ui.
@@ -565,7 +542,7 @@ impl Ui {
     /// After `add_contents` is called the contents of `bounding_size`
     /// will decide how much space will be used in the parent ui.
     pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) {
-        let size = size.min(self.available_space());
+        let size = size.min(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
         let mut child_ui = Ui {
             ..self.child_ui(child_rect)
@@ -597,7 +574,7 @@ impl Ui {
         // draw a grey line on the left to mark the indented section
         let line_start = child_rect.min - indent * 0.5;
         let line_start = line_start.round(); // TODO: round to pixel instead
-        let line_end = pos2(line_start.x, line_start.y + size.y - 8.0);
+        let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.add_paint_cmd(PaintCmd::line_segment(
             [line_start, line_end],
             gray(150, 255),
@@ -623,16 +600,16 @@ impl Ui {
     pub fn column(&mut self, column_position: Align, mut width: f32) -> Ui {
         let x = match column_position {
             Align::Min => 0.0,
-            Align::Center => self.available_width() / 2.0 - width / 2.0,
-            Align::Max => self.available_width() - width,
+            Align::Center => self.available().width() / 2.0 - width / 2.0,
+            Align::Max => self.available().width() - width,
             Align::Justified => {
-                width = self.available_width();
+                width = self.available().width();
                 0.0
             }
         };
         self.child_ui(Rect::from_min_size(
             self.cursor + vec2(x, 0.0),
-            vec2(width, self.available_height()),
+            vec2(width, self.available().height()),
         ))
     }
 
@@ -678,7 +655,7 @@ impl Ui {
         // TODO: ensure there is space
         let spacing = self.style.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
-        let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
+        let column_width = (self.available().width() - total_spacing) / (num_columns as f32);
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
@@ -707,7 +684,7 @@ impl Ui {
             max_height = size.y.max(max_height);
         }
 
-        let size = vec2(self.available_width().max(sum_width), max_height);
+        let size = vec2(self.available().width().max(sum_width), max_height);
         self.reserve_space(size, None);
         result
     }

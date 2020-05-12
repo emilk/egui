@@ -58,18 +58,14 @@ impl Frame {
             outline,
         } = self;
 
-        let outer_pos = ui.cursor();
-        let inner_rect =
-            Rect::from_min_size(outer_pos + margin, ui.available_space() - 2.0 * margin);
+        let outer_rect = ui.available();
+        let inner_rect = outer_rect.expand2(-margin);
         let where_to_put_background = ui.paint_list_len();
 
         let mut child_ui = ui.child_ui(inner_rect);
         add_contents(&mut child_ui);
 
-        let inner_size = child_ui.bounding_size();
-        let inner_size = inner_size.ceil(); // TODO: round to pixel
-
-        let outer_rect = Rect::from_min_size(outer_pos, margin + inner_size + margin);
+        let outer_rect = Rect::from_min_max(outer_rect.min, child_ui.child_bounds().max + margin);
 
         ui.insert_paint_cmd(
             where_to_put_background,
@@ -81,7 +77,7 @@ impl Frame {
             },
         );
 
-        ui.expand_to_include_child(child_ui.child_bounds().expand2(margin));
-        // TODO: move up cursor?
+        ui.expand_to_include_child(outer_rect);
+        // TODO: move cursor in parent ui
     }
 }

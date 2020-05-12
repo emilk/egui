@@ -40,8 +40,8 @@ impl<'t> Widget for TextEdit<'t> {
 
         let font = &ui.fonts()[self.text_style];
         let line_spacing = font.line_spacing();
-        let (text, text_size) = font.layout_multiline(self.text.as_str(), ui.available_width());
-        let desired_size = text_size.max(vec2(ui.available_width(), line_spacing));
+        let (text, text_size) = font.layout_multiline(self.text.as_str(), ui.available().width());
+        let desired_size = text_size.max(vec2(ui.available().width(), line_spacing));
         let interact = ui.reserve_space(desired_size, Some(id));
 
         if interact.clicked {

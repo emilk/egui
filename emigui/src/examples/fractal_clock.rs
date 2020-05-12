@@ -123,7 +123,7 @@ impl FractalClock {
             Hand::from_length_angle(0.5, angle_from_period(12.0 * 60.0 * 60.0)),
         ];
 
-        let rect = ui.available_rect_min();
+        let rect = ui.available_finite();
 
         let scale = self.zoom * rect.width().min(rect.height());
         let mut paint_line = |points: [Pos2; 2], color: Color, width: f32| {

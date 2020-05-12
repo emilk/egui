@@ -31,7 +31,7 @@ pub fn bar(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
             ui.set_style(style);
 
             // Take full width and fixed height:
-            ui.expand_to_size(vec2(ui.available_width(), ui.style().menu_bar.height));
+            ui.expand_to_size(vec2(ui.available().width(), ui.style().menu_bar.height));
             add_contents(ui)
         })
     })

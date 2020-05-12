@@ -149,7 +149,7 @@ impl Widget for Hyperlink {
         let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
         // TODO: underline
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
         let interact = ui.reserve_space(text_size, Some(id));
         if interact.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -215,7 +215,7 @@ impl Widget for Button {
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
         let padding = ui.style().button_padding;
         let mut size = text_size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
@@ -341,7 +341,7 @@ impl Widget for RadioButton {
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available_width());
+        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)
@@ -422,7 +422,7 @@ impl Separator {
 
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
-        let available_space = ui.available_space_min();
+        let available_space = ui.available_finite().size();
 
         let extra = self.extra;
         let (points, interact) = match ui.direction() {

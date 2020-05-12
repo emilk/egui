@@ -354,7 +354,7 @@ impl Painting {
 
         ui.add_custom_contents(vec2(f32::INFINITY, 200.0), |ui| {
             let canvas_corner = ui.cursor();
-            let interact = ui.reserve_space(ui.available_space(), Some(ui.id()));
+            let interact = ui.reserve_space(ui.available().size(), Some(ui.id()));
             ui.set_clip_rect(ui.clip_rect().intersect(interact.rect)); // Make sure we don't paint out of bounds
 
             if self.lines.is_empty() {

@@ -116,7 +116,7 @@ impl<'a> Widget for Slider<'a> {
             let slider_sans_text = Slider { text: None, ..self };
 
             if text_on_top {
-                // let (text, text_size) = font.layout_multiline(&full_text, ui.available_width());
+                // let (text, text_size) = font.layout_multiline(&full_text, ui.available().width());
                 let (text, text_size) = font.layout_single_line(&full_text);
                 let pos = ui.reserve_space(text_size, None).rect.min;
                 ui.add_text(pos, text_style, text, text_color);
@@ -144,7 +144,7 @@ impl<'a> Widget for Slider<'a> {
 
             let interact = ui.reserve_space(
                 Vec2 {
-                    x: ui.available_width(),
+                    x: ui.available().width(),
                     y: height,
                 },
                 Some(id),
