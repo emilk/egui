@@ -159,7 +159,7 @@ impl Resize {
         state.size = state.size.clamp(self.min_size..=self.max_size);
         let last_frame_size = state.size;
 
-        let position = ui.cursor();
+        let position = ui.available().min;
 
         let corner_interact = if self.resizable {
             // Resize-corner:
@@ -189,7 +189,7 @@ impl Resize {
 
         // ------------------------------
 
-        let inner_rect = Rect::from_min_size(ui.cursor(), state.size);
+        let inner_rect = Rect::from_min_size(position, state.size);
         let desired_size = {
             let mut content_clip_rect = ui
                 .clip_rect()

@@ -235,25 +235,25 @@ impl Ui {
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
     /// A small rectangle should be intepreted as "as little as possible".
-    /// An infinite rectangle should be interpred as "as much as you want"
+    /// An infinite rectangle should be interpred as "as much as you want".
+    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available(&self) -> Rect {
         Rect::from_min_max(self.cursor, self.bottom_right())
     }
 
     /// This is like `available()`, but will never be infinite.
     /// Use this for components that want to grow without bounds (but shouldn't).
+    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available_finite(&self) -> Rect {
         Rect::from_min_max(self.cursor, self.finite_bottom_right())
     }
 
+    // TODO: remove
     pub fn direction(&self) -> Direction {
         self.dir
     }
 
-    pub fn cursor(&self) -> Pos2 {
-        self.cursor
-    }
-
+    // TODO: remove
     pub fn set_align(&mut self, align: Align) {
         self.align = align;
     }
@@ -278,11 +278,11 @@ impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
     /// If the `id_source` is not unique within this ui
     /// then an error will be printed at the current cursor position.
-    pub fn make_unique_id<IdSource>(&self, id_source: &IdSource) -> Id
+    pub fn make_unique_id<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {
-        let id = self.id.with(id_source);
+        let id = self.id.with(&id_source);
         // TODO: clip name clash error messages to clip rect
         self.ctx.register_unique_id(id, id_source, self.cursor)
     }
@@ -544,9 +544,7 @@ impl Ui {
     pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) {
         let size = size.min(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
-        let mut child_ui = Ui {
-            ..self.child_ui(child_rect)
-        };
+        let mut child_ui = self.child_ui(child_rect);
         add_contents(&mut child_ui);
         self.reserve_space(child_ui.bounding_size(), None);
     }
@@ -614,12 +612,12 @@ impl Ui {
     }
 
     /// Start a ui with horizontal layout
-    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         self.inner_layout(Direction::Horizontal, Align::Min, add_contents)
     }
 
     /// Start a ui with vertical layout
-    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
         self.inner_layout(Direction::Vertical, Align::Min, add_contents)
     }
 
@@ -628,7 +626,7 @@ impl Ui {
         dir: Direction,
         align: Align,
         add_contents: impl FnOnce(&mut Self),
-    ) {
+    ) -> InteractInfo {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_ui = Self {
             dir,
@@ -637,7 +635,7 @@ impl Ui {
         };
         add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
-        self.reserve_space(size, None);
+        self.reserve_space(size, None)
     }
 
     /// Temporarily split split a vertical layout into several columns.

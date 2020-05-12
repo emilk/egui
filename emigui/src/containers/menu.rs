@@ -20,7 +20,7 @@ impl Default for BarState {
     }
 }
 
-pub fn bar(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
+pub fn bar(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
     ui.horizontal(|ui| {
         Frame::default().show(ui, |ui| {
             let mut style = ui.style().clone();

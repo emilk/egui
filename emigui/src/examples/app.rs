@@ -353,9 +353,9 @@ impl Painting {
         }
 
         ui.add_custom_contents(vec2(f32::INFINITY, 200.0), |ui| {
-            let canvas_corner = ui.cursor();
-            let interact = ui.reserve_space(ui.available().size(), Some(ui.id()));
-            ui.set_clip_rect(ui.clip_rect().intersect(interact.rect)); // Make sure we don't paint out of bounds
+            let interact = ui.reserve_space(ui.available_finite().size(), Some(ui.id()));
+            let rect = interact.rect;
+            ui.set_clip_rect(ui.clip_rect().intersect(rect)); // Make sure we don't paint out of bounds
 
             if self.lines.is_empty() {
                 self.lines.push(vec![]);
@@ -365,7 +365,7 @@ impl Painting {
 
             if interact.active {
                 if let Some(mouse_pos) = ui.input().mouse_pos {
-                    let canvas_pos = mouse_pos - canvas_corner;
+                    let canvas_pos = mouse_pos - rect.min;
                     if current_line.last() != Some(&canvas_pos) {
                         current_line.push(canvas_pos);
                     }
@@ -377,7 +377,7 @@ impl Painting {
             for line in &self.lines {
                 if line.len() >= 2 {
                     ui.add_paint_cmd(PaintCmd::LinePath {
-                        points: line.iter().map(|p| canvas_corner + *p).collect(),
+                        points: line.iter().map(|p| rect.min + *p).collect(),
                         color: LIGHT_GRAY,
                         width: 2.0,
                     });

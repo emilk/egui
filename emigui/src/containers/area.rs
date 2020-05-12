@@ -115,7 +115,7 @@ impl Area {
             Rect::from_min_size(state.pos, Vec2::infinity()),
         );
         add_contents(&mut ui);
-        state.size = ui.bounding_size().ceil();
+        state.size = (ui.child_bounds().max - state.pos).ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything(); // TODO: get from context

@@ -48,8 +48,8 @@ impl Label {
         self
     }
 
-    /// If true, will word wrap to the width of the current child_bounds.
-    /// If false (defailt), will word wrap to the available width
+    /// If true, will word wrap to `ui.available_finite().width()`.
+    /// If false (default), will word wrap to `ui.available().width()`.
     pub fn auto_shrink(mut self) -> Self {
         self.auto_shrink = true;
         self
@@ -65,15 +65,8 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, pos: Pos2, ui: &Ui) -> (Vec<font::TextFragment>, Vec2) {
+    pub fn layout(&self, max_width: f32, ui: &Ui) -> (Vec<font::TextFragment>, Vec2) {
         let font = &ui.fonts()[self.text_style];
-
-        let max_width = if self.auto_shrink {
-            ui.child_bounds().right() - pos.x
-        } else {
-            ui.rect().right() - pos.x
-        };
-
         if self.multiline {
             font.layout_multiline(&self.text, max_width)
         } else {
@@ -99,7 +92,12 @@ macro_rules! label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
-        let (text, text_size) = self.layout(ui.cursor(), ui);
+        let max_width = if self.auto_shrink {
+            ui.available_finite().width()
+        } else {
+            ui.available().width()
+        };
+        let (text, text_size) = self.layout(max_width, ui);
         let interact = ui.reserve_space(text_size, None);
         ui.add_text(interact.rect.min, self.text_style, text, self.text_color);
         ui.response(interact)
