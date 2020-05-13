@@ -432,6 +432,13 @@ impl Rect {
         self.max = self.max.max(p);
     }
 
+    pub fn union(self, other: Rect) -> Rect {
+        Rect {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
+        }
+    }
+
     pub fn center(&self) -> Pos2 {
         Pos2 {
             x: self.min.x + self.size().x / 2.0,

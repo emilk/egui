@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
@@ -5,6 +7,7 @@ use crate::{
     fonts::TextStyle,
     math::{Pos2, Rect},
     mesher::{Mesh, Path},
+    Context, Ui,
 };
 
 // ----------------------------------------------------------------------------
@@ -51,6 +54,54 @@ pub struct InteractInfo {
 
     /// The region of the screen we are talking about
     pub rect: Rect,
+}
+
+impl InteractInfo {
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            hovered: self.hovered || other.hovered,
+            clicked: self.clicked || other.clicked,
+            active: self.active || other.active,
+            rect: self.rect.union(other.rect),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// TODO: rename GuiResponse
+pub struct GuiResponse {
+    /// The mouse is hovering above this
+    pub hovered: bool,
+
+    /// The mouse clicked this thing this frame
+    pub clicked: bool,
+
+    /// The mouse is interacting with this thing (e.g. dragging it)
+    pub active: bool,
+
+    /// The area of the screen we are talking about
+    pub rect: Rect,
+
+    /// Used for optionally showing a tooltip
+    pub ctx: Arc<Context>,
+}
+
+impl GuiResponse {
+    /// Show some stuff if the item was hovered
+    pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> &mut Self {
+        if self.hovered {
+            crate::containers::show_tooltip(&self.ctx, add_contents);
+        }
+        self
+    }
+
+    /// Show this text if the item was hovered
+    pub fn tooltip_text(&mut self, text: impl Into<String>) -> &mut Self {
+        self.tooltip(|popup| {
+            popup.add(crate::widgets::Label::new(text));
+        })
+    }
 }
 
 // ----------------------------------------------------------------------------

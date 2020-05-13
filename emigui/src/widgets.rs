@@ -1,9 +1,6 @@
 #![allow(clippy::new_without_default)]
 
-use crate::{
-    layout::{Direction, GuiResponse},
-    *,
-};
+use crate::{layout::Direction, GuiResponse, *};
 
 mod slider;
 mod text_edit;
