@@ -446,6 +446,7 @@ use crate::layout::*;
 struct LayoutExample {
     dir: Direction,
     align: Option<Align>, // None == jusitifed
+    reversed: bool,
 }
 
 impl Default for LayoutExample {
@@ -453,6 +454,7 @@ impl Default for LayoutExample {
         Self {
             dir: Direction::Vertical,
             align: Some(Align::Center),
+            reversed: false,
         }
     }
 }
@@ -465,7 +467,12 @@ impl LayoutExample {
     }
 
     pub fn contents_ui(&mut self, ui: &mut Ui) {
-        ui.set_layout(Layout::from_dir_align(self.dir, self.align));
+        let layout = Layout::from_dir_align(self.dir, self.align);
+        if self.reversed {
+            ui.set_layout(layout.reverse());
+        } else {
+            ui.set_layout(layout);
+        }
 
         ui.add(label!("Available space: {:?}", ui.available().size()));
         if ui.add(Button::new("Reset")).clicked {
@@ -484,6 +491,8 @@ impl LayoutExample {
                 self.dir = dir;
             }
         }
+
+        ui.add(Checkbox::new(&mut self.reversed, "Reversed"));
 
         ui.add(Separator::new());
 

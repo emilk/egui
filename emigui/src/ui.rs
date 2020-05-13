@@ -164,7 +164,17 @@ impl Ui {
         self.desired_rect.max.max(self.child_bounds.max)
     }
 
-    pub fn finite_bottom_right(&self) -> Pos2 {
+    /// Position and current size of the ui.
+    /// The size is the maximum of the origional (minimum/desired) size and
+    /// the size of the containted children.
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_max(self.top_left(), self.bottom_right())
+    }
+
+    /// This is like `rect()`, but will never be infinite.
+    /// If the desired rect is infinite ("be as big as you want")
+    /// this will be bounded by child bounds.
+    pub fn rect_finite(&self) -> Rect {
         let mut bottom_right = self.child_bounds.max;
         if self.desired_rect.max.x.is_finite() {
             bottom_right.x = bottom_right.x.max(self.desired_rect.max.x);
@@ -172,14 +182,8 @@ impl Ui {
         if self.desired_rect.max.y.is_finite() {
             bottom_right.y = bottom_right.y.max(self.desired_rect.max.y);
         }
-        bottom_right
-    }
 
-    /// Position and current size of the ui.
-    /// The size is the maximum of the origional (minimum/desired) size and
-    /// the size of the containted children.
-    pub fn rect(&self) -> Rect {
-        Rect::from_min_max(self.top_left(), self.bottom_right())
+        Rect::from_min_max(self.top_left(), bottom_right)
     }
 
     /// Set the width of the ui.
@@ -232,14 +236,14 @@ impl Ui {
     /// An infinite rectangle should be interpred as "as much as you want".
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available(&self) -> Rect {
-        Rect::from_min_max(self.cursor, self.bottom_right())
+        self.layout.available(self.cursor, self.rect())
     }
 
     /// This is like `available()`, but will never be infinite.
     /// Use this for components that want to grow without bounds (but shouldn't).
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available_finite(&self) -> Rect {
-        Rect::from_min_max(self.cursor, self.finite_bottom_right())
+        self.layout.available(self.cursor, self.rect_finite())
     }
 
     pub fn layout(&self) -> &Layout {
@@ -249,6 +253,11 @@ impl Ui {
     // TODO: remove
     pub fn set_layout(&mut self, layout: Layout) {
         self.layout = layout;
+
+        // TODO: remove this HACK:
+        if layout.is_reversed() {
+            self.cursor = self.rect_finite().max;
+        }
     }
 
     // ------------------------------------------------------------------------

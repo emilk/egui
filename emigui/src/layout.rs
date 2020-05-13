@@ -64,6 +64,9 @@ pub struct Layout {
     /// For horizontal layouts: put things to top, center or bottom?
     /// None means justified, which means full width (vertical layout) or height (horizontal layouts).
     align: Option<Align>,
+
+    /// Lay out things in reversed order, i.e. from the right or bottom-up.
+    reversed: bool,
 }
 
 impl Default for Layout {
@@ -71,6 +74,7 @@ impl Default for Layout {
         Self {
             dir: Direction::Vertical,
             align: Some(Align::Min),
+            reversed: false,
         }
     }
 }
@@ -78,13 +82,18 @@ impl Default for Layout {
 impl Layout {
     /// None align means justified, e.g. fill full width/height.
     pub fn from_dir_align(dir: Direction, align: Option<Align>) -> Self {
-        Self { dir, align }
+        Self {
+            dir,
+            align,
+            reversed: false,
+        }
     }
 
     pub fn vertical(align: Align) -> Self {
         Self {
             dir: Direction::Vertical,
             align: Some(align),
+            reversed: false,
         }
     }
 
@@ -92,17 +101,45 @@ impl Layout {
         Self {
             dir: Direction::Horizontal,
             align: Some(align),
+            reversed: false,
         }
     }
 
     /// Full-width layout.
     /// Nice for menues etc where each button is full width.
     pub fn justified(dir: Direction) -> Self {
-        Self { dir, align: None }
+        Self {
+            dir,
+            align: None,
+            reversed: false,
+        }
+    }
+
+    #[must_use]
+    pub fn reverse(self) -> Self {
+        Self {
+            dir: self.dir,
+            align: self.align,
+            reversed: !self.reversed,
+        }
     }
 
     pub fn dir(&self) -> Direction {
         self.dir
+    }
+
+    pub fn is_reversed(&self) -> bool {
+        self.reversed
+    }
+
+    /// Given the cursor in the region, how much space is available
+    /// for the next widget?
+    pub fn available(&self, cursor: Pos2, rect: Rect) -> Rect {
+        if self.reversed {
+            Rect::from_min_max(rect.min, cursor)
+        } else {
+            Rect::from_min_max(cursor, rect.max)
+        }
     }
 
     /// Reserve this much space and move the cursor.
@@ -126,15 +163,12 @@ impl Layout {
     ) -> Rect {
         let available_size = available_size.max(child_size);
 
-        let mut child_pos = *cursor;
+        let mut child_move = Vec2::default();
+        let mut cursor_change = Vec2::default();
+
         if self.dir == Direction::Horizontal {
             if let Some(align) = self.align {
-                if align != Align::Min {
-                    debug_assert!(available_size.y.is_finite());
-                    debug_assert!(child_size.y.is_finite());
-                }
-
-                child_pos.y += match align {
+                child_move.y += match align {
                     Align::Min => 0.0,
                     Align::Center => 0.5 * (available_size.y - child_size.y),
                     Align::Max => available_size.y - child_size.y,
@@ -144,16 +178,11 @@ impl Layout {
                 child_size.y = child_size.y.max(available_size.y);
             }
 
-            cursor.x += child_size.x;
-            cursor.x += style.item_spacing.x; // Where to put next thing, if there is a next thing
+            cursor_change.x += child_size.x;
+            cursor_change.x += style.item_spacing.x; // Where to put next thing, if there is a next thing
         } else {
             if let Some(align) = self.align {
-                if align != Align::Min {
-                    debug_assert!(available_size.y.is_finite());
-                    debug_assert!(child_size.y.is_finite());
-                }
-
-                child_pos.x += match align {
+                child_move.x += match align {
                     Align::Min => 0.0,
                     Align::Center => 0.5 * (available_size.x - child_size.x),
                     Align::Max => available_size.x - child_size.x,
@@ -162,10 +191,31 @@ impl Layout {
                 // justified: fill full width
                 child_size.x = child_size.x.max(available_size.x);
             };
-            cursor.y += child_size.y;
-            cursor.y += style.item_spacing.y; // Where to put next thing, if there is a next thing
+            cursor_change.y += child_size.y;
+            cursor_change.y += style.item_spacing.y; // Where to put next thing, if there is a next thing
         }
 
-        Rect::from_min_size(child_pos, child_size)
+        if self.is_reversed() {
+            // reverse: cursor starts at bottom right corner of new widget.
+
+            let child_pos = if self.dir == Direction::Horizontal {
+                pos2(
+                    cursor.x - child_size.x,
+                    cursor.y - available_size.y + child_move.y,
+                )
+            } else {
+                pos2(
+                    cursor.x - available_size.x + child_move.x,
+                    cursor.y - child_size.y,
+                )
+            };
+            // let child_pos = *cursor - child_move - child_size;
+            *cursor -= cursor_change;
+            Rect::from_min_size(child_pos, child_size)
+        } else {
+            let child_pos = *cursor + child_move;
+            *cursor += cursor_change;
+            Rect::from_min_size(child_pos, child_size)
+        }
     }
 }
