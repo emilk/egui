@@ -135,6 +135,24 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             ui.add(label!("This is Emigui"));
             ui.add(Hyperlink::new("https://github.com/emilk/emigui/").text("Emigui home page"));
         });
+
+        if let Some(time) = ui.input().seconds_since_midnight {
+            let time = format!(
+                "{:02}:{:02}:{:02}.{:02}",
+                (time.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),
+                (time.rem_euclid(60.0 * 60.0) / 60.0).floor(),
+                (time.rem_euclid(60.0)).floor(),
+                (time.rem_euclid(1.0) * 100.0).floor()
+            );
+            ui.inner_layout(Layout::horizontal(Align::Max).reverse(), |ui| {
+                if ui
+                    .add(Button::new(time).text_style(TextStyle::Monospace))
+                    .clicked
+                {
+                    windows.fractal_clock = !windows.fractal_clock;
+                }
+            });
+        }
     });
 }
 
@@ -474,7 +492,7 @@ impl LayoutExample {
             ui.set_layout(layout);
         }
 
-        ui.add(label!("Available space: {:?}", ui.available().size()));
+        // ui.add(label!("Available space: {:?}", ui.available().size()));
         if ui.add(Button::new("Reset")).clicked {
             *self = Default::default();
         }

@@ -182,6 +182,7 @@ impl Widget for Hyperlink {
 pub struct Button {
     text: String,
     text_color: Option<Color>,
+    text_style: TextStyle,
     /// None means default for interact
     fill_color: Option<Color>,
 }
@@ -191,12 +192,18 @@ impl Button {
         Self {
             text: text.into(),
             text_color: None,
+            text_style: TextStyle::Button,
             fill_color: None,
         }
     }
 
     pub fn text_color(mut self, text_color: Color) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
         self
     }
 
@@ -208,19 +215,23 @@ impl Button {
 
 impl Widget for Button {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let Button {
+            text,
+            text_color,
+            text_style,
+            fill_color,
+        } = self;
+
         let id = ui.make_position_id();
-        let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
+        let (text, text_size) = font.layout_multiline(&text, ui.available().width());
         let padding = ui.style().button_padding;
         let mut size = text_size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let interact = ui.reserve_space(size, Some(id));
         let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
         text_cursor.y += 2.0; // TODO: why is this needed?
-        let fill_color = self
-            .fill_color
-            .or(ui.style().interact(&interact).fill_color);
+        let fill_color = fill_color.or(ui.style().interact(&interact).fill_color);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
             fill_color: fill_color,
@@ -228,7 +239,7 @@ impl Widget for Button {
             rect: interact.rect,
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
-        let text_color = self.text_color.unwrap_or(stroke_color);
+        let text_color = text_color.unwrap_or(stroke_color);
         ui.add_text(text_cursor, text_style, text, Some(text_color));
         ui.response(interact)
     }

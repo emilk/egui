@@ -204,7 +204,7 @@ impl Ui {
 
     /// Size of content
     pub fn bounding_size(&self) -> Vec2 {
-        self.child_bounds.max - self.top_left()
+        self.child_bounds.size()
     }
 
     /// Expand the bounding rect of this ui to include a child at the given rect.
@@ -602,9 +602,9 @@ impl Ui {
     ) -> InteractInfo {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_ui = Self {
-            layout,
             ..self.child_ui(child_rect)
         };
+        child_ui.set_layout(layout); // HACK: need a separate call right now
         add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
         self.reserve_space(size, None)
