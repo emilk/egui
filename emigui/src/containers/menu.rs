@@ -79,8 +79,7 @@ pub fn menu(ui: &mut Ui, title: impl Into<String>, add_contents: impl FnOnce(&mu
                     style.interact.hovered.corner_radius = 0.0;
                     style.interact.inactive.corner_radius = 0.0;
                     ui.set_style(style);
-                    ui.set_align(Align::Justified);
-
+                    ui.set_layout(Layout::justified(Direction::Vertical));
                     add_contents(ui)
                 })
             })

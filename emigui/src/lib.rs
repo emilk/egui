@@ -49,7 +49,7 @@ pub use {
     id::Id,
     input::*,
     layers::*,
-    layout::Align,
+    layout::*,
     math::*,
     memory::Memory,
     mesher::{Mesh, PaintBatches, Vertex},

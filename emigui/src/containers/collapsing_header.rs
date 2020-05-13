@@ -46,7 +46,7 @@ impl CollapsingHeader {
 impl CollapsingHeader {
     pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) -> GuiResponse {
         assert!(
-            ui.direction() == Direction::Vertical,
+            ui.layout().dir() == Direction::Vertical,
             "Horizontal collapsing is unimplemented"
         );
         let Self {

@@ -128,8 +128,7 @@ impl<'a> Widget for Slider<'a> {
 
                     // Place the text in line with the slider on the left:
                     columns[1].set_desired_height(slider_response.rect.height());
-                    columns[1].horizontal(|ui| {
-                        ui.set_align(Align::Center);
+                    columns[1].inner_layout(Layout::horizontal(Align::Center), |ui| {
                         ui.add(Label::new(full_text).multiline(false));
                     });
 

@@ -41,18 +41,14 @@ pub struct Ui {
     /// Overide default style in this ui
     style: Style,
 
-    // Layout stuff follows. TODO: move to own type and abstract.
-    /// Doesn't change.
-    dir: Direction,
-
-    align: Align,
+    layout: Layout,
 
     /// Where the next widget will be put.
     /// Progresses along self.dir.
     /// Initially set to rect.min
     /// If something has already been added, this will point ot style.item_spacing beyond the latest child.
     /// The cursor can thus be style.item_spacing pixels outside of the child_bounds.
-    cursor: Pos2,
+    cursor: Pos2, // TODO: move into Layout?
 }
 
 impl Ui {
@@ -69,9 +65,8 @@ impl Ui {
             desired_rect: rect,
             child_bounds: Rect::from_min_size(rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style,
+            layout: Default::default(),
             cursor: rect.min,
-            dir: Direction::Vertical,
-            align: Align::Min,
         }
     }
 
@@ -82,15 +77,14 @@ impl Ui {
         let clip_rect = self.clip_rect(); // Keep it unless the child explciitly desires differently
         Ui {
             ctx: self.ctx.clone(),
-            layer: self.layer,
-            style: self.style,
             id: self.id,
+            layer: self.layer,
             clip_rect,
             desired_rect: child_rect,
-            cursor: child_rect.min,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
-            dir: self.dir,
-            align: self.align,
+            style: self.style,
+            layout: self.layout,
+            cursor: child_rect.min,
         }
     }
 
@@ -248,19 +242,13 @@ impl Ui {
         Rect::from_min_max(self.cursor, self.finite_bottom_right())
     }
 
-    // TODO: remove
-    pub fn direction(&self) -> Direction {
-        self.dir
+    pub fn layout(&self) -> &Layout {
+        &self.layout
     }
 
     // TODO: remove
-    pub fn set_direction(&mut self, dir: Direction) {
-        self.dir = dir;
-    }
-
-    // TODO: remove
-    pub fn set_align(&mut self, align: Align) {
-        self.align = align;
+    pub fn set_layout(&mut self, layout: Layout) {
+        self.layout = layout;
     }
 
     // ------------------------------------------------------------------------
@@ -332,6 +320,7 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
+    ///
     /// # How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
@@ -384,40 +373,13 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    fn reserve_space_impl(&mut self, mut child_size: Vec2) -> Rect {
+    fn reserve_space_impl(&mut self, child_size: Vec2) -> Rect {
         let available_size = self.available_finite().size();
-        let available_size = available_size.max(child_size);
-
-        let mut child_pos = self.cursor;
-        if self.dir == Direction::Horizontal {
-            child_pos.y += match self.align {
-                Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (available_size.y - child_size.y),
-                Align::Max => available_size.y - child_size.y,
-            };
-            if self.align == Align::Justified && available_size.y.is_finite() {
-                // Fill full height
-                child_size.y = child_size.y.max(available_size.y);
-            }
-            self.child_bounds.extend_with(self.cursor + child_size);
-            self.cursor.x += child_size.x;
-            self.cursor.x += self.style.item_spacing.x; // Where to put next thing, if there is a next thing
-        } else {
-            child_pos.x += match self.align {
-                Align::Min | Align::Justified => 0.0,
-                Align::Center => 0.5 * (available_size.x - child_size.x),
-                Align::Max => available_size.x - child_size.x,
-            };
-            if self.align == Align::Justified && available_size.x.is_finite() {
-                // Fill full width
-                child_size.x = child_size.x.max(available_size.x);
-            }
-            self.child_bounds.extend_with(self.cursor + child_size);
-            self.cursor.y += child_size.y;
-            self.cursor.y += self.style.item_spacing.y; // Where to put next thing, if there is a next thing
-        }
-
-        Rect::from_min_size(child_pos, child_size)
+        let child_rect =
+            self.layout
+                .allocate_space(&mut self.cursor, &self.style, available_size, child_size);
+        self.child_bounds = self.child_bounds.union(child_rect);
+        child_rect
     }
 
     // ------------------------------------------------
@@ -564,14 +526,13 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui),
     ) -> InteractInfo {
         assert!(
-            self.dir == Direction::Vertical,
+            self.layout().dir() == Direction::Vertical,
             "You can only indent vertical layouts"
         );
         let indent = vec2(self.style.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
         let mut child_ui = Ui {
             id: self.id.with(id_source),
-            align: Align::Min,
             ..self.child_ui(child_rect)
         };
         add_contents(&mut child_ui);
@@ -603,15 +564,11 @@ impl Ui {
     }
 
     /// A column ui with a given width.
-    pub fn column(&mut self, column_position: Align, mut width: f32) -> Ui {
+    pub fn column(&mut self, column_position: Align, width: f32) -> Ui {
         let x = match column_position {
             Align::Min => 0.0,
             Align::Center => self.available().width() / 2.0 - width / 2.0,
             Align::Max => self.available().width() - width,
-            Align::Justified => {
-                width = self.available().width();
-                0.0
-            }
         };
         self.child_ui(Rect::from_min_size(
             self.cursor + vec2(x, 0.0),
@@ -621,24 +578,22 @@ impl Ui {
 
     /// Start a ui with horizontal layout
     pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-        self.inner_layout(Direction::Horizontal, Align::Min, add_contents)
+        self.inner_layout(Layout::horizontal(Align::Min), add_contents)
     }
 
     /// Start a ui with vertical layout
     pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-        self.inner_layout(Direction::Vertical, Align::Min, add_contents)
+        self.inner_layout(Layout::vertical(Align::Min), add_contents)
     }
 
     pub fn inner_layout(
         &mut self,
-        dir: Direction,
-        align: Align,
+        layout: Layout,
         add_contents: impl FnOnce(&mut Self),
     ) -> InteractInfo {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_ui = Self {
-            dir,
-            align,
+            layout,
             ..self.child_ui(child_rect)
         };
         add_contents(&mut child_ui);
@@ -646,7 +601,7 @@ impl Ui {
         self.reserve_space(size, None)
     }
 
-    /// Temporarily split split a vertical layout into several columns.
+    /// Temporarily split split an Ui into several columns.
     ///
     /// ``` ignore
     /// ui.columns(2, |columns| {
@@ -671,7 +626,6 @@ impl Ui {
 
                 Self {
                     id: self.make_child_id(&("column", col_idx)),
-                    dir: Direction::Vertical,
                     ..self.child_ui(child_rect)
                 }
             })

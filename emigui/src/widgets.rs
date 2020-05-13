@@ -421,7 +421,7 @@ impl Widget for Separator {
         let available_space = ui.available_finite().size();
 
         let extra = self.extra;
-        let (points, interact) = match ui.direction() {
+        let (points, interact) = match ui.layout().dir() {
             Direction::Horizontal => {
                 let interact = ui.reserve_space(vec2(self.min_spacing, available_space.y), None);
                 (

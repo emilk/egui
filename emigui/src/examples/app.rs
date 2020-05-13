@@ -445,22 +445,27 @@ use crate::layout::*;
 #[serde(default)]
 struct LayoutExample {
     dir: Direction,
-    align: Align,
+    align: Option<Align>, // None == jusitifed
 }
 
 impl Default for LayoutExample {
     fn default() -> Self {
         Self {
             dir: Direction::Vertical,
-            align: Align::Min,
+            align: Some(Align::Center),
         }
     }
 }
 
 impl LayoutExample {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.set_direction(self.dir);
-        ui.set_align(self.align);
+        Resize::default()
+            .default_size(vec2(200.0, 200.0))
+            .show(ui, |ui| self.contents_ui(ui));
+    }
+
+    pub fn contents_ui(&mut self, ui: &mut Ui) {
+        ui.set_layout(Layout::from_dir_align(self.dir, self.align));
 
         ui.add(label!("Available space: {:?}", ui.available().size()));
         if ui.add(Button::new("Reset")).clicked {
@@ -481,18 +486,26 @@ impl LayoutExample {
         }
 
         ui.add(Separator::new());
+
         ui.add(label!("Align:"));
 
-        for &align in &[Align::Min, Align::Center, Align::Max, Align::Justified] {
+        for &align in &[Align::Min, Align::Center, Align::Max] {
             if ui
                 .add(RadioButton::new(
-                    self.align == align,
+                    self.align == Some(align),
                     format!("{:?}", align),
                 ))
                 .clicked
             {
-                self.align = align;
+                self.align = Some(align);
             }
+        }
+        if ui
+            .add(RadioButton::new(self.align == None, "Justified"))
+            .tooltip_text("Try to fill full width/heigth (e.g. buttons)")
+            .clicked
+        {
+            self.align = None;
         }
     }
 }
