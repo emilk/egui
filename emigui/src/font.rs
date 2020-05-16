@@ -39,6 +39,9 @@ pub struct Line {
     /// Bottom of the line, offset within the Galley.
     /// Unit: points.
     pub y_max: f32,
+
+    /// If true, the last char on this line is '\n'
+    pub ends_with_newline: bool,
 }
 
 impl Galley {
@@ -71,6 +74,31 @@ impl Galley {
             vec2(0.0, 0.0)
         }
     }
+
+    /// Character offset at the given position within the galley
+    pub fn char_at(&self, pos: Vec2) -> usize {
+        let mut best_y_dist = f32::INFINITY;
+        let mut char_idx = 0;
+
+        let mut char_count = 0;
+        for line in &self.lines {
+            let y_dist = (line.y_min - pos.y).abs().min((line.y_max - pos.y).abs());
+            if y_dist < best_y_dist {
+                best_y_dist = y_dist;
+                let line_offset = line.char_at(pos.x);
+                if line_offset == line.char_count() && line.ends_with_newline {
+                    // handle the case where line ends with a \n and we click after it.
+                    // We should return the position BEFORE the \n!
+                    char_idx = char_count + line_offset - 1;
+                } else {
+                    char_idx = char_count + line_offset;
+                }
+            }
+            char_count += line.char_count();
+        }
+        // eprintln!("char_at {:?}: {} (text: {:?})", pos, char_idx, self.text);
+        char_idx
+    }
 }
 
 impl Line {
@@ -89,6 +117,17 @@ impl Line {
 
     pub fn max_x(&self) -> f32 {
         *self.x_offsets.last().unwrap()
+    }
+
+    /// Closest char at the desired x coordinate. return [0, char_count()]
+    pub fn char_at(&self, desired_x: f32) -> usize {
+        for (i, char_x_bounds) in self.x_offsets.windows(2).enumerate() {
+            let char_center_x = 0.5 * (char_x_bounds[0] + char_x_bounds[1]);
+            if desired_x < char_center_x {
+                return i;
+            }
+        }
+        self.char_count()
     }
 }
 
@@ -262,6 +301,7 @@ impl Font {
             x_offsets,
             y_min: 0.0,
             y_max: self.height(),
+            ends_with_newline: false,
         };
         let width = line.max_x();
         let size = vec2(width, self.height());
@@ -311,6 +351,7 @@ impl Font {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
                 y_max: cursor_y + line_spacing,
+                ends_with_newline: text.ends_with('\n'),
             });
         }
 
@@ -387,6 +428,7 @@ impl Font {
                                 .collect(),
                             y_min: cursor_y,
                             y_max: cursor_y + self.height(),
+                            ends_with_newline: false, // we'll fix this later
                         }
                     } else {
                         Line {
@@ -396,6 +438,7 @@ impl Font {
                                 .collect(),
                             y_min: cursor_y,
                             y_max: cursor_y + self.height(),
+                            ends_with_newline: false, // we'll fix this later
                         }
                     };
                     line.sanity_check();
@@ -423,9 +466,14 @@ impl Font {
                     .collect(),
                 y_min: cursor_y,
                 y_max: cursor_y + self.height(),
+                ends_with_newline: false, // we'll fix this later
             };
             line.sanity_check();
             out_lines.push(line);
+        }
+
+        if text.ends_with('\n') {
+            out_lines.last_mut().unwrap().ends_with_newline = true;
         }
 
         out_lines

@@ -2,7 +2,8 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
 pub(crate) struct State {
-    /// Charctaer based, NOT bytes
+    /// Charctaer based, NOT bytes.
+    /// TODO: store as line + row
     pub cursor: Option<usize>,
 }
 
@@ -62,6 +63,9 @@ impl<'t> Widget for TextEdit<'t> {
 
         if interact.clicked {
             ui.request_kb_focus(id);
+            if let Some(mouse_pos) = ui.input().mouse_pos {
+                state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min));
+            }
         }
         if interact.hovered {
             ui.output().cursor_icon = CursorIcon::Text;
