@@ -63,7 +63,7 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, max_width: f32, ui: &Ui) -> (Vec<font::TextFragment>, Vec2) {
+    pub fn layout(&self, max_width: f32, ui: &Ui) -> font::Galley {
         let font = &ui.fonts()[self.text_style];
         if self.multiline {
             font.layout_multiline(&self.text, max_width)
@@ -95,9 +95,14 @@ impl Widget for Label {
         } else {
             ui.available().width()
         };
-        let (text, text_size) = self.layout(max_width, ui);
-        let interact = ui.reserve_space(text_size, None);
-        ui.add_text(interact.rect.min, self.text_style, text, self.text_color);
+        let galley = self.layout(max_width, ui);
+        let interact = ui.reserve_space(galley.size, None);
+        ui.add_text(
+            interact.rect.min,
+            self.text_style,
+            galley.fragments,
+            self.text_color,
+        );
         ui.response(interact)
     }
 }
@@ -145,8 +150,8 @@ impl Widget for Hyperlink {
         let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
         // TODO: underline
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
-        let interact = ui.reserve_space(text_size, Some(id));
+        let galley = font.layout_multiline(&self.text, ui.available().width());
+        let interact = ui.reserve_space(galley.size, Some(id));
         if interact.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
@@ -157,7 +162,7 @@ impl Widget for Hyperlink {
         if interact.hovered {
             // Underline:
             // TODO: underline spaces between words too.
-            for fragment in &text {
+            for fragment in &galley.fragments {
                 let pos = interact.rect.min;
                 let y = pos.y + fragment.y_offset + line_spacing;
                 let y = ui.round_to_pixel(y);
@@ -171,7 +176,7 @@ impl Widget for Hyperlink {
             }
         }
 
-        ui.add_text(interact.rect.min, text_style, text, Some(color));
+        ui.add_text(interact.rect.min, text_style, galley.fragments, Some(color));
 
         ui.response(interact)
     }
@@ -224,12 +229,12 @@ impl Widget for Button {
 
         let id = ui.make_position_id();
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&text, ui.available().width());
+        let galley = font.layout_multiline(&text, ui.available().width());
         let padding = ui.style().button_padding;
-        let mut size = text_size + 2.0 * padding;
+        let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let interact = ui.reserve_space(size, Some(id));
-        let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * text_size.y);
+        let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         text_cursor.y += 2.0; // TODO: why is this needed?
         let fill_color = fill_color.or(ui.style().interact(&interact).fill_color);
         ui.add_paint_cmd(PaintCmd::Rect {
@@ -240,7 +245,7 @@ impl Widget for Button {
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
         ui.response(interact)
     }
 }
@@ -274,11 +279,11 @@ impl<'a> Widget for Checkbox<'a> {
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_single_line(&self.text);
+        let galley = font.layout_single_line(&self.text);
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)
-                + text_size
+                + galley.size
                 + ui.style().button_padding,
             Some(id),
         );
@@ -310,7 +315,7 @@ impl<'a> Widget for Checkbox<'a> {
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
         ui.response(interact)
     }
 }
@@ -348,11 +353,11 @@ impl Widget for RadioButton {
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let (text, text_size) = font.layout_multiline(&self.text, ui.available().width());
+        let galley = font.layout_multiline(&self.text, ui.available().width());
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)
-                + text_size
+                + galley.size
                 + ui.style().button_padding,
             Some(id),
         );
@@ -381,7 +386,7 @@ impl Widget for RadioButton {
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, text, Some(text_color));
+        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
         ui.response(interact)
     }
 }

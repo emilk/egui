@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{color::*, containers::*, font::TextFragment, layout::*, widgets::*, *};
+use crate::{color::*, containers::*, font::Fragment, layout::*, widgets::*, *};
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
@@ -459,10 +459,10 @@ impl Ui {
         text_color: Option<Color>,
     ) -> Vec2 {
         let font = &self.fonts()[text_style];
-        let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
-        self.add_text(rect.min, text_style, text, text_color);
-        size
+        let galley = font.layout_multiline(text, f32::INFINITY);
+        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
+        self.add_text(rect.min, text_style, galley.fragments, text_color);
+        galley.size
     }
 
     /// Already layed out text.
@@ -470,11 +470,11 @@ impl Ui {
         &mut self,
         pos: Pos2,
         text_style: TextStyle,
-        text: Vec<TextFragment>,
+        fragments: Vec<Fragment>,
         color: Option<Color>,
     ) {
         let color = color.unwrap_or_else(|| self.style().text_color());
-        for fragment in text {
+        for fragment in fragments {
             self.add_paint_cmd(PaintCmd::Text {
                 color,
                 pos: pos + vec2(0.0, fragment.y_offset),

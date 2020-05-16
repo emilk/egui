@@ -61,18 +61,18 @@ impl CollapsingHeader {
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().indent, 0.0);
-        let (text, text_size) = label.layout(available.width() - ui.style().indent, ui);
-        let text_max_x = text_pos.x + text_size.x;
+        let galley = label.layout(available.width() - ui.style().indent, ui);
+        let text_max_x = text_pos.x + galley.size.x;
         let desired_width = available.width().max(text_max_x - available.left());
 
         let interact = ui.reserve_space(
             vec2(
                 desired_width,
-                text_size.y + 2.0 * ui.style().button_padding.y,
+                galley.size.y + 2.0 * ui.style().button_padding.y,
             ),
             Some(id),
         );
-        let text_pos = pos2(text_pos.x, interact.rect.center().y - text_size.y / 2.0);
+        let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
 
         let mut state = {
             let mut memory = ui.memory();
@@ -94,7 +94,7 @@ impl CollapsingHeader {
         ui.add_text(
             text_pos,
             label.text_style,
-            text,
+            galley.fragments,
             Some(ui.style().interact(&interact).stroke_color),
         );
 

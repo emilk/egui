@@ -8,7 +8,8 @@ use crate::{
     texture_atlas::TextureAtlas,
 };
 
-pub struct TextFragment {
+/// A typeset piece of text on a single line. Could be a whole line, or just a word.
+pub struct Fragment {
     /// The start of each character, starting at zero.
     /// Unit: points.
     pub x_offsets: Vec<f32>,
@@ -16,10 +17,12 @@ pub struct TextFragment {
     /// 0 for the first line, n * line_spacing for the rest
     /// Unit: points.
     pub y_offset: f32,
+
+    /// The actual characters
     pub text: String,
 }
 
-impl TextFragment {
+impl Fragment {
     pub fn min_x(&self) -> f32 {
         *self.x_offsets.first().unwrap()
     }
@@ -29,13 +32,19 @@ impl TextFragment {
     }
 }
 
-// pub fn fn_text_width(fragmens: &[TextFragment]) -> f32 {
+// pub fn fn_text_width(fragmens: &[Fragment]) -> f32 {
 //     if fragmens.is_empty() {
 //         0.0
 //     } else {
 //         fragmens.last().unwrap().max_x() - fragmens.first().unwrap().min_x()
 //     }
 // }
+
+/// A collection of text locked into place.
+pub struct Galley {
+    pub fragments: Vec<Fragment>,
+    pub size: Vec2,
+}
 
 // ----------------------------------------------------------------------------
 
@@ -184,17 +193,16 @@ impl Font {
     }
 
     /// Returns the a single line of characters separated into words
-    /// Always returns at least one frament. TODO: Vec1
-    /// Returns total size.
-    pub fn layout_single_line(&self, text: &str) -> (Vec<TextFragment>, Vec2) {
+    /// Always returns at least one frament.
+    fn layout_words(&self, text: &str) -> Galley {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
-        let mut current_fragment = TextFragment {
+        let mut current_fragment = Fragment {
             x_offsets: vec![0.0],
             y_offset: 0.0,
             text: String::new(),
         };
-        let mut all_fragments = vec![];
+        let mut fragments = vec![];
         let mut cursor_x_in_points = 0.0f32;
         let mut last_glyph_id = None;
 
@@ -214,13 +222,14 @@ impl Font {
                 if is_space {
                     // TODO: also break after hyphens etc
                     if !current_fragment.text.is_empty() {
-                        all_fragments.push(current_fragment);
-                        current_fragment = TextFragment {
+                        fragments.push(current_fragment);
+                        current_fragment = Fragment {
                             x_offsets: vec![cursor_x_in_points],
                             y_offset: 0.0,
                             text: String::new(),
                         }
                     }
+                // TODO: add a fragment for the space aswell
                 } else {
                     current_fragment.text.push(c);
                     current_fragment.x_offsets.push(cursor_x_in_points);
@@ -231,29 +240,39 @@ impl Font {
         }
 
         if !current_fragment.text.is_empty() {
-            all_fragments.push(current_fragment)
+            fragments.push(current_fragment)
         }
 
-        let width = if all_fragments.is_empty() {
+        let width = if fragments.is_empty() {
             0.0
         } else {
-            all_fragments.last().unwrap().max_x()
+            fragments.last().unwrap().max_x()
         };
 
         let size = vec2(width, self.height());
 
-        (all_fragments, size)
+        Galley { fragments, size }
+    }
+
+    /// Typeset the given text onto one line.
+    /// Always returns at least one frament.
+    pub fn layout_single_line(&self, text: &str) -> Galley {
+        // TODO: return a single Fragment instead of calling layout_words
+        // saves a lot of allocations
+        self.layout_words(text)
     }
 
     /// A paragraph is text with no line break character in it.
+    /// The text will be linebreaked by the given max_width_in_points.
+    /// TODO: return Galley ?
     pub fn layout_paragraph_max_width(
         &self,
         text: &str,
         max_width_in_points: f32,
-    ) -> Vec<TextFragment> {
-        let (mut words, size) = self.layout_single_line(text);
-        if words.is_empty() || size.x <= max_width_in_points {
-            return words; // Early-out
+    ) -> Vec<Fragment> {
+        let mut galley = self.layout_words(text);
+        if galley.fragments.is_empty() || galley.size.x <= max_width_in_points {
+            return galley.fragments; // Early-out
         }
 
         let line_spacing = self.line_spacing();
@@ -262,7 +281,7 @@ impl Font {
         let mut line_start_x = 0.0;
         let mut cursor_y = 0.0;
 
-        for word in words.iter_mut().skip(1) {
+        for word in galley.fragments.iter_mut().skip(1) {
             if word.max_x() - line_start_x >= max_width_in_points {
                 // Time for a new line:
                 cursor_y += line_spacing;
@@ -275,18 +294,13 @@ impl Font {
             }
         }
 
-        words
+        galley.fragments
     }
 
-    /// Returns each line + total bounding box size.
-    pub fn layout_multiline(
-        &self,
-        text: &str,
-        max_width_in_points: f32,
-    ) -> (Vec<TextFragment>, Vec2) {
+    pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
         let line_spacing = self.line_spacing();
         let mut cursor_y = 0.0;
-        let mut text_fragments = Vec::new();
+        let mut fragments = Vec::new();
         for line in text.split('\n') {
             let mut line_fragments = self.layout_paragraph_max_width(line, max_width_in_points);
             if let Some(last_word) = line_fragments.last() {
@@ -294,7 +308,7 @@ impl Font {
                 for fragment in &mut line_fragments {
                     fragment.y_offset += cursor_y;
                 }
-                text_fragments.append(&mut line_fragments);
+                fragments.append(&mut line_fragments);
                 cursor_y += line_height; // TODO: add extra spacing between paragraphs
             } else {
                 cursor_y += line_spacing;
@@ -303,11 +317,13 @@ impl Font {
         }
 
         let mut widest_line = 0.0;
-        for fragment in &text_fragments {
+        for fragment in &fragments {
             widest_line = fragment.max_x().max(widest_line);
         }
 
-        let bounding_size = vec2(widest_line, cursor_y);
-        (text_fragments, bounding_size)
+        Galley {
+            fragments,
+            size: vec2(widest_line, cursor_y),
+        }
     }
 }

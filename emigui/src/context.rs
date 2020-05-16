@@ -359,8 +359,8 @@ impl Context {
         let layer = Layer::debug();
         let text_style = TextStyle::Monospace;
         let font = &self.fonts[text_style];
-        let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
+        let galley = font.layout_multiline(text, f32::INFINITY);
+        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
         self.add_paint_cmd(
             layer,
             PaintCmd::Rect {
@@ -370,7 +370,13 @@ impl Context {
                 rect: rect.expand(2.0),
             },
         );
-        self.add_text(layer, rect.min, text_style, text, Some(color::RED));
+        self.add_text(
+            layer,
+            rect.min,
+            text_style,
+            galley.fragments,
+            Some(color::RED),
+        );
     }
 
     pub fn debug_text(&self, pos: Pos2, text: &str) {
@@ -414,10 +420,10 @@ impl Context {
         text_color: Option<Color>,
     ) -> Vec2 {
         let font = &self.fonts[text_style];
-        let (text, size) = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, size), align);
-        self.add_text(layer, rect.min, text_style, text, text_color);
-        size
+        let galley = font.layout_multiline(text, f32::INFINITY);
+        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
+        self.add_text(layer, rect.min, text_style, galley.fragments, text_color);
+        galley.size
     }
 
     /// Already layed out text.
@@ -426,7 +432,7 @@ impl Context {
         layer: Layer,
         pos: Pos2,
         text_style: TextStyle,
-        text: Vec<font::TextFragment>,
+        text: Vec<font::Fragment>,
         color: Option<Color>,
     ) {
         let color = color.unwrap_or_else(|| self.style().text_color());

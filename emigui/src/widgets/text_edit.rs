@@ -40,8 +40,8 @@ impl<'t> Widget for TextEdit<'t> {
 
         let font = &ui.fonts()[self.text_style];
         let line_spacing = font.line_spacing();
-        let (text, text_size) = font.layout_multiline(self.text.as_str(), ui.available().width());
-        let desired_size = text_size.max(vec2(ui.available().width(), line_spacing));
+        let galley = font.layout_multiline(self.text.as_str(), ui.available().width());
+        let desired_size = galley.size.max(vec2(ui.available().width(), line_spacing));
         let interact = ui.reserve_space(desired_size, Some(id));
 
         if interact.clicked {
@@ -90,7 +90,7 @@ impl<'t> Widget for TextEdit<'t> {
             let show_cursor =
                 (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0;
             if show_cursor {
-                let cursor_pos = if let Some(last) = text.last() {
+                let cursor_pos = if let Some(last) = galley.fragments.last() {
                     interact.rect.min + vec2(last.max_x(), last.y_offset)
                 } else {
                     interact.rect.min
@@ -103,7 +103,12 @@ impl<'t> Widget for TextEdit<'t> {
             }
         }
 
-        ui.add_text(interact.rect.min, self.text_style, text, self.text_color);
+        ui.add_text(
+            interact.rect.min,
+            self.text_style,
+            galley.fragments,
+            self.text_color,
+        );
 
         ui.response(interact)
     }
