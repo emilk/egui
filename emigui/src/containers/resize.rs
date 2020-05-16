@@ -47,6 +47,11 @@ impl Default for Resize {
 }
 
 impl Resize {
+    pub fn default_width(mut self, width: f32) -> Self {
+        self.default_size.x = width;
+        self
+    }
+
     pub fn default_height(mut self, height: f32) -> Self {
         self.default_size.y = height;
         self

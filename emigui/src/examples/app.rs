@@ -120,9 +120,9 @@ impl OpenWindows {
 fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            ui.add(Button::new("Do nothing"));
-            ui.add(Button::new("Carry on"));
-            ui.add(Button::new("Don't Quit"));
+            if ui.add(Button::new("Clear memory")).clicked {
+                *ui.ctx().memory() = Default::default();
+            }
         });
         menu::menu(ui, "Windows", |ui| {
             ui.add(Checkbox::new(&mut windows.examples, "Examples"));

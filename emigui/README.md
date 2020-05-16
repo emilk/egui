@@ -22,7 +22,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [x] Scroll-wheel input
     * [x] Drag background to scroll
     * [ ] Kinetic scrolling
-* [x] Add support for clicking links
+* [x] Add support for clicking hyperlinks
 * [x] Menu bar (File, Edit, etc)
     * [ ] Sub-menus
     * [ ] Keyboard shortcuts

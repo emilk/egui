@@ -149,7 +149,6 @@ impl Widget for Hyperlink {
         let id = ui.make_child_id(&self.url);
         let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
-        // TODO: underline
         let galley = font.layout_multiline(&self.text, ui.available().width());
         let interact = ui.reserve_space(galley.size, Some(id));
         if interact.hovered {
@@ -161,7 +160,6 @@ impl Widget for Hyperlink {
 
         if interact.hovered {
             // Underline:
-            // TODO: underline spaces between words too.
             for fragment in &galley.fragments {
                 let pos = interact.rect.min;
                 let y = pos.y + fragment.y_offset + line_spacing;

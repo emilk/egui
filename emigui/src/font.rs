@@ -8,9 +8,12 @@ use crate::{
     texture_atlas::TextureAtlas,
 };
 
-/// A typeset piece of text on a single line. Could be a whole line, or just a word.
+/// A typeset piece of text on a single line.
 pub struct Fragment {
-    /// The start of each character, starting at zero.
+    /// The start of each character, probably starting at zero.
+    /// The last element is the end of the last character.
+    /// x_offsets.len() == text.chars().count() + 1
+    /// This is never empty.
     /// Unit: points.
     pub x_offsets: Vec<f32>,
 
@@ -18,7 +21,8 @@ pub struct Fragment {
     /// Unit: points.
     pub y_offset: f32,
 
-    /// The actual characters
+    // TODO: make this a str reference into a String owned by Galley
+    /// The actual characters.
     pub text: String,
 }
 
@@ -41,7 +45,9 @@ impl Fragment {
 // }
 
 /// A collection of text locked into place.
+#[derive(Default)]
 pub struct Galley {
+    // TODO: maybe rename/refactor this as `lines`?
     pub fragments: Vec<Fragment>,
     pub size: Vec2,
 }
@@ -192,17 +198,13 @@ impl Font {
         );
     }
 
-    /// Returns the a single line of characters separated into words
-    /// Always returns at least one frament.
-    fn layout_words(&self, text: &str) -> Galley {
+    /// Typeset the given text onto one line.
+    /// Assumes there are no \n in the text.
+    /// Return x_offsets, one longer than the number of characters in the text.
+    fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
-        let mut current_fragment = Fragment {
-            x_offsets: vec![0.0],
-            y_offset: 0.0,
-            text: String::new(),
-        };
-        let mut fragments = vec![];
+        let mut x_offsets = vec![0.0];
         let mut cursor_x_in_points = 0.0f32;
         let mut last_glyph_id = None;
 
@@ -217,84 +219,118 @@ impl Font {
                 cursor_x_in_points += glyph.advance_width;
                 cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
                 last_glyph_id = Some(glyph.id);
-
-                let is_space = glyph.uv_rect.is_none();
-                if is_space {
-                    // TODO: also break after hyphens etc
-                    if !current_fragment.text.is_empty() {
-                        fragments.push(current_fragment);
-                        current_fragment = Fragment {
-                            x_offsets: vec![cursor_x_in_points],
-                            y_offset: 0.0,
-                            text: String::new(),
-                        }
-                    }
-                // TODO: add a fragment for the space aswell
-                } else {
-                    current_fragment.text.push(c);
-                    current_fragment.x_offsets.push(cursor_x_in_points);
-                }
             } else {
                 // Ignore unknown glyph
             }
+            x_offsets.push(cursor_x_in_points);
         }
 
-        if !current_fragment.text.is_empty() {
-            fragments.push(current_fragment)
-        }
-
-        let width = if fragments.is_empty() {
-            0.0
-        } else {
-            fragments.last().unwrap().max_x()
-        };
-
-        let size = vec2(width, self.height());
-
-        Galley { fragments, size }
+        x_offsets
     }
 
     /// Typeset the given text onto one line.
-    /// Always returns at least one frament.
+    /// Assumes there are no \n in the text.
+    /// Always returns exactly one frament.
     pub fn layout_single_line(&self, text: &str) -> Galley {
-        // TODO: return a single Fragment instead of calling layout_words
-        // saves a lot of allocations
-        self.layout_words(text)
+        let x_offsets = self.layout_single_line_fragment(text);
+        let fragment = Fragment {
+            x_offsets,
+            y_offset: 0.0,
+            text: text.to_owned(),
+        };
+        assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
+        let width = fragment.max_x();
+        let size = vec2(width, self.height());
+        Galley {
+            fragments: vec![fragment],
+            size,
+        }
     }
 
     /// A paragraph is text with no line break character in it.
-    /// The text will be linebreaked by the given max_width_in_points.
+    /// The text will be linebreaked by the given `max_width_in_points`.
     /// TODO: return Galley ?
     pub fn layout_paragraph_max_width(
         &self,
         text: &str,
         max_width_in_points: f32,
     ) -> Vec<Fragment> {
-        let mut galley = self.layout_words(text);
-        if galley.fragments.is_empty() || galley.size.x <= max_width_in_points {
-            return galley.fragments; // Early-out
-        }
+        let full_x_offsets = self.layout_single_line_fragment(text);
 
-        let line_spacing = self.line_spacing();
-
-        // Break up lines:
-        let mut line_start_x = 0.0;
+        let mut line_start_x = full_x_offsets[0];
+        assert_eq!(line_start_x, 0.0);
         let mut cursor_y = 0.0;
+        let mut line_start_idx = 0;
 
-        for word in galley.fragments.iter_mut().skip(1) {
-            if word.max_x() - line_start_x >= max_width_in_points {
-                // Time for a new line:
-                cursor_y += line_spacing;
-                line_start_x = word.min_x();
+        // start index of the last space. A candidate for a new line.
+        let mut last_space = None;
+
+        let mut out_fragments = vec![];
+
+        for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
+            let line_width = x - line_start_x;
+
+            if line_width > max_width_in_points {
+                if let Some(last_space_idx) = last_space {
+                    let include_trailing_space = true;
+                    let fragment = if include_trailing_space {
+                        Fragment {
+                            x_offsets: full_x_offsets[line_start_idx..=last_space_idx + 1]
+                                .iter()
+                                .map(|x| x - line_start_x)
+                                .collect(),
+                            y_offset: cursor_y,
+                            text: text
+                                .chars()
+                                .skip(line_start_idx)
+                                .take(last_space_idx + 1 - line_start_idx)
+                                .collect(),
+                        }
+                    } else {
+                        Fragment {
+                            x_offsets: full_x_offsets[line_start_idx..=last_space_idx]
+                                .iter()
+                                .map(|x| x - line_start_x)
+                                .collect(),
+                            y_offset: cursor_y,
+                            text: text
+                                .chars()
+                                .skip(line_start_idx)
+                                .take(last_space_idx - line_start_idx)
+                                .collect(),
+                        }
+                    };
+                    assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
+                    out_fragments.push(fragment);
+
+                    line_start_idx = last_space_idx + 1;
+                    line_start_x = full_x_offsets[line_start_idx];
+                    last_space = None;
+                    cursor_y += self.line_spacing();
+                    cursor_y = self.round_to_pixel(cursor_y);
+                }
             }
 
-            word.y_offset += cursor_y;
-            for x in &mut word.x_offsets {
-                *x -= line_start_x;
+            const NON_BREAKING_SPACE: char = '\u{A0}';
+            if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+                last_space = Some(i);
             }
         }
 
-        galley.fragments
+        if line_start_idx + 1 < full_x_offsets.len() {
+            let fragment = Fragment {
+                x_offsets: full_x_offsets[line_start_idx..]
+                    .iter()
+                    .map(|x| x - line_start_x)
+                    .collect(),
+                y_offset: cursor_y,
+                text: text.chars().skip(line_start_idx).collect(),
+            };
+            assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
+            out_fragments.push(fragment);
+        }
+
+        out_fragments
     }
 
     pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
@@ -302,13 +338,14 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut fragments = Vec::new();
         for line in text.split('\n') {
-            let mut line_fragments = self.layout_paragraph_max_width(line, max_width_in_points);
-            if let Some(last_word) = line_fragments.last() {
-                let line_height = last_word.y_offset + line_spacing;
-                for fragment in &mut line_fragments {
+            let mut paragraph_fragments =
+                self.layout_paragraph_max_width(line, max_width_in_points);
+            if let Some(last_fragment) = paragraph_fragments.last() {
+                let line_height = last_fragment.y_offset + line_spacing;
+                for fragment in &mut paragraph_fragments {
                     fragment.y_offset += cursor_y;
                 }
-                fragments.append(&mut line_fragments);
+                fragments.append(&mut paragraph_fragments);
                 cursor_y += line_height; // TODO: add extra spacing between paragraphs
             } else {
                 cursor_y += line_spacing;
