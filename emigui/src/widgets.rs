@@ -143,7 +143,6 @@ impl Widget for Hyperlink {
         let text_style = TextStyle::Body;
         let id = ui.make_child_id(&self.url);
         let font = &ui.fonts()[text_style];
-        let line_spacing = font.line_spacing();
         let galley = font.layout_multiline(&self.text, ui.available().width());
         let interact = ui.reserve_space(galley.size, Some(id));
         if interact.hovered {
@@ -157,7 +156,7 @@ impl Widget for Hyperlink {
             // Underline:
             for line in &galley.lines {
                 let pos = interact.rect.min;
-                let y = pos.y + line.y_offset + line_spacing;
+                let y = pos.y + line.y_max;
                 let y = ui.round_to_pixel(y);
                 let min_x = pos.x + line.min_x();
                 let max_x = pos.x + line.max_x();

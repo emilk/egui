@@ -577,7 +577,7 @@ pub fn mesh_command(
                     let c = chars.next().unwrap();
                     if let Some(glyph) = font.uv_rect(c) {
                         let mut top_left = Vertex {
-                            pos: pos + glyph.offset + vec2(*x_offset, line.y_offset),
+                            pos: pos + glyph.offset + vec2(*x_offset, line.y_min),
                             uv: glyph.min,
                             color,
                         };

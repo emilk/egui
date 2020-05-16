@@ -8,40 +8,6 @@ use crate::{
     texture_atlas::TextureAtlas,
 };
 
-/// A typeset piece of text on a single line.
-#[derive(Clone, Debug)]
-pub struct Line {
-    /// The start of each character, probably starting at zero.
-    /// The last element is the end of the last character.
-    /// x_offsets.len() == text.chars().count() + 1
-    /// This is never empty.
-    /// Unit: points.
-    pub x_offsets: Vec<f32>,
-
-    /// Top y offset of this line. 0.0 for the first line, n * line_spacing for the rest.
-    /// Unit: points.
-    pub y_offset: f32,
-}
-
-impl Line {
-    pub fn sanity_check(&self) {
-        assert!(!self.x_offsets.is_empty());
-    }
-
-    pub fn char_count(&self) -> usize {
-        assert!(!self.x_offsets.is_empty());
-        self.x_offsets.len() - 1
-    }
-
-    pub fn min_x(&self) -> f32 {
-        *self.x_offsets.first().unwrap()
-    }
-
-    pub fn max_x(&self) -> f32 {
-        *self.x_offsets.last().unwrap()
-    }
-}
-
 /// A collection of text locked into place.
 #[derive(Clone, Debug, Default)]
 pub struct Galley {
@@ -52,9 +18,27 @@ pub struct Galley {
     /// The number of chars in all lines sum up to text.chars().count()
     pub lines: Vec<Line>,
 
-    // We need size here to keep track of extra newline at the end. Hacky. Should fix.
-    // Newlines should probably be part of the start of the line?
+    // Optimization: calculate once and reuse.
     pub size: Vec2,
+}
+
+/// A typeset piece of text on a single line.
+#[derive(Clone, Debug)]
+pub struct Line {
+    /// The start of each character, probably starting at zero.
+    /// The last element is the end of the last character.
+    /// x_offsets.len() == text.chars().count() + 1
+    /// This is never empty.
+    /// Unit: points.
+    pub x_offsets: Vec<f32>,
+
+    /// Top of the line, offset within the Galley.
+    /// Unit: points.
+    pub y_min: f32,
+
+    /// Bottom of the line, offset within the Galley.
+    /// Unit: points.
+    pub y_max: f32,
 }
 
 impl Galley {
@@ -75,22 +59,36 @@ impl Galley {
             let line_char_count = line.char_count();
             if char_count <= char_idx && char_idx < char_count + line_char_count {
                 let line_char_offset = char_idx - char_count;
-                return vec2(line.x_offsets[line_char_offset], line.y_offset);
+                return vec2(line.x_offsets[line_char_offset], line.y_min);
             }
             char_count += line_char_count;
         }
 
         if let Some(last) = self.lines.last() {
-            if self.text.ends_with('\n') {
-                // The position of the next character will be here:
-                vec2(0.0, 0.5 * (self.size.y + last.y_offset)) // TODO: fix this hack
-            } else {
-                vec2(last.max_x(), last.y_offset)
-            }
+            vec2(last.max_x(), last.y_min)
         } else {
             // Empty galley
             vec2(0.0, 0.0)
         }
+    }
+}
+
+impl Line {
+    pub fn sanity_check(&self) {
+        assert!(!self.x_offsets.is_empty());
+    }
+
+    pub fn char_count(&self) -> usize {
+        assert!(!self.x_offsets.is_empty());
+        self.x_offsets.len() - 1
+    }
+
+    pub fn min_x(&self) -> f32 {
+        *self.x_offsets.first().unwrap()
+    }
+
+    pub fn max_x(&self) -> f32 {
+        *self.x_offsets.last().unwrap()
     }
 }
 
@@ -257,6 +255,82 @@ impl Font {
 
     /// Typeset the given text onto one line.
     /// Assumes there are no \n in the text.
+    /// Always returns exactly one frament.
+    pub fn layout_single_line(&self, text: &str) -> Galley {
+        let x_offsets = self.layout_single_line_fragment(text);
+        let line = Line {
+            x_offsets,
+            y_min: 0.0,
+            y_max: self.height(),
+        };
+        let width = line.max_x();
+        let size = vec2(width, self.height());
+        let galley = Galley {
+            text: text.to_owned(),
+            lines: vec![line],
+            size,
+        };
+        galley.sanity_check();
+        galley
+    }
+
+    pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
+        let line_spacing = self.line_spacing();
+        let mut cursor_y = 0.0;
+        let mut lines = Vec::new();
+
+        let mut paragraph_start = 0;
+
+        while paragraph_start < text.len() {
+            let next_newline = text[paragraph_start..].find('\n');
+            let paragraph_end = next_newline
+                .map(|newline| paragraph_start + newline + 1)
+                .unwrap_or_else(|| text.len());
+
+            assert!(paragraph_start < paragraph_end);
+            let paragraph_text = &text[paragraph_start..paragraph_end];
+            let mut paragraph_lines =
+                self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
+            assert!(!paragraph_lines.is_empty());
+
+            for line in &mut paragraph_lines {
+                line.y_min += cursor_y;
+                line.y_max += cursor_y;
+            }
+            cursor_y = paragraph_lines.last().unwrap().y_max;
+            cursor_y += line_spacing * 0.4; // extra spacing between paragraphs. less hacky
+
+            lines.append(&mut paragraph_lines);
+
+            paragraph_start = paragraph_end;
+        }
+
+        if text.is_empty() || text.ends_with('\n') {
+            // Add an empty last line for correct visuals etc:
+            lines.push(Line {
+                x_offsets: vec![0.0],
+                y_min: cursor_y,
+                y_max: cursor_y + line_spacing,
+            });
+        }
+
+        let mut widest_line = 0.0;
+        for line in &lines {
+            widest_line = line.max_x().max(widest_line);
+        }
+        let size = vec2(widest_line, lines.last().unwrap().y_max);
+
+        let galley = Galley {
+            text: text.to_owned(),
+            lines,
+            size,
+        };
+        galley.sanity_check();
+        galley
+    }
+
+    /// Typeset the given text onto one line.
+    /// Assumes there are no \n in the text.
     /// Return x_offsets, one longer than the number of characters in the text.
     fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
@@ -282,26 +356,6 @@ impl Font {
         }
 
         x_offsets
-    }
-
-    /// Typeset the given text onto one line.
-    /// Assumes there are no \n in the text.
-    /// Always returns exactly one frament.
-    pub fn layout_single_line(&self, text: &str) -> Galley {
-        let x_offsets = self.layout_single_line_fragment(text);
-        let line = Line {
-            x_offsets,
-            y_offset: 0.0,
-        };
-        let width = line.max_x();
-        let size = vec2(width, self.height());
-        let galley = Galley {
-            text: text.to_owned(),
-            lines: vec![line],
-            size,
-        };
-        galley.sanity_check();
-        galley
     }
 
     /// A paragraph is text with no line break character in it.
@@ -331,7 +385,8 @@ impl Font {
                                 .iter()
                                 .map(|x| x - line_start_x)
                                 .collect(),
-                            y_offset: cursor_y,
+                            y_min: cursor_y,
+                            y_max: cursor_y + self.height(),
                         }
                     } else {
                         Line {
@@ -339,7 +394,8 @@ impl Font {
                                 .iter()
                                 .map(|x| x - line_start_x)
                                 .collect(),
-                            y_offset: cursor_y,
+                            y_min: cursor_y,
+                            y_max: cursor_y + self.height(),
                         }
                     };
                     line.sanity_check();
@@ -365,59 +421,13 @@ impl Font {
                     .iter()
                     .map(|x| x - line_start_x)
                     .collect(),
-                y_offset: cursor_y,
+                y_min: cursor_y,
+                y_max: cursor_y + self.height(),
             };
             line.sanity_check();
             out_lines.push(line);
         }
 
         out_lines
-    }
-
-    pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
-        let line_spacing = self.line_spacing();
-        let mut cursor_y = 0.0;
-        let mut lines = Vec::new();
-
-        let mut paragraph_start = 0;
-
-        while paragraph_start < text.len() {
-            let next_newline = text[paragraph_start..].find('\n');
-            let paragraph_end = next_newline
-                .map(|newline| paragraph_start + newline + 1)
-                .unwrap_or_else(|| text.len());
-
-            assert!(paragraph_start < paragraph_end);
-            let paragraph_text = &text[paragraph_start..paragraph_end];
-            let mut paragraph_lines =
-                self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
-            assert!(!paragraph_lines.is_empty());
-
-            let paragraph_height = paragraph_lines.last().unwrap().y_offset + line_spacing;
-            for line in &mut paragraph_lines {
-                line.y_offset += cursor_y;
-            }
-            lines.append(&mut paragraph_lines);
-            cursor_y += paragraph_height; // TODO: add extra spacing between paragraphs
-
-            paragraph_start = paragraph_end;
-        }
-
-        if text.ends_with('\n') {
-            cursor_y += line_spacing;
-        }
-
-        let mut widest_line = 0.0;
-        for line in &lines {
-            widest_line = line.max_x().max(widest_line);
-        }
-
-        let galley = Galley {
-            text: text.to_owned(),
-            lines,
-            size: vec2(widest_line, cursor_y),
-        };
-        galley.sanity_check();
-        galley
     }
 }
