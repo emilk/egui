@@ -52,7 +52,8 @@ pub struct Galley {
     /// The number of chars in all lines sum up to text.chars().count()
     pub lines: Vec<Line>,
 
-    // TODO: remove? Can just calculate on the fly
+    // We need size here to keep track of extra newline at the end. Hacky. Should fix.
+    // Newlines should probably be part of the start of the line?
     pub size: Vec2,
 }
 
@@ -65,9 +66,39 @@ impl Galley {
         }
         assert_eq!(char_count, self.text.chars().count());
     }
+
+    /// If given a char index after the first line, the end of the last character is returned instead.
+    /// Returns a Vec2 rather than a Pos2 as this is an offset into the galley. *shrug*
+    pub fn char_start_pos(&self, char_idx: usize) -> Vec2 {
+        let mut char_count = 0;
+        for line in &self.lines {
+            let line_char_count = line.char_count();
+            if char_count <= char_idx && char_idx < char_count + line_char_count {
+                let line_char_offset = char_idx - char_count;
+                return vec2(line.x_offsets[line_char_offset], line.y_offset);
+            }
+            char_count += line_char_count;
+        }
+
+        if let Some(last) = self.lines.last() {
+            if self.text.ends_with('\n') {
+                // The position of the next character will be here:
+                vec2(0.0, 0.5 * (self.size.y + last.y_offset)) // TODO: fix this hack
+            } else {
+                vec2(last.max_x(), last.y_offset)
+            }
+        } else {
+            // Empty galley
+            vec2(0.0, 0.0)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
+
+// const REPLACEMENT_CHAR: char = '\u{25A1}'; // □ white square Replaces a missing or unsupported Unicode character.
+// const REPLACEMENT_CHAR: char = '\u{FFFD}'; // � REPLACEMENT CHARACTER
+const REPLACEMENT_CHAR: char = '?';
 
 #[derive(Clone, Copy, Debug)]
 pub struct UvRect {
@@ -128,6 +159,8 @@ impl Font {
         for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
             font.add_char(c);
         }
+        font.add_char(REPLACEMENT_CHAR);
+
         font
     }
 
@@ -148,11 +181,20 @@ impl Font {
         self.glyph_infos.get(&c).and_then(|gi| gi.uv_rect)
     }
 
-    fn glyph_info(&self, c: char) -> Option<&GlyphInfo> {
+    fn glyph_info_or_none(&self, c: char) -> Option<&GlyphInfo> {
         self.glyph_infos.get(&c)
     }
 
+    fn glyph_info_or_replacemnet(&self, c: char) -> &GlyphInfo {
+        self.glyph_info_or_none(c)
+            .unwrap_or_else(|| self.glyph_info_or_none(REPLACEMENT_CHAR).unwrap())
+    }
+
     fn add_char(&mut self, c: char) {
+        if self.glyph_infos.contains_key(&c) {
+            return;
+        }
+
         let glyph = self.font.glyph(c);
         assert_ne!(
             glyph.id().0,
@@ -224,19 +266,18 @@ impl Font {
         let mut last_glyph_id = None;
 
         for c in text.chars() {
-            if let Some(glyph) = self.glyph_info(c) {
-                if let Some(last_glyph_id) = last_glyph_id {
-                    cursor_x_in_points +=
-                        self.font
-                            .pair_kerning(scale_in_pixels, last_glyph_id, glyph.id)
-                            / self.pixels_per_point
-                }
-                cursor_x_in_points += glyph.advance_width;
-                cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
-                last_glyph_id = Some(glyph.id);
-            } else {
-                // Ignore unknown glyph
+            let glyph = self.glyph_info_or_replacemnet(c);
+
+            if let Some(last_glyph_id) = last_glyph_id {
+                cursor_x_in_points +=
+                    self.font
+                        .pair_kerning(scale_in_pixels, last_glyph_id, glyph.id)
+                        / self.pixels_per_point
             }
+            cursor_x_in_points += glyph.advance_width;
+            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
+            last_glyph_id = Some(glyph.id);
+
             x_offsets.push(cursor_x_in_points);
         }
 
@@ -352,14 +393,18 @@ impl Font {
                 self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
             assert!(!paragraph_lines.is_empty());
 
-            let line_height = paragraph_lines.last().unwrap().y_offset + line_spacing;
+            let paragraph_height = paragraph_lines.last().unwrap().y_offset + line_spacing;
             for line in &mut paragraph_lines {
                 line.y_offset += cursor_y;
             }
             lines.append(&mut paragraph_lines);
-            cursor_y += line_height; // TODO: add extra spacing between paragraphs
+            cursor_y += paragraph_height; // TODO: add extra spacing between paragraphs
 
             paragraph_start = paragraph_end;
+        }
+
+        if text.ends_with('\n') {
+            cursor_y += line_spacing;
         }
 
         let mut widest_line = 0.0;

@@ -3,7 +3,7 @@
 use crate::{layout::Direction, GuiResponse, *};
 
 mod slider;
-mod text_edit;
+pub mod text_edit;
 
 pub use {slider::*, text_edit::*};
 

@@ -547,7 +547,10 @@ pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -
     }
 }
 
-pub fn clamp(x: f32, range: RangeInclusive<f32>) -> f32 {
+pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
+where
+    T: Copy + PartialOrd,
+{
     if x <= *range.start() {
         *range.start()
     } else if *range.end() <= x {

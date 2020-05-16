@@ -120,7 +120,7 @@ pub enum Event {
     },
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Key {
     Alt,

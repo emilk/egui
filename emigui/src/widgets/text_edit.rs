@@ -1,5 +1,11 @@
 use crate::*;
 
+#[derive(Clone, Copy, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
+pub(crate) struct State {
+    /// Charctaer based, NOT bytes
+    pub cursor: Option<usize>,
+}
+
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
@@ -36,12 +42,22 @@ impl<'t> TextEdit<'t> {
 
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
-        let id = ui.make_child_id(self.id);
+        let TextEdit {
+            text,
+            id,
+            text_style,
+            text_color,
+        } = self;
 
-        let font = &ui.fonts()[self.text_style];
+        let id = ui.make_child_id(id);
+
+        let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
+
+        let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
-        let galley = font.layout_multiline(self.text.as_str(), ui.available().width());
-        let desired_size = galley.size.max(vec2(ui.available().width(), line_spacing));
+        let available_width = ui.available().width();
+        let mut galley = font.layout_multiline(text.as_str(), available_width);
+        let desired_size = galley.size.max(vec2(available_width, line_spacing));
         let interact = ui.reserve_space(desired_size, Some(id));
 
         if interact.clicked {
@@ -53,27 +69,31 @@ impl<'t> Widget for TextEdit<'t> {
         let has_kb_focus = ui.has_kb_focus(id);
 
         if has_kb_focus {
+            let mut cursor = state.cursor.unwrap_or_else(|| text.chars().count());
+            cursor = clamp(cursor, 0..=text.chars().count());
+
             for event in &ui.input().events {
                 match event {
                     Event::Copy | Event::Cut => {
                         // TODO: cut
-                        ui.ctx().output().copied_text = self.text.clone();
+                        ui.ctx().output().copied_text = text.clone();
                     }
-                    Event::Text(text) => {
-                        if text == "\u{7f}" {
-                            // backspace
-                        } else {
-                            *self.text += text;
-                        }
+                    Event::Text(text_to_insert) => {
+                        insert_text(&mut cursor, text, text_to_insert);
                     }
                     Event::Key { key, pressed: true } => {
-                        if *key == Key::Backspace {
-                            self.text.pop(); // TODO: unicode aware
-                        }
+                        on_key_press(&mut cursor, text, *key);
                     }
                     _ => {}
                 }
             }
+            state.cursor = Some(cursor);
+
+            // layout again to avoid frame delay:
+            let font = &ui.fonts()[text_style];
+            galley = font.layout_multiline(text.as_str(), available_width);
+
+            // dbg!(&galley);
         }
 
         ui.add_paint_cmd(PaintCmd::Rect {
@@ -90,21 +110,77 @@ impl<'t> Widget for TextEdit<'t> {
             let show_cursor =
                 (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0;
             if show_cursor {
-                let cursor_pos = if let Some(last) = galley.lines.last() {
-                    interact.rect.min + vec2(last.max_x(), last.y_offset)
-                } else {
-                    interact.rect.min
-                };
-                ui.add_paint_cmd(PaintCmd::line_segment(
-                    [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
-                    color::WHITE,
-                    ui.style().text_cursor_width,
-                ));
+                if let Some(cursor) = state.cursor {
+                    let cursor_pos = interact.rect.min + galley.char_start_pos(cursor);
+                    ui.add_paint_cmd(PaintCmd::line_segment(
+                        [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
+                        color::WHITE,
+                        ui.style().text_cursor_width,
+                    ));
+                }
             }
         }
 
-        ui.add_galley(interact.rect.min, galley, self.text_style, self.text_color);
-
+        ui.add_galley(interact.rect.min, galley, text_style, text_color);
+        ui.memory().text_edit.insert(id, state);
         ui.response(interact)
     }
+}
+
+fn insert_text(cursor: &mut usize, text: &mut String, text_to_insert: &str) {
+    // eprintln!("insert_text before: '{}', cursor at {}", text, cursor);
+
+    let mut char_it = text.chars();
+    let mut new_text = String::with_capacity(text.capacity());
+    for _ in 0..*cursor {
+        let c = char_it.next().unwrap();
+        new_text.push(c);
+    }
+    *cursor += text_to_insert.chars().count();
+    new_text += text_to_insert;
+    new_text.extend(char_it);
+    *text = new_text;
+
+    // eprintln!("insert_text after:  '{}', cursor at {}\n", text, cursor);
+}
+fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
+    // eprintln!("on_key_press before: '{}', cursor at {}", text, cursor);
+
+    match key {
+        Key::Backspace if *cursor > 0 => {
+            *cursor -= 1;
+
+            let mut char_it = text.chars();
+            let mut new_text = String::with_capacity(text.capacity());
+            for _ in 0..*cursor {
+                new_text.push(char_it.next().unwrap())
+            }
+            new_text.extend(char_it.skip(1));
+            *text = new_text;
+        }
+        Key::Delete => {
+            let mut char_it = text.chars();
+            let mut new_text = String::with_capacity(text.capacity());
+            for _ in 0..*cursor {
+                new_text.push(char_it.next().unwrap())
+            }
+            new_text.extend(char_it.skip(1));
+            *text = new_text;
+        }
+        Key::Home => {
+            *cursor = 0; // TODO: start of line
+        }
+        Key::End => {
+            *cursor = text.chars().count(); // TODO: end of line
+        }
+        Key::Left if *cursor > 0 => {
+            *cursor -= 1;
+        }
+        Key::Right => {
+            *cursor = (*cursor + 1).min(text.chars().count());
+        }
+        _ => {}
+    }
+
+    // eprintln!("on_key_press after:  '{}', cursor at {}\n", text, cursor);
 }

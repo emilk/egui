@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     containers::{area, collapsing_header, menu, resize, scroll_area},
+    widgets::text_edit,
     Id, Layer, Pos2, Rect,
 };
 
@@ -19,8 +20,9 @@ pub struct Memory {
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
     pub(crate) menu_bar: HashMap<Id, menu::BarState>,
-    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) resize: HashMap<Id, resize::State>,
+    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
+    pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
     pub(crate) areas: Areas,
 }
