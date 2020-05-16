@@ -97,12 +97,7 @@ impl Widget for Label {
         };
         let galley = self.layout(max_width, ui);
         let interact = ui.reserve_space(galley.size, None);
-        ui.add_text(
-            interact.rect.min,
-            self.text_style,
-            galley.fragments,
-            self.text_color,
-        );
+        ui.add_galley(interact.rect.min, galley, self.text_style, self.text_color);
         ui.response(interact)
     }
 }
@@ -160,12 +155,12 @@ impl Widget for Hyperlink {
 
         if interact.hovered {
             // Underline:
-            for fragment in &galley.fragments {
+            for line in &galley.lines {
                 let pos = interact.rect.min;
-                let y = pos.y + fragment.y_offset + line_spacing;
+                let y = pos.y + line.y_offset + line_spacing;
                 let y = ui.round_to_pixel(y);
-                let min_x = pos.x + fragment.min_x();
-                let max_x = pos.x + fragment.max_x();
+                let min_x = pos.x + line.min_x();
+                let max_x = pos.x + line.max_x();
                 ui.add_paint_cmd(PaintCmd::line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
                     color,
@@ -174,7 +169,7 @@ impl Widget for Hyperlink {
             }
         }
 
-        ui.add_text(interact.rect.min, text_style, galley.fragments, Some(color));
+        ui.add_galley(interact.rect.min, galley, text_style, Some(color));
 
         ui.response(interact)
     }
@@ -243,7 +238,7 @@ impl Widget for Button {
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
+        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
         ui.response(interact)
     }
 }
@@ -313,7 +308,7 @@ impl<'a> Widget for Checkbox<'a> {
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
+        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
         ui.response(interact)
     }
 }
@@ -384,7 +379,7 @@ impl Widget for RadioButton {
         }
 
         let text_color = self.text_color.unwrap_or(stroke_color);
-        ui.add_text(text_cursor, text_style, galley.fragments, Some(text_color));
+        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
         ui.response(interact)
     }
 }

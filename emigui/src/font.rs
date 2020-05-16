@@ -9,7 +9,8 @@ use crate::{
 };
 
 /// A typeset piece of text on a single line.
-pub struct Fragment {
+#[derive(Clone, Debug)]
+pub struct Line {
     /// The start of each character, probably starting at zero.
     /// The last element is the end of the last character.
     /// x_offsets.len() == text.chars().count() + 1
@@ -17,16 +18,21 @@ pub struct Fragment {
     /// Unit: points.
     pub x_offsets: Vec<f32>,
 
-    /// 0 for the first line, n * line_spacing for the rest
+    /// Top y offset of this line. 0.0 for the first line, n * line_spacing for the rest.
     /// Unit: points.
     pub y_offset: f32,
-
-    // TODO: make this a str reference into a String owned by Galley
-    /// The actual characters.
-    pub text: String,
 }
 
-impl Fragment {
+impl Line {
+    pub fn sanity_check(&self) {
+        assert!(!self.x_offsets.is_empty());
+    }
+
+    pub fn char_count(&self) -> usize {
+        assert!(!self.x_offsets.is_empty());
+        self.x_offsets.len() - 1
+    }
+
     pub fn min_x(&self) -> f32 {
         *self.x_offsets.first().unwrap()
     }
@@ -36,20 +42,29 @@ impl Fragment {
     }
 }
 
-// pub fn fn_text_width(fragmens: &[Fragment]) -> f32 {
-//     if fragmens.is_empty() {
-//         0.0
-//     } else {
-//         fragmens.last().unwrap().max_x() - fragmens.first().unwrap().min_x()
-//     }
-// }
-
 /// A collection of text locked into place.
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Galley {
-    // TODO: maybe rename/refactor this as `lines`?
-    pub fragments: Vec<Fragment>,
+    /// The full text
+    pub text: String,
+
+    /// Lines of text, from top to bottom.
+    /// The number of chars in all lines sum up to text.chars().count()
+    pub lines: Vec<Line>,
+
+    // TODO: remove? Can just calculate on the fly
     pub size: Vec2,
+}
+
+impl Galley {
+    pub fn sanity_check(&self) {
+        let mut char_count = 0;
+        for line in &self.lines {
+            line.sanity_check();
+            char_count += line.char_count();
+        }
+        assert_eq!(char_count, self.text.chars().count());
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -233,28 +248,24 @@ impl Font {
     /// Always returns exactly one frament.
     pub fn layout_single_line(&self, text: &str) -> Galley {
         let x_offsets = self.layout_single_line_fragment(text);
-        let fragment = Fragment {
+        let line = Line {
             x_offsets,
             y_offset: 0.0,
-            text: text.to_owned(),
         };
-        assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
-        let width = fragment.max_x();
+        let width = line.max_x();
         let size = vec2(width, self.height());
-        Galley {
-            fragments: vec![fragment],
+        let galley = Galley {
+            text: text.to_owned(),
+            lines: vec![line],
             size,
-        }
+        };
+        galley.sanity_check();
+        galley
     }
 
     /// A paragraph is text with no line break character in it.
     /// The text will be linebreaked by the given `max_width_in_points`.
-    /// TODO: return Galley ?
-    pub fn layout_paragraph_max_width(
-        &self,
-        text: &str,
-        max_width_in_points: f32,
-    ) -> Vec<Fragment> {
+    pub fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Line> {
         let full_x_offsets = self.layout_single_line_fragment(text);
 
         let mut line_start_x = full_x_offsets[0];
@@ -265,7 +276,7 @@ impl Font {
         // start index of the last space. A candidate for a new line.
         let mut last_space = None;
 
-        let mut out_fragments = vec![];
+        let mut out_lines = vec![];
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
             let line_width = x - line_start_x;
@@ -273,35 +284,25 @@ impl Font {
             if line_width > max_width_in_points {
                 if let Some(last_space_idx) = last_space {
                     let include_trailing_space = true;
-                    let fragment = if include_trailing_space {
-                        Fragment {
+                    let line = if include_trailing_space {
+                        Line {
                             x_offsets: full_x_offsets[line_start_idx..=last_space_idx + 1]
                                 .iter()
                                 .map(|x| x - line_start_x)
                                 .collect(),
                             y_offset: cursor_y,
-                            text: text
-                                .chars()
-                                .skip(line_start_idx)
-                                .take(last_space_idx + 1 - line_start_idx)
-                                .collect(),
                         }
                     } else {
-                        Fragment {
+                        Line {
                             x_offsets: full_x_offsets[line_start_idx..=last_space_idx]
                                 .iter()
                                 .map(|x| x - line_start_x)
                                 .collect(),
                             y_offset: cursor_y,
-                            text: text
-                                .chars()
-                                .skip(line_start_idx)
-                                .take(last_space_idx - line_start_idx)
-                                .collect(),
                         }
                     };
-                    assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
-                    out_fragments.push(fragment);
+                    line.sanity_check();
+                    out_lines.push(line);
 
                     line_start_idx = last_space_idx + 1;
                     line_start_x = full_x_offsets[line_start_idx];
@@ -318,49 +319,60 @@ impl Font {
         }
 
         if line_start_idx + 1 < full_x_offsets.len() {
-            let fragment = Fragment {
+            let line = Line {
                 x_offsets: full_x_offsets[line_start_idx..]
                     .iter()
                     .map(|x| x - line_start_x)
                     .collect(),
                 y_offset: cursor_y,
-                text: text.chars().skip(line_start_idx).collect(),
             };
-            assert_eq!(fragment.x_offsets.len(), fragment.text.chars().count() + 1);
-            out_fragments.push(fragment);
+            line.sanity_check();
+            out_lines.push(line);
         }
 
-        out_fragments
+        out_lines
     }
 
     pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
         let line_spacing = self.line_spacing();
         let mut cursor_y = 0.0;
-        let mut fragments = Vec::new();
-        for line in text.split('\n') {
-            let mut paragraph_fragments =
-                self.layout_paragraph_max_width(line, max_width_in_points);
-            if let Some(last_fragment) = paragraph_fragments.last() {
-                let line_height = last_fragment.y_offset + line_spacing;
-                for fragment in &mut paragraph_fragments {
-                    fragment.y_offset += cursor_y;
-                }
-                fragments.append(&mut paragraph_fragments);
-                cursor_y += line_height; // TODO: add extra spacing between paragraphs
-            } else {
-                cursor_y += line_spacing;
+        let mut lines = Vec::new();
+
+        let mut paragraph_start = 0;
+
+        while paragraph_start < text.len() {
+            let next_newline = text[paragraph_start..].find('\n');
+            let paragraph_end = next_newline
+                .map(|newline| paragraph_start + newline + 1)
+                .unwrap_or_else(|| text.len());
+
+            assert!(paragraph_start < paragraph_end);
+            let paragraph_text = &text[paragraph_start..paragraph_end];
+            let mut paragraph_lines =
+                self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
+            assert!(!paragraph_lines.is_empty());
+
+            let line_height = paragraph_lines.last().unwrap().y_offset + line_spacing;
+            for line in &mut paragraph_lines {
+                line.y_offset += cursor_y;
             }
-            cursor_y = self.round_to_pixel(cursor_y);
+            lines.append(&mut paragraph_lines);
+            cursor_y += line_height; // TODO: add extra spacing between paragraphs
+
+            paragraph_start = paragraph_end;
         }
 
         let mut widest_line = 0.0;
-        for fragment in &fragments {
-            widest_line = fragment.max_x().max(widest_line);
+        for line in &lines {
+            widest_line = line.max_x().max(widest_line);
         }
 
-        Galley {
-            fragments,
+        let galley = Galley {
+            text: text.to_owned(),
+            lines,
             size: vec2(widest_line, cursor_y),
-        }
+        };
+        galley.sanity_check();
+        galley
     }
 }

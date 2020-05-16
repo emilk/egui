@@ -370,13 +370,7 @@ impl Context {
                 rect: rect.expand(2.0),
             },
         );
-        self.add_text(
-            layer,
-            rect.min,
-            text_style,
-            galley.fragments,
-            Some(color::RED),
-        );
+        self.add_galley(layer, rect.min, galley, text_style, Some(color::RED));
     }
 
     pub fn debug_text(&self, pos: Pos2, text: &str) {
@@ -418,36 +412,33 @@ impl Context {
         text_style: TextStyle,
         align: (Align, Align),
         text_color: Option<Color>,
-    ) -> Vec2 {
+    ) -> Rect {
         let font = &self.fonts[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_text(layer, rect.min, text_style, galley.fragments, text_color);
-        galley.size
+        self.add_galley(layer, rect.min, galley, text_style, text_color);
+        rect
     }
 
     /// Already layed out text.
-    pub fn add_text(
+    pub fn add_galley(
         &self,
         layer: Layer,
         pos: Pos2,
+        galley: font::Galley,
         text_style: TextStyle,
-        text: Vec<font::Fragment>,
         color: Option<Color>,
     ) {
         let color = color.unwrap_or_else(|| self.style().text_color());
-        for fragment in text {
-            self.add_paint_cmd(
-                layer,
-                PaintCmd::Text {
-                    color,
-                    pos: pos + vec2(0.0, fragment.y_offset),
-                    text: fragment.text,
-                    text_style,
-                    x_offsets: fragment.x_offsets,
-                },
-            );
-        }
+        self.add_paint_cmd(
+            layer,
+            PaintCmd::Text {
+                pos,
+                galley,
+                text_style,
+                color,
+            },
+        );
     }
 
     pub fn add_paint_cmd(&self, layer: Layer, paint_cmd: PaintCmd) {

@@ -4,6 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     color::Color,
+    font::Galley,
     fonts::TextStyle,
     math::{Pos2, Rect},
     mesher::{Mesh, Path},
@@ -153,14 +154,12 @@ pub enum PaintCmd {
     },
     /// Paint a single line of text
     Text {
-        color: Color,
         /// Top left corner of the first character.
         pos: Pos2,
-        text: String,
-        text_style: TextStyle, // TODO: Font
-        /// Start each character in the text, as offset from pos.
-        x_offsets: Vec<f32>,
-        // TODO: font info
+        /// The layed out text
+        galley: Galley,
+        text_style: TextStyle, // TODO: Font?
+        color: Color,
     },
     /// Low-level triangle mesh
     Mesh(Mesh),

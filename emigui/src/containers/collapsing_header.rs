@@ -91,10 +91,10 @@ impl CollapsingHeader {
 
         paint_icon(ui, &state, &interact);
 
-        ui.add_text(
+        ui.add_galley(
             text_pos,
+            galley,
             label.text_style,
-            galley.fragments,
             Some(ui.style().interact(&interact).stroke_color),
         );
 

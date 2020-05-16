@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{color::*, containers::*, font::Fragment, layout::*, widgets::*, *};
+use crate::{color::*, containers::*, layout::*, widgets::*, *};
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
@@ -457,32 +457,29 @@ impl Ui {
         text_style: TextStyle,
         align: (Align, Align),
         text_color: Option<Color>,
-    ) -> Vec2 {
+    ) -> Rect {
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_text(rect.min, text_style, galley.fragments, text_color);
-        galley.size
+        self.add_galley(rect.min, galley, text_style, text_color);
+        rect
     }
 
     /// Already layed out text.
-    pub fn add_text(
+    pub fn add_galley(
         &mut self,
         pos: Pos2,
+        galley: font::Galley,
         text_style: TextStyle,
-        fragments: Vec<Fragment>,
         color: Option<Color>,
     ) {
         let color = color.unwrap_or_else(|| self.style().text_color());
-        for fragment in fragments {
-            self.add_paint_cmd(PaintCmd::Text {
-                color,
-                pos: pos + vec2(0.0, fragment.y_offset),
-                text: fragment.text,
-                text_style,
-                x_offsets: fragment.x_offsets,
-            });
-        }
+        self.add_paint_cmd(PaintCmd::Text {
+            pos,
+            galley,
+            text_style,
+            color,
+        });
     }
 
     // ------------------------------------------------------------------------

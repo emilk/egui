@@ -564,30 +564,35 @@ pub fn mesh_command(
             }
         }
         PaintCmd::Text {
-            color,
             pos,
-            text,
+            galley,
             text_style,
-            x_offsets,
+            color,
         } => {
+            galley.sanity_check();
             let font = &fonts[text_style];
-            for (c, x_offset) in text.chars().zip(x_offsets.iter()) {
-                if let Some(glyph) = font.uv_rect(c) {
-                    let mut top_left = Vertex {
-                        pos: pos + glyph.offset + vec2(*x_offset, 0.0),
-                        uv: glyph.min,
-                        color,
-                    };
-                    top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
-                    top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
-                    let bottom_right = Vertex {
-                        pos: top_left.pos + glyph.size,
-                        uv: glyph.max,
-                        color,
-                    };
-                    out_mesh.add_rect(top_left, bottom_right);
+            let mut chars = galley.text.chars();
+            for line in &galley.lines {
+                for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
+                    let c = chars.next().unwrap();
+                    if let Some(glyph) = font.uv_rect(c) {
+                        let mut top_left = Vertex {
+                            pos: pos + glyph.offset + vec2(*x_offset, line.y_offset),
+                            uv: glyph.min,
+                            color,
+                        };
+                        top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
+                        top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
+                        let bottom_right = Vertex {
+                            pos: top_left.pos + glyph.size,
+                            uv: glyph.max,
+                            color,
+                        };
+                        out_mesh.add_rect(top_left, bottom_right);
+                    }
                 }
             }
+            assert_eq!(chars.next(), None);
         }
     }
 }
