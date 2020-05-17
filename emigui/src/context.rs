@@ -169,6 +169,17 @@ impl Context {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         if !self.raw_input.mouse_down || self.raw_input.mouse_pos.is_none() {
             self.memory().active_id = None;
+
+            let window_interaction = self.memory().window_interaction.take();
+            if let Some(window_interaction) = window_interaction {
+                let area_layer = window_interaction.area_layer;
+                let area_state = self.memory().areas.get(area_layer.id).clone();
+                if let Some(mut area_state) = area_state {
+                    // Throw windows because it is fun:
+                    area_state.vel = self.input().mouse_velocity;
+                    self.memory().areas.set_state(area_layer, area_state);
+                }
+            }
         }
 
         self.used_ids.lock().clear();

@@ -25,7 +25,7 @@ pub struct Memory {
     pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
     #[serde(skip)]
-    pub(crate) frame_interaction: Option<window::FrameInteraction>,
+    pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     pub(crate) areas: Areas,
 }

@@ -255,17 +255,17 @@ struct PossibleInteractions {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct FrameInteraction {
-    area_layer: Layer,
-    start_rect: Rect,
-    start_mouse_pos: Pos2,
-    left: bool,
-    right: bool,
-    top: bool,
-    bottom: bool,
+pub(crate) struct WindowInteraction {
+    pub(crate) area_layer: Layer,
+    pub(crate) start_rect: Rect,
+    pub(crate) start_mouse_pos: Pos2,
+    pub(crate) left: bool,
+    pub(crate) right: bool,
+    pub(crate) top: bool,
+    pub(crate) bottom: bool,
 }
 
-impl FrameInteraction {
+impl WindowInteraction {
     pub fn set_cursor(&self, ctx: &Context) {
         if (self.left && self.top) || (self.right && self.bottom) {
             ctx.output().cursor_icon = CursorIcon::ResizeNwSe;
@@ -281,10 +281,6 @@ impl FrameInteraction {
     pub fn is_resize(&self) -> bool {
         self.left || self.right || self.top || self.bottom
     }
-
-    pub fn is_pure_move(&self) -> bool {
-        !self.is_resize()
-    }
 }
 
 fn resize_window(
@@ -294,26 +290,26 @@ fn resize_window(
     id: Id,
     mut rect: Rect,
 ) -> Rect {
-    if let Some(frame_interaction) = frame_interaction(ctx, possible, area_layer, id, rect) {
-        frame_interaction.set_cursor(ctx);
+    if let Some(window_interaction) = window_interaction(ctx, possible, area_layer, id, rect) {
+        window_interaction.set_cursor(ctx);
         if let Some(mouse_pos) = ctx.input().mouse_pos {
-            rect = frame_interaction.start_rect; // prevent drift
+            rect = window_interaction.start_rect; // prevent drift
 
-            if frame_interaction.is_resize() {
-                if frame_interaction.left {
+            if window_interaction.is_resize() {
+                if window_interaction.left {
                     rect.min.x = ctx.round_to_pixel(mouse_pos.x);
-                } else if frame_interaction.right {
+                } else if window_interaction.right {
                     rect.max.x = ctx.round_to_pixel(mouse_pos.x);
                 }
 
-                if frame_interaction.top {
+                if window_interaction.top {
                     rect.min.y = ctx.round_to_pixel(mouse_pos.y);
-                } else if frame_interaction.bottom {
+                } else if window_interaction.bottom {
                     rect.max.y = ctx.round_to_pixel(mouse_pos.y);
                 }
             } else {
                 // movevement
-                rect = rect.translate(mouse_pos - frame_interaction.start_mouse_pos);
+                rect = rect.translate(mouse_pos - window_interaction.start_mouse_pos);
             }
         }
     }
@@ -321,55 +317,39 @@ fn resize_window(
     return rect;
 }
 
-fn frame_interaction(
+fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
     area_layer: Layer,
     id: Id,
     rect: Rect,
-) -> Option<FrameInteraction> {
+) -> Option<WindowInteraction> {
     {
         let active_id = ctx.memory().active_id;
-        if active_id.is_none() {
-            let frame_interaction = ctx.memory().frame_interaction;
-            if let Some(frame_interaction) = frame_interaction {
-                if frame_interaction.area_layer == area_layer {
-                    eprintln!("Letting go of window");
-                    if frame_interaction.is_pure_move() {
-                        // Throw window:
-                        let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
-                        area_state.vel = ctx.input().mouse_velocity;
-                        eprintln!("Throwing window with velocity {:?}", area_state.vel);
-                        ctx.memory().areas.set_state(area_layer, area_state);
-                    }
-                    ctx.memory().frame_interaction = None;
-                }
-            }
-        }
 
         if active_id.is_some() && active_id != Some(id) {
             return None;
         }
     }
 
-    let mut frame_interaction = { ctx.memory().frame_interaction.clone() };
+    let mut window_interaction = { ctx.memory().window_interaction.clone() };
 
-    if frame_interaction.is_none() {
-        if let Some(hover_frame_interaction) = resize_hover(ctx, possible, area_layer, rect) {
-            hover_frame_interaction.set_cursor(ctx);
+    if window_interaction.is_none() {
+        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {
+            hover_window_interaction.set_cursor(ctx);
             if ctx.input().mouse_pressed {
                 ctx.memory().active_id = Some(id);
-                frame_interaction = Some(hover_frame_interaction);
-                ctx.memory().frame_interaction = frame_interaction;
+                window_interaction = Some(hover_window_interaction);
+                ctx.memory().window_interaction = window_interaction;
             }
         }
     }
 
-    if let Some(frame_interaction) = frame_interaction {
+    if let Some(window_interaction) = window_interaction {
         let is_active = ctx.memory().active_id == Some(id);
 
-        if is_active && frame_interaction.area_layer == area_layer {
-            return Some(frame_interaction);
+        if is_active && window_interaction.area_layer == area_layer {
+            return Some(window_interaction);
         }
     }
 
@@ -381,7 +361,7 @@ fn resize_hover(
     possible: PossibleInteractions,
     area_layer: Layer,
     rect: Rect,
-) -> Option<FrameInteraction> {
+) -> Option<WindowInteraction> {
     if let Some(mouse_pos) = ctx.input().mouse_pos {
         if let Some(top_layer) = ctx.memory().layer_at(mouse_pos) {
             if top_layer != area_layer && top_layer.order != Order::Background {
@@ -427,7 +407,7 @@ fn resize_hover(
             }
 
             if any_resize || possible.movable {
-                Some(FrameInteraction {
+                Some(WindowInteraction {
                     area_layer,
                     start_rect: rect,
                     start_mouse_pos: mouse_pos,
