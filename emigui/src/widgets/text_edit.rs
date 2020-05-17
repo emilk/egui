@@ -76,7 +76,7 @@ impl<'t> Widget for TextEdit<'t> {
         if interact.clicked {
             ui.request_kb_focus(id);
             if let Some(mouse_pos) = ui.input().mouse_pos {
-                state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min));
+                state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
             }
         }
         if interact.hovered {
@@ -149,7 +149,7 @@ impl<'t> Widget for TextEdit<'t> {
 }
 
 fn insert_text(cursor: &mut usize, text: &mut String, text_to_insert: &str) {
-    // eprintln!("insert_text before: '{}', cursor at {}", text, cursor);
+    eprintln!("insert_text {:?}", text_to_insert);
 
     let mut char_it = text.chars();
     let mut new_text = String::with_capacity(text.capacity());
@@ -161,9 +161,8 @@ fn insert_text(cursor: &mut usize, text: &mut String, text_to_insert: &str) {
     new_text += text_to_insert;
     new_text.extend(char_it);
     *text = new_text;
-
-    // eprintln!("insert_text after:  '{}', cursor at {}\n", text, cursor);
 }
+
 fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
     // eprintln!("on_key_press before: '{}', cursor at {}", text, cursor);
 
@@ -189,10 +188,15 @@ fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
             *text = new_text;
         }
         Key::Home => {
-            *cursor = 0; // TODO: start of line
+            // To start of paragraph:
+            let pos = line_col_from_char_idx(text, *cursor);
+            *cursor = char_idx_from_line_col(text, (pos.0, 0));
         }
         Key::End => {
-            *cursor = text.chars().count(); // TODO: end of line
+            // To end of paragraph:
+            let pos = line_col_from_char_idx(text, *cursor);
+            let line = line_from_number(text, pos.0);
+            *cursor = char_idx_from_line_col(text, (pos.0, line.chars().count()));
         }
         Key::Left if *cursor > 0 => {
             *cursor -= 1;
@@ -200,8 +204,57 @@ fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
         Key::Right => {
             *cursor = (*cursor + 1).min(text.chars().count());
         }
+        Key::Up => {
+            let mut pos = line_col_from_char_idx(text, *cursor);
+            pos.0 = pos.0.saturating_sub(1);
+            *cursor = char_idx_from_line_col(text, pos);
+        }
+        Key::Down => {
+            let mut pos = line_col_from_char_idx(text, *cursor);
+            pos.0 += 1;
+            *cursor = char_idx_from_line_col(text, pos);
+        }
         _ => {}
     }
 
     // eprintln!("on_key_press after:  '{}', cursor at {}\n", text, cursor);
+}
+
+fn line_col_from_char_idx(s: &str, char_idx: usize) -> (usize, usize) {
+    let mut char_count = 0;
+
+    let mut last_line_nr = 0;
+    let mut last_line = s;
+    for (line_nr, line) in s.split('\n').enumerate() {
+        let line_width = line.chars().count();
+        if char_idx <= char_count + line_width {
+            return (line_nr, char_idx - char_count);
+        }
+        char_count += line_width + 1;
+        last_line_nr = line_nr;
+        last_line = line;
+    }
+
+    // safe fallback:
+    (last_line_nr, last_line.chars().count())
+}
+
+fn char_idx_from_line_col(s: &str, pos: (usize, usize)) -> usize {
+    let mut char_count = 0;
+    for (line_nr, line) in s.split('\n').enumerate() {
+        if line_nr == pos.0 {
+            return char_count + pos.1.min(line.chars().count());
+        }
+        char_count += line.chars().count() + 1;
+    }
+    char_count
+}
+
+fn line_from_number(s: &str, desired_line_number: usize) -> &str {
+    for (line_nr, line) in s.split('\n').enumerate() {
+        if line_nr == desired_line_number {
+            return line;
+        }
+    }
+    return s;
 }

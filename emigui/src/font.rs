@@ -8,6 +8,16 @@ use crate::{
     texture_atlas::TextureAtlas,
 };
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GalleyCursor {
+    /// character count in whole galley
+    pub char_idx: usize,
+    /// line number
+    pub line: usize,
+    /// character count on this line
+    pub column: usize,
+}
+
 /// A collection of text locked into place.
 #[derive(Clone, Debug, Default)]
 pub struct Galley {
@@ -76,28 +86,30 @@ impl Galley {
     }
 
     /// Character offset at the given position within the galley
-    pub fn char_at(&self, pos: Vec2) -> usize {
+    pub fn char_at(&self, pos: Vec2) -> GalleyCursor {
         let mut best_y_dist = f32::INFINITY;
-        let mut char_idx = 0;
+        let mut cursor = GalleyCursor::default();
 
         let mut char_count = 0;
-        for line in &self.lines {
+        for (line_nr, line) in self.lines.iter().enumerate() {
             let y_dist = (line.y_min - pos.y).abs().min((line.y_max - pos.y).abs());
             if y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let line_offset = line.char_at(pos.x);
-                if line_offset == line.char_count() && line.ends_with_newline {
+                let mut column = line.char_at(pos.x);
+                if column == line.char_count() && line.ends_with_newline {
                     // handle the case where line ends with a \n and we click after it.
                     // We should return the position BEFORE the \n!
-                    char_idx = char_count + line_offset - 1;
-                } else {
-                    char_idx = char_count + line_offset;
+                    column -= 1;
+                }
+                cursor = GalleyCursor {
+                    char_idx: char_count + column,
+                    line: line_nr,
+                    column,
                 }
             }
             char_count += line.char_count();
         }
-        // eprintln!("char_at {:?}: {} (text: {:?})", pos, char_idx, self.text);
-        char_idx
+        cursor
     }
 }
 
