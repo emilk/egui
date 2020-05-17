@@ -136,6 +136,10 @@ impl<'open> Window<'open> {
             scroll,
         } = self;
 
+        if matches!(open, Some(false)) {
+            return None;
+        }
+
         let movable = area.is_movable();
         let area = area.movable(false); // We move it manually
         let resizable = resize.is_resizable();
@@ -147,10 +151,6 @@ impl<'open> Window<'open> {
         let collapsing_id = window_id.with("collapsing");
 
         let resize = resize.id(resize_id);
-
-        if matches!(open, Some(false)) {
-            return None;
-        }
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
@@ -170,9 +170,6 @@ impl<'open> Window<'open> {
                     collapsing_id,
                     &mut collapsing,
                 );
-                ui.memory()
-                    .collapsing_headers
-                    .insert(collapsing_id, collapsing);
 
                 // TODO: fix collapsing window animation
                 let content = collapsing.add_contents(ui, |ui| {
@@ -185,6 +182,10 @@ impl<'open> Window<'open> {
                         }
                     })
                 });
+
+                ui.memory()
+                    .collapsing_headers
+                    .insert(collapsing_id, collapsing);
 
                 if let Some(open) = open {
                     // Add close button now that we know our full width:
