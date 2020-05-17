@@ -22,6 +22,111 @@ impl Default for State {
     }
 }
 
+impl State {
+    pub fn from_memory_with_default_open(ui: &Ui, id: Id, default_open: bool) -> Self {
+        ui.memory()
+            .collapsing_headers
+            .entry(id)
+            .or_insert(State {
+                open: default_open,
+                ..Default::default()
+            })
+            .clone()
+    }
+
+    pub fn toggle(&mut self, ui: &Ui) {
+        self.open = !self.open;
+        self.toggle_time = ui.input().time;
+    }
+
+    /// 0 for closed, 1 for open, with tweening
+    pub fn openness(&self, ui: &Ui) -> f32 {
+        let animation_time = ui.style().animation_time;
+        let time_since_toggle = (ui.input().time - self.toggle_time) as f32;
+        let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
+        if self.open {
+            remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
+        } else {
+            remap_clamp(time_since_toggle, 0.0..=animation_time, 1.0..=0.0)
+        }
+    }
+
+    /// Paint the arrow icon that indicated if the region is open or not
+    pub fn paint_icon(&self, ui: &mut Ui, interact: &InteractInfo) {
+        let stroke_color = ui.style().interact(interact).stroke_color;
+        let stroke_width = ui.style().interact(interact).stroke_width;
+
+        let rect = interact.rect;
+
+        let openness = self.openness(ui);
+
+        // Draw a pointy triangle arrow:
+        let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
+        let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
+        let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
+        for p in &mut points {
+            let v = *p - rect.center();
+            let v = rotation.rotate_other(v);
+            *p = rect.center() + v;
+        }
+
+        ui.add_paint_cmd(PaintCmd::Path {
+            path: mesher::Path::from_point_loop(&points),
+            closed: true,
+            fill_color: None,
+            outline: Some(Outline::new(stroke_width, stroke_color)),
+        });
+    }
+
+    /// Show contents if we are open, with a nice animation between closed and open
+    pub fn add_contents(
+        &mut self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InteractInfo> {
+        let openness = self.openness(ui);
+        let animate = 0.0 < openness && openness < 1.0;
+        if animate {
+            Some(ui.add_custom(|child_ui| {
+                let max_height = if self.open {
+                    if let Some(full_height) = self.open_height {
+                        remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
+                    } else {
+                        // First frame of expansion.
+                        // We don't know full height yet, but we will next frame.
+                        // Just use a placehodler value that shows some movement:
+                        10.0
+                    }
+                } else {
+                    let full_height = self.open_height.unwrap_or_default();
+                    remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
+                };
+
+                let mut clip_rect = child_ui.clip_rect();
+                clip_rect.max.y = clip_rect.max.y.min(child_ui.rect().top() + max_height);
+                child_ui.set_clip_rect(clip_rect);
+
+                let top_left = child_ui.top_left();
+                add_contents(child_ui);
+
+                self.open_height = Some(child_ui.bounding_size().y);
+
+                // Pretend children took up less space:
+                let mut child_bounds = child_ui.child_bounds();
+                child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
+                child_ui.force_set_child_bounds(child_bounds);
+            }))
+        } else if self.open {
+            let interact = ui.add_custom(add_contents);
+            let full_size = interact.rect.size();
+            self.open_height = Some(full_size.y);
+            Some(interact)
+        } else {
+            None
+        }
+    }
+}
+
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
@@ -75,32 +180,25 @@ impl CollapsingHeader {
         );
         let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
 
-        let mut state = {
-            let mut memory = ui.memory();
-            let mut state = memory.collapsing_headers.entry(id).or_insert(State {
-                open: default_open,
-                ..Default::default()
-            });
-            if interact.clicked {
-                state.open = !state.open;
-                state.toggle_time = ui.input().time;
-            }
-            *state
-        };
-
-        let animation_time = ui.style().animation_time;
-        let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
-        let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
-        let openness = if state.open {
-            remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
-        } else {
-            remap_clamp(time_since_toggle, 0.0..=animation_time, 1.0..=0.0)
-        };
-        let animate = time_since_toggle < animation_time;
+        let mut state = State::from_memory_with_default_open(ui, id, default_open);
+        if interact.clicked {
+            state.toggle(ui);
+        }
 
         let where_to_put_background = ui.paint_list_len();
 
-        paint_icon(ui, &interact, openness);
+        {
+            let (mut icon_rect, _) = ui.style().icon_rectangles(interact.rect);
+            icon_rect.set_center(pos2(
+                interact.rect.left() + ui.style().indent / 2.0,
+                interact.rect.center().y,
+            ));
+            let icon_interact = InteractInfo {
+                rect: icon_rect,
+                ..interact
+            };
+            state.paint_icon(ui, &icon_interact);
+        }
 
         ui.add_galley(
             text_pos,
@@ -121,74 +219,11 @@ impl CollapsingHeader {
 
         ui.expand_to_include_child(interact.rect); // TODO: remove, just a test
 
-        if animate {
-            ui.indent(id, |child_ui| {
-                let max_height = if state.open {
-                    if let Some(full_height) = state.open_height {
-                        remap(time_since_toggle, 0.0..=animation_time, 0.0..=full_height)
-                    } else {
-                        // First frame of expansion.
-                        // We don't know full height yet, but we will next frame.
-                        // Just use a placehodler value that shows some movement:
-                        10.0
-                    }
-                } else {
-                    let full_height = state.open_height.unwrap_or_default();
-                    remap_clamp(time_since_toggle, 0.0..=animation_time, full_height..=0.0)
-                };
-
-                let mut clip_rect = child_ui.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(child_ui.rect().top() + max_height);
-                child_ui.set_clip_rect(clip_rect);
-
-                let top_left = child_ui.top_left();
-                add_contents(child_ui);
-
-                state.open_height = Some(child_ui.bounding_size().y);
-
-                // Pretend children took up less space:
-                let mut child_bounds = child_ui.child_bounds();
-                child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
-                child_ui.force_set_child_bounds(child_bounds);
-            });
-        } else if state.open {
-            let full_size = ui.indent(id, add_contents).rect.size();
-            state.open_height = Some(full_size.y);
-        }
+        state.add_contents(ui, |ui| {
+            ui.indent(id, add_contents);
+        });
 
         ui.memory().collapsing_headers.insert(id, state);
         ui.response(interact)
     }
-}
-
-fn paint_icon(ui: &mut Ui, interact: &InteractInfo, openness: f32) {
-    let stroke_color = ui.style().interact(interact).stroke_color;
-    let stroke_width = ui.style().interact(interact).stroke_width;
-
-    let (mut small_icon_rect, _) = ui.style().icon_rectangles(interact.rect);
-    small_icon_rect.set_center(pos2(
-        interact.rect.left() + ui.style().indent / 2.0,
-        interact.rect.center().y,
-    ));
-
-    // Draw a pointy triangle arrow:
-    let rect = Rect::from_center_size(
-        small_icon_rect.center(),
-        vec2(small_icon_rect.width(), small_icon_rect.height()) * 0.75,
-    );
-    let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
-    let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
-    for p in &mut points {
-        let v = *p - rect.center();
-        let v = rotation.rotate_other(v);
-        *p = rect.center() + v;
-    }
-    // }
-
-    ui.add_paint_cmd(PaintCmd::Path {
-        path: mesher::Path::from_point_loop(&points),
-        closed: true,
-        fill_color: None,
-        outline: Some(Outline::new(stroke_width, stroke_color)),
-    });
 }

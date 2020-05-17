@@ -297,7 +297,8 @@ impl Context {
         rect: Rect,
         interaction_id: Option<Id>,
     ) -> InteractInfo {
-        let hovered = self.contains_mouse(layer, clip_rect, rect);
+        let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
+        let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
 
         let mut memory = self.memory();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;

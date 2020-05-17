@@ -16,6 +16,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [ ] Windows should open from `UI`s and be boxed by parent ui.
         * Then we could open the example app inside a window in the example app, recursively.
     * [ ] Resize any side and corner on windows
+    * [ ] Fix autoshrink
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
@@ -29,7 +30,7 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Text input
     * [x] Input events (key presses)
     * [x] Text focus
-    * [ ] Cursor movement
+    * [x] Cursor movement
     * [ ] Text selection
     * [ ] Clipboard copy/paste
     * [ ] Move focus with tab
@@ -41,6 +42,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [ ] Generalize Layout (separate from Ui)
     * [ ] Cascading layout: same lite if it fits, else next line. Like text.
     * [ ] Grid layout
+    * [ ] Point list
 * [ ] Image support
 
 ### Web version:
@@ -49,10 +51,12 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [ ] Make it a JS library for easily creating your own stuff
 * [ ] Read url fragment and redirect to a subpage (e.g. different examples apps)
 
-### Painting
-* [ ] Pixel-perfect painting (round positions to nearest pixel).
+### Visuals
+* [ ] Simplify button style to make for nicer collapsible headers. Maybe weak outline? Or just subtle different text color?
+* [/] Pixel-perfect painting (round positions to nearest pixel).
 * [ ] Make sure alpha blending is correct (different between web and glium)
-* [ ] sRGBA correct colors
+* [ ] Color picker widgets
+* [ ] Fix thin rounded corners rendering bug (too bright)
 
 ### Animations
 Add extremely quick animations for some things, maybe 2-3 frames. For instance:
@@ -94,6 +98,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Combine Emigui and Context?
 * [x] Solve which parts of Context are behind a mutex
 * [x] Rename Region to Ui
+* [ ] Move Path and Mesh to own crate
 * [ ] Maybe find a shorter name for the library like `egui`?
 
 ### Global widget search

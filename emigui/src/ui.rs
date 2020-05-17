@@ -339,7 +339,16 @@ impl Ui {
     /// for `Justified` aligned layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
+    ///
+    /// TODO: remove, or redesign or something and start using allocate_space
     pub fn reserve_space(&mut self, child_size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
+        let rect = self.allocate_space(child_size);
+
+        self.ctx
+            .interact(self.layer, self.clip_rect, rect, interaction_id)
+    }
+
+    pub fn allocate_space(&mut self, child_size: Vec2) -> Rect {
         let child_size = self.round_vec_to_pixels(child_size);
         self.cursor = self.round_pos_to_pixels(self.cursor);
 
@@ -376,8 +385,7 @@ impl Ui {
             }
         }
 
-        self.ctx
-            .interact(self.layer, self.clip_rect, rect, interaction_id)
+        rect
     }
 
     /// Reserve this much space and move the cursor.
@@ -517,12 +525,25 @@ impl Ui {
     /// Just because you ask for a lot of space does not mean you have to use it!
     /// After `add_contents` is called the contents of `bounding_size`
     /// will decide how much space will be used in the parent ui.
-    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn add_custom_contents(
+        &mut self,
+        size: Vec2,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> InteractInfo {
         let size = size.min(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
         let mut child_ui = self.child_ui(child_rect);
         add_contents(&mut child_ui);
-        self.reserve_space(child_ui.bounding_size(), None);
+        self.reserve_space(child_ui.bounding_size(), None)
+    }
+
+    /// Create a child ui
+    pub fn add_custom(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+        let child_rect = self.available();
+        let mut child_ui = self.child_ui(child_rect);
+        add_contents(&mut child_ui);
+        let size = child_ui.bounding_size();
+        self.reserve_space(size, None)
     }
 
     /// Create a child ui which is indented to the right

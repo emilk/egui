@@ -62,8 +62,10 @@ fn main() {
 
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
-    let mut ctx = Context::new(pixels_per_point);
-    let mut painter = emigui_glium::Painter::new(&display);
+    let mut ctx = profile("initializing emilib", || Context::new(pixels_per_point));
+    let mut painter = profile("initializing painter", || {
+        emigui_glium::Painter::new(&display)
+    });
 
     let mut raw_input = emigui::RawInput {
         screen_size: {
@@ -143,6 +145,7 @@ fn main() {
         emigui_glium::handle_output(output, &display, clipboard.as_mut());
     }
 
+    // Save state to disk:
     window_settings.pos = display
         .gl_window()
         .get_position()
@@ -161,4 +164,12 @@ fn main() {
         &window_settings,
     )
     .unwrap();
+}
+
+fn profile<R>(name: &str, action: impl FnOnce() -> R) -> R {
+    let start = Instant::now();
+    let r = action();
+    let elapsed = start.elapsed();
+    eprintln!("{}: {} ms", name, elapsed.as_millis());
+    r
 }

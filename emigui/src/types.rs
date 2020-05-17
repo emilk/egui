@@ -42,7 +42,7 @@ impl Default for CursorIcon {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct InteractInfo {
     /// The mouse is hovering above this thing
     pub hovered: bool,
@@ -58,6 +58,15 @@ pub struct InteractInfo {
 }
 
 impl InteractInfo {
+    pub fn nothing() -> Self {
+        Self {
+            hovered: false,
+            clicked: false,
+            active: false,
+            rect: Rect::nothing(),
+        }
+    }
+
     pub fn union(self, other: Self) -> Self {
         Self {
             hovered: self.hovered || other.hovered,

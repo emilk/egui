@@ -122,7 +122,11 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+    pub fn show(
+        self,
+        ctx: &Arc<Context>,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InteractInfo> {
         let Window {
             title_label,
             open,
@@ -133,82 +137,116 @@ impl<'open> Window<'open> {
         } = self;
 
         if matches!(open, Some(false)) {
-            return Default::default();
+            return None;
         }
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        if true {
-            // TODO: easier way to compose these
-            area.show(ctx, |ui| {
-                frame.show(ui, |ui| {
+        Some(area.show(ctx, |ui| {
+            frame.show(ui, |ui| {
+                let collapsing_id = ui.make_child_id("collapsing");
+                let default_expanded = true;
+                let mut collapsing = collapsing_header::State::from_memory_with_default_open(
+                    ui,
+                    collapsing_id,
+                    default_expanded,
+                );
+                let show_close_button = open.is_some();
+                let title_bar = show_title_bar(
+                    ui,
+                    title_label,
+                    show_close_button,
+                    collapsing_id,
+                    &mut collapsing,
+                );
+                ui.memory()
+                    .collapsing_headers
+                    .insert(collapsing_id, collapsing);
+
+                let content = collapsing.add_contents(ui, |ui| {
                     resize.show(ui, |ui| {
-                        show_title_bar(ui, title_label, open);
+                        ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
                         if let Some(scroll) = scroll {
                             scroll.show(ui, add_contents)
                         } else {
                             add_contents(ui)
                         }
                     })
-                })
+                });
+
+                if let Some(open) = open {
+                    // Add close button now that we know our full width:
+
+                    let right = content
+                        .map(|c| c.rect.right())
+                        .unwrap_or(title_bar.rect.right());
+
+                    let button_size = ui.style().start_icon_width;
+                    let button_rect = Rect::from_min_size(
+                        pos2(
+                            right - ui.style().item_spacing.x - button_size,
+                            title_bar.rect.center().y - 0.5 * button_size,
+                        ),
+                        Vec2::splat(button_size),
+                    );
+
+                    if close_button(ui, button_rect).clicked {
+                        *open = false;
+                    }
+                }
             })
-        } else {
-            // TODO: something like this, with collapsing contents
-            area.show(ctx, |ui| {
-                frame.show(ui, |ui| {
-                    CollapsingHeader::new(title_label.text()).show(ui, |ui| {
-                        resize.show(ui, |ui| {
-                            if let Some(scroll) = scroll {
-                                scroll.show(ui, add_contents)
-                            } else {
-                                add_contents(ui)
-                            }
-                        })
-                    });
-                })
-            })
-        }
+        }))
     }
 }
 
-fn show_title_bar(ui: &mut Ui, title_label: Label, open: Option<&mut bool>) {
-    let button_size = ui.style().clickable_diameter;
+fn show_title_bar(
+    ui: &mut Ui,
+    title_label: Label,
+    show_close_button: bool,
+    collapsing_id: Id,
+    collapsing: &mut collapsing_header::State,
+) -> InteractInfo {
+    ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+        ui.set_desired_height(title_label.font_height(ui));
 
-    // TODO: show collapse button
+        let item_spacing = ui.style().item_spacing;
+        let button_size = ui.style().start_icon_width;
 
-    let title_rect = ui.add(title_label).rect;
+        {
+            // TODO: make clickable radius larger
+            ui.reserve_space(vec2(0.0, 0.0), None); // HACK: will add left spacing
 
-    if let Some(open) = open {
-        let close_max_x = title_rect.right() + ui.style().item_spacing.x + button_size;
-        let close_max_x = close_max_x.max(ui.rect_finite().right());
-        let close_rect = Rect::from_min_size(
-            pos2(
-                close_max_x - button_size,
-                title_rect.center().y - 0.5 * button_size,
-            ),
-            Vec2::splat(button_size),
-        );
-        if close_button(ui, close_rect).clicked {
-            *open = false;
+            let collapse_button_interact =
+                ui.reserve_space(Vec2::splat(button_size), Some(collapsing_id));
+            if collapse_button_interact.clicked {
+                // TODO: also do this when double-clicking window title
+                collapsing.toggle(ui);
+            }
+            collapsing.paint_icon(ui, &collapse_button_interact);
         }
-    }
 
-    ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+        let title_rect = ui.add(title_label).rect;
+
+        if show_close_button {
+            // Reserve space for close button which will be added later:
+            let close_max_x = title_rect.right() + item_spacing.x + button_size + item_spacing.x;
+            let close_max_x = close_max_x.max(ui.rect_finite().right());
+            let close_rect = Rect::from_min_size(
+                pos2(
+                    close_max_x - button_size,
+                    title_rect.center().y - 0.5 * button_size,
+                ),
+                Vec2::splat(button_size),
+            );
+            ui.expand_to_include_child(close_rect);
+        }
+    })
 }
 
 fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
     let close_id = ui.make_child_id("window_close_button");
     let interact = ui.interact_rect(rect, close_id);
     ui.expand_to_include_child(interact.rect);
-
-    // ui.add_paint_cmd(PaintCmd::Rect {
-    //     corner_radius: ui.style().interact(&interact).corner_radius,
-    //     fill_color: ui.style().interact(&interact).bg_fill_color,
-    //     outline: ui.style().interact(&interact).rect_outline,
-    //     rect: interact.rect,
-    // });
-
-    let rect = rect.expand(-4.0);
 
     let stroke_color = ui.style().interact(&interact).stroke_color;
     let stroke_width = ui.style().interact(&interact).stroke_width;

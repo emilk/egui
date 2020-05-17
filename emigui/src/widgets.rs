@@ -72,6 +72,10 @@ impl Label {
         }
     }
 
+    pub fn font_height(&self, ui: &Ui) -> f32 {
+        ui.fonts()[self.text_style].height()
+    }
+
     // TODO: this should return a LabelLayout which has a paint method.
     // We can then split Widget::Ui in two: layout + allocating space, and painting.
     // this allows us to assemble lables, THEN detect interaction, THEN chose color style based on that.
