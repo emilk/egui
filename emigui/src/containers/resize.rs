@@ -4,12 +4,17 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 pub(crate) struct State {
-    size: Vec2,
+    pub(crate) size: Vec2,
+
+    /// Externally requested size (e.g. by Window) for the next frame
+    pub(crate) requested_size: Option<Vec2>,
 }
 
 // TODO: auto-shink/grow should be part of another container!
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
+    id: Option<Id>,
+
     /// If false, we are no enabled
     resizable: bool,
 
@@ -34,6 +39,7 @@ pub struct Resize {
 impl Default for Resize {
     fn default() -> Self {
         Self {
+            id: None,
             resizable: true,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::infinity(),
@@ -49,6 +55,12 @@ impl Default for Resize {
 }
 
 impl Resize {
+    /// Assign an explicit and globablly unique id.
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
+
     pub fn default_width(mut self, width: f32) -> Self {
         self.default_size.x = width;
         self
@@ -79,6 +91,10 @@ impl Resize {
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
+    }
+
+    pub fn is_resizable(&self) -> bool {
+        self.resizable
     }
 
     /// Not resizable, just takes the size of its contents.
@@ -152,10 +168,9 @@ impl Resize {
     }
 }
 
-// TODO: a common trait for Things that follow this pattern
 impl Resize {
     pub fn show(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
-        let id = ui.make_child_id("resize");
+        let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
         self.min_size = self.min_size.min(ui.available().size());
         self.max_size = self.max_size.min(ui.available().size());
         self.max_size = self.max_size.max(self.min_size);
@@ -164,7 +179,13 @@ impl Resize {
             Some(state) => (false, *state),
             None => {
                 let default_size = self.default_size.clamp(self.min_size..=self.max_size);
-                (true, State { size: default_size })
+                (
+                    true,
+                    State {
+                        size: default_size,
+                        requested_size: None,
+                    },
+                )
             }
         };
 
@@ -198,6 +219,14 @@ impl Resize {
         } else {
             None
         };
+
+        if let Some(requested_size) = state.requested_size.take() {
+            state.size = requested_size;
+            // We don't clamp to max size, because we want to be able to push against outer bounds.
+            // For instance, if we are inside a bigger Resize region, we want to expand that.
+            // state.size = state.size.clamp(self.min_size..=self.max_size);
+            state.size = state.size.max(self.min_size);
+        }
 
         // ------------------------------
 

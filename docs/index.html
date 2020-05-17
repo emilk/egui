@@ -63,6 +63,7 @@
             let output = JSON.parse(wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input)));
             // console.log(`output: ${JSON.stringify(output)}`);
             document.body.style.cursor = from_emigui_cursor(output.cursor_icon);
+            // console.log(`Translated ${output.cursor_icon} to ${document.body.style.cursor}`);
             if (output.open_url) {
                 window.open(output.open_url, "_self");
             }
@@ -71,7 +72,10 @@
         function from_emigui_cursor(cursor) {
             if (cursor == "no_drop") { return "no-drop"; }
             else if (cursor == "not_allowed") { return "not-allowed"; }
+            else if (cursor == "resize_horizontal") { return "ew-resize"; }
+            else if (cursor == "resize_ne_sw") { return "nesw-resize"; }
             else if (cursor == "resize_nw_se") { return "nwse-resize"; }
+            else if (cursor == "resize_vertical") { return "ns-resize"; }
             else if (cursor == "pointing_hand") { return "pointer"; }
             // TODO: more
             else {

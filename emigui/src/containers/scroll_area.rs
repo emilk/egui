@@ -100,10 +100,14 @@ impl ScrollArea {
             inner_rect.size() + vec2(current_scroll_bar_width, 0.0),
         );
 
-        let content_interact = outer_ui.interact_rect(inner_rect, scroll_area_id.with("area"));
-        if content_interact.active {
-            // Dragging scroll area to scroll:
-            state.offset.y -= ctx.input().mouse_move.y;
+        let content_is_too_small = content_size.y > inner_size.y;
+
+        if content_is_too_small {
+            // Dragg contents to scroll (for touch screens mostly):
+            let content_interact = outer_ui.interact_rect(inner_rect, scroll_area_id.with("area"));
+            if content_interact.active {
+                state.offset.y -= ctx.input().mouse_move.y;
+            }
         }
 
         // TODO: check that nothing else is being inteacted with
@@ -111,7 +115,7 @@ impl ScrollArea {
             state.offset.y -= ctx.input().scroll_delta.y;
         }
 
-        let show_scroll_this_frame = content_size.y > inner_size.y || self.always_show_scroll;
+        let show_scroll_this_frame = content_is_too_small || self.always_show_scroll;
         if show_scroll_this_frame || state.show_scroll {
             let left = inner_rect.right() + 2.0;
             let right = outer_rect.right();

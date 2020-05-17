@@ -151,6 +151,13 @@ impl Context {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
+    pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
+        Rect {
+            min: self.round_pos_to_pixels(rect.min),
+            max: self.round_pos_to_pixels(rect.max),
+        }
+    }
+
     // ---------------------------------------------------------------------
 
     pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
@@ -173,7 +180,9 @@ impl Context {
         if let Some(mouse_pos) = new_raw_input.mouse_pos {
             self.mouse_tracker.add(new_raw_input.time, mouse_pos);
         } else {
-            self.mouse_tracker.clear();
+            // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
+            // released from the touch screen that we may want to assign a velocity to whatever
+            // the user tried to throw
         }
         let new_input = GuiInput::from_last_and_new(&self.raw_input, &new_raw_input);
         self.previus_input = std::mem::replace(&mut self.input, new_input);

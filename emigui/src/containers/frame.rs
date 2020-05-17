@@ -4,6 +4,7 @@ use crate::*;
 
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
+    // On each side
     pub margin: Vec2,
     pub corner_radius: f32,
     pub fill_color: Option<Color>,
@@ -68,7 +69,7 @@ impl Frame {
         } = self;
 
         let outer_rect = ui.available();
-        let inner_rect = outer_rect.expand2(-margin);
+        let inner_rect = outer_rect.shrink2(margin);
         let where_to_put_background = ui.paint_list_len();
 
         let mut child_ui = ui.child_ui(inner_rect);

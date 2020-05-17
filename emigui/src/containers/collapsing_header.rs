@@ -34,6 +34,14 @@ impl State {
             .clone()
     }
 
+    // Helper
+    pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
+        ctx.memory()
+            .collapsing_headers
+            .get(&id)
+            .map(|state| state.open)
+    }
+
     pub fn toggle(&mut self, ui: &Ui) {
         self.open = !self.open;
         self.toggle_time = ui.input().time;

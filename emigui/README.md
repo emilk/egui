@@ -15,7 +15,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [x] Kinetic windows
     * [ ] Windows should open from `UI`s and be boxed by parent ui.
         * Then we could open the example app inside a window in the example app, recursively.
-    * [ ] Resize any side and corner on windows
+    * [x] Resize any side and corner on windows
     * [ ] Fix autoshrink
 * [ ] Scroll areas
     * [x] Vertical scrolling

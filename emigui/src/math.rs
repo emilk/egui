@@ -391,6 +391,18 @@ impl Rect {
         Rect::from_min_max(self.min - amnt, self.max + amnt)
     }
 
+    /// Shrink by this much in each direction, keeping the center
+    #[must_use]
+    pub fn shrink(self, amnt: f32) -> Self {
+        self.shrink2(Vec2::splat(amnt))
+    }
+
+    /// Shrink by this much in each direction, keeping the center
+    #[must_use]
+    pub fn shrink2(self, amnt: Vec2) -> Self {
+        Rect::from_min_max(self.min + amnt, self.max - amnt)
+    }
+
     #[must_use]
     pub fn translate(self, amnt: Vec2) -> Self {
         Rect::from_min_size(self.min + amnt, self.size())

@@ -136,15 +136,26 @@ impl<'open> Window<'open> {
             scroll,
         } = self;
 
+        let movable = area.is_movable();
+        let area = area.movable(false); // We move it manually
+        let resizable = resize.is_resizable();
+        let resize = resize.resizable(false); // We move it manually
+
+        let window_id = Id::new(title_label.text());
+        let area_layer = area.layer();
+        let resize_id = window_id.with("resize");
+        let collapsing_id = window_id.with("collapsing");
+
+        let resize = resize.id(resize_id);
+
         if matches!(open, Some(false)) {
             return None;
         }
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        Some(area.show(ctx, |ui| {
+        let full_interact = area.show(ctx, |ui| {
             frame.show(ui, |ui| {
-                let collapsing_id = ui.make_child_id("collapsing");
                 let default_expanded = true;
                 let mut collapsing = collapsing_header::State::from_memory_with_default_open(
                     ui,
@@ -163,6 +174,7 @@ impl<'open> Window<'open> {
                     .collapsing_headers
                     .insert(collapsing_id, collapsing);
 
+                // TODO: fix collapsing window animation
                 let content = collapsing.add_contents(ui, |ui| {
                     resize.show(ui, |ui| {
                         ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
@@ -195,9 +207,246 @@ impl<'open> Window<'open> {
                     }
                 }
             })
-        }))
+        });
+
+        let resizable =
+            resizable && collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
+
+        if movable || resizable {
+            let possible = PossibleInteractions { movable, resizable };
+
+            // TODO: not when collapsed, and not when resizing or moving is disabled etc
+            let pre_resize = ctx.round_rect_to_pixels(full_interact.rect);
+            let new_rect = resize_window(
+                ctx,
+                possible,
+                area_layer,
+                window_id.with("frame_resize"),
+                pre_resize,
+            );
+            let new_rect = ctx.round_rect_to_pixels(new_rect);
+            if new_rect != pre_resize {
+                let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
+                area_state.pos = new_rect.min;
+                ctx.memory().areas.set_state(area_layer, area_state);
+
+                let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
+                // resize_state.size += new_rect.size() - pre_resize.size();
+                // resize_state.size = new_rect.size() - some margin;
+                resize_state.requested_size =
+                    Some(resize_state.size + new_rect.size() - pre_resize.size());
+                ctx.memory().resize.insert(resize_id, resize_state);
+
+                ctx.memory().areas.move_to_top(area_layer);
+            }
+        }
+
+        Some(full_interact)
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+struct PossibleInteractions {
+    movable: bool,
+    resizable: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FrameInteraction {
+    area_layer: Layer,
+    start_rect: Rect,
+    start_mouse_pos: Pos2,
+    left: bool,
+    right: bool,
+    top: bool,
+    bottom: bool,
+}
+
+impl FrameInteraction {
+    pub fn set_cursor(&self, ctx: &Context) {
+        if (self.left && self.top) || (self.right && self.bottom) {
+            ctx.output().cursor_icon = CursorIcon::ResizeNwSe;
+        } else if (self.right && self.top) || (self.left && self.bottom) {
+            ctx.output().cursor_icon = CursorIcon::ResizeNeSw;
+        } else if self.left || self.right {
+            ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
+        } else if self.bottom || self.top {
+            ctx.output().cursor_icon = CursorIcon::ResizeVertical;
+        }
+    }
+
+    pub fn is_resize(&self) -> bool {
+        self.left || self.right || self.top || self.bottom
+    }
+
+    pub fn is_pure_move(&self) -> bool {
+        !self.is_resize()
+    }
+}
+
+fn resize_window(
+    ctx: &Context,
+    possible: PossibleInteractions,
+    area_layer: Layer,
+    id: Id,
+    mut rect: Rect,
+) -> Rect {
+    if let Some(frame_interaction) = frame_interaction(ctx, possible, area_layer, id, rect) {
+        frame_interaction.set_cursor(ctx);
+        if let Some(mouse_pos) = ctx.input().mouse_pos {
+            rect = frame_interaction.start_rect; // prevent drift
+
+            if frame_interaction.is_resize() {
+                if frame_interaction.left {
+                    rect.min.x = ctx.round_to_pixel(mouse_pos.x);
+                } else if frame_interaction.right {
+                    rect.max.x = ctx.round_to_pixel(mouse_pos.x);
+                }
+
+                if frame_interaction.top {
+                    rect.min.y = ctx.round_to_pixel(mouse_pos.y);
+                } else if frame_interaction.bottom {
+                    rect.max.y = ctx.round_to_pixel(mouse_pos.y);
+                }
+            } else {
+                // movevement
+                rect = rect.translate(mouse_pos - frame_interaction.start_mouse_pos);
+            }
+        }
+    }
+
+    return rect;
+}
+
+fn frame_interaction(
+    ctx: &Context,
+    possible: PossibleInteractions,
+    area_layer: Layer,
+    id: Id,
+    rect: Rect,
+) -> Option<FrameInteraction> {
+    {
+        let active_id = ctx.memory().active_id;
+        if active_id.is_none() {
+            let frame_interaction = ctx.memory().frame_interaction;
+            if let Some(frame_interaction) = frame_interaction {
+                if frame_interaction.area_layer == area_layer {
+                    eprintln!("Letting go of window");
+                    if frame_interaction.is_pure_move() {
+                        // Throw window:
+                        let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
+                        area_state.vel = ctx.input().mouse_velocity;
+                        eprintln!("Throwing window with velocity {:?}", area_state.vel);
+                        ctx.memory().areas.set_state(area_layer, area_state);
+                    }
+                    ctx.memory().frame_interaction = None;
+                }
+            }
+        }
+
+        if active_id.is_some() && active_id != Some(id) {
+            return None;
+        }
+    }
+
+    let mut frame_interaction = { ctx.memory().frame_interaction.clone() };
+
+    if frame_interaction.is_none() {
+        if let Some(hover_frame_interaction) = resize_hover(ctx, possible, area_layer, rect) {
+            hover_frame_interaction.set_cursor(ctx);
+            if ctx.input().mouse_pressed {
+                ctx.memory().active_id = Some(id);
+                frame_interaction = Some(hover_frame_interaction);
+                ctx.memory().frame_interaction = frame_interaction;
+            }
+        }
+    }
+
+    if let Some(frame_interaction) = frame_interaction {
+        let is_active = ctx.memory().active_id == Some(id);
+
+        if is_active && frame_interaction.area_layer == area_layer {
+            return Some(frame_interaction);
+        }
+    }
+
+    None
+}
+
+fn resize_hover(
+    ctx: &Context,
+    possible: PossibleInteractions,
+    area_layer: Layer,
+    rect: Rect,
+) -> Option<FrameInteraction> {
+    if let Some(mouse_pos) = ctx.input().mouse_pos {
+        if let Some(top_layer) = ctx.memory().layer_at(mouse_pos) {
+            if top_layer != area_layer && top_layer.order != Order::Background {
+                return None; // Another window is on top here
+            }
+        }
+
+        let side_interact_radius = 5.0; // TODO: from style
+        let corner_interact_radius = 10.0; // TODO
+        if rect.expand(side_interact_radius).contains(mouse_pos) {
+            let (mut left, mut right, mut top, mut bottom) = Default::default();
+            if possible.resizable {
+                right = (rect.right() - mouse_pos.x).abs() <= side_interact_radius;
+                bottom = (rect.bottom() - mouse_pos.y).abs() <= side_interact_radius;
+
+                if rect.right_bottom().dist(mouse_pos) < corner_interact_radius {
+                    right = true;
+                    bottom = true;
+                }
+
+                if possible.movable {
+                    left = (rect.left() - mouse_pos.x).abs() <= side_interact_radius;
+                    top = (rect.top() - mouse_pos.y).abs() <= side_interact_radius;
+
+                    if rect.right_top().dist(mouse_pos) < corner_interact_radius {
+                        right = true;
+                        top = true;
+                    }
+                    if rect.left_top().dist(mouse_pos) < corner_interact_radius {
+                        left = true;
+                        top = true;
+                    }
+                    if rect.left_bottom().dist(mouse_pos) < corner_interact_radius {
+                        left = true;
+                        bottom = true;
+                    }
+                }
+            }
+            let any_resize = left || right || top || bottom;
+
+            if !any_resize && !possible.movable {
+                return None;
+            }
+
+            if any_resize || possible.movable {
+                Some(FrameInteraction {
+                    area_layer,
+                    start_rect: rect,
+                    start_mouse_pos: mouse_pos,
+                    left,
+                    right,
+                    top,
+                    bottom,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 fn show_title_bar(
     ui: &mut Ui,

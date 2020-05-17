@@ -30,7 +30,10 @@ pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
     PointingHand,
+    ResizeHorizontal,
+    ResizeNeSw,
     ResizeNwSe,
+    ResizeVertical,
     Text,
 }
 

@@ -164,7 +164,10 @@ pub fn translate_cursor(cursor_icon: emigui::CursorIcon) -> glutin::MouseCursor 
     match cursor_icon {
         CursorIcon::Default => glutin::MouseCursor::Default,
         CursorIcon::PointingHand => glutin::MouseCursor::Hand,
+        CursorIcon::ResizeHorizontal => glutin::MouseCursor::EwResize,
+        CursorIcon::ResizeNeSw => glutin::MouseCursor::NeswResize,
         CursorIcon::ResizeNwSe => glutin::MouseCursor::NwseResize,
+        CursorIcon::ResizeVertical => glutin::MouseCursor::NsResize,
         CursorIcon::Text => glutin::MouseCursor::Text,
     }
 }

@@ -46,10 +46,22 @@ impl Area {
         }
     }
 
+    pub fn layer(&self) -> Layer {
+        Layer {
+            order: self.order,
+            id: self.id,
+        }
+    }
+
+    /// moveable by draggin the area?
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
         self.interactable |= movable;
         self
+    }
+
+    pub fn is_movable(&self) -> bool {
+        self.movable
     }
 
     /// If false, clicks goes stright throught to what is behind us.
