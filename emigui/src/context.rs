@@ -87,15 +87,15 @@ impl Context {
     }
 
     pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
-        self.memory.lock()
+        self.memory.try_lock().expect("memory already locked")
     }
 
     pub fn graphics(&self) -> parking_lot::MutexGuard<'_, GraphicLayers> {
-        self.graphics.lock()
+        self.graphics.try_lock().expect("graphics already locked")
     }
 
     pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
-        self.output.lock()
+        self.output.try_lock().expect("output already locked")
     }
 
     /// Input previous frame. Compare to `input()` to check for changes.
@@ -127,11 +127,11 @@ impl Context {
 
     // TODO: return MutexGuard
     pub fn style(&self) -> Style {
-        *self.style.lock()
+        *self.style.try_lock().expect("style already locked")
     }
 
     pub fn set_style(&self, style: Style) {
-        *self.style.lock() = style;
+        *self.style.try_lock().expect("style already locked") = style;
     }
 
     pub fn pixels_per_point(&self) -> f32 {
