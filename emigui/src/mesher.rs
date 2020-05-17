@@ -159,7 +159,7 @@ impl Path {
     }
 
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
-        let n = (radius * 2.0).round() as i32; // TODO: tweak a bit more
+        let n = (radius * 4.0).round() as i32; // TODO: tweak a bit more
         let n = clamp(n, 4..=64);
         for i in 0..n {
             let angle = remap(i as f32, 0.0..=n as f32, 0.0..=TAU);

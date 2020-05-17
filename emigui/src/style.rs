@@ -100,17 +100,17 @@ impl Default for Interact {
     fn default() -> Self {
         Self {
             active: WidgetStyle {
-                bg_fill_color: None,
+                bg_fill_color: Some(gray(0, 128)),
                 fill_color: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
-                rect_outline: Some(Outline::new(1.0, WHITE)),
+                rect_outline: Some(Outline::new(2.0, WHITE)),
                 corner_radius: 5.0,
             },
             hovered: WidgetStyle {
                 bg_fill_color: None,
                 fill_color: srgba(100, 100, 150, 255),
-                stroke_color: WHITE,
+                stroke_color: gray(240, 255),
                 stroke_width: 1.5,
                 rect_outline: Some(Outline::new(1.0, WHITE)),
                 corner_radius: 5.0,
@@ -121,37 +121,6 @@ impl Default for Interact {
                 stroke_color: gray(210, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
                 rect_outline: Some(Outline::new(0.5, WHITE)),
-                corner_radius: 0.0,
-            },
-        }
-    }
-}
-
-impl Interact {
-    pub fn classic() -> Self {
-        Self {
-            active: WidgetStyle {
-                bg_fill_color: Some(srgba(120, 120, 200, 255)),
-                fill_color: srgba(120, 120, 200, 255),
-                stroke_color: WHITE,
-                stroke_width: 2.0,
-                rect_outline: Some(Outline::new(2.0, WHITE)),
-                corner_radius: 5.0,
-            },
-            hovered: WidgetStyle {
-                bg_fill_color: Some(srgba(100, 100, 150, 255)),
-                fill_color: srgba(100, 100, 150, 255),
-                stroke_color: WHITE,
-                stroke_width: 1.5,
-                rect_outline: None,
-                corner_radius: 5.0,
-            },
-            inactive: WidgetStyle {
-                bg_fill_color: Some(srgba(60, 60, 80, 255)),
-                fill_color: srgba(60, 60, 80, 255),
-                stroke_color: gray(220, 255), // Mustn't look grayed out!
-                stroke_width: 1.0,
-                rect_outline: None,
                 corner_radius: 0.0,
             },
         }

@@ -88,10 +88,10 @@ fn main() {
 
     while running {
         {
-            // Keep smooth frame rate. TODO: proper vsync
+            // Keep smooth frame rate because vsync doesn't work on mac
             let frame_duration = frame_start.elapsed();
-            if frame_duration < Duration::from_millis(33) {
-                std::thread::sleep(Duration::from_millis(33) - frame_duration);
+            if frame_duration < Duration::from_millis(16) {
+                std::thread::sleep(Duration::from_millis(16) - frame_duration);
             }
             frame_start = Instant::now();
         }
