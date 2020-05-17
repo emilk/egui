@@ -27,6 +27,7 @@ pub struct Resize {
     expand_width_to_fit_content: bool,
     expand_height_to_fit_content: bool,
 
+    outline: bool,
     handle_offset: Vec2,
 }
 
@@ -34,13 +35,14 @@ impl Default for Resize {
     fn default() -> Self {
         Self {
             resizable: true,
-            min_size: Vec2::splat(32.0),
+            min_size: Vec2::splat(16.0),
             max_size: Vec2::infinity(),
             default_size: vec2(f32::INFINITY, 200.0), // TODO
             auto_shrink_width: false,
             auto_shrink_height: false,
             expand_width_to_fit_content: true,
             expand_height_to_fit_content: true,
+            outline: true,
             handle_offset: Default::default(),
         }
     }
@@ -128,12 +130,6 @@ impl Resize {
         self
     }
 
-    /// Offset the position of the resize handle by this much
-    pub fn handle_offset(mut self, handle_offset: Vec2) -> Self {
-        self.handle_offset = handle_offset;
-        self
-    }
-
     pub fn auto_shrink_width(mut self, auto_shrink_width: bool) -> Self {
         self.auto_shrink_width = auto_shrink_width;
         self
@@ -141,6 +137,17 @@ impl Resize {
 
     pub fn auto_shrink_height(mut self, auto_shrink_height: bool) -> Self {
         self.auto_shrink_height = auto_shrink_height;
+        self
+    }
+
+    /// Offset the position of the resize handle by this much
+    pub fn handle_offset(mut self, handle_offset: Vec2) -> Self {
+        self.handle_offset = handle_offset;
+        self
+    }
+
+    pub fn outline(mut self, outline: bool) -> Self {
+        self.outline = outline;
         self
     }
 }
@@ -239,6 +246,17 @@ impl Resize {
         ui.reserve_space(state.size, None);
 
         // ------------------------------
+
+        if self.outline && corner_interact.is_some() {
+            let rect = Rect::from_min_size(position, state.size);
+            let rect = rect.expand(2.0); // breathing room for content
+            ui.add_paint_cmd(PaintCmd::Rect {
+                rect,
+                corner_radius: 3.0,
+                fill_color: None,
+                outline: Some(ui.style().thin_outline),
+            });
+        }
 
         if let Some(corner_interact) = corner_interact {
             paint_resize_corner(ui, &corner_interact);

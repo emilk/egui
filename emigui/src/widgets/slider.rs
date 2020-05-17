@@ -176,14 +176,14 @@ impl<'a> Widget for Slider<'a> {
                 ui.add_paint_cmd(PaintCmd::Rect {
                     rect: rail_rect,
                     corner_radius: rail_radius,
-                    fill_color: Some(ui.style().background_fill_color()),
+                    fill_color: Some(ui.style().background_fill_color),
                     outline: Some(Outline::new(1.0, color::gray(200, 255))), // TODO
                 });
 
                 ui.add_paint_cmd(PaintCmd::Circle {
                     center: pos2(marker_center_x, rail_rect.center().y),
                     radius: handle_radius,
-                    fill_color: ui.style().interact(&interact).fill_color,
+                    fill_color: Some(ui.style().interact(&interact).fill_color),
                     outline: Some(Outline::new(
                         ui.style().interact(&interact).stroke_width,
                         ui.style().interact(&interact).stroke_color,

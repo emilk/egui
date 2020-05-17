@@ -4,6 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{color::*, math::*, types::*};
 
+// TODO: split into Spacing and Style?
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Style {
     /// Horizontal and vertical padding within a window frame.
@@ -25,12 +26,23 @@ pub struct Style {
     /// The text starts after this many pixels.
     pub start_icon_width: f32,
 
-    pub interact: Interact,
-
     // -----------------------------------------------
     // Purely visual:
+    pub interact: Interact,
+
+    // TODO: an WidgetStyle ?
+    pub text_color: Color,
+
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
+
+    pub thin_outline: Outline,
+
+    /// e.g. the background of windows
+    pub background_fill_color: Color,
+
+    /// e.g. the background of the slider or text edit
+    pub dark_bg_color: Color,
 
     pub cursor_blink_hz: f32,
     pub text_cursor_width: f32,
@@ -59,12 +71,16 @@ impl Default for Style {
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
             clickable_diameter: 22.0,
-            start_icon_width: 16.0,
+            start_icon_width: 14.0,
             interact: Default::default(),
+            text_color: gray(160, 255),
             line_width: 1.0,
+            thin_outline: Outline::new(0.5, GRAY),
+            background_fill_color: gray(32, 250),
+            dark_bg_color: gray(0, 140),
             cursor_blink_hz: 1.0,
             text_cursor_width: 2.0,
-            animation_time: 1.0 / 20.0,
+            animation_time: 1.0 / 15.0,
             window: Window::default(),
             menu_bar: MenuBar::default(),
             clip_rect_margin: 3.0,
@@ -84,24 +100,58 @@ impl Default for Interact {
     fn default() -> Self {
         Self {
             active: WidgetStyle {
-                fill_color: Some(srgba(120, 120, 200, 255)),
+                bg_fill_color: None,
+                fill_color: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
-                outline: Some(Outline::new(2.0, WHITE)),
+                rect_outline: Some(Outline::new(1.0, WHITE)),
                 corner_radius: 5.0,
             },
             hovered: WidgetStyle {
-                fill_color: Some(srgba(100, 100, 150, 255)),
+                bg_fill_color: None,
+                fill_color: srgba(100, 100, 150, 255),
                 stroke_color: WHITE,
                 stroke_width: 1.5,
-                outline: None,
+                rect_outline: Some(Outline::new(1.0, WHITE)),
                 corner_radius: 5.0,
             },
             inactive: WidgetStyle {
-                fill_color: Some(srgba(60, 60, 80, 255)),
+                bg_fill_color: None,
+                fill_color: srgba(60, 60, 80, 255),
+                stroke_color: gray(210, 255), // Mustn't look grayed out!
+                stroke_width: 1.0,
+                rect_outline: Some(Outline::new(0.5, WHITE)),
+                corner_radius: 0.0,
+            },
+        }
+    }
+}
+
+impl Interact {
+    pub fn classic() -> Self {
+        Self {
+            active: WidgetStyle {
+                bg_fill_color: Some(srgba(120, 120, 200, 255)),
+                fill_color: srgba(120, 120, 200, 255),
+                stroke_color: WHITE,
+                stroke_width: 2.0,
+                rect_outline: Some(Outline::new(2.0, WHITE)),
+                corner_radius: 5.0,
+            },
+            hovered: WidgetStyle {
+                bg_fill_color: Some(srgba(100, 100, 150, 255)),
+                fill_color: srgba(100, 100, 150, 255),
+                stroke_color: WHITE,
+                stroke_width: 1.5,
+                rect_outline: None,
+                corner_radius: 5.0,
+            },
+            inactive: WidgetStyle {
+                bg_fill_color: Some(srgba(60, 60, 80, 255)),
+                fill_color: srgba(60, 60, 80, 255),
                 stroke_color: gray(220, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
-                outline: None,
+                rect_outline: None,
                 corner_radius: 0.0,
             },
         }
@@ -122,8 +172,12 @@ impl Interact {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct WidgetStyle {
-    /// Fill color of the interactive part of a component (button, slider grab, checkbox, ...)
-    pub fill_color: Option<Color>,
+    /// Background color of widget
+    pub bg_fill_color: Option<Color>,
+
+    /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
+    /// When you need a fill_color.
+    pub fill_color: Color,
 
     /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
     pub stroke_color: Color,
@@ -131,8 +185,9 @@ pub struct WidgetStyle {
     /// For lines etc
     pub stroke_width: f32,
 
-    /// For rectangles
-    pub outline: Option<Outline>,
+    /// For surrounding rectangle of things that need it,
+    /// like buttons, the box of the checkbox, etc.
+    pub rect_outline: Option<Outline>,
 
     /// Button frames etdc
     pub corner_radius: f32,
@@ -163,15 +218,6 @@ impl Default for MenuBar {
 }
 
 impl Style {
-    /// e.g. the background of the slider
-    pub fn background_fill_color(&self) -> Color {
-        gray(34, 250)
-    }
-
-    pub fn text_color(&self) -> Color {
-        gray(255, 200)
-    }
-
     /// Use this style for interactive things
     pub fn interact(&self, interact: &InteractInfo) -> &WidgetStyle {
         self.interact.style(interact)
@@ -185,7 +231,9 @@ impl Style {
             vec2(box_side, box_side),
         );
 
-        let small_icon_rect = Rect::from_center_size(big_icon_rect.center(), vec2(10.0, 10.0));
+        let small_rect_side = 8.0; // TODO: make a parameter
+        let small_icon_rect =
+            Rect::from_center_size(big_icon_rect.center(), Vec2::splat(small_rect_side));
 
         (small_icon_rect, big_icon_rect)
     }

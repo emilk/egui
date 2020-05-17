@@ -28,11 +28,12 @@ impl<'open> Window<'open> {
             area,
             frame: None,
             resize: Resize::default()
-                .handle_offset(Vec2::splat(4.0))
-                .auto_shrink_width(true)
+                .auto_expand_height(false)
                 .auto_expand_width(true)
                 .auto_shrink_height(false)
-                .auto_expand_height(false),
+                .auto_shrink_width(true)
+                .handle_offset(Vec2::splat(4.0))
+                .outline(false),
             scroll: Some(
                 ScrollArea::default()
                     .always_show_scroll(false)
@@ -137,28 +138,89 @@ impl<'open> Window<'open> {
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        // TODO: easier way to compose these
-        area.show(ctx, |ui| {
-            frame.show(ui, |ui| {
-                resize.show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        // TODO: prettier close button, and to the right of the window
-                        if let Some(open) = open {
-                            if ui.add(Button::new("X")).clicked {
-                                *open = false;
-                            }
+        if true {
+            // TODO: easier way to compose these
+            area.show(ctx, |ui| {
+                frame.show(ui, |ui| {
+                    resize.show(ui, |ui| {
+                        show_title_bar(ui, title_label, open);
+                        if let Some(scroll) = scroll {
+                            scroll.show(ui, add_contents)
+                        } else {
+                            add_contents(ui)
                         }
-                        ui.add(title_label);
-                    });
-                    ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-
-                    if let Some(scroll) = scroll {
-                        scroll.show(ui, add_contents)
-                    } else {
-                        add_contents(ui)
-                    }
+                    })
                 })
             })
-        })
+        } else {
+            // TODO: something like this, with collapsing contents
+            area.show(ctx, |ui| {
+                frame.show(ui, |ui| {
+                    CollapsingHeader::new(title_label.text()).show(ui, |ui| {
+                        resize.show(ui, |ui| {
+                            if let Some(scroll) = scroll {
+                                scroll.show(ui, add_contents)
+                            } else {
+                                add_contents(ui)
+                            }
+                        })
+                    });
+                })
+            })
+        }
     }
+}
+
+fn show_title_bar(ui: &mut Ui, title_label: Label, open: Option<&mut bool>) {
+    let button_size = ui.style().clickable_diameter;
+
+    // TODO: show collapse button
+
+    let title_rect = ui.add(title_label).rect;
+
+    if let Some(open) = open {
+        let close_max_x = title_rect.right() + ui.style().item_spacing.x + button_size;
+        let close_max_x = close_max_x.max(ui.rect_finite().right());
+        let close_rect = Rect::from_min_size(
+            pos2(
+                close_max_x - button_size,
+                title_rect.center().y - 0.5 * button_size,
+            ),
+            Vec2::splat(button_size),
+        );
+        if close_button(ui, close_rect).clicked {
+            *open = false;
+        }
+    }
+
+    ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+}
+
+fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
+    let close_id = ui.make_child_id("window_close_button");
+    let interact = ui.interact_rect(rect, close_id);
+    ui.expand_to_include_child(interact.rect);
+
+    // ui.add_paint_cmd(PaintCmd::Rect {
+    //     corner_radius: ui.style().interact(&interact).corner_radius,
+    //     fill_color: ui.style().interact(&interact).bg_fill_color,
+    //     outline: ui.style().interact(&interact).rect_outline,
+    //     rect: interact.rect,
+    // });
+
+    let rect = rect.expand(-4.0);
+
+    let stroke_color = ui.style().interact(&interact).stroke_color;
+    let stroke_width = ui.style().interact(&interact).stroke_width;
+    ui.add_paint_cmd(PaintCmd::line_segment(
+        [rect.left_top(), rect.right_bottom()],
+        stroke_color,
+        stroke_width,
+    ));
+    ui.add_paint_cmd(PaintCmd::line_segment(
+        [rect.right_top(), rect.left_bottom()],
+        stroke_color,
+        stroke_width,
+    ));
+    interact
 }

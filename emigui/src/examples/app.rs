@@ -18,7 +18,6 @@ pub struct ExampleApp {
 impl ExampleApp {
     pub fn ui(&mut self, ui: &mut Ui) {
         show_menu_bar(ui, &mut self.open_windows);
-        ui.add(Separator::new());
         self.windows(ui.ctx());
     }
 
@@ -279,7 +278,8 @@ struct Widgets {
     count: usize,
     radio: usize,
     slider_value: usize,
-    text_inputs: [String; 3],
+    single_line_text_input: String,
+    multiline_text_input: String,
 }
 
 impl Default for Widgets {
@@ -289,7 +289,8 @@ impl Default for Widgets {
             radio: 0,
             count: 0,
             slider_value: 100,
-            text_inputs: ["Hello".to_string(), "World".to_string(), "".to_string()],
+            single_line_text_input: "Hello World!".to_owned(),
+            multiline_text_input: "Text can both be so wide that it needs a linebreak, but you can also add manual linebreak by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }
     }
 }
@@ -318,7 +319,7 @@ impl Widgets {
             }
         });
 
-        ui.horizontal(|ui| {
+        ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
             if ui
                 .add(Button::new("Click me"))
                 .tooltip_text("This will just increase a counter.")
@@ -334,12 +335,17 @@ impl Widgets {
             self.slider_value *= 2;
         }
 
-        for (i, text) in self.text_inputs.iter_mut().enumerate() {
-            ui.horizontal(|ui| {
-                ui.add(label!("Text input {}: ", i));
-                ui.add(TextEdit::new(text).id(i));
-            }); // TODO: .tooltip_text("Enter text to edit me")
-        }
+        ui.horizontal(|ui| {
+            ui.add(label!("Single line text input:"));
+            ui.add(
+                TextEdit::new(&mut self.single_line_text_input)
+                    .multiline(false)
+                    .id("single line"),
+            );
+        }); // TODO: .tooltip_text("Enter text to edit me")
+
+        ui.add(label!("Multiline text input:"));
+        ui.add(TextEdit::new(&mut self.multiline_text_input).id("multiline"));
     }
 }
 
@@ -412,46 +418,42 @@ impl Painting {
             self.lines.clear();
         }
 
-        ui.add_custom_contents(vec2(f32::INFINITY, 200.0), |ui| {
-            let interact = ui.reserve_space(ui.available_finite().size(), Some(ui.id()));
-            let rect = interact.rect;
-            ui.set_clip_rect(ui.clip_rect().intersect(rect)); // Make sure we don't paint out of bounds
+        Resize::default()
+            .default_height(200.0)
+            .show(ui, |ui| self.content(ui));
+    }
 
-            if self.lines.is_empty() {
-                self.lines.push(vec![]);
-            }
+    fn content(&mut self, ui: &mut Ui) {
+        let interact = ui.reserve_space(ui.available_finite().size(), Some(ui.id()));
+        let rect = interact.rect;
+        ui.set_clip_rect(ui.clip_rect().intersect(rect)); // Make sure we don't paint out of bounds
 
-            let current_line = self.lines.last_mut().unwrap();
+        if self.lines.is_empty() {
+            self.lines.push(vec![]);
+        }
 
-            if interact.active {
-                if let Some(mouse_pos) = ui.input().mouse_pos {
-                    let canvas_pos = mouse_pos - rect.min;
-                    if current_line.last() != Some(&canvas_pos) {
-                        current_line.push(canvas_pos);
-                    }
-                }
-            } else if !current_line.is_empty() {
-                self.lines.push(vec![]);
-            }
+        let current_line = self.lines.last_mut().unwrap();
 
-            for line in &self.lines {
-                if line.len() >= 2 {
-                    ui.add_paint_cmd(PaintCmd::LinePath {
-                        points: line.iter().map(|p| rect.min + *p).collect(),
-                        color: LIGHT_GRAY,
-                        width: 2.0,
-                    });
+        if interact.active {
+            if let Some(mouse_pos) = ui.input().mouse_pos {
+                let canvas_pos = mouse_pos - rect.min;
+                if current_line.last() != Some(&canvas_pos) {
+                    current_line.push(canvas_pos);
                 }
             }
+        } else if !current_line.is_empty() {
+            self.lines.push(vec![]);
+        }
 
-            // Frame it:
-            ui.add_paint_cmd(PaintCmd::Rect {
-                rect: ui.rect(),
-                corner_radius: 0.0,
-                fill_color: None,
-                outline: Some(Outline::new(1.0, WHITE)),
-            });
-        });
+        for line in &self.lines {
+            if line.len() >= 2 {
+                ui.add_paint_cmd(PaintCmd::LinePath {
+                    points: line.iter().map(|p| rect.min + *p).collect(),
+                    color: LIGHT_GRAY,
+                    width: 2.0,
+                });
+            }
+        }
     }
 }
 

@@ -15,8 +15,17 @@ impl Frame {
         Self {
             margin: style.window_padding,
             corner_radius: style.window.corner_radius,
-            fill_color: Some(style.background_fill_color()),
+            fill_color: Some(style.background_fill_color),
             outline: Some(Outline::new(1.0, color::WHITE)),
+        }
+    }
+
+    pub fn menu_bar(_style: &Style) -> Self {
+        Self {
+            margin: Vec2::splat(1.0),
+            corner_radius: 0.0,
+            fill_color: None,
+            outline: Some(Outline::new(0.5, color::white(128))),
         }
     }
 
@@ -24,7 +33,7 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
-            fill_color: Some(style.background_fill_color()),
+            fill_color: Some(style.background_fill_color),
             outline: Some(Outline::new(1.0, color::white(128))),
         }
     }
@@ -33,7 +42,7 @@ impl Frame {
         Self {
             margin: style.window_padding,
             corner_radius: 5.0,
-            fill_color: Some(style.background_fill_color()),
+            fill_color: Some(style.background_fill_color),
             outline: Some(Outline::new(1.0, color::white(128))),
         }
     }

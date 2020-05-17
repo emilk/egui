@@ -53,6 +53,7 @@ pub const fn additive_gray(l: u8) -> Color {
 pub const TRANSPARENT: Color = srgba(0, 0, 0, 0);
 pub const BLACK: Color = srgba(0, 0, 0, 255);
 pub const LIGHT_GRAY: Color = srgba(220, 220, 220, 255);
+pub const GRAY: Color = srgba(160, 160, 160, 255);
 pub const WHITE: Color = srgba(255, 255, 255, 255);
 pub const RED: Color = srgba(255, 0, 0, 255);
 pub const GREEN: Color = srgba(0, 255, 0, 255);

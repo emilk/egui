@@ -13,6 +13,7 @@ pub struct TextEdit<'t> {
     id: Option<Id>,
     text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the current Ui"
     text_color: Option<Color>,
+    multiline: bool,
 }
 
 impl<'t> TextEdit<'t> {
@@ -22,6 +23,7 @@ impl<'t> TextEdit<'t> {
             id: None,
             text_style: TextStyle::Body,
             text_color: Default::default(),
+            multiline: true,
         }
     }
 
@@ -39,6 +41,11 @@ impl<'t> TextEdit<'t> {
         self.text_color = Some(text_color);
         self
     }
+
+    pub fn multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
+    }
 }
 
 impl<'t> Widget for TextEdit<'t> {
@@ -48,6 +55,7 @@ impl<'t> Widget for TextEdit<'t> {
             id,
             text_style,
             text_color,
+            multiline,
         } = self;
 
         let id = ui.make_child_id(id);
@@ -57,7 +65,11 @@ impl<'t> Widget for TextEdit<'t> {
         let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
         let available_width = ui.available().width();
-        let mut galley = font.layout_multiline(text.as_str(), available_width);
+        let mut galley = if multiline {
+            font.layout_multiline(text.as_str(), available_width)
+        } else {
+            font.layout_single_line(text.as_str())
+        };
         let desired_size = galley.size.max(vec2(available_width, line_spacing));
         let interact = ui.reserve_space(desired_size, Some(id));
 
@@ -95,19 +107,24 @@ impl<'t> Widget for TextEdit<'t> {
 
             // layout again to avoid frame delay:
             let font = &ui.fonts()[text_style];
-            galley = font.layout_multiline(text.as_str(), available_width);
+            galley = if multiline {
+                font.layout_multiline(text.as_str(), available_width)
+            } else {
+                font.layout_single_line(text.as_str())
+            };
 
             // dbg!(&galley);
         }
 
-        ui.add_paint_cmd(PaintCmd::Rect {
-            rect: interact.rect,
-            corner_radius: 0.0,
-            // fill_color: Some(color::BLACK),
-            fill_color: ui.style().interact(&interact).fill_color,
-            // fill_color: Some(ui.style().background_fill_color()),
-            outline: None, //Some(Outline::new(1.0, color::WHITE)),
-        });
+        {
+            let bg_rect = interact.rect.expand(2.0); // breathing room for content
+            ui.add_paint_cmd(PaintCmd::Rect {
+                rect: bg_rect,
+                corner_radius: ui.style().interact.style(&interact).corner_radius,
+                fill_color: Some(ui.style().dark_bg_color),
+                outline: ui.style().interact.style(&interact).rect_outline,
+            });
+        }
 
         if has_kb_focus {
             let cursor_blink_hz = ui.style().cursor_blink_hz;

@@ -196,6 +196,7 @@ impl Context {
     fn paint(&self) -> PaintBatches {
         let mut mesher_options = *self.mesher_options.lock();
         mesher_options.aa_size = 1.0 / self.pixels_per_point();
+        mesher_options.aa_size *= 1.5; // Looks better, but TODO: should not be needed
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
         let batches = mesher::mesh_paint_commands(mesher_options, self.fonts(), paint_commands);
@@ -429,7 +430,7 @@ impl Context {
         text_style: TextStyle,
         color: Option<Color>,
     ) {
-        let color = color.unwrap_or_else(|| self.style().text_color());
+        let color = color.unwrap_or_else(|| self.style().text_color);
         self.add_paint_cmd(
             layer,
             PaintCmd::Text {

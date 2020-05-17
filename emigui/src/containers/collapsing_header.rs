@@ -63,7 +63,8 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.style().indent, 0.0);
         let galley = label.layout(available.width() - ui.style().indent, ui);
         let text_max_x = text_pos.x + galley.size.x;
-        let desired_width = available.width().max(text_max_x - available.left());
+        let desired_width = text_max_x - available.left();
+        let desired_width = desired_width.max(available.width());
 
         let interact = ui.reserve_space(
             vec2(
@@ -87,9 +88,19 @@ impl CollapsingHeader {
             *state
         };
 
+        let animation_time = ui.style().animation_time;
+        let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
+        let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
+        let openness = if state.open {
+            remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
+        } else {
+            remap_clamp(time_since_toggle, 0.0..=animation_time, 1.0..=0.0)
+        };
+        let animate = time_since_toggle < animation_time;
+
         let where_to_put_background = ui.paint_list_len();
 
-        paint_icon(ui, &state, &interact);
+        paint_icon(ui, &interact, openness);
 
         ui.add_galley(
             text_pos,
@@ -102,18 +113,14 @@ impl CollapsingHeader {
             where_to_put_background,
             PaintCmd::Rect {
                 corner_radius: ui.style().interact(&interact).corner_radius,
-                fill_color: ui.style().interact(&interact).fill_color,
-                outline: ui.style().interact(&interact).outline,
+                fill_color: ui.style().interact(&interact).bg_fill_color,
+                outline: None,
                 rect: interact.rect,
             },
         );
 
         ui.expand_to_include_child(interact.rect); // TODO: remove, just a test
 
-        let animation_time = ui.style().animation_time;
-        let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
-        let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
-        let animate = time_since_toggle < animation_time;
         if animate {
             ui.indent(id, |child_ui| {
                 let max_height = if state.open {
@@ -154,7 +161,7 @@ impl CollapsingHeader {
     }
 }
 
-fn paint_icon(ui: &mut Ui, state: &State, interact: &InteractInfo) {
+fn paint_icon(ui: &mut Ui, interact: &InteractInfo, openness: f32) {
     let stroke_color = ui.style().interact(interact).stroke_color;
     let stroke_width = ui.style().interact(interact).stroke_width;
 
@@ -164,25 +171,24 @@ fn paint_icon(ui: &mut Ui, state: &State, interact: &InteractInfo) {
         interact.rect.center().y,
     ));
 
-    // Draw a minus:
-    ui.add_paint_cmd(PaintCmd::LineSegment {
-        points: [
-            pos2(small_icon_rect.left(), small_icon_rect.center().y),
-            pos2(small_icon_rect.right(), small_icon_rect.center().y),
-        ],
-        color: stroke_color,
-        width: stroke_width,
-    });
-
-    if !state.open {
-        // Draw it as a plus:
-        ui.add_paint_cmd(PaintCmd::LineSegment {
-            points: [
-                pos2(small_icon_rect.center().x, small_icon_rect.top()),
-                pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
-            ],
-            color: stroke_color,
-            width: stroke_width,
-        });
+    // Draw a pointy triangle arrow:
+    let rect = Rect::from_center_size(
+        small_icon_rect.center(),
+        vec2(small_icon_rect.width(), small_icon_rect.height()) * 0.75,
+    );
+    let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
+    let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
+    for p in &mut points {
+        let v = *p - rect.center();
+        let v = rotation.rotate_other(v);
+        *p = rect.center() + v;
     }
+    // }
+
+    ui.add_paint_cmd(PaintCmd::Path {
+        path: mesher::Path::from_point_loop(&points),
+        closed: true,
+        fill_color: None,
+        outline: Some(Outline::new(stroke_width, stroke_color)),
+    });
 }

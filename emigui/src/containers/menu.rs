@@ -21,13 +21,16 @@ impl Default for BarState {
 }
 
 pub fn bar(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-    ui.horizontal(|ui| {
-        Frame::default().show(ui, |ui| {
+    ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+        Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();
             style.button_padding = vec2(2.0, 0.0);
-            style.interact.inactive.fill_color = None;
-            style.interact.inactive.outline = None;
-            style.interact.hovered.fill_color = None;
+            // style.interact.active.bg_fill_color = None;
+            style.interact.active.rect_outline = None;
+            // style.interact.hovered.bg_fill_color = None;
+            style.interact.hovered.rect_outline = None;
+            style.interact.inactive.bg_fill_color = None;
+            style.interact.inactive.rect_outline = None;
             ui.set_style(style);
 
             // Take full width and fixed height:
@@ -55,7 +58,7 @@ pub fn menu(ui: &mut Ui, title: impl Into<String>, add_contents: impl FnOnce(&mu
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill_color(ui.style().interact.active.fill_color);
+        button = button.fill_color(Some(ui.style().interact.active.fill_color));
     }
 
     let button_interact = ui.add(button);
@@ -75,11 +78,12 @@ pub fn menu(ui: &mut Ui, title: impl Into<String>, add_contents: impl FnOnce(&mu
                 resize.show(ui, |ui| {
                     let mut style = ui.style().clone();
                     style.button_padding = vec2(2.0, 0.0);
-                    style.interact.inactive.fill_color = None;
-                    style.interact.inactive.outline = None;
-                    style.interact.active.corner_radius = 0.0;
-                    style.interact.hovered.corner_radius = 0.0;
-                    style.interact.inactive.corner_radius = 0.0;
+                    // style.interact.active.bg_fill_color = None;
+                    style.interact.active.rect_outline = None;
+                    // style.interact.hovered.bg_fill_color = None;
+                    style.interact.hovered.rect_outline = None;
+                    style.interact.inactive.bg_fill_color = None;
+                    style.interact.inactive.rect_outline = None;
                     ui.set_style(style);
                     ui.set_layout(Layout::justified(Direction::Vertical));
                     add_contents(ui)

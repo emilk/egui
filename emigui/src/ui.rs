@@ -473,7 +473,7 @@ impl Ui {
         text_style: TextStyle,
         color: Option<Color>,
     ) {
-        let color = color.unwrap_or_else(|| self.style().text_color());
+        let color = color.unwrap_or_else(|| self.style().text_color);
         self.add_paint_cmd(PaintCmd::Text {
             pos,
             galley,

@@ -143,6 +143,12 @@ pub struct PathPoint {
 pub struct Path(Vec<PathPoint>);
 
 impl Path {
+    pub fn from_point_loop(points: &[Pos2]) -> Self {
+        let mut path = Self::default();
+        path.add_line_loop(points);
+        path
+    }
+
     pub fn clear(&mut self) {
         self.0.clear();
     }
@@ -153,7 +159,8 @@ impl Path {
     }
 
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
-        let n = 32; // TODO: parameter
+        let n = (radius * 2.0).round() as i32; // TODO: tweak a bit more
+        let n = clamp(n, 4..=64);
         for i in 0..n {
             let angle = remap(i as f32, 0.0..=n as f32, 0.0..=TAU);
             let normal = vec2(angle.cos(), angle.sin());
@@ -167,6 +174,7 @@ impl Path {
         self.add_point(points[1], normal);
     }
 
+    // TODO: make it clear it is an open (non-closed) thing.
     pub fn add_line(&mut self, points: &[Pos2]) {
         let n = points.len();
         assert!(n >= 2);
@@ -177,8 +185,8 @@ impl Path {
         } else {
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
             for i in 1..n - 1 {
-                let n0 = (points[i] - points[i - 1]).normalized().rot90();
-                let n1 = (points[i + 1] - points[i]).normalized().rot90();
+                let n0 = (points[i] - points[i - 1]).normalized().rot90(); // TODO: don't calculate each normal twice!
+                let n1 = (points[i + 1] - points[i]).normalized().rot90(); // TODO: don't calculate each normal twice!
                 let v = (n0 + n1) / 2.0;
                 let normal = v / v.length_sq();
                 self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
@@ -187,6 +195,20 @@ impl Path {
                 points[n - 1],
                 (points[n - 1] - points[n - 2]).normalized().rot90(),
             );
+        }
+    }
+
+    pub fn add_line_loop(&mut self, points: &[Pos2]) {
+        let n = points.len();
+        assert!(n >= 2);
+
+        // TODO: optimize
+        for i in 0..n {
+            let n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
+            let n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
+            let v = (n0 + n1) / 2.0;
+            let normal = v / v.length_sq();
+            self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
         }
     }
 
@@ -229,7 +251,8 @@ impl Path {
     ///    quadrant 3 up rigth
     /// 4 * TAU / 4 = right
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
-        let n = 8;
+        let n = (radius * 0.5).round() as i32; // TODO: tweak a bit more
+        let n = clamp(n, 2..=32);
         const RIGHT_ANGLE: f32 = TAU / 4.0;
         for i in 0..=n {
             let angle = remap(
@@ -570,6 +593,9 @@ pub fn mesh_command(
             color,
         } => {
             galley.sanity_check();
+
+            let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
+
             let font = &fonts[text_style];
             let mut chars = galley.text.chars();
             for line in &galley.lines {
@@ -577,7 +603,7 @@ pub fn mesh_command(
                     let c = chars.next().unwrap();
                     if let Some(glyph) = font.uv_rect(c) {
                         let mut top_left = Vertex {
-                            pos: pos + glyph.offset + vec2(*x_offset, line.y_min),
+                            pos: pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset,
                             uv: glyph.min,
                             color,
                         };

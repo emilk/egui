@@ -226,13 +226,12 @@ impl Widget for Button {
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let interact = ui.reserve_space(size, Some(id));
-        let mut text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
-        text_cursor.y += 2.0; // TODO: why is this needed?
-        let fill_color = fill_color.or(ui.style().interact(&interact).fill_color);
+        let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
+        let bg_fill_color = fill_color.or(ui.style().interact(&interact).bg_fill_color);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
-            fill_color: fill_color,
-            outline: ui.style().interact(&interact).outline,
+            fill_color: bg_fill_color,
+            outline: ui.style().interact(&interact).rect_outline,
             rect: interact.rect,
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
@@ -286,9 +285,9 @@ impl<'a> Widget for Checkbox<'a> {
         }
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
         ui.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: 3.0,
-            fill_color: ui.style().interact(&interact).fill_color,
-            outline: None,
+            corner_radius: ui.style().interact(&interact).corner_radius,
+            fill_color: ui.style().interact(&interact).bg_fill_color,
+            outline: ui.style().interact(&interact).rect_outline,
             rect: big_icon_rect,
         });
 
@@ -356,15 +355,15 @@ impl Widget for RadioButton {
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
-        let fill_color = ui.style().interact(&interact).fill_color;
+        let bg_fill_color = ui.style().interact(&interact).bg_fill_color;
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
 
         ui.add_paint_cmd(PaintCmd::Circle {
             center: big_icon_rect.center(),
-            fill_color,
-            outline: None,
+            fill_color: bg_fill_color,
+            outline: ui.style().interact(&interact).rect_outline, // TODO
             radius: big_icon_rect.width() / 2.0,
         });
 
@@ -373,7 +372,7 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 fill_color: Some(stroke_color),
                 outline: None,
-                radius: small_icon_rect.width() / 2.0,
+                radius: small_icon_rect.width() / 3.0,
             });
         }
 
@@ -386,7 +385,7 @@ impl Widget for RadioButton {
 // ----------------------------------------------------------------------------
 
 pub struct Separator {
-    line_width: f32,
+    line_width: Option<f32>,
     min_spacing: f32,
     extra: f32,
     color: Color,
@@ -395,7 +394,7 @@ pub struct Separator {
 impl Separator {
     pub fn new() -> Self {
         Self {
-            line_width: 2.0,
+            line_width: None,
             min_spacing: 6.0,
             extra: 0.0,
             color: color::WHITE,
@@ -403,7 +402,7 @@ impl Separator {
     }
 
     pub fn line_width(mut self, line_width: f32) -> Self {
-        self.line_width = line_width;
+        self.line_width = Some(line_width);
         self
     }
 
@@ -426,26 +425,36 @@ impl Separator {
 
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let Separator {
+            line_width,
+            min_spacing,
+            extra,
+            color,
+        } = self;
+
+        let line_width = line_width.unwrap_or_else(|| ui.style().line_width);
+
         let available_space = ui.available_finite().size();
 
-        let extra = self.extra;
         let (points, interact) = match ui.layout().dir() {
             Direction::Horizontal => {
-                let interact = ui.reserve_space(vec2(self.min_spacing, available_space.y), None);
+                let interact = ui.reserve_space(vec2(min_spacing, available_space.y), None);
+                let r = &interact.rect;
                 (
                     [
-                        pos2(interact.rect.center().x, interact.rect.top() - extra),
-                        pos2(interact.rect.center().x, interact.rect.bottom() + extra),
+                        pos2(r.center().x, r.top() - extra),
+                        pos2(r.center().x, r.bottom() + extra),
                     ],
                     interact,
                 )
             }
             Direction::Vertical => {
-                let interact = ui.reserve_space(vec2(available_space.x, self.min_spacing), None);
+                let interact = ui.reserve_space(vec2(available_space.x, min_spacing), None);
+                let r = &interact.rect;
                 (
                     [
-                        pos2(interact.rect.left() - extra, interact.rect.center().y),
-                        pos2(interact.rect.right() + extra, interact.rect.center().y),
+                        pos2(r.left() - extra, r.center().y),
+                        pos2(r.right() + extra, r.center().y),
                     ],
                     interact,
                 )
@@ -453,8 +462,8 @@ impl Widget for Separator {
         };
         ui.add_paint_cmd(PaintCmd::LineSegment {
             points,
-            color: self.color,
-            width: self.line_width,
+            color: color,
+            width: line_width,
         });
         ui.response(interact)
     }

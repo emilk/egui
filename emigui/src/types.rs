@@ -135,6 +135,7 @@ pub enum PaintCmd {
         color: Color,
         width: f32,
     },
+    // TODO: remove. Just have Path.
     LinePath {
         points: Vec<Pos2>,
         color: Color,

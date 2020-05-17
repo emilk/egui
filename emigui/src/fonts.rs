@@ -30,9 +30,9 @@ pub type FontDefinitions = BTreeMap<TextStyle, (FontFamily, f32)>;
 
 pub fn default_font_definitions() -> FontDefinitions {
     let mut definitions = FontDefinitions::new();
-    definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 16.0));
-    definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 18.0));
-    definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 28.0));
+    definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
+    definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
+    definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
     definitions.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
     definitions
 }
