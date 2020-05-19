@@ -10,8 +10,9 @@ use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ExampleApp {
-    example_window: ExampleWindow,
     open_windows: OpenWindows,
+    // TODO: group the following together as ExampleWindows
+    example_window: ExampleWindow,
     fractal_clock: FractalClock,
 }
 
@@ -27,8 +28,8 @@ impl ExampleApp {
         // TODO: window manager for automatic positioning?
 
         let ExampleApp {
-            example_window,
             open_windows,
+            example_window,
             fractal_clock,
         } = self;
 
@@ -88,11 +89,15 @@ impl ExampleApp {
 
 #[derive(Deserialize, Serialize)]
 struct OpenWindows {
+    // examples:
     examples: bool,
+    example_tree: bool,
+    fractal_clock: bool,
+
+    // emigui stuff:
     settings: bool,
     inspection: bool,
     memory: bool,
-    fractal_clock: bool,
 }
 
 impl Default for OpenWindows {
@@ -108,10 +113,12 @@ impl OpenWindows {
     fn none() -> Self {
         Self {
             examples: false,
+            example_tree: true,
+            fractal_clock: false,
+
             settings: false,
             inspection: false,
             memory: false,
-            fractal_clock: false,
         }
     }
 }
@@ -125,10 +132,12 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
         });
         menu::menu(ui, "Windows", |ui| {
             ui.add(Checkbox::new(&mut windows.examples, "Examples"));
+            ui.add(Checkbox::new(&mut windows.examples, "Examples Trees"));
+            ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
+            ui.add(Separator::new());
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));
             ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));
             ui.add(Checkbox::new(&mut windows.memory, "Memory"));
-            ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
         });
         menu::menu(ui, "About", |ui| {
             ui.add(label!("This is Emigui"));
@@ -164,6 +173,7 @@ pub struct ExampleWindow {
 
     widgets: Widgets,
     layout: LayoutExample,
+    tree: Tree,
     box_painting: BoxPainting,
     painting: Painting,
 }
@@ -175,6 +185,7 @@ impl Default for ExampleWindow {
 
             widgets: Default::default(),
             layout: Default::default(),
+            tree: Tree::example(),
             box_painting: Default::default(),
             painting: Default::default(),
         }
@@ -540,6 +551,61 @@ impl LayoutExample {
         {
             self.align = None;
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq)]
+enum Action {
+    Keep,
+    Delete,
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+struct Tree(Vec<Tree>);
+
+impl Tree {
+    pub fn example() -> Self {
+        Self(vec![
+            Tree(vec![Tree::default(); 4]),
+            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
+        ])
+    }
+    pub fn ui(&mut self, ui: &mut Ui) -> Action {
+        self.ui_impl(ui, 0, "root")
+    }
+
+    fn ui_impl(&mut self, ui: &mut Ui, depth: usize, name: &str) -> Action {
+        CollapsingHeader::new(name)
+            .default_open(depth < 1)
+            .show(ui, |ui| self.children_ui(ui, depth))
+            .unwrap_or(Action::Keep)
+    }
+
+    fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
+        if depth > 0 && ui.add(Button::new("delete").text_color(color::RED)).clicked {
+            return Action::Delete;
+        }
+
+        self.0 = std::mem::take(self)
+            .0
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, mut tree)| {
+                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
+                    Some(tree)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if ui.button("+") {
+            self.0.push(Tree::default());
+        }
+
+        Action::Keep
     }
 }
 
