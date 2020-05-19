@@ -503,6 +503,10 @@ impl Ui {
         self.add(Label::new(text))
     }
 
+    pub fn button(&mut self, text: impl Into<String>) -> bool {
+        self.add(Button::new(text)).clicked
+    }
+
     pub fn add_hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
         self.add(Hyperlink::new(url))
     }
@@ -510,11 +514,11 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Addding Containers / Sub-uis:
 
-    pub fn collapsing(
+    pub fn collapsing<R>(
         &mut self,
         text: impl Into<String>,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> GuiResponse {
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<R> {
         CollapsingHeader::new(text).show(self, add_contents)
     }
 
@@ -538,20 +542,20 @@ impl Ui {
     }
 
     /// Create a child ui
-    pub fn add_custom(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
         let child_rect = self.available();
         let mut child_ui = self.child_ui(child_rect);
-        add_contents(&mut child_ui);
+        let r = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
-        self.reserve_space(size, None)
+        (r, self.reserve_space(size, None))
     }
 
     /// Create a child ui which is indented to the right
-    pub fn indent(
+    pub fn indent<R>(
         &mut self,
         id_source: impl Hash,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> InteractInfo {
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, InteractInfo) {
         assert!(
             self.layout().dir() == Direction::Vertical,
             "You can only indent vertical layouts"
@@ -562,7 +566,7 @@ impl Ui {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect)
         };
-        add_contents(&mut child_ui);
+        let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
 
         // draw a grey line on the left to mark the indented section
@@ -575,7 +579,7 @@ impl Ui {
             self.style.line_width,
         ));
 
-        self.reserve_space(indent + size, None)
+        (ret, self.reserve_space(indent + size, None))
     }
 
     pub fn left_column(&mut self, width: f32) -> Ui {
@@ -604,28 +608,29 @@ impl Ui {
     }
 
     /// Start a ui with horizontal layout
-    pub fn horizontal(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
         self.inner_layout(Layout::horizontal(Align::Min), add_contents)
     }
 
     /// Start a ui with vertical layout
-    pub fn vertical(&mut self, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
         self.inner_layout(Layout::vertical(Align::Min), add_contents)
     }
 
-    pub fn inner_layout(
+    pub fn inner_layout<R>(
         &mut self,
         layout: Layout,
-        add_contents: impl FnOnce(&mut Self),
-    ) -> InteractInfo {
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, InteractInfo) {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_ui = Self {
             ..self.child_ui(child_rect)
         };
         child_ui.set_layout(layout); // HACK: need a separate call right now
-        add_contents(&mut child_ui);
+        let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
-        self.reserve_space(size, None)
+        let interact = self.reserve_space(size, None);
+        (ret, interact)
     }
 
     /// Temporarily split split an Ui into several columns.

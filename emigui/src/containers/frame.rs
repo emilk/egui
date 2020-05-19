@@ -60,7 +60,7 @@ impl Frame {
 }
 
 impl Frame {
-    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         let Frame {
             margin,
             corner_radius,
@@ -73,7 +73,7 @@ impl Frame {
         let where_to_put_background = ui.paint_list_len();
 
         let mut child_ui = ui.child_ui(inner_rect);
-        add_contents(&mut child_ui);
+        let ret = add_contents(&mut child_ui);
 
         let outer_rect = Rect::from_min_max(outer_rect.min, child_ui.child_bounds().max + margin);
 
@@ -89,5 +89,7 @@ impl Frame {
 
         ui.expand_to_include_child(outer_rect);
         // TODO: move cursor in parent ui
+
+        ret
     }
 }

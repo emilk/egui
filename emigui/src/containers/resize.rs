@@ -169,7 +169,7 @@ impl Resize {
 }
 
 impl Resize {
-    pub fn show(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
         self.min_size = self.min_size.min(ui.available().size());
         self.max_size = self.max_size.min(ui.available().size());
@@ -231,7 +231,9 @@ impl Resize {
         // ------------------------------
 
         let inner_rect = Rect::from_min_size(position, state.size);
-        let desired_size = {
+
+        let (ret, desired_size);
+        {
             let mut content_clip_rect = ui
                 .clip_rect()
                 .intersect(inner_rect.expand(ui.style().clip_rect_margin));
@@ -248,8 +250,8 @@ impl Resize {
 
             let mut contents_ui = ui.child_ui(inner_rect);
             contents_ui.set_clip_rect(content_clip_rect);
-            add_contents(&mut contents_ui);
-            contents_ui.bounding_size()
+            ret = add_contents(&mut contents_ui);
+            desired_size = contents_ui.bounding_size();
         };
         let desired_size = desired_size.ceil(); // Avoid rounding errors in math
 
@@ -296,6 +298,8 @@ impl Resize {
         }
 
         ui.memory().resize.insert(id, state);
+
+        ret
     }
 }
 

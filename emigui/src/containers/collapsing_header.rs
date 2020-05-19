@@ -92,11 +92,11 @@ impl State {
     }
 
     /// Show contents if we are open, with a nice animation between closed and open
-    pub fn add_contents(
+    pub fn add_contents<R>(
         &mut self,
         ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Option<InteractInfo> {
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<(R, InteractInfo)> {
         let openness = self.openness(ui);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
@@ -120,7 +120,7 @@ impl State {
                 child_ui.set_clip_rect(clip_rect);
 
                 let top_left = child_ui.top_left();
-                add_contents(child_ui);
+                let r = add_contents(child_ui);
 
                 self.open_height = Some(child_ui.bounding_size().y);
 
@@ -128,12 +128,13 @@ impl State {
                 let mut child_bounds = child_ui.child_bounds();
                 child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
                 child_ui.force_set_child_bounds(child_bounds);
+                r
             }))
         } else if self.open {
-            let interact = ui.add_custom(add_contents);
-            let full_size = interact.rect.size();
+            let r_interact = ui.add_custom(add_contents);
+            let full_size = r_interact.1.rect.size();
             self.open_height = Some(full_size.y);
-            Some(interact)
+            Some(r_interact)
         } else {
             None
         }
@@ -155,14 +156,14 @@ impl CollapsingHeader {
         }
     }
 
-    pub fn default_open(mut self) -> Self {
-        self.default_open = true;
+    pub fn default_open(mut self, open: bool) -> Self {
+        self.default_open = open;
         self
     }
 }
 
 impl CollapsingHeader {
-    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) -> GuiResponse {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         assert!(
             ui.layout().dir() == Direction::Vertical,
             "Horizontal collapsing is unimplemented"
@@ -232,11 +233,12 @@ impl CollapsingHeader {
 
         ui.expand_to_include_child(interact.rect); // TODO: remove, just a test
 
-        state.add_contents(ui, |ui| {
-            ui.indent(id, add_contents);
-        });
+        let r_interact = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
+        let ret = r_interact.map(|ri| ri.0);
 
         ui.memory().collapsing_headers.insert(id, state);
-        ui.response(interact)
+        ui.response(interact);
+
+        ret
     }
 }

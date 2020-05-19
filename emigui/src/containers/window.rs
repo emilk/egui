@@ -172,16 +172,18 @@ impl<'open> Window<'open> {
                 );
 
                 // TODO: fix collapsing window animation
-                let content = collapsing.add_contents(ui, |ui| {
-                    resize.show(ui, |ui| {
-                        ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
-                        if let Some(scroll) = scroll {
-                            scroll.show(ui, add_contents)
-                        } else {
-                            add_contents(ui)
-                        }
+                let content = collapsing
+                    .add_contents(ui, |ui| {
+                        resize.show(ui, |ui| {
+                            ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+                            if let Some(scroll) = scroll {
+                                scroll.show(ui, add_contents)
+                            } else {
+                                add_contents(ui)
+                            }
+                        })
                     })
-                });
+                    .map(|ri| ri.1);
 
                 ui.memory()
                     .collapsing_headers
@@ -471,6 +473,7 @@ fn show_title_bar(
             ui.expand_to_include_child(close_rect);
         }
     })
+    .1
 }
 
 fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {

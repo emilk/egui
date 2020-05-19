@@ -195,14 +195,18 @@ impl ExampleWindow {
         });
 
         CollapsingHeader::new("Widgets")
-            .default_open()
+            .default_open(true)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
             });
 
         CollapsingHeader::new("Layout")
-            .default_open()
+            .default_open(false)
             .show(ui, |ui| self.layout.ui(ui));
+
+        CollapsingHeader::new("Tree")
+            .default_open(true)
+            .show(ui, |ui| self.tree.ui(ui));
 
         ui.collapsing("Columns", |ui| {
             ui.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
@@ -219,7 +223,7 @@ impl ExampleWindow {
         ui.collapsing("Test box rendering", |ui| self.box_painting.ui(ui));
 
         CollapsingHeader::new("Scroll area")
-            // .default_open()
+            .default_open(false)
             .show(ui, |ui| {
                 ScrollArea::default().show(ui, |ui| {
                     ui.add_label(LOREM_IPSUM);
@@ -227,11 +231,11 @@ impl ExampleWindow {
             });
 
         CollapsingHeader::new("Painting")
-            // .default_open()
+            .default_open(false)
             .show(ui, |ui| self.painting.ui(ui));
 
         CollapsingHeader::new("Resize")
-            // .default_open()
+            .default_open(false)
             .show(ui, |ui| {
                 Resize::default()
                     .default_height(200.0)

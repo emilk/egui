@@ -476,14 +476,14 @@ impl Context {
         use crate::containers::*;
 
         CollapsingHeader::new("Style")
-            // .default_open()
+            .default_open(false)
             .show(ui, |ui| {
                 self.paint_options.lock().ui(ui);
                 self.style_ui(ui);
             });
 
         CollapsingHeader::new("Fonts")
-            // .default_open()
+            .default_open(false)
             .show(ui, |ui| {
                 let old_font_definitions = self.fonts().definitions();
                 let mut new_font_definitions = old_font_definitions.clone();
@@ -505,7 +505,7 @@ impl Context {
         ui.collapsing("Input", |ui| {
             CollapsingHeader::new("Raw Input").show(ui, |ui| ui.ctx().raw_input.clone().ui(ui));
             CollapsingHeader::new("Input")
-                .default_open()
+                .default_open(true)
                 .show(ui, |ui| ui.input().clone().ui(ui));
         });
 
