@@ -93,7 +93,7 @@ impl TextureAtlas {
 impl Texture {
     pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::{
-            color::WHITE, containers::show_tooltip, label, math::*, Mesh, PaintCmd, Vertex,
+            color::WHITE, containers::show_tooltip, label, math::*, PaintCmd, Triangles, Vertex,
         };
 
         ui.add(label!(
@@ -117,9 +117,9 @@ impl Texture {
             uv: (self.width as u16 - 1, self.height as u16 - 1),
             color: WHITE,
         };
-        let mut mesh = Mesh::default();
-        mesh.add_rect(top_left, bottom_right);
-        ui.add_paint_cmd(PaintCmd::Mesh(mesh));
+        let mut triangles = Triangles::default();
+        triangles.add_rect(top_left, bottom_right);
+        ui.add_paint_cmd(PaintCmd::Triangles(triangles));
 
         if interact.hovered {
             show_tooltip(ui.ctx(), |ui| {
@@ -142,9 +142,9 @@ impl Texture {
                     uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
                     color: WHITE,
                 };
-                let mut mesh = Mesh::default();
-                mesh.add_rect(top_left, bottom_right);
-                ui.add_paint_cmd(PaintCmd::Mesh(mesh));
+                let mut triangles = Triangles::default();
+                triangles.add_rect(top_left, bottom_right);
+                ui.add_paint_cmd(PaintCmd::Triangles(triangles));
             });
         }
     }

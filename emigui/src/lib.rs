@@ -52,7 +52,7 @@ pub use {
     layout::*,
     math::*,
     memory::Memory,
-    mesher::{Mesh, PaintBatches, Vertex},
+    mesher::{PaintBatches, Triangles, Vertex},
     movement_tracker::MovementTracker,
     style::Style,
     texture_atlas::Texture,

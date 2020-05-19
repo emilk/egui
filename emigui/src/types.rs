@@ -7,7 +7,7 @@ use crate::{
     font::Galley,
     fonts::TextStyle,
     math::{Pos2, Rect},
-    mesher::{Mesh, Path},
+    mesher::{Path, Triangles},
     Context, Ui,
 };
 
@@ -174,8 +174,7 @@ pub enum PaintCmd {
         text_style: TextStyle, // TODO: Font?
         color: Color,
     },
-    /// Low-level triangle mesh
-    Mesh(Mesh),
+    Triangles(Triangles),
 }
 
 impl PaintCmd {

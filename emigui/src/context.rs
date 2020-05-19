@@ -19,7 +19,7 @@ struct PaintStats {
 pub struct Context {
     /// The default style for new `Ui`:s
     style: Mutex<Style>,
-    mesher_options: Mutex<mesher::MesherOptions>,
+    paint_options: Mutex<mesher::PaintOptions>,
     fonts: Arc<Fonts>,
     /// HACK: set a new font next frame
     new_fonts: Mutex<Option<Arc<Fonts>>>,
@@ -45,7 +45,7 @@ impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
             style: Mutex::new(self.style()),
-            mesher_options: Mutex::new(*self.mesher_options.lock()),
+            paint_options: Mutex::new(*self.paint_options.lock()),
             fonts: self.fonts.clone(),
             new_fonts: Mutex::new(self.new_fonts.lock().clone()),
             memory: self.memory.clone(),
@@ -65,7 +65,7 @@ impl Context {
     pub fn new(pixels_per_point: f32) -> Arc<Context> {
         Arc::new(Context {
             style: Default::default(),
-            mesher_options: Default::default(),
+            paint_options: Default::default(),
             fonts: Arc::new(Fonts::new(pixels_per_point)),
             new_fonts: Default::default(),
             memory: Default::default(),
@@ -214,20 +214,21 @@ impl Context {
     }
 
     fn paint(&self) -> PaintBatches {
-        let mut mesher_options = *self.mesher_options.lock();
-        mesher_options.aa_size = 1.0 / self.pixels_per_point();
-        mesher_options.aa_size *= 1.5; // Looks better, but TODO: should not be needed
+        let mut paint_options = *self.paint_options.lock();
+        paint_options.aa_size = 1.0 / self.pixels_per_point();
+        paint_options.aa_size *= 1.5; // Looks better, but TODO: should not be needed
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
-        let batches = mesher::mesh_paint_commands(mesher_options, self.fonts(), paint_commands);
+        let batches =
+            mesher::paint_commands_into_triangles(paint_options, self.fonts(), paint_commands);
 
         {
             let mut stats = PaintStats::default();
             stats.num_batches = batches.len();
             stats.num_primitives = num_primitives;
-            for (_, mesh) in &batches {
-                stats.num_vertices += mesh.vertices.len();
-                stats.num_triangles += mesh.indices.len() / 3;
+            for (_, triangles) in &batches {
+                stats.num_vertices += triangles.vertices.len();
+                stats.num_triangles += triangles.indices.len() / 3;
             }
             *self.paint_stats.lock() = stats;
         }
@@ -477,7 +478,7 @@ impl Context {
         CollapsingHeader::new("Style")
             // .default_open()
             .show(ui, |ui| {
-                self.mesher_options.lock().ui(ui);
+                self.paint_options.lock().ui(ui);
                 self.style_ui(ui);
             });
 
@@ -603,7 +604,7 @@ impl Context {
     }
 }
 
-impl mesher::MesherOptions {
+impl mesher::PaintOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         use crate::widgets::*;
         ui.add(Checkbox::new(&mut self.anti_alias, "Antialias"));

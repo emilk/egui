@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{vec2, Color, Mesh, PaintBatches, Pos2, Texture};
+use emigui::{vec2, Color, PaintBatches, Pos2, Texture, Triangles};
 
 type Gl = WebGlRenderingContext;
 
@@ -209,7 +209,7 @@ impl Painter {
         );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
-        for (clip_rect, mesh) in batches {
+        for (clip_rect, triangles) in batches {
             // Avoid infinities in shader:
             let clip_min = clip_rect.min.max(Pos2::default());
             let clip_max = clip_rect.max.min(Pos2::default() + screen_size_points);
@@ -222,27 +222,27 @@ impl Painter {
                 clip_max.y,
             );
 
-            for mesh in mesh.split_to_u16() {
-                self.paint_mesh(&mesh)?;
+            for triangles in triangles.split_to_u16() {
+                self.paint_triangles(&triangles)?;
             }
         }
         Ok(())
     }
 
-    fn paint_mesh(&self, mesh: &Mesh) -> Result<(), JsValue> {
-        let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
+    fn paint_triangles(&self, triangles: &Triangles) -> Result<(), JsValue> {
+        let indices: Vec<u16> = triangles.indices.iter().map(|idx| *idx as u16).collect();
 
-        let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
-        let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * mesh.vertices.len());
-        for v in &mesh.vertices {
+        let mut positions: Vec<f32> = Vec::with_capacity(2 * triangles.vertices.len());
+        let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * triangles.vertices.len());
+        for v in &triangles.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
             tex_coords.push(v.uv.0);
             tex_coords.push(v.uv.1);
         }
 
-        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
-        for v in &mesh.vertices {
+        let mut colors: Vec<u8> = Vec::with_capacity(4 * triangles.vertices.len());
+        for v in &triangles.vertices {
             colors.push(v.color.r);
             colors.push(v.color.g);
             colors.push(v.color.b);

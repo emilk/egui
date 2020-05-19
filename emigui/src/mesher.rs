@@ -22,24 +22,24 @@ pub struct Vertex {
 }
 
 #[derive(Clone, Debug, Default, serde_derive::Serialize)]
-pub struct Mesh {
+pub struct Triangles {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
 
 /// Grouped by clip rectangles, in pixel coordinates
-pub type PaintBatches = Vec<(Rect, Mesh)>;
+pub type PaintBatches = Vec<(Rect, Triangles)>;
 
 // ----------------------------------------------------------------------------
 
-impl Mesh {
-    pub fn append(&mut self, mesh: &Mesh) {
+impl Triangles {
+    pub fn append(&mut self, triangles: &Triangles) {
         let index_offset = self.vertices.len() as u32;
-        for index in &mesh.indices {
+        for index in &triangles.indices {
             self.indices.push(index_offset + index);
         }
-        self.vertices.extend(mesh.vertices.iter());
+        self.vertices.extend(triangles.vertices.iter());
     }
 
     fn triangle(&mut self, a: u32, b: u32, c: u32) {
@@ -72,9 +72,10 @@ impl Mesh {
         self.vertices.push(bottom_right);
     }
 
-    /// Split a large mesh into many small.
-    /// All the returned meshes will have indices that fit into u16.
-    pub fn split_to_u16(self) -> Vec<Mesh> {
+    /// This is for platsform that only support 16-bit index buffers.
+    /// Splits this mesh into many small if needed.
+    /// All the returned meshes will have indices that fit into a `u16`.
+    pub fn split_to_u16(self) -> Vec<Triangles> {
         const MAX_SIZE: u32 = 1 << 16;
 
         if self.vertices.len() < MAX_SIZE as usize {
@@ -113,7 +114,7 @@ impl Mesh {
                 MAX_SIZE
             );
 
-            output.push(Mesh {
+            output.push(Triangles {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
                     .map(|vi| vi - min_vindex)
@@ -276,14 +277,14 @@ pub enum PathType {
 use self::PathType::{Closed, Open};
 
 #[derive(Clone, Copy)]
-pub struct MesherOptions {
+pub struct PaintOptions {
     pub anti_alias: bool,
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
     pub debug_paint_clip_rects: bool,
 }
 
-impl Default for MesherOptions {
+impl Default for PaintOptions {
     fn default() -> Self {
         Self {
             anti_alias: true,
@@ -293,7 +294,12 @@ impl Default for MesherOptions {
     }
 }
 
-pub fn fill_closed_path(mesh: &mut Mesh, options: MesherOptions, path: &[PathPoint], color: Color) {
+pub fn fill_closed_path(
+    triangles: &mut Triangles,
+    options: PaintOptions,
+    path: &[PathPoint],
+    color: Color,
+) {
     if color == color::TRANSPARENT {
         return;
     }
@@ -306,34 +312,35 @@ pub fn fill_closed_path(mesh: &mut Mesh, options: MesherOptions, path: &[PathPoi
     };
     if options.anti_alias {
         let color_outer = color::TRANSPARENT;
-        let idx_inner = mesh.vertices.len() as u32;
+        let idx_inner = triangles.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
         for i in 2..n {
-            mesh.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+            triangles.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
         }
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
             let dm = p1.normal * options.aa_size * 0.5;
-            mesh.vertices.push(vert(p1.pos - dm, color));
-            mesh.vertices.push(vert(p1.pos + dm, color_outer));
-            mesh.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-            mesh.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+            triangles.vertices.push(vert(p1.pos - dm, color));
+            triangles.vertices.push(vert(p1.pos + dm, color_outer));
+            triangles.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+            triangles.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
         }
     } else {
-        let idx = mesh.vertices.len() as u32;
-        mesh.vertices
+        let idx = triangles.vertices.len() as u32;
+        triangles
+            .vertices
             .extend(path.iter().map(|p| vert(p.pos, color)));
         for i in 2..n {
-            mesh.triangle(idx, idx + i - 1, idx + i);
+            triangles.triangle(idx, idx + i - 1, idx + i);
         }
     }
 }
 
 pub fn paint_path(
-    mesh: &mut Mesh,
-    options: MesherOptions,
+    triangles: &mut Triangles,
+    options: PaintOptions,
     path_type: PathType,
     path: &[PathPoint],
     color: Color,
@@ -344,7 +351,7 @@ pub fn paint_path(
     }
 
     let n = path.len() as u32;
-    let idx = mesh.vertices.len() as u32;
+    let idx = triangles.vertices.len() as u32;
 
     let vert = |pos, color| Vertex {
         pos,
@@ -377,18 +384,20 @@ pub fn paint_path(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                mesh.vertices
+                triangles
+                    .vertices
                     .push(vert(p + n * options.aa_size, color_outer));
-                mesh.vertices.push(vert(p, color_inner));
-                mesh.vertices
+                triangles.vertices.push(vert(p, color_inner));
+                triangles
+                    .vertices
                     .push(vert(p - n * options.aa_size, color_outer));
 
                 if connect_with_previous {
-                    mesh.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
-                    mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+                    triangles.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                    triangles.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
 
-                    mesh.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
-                    mesh.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                    triangles.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                    triangles.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
                 }
                 i0 = i1;
             }
@@ -413,20 +422,28 @@ pub fn paint_path(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                mesh.vertices.push(vert(p + n * outer_rad, color_outer));
-                mesh.vertices.push(vert(p + n * inner_rad, color_inner));
-                mesh.vertices.push(vert(p - n * inner_rad, color_inner));
-                mesh.vertices.push(vert(p - n * outer_rad, color_outer));
+                triangles
+                    .vertices
+                    .push(vert(p + n * outer_rad, color_outer));
+                triangles
+                    .vertices
+                    .push(vert(p + n * inner_rad, color_inner));
+                triangles
+                    .vertices
+                    .push(vert(p - n * inner_rad, color_inner));
+                triangles
+                    .vertices
+                    .push(vert(p - n * outer_rad, color_outer));
 
                 if connect_with_previous {
-                    mesh.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                    mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+                    triangles.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                    triangles.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
 
-                    mesh.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                    mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                    triangles.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                    triangles.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
 
-                    mesh.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                    mesh.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                    triangles.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                    triangles.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
                 }
                 i0 = i1;
             }
@@ -434,12 +451,12 @@ pub fn paint_path(
     } else {
         let last_index = if path_type == Closed { n } else { n - 1 };
         for i in 0..last_index {
-            mesh.triangle(
+            triangles.triangle(
                 idx + (2 * i + 0) % (2 * n),
                 idx + (2 * i + 1) % (2 * n),
                 idx + (2 * i + 2) % (2 * n),
             );
-            mesh.triangle(
+            triangles.triangle(
                 idx + (2 * i + 2) % (2 * n),
                 idx + (2 * i + 1) % (2 * n),
                 idx + (2 * i + 3) % (2 * n),
@@ -455,14 +472,22 @@ pub fn paint_path(
                 return;
             }
             for p in path {
-                mesh.vertices.push(vert(p.pos + radius * p.normal, color));
-                mesh.vertices.push(vert(p.pos - radius * p.normal, color));
+                triangles
+                    .vertices
+                    .push(vert(p.pos + radius * p.normal, color));
+                triangles
+                    .vertices
+                    .push(vert(p.pos - radius * p.normal, color));
             }
         } else {
             let radius = width / 2.0;
             for p in path {
-                mesh.vertices.push(vert(p.pos + radius * p.normal, color));
-                mesh.vertices.push(vert(p.pos - radius * p.normal, color));
+                triangles
+                    .vertices
+                    .push(vert(p.pos + radius * p.normal, color));
+                triangles
+                    .vertices
+                    .push(vert(p.pos - radius * p.normal, color));
             }
         }
     }
@@ -481,14 +506,15 @@ fn mul_color(color: Color, factor: f32) -> Color {
 
 // ----------------------------------------------------------------------------
 
-/// path: only used to reuse memory
-pub fn mesh_command(
-    path: &mut Path,
-    options: MesherOptions,
+/// `reused_path`: only used to reuse memory
+pub fn paint_command_into_triangles(
+    reused_path: &mut Path,
+    options: PaintOptions,
     fonts: &Fonts,
     command: PaintCmd,
-    out_mesh: &mut Mesh,
+    out: &mut Triangles,
 ) {
+    let path = reused_path;
     path.clear();
 
     match command {
@@ -500,21 +526,14 @@ pub fn mesh_command(
         } => {
             path.add_circle(center, radius);
             if let Some(color) = fill_color {
-                fill_closed_path(out_mesh, options, &path.0, color);
+                fill_closed_path(out, options, &path.0, color);
             }
             if let Some(outline) = outline {
-                paint_path(
-                    out_mesh,
-                    options,
-                    Closed,
-                    &path.0,
-                    outline.color,
-                    outline.width,
-                );
+                paint_path(out, options, Closed, &path.0, outline.color, outline.width);
             }
         }
-        PaintCmd::Mesh(mesh) => {
-            out_mesh.append(&mesh);
+        PaintCmd::Triangles(triangles) => {
+            out.append(&triangles);
         }
         PaintCmd::LineSegment {
             points,
@@ -522,7 +541,7 @@ pub fn mesh_command(
             width,
         } => {
             path.add_line_segment(points);
-            paint_path(out_mesh, options, Open, &path.0, color, width);
+            paint_path(out, options, Open, &path.0, color, width);
         }
         PaintCmd::LinePath {
             points,
@@ -532,7 +551,7 @@ pub fn mesh_command(
             let n = points.len();
             if n >= 2 {
                 path.add_line(&points);
-                paint_path(out_mesh, options, Open, &path.0, color, width);
+                paint_path(out, options, Open, &path.0, color, width);
             }
         }
         PaintCmd::Path {
@@ -546,18 +565,11 @@ pub fn mesh_command(
                     closed,
                     "You asked to fill a path that is not closed. That makes no sense."
                 );
-                fill_closed_path(out_mesh, options, &path.0, fill_color);
+                fill_closed_path(out, options, &path.0, fill_color);
             }
             if let Some(outline) = outline {
                 let typ = if closed { Closed } else { Open };
-                paint_path(
-                    out_mesh,
-                    options,
-                    typ,
-                    &path.0,
-                    outline.color,
-                    outline.width,
-                );
+                paint_path(out, options, typ, &path.0, outline.color, outline.width);
             }
         }
         PaintCmd::Rect {
@@ -573,17 +585,10 @@ pub fn mesh_command(
 
             path.add_rounded_rectangle(rect, corner_radius);
             if let Some(fill_color) = fill_color {
-                fill_closed_path(out_mesh, options, &path.0, fill_color);
+                fill_closed_path(out, options, &path.0, fill_color);
             }
             if let Some(outline) = outline {
-                paint_path(
-                    out_mesh,
-                    options,
-                    Closed,
-                    &path.0,
-                    outline.color,
-                    outline.width,
-                );
+                paint_path(out, options, Closed, &path.0, outline.color, outline.width);
             }
         }
         PaintCmd::Text {
@@ -614,7 +619,7 @@ pub fn mesh_command(
                             uv: glyph.max,
                             color,
                         };
-                        out_mesh.add_rect(top_left, bottom_right);
+                        out.add_rect(top_left, bottom_right);
                     }
                 }
             }
@@ -623,11 +628,12 @@ pub fn mesh_command(
     }
 }
 
-pub fn mesh_paint_commands(
-    options: MesherOptions,
+/// Turns `PaintCmd`:s into sets of triangles
+pub fn paint_commands_into_triangles(
+    options: PaintOptions,
     fonts: &Fonts,
     commands: Vec<(Rect, PaintCmd)>,
-) -> Vec<(Rect, Mesh)> {
+) -> Vec<(Rect, Triangles)> {
     let mut reused_path = Path::default();
 
     let mut batches = PaintBatches::default();
@@ -635,16 +641,16 @@ pub fn mesh_paint_commands(
         // TODO: cull(clip_rect, cmd)
 
         if batches.is_empty() || batches.last().unwrap().0 != clip_rect {
-            batches.push((clip_rect, Mesh::default()));
+            batches.push((clip_rect, Triangles::default()));
         }
 
-        let out_mesh = &mut batches.last_mut().unwrap().1;
-        mesh_command(&mut reused_path, options, fonts, cmd, out_mesh);
+        let out = &mut batches.last_mut().unwrap().1;
+        paint_command_into_triangles(&mut reused_path, options, fonts, cmd, out);
     }
 
     if options.debug_paint_clip_rects {
-        for (clip_rect, mesh) in &mut batches {
-            mesh_command(
+        for (clip_rect, triangles) in &mut batches {
+            paint_command_into_triangles(
                 &mut reused_path,
                 options,
                 fonts,
@@ -654,7 +660,7 @@ pub fn mesh_paint_commands(
                     fill_color: None,
                     outline: Some(Outline::new(2.0, srgba(150, 255, 150, 255))),
                 },
-                mesh,
+                triangles,
             )
         }
     }

@@ -1,7 +1,7 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    emigui::{Mesh, PaintBatches, Rect},
+    emigui::{PaintBatches, Rect, Triangles},
     glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Frame, Surface},
 };
 
@@ -220,8 +220,8 @@ impl Painter {
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
-        for (clip_rect, mesh) in batches {
-            self.paint_batch(&mut target, display, clip_rect, &mesh, texture)
+        for (clip_rect, triangles) in batches {
+            self.paint_batch(&mut target, display, clip_rect, &triangles, texture)
         }
         target.finish().unwrap();
     }
@@ -232,7 +232,7 @@ impl Painter {
         target: &mut Frame,
         display: &glium::Display,
         clip_rect: Rect,
-        mesh: &Mesh,
+        triangles: &Triangles,
         texture: &emigui::Texture,
     ) {
         let vertex_buffer = {
@@ -244,7 +244,7 @@ impl Painter {
             }
             implement_vertex!(Vertex, a_pos, a_color, a_tc);
 
-            let vertices: Vec<Vertex> = mesh
+            let vertices: Vec<Vertex> = triangles
                 .vertices
                 .iter()
                 .map(|v| Vertex {
@@ -257,7 +257,7 @@ impl Painter {
             glium::VertexBuffer::new(display, &vertices).unwrap()
         };
 
-        let indices: Vec<u32> = mesh.indices.iter().map(|idx| *idx as u32).collect();
+        let indices: Vec<u32> = triangles.indices.iter().map(|idx| *idx as u32).collect();
 
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();

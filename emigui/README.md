@@ -98,7 +98,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Combine Emigui and Context?
 * [x] Solve which parts of Context are behind a mutex
 * [x] Rename Region to Ui
-* [ ] Move Path and Mesh to own crate
+* [ ] Move Path and Triangles to own crate
 * [ ] Maybe find a shorter name for the library like `egui`?
 
 ### Global widget search
