@@ -1,6 +1,6 @@
 //! Frame container
 
-use crate::*;
+use crate::{paint::*, *};
 
 #[derive(Clone, Debug, Default)]
 pub struct Frame {

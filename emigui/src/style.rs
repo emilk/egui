@@ -2,7 +2,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{color::*, math::*, types::*};
+use crate::{color::*, math::*, paint::Outline, types::*};
 
 // TODO: split into Spacing and Style?
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]

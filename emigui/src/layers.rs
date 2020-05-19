@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{math::Rect, Id, PaintCmd};
+use crate::{math::Rect, paint::PaintCmd, Id};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]

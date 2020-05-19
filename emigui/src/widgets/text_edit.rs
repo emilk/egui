@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{paint::*, *};
 
 #[derive(Clone, Copy, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
 pub(crate) struct State {

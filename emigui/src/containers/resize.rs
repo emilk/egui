@@ -279,7 +279,7 @@ impl Resize {
         if self.outline && corner_interact.is_some() {
             let rect = Rect::from_min_size(position, state.size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.add_paint_cmd(PaintCmd::Rect {
+            ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill_color: None,
@@ -307,7 +307,7 @@ fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
     let mut w = 2.0;
 
     while w < 12.0 {
-        ui.add_paint_cmd(PaintCmd::line_segment(
+        ui.add_paint_cmd(paint::PaintCmd::line_segment(
             [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
             color,
             width,

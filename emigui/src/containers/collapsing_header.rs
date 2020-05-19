@@ -1,4 +1,9 @@
-use crate::{layout::Direction, widgets::Label, *};
+use crate::{
+    layout::Direction,
+    paint::{Outline, PaintCmd, Path, TextStyle},
+    widgets::Label,
+    *,
+};
 
 #[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 #[serde(default)]
@@ -79,7 +84,7 @@ impl State {
         }
 
         ui.add_paint_cmd(PaintCmd::Path {
-            path: mesher::Path::from_point_loop(&points),
+            path: Path::from_point_loop(&points),
             closed: true,
             fill_color: None,
             outline: Some(Outline::new(stroke_width, stroke_color)),

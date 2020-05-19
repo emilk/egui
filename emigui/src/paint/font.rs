@@ -3,10 +3,9 @@ use std::{collections::BTreeMap, sync::Arc};
 use parking_lot::Mutex;
 use rusttype::{point, Scale};
 
-use crate::{
-    math::{vec2, Vec2},
-    texture_atlas::TextureAtlas,
-};
+use crate::math::{vec2, Vec2};
+
+use super::texture_atlas::TextureAtlas;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GalleyCursor {

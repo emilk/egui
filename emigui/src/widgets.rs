@@ -5,7 +5,7 @@ use crate::{layout::Direction, GuiResponse, *};
 mod slider;
 pub mod text_edit;
 
-pub use {slider::*, text_edit::*};
+pub use {paint::*, slider::*, text_edit::*};
 
 // ----------------------------------------------------------------------------
 

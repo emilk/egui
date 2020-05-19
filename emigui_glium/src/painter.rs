@@ -1,7 +1,10 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    emigui::{PaintBatches, Rect, Triangles},
+    emigui::{
+        paint::{PaintBatches, Triangles},
+        Rect,
+    },
     glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Frame, Surface},
 };
 

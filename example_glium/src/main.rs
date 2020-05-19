@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use {
-    emigui::{examples::ExampleApp, widgets::*, *},
+    emigui::{examples::ExampleApp, paint::TextStyle, widgets::*, *},
     glium::glutin,
 };
 
@@ -114,7 +114,7 @@ fn main() {
         example_app.ui(&mut ui);
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
-        ui.add(label!("Emigui running inside of Glium").text_style(emigui::TextStyle::Heading));
+        ui.add(label!("Emigui running inside of Glium").text_style(TextStyle::Heading));
         if ui.add(Button::new("Quit")).clicked {
             running = false;
         }

@@ -22,40 +22,34 @@
     rust_2018_idioms,
 )]
 
-pub mod color;
 pub mod containers;
 mod context;
 pub mod examples;
-mod font;
-mod fonts;
 mod id;
 mod input;
+mod introspection;
 mod layers;
 mod layout;
 pub mod math;
 mod memory;
-pub mod mesher;
 mod movement_tracker;
+pub mod paint;
 mod style;
-mod texture_atlas;
 mod types;
 mod ui;
 pub mod widgets;
 
 pub use {
-    color::Color,
     context::Context,
-    fonts::{FontDefinitions, Fonts, TextStyle},
     id::Id,
     input::*,
     layers::*,
     layout::*,
     math::*,
     memory::Memory,
-    mesher::{PaintBatches, Triangles, Vertex},
     movement_tracker::MovementTracker,
+    paint::{color, Color, TextStyle, Texture},
     style::Style,
-    texture_atlas::Texture,
     types::*,
     ui::Ui,
     widgets::Widget,

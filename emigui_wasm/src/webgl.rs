@@ -4,7 +4,10 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{vec2, Color, PaintBatches, Pos2, Texture, Triangles};
+use emigui::{
+    paint::{Color, PaintBatches, Texture, Triangles},
+    vec2, Pos2,
+};
 
 type Gl = WebGlRenderingContext;
 

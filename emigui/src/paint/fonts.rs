@@ -6,7 +6,7 @@ use std::{
 
 use {parking_lot::Mutex, serde_derive::Serialize};
 
-use crate::{
+use super::{
     font::Font,
     texture_atlas::{Texture, TextureAtlas},
 };
@@ -82,13 +82,13 @@ impl Fonts {
         let atlas = Arc::new(Mutex::new(atlas));
 
         // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
-        let monospae_typeface_data = include_bytes!("../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        let monospae_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
 
-        // let monospae_typeface_data = include_bytes!("../fonts/Roboto-Regular.ttf");
+        // let monospae_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
 
-        let variable_typeface_data = include_bytes!("../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
+        let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
 
-        // let variable_typeface_data = include_bytes!("../fonts/DejaVuSans.ttf"); // Basic, boring, takes up more space
+        // let variable_typeface_data = include_bytes!("../../fonts/DejaVuSans.ttf"); // Basic, boring, takes up more space
 
         self.definitions = definitions.clone();
         self.fonts = definitions

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::Mutex;
 
-use crate::{layout::align_rect, *};
+use crate::{layout::align_rect, paint::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct PaintStats {
@@ -19,7 +19,7 @@ struct PaintStats {
 pub struct Context {
     /// The default style for new `Ui`:s
     style: Mutex<Style>,
-    paint_options: Mutex<mesher::PaintOptions>,
+    paint_options: Mutex<paint::PaintOptions>,
     fonts: Arc<Fonts>,
     /// HACK: set a new font next frame
     new_fonts: Mutex<Option<Arc<Fonts>>>,
@@ -116,7 +116,7 @@ impl Context {
         &*self.fonts
     }
 
-    pub fn texture(&self) -> &Texture {
+    pub fn texture(&self) -> &paint::Texture {
         self.fonts().texture()
     }
 
@@ -581,7 +581,7 @@ impl Context {
     }
 }
 
-fn font_definitions_ui(font_definitions: &mut FontDefinitions, ui: &mut Ui) {
+fn font_definitions_ui(font_definitions: &mut paint::FontDefinitions, ui: &mut Ui) {
     use crate::widgets::*;
     for (text_style, (_family, size)) in font_definitions.iter_mut() {
         // TODO: radiobutton for family
@@ -592,7 +592,7 @@ fn font_definitions_ui(font_definitions: &mut FontDefinitions, ui: &mut Ui) {
         );
     }
     if ui.add(Button::new("Reset fonts")).clicked {
-        *font_definitions = crate::fonts::default_font_definitions();
+        *font_definitions = paint::fonts::default_font_definitions();
     }
 }
 
@@ -604,7 +604,7 @@ impl Context {
     }
 }
 
-impl mesher::PaintOptions {
+impl paint::PaintOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         use crate::widgets::*;
         ui.add(Checkbox::new(&mut self.anti_alias, "Antialias"));

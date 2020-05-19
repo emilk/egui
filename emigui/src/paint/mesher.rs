@@ -1,12 +1,13 @@
 #![allow(clippy::identity_op)]
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
-use crate::{
-    color::{self, srgba, Color},
-    fonts::Fonts,
-    math::*,
-    types::PaintCmd,
-    Outline,
+use {
+    super::{
+        color::{self, srgba, Color},
+        fonts::Fonts,
+        Outline, PaintCmd,
+    },
+    crate::math::*,
 };
 
 const WHITE_UV: (u16, u16) = (1, 1);
@@ -338,7 +339,7 @@ pub fn fill_closed_path(
     }
 }
 
-pub fn paint_path(
+pub fn paint_path_outline(
     triangles: &mut Triangles,
     options: PaintOptions,
     path_type: PathType,
@@ -529,7 +530,7 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, color);
             }
             if let Some(outline) = outline {
-                paint_path(out, options, Closed, &path.0, outline.color, outline.width);
+                paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
             }
         }
         PaintCmd::Triangles(triangles) => {
@@ -541,7 +542,7 @@ pub fn paint_command_into_triangles(
             width,
         } => {
             path.add_line_segment(points);
-            paint_path(out, options, Open, &path.0, color, width);
+            paint_path_outline(out, options, Open, &path.0, color, width);
         }
         PaintCmd::LinePath {
             points,
@@ -551,7 +552,7 @@ pub fn paint_command_into_triangles(
             let n = points.len();
             if n >= 2 {
                 path.add_line(&points);
-                paint_path(out, options, Open, &path.0, color, width);
+                paint_path_outline(out, options, Open, &path.0, color, width);
             }
         }
         PaintCmd::Path {
@@ -569,7 +570,7 @@ pub fn paint_command_into_triangles(
             }
             if let Some(outline) = outline {
                 let typ = if closed { Closed } else { Open };
-                paint_path(out, options, typ, &path.0, outline.color, outline.width);
+                paint_path_outline(out, options, typ, &path.0, outline.color, outline.width);
             }
         }
         PaintCmd::Rect {
@@ -588,7 +589,7 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, fill_color);
             }
             if let Some(outline) = outline {
-                paint_path(out, options, Closed, &path.0, outline.color, outline.width);
+                paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
             }
         }
         PaintCmd::Text {

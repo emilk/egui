@@ -171,14 +171,14 @@ impl ScrollArea {
             let handle_fill_color = style.interact(&handle_interact).fill_color;
             let handle_outline = style.interact(&handle_interact).rect_outline;
 
-            outer_ui.add_paint_cmd(PaintCmd::Rect {
+            outer_ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill_color: Some(outer_ui.style().dark_bg_color),
                 outline: None,
             });
 
-            outer_ui.add_paint_cmd(PaintCmd::Rect {
+            outer_ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill_color: Some(handle_fill_color),
