@@ -34,7 +34,7 @@ This is the core library crate Emigui. It is fully platform independent without 
     * [ ] Text selection
     * [ ] Clipboard copy/paste
     * [ ] Move focus with tab
-    * [ ] Handle leading/trailing space
+    * [x] Handle leading/trailing space
 * [ ] Color picker
 * [ ] Style editor
 * [ ] Table with resizable columns
@@ -49,10 +49,10 @@ This is the core library crate Emigui. It is fully platform independent without 
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [ ] Make it a JS library for easily creating your own stuff
-* [ ] Read url fragment and redirect to a subpage (e.g. different examples apps)
+* [x] Read url fragment and redirect to a subpage (e.g. different examples apps)
 
 ### Visuals
-* [ ] Simplify button style to make for nicer collapsible headers. Maybe weak outline? Or just subtle different text color?
+* [x] Simplify button style to make for nicer collapsible headers. Maybe weak outline? Or just subtle different text color?
 * [/] Pixel-perfect painting (round positions to nearest pixel).
 * [ ] Make sure alpha blending is correct (different between web and glium)
 * [ ] Color picker widgets
