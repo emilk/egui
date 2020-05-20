@@ -162,8 +162,13 @@ impl CollapsingHeader {
     }
 }
 
+struct Prepared {
+    id: Id,
+    state: State,
+}
+
 impl CollapsingHeader {
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
+    fn prepare(self, ui: &mut Ui) -> Prepared {
         assert!(
             ui.layout().dir() == Direction::Vertical,
             "Horizontal collapsing is unimplemented"
@@ -231,14 +236,14 @@ impl CollapsingHeader {
             },
         );
 
-        ui.expand_to_include_child(interact.rect); // TODO: remove, just a test
+        Prepared { id, state }
+    }
 
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
+        let Prepared { id, mut state } = self.prepare(ui);
         let r_interact = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
         let ret = r_interact.map(|ri| ri.0);
-
         ui.memory().collapsing_headers.insert(id, state);
-        ui.response(interact);
-
         ret
     }
 }

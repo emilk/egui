@@ -44,15 +44,30 @@ impl ScrollArea {
     }
 }
 
-impl ScrollArea {
-    pub fn show(self, outer_ui: &mut Ui, add_contents: impl FnOnce(&mut Ui)) {
-        let ctx = outer_ui.ctx().clone();
+struct Prepared {
+    id: Id,
+    state: State,
+    current_scroll_bar_width: f32,
+    always_show_scroll: bool,
+    inner_rect: Rect,
+    content_ui: Ui,
+}
 
-        let scroll_area_id = outer_ui.make_child_id("scroll_area");
-        let mut state = ctx
+impl ScrollArea {
+    fn prepare(self, ui: &mut Ui) -> Prepared {
+        let Self {
+            max_height,
+            always_show_scroll,
+            auto_hide_scroll,
+        } = self;
+
+        let ctx = ui.ctx().clone();
+
+        let id = ui.make_child_id("scroll_area");
+        let state = ctx
             .memory()
             .scroll_areas
-            .get(&scroll_area_id)
+            .get(&id)
             .cloned()
             .unwrap_or_default();
 
@@ -62,29 +77,55 @@ impl ScrollArea {
 
         let max_scroll_bar_width = 16.0;
 
-        let current_scroll_bar_width = if state.show_scroll || !self.auto_hide_scroll {
+        let current_scroll_bar_width = if state.show_scroll || !auto_hide_scroll {
             max_scroll_bar_width // TODO: animate?
         } else {
             0.0
         };
 
         let outer_size = vec2(
-            outer_ui.available().width(),
-            outer_ui.available().height().min(self.max_height),
+            ui.available().width(),
+            ui.available().height().min(max_height),
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
-        let inner_rect = Rect::from_min_size(outer_ui.available().min, inner_size);
+        let inner_rect = Rect::from_min_size(ui.available().min, inner_size);
 
-        let mut content_ui = outer_ui.child_ui(Rect::from_min_size(
+        let mut content_ui = ui.child_ui(Rect::from_min_size(
             inner_rect.min - state.offset,
             vec2(inner_size.x, f32::INFINITY),
         ));
-        let mut content_clip_rect = outer_ui.clip_rect().intersect(inner_rect);
-        content_clip_rect.max.x = outer_ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
+        let mut content_clip_rect = ui.clip_rect().intersect(inner_rect);
+        content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
         content_ui.set_clip_rect(content_clip_rect);
 
-        add_contents(&mut content_ui);
+        Prepared {
+            id,
+            state,
+            always_show_scroll,
+            inner_rect,
+            current_scroll_bar_width,
+            content_ui,
+        }
+    }
+
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut prepared = self.prepare(ui);
+        let ret = add_contents(&mut prepared.content_ui);
+        Self::finish(ui, prepared);
+        ret
+    }
+
+    fn finish(ui: &mut Ui, prepared: Prepared) {
+        let Prepared {
+            id,
+            mut state,
+            inner_rect,
+            always_show_scroll,
+            current_scroll_bar_width,
+            content_ui,
+        } = prepared;
+
         let content_size = content_ui.bounding_size();
 
         let inner_rect = Rect::from_min_size(
@@ -100,22 +141,22 @@ impl ScrollArea {
             inner_rect.size() + vec2(current_scroll_bar_width, 0.0),
         );
 
-        let content_is_too_small = content_size.y > inner_size.y;
+        let content_is_too_small = content_size.y > inner_rect.height();
 
         if content_is_too_small {
             // Dragg contents to scroll (for touch screens mostly):
-            let content_interact = outer_ui.interact_rect(inner_rect, scroll_area_id.with("area"));
+            let content_interact = ui.interact_rect(inner_rect, id.with("area"));
             if content_interact.active {
-                state.offset.y -= ctx.input().mouse_move.y;
+                state.offset.y -= ui.input().mouse_move.y;
             }
         }
 
         // TODO: check that nothing else is being inteacted with
-        if outer_ui.contains_mouse(outer_rect) && ctx.memory().active_id.is_none() {
-            state.offset.y -= ctx.input().scroll_delta.y;
+        if ui.contains_mouse(outer_rect) && ui.memory().active_id.is_none() {
+            state.offset.y -= ui.input().scroll_delta.y;
         }
 
-        let show_scroll_this_frame = content_is_too_small || self.always_show_scroll;
+        let show_scroll_this_frame = content_is_too_small || always_show_scroll;
         if show_scroll_this_frame || state.show_scroll {
             let left = inner_rect.right() + 2.0;
             let right = outer_rect.right();
@@ -137,18 +178,18 @@ impl ScrollArea {
             );
 
             // intentionally use same id for inside and outside of handle
-            let interact_id = scroll_area_id.with("vertical");
-            let handle_interact = outer_ui.interact_rect(handle_rect, interact_id);
+            let interact_id = id.with("vertical");
+            let handle_interact = ui.interact_rect(handle_rect, interact_id);
 
-            if let Some(mouse_pos) = ctx.input().mouse_pos {
+            if let Some(mouse_pos) = ui.input().mouse_pos {
                 if handle_interact.active {
                     if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
-                            ctx.input().mouse_move.y * content_size.y / inner_rect.height();
+                            ui.input().mouse_move.y * content_size.y / inner_rect.height();
                     }
                 } else {
                     // Check for mouse down outside handle:
-                    let scroll_bg_interact = outer_ui.interact_rect(outer_scroll_rect, interact_id);
+                    let scroll_bg_interact = ui.interact_rect(outer_scroll_rect, interact_id);
 
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:
@@ -167,18 +208,18 @@ impl ScrollArea {
                 pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
 
-            let style = outer_ui.style();
+            let style = ui.style();
             let handle_fill_color = style.interact(&handle_interact).fill_color;
             let handle_outline = style.interact(&handle_interact).rect_outline;
 
-            outer_ui.add_paint_cmd(paint::PaintCmd::Rect {
+            ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill_color: Some(outer_ui.style().dark_bg_color),
+                fill_color: Some(ui.style().dark_bg_color),
                 outline: None,
             });
 
-            outer_ui.add_paint_cmd(paint::PaintCmd::Rect {
+            ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill_color: Some(handle_fill_color),
@@ -192,12 +233,12 @@ impl ScrollArea {
         //     content_size.y.min(inner_rect.size().y), // respect vertical height.
         // );
         let size = outer_rect.size();
-        outer_ui.reserve_space(size, None);
+        ui.reserve_space(size, None);
 
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
         state.offset.y = state.offset.y.max(0.0);
         state.show_scroll = show_scroll_this_frame;
 
-        outer_ui.memory().scroll_areas.insert(scroll_area_id, state);
+        ui.memory().scroll_areas.insert(id, state);
     }
 }

@@ -168,8 +168,16 @@ impl Resize {
     }
 }
 
+struct Prepared {
+    id: Id,
+    state: State,
+    is_new: bool,
+    corner_interact: Option<InteractInfo>,
+    content_ui: Ui,
+}
+
 impl Resize {
-    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    fn prepare(&mut self, ui: &mut Ui) -> Prepared {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
         self.min_size = self.min_size.min(ui.available().size());
         self.max_size = self.max_size.min(ui.available().size());
@@ -232,27 +240,49 @@ impl Resize {
 
         let inner_rect = Rect::from_min_size(position, state.size);
 
-        let (ret, desired_size);
-        {
-            let mut content_clip_rect = ui
-                .clip_rect()
-                .intersect(inner_rect.expand(ui.style().clip_rect_margin));
+        let mut content_clip_rect = ui
+            .clip_rect()
+            .intersect(inner_rect.expand(ui.style().clip_rect_margin));
 
-            // If we pull the resize handle to shrink, we want to TRY to shink it.
-            // After laying out the contents, we might be much bigger.
-            // In those cases we don't want the clip_rect to be smaller, because
-            // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
-            // So we use the memory of last_frame_size to make the clip rect large enough.
-            content_clip_rect.max = content_clip_rect
-                .max
-                .max(content_clip_rect.min + last_frame_size)
-                .min(ui.clip_rect().max); // Respect parent region
+        // If we pull the resize handle to shrink, we want to TRY to shink it.
+        // After laying out the contents, we might be much bigger.
+        // In those cases we don't want the clip_rect to be smaller, because
+        // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
+        // So we use the memory of last_frame_size to make the clip rect large enough.
+        content_clip_rect.max = content_clip_rect
+            .max
+            .max(content_clip_rect.min + last_frame_size)
+            .min(ui.clip_rect().max); // Respect parent region
 
-            let mut contents_ui = ui.child_ui(inner_rect);
-            contents_ui.set_clip_rect(content_clip_rect);
-            ret = add_contents(&mut contents_ui);
-            desired_size = contents_ui.bounding_size();
-        };
+        let mut content_ui = ui.child_ui(inner_rect);
+        content_ui.set_clip_rect(content_clip_rect);
+
+        Prepared {
+            id,
+            state,
+            is_new,
+            corner_interact,
+            content_ui,
+        }
+    }
+
+    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut prepared = self.prepare(ui);
+        let ret = add_contents(&mut prepared.content_ui);
+        self.finish(ui, prepared);
+        ret
+    }
+
+    fn finish(self, ui: &mut Ui, prepared: Prepared) {
+        let Prepared {
+            id,
+            mut state,
+            is_new,
+            corner_interact,
+            content_ui,
+        } = prepared;
+
+        let desired_size = content_ui.bounding_size();
         let desired_size = desired_size.ceil(); // Avoid rounding errors in math
 
         // ------------------------------
@@ -279,7 +309,7 @@ impl Resize {
         // ------------------------------
 
         if self.outline && corner_interact.is_some() {
-            let rect = Rect::from_min_size(position, state.size);
+            let rect = Rect::from_min_size(content_ui.top_left(), state.size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect,
@@ -298,8 +328,6 @@ impl Resize {
         }
 
         ui.memory().resize.insert(id, state);
-
-        ret
     }
 }
 

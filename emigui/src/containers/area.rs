@@ -91,13 +91,15 @@ impl Area {
     }
 }
 
-impl Area {
-    // TODO
-    // pub fn show(self, ui: &Ui, add_contents: impl FnOnce(&mut Ui)) {
-    //     let default_pos = self.default_pos.unwrap_or_else(|| ui.top_left() + pos2(100.0, 100.0)); // TODO
-    // }
+struct Prepared {
+    layer: Layer,
+    state: State,
+    movable: bool,
+    content_ui: Ui,
+}
 
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+impl Area {
+    fn prepare(self, ctx: &Arc<Context>) -> Prepared {
         let Area {
             id,
             movable,
@@ -120,19 +122,45 @@ impl Area {
         state.pos = fixed_pos.unwrap_or(state.pos);
         state.pos = state.pos.round();
 
-        let mut ui = Ui::new(
+        let content_ui = Ui::new(
             ctx.clone(),
             layer,
             id,
             Rect::from_min_size(state.pos, Vec2::infinity()),
         );
-        add_contents(&mut ui);
-        state.size = (ui.child_bounds().max - state.pos).ceil();
+
+        Prepared {
+            layer,
+            state,
+            movable,
+            content_ui,
+        }
+    }
+
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+        let mut prepared = self.prepare(ctx);
+        add_contents(&mut prepared.content_ui);
+        Self::finish(ctx, prepared)
+    }
+
+    fn finish(ctx: &Arc<Context>, prepared: Prepared) -> InteractInfo {
+        let Prepared {
+            layer,
+            mut state,
+            movable,
+            content_ui,
+        } = prepared;
+
+        state.size = (content_ui.child_bounds().max - state.pos).ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything(); // TODO: get from context
 
-        let interact_id = if movable { Some(id.with("move")) } else { None };
+        let interact_id = if movable {
+            Some(layer.id.with("move"))
+        } else {
+            None
+        };
         let move_interact = ctx.interact(layer, clip_rect, rect, interact_id);
 
         let input = ctx.input();

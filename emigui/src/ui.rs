@@ -313,6 +313,7 @@ impl Ui {
             .interact(self.layer, self.clip_rect, rect, Some(id))
     }
 
+    #[must_use]
     pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
         // TODO: unify GuiResponse and InteractInfo. They are the same thing!
         GuiResponse {
