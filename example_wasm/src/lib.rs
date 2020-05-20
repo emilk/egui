@@ -37,7 +37,6 @@ impl State {
     fn run(&mut self, raw_input: RawInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
-        let pixels_per_point = raw_input.pixels_per_point;
         self.ctx.begin_frame(raw_input);
 
         let mut ui = self.ctx.fullscreen_ui();
@@ -87,7 +86,7 @@ impl State {
             bg_color,
             batches,
             self.ctx.texture(),
-            pixels_per_point,
+            self.ctx.pixels_per_point(),
         )?;
 
         emigui_wasm::save_memory(&self.ctx); // TODO: don't save every frame

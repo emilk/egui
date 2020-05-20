@@ -21,7 +21,7 @@ pub struct RawInput {
     pub screen_size: Vec2,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
-    pub pixels_per_point: f32,
+    pub pixels_per_point: Option<f32>,
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
@@ -165,7 +165,7 @@ impl GuiInput {
             mouse_velocity,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
-            pixels_per_point: new.pixels_per_point,
+            pixels_per_point: new.pixels_per_point.unwrap_or(1.0),
             time: new.time,
             dt,
             seconds_since_midnight: new.seconds_since_midnight,
@@ -186,7 +186,7 @@ impl RawInput {
         ui.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
         ui.add(label!("scroll_delta: {:?}", self.scroll_delta));
         ui.add(label!("screen_size: {:?}", self.screen_size));
-        ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
+        ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("events: {:?}", self.events));
         ui.add(label!("dropped_files: {:?}", self.dropped_files));

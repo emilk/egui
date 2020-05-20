@@ -72,7 +72,7 @@ fn main() {
             let (width, height) = display.get_framebuffer_dimensions();
             vec2(width as f32, height as f32) / pixels_per_point
         },
-        pixels_per_point,
+        pixels_per_point: Some(pixels_per_point),
         ..Default::default()
     };
 
