@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::Mutex;
 use rusttype::{point, Scale};
@@ -179,7 +179,7 @@ pub struct Font {
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    glyph_infos: BTreeMap<char, GlyphInfo>,
+    glyph_infos: HashMap<char, GlyphInfo>, // TODO: optimize these lookups, e.g. with binary search or a fast hashmap
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
