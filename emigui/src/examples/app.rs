@@ -132,7 +132,6 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
         });
         menu::menu(ui, "Windows", |ui| {
             ui.add(Checkbox::new(&mut windows.examples, "Examples"));
-            ui.add(Checkbox::new(&mut windows.examples, "Examples Trees"));
             ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
             ui.add(Separator::new());
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));

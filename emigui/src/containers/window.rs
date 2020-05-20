@@ -179,7 +179,6 @@ impl<'open> Window<'open> {
                     &mut collapsing,
                 );
 
-                // TODO: fix collapsing window animation
                 let content = collapsing
                     .add_contents(ui, |ui| {
                         resize.show(ui, |ui| {
@@ -237,6 +236,8 @@ impl<'open> Window<'open> {
             );
             let new_rect = ctx.round_rect_to_pixels(new_rect);
             if new_rect != pre_resize {
+                // TODO: add this to a Window state instead as a command "move here next frame"
+
                 let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
                 area_state.pos = new_rect.min;
                 ctx.memory().areas.set_state(area_layer, area_state);
