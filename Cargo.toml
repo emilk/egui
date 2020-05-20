@@ -6,3 +6,7 @@ members = [
     "example_glium",
     "example_wasm",
 ]
+
+[profile.release]
+lto = true # very slightly smaller wasm
+opt-level = 's' # 10-20% smaller wasm

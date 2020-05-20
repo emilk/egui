@@ -44,6 +44,14 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Inter
 
 /// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
 pub fn menu(ui: &mut Ui, title: impl Into<String>, add_contents: impl FnOnce(&mut Ui)) {
+    menu_impl(ui, title, Box::new(add_contents))
+}
+
+fn menu_impl<'c>(
+    ui: &mut Ui,
+    title: impl Into<String>,
+    add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
+) {
     let title = title.into();
     let bar_id = ui.id();
     let menu_id = Id::new(&title);

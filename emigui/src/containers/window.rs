@@ -127,6 +127,14 @@ impl<'open> Window<'open> {
         ctx: &Arc<Context>,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Option<InteractInfo> {
+        self.show_impl(ctx, Box::new(add_contents))
+    }
+
+    fn show_impl<'c>(
+        self,
+        ctx: &Arc<Context>,
+        add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
+    ) -> Option<InteractInfo> {
         let Window {
             title_label,
             open,
