@@ -306,8 +306,8 @@ impl Font {
     /// Typeset the given text onto one line.
     /// Assumes there are no \n in the text.
     /// Always returns exactly one frament.
-    pub fn layout_single_line(&self, text: &str) -> Galley {
-        let x_offsets = self.layout_single_line_fragment(text);
+    pub fn layout_single_line(&self, text: String) -> Galley {
+        let x_offsets = self.layout_single_line_fragment(&text);
         let line = Line {
             x_offsets,
             y_min: 0.0,
@@ -317,7 +317,7 @@ impl Font {
         let width = line.max_x();
         let size = vec2(width, self.height());
         let galley = Galley {
-            text: text.to_owned(),
+            text,
             lines: vec![line],
             size,
         };
@@ -325,7 +325,7 @@ impl Font {
         galley
     }
 
-    pub fn layout_multiline(&self, text: &str, max_width_in_points: f32) -> Galley {
+    pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
         let line_spacing = self.line_spacing();
         let mut cursor_y = 0.0;
         let mut lines = Vec::new();
@@ -372,11 +372,7 @@ impl Font {
         }
         let size = vec2(widest_line, lines.last().unwrap().y_max);
 
-        let galley = Galley {
-            text: text.to_owned(),
-            lines,
-            size,
-        };
+        let galley = Galley { text, lines, size };
         galley.sanity_check();
         galley
     }
@@ -387,7 +383,9 @@ impl Font {
     fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
-        let mut x_offsets = vec![0.0];
+        let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
+        x_offsets.push(0.0);
+
         let mut cursor_x_in_points = 0.0f32;
         let mut last_glyph_id = None;
 

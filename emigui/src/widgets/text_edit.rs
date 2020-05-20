@@ -66,9 +66,9 @@ impl<'t> Widget for TextEdit<'t> {
         let line_spacing = font.line_spacing();
         let available_width = ui.available().width();
         let mut galley = if multiline {
-            font.layout_multiline(text.as_str(), available_width)
+            font.layout_multiline(text.clone(), available_width)
         } else {
-            font.layout_single_line(text.as_str())
+            font.layout_single_line(text.clone())
         };
         let desired_size = galley.size.max(vec2(available_width, line_spacing));
         let interact = ui.reserve_space(desired_size, Some(id));
@@ -108,9 +108,9 @@ impl<'t> Widget for TextEdit<'t> {
             // layout again to avoid frame delay:
             let font = &ui.fonts()[text_style];
             galley = if multiline {
-                font.layout_multiline(text.as_str(), available_width)
+                font.layout_multiline(text.clone(), available_width)
             } else {
-                font.layout_single_line(text.as_str())
+                font.layout_single_line(text.clone())
             };
 
             // dbg!(&galley);

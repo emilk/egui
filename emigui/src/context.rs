@@ -377,7 +377,8 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    pub fn show_error(&self, pos: Pos2, text: &str) {
+    pub fn show_error(&self, pos: Pos2, text: impl Into<String>) {
+        let text = text.into();
         let align = (Align::Min, Align::Min);
         let layer = Layer::debug();
         let text_style = TextStyle::Monospace;
@@ -396,7 +397,8 @@ impl Context {
         self.add_galley(layer, rect.min, galley, text_style, Some(color::RED));
     }
 
-    pub fn debug_text(&self, pos: Pos2, text: &str) {
+    pub fn debug_text(&self, pos: Pos2, text: impl Into<String>) {
+        let text = text.into();
         let layer = Layer::debug();
         let align = (Align::Min, Align::Min);
         self.floating_text(
@@ -409,7 +411,8 @@ impl Context {
         );
     }
 
-    pub fn debug_rect(&self, rect: Rect, text: &str) {
+    pub fn debug_rect(&self, rect: Rect, text: impl Into<String>) {
+        let text = text.into();
         let layer = Layer::debug();
         self.add_paint_cmd(
             layer,
@@ -431,7 +434,7 @@ impl Context {
         &self,
         layer: Layer,
         pos: Pos2,
-        text: &str,
+        text: String,
         text_style: TextStyle,
         align: (Align, Align),
         text_color: Option<Color>,

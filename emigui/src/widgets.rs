@@ -66,9 +66,9 @@ impl Label {
     pub fn layout(&self, max_width: f32, ui: &Ui) -> font::Galley {
         let font = &ui.fonts()[self.text_style];
         if self.multiline {
-            font.layout_multiline(&self.text, max_width)
+            font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
         } else {
-            font.layout_single_line(&self.text)
+            font.layout_single_line(self.text.clone()) // TODO: avoid clone
         }
     }
 
@@ -143,17 +143,19 @@ impl Hyperlink {
 
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let Hyperlink { url, text } = self;
+
         let color = color::LIGHT_BLUE;
         let text_style = TextStyle::Body;
-        let id = ui.make_child_id(&self.url);
+        let id = ui.make_child_id(&url);
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(&self.text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available().width());
         let interact = ui.reserve_space(galley.size, Some(id));
         if interact.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if interact.clicked {
-            ui.ctx().output().open_url = Some(self.url);
+            ui.ctx().output().open_url = Some(url);
         }
 
         if interact.hovered {
@@ -225,7 +227,7 @@ impl Widget for Button {
 
         let id = ui.make_position_id();
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(&text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available().width());
         let padding = ui.style().button_padding;
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
@@ -271,10 +273,16 @@ impl<'a> Checkbox<'a> {
 
 impl<'a> Widget for Checkbox<'a> {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let Checkbox {
+            checked,
+            text,
+            text_color,
+        } = self;
+
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_single_line(&self.text);
+        let galley = font.layout_single_line(text);
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)
@@ -285,7 +293,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
         if interact.clicked {
-            *self.checked = !*self.checked;
+            *checked = !*checked;
         }
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
         ui.add_paint_cmd(PaintCmd::Rect {
@@ -297,7 +305,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
-        if *self.checked {
+        if *checked {
             ui.add_paint_cmd(PaintCmd::LinePath {
                 points: vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
@@ -309,7 +317,7 @@ impl<'a> Widget for Checkbox<'a> {
             });
         }
 
-        let text_color = self.text_color.unwrap_or(stroke_color);
+        let text_color = text_color.unwrap_or(stroke_color);
         ui.add_galley(text_cursor, galley, text_style, Some(text_color));
         ui.response(interact)
     }
@@ -345,10 +353,15 @@ pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
 
 impl Widget for RadioButton {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
+        let RadioButton {
+            checked,
+            text,
+            text_color,
+        } = self;
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(&self.text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available().width());
         let interact = ui.reserve_space(
             ui.style().button_padding
                 + vec2(ui.style().start_icon_width, 0.0)
@@ -371,7 +384,7 @@ impl Widget for RadioButton {
             radius: big_icon_rect.width() / 2.0,
         });
 
-        if self.checked {
+        if checked {
             ui.add_paint_cmd(PaintCmd::Circle {
                 center: small_icon_rect.center(),
                 fill_color: Some(stroke_color),
@@ -380,7 +393,7 @@ impl Widget for RadioButton {
             });
         }
 
-        let text_color = self.text_color.unwrap_or(stroke_color);
+        let text_color = text_color.unwrap_or(stroke_color);
         ui.add_galley(text_cursor, galley, text_style, Some(text_color));
         ui.response(interact)
     }

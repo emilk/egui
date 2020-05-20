@@ -116,8 +116,7 @@ impl<'a> Widget for Slider<'a> {
             let slider_sans_text = Slider { text: None, ..self };
 
             if text_on_top {
-                // let galley = font.layout_multiline(&full_text, ui.available().width());
-                let galley = font.layout_single_line(&full_text);
+                let galley = font.layout_single_line(full_text);
                 let pos = ui.reserve_space(galley.size, None).rect.min;
                 ui.add_galley(pos, galley, text_style, text_color);
                 slider_sans_text.ui(ui)

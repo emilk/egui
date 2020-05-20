@@ -434,16 +434,16 @@ impl Ui {
     }
 
     /// Paint some debug text at current cursor
-    pub fn debug_text(&self, text: &str) {
+    pub fn debug_text(&self, text: impl Into<String>) {
         self.debug_text_at(self.cursor, text);
     }
 
     // TODO: AsRef<str>
-    pub fn debug_text_at(&self, pos: Pos2, text: &str) {
+    pub fn debug_text_at(&self, pos: Pos2, text: impl Into<String>) {
         self.ctx.debug_text(pos, text);
     }
 
-    pub fn debug_rect(&mut self, rect: Rect, text: &str) {
+    pub fn debug_rect(&mut self, rect: Rect, text: impl Into<String>) {
         self.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 0.0,
             fill_color: None,
@@ -452,7 +452,7 @@ impl Ui {
         });
         let align = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
-        self.floating_text(rect.min, text, text_style, align, Some(color::RED));
+        self.floating_text(rect.min, text.into(), text_style, align, Some(color::RED));
     }
 
     /// Show some text anywhere in the ui.
@@ -462,13 +462,13 @@ impl Ui {
     pub fn floating_text(
         &mut self,
         pos: Pos2,
-        text: &str,
+        text: impl Into<String>,
         text_style: TextStyle,
         align: (Align, Align),
         text_color: Option<Color>,
     ) -> Rect {
         let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text, f32::INFINITY);
+        let galley = font.layout_multiline(text.into(), f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
         self.add_galley(rect.min, galley, text_style, text_color);
         rect
