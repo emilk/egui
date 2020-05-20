@@ -49,6 +49,14 @@ impl Triangles {
         self.indices.push(c);
     }
 
+    pub fn reserve_triangles(&mut self, additional_triangles: usize) {
+        self.indices.reserve(3 * additional_triangles);
+    }
+
+    pub fn reserve_vertices(&mut self, additional: usize) {
+        self.vertices.reserve(additional);
+    }
+
     /// Uniformly colored rectangle
     pub fn add_rect(&mut self, top_left: Vertex, bottom_right: Vertex) {
         debug_assert_eq!(top_left.color, bottom_right.color);
@@ -312,6 +320,8 @@ pub fn fill_closed_path(
         color,
     };
     if options.anti_alias {
+        triangles.reserve_triangles(3 * n as usize);
+        triangles.reserve_vertices(2 * n as usize);
         let color_outer = color::TRANSPARENT;
         let idx_inner = triangles.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
@@ -329,6 +339,7 @@ pub fn fill_closed_path(
             i0 = i1;
         }
     } else {
+        triangles.reserve_triangles(n as usize);
         let idx = triangles.vertices.len() as u32;
         triangles
             .vertices
@@ -379,6 +390,9 @@ pub fn paint_path_outline(
                 return;
             }
 
+            triangles.reserve_triangles(4 * n as usize);
+            triangles.reserve_vertices(3 * n as usize);
+
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
@@ -415,6 +429,9 @@ pub fn paint_path_outline(
             .           |-----|            inner_rad
             */
 
+            triangles.reserve_triangles(6 * n as usize);
+            triangles.reserve_vertices(4 * n as usize);
+
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
@@ -450,6 +467,9 @@ pub fn paint_path_outline(
             }
         }
     } else {
+        triangles.reserve_triangles(2 * n as usize);
+        triangles.reserve_vertices(2 * n as usize);
+
         let last_index = if path_type == Closed { n } else { n - 1 };
         for i in 0..last_index {
             triangles.triangle(
@@ -599,6 +619,10 @@ pub fn paint_command_into_triangles(
             color,
         } => {
             galley.sanity_check();
+
+            let num_chars = galley.text.chars().count();
+            out.reserve_triangles(num_chars * 2);
+            out.reserve_vertices(num_chars * 4);
 
             let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
 
