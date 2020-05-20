@@ -11,3 +11,10 @@ parking_lot = "0.10"
 rusttype = "0.9"
 serde = "1"
 serde_derive = "1"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmark"
+harness = false
