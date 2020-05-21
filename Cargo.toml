@@ -8,5 +8,8 @@ members = [
 ]
 
 [profile.release]
-lto = true # very slightly smaller wasm
-opt-level = 's' # 10-20% smaller wasm
+# lto = true # VERY slightly smaller wasm
+# opt-level = 's' # 10-20% smaller wasm compared to `opt-level = 3`
+# opt-level = 1 # very slow and big wasm. Don't do this.
+opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
+# opt-level = 3 # unecessarily large wasm for no performance gain
