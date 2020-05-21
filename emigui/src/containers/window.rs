@@ -234,8 +234,8 @@ impl<'open> Window<'open> {
                 window_id.with("frame_resize"),
                 pre_resize,
             );
-            let new_rect = ctx.round_rect_to_pixels(new_rect);
-            if new_rect != pre_resize {
+            if let Some(new_rect) = new_rect {
+                let new_rect = ctx.round_rect_to_pixels(new_rect);
                 // TODO: add this to a Window state instead as a command "move here next frame"
 
                 let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
@@ -299,12 +299,12 @@ fn resize_window(
     possible: PossibleInteractions,
     area_layer: Layer,
     id: Id,
-    mut rect: Rect,
-) -> Rect {
+    rect: Rect,
+) -> Option<Rect> {
     if let Some(window_interaction) = window_interaction(ctx, possible, area_layer, id, rect) {
         window_interaction.set_cursor(ctx);
         if let Some(mouse_pos) = ctx.input().mouse_pos {
-            rect = window_interaction.start_rect; // prevent drift
+            let mut rect = window_interaction.start_rect; // prevent drift
 
             if window_interaction.is_resize() {
                 if window_interaction.left {
@@ -322,10 +322,12 @@ fn resize_window(
                 // movevement
                 rect = rect.translate(mouse_pos - window_interaction.start_mouse_pos);
             }
+
+            return Some(rect);
         }
     }
 
-    return rect;
+    None
 }
 
 fn window_interaction(
