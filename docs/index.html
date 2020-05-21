@@ -55,9 +55,17 @@
         // ----------------------------------------------------------------------------
         var g_wasm_app = null;
 
-        function paint_gui(canvas, input) {
+        function paint_gui(canvas) {
             if (g_wasm_app === null) {
                 g_wasm_app = wasm_bindgen.new_webgl_gui("canvas", pixels_per_point());
+            }
+
+            let input = {
+                emigui: get_emigui_input(canvas),
+                web: {
+                    location: window.location.toString(),
+                    location_hash: window.location.hash.toString(), // i.e. #fragment
+                },
             }
 
             let output = JSON.parse(wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input)));
@@ -103,7 +111,7 @@
             canvas.height = window.innerHeight * pixels_per_point();
         }
 
-        function get_input(canvas) {
+        function get_emigui_input(canvas) {
             var input = {
                 mouse_down: g_mouse_down,
                 mouse_pos: g_mouse_pos,
@@ -113,11 +121,6 @@
                 time: window.performance.now() / 1000.0,
                 seconds_since_midnight: seconds_since_midnight(),
                 events: g_events,
-
-                web: {
-                    location: window.location.toString(),
-                    location_hash: window.location.hash.toString(), // i.e. #fragment
-                },
             };
             g_scroll_delta_x = 0;
             g_scroll_delta_y = 0;
@@ -146,7 +149,7 @@
         function paint() {
             var canvas = document.getElementById("canvas");
             auto_resize_canvas(canvas);
-            paint_gui(canvas, get_input(canvas));
+            paint_gui(canvas);
         }
 
         function paint_and_schedule() {

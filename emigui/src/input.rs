@@ -31,9 +31,6 @@ pub struct RawInput {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
-
-    /// Web-only input
-    pub web: Option<Web>,
 }
 
 /// What emigui maintains
@@ -61,9 +58,6 @@ pub struct GuiInput {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
-
-    /// Web-only input
-    pub web: Option<Web>,
 }
 
 /// What emigui maintains
@@ -89,14 +83,6 @@ pub struct MouseInput {
 
     /// Current velocity of mouse cursor.
     pub velocity: Vec2,
-}
-
-#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
-#[serde(default)]
-pub struct Web {
-    pub location: String,
-    /// i.e. "#fragment"
-    pub location_hash: String,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
@@ -149,27 +135,32 @@ impl GuiInput {
             dt,
             seconds_since_midnight: new.seconds_since_midnight,
             events: new.events.clone(),
-            web: new.web.clone(),
         }
     }
 }
 
 impl MouseInput {
-    pub fn from_last_and_new(last: &RawInput, new: &RawInput) -> MouseInput {
+    pub fn from_last_and_new(last: &GuiInput, new: &RawInput) -> MouseInput {
         let delta = new
             .mouse_pos
-            .and_then(|new| last.mouse_pos.map(|last| new - last))
+            .and_then(|new| last.mouse.pos.map(|last| new - last))
             .unwrap_or_default();
         let dt = (new.time - last.time) as f32;
         let mut velocity = delta / dt;
         if !velocity.is_finite() {
             velocity = Vec2::zero();
         }
+        let pressed = !last.mouse.down && new.mouse_down;
+        let mut press_origin = last.mouse.press_origin;
+        if pressed {
+            press_origin = new.mouse_pos;
+        }
         MouseInput {
             down: new.mouse_down && new.mouse_pos.is_some(),
-            pressed: !last.mouse_down && new.mouse_down,
-            released: last.mouse_down && !new.mouse_down,
+            pressed,
+            released: last.mouse.down && !new.mouse_down,
             pos: new.mouse_pos,
+            press_origin,
             delta,
             velocity,
         }
@@ -188,9 +179,6 @@ impl RawInput {
         ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("events: {:?}", self.events));
-        if let Some(web) = &self.web {
-            web.ui(ui);
-        }
     }
 }
 
@@ -207,9 +195,6 @@ impl GuiInput {
         ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("events: {:?}", self.events));
-        if let Some(web) = &self.web {
-            web.ui(ui);
-        }
     }
 }
 
@@ -226,13 +211,5 @@ impl MouseInput {
             self.velocity.x,
             self.velocity.y
         ));
-    }
-}
-
-impl Web {
-    pub fn ui(&self, ui: &mut crate::Ui) {
-        use crate::label;
-        ui.add(label!("location: '{}'", self.location));
-        ui.add(label!("location_hash: '{}'", self.location_hash));
     }
 }

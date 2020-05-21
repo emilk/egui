@@ -10,6 +10,8 @@ use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ExampleApp {
+    previous_web_location_hash: String,
+
     open_windows: OpenWindows,
     // TODO: group the following together as ExampleWindows
     example_window: ExampleWindow,
@@ -17,7 +19,20 @@ pub struct ExampleApp {
 }
 
 impl ExampleApp {
-    pub fn ui(&mut self, ui: &mut Ui) {
+    /// `web_location_hash`: for web demo only. e.g. "#fragmet".
+    pub fn ui(&mut self, ui: &mut Ui, web_location_hash: &str) {
+        if self.previous_web_location_hash != web_location_hash {
+            // #fragment end of URL:
+            if web_location_hash == "#clock" {
+                self.open_windows = OpenWindows {
+                    fractal_clock: true,
+                    ..OpenWindows::none()
+                };
+            }
+
+            self.previous_web_location_hash = web_location_hash.to_owned();
+        }
+
         show_menu_bar(ui, &mut self.open_windows);
         self.windows(ui.ctx());
     }
@@ -31,23 +46,8 @@ impl ExampleApp {
             open_windows,
             example_window,
             fractal_clock,
+            ..
         } = self;
-
-        if ctx.previus_input().web != ctx.input().web {
-            let location_hash = ctx
-                .input()
-                .web
-                .as_ref()
-                .map(|web| web.location_hash.as_str());
-
-            // #fragment end of URL:
-            if location_hash == Some("#clock") {
-                *open_windows = OpenWindows {
-                    fractal_clock: true,
-                    ..OpenWindows::none()
-                };
-            }
-        }
 
         Window::new("Examples")
             .open(&mut open_windows.examples)

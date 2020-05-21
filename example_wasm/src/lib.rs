@@ -13,6 +13,21 @@ use {
 
 use wasm_bindgen::prelude::*;
 
+#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
+#[serde(default)]
+struct WebInput {
+    emigui: RawInput,
+    web: Web,
+}
+
+#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
+#[serde(default)]
+pub struct Web {
+    pub location: String,
+    /// i.e. "#fragment"
+    pub location_hash: String,
+}
+
 #[wasm_bindgen]
 pub struct State {
     example_app: ExampleApp,
@@ -34,13 +49,13 @@ impl State {
         })
     }
 
-    fn run(&mut self, raw_input: RawInput) -> Result<Output, JsValue> {
+    fn run(&mut self, web_input: WebInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
-        self.ctx.begin_frame(raw_input);
+        self.ctx.begin_frame(web_input.emigui);
 
         let mut ui = self.ctx.fullscreen_ui();
-        self.example_app.ui(&mut ui);
+        self.example_app.ui(&mut ui, &web_input.web.location_hash);
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
         ui.add(label!("Emigui!").text_style(TextStyle::Heading));
@@ -101,9 +116,9 @@ pub fn new_webgl_gui(canvas_id: &str, pixels_per_point: f32) -> Result<State, Js
 }
 
 #[wasm_bindgen]
-pub fn run_gui(state: &mut State, raw_input_json: &str) -> Result<String, JsValue> {
+pub fn run_gui(state: &mut State, web_input_json: &str) -> Result<String, JsValue> {
     // TODO: nicer interface than JSON
-    let raw_input: RawInput = serde_json::from_str(raw_input_json).unwrap();
-    let output = state.run(raw_input)?;
+    let web_input: WebInput = serde_json::from_str(web_input_json).unwrap();
+    let output = state.run(web_input)?;
     Ok(serde_json::to_string(&output).unwrap())
 }
