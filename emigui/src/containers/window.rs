@@ -303,7 +303,7 @@ fn resize_window(
 ) -> Option<Rect> {
     if let Some(window_interaction) = window_interaction(ctx, possible, area_layer, id, rect) {
         window_interaction.set_cursor(ctx);
-        if let Some(mouse_pos) = ctx.input().mouse_pos {
+        if let Some(mouse_pos) = ctx.input().mouse.pos {
             let mut rect = window_interaction.start_rect; // prevent drift
 
             if window_interaction.is_resize() {
@@ -350,7 +350,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().mouse_pressed {
+            if ctx.input().mouse.pressed {
                 ctx.memory().active_id = Some(id);
                 window_interaction = Some(hover_window_interaction);
                 ctx.memory().window_interaction = window_interaction;
@@ -375,7 +375,7 @@ fn resize_hover(
     area_layer: Layer,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    if let Some(mouse_pos) = ctx.input().mouse_pos {
+    if let Some(mouse_pos) = ctx.input().mouse.pos {
         if let Some(top_layer) = ctx.memory().layer_at(mouse_pos) {
             if top_layer != area_layer && top_layer.order != Order::Background {
                 return None; // Another window is on top here

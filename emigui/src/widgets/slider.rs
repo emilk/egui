@@ -154,7 +154,7 @@ impl<'a> Widget for Slider<'a> {
             let range = self.range.clone();
             debug_assert!(range.start() <= range.end());
 
-            if let Some(mouse_pos) = ui.input().mouse_pos {
+            if let Some(mouse_pos) = ui.input().mouse.pos {
                 if interact.active {
                     self.set_value_f32(remap_clamp(mouse_pos.x, left..=right, range.clone()));
                 }

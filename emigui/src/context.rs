@@ -176,7 +176,7 @@ impl Context {
                 let area_state = self.memory().areas.get(area_layer.id).clone();
                 if let Some(mut area_state) = area_state {
                     // Throw windows because it is fun:
-                    area_state.vel = self.input().mouse_velocity;
+                    area_state.vel = self.input().mouse.velocity;
                     self.memory().areas.set_state(area_layer, area_state);
                 }
             }
@@ -197,7 +197,7 @@ impl Context {
         }
         let new_input = GuiInput::from_last_and_new(&self.raw_input, &new_raw_input);
         self.previus_input = std::mem::replace(&mut self.input, new_input);
-        self.input.mouse_velocity = self.mouse_vel();
+        self.input.mouse.velocity = self.mouse_vel();
         self.raw_input = new_raw_input;
     }
 
@@ -304,7 +304,7 @@ impl Context {
 
     pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
-        if let Some(mouse_pos) = self.input.mouse_pos {
+        if let Some(mouse_pos) = self.input.mouse.pos {
             rect.contains(mouse_pos) && self.memory().layer_at(mouse_pos) == Some(layer)
         } else {
             false
@@ -324,7 +324,7 @@ impl Context {
         let mut memory = self.memory();
         let active = interaction_id.is_some() && memory.active_id == interaction_id;
 
-        if self.input.mouse_pressed {
+        if self.input.mouse.pressed {
             if hovered && interaction_id.is_some() {
                 if memory.active_id.is_some() {
                     // Already clicked something else this frame
@@ -351,14 +351,14 @@ impl Context {
                     active: false,
                 }
             }
-        } else if self.input.mouse_released {
+        } else if self.input.mouse.released {
             InteractInfo {
                 rect,
                 hovered,
                 clicked: hovered && active,
                 active,
             }
-        } else if self.input.mouse_down {
+        } else if self.input.mouse.down {
             InteractInfo {
                 rect,
                 hovered: hovered && active,

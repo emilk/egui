@@ -99,7 +99,7 @@ fn menu_impl<'c>(
             })
         });
 
-        if menu_interact.hovered && ui.input().mouse_released {
+        if menu_interact.hovered && ui.input().mouse.released {
             bar_state.open_menu = None;
         }
     }
@@ -113,7 +113,7 @@ fn interact_with_menu_button(
     menu_id: Id,
     button_interact: &GuiResponse,
 ) {
-    if button_interact.hovered && input.mouse_pressed {
+    if button_interact.hovered && input.mouse.pressed {
         if bar_state.open_menu.is_some() {
             bar_state.open_menu = None;
         } else {
@@ -122,7 +122,7 @@ fn interact_with_menu_button(
         }
     }
 
-    if button_interact.hovered && input.mouse_released && bar_state.open_menu.is_some() {
+    if button_interact.hovered && input.mouse.released && bar_state.open_menu.is_some() {
         let time_since_open = input.time - bar_state.open_time;
         if time_since_open < 0.4 {
             // A quick click

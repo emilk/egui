@@ -165,8 +165,8 @@ impl Area {
 
         let input = ctx.input();
         if move_interact.active {
-            state.pos += input.mouse_move;
-            state.vel = input.mouse_velocity;
+            state.pos += input.mouse.delta;
+            state.vel = input.mouse.velocity;
         } else {
             let stop_speed = 20.0; // Pixels per second.
             let friction_coeff = 1000.0; // Pixels per second squared.
@@ -208,8 +208,8 @@ impl Area {
 }
 
 fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
-    if let Some(mouse_pos) = ctx.input().mouse_pos {
-        ctx.input().mouse_pressed && ctx.memory().layer_at(mouse_pos) == Some(layer)
+    if let Some(mouse_pos) = ctx.input().mouse.pos {
+        ctx.input().mouse.pressed && ctx.memory().layer_at(mouse_pos) == Some(layer)
     } else {
         false
     }

@@ -75,7 +75,7 @@ impl<'t> Widget for TextEdit<'t> {
 
         if interact.clicked {
             ui.request_kb_focus(id);
-            if let Some(mouse_pos) = ui.input().mouse_pos {
+            if let Some(mouse_pos) = ui.input().mouse.pos {
                 state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
             }
         }

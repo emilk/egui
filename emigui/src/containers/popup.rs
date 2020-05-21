@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::*;
 
 pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
-    if let Some(mouse_pos) = ctx.input().mouse_pos {
+    if let Some(mouse_pos) = ctx.input().mouse.pos {
         //  TODO: default size
         let id = Id::tooltip();
         let window_pos = mouse_pos + vec2(16.0, 16.0);

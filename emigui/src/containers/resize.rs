@@ -212,7 +212,7 @@ impl Resize {
             let corner_interact = ui.interact_rect(corner_rect, id.with("corner"));
 
             if corner_interact.active {
-                if let Some(mouse_pos) = ui.input().mouse_pos {
+                if let Some(mouse_pos) = ui.input().mouse.pos {
                     // This is the desired size. We may not be able to achieve it.
 
                     state.size = mouse_pos - position + 0.5 * corner_interact.rect.size()
