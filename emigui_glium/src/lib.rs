@@ -32,9 +32,6 @@ pub fn input_event(
         glutin::Event::WindowEvent { event, .. } => match event {
             CloseRequested | Destroyed => *running = false,
 
-            DroppedFile(path) => raw_input.dropped_files.push(path),
-            HoveredFile(path) => raw_input.hovered_files.push(path),
-
             Resized(glutin::dpi::LogicalSize { width, height }) => {
                 raw_input.screen_size = vec2(width as f32, height as f32);
             }

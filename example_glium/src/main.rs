@@ -100,8 +100,6 @@ fn main() {
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
             raw_input.seconds_since_midnight = Some(emigui_glium::local_time_of_day());
             raw_input.scroll_delta = vec2(0.0, 0.0);
-            raw_input.dropped_files.clear();
-            raw_input.hovered_files.clear();
             raw_input.events.clear();
             events_loop.poll_events(|event| {
                 emigui_glium::input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)

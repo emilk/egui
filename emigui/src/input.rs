@@ -29,12 +29,6 @@ pub struct RawInput {
     /// Local time. Only used for the clock in the example app.
     pub seconds_since_midnight: Option<f64>,
 
-    /// Files has been dropped into the window.
-    pub dropped_files: Vec<std::path::PathBuf>,
-
-    /// Someone is threatening to drop these on us.
-    pub hovered_files: Vec<std::path::PathBuf>,
-
     /// In-order events received this frame
     pub events: Vec<Event>,
 
@@ -64,12 +58,6 @@ pub struct GuiInput {
 
     /// Local time. Only used for the clock in the example app.
     pub seconds_since_midnight: Option<f64>,
-
-    /// Files has been dropped into the window.
-    pub dropped_files: Vec<std::path::PathBuf>,
-
-    /// Someone is threatening to drop these on us.
-    pub hovered_files: Vec<std::path::PathBuf>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -160,8 +148,6 @@ impl GuiInput {
             time: new.time,
             dt,
             seconds_since_midnight: new.seconds_since_midnight,
-            dropped_files: new.dropped_files.clone(),
-            hovered_files: new.hovered_files.clone(),
             events: new.events.clone(),
             web: new.web.clone(),
         }
@@ -202,8 +188,6 @@ impl RawInput {
         ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("events: {:?}", self.events));
-        ui.add(label!("dropped_files: {:?}", self.dropped_files));
-        ui.add(label!("hovered_files: {:?}", self.hovered_files));
         if let Some(web) = &self.web {
             web.ui(ui);
         }
@@ -223,8 +207,6 @@ impl GuiInput {
         ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("events: {:?}", self.events));
-        ui.add(label!("dropped_files: {:?}", self.dropped_files));
-        ui.add(label!("hovered_files: {:?}", self.hovered_files));
         if let Some(web) = &self.web {
             web.ui(ui);
         }
