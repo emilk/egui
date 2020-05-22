@@ -225,32 +225,14 @@ impl<'open> Window<'open> {
         if movable || resizable {
             let possible = PossibleInteractions { movable, resizable };
 
-            // TODO: not when collapsed, and not when resizing or moving is disabled etc
-            let pre_resize = ctx.round_rect_to_pixels(full_interact.rect);
-            let new_rect = resize_window(
+            interact(
                 ctx,
                 possible,
                 area_layer,
-                window_id.with("frame_resize"),
-                pre_resize,
+                window_id,
+                resize_id,
+                full_interact.rect,
             );
-            if let Some(new_rect) = new_rect {
-                let new_rect = ctx.round_rect_to_pixels(new_rect);
-                // TODO: add this to a Window state instead as a command "move here next frame"
-
-                let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
-                area_state.pos = new_rect.min;
-                ctx.memory().areas.set_state(area_layer, area_state);
-
-                let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
-                // resize_state.size += new_rect.size() - pre_resize.size();
-                // resize_state.size = new_rect.size() - some margin;
-                resize_state.requested_size =
-                    Some(resize_state.size + new_rect.size() - pre_resize.size());
-                ctx.memory().resize.insert(resize_id, resize_state);
-
-                ctx.memory().areas.move_to_top(area_layer);
-            }
         }
 
         Some(full_interact)
@@ -294,40 +276,64 @@ impl WindowInteraction {
     }
 }
 
-fn resize_window(
+fn interact(
     ctx: &Context,
     possible: PossibleInteractions,
     area_layer: Layer,
-    id: Id,
+    window_id: Id,
+    resize_id: Id,
     rect: Rect,
-) -> Option<Rect> {
-    if let Some(window_interaction) = window_interaction(ctx, possible, area_layer, id, rect) {
-        window_interaction.set_cursor(ctx);
-        if let Some(mouse_pos) = ctx.input().mouse.pos {
-            let mut rect = window_interaction.start_rect; // prevent drift
+) -> Option<()> {
+    let pre_resize = ctx.round_rect_to_pixels(rect);
+    let window_interaction = window_interaction(
+        ctx,
+        possible,
+        area_layer,
+        window_id.with("frame_resize"),
+        rect,
+    )?;
+    let new_rect = resize_window(ctx, &window_interaction)?;
 
-            if window_interaction.is_resize() {
-                if window_interaction.left {
-                    rect.min.x = ctx.round_to_pixel(mouse_pos.x);
-                } else if window_interaction.right {
-                    rect.max.x = ctx.round_to_pixel(mouse_pos.x);
-                }
+    let new_rect = ctx.round_rect_to_pixels(new_rect);
+    // TODO: add this to a Window state instead as a command "move here next frame"
 
-                if window_interaction.top {
-                    rect.min.y = ctx.round_to_pixel(mouse_pos.y);
-                } else if window_interaction.bottom {
-                    rect.max.y = ctx.round_to_pixel(mouse_pos.y);
-                }
-            } else {
-                // movevement
-                rect = rect.translate(mouse_pos - window_interaction.start_mouse_pos);
-            }
+    let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
+    area_state.pos = new_rect.min;
+    ctx.memory().areas.set_state(area_layer, area_state);
 
-            return Some(rect);
+    let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
+    // resize_state.size += new_rect.size() - pre_resize.size();
+    // resize_state.size = new_rect.size() - some margin;
+    resize_state.requested_size = Some(resize_state.size + new_rect.size() - pre_resize.size());
+    ctx.memory().resize.insert(resize_id, resize_state);
+
+    ctx.memory().areas.move_to_top(area_layer);
+    Some(())
+}
+
+fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
+    window_interaction.set_cursor(ctx);
+    let mouse_pos = ctx.input().mouse.pos?;
+    let mut rect = window_interaction.start_rect; // prevent drift
+
+    if window_interaction.is_resize() {
+        if window_interaction.left {
+            rect.min.x = ctx.round_to_pixel(mouse_pos.x);
+        } else if window_interaction.right {
+            rect.max.x = ctx.round_to_pixel(mouse_pos.x);
         }
+
+        if window_interaction.top {
+            rect.min.y = ctx.round_to_pixel(mouse_pos.y);
+        } else if window_interaction.bottom {
+            rect.max.y = ctx.round_to_pixel(mouse_pos.y);
+        }
+    } else {
+        // movevement
+        rect = rect.translate(mouse_pos - window_interaction.start_mouse_pos);
     }
 
-    None
+    return Some(rect);
 }
 
 fn window_interaction(
