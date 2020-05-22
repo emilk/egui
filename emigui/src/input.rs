@@ -1,6 +1,6 @@
 use serde_derive::Deserialize;
 
-use crate::math::*;
+use crate::{math::*, movement_tracker::MovementTracker};
 
 /// What the integration gives to the gui.
 /// All coordinates in emigui is in point/logical coordinates.
@@ -35,7 +35,10 @@ pub struct RawInput {
 
 /// What emigui maintains
 #[derive(Clone, Debug, Default)]
-pub struct GuiInput {
+pub struct InputState {
+    /// The raw input we got this fraem
+    pub raw: RawInput,
+
     pub mouse: MouseInput,
 
     /// How many pixels the user scrolled
@@ -61,7 +64,7 @@ pub struct GuiInput {
 }
 
 /// What emigui maintains
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MouseInput {
     /// Is the button currently down?
     /// true the frame when it is pressed,
@@ -83,6 +86,24 @@ pub struct MouseInput {
 
     /// Current velocity of mouse cursor.
     pub velocity: Vec2,
+
+    /// Recent movement of the mouse.
+    /// Used for calculating velocity of mouse pointer.
+    pub pos_tracker: MovementTracker<Pos2>,
+}
+
+impl Default for MouseInput {
+    fn default() -> Self {
+        Self {
+            down: false,
+            pressed: false,
+            released: false,
+            pos: None,
+            delta: Vec2::zero(),
+            velocity: Vec2::zero(),
+            pos_tracker: MovementTracker::new(1000, 0.1),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
@@ -123,46 +144,53 @@ pub enum Key {
     Up,
 }
 
-impl GuiInput {
-    pub fn from_last_and_new(last: &RawInput, new: &RawInput) -> GuiInput {
-        let dt = (new.time - last.time) as f32;
-        GuiInput {
-            mouse: MouseInput::from_last_and_new(last, new),
+impl InputState {
+    #[must_use]
+    pub fn begin_frame(self, new: RawInput) -> InputState {
+        let mouse = self.mouse.begin_frame(&new);
+        let dt = (new.time - self.raw.time) as f32;
+        InputState {
+            mouse,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point.unwrap_or(1.0),
             time: new.time,
             dt,
             seconds_since_midnight: new.seconds_since_midnight,
-            events: new.events.clone(),
+            events: new.events.clone(), // TODO: remove clone() and use raw.events
+            raw: new,
         }
     }
 }
 
 impl MouseInput {
-    pub fn from_last_and_new(last: &GuiInput, new: &RawInput) -> MouseInput {
+    #[must_use]
+    pub fn begin_frame(mut self, new: &RawInput) -> MouseInput {
         let delta = new
             .mouse_pos
-            .and_then(|new| last.mouse.pos.map(|last| new - last))
+            .and_then(|new| self.pos.map(|last| new - last))
             .unwrap_or_default();
-        let dt = (new.time - last.time) as f32;
-        let mut velocity = delta / dt;
-        if !velocity.is_finite() {
-            velocity = Vec2::zero();
+        let pressed = !self.down && new.mouse_down;
+
+        if let Some(mouse_pos) = new.mouse_pos {
+            self.pos_tracker.add(new.time, mouse_pos);
+        } else {
+            // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
+            // released from the touch screen that we may want to assign a velocity to whatever
+            // the user tried to throw
         }
-        let pressed = !last.mouse.down && new.mouse_down;
-        let mut press_origin = last.mouse.press_origin;
-        if pressed {
-            press_origin = new.mouse_pos;
-        }
+
+        // TODO: pass current time as argument so we don't have a velocity after mouse up
+        let velocity = self.pos_tracker.velocity().unwrap_or_default();
+
         MouseInput {
             down: new.mouse_down && new.mouse_pos.is_some(),
             pressed,
-            released: last.mouse.down && !new.mouse_down,
+            released: self.down && !new.mouse_down,
             pos: new.mouse_pos,
-            press_origin,
             delta,
             velocity,
+            pos_tracker: self.pos_tracker,
         }
     }
 }
@@ -174,27 +202,48 @@ impl RawInput {
         // TODO: easily change default font!
         ui.add(label!("mouse_down: {}", self.mouse_down));
         ui.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
-        ui.add(label!("scroll_delta: {:?}", self.scroll_delta));
-        ui.add(label!("screen_size: {:?}", self.screen_size));
-        ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point));
+        ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
+        ui.add(label!("screen_size: {:?} points", self.screen_size));
+        ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point))
+            .tooltip_text(
+                "Also called hdpi factor.\nNumber of physical pixels per each logical pixel.",
+            );
         ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!("events: {:?}", self.events));
+        ui.add(label!(
+            "seconds_since_midnight: {:?} s",
+            self.seconds_since_midnight
+        ));
+        ui.add(label!("events: {:?}", self.events))
+            .tooltip_text("key presses etc");
     }
 }
 
-impl GuiInput {
+impl InputState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::label;
+
+        ui.collapsing("Raw Input", |ui| self.raw.ui(ui));
+
         crate::containers::CollapsingHeader::new("mouse")
             .default_open(true)
             .show(ui, |ui| {
                 self.mouse.ui(ui);
             });
-        ui.add(label!("scroll_delta: {:?}", self.scroll_delta));
-        ui.add(label!("screen_size: {:?}", self.screen_size));
-        ui.add(label!("pixels_per_point: {}", self.pixels_per_point));
+
+        ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
+        ui.add(label!("screen_size: {:?} points", self.screen_size));
+        ui.add(label!(
+            "{} points for each physical pixel (hdpi factor)",
+            self.pixels_per_point
+        ));
         ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!("events: {:?}", self.events));
+        ui.add(label!("dt: {:.3} s", self.dt));
+        ui.add(label!(
+            "seconds_since_midnight: {:?} s",
+            self.seconds_since_midnight
+        ));
+        ui.add(label!("events: {:?}", self.events))
+            .tooltip_text("key presses etc");
     }
 }
 

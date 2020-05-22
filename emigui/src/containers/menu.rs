@@ -109,7 +109,7 @@ fn menu_impl<'c>(
 
 fn interact_with_menu_button(
     bar_state: &mut BarState,
-    input: &GuiInput,
+    input: &InputState,
     menu_id: Id,
     button_interact: &GuiResponse,
 ) {

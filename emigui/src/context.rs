@@ -25,11 +25,7 @@ pub struct Context {
     new_fonts: Mutex<Option<Arc<Fonts>>>,
     memory: Arc<Mutex<Memory>>,
 
-    // Input releated stuff:
-    raw_input: RawInput,
-    previus_input: GuiInput,
-    input: GuiInput,
-    mouse_tracker: MovementTracker<Pos2>,
+    input: InputState,
 
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
@@ -49,10 +45,7 @@ impl Clone for Context {
             fonts: self.fonts.clone(),
             new_fonts: Mutex::new(self.new_fonts.lock().clone()),
             memory: self.memory.clone(),
-            raw_input: self.raw_input.clone(),
-            previus_input: self.previus_input.clone(),
             input: self.input.clone(),
-            mouse_tracker: self.mouse_tracker.clone(),
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
             used_ids: Mutex::new(self.used_ids.lock().clone()),
@@ -70,10 +63,7 @@ impl Context {
             new_fonts: Default::default(),
             memory: Default::default(),
 
-            raw_input: Default::default(),
-            previus_input: Default::default(),
             input: Default::default(),
-            mouse_tracker: MovementTracker::new(1000, 0.1),
 
             graphics: Default::default(),
             output: Default::default(),
@@ -98,18 +88,8 @@ impl Context {
         self.output.try_lock().expect("output already locked")
     }
 
-    /// Input previous frame. Compare to `input()` to check for changes.
-    pub fn previus_input(&self) -> &GuiInput {
-        &self.previus_input
-    }
-
-    pub fn input(&self) -> &GuiInput {
+    pub fn input(&self) -> &InputState {
         &self.input
-    }
-
-    /// Smoothed mouse velocity, in points per second
-    pub fn mouse_vel(&self) -> Vec2 {
-        self.mouse_tracker.velocity().unwrap_or_default()
     }
 
     pub fn fonts(&self) -> &Fonts {
@@ -167,7 +147,7 @@ impl Context {
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        if !self.raw_input.mouse_down || self.raw_input.mouse_pos.is_none() {
+        if !self.input.mouse.down || self.input.mouse.pos.is_none() {
             self.memory().active_id = None;
 
             let window_interaction = self.memory().window_interaction.take();
@@ -188,17 +168,7 @@ impl Context {
             self.fonts = new_fonts;
         }
 
-        if let Some(mouse_pos) = new_raw_input.mouse_pos {
-            self.mouse_tracker.add(new_raw_input.time, mouse_pos);
-        } else {
-            // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
-            // released from the touch screen that we may want to assign a velocity to whatever
-            // the user tried to throw
-        }
-        let new_input = GuiInput::from_last_and_new(&self.raw_input, &new_raw_input);
-        self.previus_input = std::mem::replace(&mut self.input, new_input);
-        self.input.mouse.velocity = self.mouse_vel();
-        self.raw_input = new_raw_input;
+        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
     }
 
     pub fn end_frame(&self) -> (Output, PaintBatches) {
@@ -505,12 +475,9 @@ impl Context {
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        ui.collapsing("Input", |ui| {
-            CollapsingHeader::new("Raw Input").show(ui, |ui| ui.ctx().raw_input.clone().ui(ui));
-            CollapsingHeader::new("Input")
-                .default_open(true)
-                .show(ui, |ui| ui.input().clone().ui(ui));
-        });
+        CollapsingHeader::new("Input")
+            .default_open(true)
+            .show(ui, |ui| ui.input().clone().ui(ui));
 
         ui.collapsing("Stats", |ui| {
             ui.add(label!(

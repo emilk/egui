@@ -119,7 +119,7 @@ impl Ui {
         &self.ctx
     }
 
-    pub fn input(&self) -> &GuiInput {
+    pub fn input(&self) -> &InputState {
         self.ctx.input()
     }
 
