@@ -177,6 +177,10 @@ impl Path {
         self.0.len()
     }
 
+    pub fn reserve(&mut self, additional: usize) {
+        self.0.reserve(additional)
+    }
+
     #[inline(always)]
     pub fn add_point(&mut self, pos: Pos2, normal: Vec2) {
         self.0.push(PathPoint { pos, normal });
@@ -185,6 +189,7 @@ impl Path {
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
         let n = (radius * 4.0).round() as i32; // TODO: tweak a bit more
         let n = clamp(n, 4..=64);
+        self.reserve(n as usize);
         for i in 0..n {
             let angle = remap(i as f32, 0.0..=n as f32, 0.0..=TAU);
             let normal = vec2(angle.cos(), angle.sin());
@@ -193,6 +198,7 @@ impl Path {
     }
 
     pub fn add_line_segment(&mut self, points: [Pos2; 2]) {
+        self.reserve(2);
         let normal = (points[1] - points[0]).normalized().rot90();
         self.add_point(points[0], normal);
         self.add_point(points[1], normal);
@@ -206,6 +212,7 @@ impl Path {
             // Common case optimization:
             self.add_line_segment([points[0], points[1]]);
         } else {
+            self.reserve(n);
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
             for i in 1..n - 1 {
                 let n0 = (points[i] - points[i - 1]).normalized().rot90(); // TODO: don't calculate each normal twice!
@@ -224,6 +231,7 @@ impl Path {
     pub fn add_line_loop(&mut self, points: &[Pos2]) {
         let n = points.len();
         assert!(n >= 2);
+        self.reserve(n);
 
         // TODO: optimize
         for i in 0..n {
@@ -238,6 +246,7 @@ impl Path {
     pub fn add_rectangle(&mut self, rect: Rect) {
         let min = rect.min;
         let max = rect.max;
+        self.reserve(4);
         self.add_point(pos2(min.x, min.y), vec2(-1.0, -1.0));
         self.add_point(pos2(max.x, min.y), vec2(1.0, -1.0));
         self.add_point(pos2(max.x, max.y), vec2(1.0, 1.0));
@@ -276,6 +285,7 @@ impl Path {
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
         let n = (radius * 0.5).round() as i32; // TODO: tweak a bit more
         let n = clamp(n, 2..=32);
+        self.reserve(n as usize + 1);
         const RIGHT_ANGLE: f32 = TAU / 4.0;
         for i in 0..=n {
             let angle = remap(
