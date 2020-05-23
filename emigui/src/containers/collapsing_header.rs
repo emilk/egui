@@ -96,7 +96,7 @@ impl State {
         &mut self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<(R, InteractInfo)> {
+    ) -> Option<(R, Rect)> {
         let openness = self.openness(ui);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
@@ -132,7 +132,7 @@ impl State {
             }))
         } else if self.open {
             let r_interact = ui.add_custom(add_contents);
-            let full_size = r_interact.1.rect.size();
+            let full_size = r_interact.1.size();
             self.open_height = Some(full_size.y);
             Some(r_interact)
         } else {
@@ -190,13 +190,13 @@ impl CollapsingHeader {
         let desired_width = text_max_x - available.left();
         let desired_width = desired_width.max(available.width());
 
-        let interact = ui.reserve_space(
-            vec2(
-                desired_width,
-                galley.size.y + 2.0 * ui.style().button_padding.y,
-            ),
-            Some(id),
+        let size = vec2(
+            desired_width,
+            galley.size.y + 2.0 * ui.style().button_padding.y,
         );
+
+        let rect = ui.allocate_space(size);
+        let interact = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
 
         let mut state = State::from_memory_with_default_open(ui, id, default_open);

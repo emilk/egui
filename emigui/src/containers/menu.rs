@@ -20,7 +20,7 @@ impl Default for BarState {
     }
 }
 
-pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
+pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
     ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();

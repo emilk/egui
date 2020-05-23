@@ -303,14 +303,18 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Interaction
 
-    /// Check for clicks on this entire ui (rect())
-    pub fn interact_whole(&self) -> InteractInfo {
-        self.interact_rect(self.rect(), self.id)
+    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> InteractInfo {
+        self.ctx
+            .interact(self.layer, self.clip_rect, rect, Some(id), sense)
     }
 
-    pub fn interact_rect(&self, rect: Rect, id: Id) -> InteractInfo {
+    pub fn interact_hover(&self, rect: Rect) -> InteractInfo {
         self.ctx
-            .interact(self.layer, self.clip_rect, rect, Some(id))
+            .interact(self.layer, self.clip_rect, rect, None, Sense::nothing())
+    }
+
+    pub fn hovered(&self, rect: Rect) -> bool {
+        self.interact_hover(rect).hovered
     }
 
     #[must_use]
@@ -340,15 +344,6 @@ impl Ui {
     /// for `Justified` aligned layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    ///
-    /// TODO: remove, or redesign or something and start using allocate_space
-    pub fn reserve_space(&mut self, child_size: Vec2, interaction_id: Option<Id>) -> InteractInfo {
-        let rect = self.allocate_space(child_size);
-
-        self.ctx
-            .interact(self.layer, self.clip_rect, rect, interaction_id)
-    }
-
     pub fn allocate_space(&mut self, child_size: Vec2) -> Rect {
         let child_size = self.round_vec_to_pixels(child_size);
         self.cursor = self.round_pos_to_pixels(self.cursor);
@@ -530,25 +525,21 @@ impl Ui {
     /// Just because you ask for a lot of space does not mean you have to use it!
     /// After `add_contents` is called the contents of `bounding_size`
     /// will decide how much space will be used in the parent ui.
-    pub fn add_custom_contents(
-        &mut self,
-        size: Vec2,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> InteractInfo {
+    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
         let size = size.min(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
         let mut child_ui = self.child_ui(child_rect);
         add_contents(&mut child_ui);
-        self.reserve_space(child_ui.bounding_size(), None)
+        self.allocate_space(child_ui.bounding_size())
     }
 
     /// Create a child ui
-    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
+    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let child_rect = self.available();
         let mut child_ui = self.child_ui(child_rect);
         let r = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
-        (r, self.reserve_space(size, None))
+        (r, self.allocate_space(size))
     }
 
     /// Create a child ui which is indented to the right
@@ -556,7 +547,7 @@ impl Ui {
         &mut self,
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, InteractInfo) {
+    ) -> (R, Rect) {
         assert!(
             self.layout().dir() == Direction::Vertical,
             "You can only indent vertical layouts"
@@ -580,7 +571,7 @@ impl Ui {
             self.style.line_width,
         ));
 
-        (ret, self.reserve_space(indent + size, None))
+        (ret, self.allocate_space(indent + size))
     }
 
     pub fn left_column(&mut self, width: f32) -> Ui {
@@ -609,12 +600,12 @@ impl Ui {
     }
 
     /// Start a ui with horizontal layout
-    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
+    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         self.inner_layout(Layout::horizontal(Align::Min), add_contents)
     }
 
     /// Start a ui with vertical layout
-    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, InteractInfo) {
+    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         self.inner_layout(Layout::vertical(Align::Min), add_contents)
     }
 
@@ -622,7 +613,7 @@ impl Ui {
         &mut self,
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, InteractInfo) {
+    ) -> (R, Rect) {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
         let mut child_ui = Self {
             ..self.child_ui(child_rect)
@@ -630,8 +621,8 @@ impl Ui {
         child_ui.set_layout(layout); // HACK: need a separate call right now
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
-        let interact = self.reserve_space(size, None);
-        (ret, interact)
+        let rect = self.allocate_space(size);
+        (ret, rect)
     }
 
     /// Temporarily split split an Ui into several columns.
@@ -678,7 +669,7 @@ impl Ui {
         }
 
         let size = vec2(self.available().width().max(sum_width), max_height);
-        self.reserve_space(size, None);
+        self.allocate_space(size);
         result
     }
 

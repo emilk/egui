@@ -209,7 +209,7 @@ impl Resize {
                 position + state.size + self.handle_offset - corner_size,
                 corner_size,
             );
-            let corner_interact = ui.interact_rect(corner_rect, id.with("corner"));
+            let corner_interact = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
             if corner_interact.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
@@ -304,7 +304,7 @@ impl Resize {
         // state.size = state.size.clamp(self.min_size..=self.max_size);
         state.size = state.size.round(); // TODO: round to pixels
 
-        ui.reserve_space(state.size, None);
+        ui.allocate_space(state.size);
 
         // ------------------------------
 

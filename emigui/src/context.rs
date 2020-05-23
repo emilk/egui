@@ -148,16 +148,19 @@ impl Context {
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         if !self.input.mouse.down || self.input.mouse.pos.is_none() {
+            // mouse was not down last frame
             self.memory().active_id = None;
 
             let window_interaction = self.memory().window_interaction.take();
             if let Some(window_interaction) = window_interaction {
-                let area_layer = window_interaction.area_layer;
-                let area_state = self.memory().areas.get(area_layer.id).clone();
-                if let Some(mut area_state) = area_state {
+                if !window_interaction.is_resize() {
                     // Throw windows because it is fun:
-                    area_state.vel = self.input().mouse.velocity;
-                    self.memory().areas.set_state(area_layer, area_state);
+                    let area_layer = window_interaction.area_layer;
+                    let area_state = self.memory().areas.get(area_layer.id).clone();
+                    if let Some(mut area_state) = area_state {
+                        area_state.vel = self.input().mouse.velocity;
+                        self.memory().areas.set_state(area_layer, area_state);
+                    }
                 }
             }
         }
@@ -287,15 +290,38 @@ impl Context {
         clip_rect: Rect,
         rect: Rect,
         interaction_id: Option<Id>,
+        sense: Sense,
     ) -> InteractInfo {
         let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
         let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
 
+        if interaction_id.is_none() || sense == Sense::nothing() {
+            // Not interested in input:
+            return InteractInfo {
+                rect,
+                hovered,
+                clicked: false,
+                active: false,
+            };
+        }
+        let interaction_id = interaction_id.unwrap();
+
         let mut memory = self.memory();
-        let active = interaction_id.is_some() && memory.active_id == interaction_id;
+        let active = memory.active_id == Some(interaction_id);
+
+        if active && !sense.drag && !self.input().mouse.could_be_click {
+            // Aborted click
+            memory.active_id = None;
+            return InteractInfo {
+                rect,
+                hovered: false,
+                clicked: false,
+                active: false,
+            };
+        }
 
         if self.input.mouse.pressed {
-            if hovered && interaction_id.is_some() {
+            if hovered {
                 if memory.active_id.is_some() {
                     // Already clicked something else this frame
                     InteractInfo {
@@ -305,7 +331,8 @@ impl Context {
                         active: false,
                     }
                 } else {
-                    memory.active_id = interaction_id;
+                    // start of a click or drag
+                    memory.active_id = Some(interaction_id);
                     InteractInfo {
                         rect,
                         hovered,
@@ -314,6 +341,7 @@ impl Context {
                     }
                 }
             } else {
+                // miss
                 InteractInfo {
                     rect,
                     hovered,
@@ -325,7 +353,7 @@ impl Context {
             InteractInfo {
                 rect,
                 hovered,
-                clicked: hovered && active && self.input().mouse.could_be_click,
+                clicked: hovered && active,
                 active,
             }
         } else if self.input.mouse.down {

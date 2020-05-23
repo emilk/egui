@@ -71,7 +71,8 @@ impl<'t> Widget for TextEdit<'t> {
             font.layout_single_line(text.clone())
         };
         let desired_size = galley.size.max(vec2(available_width, line_spacing));
-        let interact = ui.reserve_space(desired_size, Some(id));
+        let rect = ui.allocate_space(desired_size);
+        let interact = ui.interact(rect, id, Sense::click_and_drag()); // TODO: implement drag-select
 
         if interact.clicked {
             ui.request_kb_focus(id);

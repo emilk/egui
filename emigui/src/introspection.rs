@@ -17,8 +17,7 @@ impl Texture {
         if size.x > ui.available().width() {
             size *= ui.available().width() / size.x;
         }
-        let interact = ui.reserve_space(size, None);
-        let rect = interact.rect;
+        let rect = ui.allocate_space(size);
         let top_left = Vertex {
             pos: rect.min,
             uv: (0, 0),
@@ -33,10 +32,10 @@ impl Texture {
         triangles.add_rect(top_left, bottom_right);
         ui.add_paint_cmd(PaintCmd::Triangles(triangles));
 
-        if interact.hovered {
+        if ui.hovered(rect) {
             show_tooltip(ui.ctx(), |ui| {
                 let pos = ui.top_left();
-                let zoom_rect = ui.reserve_space(vec2(128.0, 128.0), None).rect;
+                let zoom_rect = ui.allocate_space(vec2(128.0, 128.0));
                 let u = remap_clamp(pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0).round();
                 let v = remap_clamp(pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0).round();
 

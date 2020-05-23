@@ -163,7 +163,8 @@ impl Prepared {
         } else {
             None
         };
-        let move_interact = ctx.interact(layer, clip_rect, rect, interact_id);
+        let move_interact =
+            ctx.interact(layer, clip_rect, rect, interact_id, Sense::click_and_drag());
 
         let input = ctx.input();
         if move_interact.active {

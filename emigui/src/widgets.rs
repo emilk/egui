@@ -108,9 +108,9 @@ macro_rules! label {
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
         let galley = self.layout(ui);
-        let interact = ui.reserve_space(galley.size, None);
-        self.paint_galley(ui, interact.rect.min, galley);
-        ui.response(interact)
+        let rect = ui.allocate_space(galley.size);
+        self.paint_galley(ui, rect.min, galley);
+        ui.response(ui.interact_hover(rect))
     }
 }
 
@@ -158,7 +158,8 @@ impl Widget for Hyperlink {
         let id = ui.make_child_id(&url);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
-        let interact = ui.reserve_space(galley.size, Some(id));
+        let rect = ui.allocate_space(galley.size);
+        let interact = ui.interact(rect, id, Sense::click());
         if interact.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
@@ -239,7 +240,8 @@ impl Widget for Button {
         let padding = ui.style().button_padding;
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
-        let interact = ui.reserve_space(size, Some(id));
+        let rect = ui.allocate_space(size);
+        let interact = ui.interact(rect, id, Sense::click());
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         let bg_fill_color = fill_color.or(ui.style().interact(&interact).bg_fill_color);
         ui.add_paint_cmd(PaintCmd::Rect {
@@ -291,13 +293,12 @@ impl<'a> Widget for Checkbox<'a> {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let galley = font.layout_single_line(text);
-        let interact = ui.reserve_space(
-            ui.style().button_padding
-                + vec2(ui.style().start_icon_width, 0.0)
-                + galley.size
-                + ui.style().button_padding,
-            Some(id),
-        );
+        let size = ui.style().button_padding
+            + vec2(ui.style().start_icon_width, 0.0)
+            + galley.size
+            + ui.style().button_padding;
+        let rect = ui.allocate_space(size);
+        let interact = ui.interact(rect, id, Sense::click());
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
         if interact.clicked {
@@ -370,13 +371,12 @@ impl Widget for RadioButton {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
-        let interact = ui.reserve_space(
-            ui.style().button_padding
-                + vec2(ui.style().start_icon_width, 0.0)
-                + galley.size
-                + ui.style().button_padding,
-            Some(id),
-        );
+        let size = ui.style().button_padding
+            + vec2(ui.style().start_icon_width, 0.0)
+            + galley.size
+            + ui.style().button_padding;
+        let rect = ui.allocate_space(size);
+        let interact = ui.interact(rect, id, Sense::click());
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
@@ -461,27 +461,25 @@ impl Widget for Separator {
 
         let available_space = ui.available_finite().size();
 
-        let (points, interact) = match ui.layout().dir() {
+        let (points, rect) = match ui.layout().dir() {
             Direction::Horizontal => {
-                let interact = ui.reserve_space(vec2(min_spacing, available_space.y), None);
-                let r = &interact.rect;
+                let rect = ui.allocate_space(vec2(min_spacing, available_space.y));
                 (
                     [
-                        pos2(r.center().x, r.top() - extra),
-                        pos2(r.center().x, r.bottom() + extra),
+                        pos2(rect.center().x, rect.top() - extra),
+                        pos2(rect.center().x, rect.bottom() + extra),
                     ],
-                    interact,
+                    rect,
                 )
             }
             Direction::Vertical => {
-                let interact = ui.reserve_space(vec2(available_space.x, min_spacing), None);
-                let r = &interact.rect;
+                let rect = ui.allocate_space(vec2(available_space.x, min_spacing));
                 (
                     [
-                        pos2(r.left() - extra, r.center().y),
-                        pos2(r.right() + extra, r.center().y),
+                        pos2(rect.left() - extra, rect.center().y),
+                        pos2(rect.right() + extra, rect.center().y),
                     ],
-                    interact,
+                    rect,
                 )
             }
         };
@@ -490,6 +488,6 @@ impl Widget for Separator {
             color: color,
             width: line_width,
         });
-        ui.response(interact)
+        ui.response(ui.interact_hover(rect))
     }
 }

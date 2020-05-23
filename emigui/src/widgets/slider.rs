@@ -117,7 +117,7 @@ impl<'a> Widget for Slider<'a> {
 
             if text_on_top {
                 let galley = font.layout_single_line(full_text);
-                let pos = ui.reserve_space(galley.size, None).rect.min;
+                let pos = ui.allocate_space(galley.size).min;
                 ui.add_galley(pos, galley, text_style, text_color);
                 slider_sans_text.ui(ui)
             } else {
@@ -140,13 +140,12 @@ impl<'a> Widget for Slider<'a> {
 
             let id = self.id.unwrap_or_else(|| ui.make_position_id());
 
-            let interact = ui.reserve_space(
-                Vec2 {
-                    x: ui.available().width(),
-                    y: height,
-                },
-                Some(id),
-            );
+            let size = Vec2 {
+                x: ui.available().width(),
+                y: height,
+            };
+            let rect = ui.allocate_space(size);
+            let interact = ui.interact(rect, id, Sense::click_and_drag());
 
             let left = interact.rect.left() + handle_radius;
             let right = interact.rect.right() - handle_radius;

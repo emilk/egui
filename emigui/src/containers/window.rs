@@ -529,10 +529,10 @@ fn show_title_bar(
 
         {
             // TODO: make clickable radius larger
-            ui.reserve_space(vec2(0.0, 0.0), None); // HACK: will add left spacing
+            ui.allocate_space(vec2(0.0, 0.0)); // HACK: will add left spacing
 
-            let collapse_button_interact =
-                ui.reserve_space(Vec2::splat(button_size), Some(collapsing_id));
+            let rect = ui.allocate_space(Vec2::splat(button_size));
+            let collapse_button_interact = ui.interact(rect, collapsing_id, Sense::click());
             if collapse_button_interact.clicked {
                 // TODO: also do this when double-clicking window title
                 collapsing.toggle(ui);
@@ -541,7 +541,7 @@ fn show_title_bar(
         }
 
         let title_galley = title_label.layout(ui);
-        let title_rect = ui.reserve_space(title_galley.size, None).rect;
+        let title_rect = ui.allocate_space(title_galley.size);
 
         if show_close_button {
             // Reserve space for close button which will be added later:
@@ -566,7 +566,7 @@ fn show_title_bar(
     });
 
     TitleBar {
-        rect: tb_interact.1.rect,
+        rect: tb_interact.1,
         ..tb_interact.0
     }
 }
@@ -577,8 +577,8 @@ impl TitleBar {
             .paint_galley(ui, self.title_rect.min, self.title_galley);
     }
 
-    pub fn close_button_ui(&self, ui: &mut Ui, content: &Option<InteractInfo>) -> InteractInfo {
-        let right = content.map(|c| c.rect.right()).unwrap_or(self.rect.right());
+    pub fn close_button_ui(&self, ui: &mut Ui, content: &Option<Rect>) -> InteractInfo {
+        let right = content.map(|c| c.right()).unwrap_or(self.rect.right());
 
         let button_size = ui.style().start_icon_width;
         let button_rect = Rect::from_min_size(
@@ -595,7 +595,7 @@ impl TitleBar {
 
 fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
     let close_id = ui.make_child_id("window_close_button");
-    let interact = ui.interact_rect(rect, close_id);
+    let interact = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_child(interact.rect);
 
     let stroke_color = ui.style().interact(&interact).stroke_color;

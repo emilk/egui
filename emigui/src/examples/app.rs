@@ -394,11 +394,7 @@ impl BoxPainting {
         ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
 
         let pos = ui
-            .reserve_space(
-                vec2(self.size.x * (self.num_boxes as f32), self.size.y),
-                None,
-            )
-            .rect
+            .allocate_space(vec2(self.size.x * (self.num_boxes as f32), self.size.y))
             .min;
 
         let mut cmds = vec![];
@@ -438,7 +434,8 @@ impl Painting {
     }
 
     fn content(&mut self, ui: &mut Ui) {
-        let interact = ui.reserve_space(ui.available_finite().size(), Some(ui.id()));
+        let rect = ui.allocate_space(ui.available_finite().size());
+        let interact = ui.interact(rect, ui.id(), Sense::drag());
         let rect = interact.rect;
         ui.set_clip_rect(ui.clip_rect().intersect(rect)); // Make sure we don't paint out of bounds
 

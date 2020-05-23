@@ -111,3 +111,44 @@ impl GuiResponse {
 }
 
 // ----------------------------------------------------------------------------
+
+/// What sort of interaction is a widget sensitive to?
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Sense {
+    /// buttons, sliders, windows ...
+    pub click: bool,
+
+    /// sliders, windows, scroll bars, scroll areas ...
+    pub drag: bool,
+}
+
+impl Sense {
+    pub fn nothing() -> Self {
+        Self {
+            click: false,
+            drag: false,
+        }
+    }
+
+    pub fn click() -> Self {
+        Self {
+            click: true,
+            drag: false,
+        }
+    }
+
+    pub fn drag() -> Self {
+        Self {
+            click: false,
+            drag: true,
+        }
+    }
+
+    /// e.g. a slider or window
+    pub fn click_and_drag() -> Self {
+        Self {
+            click: true,
+            drag: true,
+        }
+    }
+}
