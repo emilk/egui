@@ -147,28 +147,7 @@ impl Context {
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        if !self.input().mouse.could_be_click {
-            self.memory().interaction.click_id = None;
-        }
-
-        if !self.input.mouse.down || self.input.mouse.pos.is_none() {
-            // mouse was not down last frame
-            self.memory().interaction.click_id = None;
-            self.memory().interaction.drag_id = None;
-
-            let window_interaction = self.memory().window_interaction.take();
-            if let Some(window_interaction) = window_interaction {
-                if !window_interaction.is_resize() {
-                    // Throw windows because it is fun:
-                    let area_layer = window_interaction.area_layer;
-                    let area_state = self.memory().areas.get(area_layer.id).clone();
-                    if let Some(mut area_state) = area_state {
-                        area_state.vel = self.input().mouse.velocity;
-                        self.memory().areas.set_state(area_layer, area_state);
-                    }
-                }
-            }
-        }
+        self.memory().begin_frame(&self.input);
 
         self.used_ids.lock().clear();
 
@@ -307,6 +286,10 @@ impl Context {
         let interaction_id = interaction_id.unwrap();
 
         let mut memory = self.memory();
+
+        memory.interaction.click_interest |= hovered && sense.click;
+        memory.interaction.drag_interest |= hovered && sense.drag;
+
         let active = memory.interaction.click_id == Some(interaction_id)
             || memory.interaction.drag_id == Some(interaction_id);
 

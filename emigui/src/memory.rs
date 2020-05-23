@@ -43,6 +43,14 @@ pub struct Interaction {
 
     /// A widget interested in drags that has a mouse press on it.
     pub drag_id: Option<Id>,
+
+    /// Any interest in catching clicks this frame?
+    /// Cleared to false at start of each frame.
+    pub click_interest: bool,
+
+    /// Any interest in catching clicks this frame?
+    /// Cleared to false at start of each frame.
+    pub drag_interest: bool,
 }
 
 #[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
@@ -63,6 +71,34 @@ pub struct Areas {
 }
 
 impl Memory {
+    pub(crate) fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
+        self.interaction.click_interest = false;
+        self.interaction.drag_interest = false;
+
+        if !prev_input.mouse.could_be_click {
+            self.interaction.click_id = None;
+        }
+
+        if !prev_input.mouse.down || prev_input.mouse.pos.is_none() {
+            // mouse was not down last frame
+            self.interaction.click_id = None;
+            self.interaction.drag_id = None;
+
+            let window_interaction = self.window_interaction.take();
+            if let Some(window_interaction) = window_interaction {
+                if !window_interaction.is_resize() {
+                    // Throw windows because it is fun:
+                    let area_layer = window_interaction.area_layer;
+                    let area_state = self.areas.get(area_layer.id).clone();
+                    if let Some(mut area_state) = area_state {
+                        area_state.vel = prev_input.mouse.velocity;
+                        self.areas.set_state(area_layer, area_state);
+                    }
+                }
+            }
+        }
+    }
+
     pub(crate) fn end_frame(&mut self) {
         self.areas.end_frame()
     }

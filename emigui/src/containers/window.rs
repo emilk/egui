@@ -168,7 +168,6 @@ impl<'open> Window<'open> {
 
         let mut area = area.begin(ctx);
         {
-            // TODO: pick style for frame and title based on interaction
             let mut frame = frame.begin(&mut area.content_ui);
             {
                 let ui = &mut frame.content_ui;
@@ -211,6 +210,7 @@ impl<'open> Window<'open> {
                         *open = false;
                     }
                 }
+                // TODO: pick style for title based on move interaction
                 title_bar.title_ui(ui);
             }
 
@@ -400,6 +400,11 @@ fn resize_hover(
             if top_layer != area_layer && top_layer.order != Order::Background {
                 return None; // Another window is on top here
             }
+        }
+
+        if ctx.memory().interaction.drag_interest {
+            // Another widget will become active if we drag here
+            return None;
         }
 
         let side_interact_radius = 5.0; // TODO: from style

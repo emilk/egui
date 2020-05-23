@@ -181,10 +181,10 @@ impl Prepared {
 
             // intentionally use same id for inside and outside of handle
             let interact_id = id.with("vertical");
-            let handle_interact = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
+            let mut interact = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
 
             if let Some(mouse_pos) = ui.input().mouse.pos {
-                if handle_interact.active {
+                if interact.active {
                     if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
                             ui.input().mouse.delta.y * content_size.y / inner_rect.height();
@@ -199,6 +199,8 @@ impl Prepared {
                         let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
                         state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
                     }
+
+                    interact = interact.union(scroll_bg_interact);
                 }
             }
 
@@ -212,8 +214,8 @@ impl Prepared {
             );
 
             let style = ui.style();
-            let handle_fill_color = style.interact(&handle_interact).fill_color;
-            let handle_outline = style.interact(&handle_interact).rect_outline;
+            let handle_fill_color = style.interact(&interact).fill_color;
+            let handle_outline = style.interact(&interact).rect_outline;
 
             ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
