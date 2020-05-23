@@ -81,6 +81,9 @@ pub struct MouseInput {
     /// None for touch screens when finger is not down.
     pub pos: Option<Pos2>,
 
+    /// Where did the current click/drag originate?
+    pub press_origin: Option<Pos2>,
+
     /// How much the mouse moved compared to last frame, in points.
     pub delta: Vec2,
 
@@ -99,6 +102,7 @@ impl Default for MouseInput {
             pressed: false,
             released: false,
             pos: None,
+            press_origin: None,
             delta: Vec2::zero(),
             velocity: Vec2::zero(),
             pos_tracker: MovementTracker::new(1000, 0.1),
@@ -172,6 +176,13 @@ impl MouseInput {
             .unwrap_or_default();
         let pressed = !self.down && new.mouse_down;
 
+        let mut press_origin = self.press_origin;
+        if pressed {
+            press_origin = new.mouse_pos;
+        } else if !self.down || self.pos.is_none() {
+            press_origin = None;
+        }
+
         if let Some(mouse_pos) = new.mouse_pos {
             self.pos_tracker.add(new.time, mouse_pos);
         } else {
@@ -187,6 +198,7 @@ impl MouseInput {
             pressed,
             released: self.down && !new.mouse_down,
             pos: new.mouse_pos,
+            press_origin,
             delta,
             velocity,
             pos_tracker: self.pos_tracker,
@@ -253,6 +265,7 @@ impl MouseInput {
         ui.add(label!("pressed: {}", self.pressed));
         ui.add(label!("released: {}", self.released));
         ui.add(label!("pos: {:?}", self.pos));
+        ui.add(label!("press_origin: {:?}", self.press_origin));
         ui.add(label!("delta: {:?}", self.delta));
         ui.add(label!(
             "velocity: [{:3.0} {:3.0}] points/sec",

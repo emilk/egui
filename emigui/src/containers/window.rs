@@ -267,7 +267,6 @@ struct PossibleInteractions {
 pub(crate) struct WindowInteraction {
     pub(crate) area_layer: Layer,
     pub(crate) start_rect: Rect,
-    pub(crate) start_mouse_pos: Pos2,
     pub(crate) left: bool,
     pub(crate) right: bool,
     pub(crate) top: bool,
@@ -345,7 +344,7 @@ fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Optio
         }
     } else {
         // movevement
-        rect = rect.translate(mouse_pos - window_interaction.start_mouse_pos);
+        rect = rect.translate(mouse_pos - ctx.input().mouse.press_origin?);
     }
 
     return Some(rect);
@@ -444,7 +443,6 @@ fn resize_hover(
                 Some(WindowInteraction {
                     area_layer,
                     start_rect: rect,
-                    start_mouse_pos: mouse_pos,
                     left,
                     right,
                     top,
