@@ -5,7 +5,7 @@ use {
     super::{
         color::{self, srgba, Color},
         fonts::Fonts,
-        Outline, PaintCmd,
+        LineStyle, PaintCmd,
     },
     crate::math::*,
 };
@@ -693,7 +693,7 @@ pub fn paint_commands_into_triangles(
                     rect: *clip_rect,
                     corner_radius: 0.0,
                     fill_color: None,
-                    outline: Some(Outline::new(2.0, srgba(150, 255, 150, 255))),
+                    outline: Some(LineStyle::new(2.0, srgba(150, 255, 150, 255))),
                 },
                 triangles,
             )

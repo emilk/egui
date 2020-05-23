@@ -1,6 +1,6 @@
 use crate::{
     layout::Direction,
-    paint::{Outline, PaintCmd, Path, TextStyle},
+    paint::{LineStyle, PaintCmd, Path, TextStyle},
     widgets::Label,
     *,
 };
@@ -87,7 +87,7 @@ impl State {
             path: Path::from_point_loop(&points),
             closed: true,
             fill_color: None,
-            outline: Some(Outline::new(stroke_width, stroke_color)),
+            outline: Some(LineStyle::new(stroke_width, stroke_color)),
         });
     }
 

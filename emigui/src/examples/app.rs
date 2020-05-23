@@ -406,7 +406,7 @@ impl BoxPainting {
                     pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                     self.size,
                 ),
-                outline: Some(Outline::new(self.stroke_width, gray(255, 255))),
+                outline: Some(LineStyle::new(self.stroke_width, gray(255, 255))),
             });
         }
         ui.add_paint_cmds(cmds);

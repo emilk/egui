@@ -2,7 +2,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{color::*, math::*, paint::Outline, types::*};
+use crate::{color::*, math::*, paint::LineStyle, types::*};
 
 // TODO: split into Spacing and Style?
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -36,7 +36,7 @@ pub struct Style {
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 
-    pub thin_outline: Outline,
+    pub thin_outline: LineStyle,
 
     /// e.g. the background of windows
     pub background_fill_color: Color,
@@ -75,7 +75,7 @@ impl Default for Style {
             interact: Default::default(),
             text_color: gray(160, 255),
             line_width: 1.0,
-            thin_outline: Outline::new(0.5, GRAY),
+            thin_outline: LineStyle::new(0.5, GRAY),
             background_fill_color: gray(32, 250),
             dark_bg_color: gray(0, 140),
             cursor_blink_hz: 1.0,
@@ -104,7 +104,7 @@ impl Default for Interact {
                 fill_color: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
-                rect_outline: Some(Outline::new(2.0, WHITE)),
+                rect_outline: Some(LineStyle::new(2.0, WHITE)),
                 corner_radius: 5.0,
             },
             hovered: WidgetStyle {
@@ -112,7 +112,7 @@ impl Default for Interact {
                 fill_color: srgba(100, 100, 150, 255),
                 stroke_color: gray(240, 255),
                 stroke_width: 1.5,
-                rect_outline: Some(Outline::new(1.0, WHITE)),
+                rect_outline: Some(LineStyle::new(1.0, WHITE)),
                 corner_radius: 5.0,
             },
             inactive: WidgetStyle {
@@ -120,7 +120,7 @@ impl Default for Interact {
                 fill_color: srgba(60, 60, 80, 255),
                 stroke_color: gray(210, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
-                rect_outline: Some(Outline::new(1.0, white(128))),
+                rect_outline: Some(LineStyle::new(1.0, white(128))),
                 corner_radius: 0.0,
             },
         }
@@ -156,7 +156,7 @@ pub struct WidgetStyle {
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
-    pub rect_outline: Option<Outline>,
+    pub rect_outline: Option<LineStyle>,
 
     /// Button frames etdc
     pub corner_radius: f32,

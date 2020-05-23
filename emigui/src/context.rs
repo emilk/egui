@@ -363,7 +363,7 @@ impl Context {
             PaintCmd::Rect {
                 corner_radius: 0.0,
                 fill_color: Some(color::gray(0, 240)),
-                outline: Some(Outline::new(1.0, color::RED)),
+                outline: Some(LineStyle::new(1.0, color::RED)),
                 rect: rect.expand(2.0),
             },
         );
@@ -392,7 +392,7 @@ impl Context {
             PaintCmd::Rect {
                 corner_radius: 0.0,
                 fill_color: None,
-                outline: Some(Outline::new(1.0, color::RED)),
+                outline: Some(LineStyle::new(1.0, color::RED)),
                 rect,
             },
         );

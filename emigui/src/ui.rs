@@ -358,7 +358,7 @@ impl Ui {
             self.add_paint_cmd(PaintCmd::Rect {
                 rect,
                 corner_radius: 0.0,
-                outline: Some(Outline::new(1.0, LIGHT_BLUE)),
+                outline: Some(LineStyle::new(1.0, LIGHT_BLUE)),
                 fill_color: None,
             });
 
@@ -442,7 +442,7 @@ impl Ui {
         self.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 0.0,
             fill_color: None,
-            outline: Some(Outline::new(1.0, color::RED)),
+            outline: Some(LineStyle::new(1.0, color::RED)),
             rect,
         });
         let align = (Align::Min, Align::Min);

@@ -11,7 +11,7 @@ pub enum PaintCmd {
     Circle {
         center: Pos2,
         fill_color: Option<Color>,
-        outline: Option<Outline>,
+        outline: Option<LineStyle>,
         radius: f32,
     },
     LineSegment {
@@ -29,15 +29,14 @@ pub enum PaintCmd {
         path: Path,
         closed: bool,
         fill_color: Option<Color>,
-        outline: Option<Outline>,
+        outline: Option<LineStyle>,
     },
     Rect {
         rect: Rect,
         corner_radius: f32,
         fill_color: Option<Color>,
-        outline: Option<Outline>,
+        outline: Option<LineStyle>,
     },
-    /// Paint a single line of text
     Text {
         /// Top left corner of the first character.
         pos: Pos2,
@@ -59,13 +58,14 @@ impl PaintCmd {
     }
 }
 
+// TODO: rename LineStyle
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub struct Outline {
+pub struct LineStyle {
     pub width: f32,
     pub color: Color,
 }
 
-impl Outline {
+impl LineStyle {
     pub fn new(width: impl Into<f32>, color: impl Into<Color>) -> Self {
         Self {
             width: width.into(),
