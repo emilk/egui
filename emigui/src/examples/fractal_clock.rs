@@ -39,7 +39,7 @@ impl FractalClock {
             .default_rect(ctx.rect().expand(-40.0))
             .scroll(false)
             // Dark background frame to make it pop:
-            .frame(Frame::window(&ctx.style()).fill_color(Some(color::black(250))))
+            .frame(Frame::window(&ctx.style()).fill(Some(color::black(250))))
             .show(ctx, |ui| self.ui(ui));
     }
 
@@ -54,7 +54,7 @@ impl FractalClock {
         self.fractal_ui(ui);
 
         let frame = Frame::popup(ui.style())
-            .fill_color(Some(color::gray(34, 160)))
+            .fill(Some(color::gray(34, 160)))
             .outline(None);
 
         frame.show(&mut ui.left_column(320.0), |ui| {

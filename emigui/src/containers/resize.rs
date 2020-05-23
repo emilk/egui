@@ -314,7 +314,7 @@ impl Resize {
             ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect,
                 corner_radius: 3.0,
-                fill_color: None,
+                fill: None,
                 outline: Some(ui.style().thin_outline),
             });
         }

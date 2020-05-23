@@ -10,7 +10,7 @@ use serde_derive::{Deserialize, Serialize};
 pub enum PaintCmd {
     Circle {
         center: Pos2,
-        fill_color: Option<Color>,
+        fill: Option<Color>,
         outline: Option<LineStyle>,
         radius: f32,
     },
@@ -22,13 +22,13 @@ pub enum PaintCmd {
     Path {
         path: Path,
         closed: bool,
-        fill_color: Option<Color>,
+        fill: Option<Color>,
         outline: Option<LineStyle>,
     },
     Rect {
         rect: Rect,
         corner_radius: f32,
-        fill_color: Option<Color>,
+        fill: Option<Color>,
         outline: Option<LineStyle>,
     },
     Text {

@@ -196,7 +196,7 @@ pub struct Button {
     text_color: Option<Color>,
     text_style: TextStyle,
     /// None means default for interact
-    fill_color: Option<Color>,
+    fill: Option<Color>,
 }
 
 impl Button {
@@ -205,7 +205,7 @@ impl Button {
             text: text.into(),
             text_color: None,
             text_style: TextStyle::Button,
-            fill_color: None,
+            fill: None,
         }
     }
 
@@ -219,8 +219,8 @@ impl Button {
         self
     }
 
-    pub fn fill_color(mut self, fill_color: Option<Color>) -> Self {
-        self.fill_color = fill_color;
+    pub fn fill(mut self, fill: Option<Color>) -> Self {
+        self.fill = fill;
         self
     }
 }
@@ -231,7 +231,7 @@ impl Widget for Button {
             text,
             text_color,
             text_style,
-            fill_color,
+            fill,
         } = self;
 
         let id = ui.make_position_id();
@@ -243,10 +243,10 @@ impl Widget for Button {
         let rect = ui.allocate_space(size);
         let interact = ui.interact(rect, id, Sense::click());
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
-        let bg_fill_color = fill_color.or(ui.style().interact(&interact).bg_fill_color);
+        let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
-            fill_color: bg_fill_color,
+            fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
             rect: interact.rect,
         });
@@ -307,7 +307,7 @@ impl<'a> Widget for Checkbox<'a> {
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
         ui.add_paint_cmd(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
-            fill_color: ui.style().interact(&interact).bg_fill_color,
+            fill: ui.style().interact(&interact).bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
             rect: big_icon_rect,
         });
@@ -323,7 +323,7 @@ impl<'a> Widget for Checkbox<'a> {
                 ]),
                 closed: false,
                 outline: Some(LineStyle::new(ui.style().line_width, stroke_color)),
-                fill_color: None,
+                fill: None,
             });
         }
 
@@ -381,14 +381,14 @@ impl Widget for RadioButton {
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
-        let bg_fill_color = ui.style().interact(&interact).bg_fill_color;
+        let bg_fill = ui.style().interact(&interact).bg_fill;
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
 
         ui.add_paint_cmd(PaintCmd::Circle {
             center: big_icon_rect.center(),
-            fill_color: bg_fill_color,
+            fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline, // TODO
             radius: big_icon_rect.width() / 2.0,
         });
@@ -396,7 +396,7 @@ impl Widget for RadioButton {
         if checked {
             ui.add_paint_cmd(PaintCmd::Circle {
                 center: small_icon_rect.center(),
-                fill_color: Some(stroke_color),
+                fill: Some(stroke_color),
                 outline: None,
                 radius: small_icon_rect.width() / 3.0,
             });

@@ -401,7 +401,7 @@ impl BoxPainting {
         for i in 0..self.num_boxes {
             cmds.push(PaintCmd::Rect {
                 corner_radius: self.corner_radius,
-                fill_color: Some(gray(136, 255)),
+                fill: Some(gray(136, 255)),
                 rect: Rect::from_min_size(
                     pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                     self.size,
@@ -463,7 +463,7 @@ impl Painting {
                     path: Path::from_open_points(&points),
                     closed: false,
                     outline: Some(LineStyle::new(2.0, LIGHT_GRAY)),
-                    fill_color: None,
+                    fill: None,
                 });
             }
         }

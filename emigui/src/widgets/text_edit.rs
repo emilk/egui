@@ -122,7 +122,7 @@ impl<'t> Widget for TextEdit<'t> {
             ui.add_paint_cmd(PaintCmd::Rect {
                 rect: bg_rect,
                 corner_radius: ui.style().interact.style(&interact).corner_radius,
-                fill_color: Some(ui.style().dark_bg_color),
+                fill: Some(ui.style().dark_bg_color),
                 outline: ui.style().interact.style(&interact).rect_outline,
             });
         }

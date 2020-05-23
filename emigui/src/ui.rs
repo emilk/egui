@@ -359,7 +359,7 @@ impl Ui {
                 rect,
                 corner_radius: 0.0,
                 outline: Some(LineStyle::new(1.0, LIGHT_BLUE)),
-                fill_color: None,
+                fill: None,
             });
 
             let color = color::srgba(200, 0, 0, 255);
@@ -441,7 +441,7 @@ impl Ui {
     pub fn debug_rect(&mut self, rect: Rect, text: impl Into<String>) {
         self.add_paint_cmd(PaintCmd::Rect {
             corner_radius: 0.0,
-            fill_color: None,
+            fill: None,
             outline: Some(LineStyle::new(1.0, color::RED)),
             rect,
         });

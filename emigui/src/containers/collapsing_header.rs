@@ -86,7 +86,7 @@ impl State {
         ui.add_paint_cmd(PaintCmd::Path {
             path: Path::from_point_loop(&points),
             closed: true,
-            fill_color: None,
+            fill: None,
             outline: Some(LineStyle::new(stroke_width, stroke_color)),
         });
     }
@@ -230,7 +230,7 @@ impl CollapsingHeader {
             where_to_put_background,
             PaintCmd::Rect {
                 corner_radius: ui.style().interact(&interact).corner_radius,
-                fill_color: ui.style().interact(&interact).bg_fill_color,
+                fill: ui.style().interact(&interact).bg_fill,
                 outline: None,
                 rect: interact.rect,
             },

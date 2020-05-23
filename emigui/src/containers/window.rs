@@ -63,7 +63,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Usage: `Winmdow::new(...).frame(|f| f.fill_color(Some(BLUE)))`
+    /// Usage: `Winmdow::new(...).frame(|f| f.fill(Some(BLUE)))`
     /// Not sure this is a good interface for this.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
@@ -505,7 +505,7 @@ fn paint_frame_interaction(
     ui.add_paint_cmd(PaintCmd::Path {
         path,
         closed: false,
-        fill_color: None,
+        fill: None,
         outline: style.rect_outline,
     });
 }

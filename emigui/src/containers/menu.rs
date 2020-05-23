@@ -25,11 +25,11 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();
             style.button_padding = vec2(2.0, 0.0);
-            // style.interact.active.bg_fill_color = None;
+            // style.interact.active.bg_fill = None;
             style.interact.active.rect_outline = None;
-            // style.interact.hovered.bg_fill_color = None;
+            // style.interact.hovered.bg_fill = None;
             style.interact.hovered.rect_outline = None;
-            style.interact.inactive.bg_fill_color = None;
+            style.interact.inactive.bg_fill = None;
             style.interact.inactive.rect_outline = None;
             ui.set_style(style);
 
@@ -66,7 +66,7 @@ fn menu_impl<'c>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill_color(Some(ui.style().interact.active.fill_color));
+        button = button.fill(Some(ui.style().interact.active.fill));
     }
 
     let button_interact = ui.add(button);
@@ -86,11 +86,11 @@ fn menu_impl<'c>(
                 resize.show(ui, |ui| {
                     let mut style = ui.style().clone();
                     style.button_padding = vec2(2.0, 0.0);
-                    // style.interact.active.bg_fill_color = None;
+                    // style.interact.active.bg_fill = None;
                     style.interact.active.rect_outline = None;
-                    // style.interact.hovered.bg_fill_color = None;
+                    // style.interact.hovered.bg_fill = None;
                     style.interact.hovered.rect_outline = None;
-                    style.interact.inactive.bg_fill_color = None;
+                    style.interact.inactive.bg_fill = None;
                     style.interact.inactive.rect_outline = None;
                     ui.set_style(style);
                     ui.set_layout(Layout::justified(Direction::Vertical));

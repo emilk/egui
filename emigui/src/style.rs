@@ -39,7 +39,7 @@ pub struct Style {
     pub thin_outline: LineStyle,
 
     /// e.g. the background of windows
-    pub background_fill_color: Color,
+    pub background_fill: Color,
 
     /// e.g. the background of the slider or text edit
     pub dark_bg_color: Color,
@@ -76,7 +76,7 @@ impl Default for Style {
             text_color: gray(160, 255),
             line_width: 1.0,
             thin_outline: LineStyle::new(0.5, GRAY),
-            background_fill_color: gray(32, 250),
+            background_fill: gray(32, 250),
             dark_bg_color: gray(0, 140),
             cursor_blink_hz: 1.0,
             text_cursor_width: 2.0,
@@ -100,24 +100,24 @@ impl Default for Interact {
     fn default() -> Self {
         Self {
             active: WidgetStyle {
-                bg_fill_color: Some(gray(0, 128)),
-                fill_color: srgba(120, 120, 200, 255),
+                bg_fill: Some(gray(0, 128)),
+                fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
                 rect_outline: Some(LineStyle::new(2.0, WHITE)),
                 corner_radius: 5.0,
             },
             hovered: WidgetStyle {
-                bg_fill_color: None,
-                fill_color: srgba(100, 100, 150, 255),
+                bg_fill: None,
+                fill: srgba(100, 100, 150, 255),
                 stroke_color: gray(240, 255),
                 stroke_width: 1.5,
                 rect_outline: Some(LineStyle::new(1.0, WHITE)),
                 corner_radius: 5.0,
             },
             inactive: WidgetStyle {
-                bg_fill_color: None,
-                fill_color: srgba(60, 60, 80, 255),
+                bg_fill: None,
+                fill: srgba(60, 60, 80, 255),
                 stroke_color: gray(210, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
                 rect_outline: Some(LineStyle::new(1.0, white(128))),
@@ -142,11 +142,11 @@ impl Interact {
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct WidgetStyle {
     /// Background color of widget
-    pub bg_fill_color: Option<Color>,
+    pub bg_fill: Option<Color>,
 
     /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
-    /// When you need a fill_color.
-    pub fill_color: Color,
+    /// When you need a fill.
+    pub fill: Color,
 
     /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
     pub stroke_color: Color,

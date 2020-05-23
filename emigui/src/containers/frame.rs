@@ -7,7 +7,7 @@ pub struct Frame {
     // On each side
     pub margin: Vec2,
     pub corner_radius: f32,
-    pub fill_color: Option<Color>,
+    pub fill: Option<Color>,
     pub outline: Option<LineStyle>,
 }
 
@@ -16,7 +16,7 @@ impl Frame {
         Self {
             margin: style.window_padding,
             corner_radius: style.window.corner_radius,
-            fill_color: Some(style.background_fill_color),
+            fill: Some(style.background_fill),
             outline: style.interact.inactive.rect_outline, // becauce we can resize windows
         }
     }
@@ -25,7 +25,7 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 0.0,
-            fill_color: None,
+            fill: None,
             outline: Some(LineStyle::new(0.5, color::white(128))),
         }
     }
@@ -34,7 +34,7 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
-            fill_color: Some(style.background_fill_color),
+            fill: Some(style.background_fill),
             outline: Some(LineStyle::new(1.0, color::white(128))),
         }
     }
@@ -43,13 +43,13 @@ impl Frame {
         Self {
             margin: style.window_padding,
             corner_radius: 5.0,
-            fill_color: Some(style.background_fill_color),
+            fill: Some(style.background_fill),
             outline: Some(LineStyle::new(1.0, color::white(128))),
         }
     }
 
-    pub fn fill_color(mut self, fill_color: Option<Color>) -> Self {
-        self.fill_color = fill_color;
+    pub fn fill(mut self, fill: Option<Color>) -> Self {
+        self.fill = fill;
         self
     }
 
@@ -109,7 +109,7 @@ impl Prepared {
             where_to_put_background,
             PaintCmd::Rect {
                 corner_radius: frame.corner_radius,
-                fill_color: frame.fill_color,
+                fill: frame.fill,
                 outline: frame.outline,
                 rect: outer_rect,
             },

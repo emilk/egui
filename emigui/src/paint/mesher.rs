@@ -554,13 +554,13 @@ pub fn paint_command_into_triangles(
     match command {
         PaintCmd::Circle {
             center,
-            fill_color,
+            fill,
             outline,
             radius,
         } => {
             path.add_circle(center, radius);
-            if let Some(color) = fill_color {
-                fill_closed_path(out, options, &path.0, color);
+            if let Some(fill) = fill {
+                fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
                 paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
@@ -580,16 +580,16 @@ pub fn paint_command_into_triangles(
         PaintCmd::Path {
             path,
             closed,
-            fill_color,
+            fill,
             outline,
         } => {
             if path.len() >= 2 {
-                if let Some(fill_color) = fill_color {
+                if let Some(fill) = fill {
                     debug_assert!(
                         closed,
                         "You asked to fill a path that is not closed. That makes no sense."
                     );
-                    fill_closed_path(out, options, &path.0, fill_color);
+                    fill_closed_path(out, options, &path.0, fill);
                 }
                 if let Some(outline) = outline {
                     let typ = if closed { Closed } else { Open };
@@ -599,7 +599,7 @@ pub fn paint_command_into_triangles(
         }
         PaintCmd::Rect {
             corner_radius,
-            fill_color,
+            fill,
             outline,
             mut rect,
         } => {
@@ -609,8 +609,8 @@ pub fn paint_command_into_triangles(
             rect.max = rect.max.min(pos2(1e7, 1e7));
 
             path.add_rounded_rectangle(rect, corner_radius);
-            if let Some(fill_color) = fill_color {
-                fill_closed_path(out, options, &path.0, fill_color);
+            if let Some(fill) = fill {
+                fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
                 paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
@@ -686,7 +686,7 @@ pub fn paint_commands_into_triangles(
                 PaintCmd::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,
-                    fill_color: None,
+                    fill: None,
                     outline: Some(LineStyle::new(2.0, srgba(150, 255, 150, 255))),
                 },
                 triangles,
