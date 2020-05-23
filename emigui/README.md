@@ -77,7 +77,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
     * e.g. `ui.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
 
 ### Input
-* [ ] Distinguish between clicks and drags
+* [x] Distinguish between clicks and drags
 * [ ] Double-click
 * [x] Text
 

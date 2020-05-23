@@ -154,7 +154,7 @@ impl Prepared {
         }
 
         // TODO: check that nothing else is being inteacted with
-        if ui.contains_mouse(outer_rect) && ui.memory().active_id.is_none() {
+        if ui.contains_mouse(outer_rect) {
             state.offset.y -= ui.input().scroll_delta.y;
         }
 

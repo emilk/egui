@@ -9,9 +9,8 @@ use crate::{
 #[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
 #[serde(default)]
 pub struct Memory {
-    /// The widget being interacted with (e.g. dragged, in case of a slider).
     #[serde(skip)]
-    pub(crate) active_id: Option<Id>,
+    pub(crate) interaction: Interaction,
 
     /// The widget with keyboard focus (i.e. a text input field).
     #[serde(skip)]
@@ -28,6 +27,22 @@ pub struct Memory {
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     pub(crate) areas: Areas,
+}
+
+/// Say there is a butotn in a scroll area.
+/// If the user clicks the button, the button should click.
+/// If the user drags the button we should scroll the scroll area.
+/// So what we do is that when the mouse is pressed we register both the button
+/// and the scroll area (as `click_id`/`drag_id`).
+/// If the user releases the button without moving the mouse we register it as a click on `click_id`.
+/// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
+#[derive(Clone, Debug, Default)]
+pub struct Interaction {
+    /// A widget interested in clicks that has a mouse press on it.
+    pub click_id: Option<Id>,
+
+    /// A widget interested in drags that has a mouse press on it.
+    pub drag_id: Option<Id>,
 }
 
 #[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]

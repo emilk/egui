@@ -147,9 +147,14 @@ impl Context {
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+        if !self.input().mouse.could_be_click {
+            self.memory().interaction.click_id = None;
+        }
+
         if !self.input.mouse.down || self.input.mouse.pos.is_none() {
             // mouse was not down last frame
-            self.memory().active_id = None;
+            self.memory().interaction.click_id = None;
+            self.memory().interaction.drag_id = None;
 
             let window_interaction = self.memory().window_interaction.take();
             if let Some(window_interaction) = window_interaction {
@@ -234,11 +239,6 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Is the user interacting with anything?
-    pub fn any_active(&self) -> bool {
-        self.memory().active_id.is_some()
-    }
-
     /// Generate a id from the given source.
     /// If it is not unique, an error will be printed at the given position.
     pub fn make_unique_id<IdSource>(&self, source: IdSource, pos: Pos2) -> Id
@@ -307,39 +307,31 @@ impl Context {
         let interaction_id = interaction_id.unwrap();
 
         let mut memory = self.memory();
-        let active = memory.active_id == Some(interaction_id);
-
-        if active && !sense.drag && !self.input().mouse.could_be_click {
-            // Aborted click
-            memory.active_id = None;
-            return InteractInfo {
-                rect,
-                hovered: false,
-                clicked: false,
-                active: false,
-            };
-        }
+        let active = memory.interaction.click_id == Some(interaction_id)
+            || memory.interaction.drag_id == Some(interaction_id);
 
         if self.input.mouse.pressed {
             if hovered {
-                if memory.active_id.is_some() {
-                    // Already clicked something else this frame
-                    InteractInfo {
-                        rect,
-                        hovered,
-                        clicked: false,
-                        active: false,
-                    }
-                } else {
-                    // start of a click or drag
-                    memory.active_id = Some(interaction_id);
-                    InteractInfo {
-                        rect,
-                        hovered,
-                        clicked: false,
-                        active: true,
-                    }
+                let mut info = InteractInfo {
+                    rect,
+                    hovered: true,
+                    clicked: false,
+                    active: false,
+                };
+
+                if sense.click && !memory.interaction.click_id.is_some() {
+                    // start of a click
+                    memory.interaction.click_id = Some(interaction_id);
+                    info.active = true;
                 }
+
+                if sense.drag && !memory.interaction.drag_id.is_some() {
+                    // start of a drag
+                    memory.interaction.drag_id = Some(interaction_id);
+                    info.active = true;
+                }
+
+                info
             } else {
                 // miss
                 InteractInfo {

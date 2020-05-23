@@ -358,9 +358,9 @@ fn window_interaction(
     rect: Rect,
 ) -> Option<WindowInteraction> {
     {
-        let active_id = ctx.memory().active_id;
+        let drag_id = ctx.memory().interaction.drag_id;
 
-        if active_id.is_some() && active_id != Some(id) {
+        if drag_id.is_some() && drag_id != Some(id) {
             return None;
         }
     }
@@ -371,7 +371,7 @@ fn window_interaction(
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().mouse.pressed {
-                ctx.memory().active_id = Some(id);
+                ctx.memory().interaction.drag_id = Some(id);
                 window_interaction = Some(hover_window_interaction);
                 ctx.memory().window_interaction = window_interaction;
             }
@@ -379,7 +379,7 @@ fn window_interaction(
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory().active_id == Some(id);
+        let is_active = ctx.memory().interaction.drag_id == Some(id);
 
         if is_active && window_interaction.area_layer == area_layer {
             return Some(window_interaction);
