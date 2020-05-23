@@ -104,8 +104,14 @@ where
     T: std::ops::Sub<Output = Vel>,
     Vel: std::ops::Div<f32, Output = Vel>,
 {
+    /// Calculate a smooth velocity (per second) from start until now
+    pub fn velocity_noew(&mut self, now: f64) -> Option<Vel> {
+        self.flush(now);
+        self.velocity_all()
+    }
+
     /// Calculate a smooth velocity (per second) over the entire time span
-    pub fn velocity(&self) -> Option<Vel> {
+    pub fn velocity_all(&self) -> Option<Vel> {
         if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
             let dt = (last.0 - first.0) as f32;
             if dt > 0.0 {

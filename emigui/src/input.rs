@@ -180,8 +180,7 @@ impl MouseInput {
             // the user tried to throw
         }
 
-        // TODO: pass current time as argument so we don't have a velocity after mouse up
-        let velocity = self.pos_tracker.velocity().unwrap_or_default();
+        let velocity = self.pos_tracker.velocity_noew(new.time).unwrap_or_default();
 
         MouseInput {
             down: new.mouse_down && new.mouse_pos.is_some(),
