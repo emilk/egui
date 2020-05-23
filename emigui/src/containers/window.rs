@@ -169,6 +169,9 @@ impl<'open> Window<'open> {
         let mut area = area.begin(ctx);
         {
             let mut frame = frame.begin(&mut area.content_ui);
+
+            let content_rect;
+            let title_bar;
             {
                 let ui = &mut frame.content_ui;
 
@@ -179,7 +182,7 @@ impl<'open> Window<'open> {
                     default_expanded,
                 );
                 let show_close_button = open.is_some();
-                let title_bar = show_title_bar(
+                title_bar = show_title_bar(
                     ui,
                     title_label,
                     show_close_button,
@@ -187,10 +190,12 @@ impl<'open> Window<'open> {
                     &mut collapsing,
                 );
 
-                let content = collapsing
+                content_rect = collapsing
                     .add_contents(ui, |ui| {
                         resize.show(ui, |ui| {
-                            ui.add(Separator::new().line_width(0.5)); // TODO: nicer way to split window title from contents
+                            // Add some spacing (item_spacing) between title and content:
+                            ui.allocate_space(Vec2::zero());
+
                             if let Some(scroll) = scroll {
                                 scroll.show(ui, add_contents)
                             } else {
@@ -203,18 +208,11 @@ impl<'open> Window<'open> {
                 ui.memory()
                     .collapsing_headers
                     .insert(collapsing_id, collapsing);
-
-                if let Some(open) = open {
-                    // Add close button now that we know our full width:
-                    if title_bar.close_button_ui(ui, &content).clicked {
-                        *open = false;
-                    }
-                }
-                // TODO: pick style for title based on move interaction
-                title_bar.title_ui(ui);
             }
 
             let outer_rect = frame.end(&mut area.content_ui);
+
+            title_bar.ui(&mut area.content_ui, outer_rect, content_rect, open);
 
             let interaction = if possible.movable || possible.resizable {
                 interact(
@@ -577,13 +575,42 @@ fn show_title_bar(
 }
 
 impl TitleBar {
-    pub fn title_ui(self, ui: &mut Ui) {
+    fn ui(
+        self,
+        ui: &mut Ui,
+        outer_rect: Rect,
+        content_rect: Option<Rect>,
+        open: Option<&mut bool>,
+    ) {
+        if let Some(open) = open {
+            // Add close button now that we know our full width:
+            if self.close_button_ui(ui, &content_rect).clicked {
+                *open = false;
+            }
+        }
+
+        // TODO: pick style for title based on move interaction
+        self.title_ui(ui);
+
+        if let Some(content_rect) = content_rect {
+            // paint separator between title and content:
+            let left = outer_rect.left();
+            let right = outer_rect.right();
+            let y = content_rect.top() + ui.style().item_spacing.y * 0.5;
+            ui.add_paint_cmd(PaintCmd::LineSegment {
+                points: [pos2(left, y), pos2(right, y)],
+                style: ui.style().interact.inactive.rect_outline.unwrap(),
+            });
+        }
+    }
+
+    fn title_ui(self, ui: &mut Ui) {
         self.title_label
             .paint_galley(ui, self.title_rect.min, self.title_galley);
     }
 
-    pub fn close_button_ui(&self, ui: &mut Ui, content: &Option<Rect>) -> InteractInfo {
-        let right = content.map(|c| c.right()).unwrap_or(self.rect.right());
+    fn close_button_ui(&self, ui: &mut Ui, content_rect: &Option<Rect>) -> InteractInfo {
+        let right = content_rect.map(|c| c.right()).unwrap_or(self.rect.right());
 
         let button_size = ui.style().start_icon_width;
         let button_rect = Rect::from_min_size(
