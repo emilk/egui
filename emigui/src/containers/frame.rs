@@ -17,7 +17,7 @@ impl Frame {
             margin: style.window_padding,
             corner_radius: style.window.corner_radius,
             fill_color: Some(style.background_fill_color),
-            outline: Some(Outline::new(1.0, color::WHITE)),
+            outline: style.interact.inactive.rect_outline, // becauce we can resize windows
         }
     }
 
@@ -59,30 +59,58 @@ impl Frame {
     }
 }
 
+pub struct Prepared {
+    pub frame: Frame,
+    outer_rect_bounds: Rect,
+    where_to_put_background: usize,
+    pub content_ui: Ui,
+}
+
 impl Frame {
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        let Frame {
-            margin,
-            corner_radius,
-            fill_color,
-            outline,
-        } = self;
-
-        let outer_rect = ui.available();
-        let inner_rect = outer_rect.shrink2(margin);
+    pub fn begin(self, ui: &mut Ui) -> Prepared {
+        let outer_rect_bounds = ui.available();
+        let inner_rect = outer_rect_bounds.shrink2(self.margin);
         let where_to_put_background = ui.paint_list_len();
+        let content_ui = ui.child_ui(inner_rect);
+        Prepared {
+            frame: self,
+            outer_rect_bounds,
+            where_to_put_background,
+            content_ui,
+        }
+    }
 
-        let mut child_ui = ui.child_ui(inner_rect);
-        let ret = add_contents(&mut child_ui);
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut prepared = self.begin(ui);
+        let ret = add_contents(&mut prepared.content_ui);
+        prepared.end(ui);
+        ret
+    }
+}
 
-        let outer_rect = Rect::from_min_max(outer_rect.min, child_ui.child_bounds().max + margin);
+impl Prepared {
+    pub fn outer_rect(&self) -> Rect {
+        Rect::from_min_max(
+            self.outer_rect_bounds.min,
+            self.content_ui.child_bounds().max + self.frame.margin,
+        )
+    }
+
+    pub fn end(self, ui: &mut Ui) -> Rect {
+        let outer_rect = self.outer_rect();
+
+        let Prepared {
+            frame,
+            where_to_put_background,
+            ..
+        } = self;
 
         ui.insert_paint_cmd(
             where_to_put_background,
             PaintCmd::Rect {
-                corner_radius,
-                fill_color,
-                outline,
+                corner_radius: frame.corner_radius,
+                fill_color: frame.fill_color,
+                outline: frame.outline,
                 rect: outer_rect,
             },
         );
@@ -90,6 +118,6 @@ impl Frame {
         ui.expand_to_include_child(outer_rect);
         // TODO: move cursor in parent ui
 
-        ret
+        outer_rect
     }
 }

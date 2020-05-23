@@ -177,7 +177,7 @@ struct Prepared {
 }
 
 impl Resize {
-    fn prepare(&mut self, ui: &mut Ui) -> Prepared {
+    fn begin(&mut self, ui: &mut Ui) -> Prepared {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
         self.min_size = self.min_size.min(ui.available().size());
         self.max_size = self.max_size.min(ui.available().size());
@@ -267,13 +267,13 @@ impl Resize {
     }
 
     pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        let mut prepared = self.prepare(ui);
+        let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
-        self.finish(ui, prepared);
+        self.end(ui, prepared);
         ret
     }
 
-    fn finish(self, ui: &mut Ui, prepared: Prepared) {
+    fn end(self, ui: &mut Ui, prepared: Prepared) {
         let Prepared {
             id,
             mut state,

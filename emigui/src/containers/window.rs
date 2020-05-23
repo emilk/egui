@@ -148,22 +148,31 @@ impl<'open> Window<'open> {
             return None;
         }
 
-        let movable = area.is_movable();
-        let area = area.movable(false); // We move it manually
-        let resizable = resize.is_resizable();
-        let resize = resize.resizable(false); // We move it manually
-
         let window_id = Id::new(title_label.text());
         let area_layer = area.layer();
         let resize_id = window_id.with("resize");
         let collapsing_id = window_id.with("collapsing");
 
+        let possible = PossibleInteractions {
+            movable: area.is_movable(),
+            resizable: resize.is_resizable()
+                && collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default(),
+        };
+
+        let area = area.movable(false); // We move it manually
+        let resize = resize.resizable(false); // We move it manually
+
         let resize = resize.id(resize_id);
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        let full_interact = area.show(ctx, |ui| {
-            frame.show(ui, |ui| {
+        let mut area = area.begin(ctx);
+        {
+            // TODO: pick style for frame and title based on interaction
+            let mut frame = frame.begin(&mut area.content_ui);
+            {
+                let ui = &mut frame.content_ui;
+
                 let default_expanded = true;
                 let mut collapsing = collapsing_header::State::from_memory_with_default_open(
                     ui,
@@ -182,7 +191,7 @@ impl<'open> Window<'open> {
                 let content = collapsing
                     .add_contents(ui, |ui| {
                         resize.show(ui, |ui| {
-                            ui.add(Separator::new().line_width(1.0)); // TODO: nicer way to split window title from contents
+                            ui.add(Separator::new().line_width(0.5)); // TODO: nicer way to split window title from contents
                             if let Some(scroll) = scroll {
                                 scroll.show(ui, add_contents)
                             } else {
@@ -198,42 +207,49 @@ impl<'open> Window<'open> {
 
                 if let Some(open) = open {
                     // Add close button now that we know our full width:
-
-                    let right = content
-                        .map(|c| c.rect.right())
-                        .unwrap_or(title_bar.rect.right());
-
-                    let button_size = ui.style().start_icon_width;
-                    let button_rect = Rect::from_min_size(
-                        pos2(
-                            right - ui.style().item_spacing.x - button_size,
-                            title_bar.rect.center().y - 0.5 * button_size,
-                        ),
-                        Vec2::splat(button_size),
-                    );
-
-                    if close_button(ui, button_rect).clicked {
+                    if title_bar.close_button_ui(ui, &content).clicked {
                         *open = false;
                     }
                 }
-            })
-        });
+                title_bar.title_ui(ui);
+            }
 
-        let resizable =
-            resizable && collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
+            let outer_rect = frame.end(&mut area.content_ui);
 
-        if movable || resizable {
-            let possible = PossibleInteractions { movable, resizable };
+            let interaction = if possible.movable || possible.resizable {
+                interact(
+                    ctx,
+                    possible,
+                    area_layer,
+                    &mut area.state,
+                    window_id,
+                    resize_id,
+                    outer_rect,
+                )
+            } else {
+                None
+            };
 
-            interact(
-                ctx,
-                possible,
-                area_layer,
-                window_id,
-                resize_id,
-                full_interact.rect,
-            );
+            if let Some(interaction) = interaction {
+                paint_frame_interaction(
+                    &mut area.content_ui,
+                    outer_rect,
+                    interaction,
+                    ctx.style().interact.active,
+                );
+            } else {
+                if let Some(hover_interaction) = resize_hover(ctx, possible, area_layer, outer_rect)
+                {
+                    paint_frame_interaction(
+                        &mut area.content_ui,
+                        outer_rect,
+                        hover_interaction,
+                        ctx.style().interact.hovered,
+                    );
+                }
+            }
         }
+        let full_interact = area.end(ctx);
 
         Some(full_interact)
     }
@@ -280,10 +296,11 @@ fn interact(
     ctx: &Context,
     possible: PossibleInteractions,
     area_layer: Layer,
+    area_state: &mut area::State,
     window_id: Id,
     resize_id: Id,
     rect: Rect,
-) -> Option<()> {
+) -> Option<WindowInteraction> {
     let pre_resize = ctx.round_rect_to_pixels(rect);
     let window_interaction = window_interaction(
         ctx,
@@ -297,9 +314,7 @@ fn interact(
     let new_rect = ctx.round_rect_to_pixels(new_rect);
     // TODO: add this to a Window state instead as a command "move here next frame"
 
-    let mut area_state = ctx.memory().areas.get(area_layer.id).unwrap();
     area_state.pos = new_rect.min;
-    ctx.memory().areas.set_state(area_layer, area_state);
 
     let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
     // resize_state.size += new_rect.size() - pre_resize.size();
@@ -308,7 +323,7 @@ fn interact(
     ctx.memory().resize.insert(resize_id, resize_state);
 
     ctx.memory().areas.move_to_top(area_layer);
-    Some(())
+    Some(window_interaction)
 }
 
 fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
@@ -446,7 +461,60 @@ fn resize_hover(
     }
 }
 
+/// Fill in parts of the window frame when we resize by dragging that part
+fn paint_frame_interaction(
+    ui: &mut Ui,
+    rect: Rect,
+    interaction: WindowInteraction,
+    style: style::WidgetStyle,
+) {
+    let cr = ui.style().window.corner_radius;
+    let Rect { min, max } = rect;
+
+    let mut path = Path::default();
+
+    if interaction.right && !interaction.bottom && !interaction.top {
+        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+    }
+    if interaction.right && interaction.bottom {
+        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+        path.add_circle_quadrant(pos2(max.x - cr, max.y - cr), cr, 0.0);
+    }
+    if interaction.bottom {
+        path.add_line(&[pos2(max.x - cr, max.y), pos2(min.x + cr, max.y)]);
+    }
+    if interaction.left && interaction.bottom {
+        path.add_circle_quadrant(pos2(min.x + cr, max.y - cr), cr, 1.0);
+    }
+    if interaction.left {
+        path.add_line(&[pos2(min.x, max.y - cr), pos2(min.x, min.y + cr)]);
+    }
+    if interaction.left && interaction.top {
+        path.add_circle_quadrant(pos2(min.x + cr, min.y + cr), cr, 2.0);
+    }
+    if interaction.top {
+        path.add_line(&[pos2(min.x + cr, min.y), pos2(max.x - cr, min.y)]);
+    }
+    if interaction.right && interaction.top {
+        path.add_circle_quadrant(pos2(max.x - cr, min.y + cr), cr, 3.0);
+        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+    }
+    ui.add_paint_cmd(PaintCmd::Path {
+        path,
+        closed: false,
+        fill_color: None,
+        outline: style.rect_outline,
+    });
+}
+
 // ----------------------------------------------------------------------------
+
+struct TitleBar {
+    title_label: Label,
+    title_galley: font::Galley,
+    title_rect: Rect,
+    rect: Rect,
+}
 
 fn show_title_bar(
     ui: &mut Ui,
@@ -454,8 +522,8 @@ fn show_title_bar(
     show_close_button: bool,
     collapsing_id: Id,
     collapsing: &mut collapsing_header::State,
-) -> InteractInfo {
-    ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+) -> TitleBar {
+    let tb_interact = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
         ui.set_desired_height(title_label.font_height(ui));
 
         let item_spacing = ui.style().item_spacing;
@@ -474,7 +542,8 @@ fn show_title_bar(
             collapsing.paint_icon(ui, &collapse_button_interact);
         }
 
-        let title_rect = ui.add(title_label).rect;
+        let title_galley = title_label.layout(ui);
+        let title_rect = ui.reserve_space(title_galley.size, None).rect;
 
         if show_close_button {
             // Reserve space for close button which will be added later:
@@ -489,8 +558,41 @@ fn show_title_bar(
             );
             ui.expand_to_include_child(close_rect);
         }
-    })
-    .1
+
+        TitleBar {
+            title_label,
+            title_galley,
+            title_rect,
+            rect: Default::default(), // Will be filled in later
+        }
+    });
+
+    TitleBar {
+        rect: tb_interact.1.rect,
+        ..tb_interact.0
+    }
+}
+
+impl TitleBar {
+    pub fn title_ui(self, ui: &mut Ui) {
+        self.title_label
+            .paint_galley(ui, self.title_rect.min, self.title_galley);
+    }
+
+    pub fn close_button_ui(&self, ui: &mut Ui, content: &Option<InteractInfo>) -> InteractInfo {
+        let right = content.map(|c| c.rect.right()).unwrap_or(self.rect.right());
+
+        let button_size = ui.style().start_icon_width;
+        let button_rect = Rect::from_min_size(
+            pos2(
+                right - ui.style().item_spacing.x - button_size,
+                self.rect.center().y - 0.5 * button_size,
+            ),
+            Vec2::splat(button_size),
+        );
+
+        close_button(ui, button_rect)
+    }
 }
 
 fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {

@@ -54,7 +54,7 @@ struct Prepared {
 }
 
 impl ScrollArea {
-    fn prepare(self, ui: &mut Ui) -> Prepared {
+    fn begin(self, ui: &mut Ui) -> Prepared {
         let Self {
             max_height,
             always_show_scroll,
@@ -110,13 +110,15 @@ impl ScrollArea {
     }
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        let mut prepared = self.prepare(ui);
+        let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
-        Self::finish(ui, prepared);
+        prepared.end(ui);
         ret
     }
+}
 
-    fn finish(ui: &mut Ui, prepared: Prepared) {
+impl Prepared {
+    fn end(self, ui: &mut Ui) {
         let Prepared {
             id,
             mut state,
@@ -124,7 +126,7 @@ impl ScrollArea {
             always_show_scroll,
             current_scroll_bar_width,
             content_ui,
-        } = prepared;
+        } = self;
 
         let content_size = content_ui.bounding_size();
 

@@ -168,7 +168,7 @@ struct Prepared {
 }
 
 impl CollapsingHeader {
-    fn prepare(self, ui: &mut Ui) -> Prepared {
+    fn begin(self, ui: &mut Ui) -> Prepared {
         assert!(
             ui.layout().dir() == Direction::Vertical,
             "Horizontal collapsing is unimplemented"
@@ -185,7 +185,7 @@ impl CollapsingHeader {
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().indent, 0.0);
-        let galley = label.layout(available.width() - ui.style().indent, ui);
+        let galley = label.layout_width(ui, available.width() - ui.style().indent);
         let text_max_x = text_pos.x + galley.size.x;
         let desired_width = text_max_x - available.left();
         let desired_width = desired_width.max(available.width());
@@ -240,7 +240,7 @@ impl CollapsingHeader {
     }
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
-        let Prepared { id, mut state } = self.prepare(ui);
+        let Prepared { id, mut state } = self.begin(ui);
         let r_interact = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
         let ret = r_interact.map(|ri| ri.0);
         ui.memory().collapsing_headers.insert(id, state);

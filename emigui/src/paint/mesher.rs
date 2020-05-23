@@ -163,6 +163,14 @@ impl Path {
         self.0.clear();
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     #[inline(always)]
     pub fn add_point(&mut self, pos: Pos2, normal: Vec2) {
         self.0.push(PathPoint { pos, normal });
@@ -252,13 +260,13 @@ impl Path {
     /// with x right, and y down (GUI coords) we have:
     /// angle       = dir
     /// 0 * TAU / 4 = right
-    ///    quadrant 0, right down
-    /// 1 * TAU / 4 = down
-    ///    quadrant 1, down left
+    ///    quadrant 0, right bottom
+    /// 1 * TAU / 4 = bottom
+    ///    quadrant 1, left bottom
     /// 2 * TAU / 4 = left
-    ///    quadrant 2 left up
-    /// 3 * TAU / 4 = up
-    ///    quadrant 3 up rigth
+    ///    quadrant 2 left top
+    /// 3 * TAU / 4 = top
+    ///    quadrant 3 right top
     /// 4 * TAU / 4 = right
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
         let n = (radius * 0.5).round() as i32; // TODO: tweak a bit more
@@ -581,16 +589,18 @@ pub fn paint_command_into_triangles(
             fill_color,
             outline,
         } => {
-            if let Some(fill_color) = fill_color {
-                debug_assert!(
-                    closed,
-                    "You asked to fill a path that is not closed. That makes no sense."
-                );
-                fill_closed_path(out, options, &path.0, fill_color);
-            }
-            if let Some(outline) = outline {
-                let typ = if closed { Closed } else { Open };
-                paint_path_outline(out, options, typ, &path.0, outline.color, outline.width);
+            if path.len() >= 2 {
+                if let Some(fill_color) = fill_color {
+                    debug_assert!(
+                        closed,
+                        "You asked to fill a path that is not closed. That makes no sense."
+                    );
+                    fill_closed_path(out, options, &path.0, fill_color);
+                }
+                if let Some(outline) = outline {
+                    let typ = if closed { Closed } else { Open };
+                    paint_path_outline(out, options, typ, &path.0, outline.color, outline.width);
+                }
             }
         }
         PaintCmd::Rect {

@@ -120,7 +120,7 @@ impl Default for Interact {
                 fill_color: srgba(60, 60, 80, 255),
                 stroke_color: gray(210, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
-                rect_outline: Some(Outline::new(0.5, WHITE)),
+                rect_outline: Some(Outline::new(1.0, white(128))),
                 corner_radius: 0.0,
             },
         }

@@ -497,10 +497,10 @@ impl LayoutExample {
     pub fn ui(&mut self, ui: &mut Ui) {
         Resize::default()
             .default_size(vec2(200.0, 200.0))
-            .show(ui, |ui| self.contents_ui(ui));
+            .show(ui, |ui| self.content_ui(ui));
     }
 
-    pub fn contents_ui(&mut self, ui: &mut Ui) {
+    pub fn content_ui(&mut self, ui: &mut Ui) {
         let layout = Layout::from_dir_align(self.dir, self.align);
         if self.reversed {
             ui.set_layout(layout.reverse());

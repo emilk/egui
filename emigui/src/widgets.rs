@@ -63,7 +63,16 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, max_width: f32, ui: &Ui) -> font::Galley {
+    pub fn layout(&self, ui: &Ui) -> font::Galley {
+        let max_width = if self.auto_shrink {
+            ui.available_finite().width()
+        } else {
+            ui.available().width()
+        };
+        self.layout_width(ui, max_width)
+    }
+
+    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> font::Galley {
         let font = &ui.fonts()[self.text_style];
         if self.multiline {
             font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
@@ -83,6 +92,10 @@ impl Label {
 
     // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
+
+    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
+        ui.add_galley(pos, galley, self.text_style, self.text_color);
+    }
 }
 
 /// Usage:  label!("Foo: {}", bar)
@@ -94,14 +107,9 @@ macro_rules! label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> GuiResponse {
-        let max_width = if self.auto_shrink {
-            ui.available_finite().width()
-        } else {
-            ui.available().width()
-        };
-        let galley = self.layout(max_width, ui);
+        let galley = self.layout(ui);
         let interact = ui.reserve_space(galley.size, None);
-        ui.add_galley(interact.rect.min, galley, self.text_style, self.text_color);
+        self.paint_galley(ui, interact.rect.min, galley);
         ui.response(interact)
     }
 }

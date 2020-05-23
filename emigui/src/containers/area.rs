@@ -91,15 +91,15 @@ impl Area {
     }
 }
 
-struct Prepared {
+pub(crate) struct Prepared {
     layer: Layer,
-    state: State,
+    pub(crate) state: State,
     movable: bool,
-    content_ui: Ui,
+    pub(crate) content_ui: Ui,
 }
 
 impl Area {
-    fn prepare(self, ctx: &Arc<Context>) -> Prepared {
+    pub(crate) fn begin(self, ctx: &Arc<Context>) -> Prepared {
         let Area {
             id,
             movable,
@@ -138,18 +138,20 @@ impl Area {
     }
 
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-        let mut prepared = self.prepare(ctx);
+        let mut prepared = self.begin(ctx);
         add_contents(&mut prepared.content_ui);
-        Self::finish(ctx, prepared)
+        prepared.end(ctx)
     }
+}
 
-    fn finish(ctx: &Arc<Context>, prepared: Prepared) -> InteractInfo {
+impl Prepared {
+    pub(crate) fn end(self, ctx: &Arc<Context>) -> InteractInfo {
         let Prepared {
             layer,
             mut state,
             movable,
             content_ui,
-        } = prepared;
+        } = self;
 
         state.size = (content_ui.child_bounds().max - state.pos).ceil();
 
