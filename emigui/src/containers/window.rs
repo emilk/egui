@@ -168,51 +168,54 @@ impl<'open> Window<'open> {
 
         let mut area = area.begin(ctx);
         {
+            // BEGIN FRAME --------------------------------
             let mut frame = frame.begin(&mut area.content_ui);
 
-            let content_rect;
-            let title_bar;
-            {
-                let ui = &mut frame.content_ui;
+            let default_expanded = true;
+            let mut collapsing = collapsing_header::State::from_memory_with_default_open(
+                &mut frame.content_ui,
+                collapsing_id,
+                default_expanded,
+            );
+            let show_close_button = open.is_some();
+            let title_bar = show_title_bar(
+                &mut frame.content_ui,
+                title_label,
+                show_close_button,
+                collapsing_id,
+                &mut collapsing,
+            );
 
-                let default_expanded = true;
-                let mut collapsing = collapsing_header::State::from_memory_with_default_open(
-                    ui,
-                    collapsing_id,
-                    default_expanded,
-                );
-                let show_close_button = open.is_some();
-                title_bar = show_title_bar(
-                    ui,
-                    title_label,
-                    show_close_button,
-                    collapsing_id,
-                    &mut collapsing,
-                );
+            let content_rect = collapsing
+                .add_contents(&mut frame.content_ui, |ui| {
+                    resize.show(ui, |ui| {
+                        // Add some spacing (item_spacing) between title and content:
+                        ui.allocate_space(Vec2::zero());
 
-                content_rect = collapsing
-                    .add_contents(ui, |ui| {
-                        resize.show(ui, |ui| {
-                            // Add some spacing (item_spacing) between title and content:
-                            ui.allocate_space(Vec2::zero());
-
-                            if let Some(scroll) = scroll {
-                                scroll.show(ui, add_contents)
-                            } else {
-                                add_contents(ui)
-                            }
-                        })
+                        if let Some(scroll) = scroll {
+                            scroll.show(ui, add_contents)
+                        } else {
+                            add_contents(ui)
+                        }
                     })
-                    .map(|ri| ri.1);
-
-                ui.memory()
-                    .collapsing_headers
-                    .insert(collapsing_id, collapsing);
-            }
+                })
+                .map(|ri| ri.1);
 
             let outer_rect = frame.end(&mut area.content_ui);
+            // END FRAME --------------------------------
 
-            title_bar.ui(&mut area.content_ui, outer_rect, content_rect, open);
+            title_bar.ui(
+                &mut area.content_ui,
+                outer_rect,
+                content_rect,
+                open,
+                &mut collapsing,
+            );
+
+            area.content_ui
+                .memory()
+                .collapsing_headers
+                .insert(collapsing_id, collapsing);
 
             let interaction = if possible.movable || possible.resizable {
                 interact(
@@ -524,7 +527,7 @@ fn show_title_bar(
     collapsing_id: Id,
     collapsing: &mut collapsing_header::State,
 ) -> TitleBar {
-    let tb_interact = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+    let title_bar_and_rect = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
         ui.set_desired_height(title_label.font_height(ui));
 
         let item_spacing = ui.style().item_spacing;
@@ -537,7 +540,6 @@ fn show_title_bar(
             let rect = ui.allocate_space(Vec2::splat(button_size));
             let collapse_button_interact = ui.interact(rect, collapsing_id, Sense::click());
             if collapse_button_interact.clicked {
-                // TODO: also do this when double-clicking window title
                 collapsing.toggle(ui);
             }
             collapsing.paint_icon(ui, &collapse_button_interact);
@@ -569,28 +571,35 @@ fn show_title_bar(
     });
 
     TitleBar {
-        rect: tb_interact.1,
-        ..tb_interact.0
+        rect: title_bar_and_rect.1,
+        ..title_bar_and_rect.0
     }
 }
 
 impl TitleBar {
     fn ui(
-        self,
+        mut self,
         ui: &mut Ui,
         outer_rect: Rect,
         content_rect: Option<Rect>,
         open: Option<&mut bool>,
+        collapsing: &mut collapsing_header::State,
     ) {
+        if let Some(content_rect) = content_rect {
+            // Now we know how large we got to be:
+            self.rect.max.x = content_rect.max.x;
+        }
+
         if let Some(open) = open {
             // Add close button now that we know our full width:
-            if self.close_button_ui(ui, &content_rect).clicked {
+            if self.close_button_ui(ui).clicked {
                 *open = false;
             }
         }
 
         // TODO: pick style for title based on move interaction
-        self.title_ui(ui);
+        self.title_label
+            .paint_galley(ui, self.title_rect.min, self.title_galley);
 
         if let Some(content_rect) = content_rect {
             // paint separator between title and content:
@@ -602,20 +611,21 @@ impl TitleBar {
                 style: ui.style().interact.inactive.rect_outline.unwrap(),
             });
         }
+
+        let title_bar_id = ui.make_child_id("title_bar");
+        if ui
+            .interact(self.rect, title_bar_id, Sense::click())
+            .double_clicked
+        {
+            collapsing.toggle(ui);
+        }
     }
 
-    fn title_ui(self, ui: &mut Ui) {
-        self.title_label
-            .paint_galley(ui, self.title_rect.min, self.title_galley);
-    }
-
-    fn close_button_ui(&self, ui: &mut Ui, content_rect: &Option<Rect>) -> InteractInfo {
-        let right = content_rect.map(|c| c.right()).unwrap_or(self.rect.right());
-
+    fn close_button_ui(&self, ui: &mut Ui) -> InteractInfo {
         let button_size = ui.style().start_icon_width;
         let button_rect = Rect::from_min_size(
             pos2(
-                right - ui.style().item_spacing.x - button_size,
+                self.rect.right() - ui.style().item_spacing.x - button_size,
                 self.rect.center().y - 0.5 * button_size,
             ),
             Vec2::splat(button_size),

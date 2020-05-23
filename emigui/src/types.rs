@@ -46,6 +46,8 @@ pub struct InteractInfo {
     /// The mouse pressed this thing ealier, and now released on this thing too.
     pub clicked: bool,
 
+    pub double_clicked: bool,
+
     /// The mouse is interacting with this thing (e.g. dragging it or holding it)
     pub active: bool,
 
@@ -58,6 +60,7 @@ impl InteractInfo {
         Self {
             hovered: false,
             clicked: false,
+            double_clicked: false,
             active: false,
             rect: Rect::nothing(),
         }
@@ -67,6 +70,7 @@ impl InteractInfo {
         Self {
             hovered: self.hovered || other.hovered,
             clicked: self.clicked || other.clicked,
+            double_clicked: self.double_clicked || other.double_clicked,
             active: self.active || other.active,
             rect: self.rect.union(other.rect),
         }
@@ -82,6 +86,8 @@ pub struct GuiResponse {
 
     /// The mouse clicked this thing this frame
     pub clicked: bool,
+
+    pub double_clicked: bool,
 
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
@@ -115,6 +121,7 @@ impl Into<InteractInfo> for GuiResponse {
         InteractInfo {
             hovered: self.hovered,
             clicked: self.clicked,
+            double_clicked: self.double_clicked,
             active: self.active,
             rect: self.rect,
         }

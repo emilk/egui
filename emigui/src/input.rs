@@ -2,6 +2,11 @@ use serde_derive::Deserialize;
 
 use crate::{math::*, movement_tracker::MovementTracker};
 
+/// If mouse moves more than this, it is no longer a click (but maybe a drag)
+const MAX_CLICK_DIST: f32 = 6.0;
+/// The new mouse press must come within this many seconds from previous mouse release
+const MAX_CLICK_DELAY: f64 = 0.3;
+
 /// What the integration gives to the gui.
 /// All coordinates in emigui is in point/logical coordinates.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -77,16 +82,27 @@ pub struct MouseInput {
     /// The mouse went from down to !down
     pub released: bool,
 
+    /// If the mouse is down, will it register as a click when released?
+    /// Set to true on mouse down, set to false when mouse moves too much.
+    pub could_be_click: bool,
+
+    /// Was there a click?
+    /// Did a mouse button get released this frame closely after going down?
+    pub click: bool,
+
+    /// Was there a double-click?
+    pub double_click: bool,
+
+    /// When did the mouse get click last?
+    /// Used to check for double-clicks.
+    pub last_click_time: f64,
+
     /// Current position of the mouse in points.
     /// None for touch screens when finger is not down.
     pub pos: Option<Pos2>,
 
     /// Where did the current click/drag originate?
     pub press_origin: Option<Pos2>,
-
-    /// If the mouse is down, will it register as a click when released?
-    /// Set to true on mouse down, set to false when mouse moves too much.
-    pub could_be_click: bool,
 
     /// How much the mouse moved compared to last frame, in points.
     pub delta: Vec2,
@@ -105,9 +121,12 @@ impl Default for MouseInput {
             down: false,
             pressed: false,
             released: false,
+            could_be_click: false,
+            click: false,
+            double_click: false,
+            last_click_time: std::f64::NEG_INFINITY,
             pos: None,
             press_origin: None,
-            could_be_click: false,
             delta: Vec2::zero(),
             velocity: Vec2::zero(),
             pos_tracker: MovementTracker::new(1000, 0.1),
@@ -181,8 +200,15 @@ impl MouseInput {
             .unwrap_or_default();
         let pressed = !self.down && new.mouse_down;
 
+        let released = self.down && !new.mouse_down;
+        let click = released && self.could_be_click;
+        let double_click = click && (new.time - self.last_click_time) < MAX_CLICK_DELAY;
         let mut press_origin = self.press_origin;
         let mut could_be_click = self.could_be_click;
+        let mut last_click_time = self.last_click_time;
+        if click {
+            last_click_time = new.time
+        }
 
         if pressed {
             press_origin = new.mouse_pos;
@@ -192,8 +218,6 @@ impl MouseInput {
         }
 
         if let (Some(press_origin), Some(mouse_pos)) = (new.mouse_pos, press_origin) {
-            // If mouse moves more than this, it is no longer a click (but maybe a drag)
-            const MAX_CLICK_DIST: f32 = 6.0;
             could_be_click &= press_origin.distance(mouse_pos) < MAX_CLICK_DIST;
         } else {
             could_be_click = false;
@@ -212,10 +236,13 @@ impl MouseInput {
         MouseInput {
             down: new.mouse_down && new.mouse_pos.is_some(),
             pressed,
-            released: self.down && !new.mouse_down,
+            released,
+            could_be_click,
+            click,
+            double_click,
+            last_click_time,
             pos: new.mouse_pos,
             press_origin,
-            could_be_click,
             delta,
             velocity,
             pos_tracker: self.pos_tracker,
@@ -281,9 +308,12 @@ impl MouseInput {
         ui.add(label!("down: {}", self.down));
         ui.add(label!("pressed: {}", self.pressed));
         ui.add(label!("released: {}", self.released));
+        ui.add(label!("could_be_click: {}", self.could_be_click));
+        ui.add(label!("click: {}", self.click));
+        ui.add(label!("double_click: {}", self.double_click));
+        ui.add(label!("last_click_time: {:.3}", self.last_click_time));
         ui.add(label!("pos: {:?}", self.pos));
         ui.add(label!("press_origin: {:?}", self.press_origin));
-        ui.add(label!("could_be_click: {}", self.could_be_click));
         ui.add(label!("delta: {:?}", self.delta));
         ui.add(label!(
             "velocity: [{:3.0} {:3.0}] points/sec",

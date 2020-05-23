@@ -323,6 +323,7 @@ impl Ui {
         GuiResponse {
             hovered: interact.hovered,
             clicked: interact.clicked,
+            double_clicked: interact.double_clicked,
             active: interact.active,
             rect: interact.rect,
             ctx: self.ctx.clone(),

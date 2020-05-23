@@ -36,7 +36,6 @@ pub struct Context {
     paint_stats: Mutex<PaintStats>,
 }
 
-// TODO: remove this impl.
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
@@ -280,6 +279,7 @@ impl Context {
                 rect,
                 hovered,
                 clicked: false,
+                double_clicked: false,
                 active: false,
             };
         }
@@ -299,6 +299,7 @@ impl Context {
                     rect,
                     hovered: true,
                     clicked: false,
+                    double_clicked: false,
                     active: false,
                 };
 
@@ -321,14 +322,17 @@ impl Context {
                     rect,
                     hovered,
                     clicked: false,
+                    double_clicked: false,
                     active: false,
                 }
             }
         } else if self.input.mouse.released {
+            let clicked = hovered && active;
             InteractInfo {
                 rect,
                 hovered,
-                clicked: hovered && active,
+                clicked,
+                double_clicked: clicked && self.input.mouse.double_click,
                 active,
             }
         } else if self.input.mouse.down {
@@ -336,6 +340,7 @@ impl Context {
                 rect,
                 hovered: hovered && active,
                 clicked: false,
+                double_clicked: false,
                 active,
             }
         } else {
@@ -343,6 +348,7 @@ impl Context {
                 rect,
                 hovered,
                 clicked: false,
+                double_clicked: false,
                 active,
             }
         }
