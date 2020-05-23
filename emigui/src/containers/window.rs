@@ -204,19 +204,6 @@ impl<'open> Window<'open> {
             let outer_rect = frame.end(&mut area.content_ui);
             // END FRAME --------------------------------
 
-            title_bar.ui(
-                &mut area.content_ui,
-                outer_rect,
-                content_rect,
-                open,
-                &mut collapsing,
-            );
-
-            area.content_ui
-                .memory()
-                .collapsing_headers
-                .insert(collapsing_id, collapsing);
-
             let interaction = if possible.movable || possible.resizable {
                 interact(
                     ctx,
@@ -230,6 +217,20 @@ impl<'open> Window<'open> {
             } else {
                 None
             };
+            let hover_interaction = resize_hover(ctx, possible, area_layer, outer_rect);
+
+            title_bar.ui(
+                &mut area.content_ui,
+                outer_rect,
+                content_rect,
+                open,
+                &mut collapsing,
+            );
+
+            area.content_ui
+                .memory()
+                .collapsing_headers
+                .insert(collapsing_id, collapsing);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
@@ -239,8 +240,7 @@ impl<'open> Window<'open> {
                     ctx.style().interact.active,
                 );
             } else {
-                if let Some(hover_interaction) = resize_hover(ctx, possible, area_layer, outer_rect)
-                {
+                if let Some(hover_interaction) = hover_interaction {
                     paint_frame_interaction(
                         &mut area.content_ui,
                         outer_rect,
@@ -289,6 +289,10 @@ impl WindowInteraction {
 
     pub fn is_resize(&self) -> bool {
         self.left || self.right || self.top || self.bottom
+    }
+
+    pub fn is_pure_move(&self) -> bool {
+        !self.is_resize()
     }
 }
 

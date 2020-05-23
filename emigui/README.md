@@ -78,8 +78,9 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 
 ### Input
 * [x] Distinguish between clicks and drags
-* [ ] Double-click
+* [x] Double-click
 * [x] Text
+* [ ] Support all mouse buttons
 
 ### Debugability / Inspection
 * [x] Widget debug rectangles

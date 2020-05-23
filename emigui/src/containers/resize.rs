@@ -335,7 +335,7 @@ fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
     let color = ui.style().interact(interact).stroke_color;
     let width = ui.style().interact(interact).stroke_width;
 
-    let corner = interact.rect.right_bottom().round(); // TODO: round to pixels
+    let corner = ui.round_pos_to_pixels(interact.rect.right_bottom());
     let mut w = 2.0;
 
     while w < 12.0 {

@@ -11,13 +11,3 @@ pub use {
     area::Area, collapsing_header::CollapsingHeader, frame::Frame, popup::*, resize::Resize,
     scroll_area::ScrollArea, window::Window,
 };
-
-// TODO
-// pub trait Container {
-//     fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui));
-// }
-
-// pub trait Container {
-//     fn begin(&mut self, parent: &mut Ui) -> Ui;
-//     fn end(self, parent: &mut Ui, content: Ui);
-// }

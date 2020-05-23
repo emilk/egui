@@ -434,7 +434,6 @@ impl Ui {
         self.debug_text_at(self.cursor, text);
     }
 
-    // TODO: AsRef<str>
     pub fn debug_text_at(&self, pos: Pos2, text: impl Into<String>) {
         self.ctx.debug_text(pos, text);
     }
@@ -565,7 +564,7 @@ impl Ui {
 
         // draw a grey line on the left to mark the indented section
         let line_start = child_rect.min - indent * 0.5;
-        let line_start = line_start.round(); // TODO: round to pixel instead
+        let line_start = self.round_pos_to_pixels(line_start);
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.add_paint_cmd(PaintCmd::line_segment(
             [line_start, line_end],

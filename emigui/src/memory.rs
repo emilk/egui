@@ -86,7 +86,7 @@ impl Memory {
 
             let window_interaction = self.window_interaction.take();
             if let Some(window_interaction) = window_interaction {
-                if !window_interaction.is_resize() {
+                if window_interaction.is_pure_move() {
                     // Throw windows because it is fun:
                     let area_layer = window_interaction.area_layer;
                     let area_state = self.areas.get(area_layer.id).clone();

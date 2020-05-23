@@ -50,7 +50,6 @@ impl PaintCmd {
     }
 }
 
-// TODO: rename LineStyle
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct LineStyle {
     pub width: f32,
