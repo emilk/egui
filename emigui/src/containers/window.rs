@@ -410,7 +410,7 @@ fn resize_hover(
                 right = (rect.right() - mouse_pos.x).abs() <= side_interact_radius;
                 bottom = (rect.bottom() - mouse_pos.y).abs() <= side_interact_radius;
 
-                if rect.right_bottom().dist(mouse_pos) < corner_interact_radius {
+                if rect.right_bottom().distance(mouse_pos) < corner_interact_radius {
                     right = true;
                     bottom = true;
                 }
@@ -419,15 +419,15 @@ fn resize_hover(
                     left = (rect.left() - mouse_pos.x).abs() <= side_interact_radius;
                     top = (rect.top() - mouse_pos.y).abs() <= side_interact_radius;
 
-                    if rect.right_top().dist(mouse_pos) < corner_interact_radius {
+                    if rect.right_top().distance(mouse_pos) < corner_interact_radius {
                         right = true;
                         top = true;
                     }
-                    if rect.left_top().dist(mouse_pos) < corner_interact_radius {
+                    if rect.left_top().distance(mouse_pos) < corner_interact_radius {
                         left = true;
                         top = true;
                     }
-                    if rect.left_bottom().dist(mouse_pos) < corner_interact_radius {
+                    if rect.left_bottom().distance(mouse_pos) < corner_interact_radius {
                         left = true;
                         bottom = true;
                     }

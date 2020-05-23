@@ -248,7 +248,7 @@ impl Context {
     /// If the given Id is not unique, an error will be printed at the given position.
     pub fn register_unique_id(&self, id: Id, source_name: impl std::fmt::Debug, pos: Pos2) -> Id {
         if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
-            if clash_pos.dist(pos) < 4.0 {
+            if clash_pos.distance(pos) < 4.0 {
                 self.show_error(
                     pos,
                     &format!("use of non-unique ID {:?} (name clash?)", source_name),
@@ -325,7 +325,7 @@ impl Context {
             InteractInfo {
                 rect,
                 hovered,
-                clicked: hovered && active,
+                clicked: hovered && active && self.input().mouse.could_be_click,
                 active,
             }
         } else if self.input.mouse.down {

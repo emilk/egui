@@ -53,11 +53,11 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
-    pub fn dist(a: Self, b: Self) -> f32 {
+    pub fn distance(a: Self, b: Self) -> f32 {
         (a - b).length()
     }
 
-    pub fn dist_sq(a: Self, b: Self) -> f32 {
+    pub fn distance_sq(a: Self, b: Self) -> f32 {
         (a - b).length_sq()
     }
 
@@ -231,11 +231,11 @@ impl Pos2 {
         }
     }
 
-    pub fn dist(self: Self, other: Self) -> f32 {
+    pub fn distance(self: Self, other: Self) -> f32 {
         (self - other).length()
     }
 
-    pub fn dist_sq(self: Self, other: Self) -> f32 {
+    pub fn distance_sq(self: Self, other: Self) -> f32 {
         (self - other).length_sq()
     }
 

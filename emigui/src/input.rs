@@ -84,6 +84,10 @@ pub struct MouseInput {
     /// Where did the current click/drag originate?
     pub press_origin: Option<Pos2>,
 
+    /// If the mouse is down, will it register as a click when released?
+    /// Set to true on mouse down, set to false when mouse moves too much.
+    pub could_be_click: bool,
+
     /// How much the mouse moved compared to last frame, in points.
     pub delta: Vec2,
 
@@ -103,6 +107,7 @@ impl Default for MouseInput {
             released: false,
             pos: None,
             press_origin: None,
+            could_be_click: false,
             delta: Vec2::zero(),
             velocity: Vec2::zero(),
             pos_tracker: MovementTracker::new(1000, 0.1),
@@ -177,10 +182,21 @@ impl MouseInput {
         let pressed = !self.down && new.mouse_down;
 
         let mut press_origin = self.press_origin;
+        let mut could_be_click = self.could_be_click;
+
         if pressed {
             press_origin = new.mouse_pos;
+            could_be_click = true;
         } else if !self.down || self.pos.is_none() {
             press_origin = None;
+        }
+
+        if let (Some(press_origin), Some(mouse_pos)) = (new.mouse_pos, press_origin) {
+            // If mouse moves more than this, it is no longer a click (but maybe a drag)
+            const MAX_CLICK_DIST: f32 = 6.0;
+            could_be_click &= press_origin.distance(mouse_pos) < MAX_CLICK_DIST;
+        } else {
+            could_be_click = false;
         }
 
         if let Some(mouse_pos) = new.mouse_pos {
@@ -199,6 +215,7 @@ impl MouseInput {
             released: self.down && !new.mouse_down,
             pos: new.mouse_pos,
             press_origin,
+            could_be_click,
             delta,
             velocity,
             pos_tracker: self.pos_tracker,
@@ -266,6 +283,7 @@ impl MouseInput {
         ui.add(label!("released: {}", self.released));
         ui.add(label!("pos: {:?}", self.pos));
         ui.add(label!("press_origin: {:?}", self.press_origin));
+        ui.add(label!("could_be_click: {}", self.could_be_click));
         ui.add(label!("delta: {:?}", self.delta));
         ui.add(label!(
             "velocity: [{:3.0} {:3.0}] points/sec",
