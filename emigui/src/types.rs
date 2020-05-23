@@ -110,6 +110,17 @@ impl GuiResponse {
     }
 }
 
+impl Into<InteractInfo> for GuiResponse {
+    fn into(self) -> InteractInfo {
+        InteractInfo {
+            hovered: self.hovered,
+            clicked: self.clicked,
+            active: self.active,
+            rect: self.rect,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// What sort of interaction is a widget sensitive to?

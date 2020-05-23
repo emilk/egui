@@ -49,7 +49,7 @@ impl<'t> TextEdit<'t> {
 }
 
 impl<'t> Widget for TextEdit<'t> {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let TextEdit {
             text,
             id,
@@ -145,7 +145,7 @@ impl<'t> Widget for TextEdit<'t> {
 
         ui.add_galley(interact.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
-        ui.response(interact)
+        interact
     }
 }
 

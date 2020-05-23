@@ -1,6 +1,6 @@
 #![allow(clippy::new_without_default)]
 
-use crate::{layout::Direction, GuiResponse, *};
+use crate::{layout::Direction, *};
 
 mod slider;
 pub mod text_edit;
@@ -11,7 +11,7 @@ pub use {paint::*, slider::*, text_edit::*};
 
 /// Anything implementing Widget can be added to a Ui with `Ui::add`
 pub trait Widget {
-    fn ui(self, ui: &mut Ui) -> GuiResponse;
+    fn ui(self, ui: &mut Ui) -> InteractInfo;
 }
 
 // ----------------------------------------------------------------------------
@@ -106,11 +106,11 @@ macro_rules! label {
 }
 
 impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let galley = self.layout(ui);
         let rect = ui.allocate_space(galley.size);
         self.paint_galley(ui, rect.min, galley);
-        ui.response(ui.interact_hover(rect))
+        ui.interact_hover(rect)
     }
 }
 
@@ -150,7 +150,7 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let Hyperlink { url, text } = self;
 
         let color = color::LIGHT_BLUE;
@@ -185,7 +185,7 @@ impl Widget for Hyperlink {
 
         ui.add_galley(interact.rect.min, galley, text_style, Some(color));
 
-        ui.response(interact)
+        interact
     }
 }
 
@@ -226,7 +226,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let Button {
             text,
             text_color,
@@ -253,7 +253,7 @@ impl Widget for Button {
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
         ui.add_galley(text_cursor, galley, text_style, Some(text_color));
-        ui.response(interact)
+        interact
     }
 }
 
@@ -282,7 +282,7 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let Checkbox {
             checked,
             text,
@@ -328,7 +328,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         let text_color = text_color.unwrap_or(stroke_color);
         ui.add_galley(text_cursor, galley, text_style, Some(text_color));
-        ui.response(interact)
+        interact
     }
 }
 
@@ -361,7 +361,7 @@ pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let RadioButton {
             checked,
             text,
@@ -403,7 +403,7 @@ impl Widget for RadioButton {
 
         let text_color = text_color.unwrap_or(stroke_color);
         ui.add_galley(text_cursor, galley, text_style, Some(text_color));
-        ui.response(interact)
+        interact
     }
 }
 
@@ -449,7 +449,7 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn ui(self, ui: &mut Ui) -> GuiResponse {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
         let Separator {
             line_width,
             min_spacing,
@@ -488,6 +488,6 @@ impl Widget for Separator {
             color: color,
             width: line_width,
         });
-        ui.response(ui.interact_hover(rect))
+        ui.interact_hover(rect)
     }
 }

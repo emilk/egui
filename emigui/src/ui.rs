@@ -490,7 +490,8 @@ impl Ui {
     // Addding Widgets
 
     pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
-        widget.ui(self)
+        let interact = widget.ui(self);
+        self.response(interact)
     }
 
     // Convenience functions:

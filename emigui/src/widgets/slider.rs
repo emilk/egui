@@ -99,7 +99,7 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn ui(mut self, ui: &mut Ui) -> GuiResponse {
+    fn ui(mut self, ui: &mut Ui) -> InteractInfo {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
 
@@ -131,7 +131,7 @@ impl<'a> Widget for Slider<'a> {
                         ui.add(Label::new(full_text).multiline(false));
                     });
 
-                    slider_response
+                    slider_response.into()
                 })
             }
         } else {
@@ -189,7 +189,7 @@ impl<'a> Widget for Slider<'a> {
                 });
             }
 
-            ui.response(interact)
+            interact
         }
     }
 }
