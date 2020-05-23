@@ -14,7 +14,10 @@ struct Window {
     size: Option<Vec2>,
 }
 
-fn read_state(memory_json_path: impl AsRef<std::path::Path>) -> Option<Window> {
+fn read_json<T>(memory_json_path: impl AsRef<std::path::Path>) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
     match std::fs::File::open(memory_json_path) {
         Ok(file) => {
             let reader = std::io::BufReader::new(file);
@@ -37,8 +40,10 @@ fn main() {
     // TODO: combine
     let memory_path = "emigui.json";
     let settings_json_path: &str = "window.json";
+    let app_json_path: &str = "example_app.json";
 
-    let mut window_settings: Window = read_state(settings_json_path).unwrap_or_default();
+    let mut example_app: ExampleApp = read_json(app_json_path).unwrap_or_default();
+    let mut window_settings: Window = read_json(settings_json_path).unwrap_or_default();
 
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_title("Emigui example");
@@ -81,7 +86,6 @@ fn main() {
     let mut running = true;
     let mut frame_start = Instant::now();
     let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
-    let mut example_app = ExampleApp::default();
     let mut clipboard = emigui_glium::init_clipboard();
 
     emigui_glium::read_memory(&ctx, memory_path);
@@ -156,6 +160,9 @@ fn main() {
     if let Err(err) = emigui_glium::write_memory(&ctx, memory_path) {
         eprintln!("ERROR: Failed to save emigui state: {}", err);
     }
+
+    serde_json::to_writer_pretty(std::fs::File::create(app_json_path).unwrap(), &example_app)
+        .unwrap();
 
     serde_json::to_writer_pretty(
         std::fs::File::create(settings_json_path).unwrap(),
