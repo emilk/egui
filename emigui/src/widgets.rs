@@ -486,8 +486,7 @@ impl Widget for Separator {
         };
         ui.add_paint_cmd(PaintCmd::LineSegment {
             points,
-            color: color,
-            width: line_width,
+            style: LineStyle::new(line_width, color),
         });
         ui.interact_hover(rect)
     }

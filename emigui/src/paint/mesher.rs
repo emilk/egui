@@ -368,10 +368,9 @@ pub fn paint_path_outline(
     options: PaintOptions,
     path_type: PathType,
     path: &[PathPoint],
-    color: Color,
-    width: f32,
+    style: &LineStyle,
 ) {
-    if color == color::TRANSPARENT {
+    if style.color == color::TRANSPARENT {
         return;
     }
 
@@ -385,10 +384,10 @@ pub fn paint_path_outline(
     };
 
     if options.anti_alias {
-        let color_inner = color;
+        let color_inner = style.color;
         let color_outer = color::TRANSPARENT;
 
-        let thin_line = width <= options.aa_size;
+        let thin_line = style.width <= options.aa_size;
         if thin_line {
             /*
             We paint the line using three edges: outer, inner, outer.
@@ -398,7 +397,7 @@ pub fn paint_path_outline(
             */
 
             // Fade out as it gets thinner:
-            let color_inner = mul_color(color_inner, width / options.aa_size);
+            let color_inner = mul_color(color_inner, style.width / options.aa_size);
             if color_inner == color::TRANSPARENT {
                 return;
             }
@@ -448,8 +447,8 @@ pub fn paint_path_outline(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let inner_rad = 0.5 * (width - options.aa_size);
-                let outer_rad = 0.5 * (width + options.aa_size);
+                let inner_rad = 0.5 * (style.width - options.aa_size);
+                let outer_rad = 0.5 * (style.width + options.aa_size);
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
@@ -497,11 +496,11 @@ pub fn paint_path_outline(
             );
         }
 
-        let thin_line = width <= options.aa_size;
+        let thin_line = style.width <= options.aa_size;
         if thin_line {
             // Fade out thin lines rather than making them thinner
             let radius = options.aa_size / 2.0;
-            let color = mul_color(color, width / options.aa_size);
+            let color = mul_color(style.color, style.width / options.aa_size);
             if color == color::TRANSPARENT {
                 return;
             }
@@ -514,14 +513,14 @@ pub fn paint_path_outline(
                     .push(vert(p.pos - radius * p.normal, color));
             }
         } else {
-            let radius = width / 2.0;
+            let radius = style.width / 2.0;
             for p in path {
                 triangles
                     .vertices
-                    .push(vert(p.pos + radius * p.normal, color));
+                    .push(vert(p.pos + radius * p.normal, style.color));
                 triangles
                     .vertices
-                    .push(vert(p.pos - radius * p.normal, color));
+                    .push(vert(p.pos - radius * p.normal, style.color));
             }
         }
     }
@@ -563,19 +562,15 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
+                paint_path_outline(out, options, Closed, &path.0, &outline);
             }
         }
         PaintCmd::Triangles(triangles) => {
             out.append(&triangles);
         }
-        PaintCmd::LineSegment {
-            points,
-            color,
-            width,
-        } => {
+        PaintCmd::LineSegment { points, style } => {
             path.add_line_segment(points);
-            paint_path_outline(out, options, Open, &path.0, color, width);
+            paint_path_outline(out, options, Open, &path.0, &style);
         }
         PaintCmd::Path {
             path,
@@ -593,7 +588,7 @@ pub fn paint_command_into_triangles(
                 }
                 if let Some(outline) = outline {
                     let typ = if closed { Closed } else { Open };
-                    paint_path_outline(out, options, typ, &path.0, outline.color, outline.width);
+                    paint_path_outline(out, options, typ, &path.0, &outline);
                 }
             }
         }
@@ -613,7 +608,7 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, outline.color, outline.width);
+                paint_path_outline(out, options, Closed, &path.0, &outline);
             }
         }
         PaintCmd::Text {

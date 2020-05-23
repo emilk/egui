@@ -16,8 +16,7 @@ pub enum PaintCmd {
     },
     LineSegment {
         points: [Pos2; 2],
-        color: Color,
-        width: f32,
+        style: LineStyle,
     },
     Path {
         path: Path,
@@ -46,8 +45,7 @@ impl PaintCmd {
     pub fn line_segment(points: [Pos2; 2], color: Color, width: f32) -> Self {
         Self::LineSegment {
             points,
-            color,
-            width,
+            style: LineStyle::new(width, color),
         }
     }
 }
