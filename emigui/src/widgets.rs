@@ -315,14 +315,15 @@ impl<'a> Widget for Checkbox<'a> {
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
         if *checked {
-            ui.add_paint_cmd(PaintCmd::LinePath {
-                points: vec![
+            ui.add_paint_cmd(PaintCmd::Path {
+                path: Path::from_open_points(&[
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
-                ],
-                color: stroke_color,
-                width: ui.style().line_width,
+                ]),
+                closed: false,
+                outline: Some(LineStyle::new(ui.style().line_width, stroke_color)),
+                fill_color: None,
             });
         }
 

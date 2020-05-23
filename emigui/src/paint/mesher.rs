@@ -159,6 +159,12 @@ impl Path {
         path
     }
 
+    pub fn from_open_points(points: &[Pos2]) -> Self {
+        let mut path = Self::default();
+        path.add_open_points(points);
+        path
+    }
+
     pub fn clear(&mut self) {
         self.0.clear();
     }
@@ -192,8 +198,7 @@ impl Path {
         self.add_point(points[1], normal);
     }
 
-    // TODO: make it clear it is an open (non-closed) thing.
-    pub fn add_line(&mut self, points: &[Pos2]) {
+    pub fn add_open_points(&mut self, points: &[Pos2]) {
         let n = points.len();
         assert!(n >= 2);
 
@@ -571,17 +576,6 @@ pub fn paint_command_into_triangles(
         } => {
             path.add_line_segment(points);
             paint_path_outline(out, options, Open, &path.0, color, width);
-        }
-        PaintCmd::LinePath {
-            points,
-            color,
-            width,
-        } => {
-            let n = points.len();
-            if n >= 2 {
-                path.add_line(&points);
-                paint_path_outline(out, options, Open, &path.0, color, width);
-            }
         }
         PaintCmd::Path {
             path,

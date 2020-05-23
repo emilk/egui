@@ -458,10 +458,12 @@ impl Painting {
 
         for line in &self.lines {
             if line.len() >= 2 {
-                ui.add_paint_cmd(PaintCmd::LinePath {
-                    points: line.iter().map(|p| rect.min + *p).collect(),
-                    color: LIGHT_GRAY,
-                    width: 2.0,
+                let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
+                ui.add_paint_cmd(PaintCmd::Path {
+                    path: Path::from_open_points(&points),
+                    closed: false,
+                    outline: Some(LineStyle::new(2.0, LIGHT_GRAY)),
+                    fill_color: None,
                 });
             }
         }

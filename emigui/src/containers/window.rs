@@ -477,30 +477,30 @@ fn paint_frame_interaction(
     let mut path = Path::default();
 
     if interaction.right && !interaction.bottom && !interaction.top {
-        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+        path.add_line_segment([pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
     }
     if interaction.right && interaction.bottom {
-        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+        path.add_line_segment([pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
         path.add_circle_quadrant(pos2(max.x - cr, max.y - cr), cr, 0.0);
     }
     if interaction.bottom {
-        path.add_line(&[pos2(max.x - cr, max.y), pos2(min.x + cr, max.y)]);
+        path.add_line_segment([pos2(max.x - cr, max.y), pos2(min.x + cr, max.y)]);
     }
     if interaction.left && interaction.bottom {
         path.add_circle_quadrant(pos2(min.x + cr, max.y - cr), cr, 1.0);
     }
     if interaction.left {
-        path.add_line(&[pos2(min.x, max.y - cr), pos2(min.x, min.y + cr)]);
+        path.add_line_segment([pos2(min.x, max.y - cr), pos2(min.x, min.y + cr)]);
     }
     if interaction.left && interaction.top {
         path.add_circle_quadrant(pos2(min.x + cr, min.y + cr), cr, 2.0);
     }
     if interaction.top {
-        path.add_line(&[pos2(min.x + cr, min.y), pos2(max.x - cr, min.y)]);
+        path.add_line_segment([pos2(min.x + cr, min.y), pos2(max.x - cr, min.y)]);
     }
     if interaction.right && interaction.top {
         path.add_circle_quadrant(pos2(max.x - cr, min.y + cr), cr, 3.0);
-        path.add_line(&[pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
+        path.add_line_segment([pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
     }
     ui.add_paint_cmd(PaintCmd::Path {
         path,
