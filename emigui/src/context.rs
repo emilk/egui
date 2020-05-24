@@ -32,10 +32,11 @@ pub struct Context {
     output: Mutex<Output>,
     /// Used to debug name clashes of e.g. windows
     used_ids: Mutex<AHashMap<Id, Pos2>>,
-
+    id_interner: Arc<Mutex<crate::id4::IdInterner>>,
     paint_stats: Mutex<PaintStats>,
 }
 
+// We need to Clone a Context between each frame
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
@@ -48,6 +49,7 @@ impl Clone for Context {
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
             used_ids: Mutex::new(self.used_ids.lock().clone()),
+            id_interner: Arc::new(Mutex::new(self.id_interner.lock().clone()))
             paint_stats: Mutex::new(*self.paint_stats.lock()),
         }
     }
@@ -67,6 +69,7 @@ impl Context {
             graphics: Default::default(),
             output: Default::default(),
             used_ids: Default::default(),
+            id_interner: Default::default(),
             paint_stats: Default::default(),
         })
     }
