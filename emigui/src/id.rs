@@ -27,7 +27,7 @@
 //! So we have two type of Ids: `PositionId` and `UniqueId`.
 //! TODO: have separate types for `PositionId` and `UniqueId`.
 
-use std::{collections::hash_map::DefaultHasher, hash::Hash};
+use std::hash::Hash;
 
 use crate::math::Pos2;
 
@@ -47,14 +47,14 @@ impl Id {
 
     pub fn new(source: impl Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = ahash::AHasher::default();
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
 
     pub fn with(self, child: impl Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = ahash::AHasher::default();
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())

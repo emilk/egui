@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap},
+    collections::BTreeMap,
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -107,7 +107,7 @@ impl Fonts {
             .collect();
         self.texture = atlas.lock().texture().clone();
 
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = ahash::AHasher::default();
         self.texture.pixels.hash(&mut hasher);
         self.texture.id = hasher.finish();
     }

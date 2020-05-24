@@ -1,7 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use parking_lot::Mutex;
-use rusttype::{point, Scale};
+use {
+    ahash::AHashMap,
+    parking_lot::Mutex,
+    rusttype::{point, Scale},
+};
 
 use crate::math::{vec2, Vec2};
 
@@ -179,7 +182,7 @@ pub struct Font {
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    glyph_infos: HashMap<char, GlyphInfo>, // TODO: optimize these lookups, e.g. with binary search or a fast hashmap
+    glyph_infos: AHashMap<char, GlyphInfo>, // TODO: see if we can optimize if we switch to a binary search
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 

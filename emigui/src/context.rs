@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use parking_lot::Mutex;
+use {ahash::AHashMap, parking_lot::Mutex};
 
 use crate::{layout::align_rect, paint::*, *};
 
@@ -31,7 +31,7 @@ pub struct Context {
     graphics: Mutex<GraphicLayers>,
     output: Mutex<Output>,
     /// Used to debug name clashes of e.g. windows
-    used_ids: Mutex<HashMap<Id, Pos2>>,
+    used_ids: Mutex<AHashMap<Id, Pos2>>,
 
     paint_stats: Mutex<PaintStats>,
 }

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use ahash::AHashMap;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{math::Rect, paint::PaintCmd, Id};
@@ -39,7 +38,7 @@ type PaintList = Vec<(Rect, PaintCmd)>;
 
 /// TODO: improve this
 #[derive(Clone, Default)]
-pub struct GraphicLayers(HashMap<Layer, PaintList>);
+pub struct GraphicLayers(AHashMap<Layer, PaintList>);
 
 impl GraphicLayers {
     pub fn layer(&mut self, layer: Layer) -> &mut PaintList {
