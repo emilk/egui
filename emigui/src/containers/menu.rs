@@ -2,7 +2,7 @@ use crate::{widgets::*, *};
 
 use super::*;
 
-#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(Clone, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
 pub struct BarState {
     #[serde(skip)]
     open_menu: Option<Id>,
@@ -53,7 +53,7 @@ fn menu_impl<'c>(
     add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
 ) {
     let title = title.into();
-    let bar_id = ui.id();
+    let bar_id = ui.id().clone();
     let menu_id = Id::new(&title);
 
     let mut bar_state = ui
@@ -65,15 +65,15 @@ fn menu_impl<'c>(
 
     let mut button = Button::new(title);
 
-    if bar_state.open_menu == Some(menu_id) {
+    if bar_state.open_menu.as_ref() == Some(&menu_id) {
         button = button.fill(Some(ui.style().interact.active.fill));
     }
 
     let button_interact = ui.add(button);
 
-    interact_with_menu_button(&mut bar_state, ui.input(), menu_id, &button_interact);
+    interact_with_menu_button(&mut bar_state, ui.input(), &menu_id, &button_interact);
 
-    if bar_state.open_menu == Some(menu_id) {
+    if bar_state.open_menu.as_ref() == Some(&menu_id) {
         let area = Area::new(menu_id)
             .order(Order::Foreground)
             .fixed_pos(button_interact.rect.left_bottom());
@@ -110,14 +110,14 @@ fn menu_impl<'c>(
 fn interact_with_menu_button(
     bar_state: &mut BarState,
     input: &InputState,
-    menu_id: Id,
+    menu_id: &Id,
     button_interact: &GuiResponse,
 ) {
     if button_interact.hovered && input.mouse.pressed {
         if bar_state.open_menu.is_some() {
             bar_state.open_menu = None;
         } else {
-            bar_state.open_menu = Some(menu_id);
+            bar_state.open_menu = Some(menu_id.clone());
             bar_state.open_time = input.time;
         }
     }
@@ -126,7 +126,7 @@ fn interact_with_menu_button(
         let time_since_open = input.time - bar_state.open_time;
         if time_since_open < 0.4 {
             // A quick click
-            bar_state.open_menu = Some(menu_id);
+            bar_state.open_menu = Some(menu_id.clone());
             bar_state.open_time = input.time;
         } else {
             // A long hold, then release
@@ -135,7 +135,7 @@ fn interact_with_menu_button(
     }
 
     if button_interact.hovered && bar_state.open_menu.is_some() {
-        bar_state.open_menu = Some(menu_id);
+        bar_state.open_menu = Some(menu_id.clone());
     }
 
     let pressed_escape = input.events.iter().any(|event| {

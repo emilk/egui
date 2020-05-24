@@ -24,12 +24,11 @@ pub(crate) struct State {
     pub vel: Vec2,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Area {
-    id: Id,
+    layer: Layer,
     movable: bool,
     interactable: bool,
-    order: Order,
     default_pos: Option<Pos2>,
     fixed_pos: Option<Pos2>,
 }
@@ -37,20 +36,19 @@ pub struct Area {
 impl Area {
     pub fn new(id_source: impl Hash) -> Self {
         Self {
-            id: Id::new(id_source),
+            layer: Layer {
+                id: Id::new(id_source),
+                order: Order::Middle,
+            },
             movable: true,
             interactable: true,
-            order: Order::Middle,
             default_pos: None,
             fixed_pos: None,
         }
     }
 
-    pub fn layer(&self) -> Layer {
-        Layer {
-            order: self.order,
-            id: self.id,
-        }
+    pub fn layer(&self) -> &Layer {
+        &self.layer
     }
 
     /// moveable by draggin the area?
@@ -74,7 +72,7 @@ impl Area {
 
     /// `order(Order::Foreground)` for an Area that should always be on top
     pub fn order(mut self, order: Order) -> Self {
-        self.order = order;
+        self.layer.order = order;
         self
     }
 
@@ -101,19 +99,17 @@ pub(crate) struct Prepared {
 impl Area {
     pub(crate) fn begin(self, ctx: &Arc<Context>) -> Prepared {
         let Area {
-            id,
+            mut layer,
             movable,
-            order,
             interactable,
             default_pos,
             fixed_pos,
         } = self;
 
         let default_pos = default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
-        let id = ctx.register_unique_id(id, "Area", default_pos);
-        let layer = Layer { order, id };
+        layer.id = ctx.register_unique_id(layer.id, "Area", default_pos);
 
-        let mut state = ctx.memory().areas.get(id).unwrap_or_else(|| State {
+        let mut state = ctx.memory().areas.get(&layer.id).unwrap_or_else(|| State {
             pos: default_pos,
             size: Vec2::zero(),
             interactable,
@@ -124,8 +120,7 @@ impl Area {
 
         let content_ui = Ui::new(
             ctx.clone(),
-            layer,
-            id,
+            layer.clone(),
             Rect::from_min_size(state.pos, Vec2::infinity()),
         );
 
@@ -163,8 +158,13 @@ impl Prepared {
         } else {
             None
         };
-        let move_interact =
-            ctx.interact(layer, clip_rect, rect, interact_id, Sense::click_and_drag());
+        let move_interact = ctx.interact(
+            &layer,
+            clip_rect,
+            rect,
+            interact_id.as_ref(),
+            Sense::click_and_drag(),
+        );
 
         let input = ctx.input();
         if move_interact.active {
@@ -199,10 +199,10 @@ impl Prepared {
         // );
 
         if move_interact.active
-            || mouse_pressed_on_area(ctx, layer)
+            || mouse_pressed_on_area(ctx, &layer)
             || !ctx.memory().areas.visible_last_frame(&layer)
         {
-            ctx.memory().areas.move_to_top(layer);
+            ctx.memory().areas.move_to_top(&layer);
         }
         ctx.memory().areas.set_state(layer, state);
 
@@ -210,7 +210,7 @@ impl Prepared {
     }
 }
 
-fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
+fn mouse_pressed_on_area(ctx: &Context, layer: &Layer) -> bool {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
         ctx.input().mouse.pressed && ctx.memory().layer_at(mouse_pos) == Some(layer)
     } else {

@@ -138,14 +138,14 @@ impl<'a> Widget for Slider<'a> {
             let height = font.line_spacing().max(ui.style().clickable_diameter);
             let handle_radius = height / 2.5;
 
-            let id = self.id.unwrap_or_else(|| ui.make_position_id());
+            let id = self.id.clone().unwrap_or_else(|| ui.make_position_id());
 
             let size = Vec2 {
                 x: ui.available().width(),
                 y: height,
             };
             let rect = ui.allocate_space(size);
-            let interact = ui.interact(rect, id, Sense::click_and_drag());
+            let interact = ui.interact(rect, &id, Sense::click_and_drag());
 
             let left = interact.rect.left() + handle_radius;
             let right = interact.rect.right() - handle_radius;

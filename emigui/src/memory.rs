@@ -89,7 +89,7 @@ impl Memory {
                 if window_interaction.is_pure_move() {
                     // Throw windows because it is fun:
                     let area_layer = window_interaction.area_layer;
-                    let area_state = self.areas.get(area_layer.id).clone();
+                    let area_state = self.areas.get(&area_layer.id).clone();
                     if let Some(mut area_state) = area_state {
                         area_state.vel = prev_input.mouse.velocity;
                         self.areas.set_state(area_layer, area_state);
@@ -104,7 +104,7 @@ impl Memory {
     }
 
     /// TODO: call once at the start of the frame for the current mouse pos
-    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+    pub fn layer_at(&self, pos: Pos2) -> Option<&Layer> {
         self.areas.layer_at(pos)
     }
 }
@@ -114,7 +114,7 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&mut self, id: Id) -> Option<area::State> {
+    pub(crate) fn get(&mut self, id: &Id) -> Option<area::State> {
         self.areas.get(&id).cloned()
     }
 
@@ -123,22 +123,22 @@ impl Areas {
     }
 
     pub(crate) fn set_state(&mut self, layer: Layer, state: area::State) {
-        self.visible_current_frame.insert(layer);
-        let did_insert = self.areas.insert(layer.id, state).is_none();
+        self.visible_current_frame.insert(layer.clone());
+        let did_insert = self.areas.insert(layer.id.clone(), state).is_none();
         if did_insert {
             self.order.push(layer);
         }
     }
 
     /// TODO: call once at the start of the frame for the current mouse pos
-    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+    pub fn layer_at(&self, pos: Pos2) -> Option<&Layer> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     if state.interactable {
                         let rect = Rect::from_min_size(state.pos, state.size);
                         if rect.contains(pos) {
-                            return Some(*layer);
+                            return Some(&layer);
                         }
                     }
                 }
@@ -155,12 +155,12 @@ impl Areas {
         self.visible_last_frame.contains(layer) || self.visible_current_frame.contains(layer)
     }
 
-    pub fn move_to_top(&mut self, layer: Layer) {
-        self.visible_current_frame.insert(layer);
-        self.wants_to_be_on_top.insert(layer);
+    pub fn move_to_top(&mut self, layer: &Layer) {
+        self.visible_current_frame.insert(layer.clone());
+        self.wants_to_be_on_top.insert(layer.clone());
 
-        if self.order.iter().find(|x| **x == layer).is_none() {
-            self.order.push(layer);
+        if self.order.iter().find(|x| *x == layer).is_none() {
+            self.order.push(layer.clone());
         }
     }
 

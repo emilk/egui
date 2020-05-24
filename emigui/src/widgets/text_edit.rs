@@ -72,10 +72,10 @@ impl<'t> Widget for TextEdit<'t> {
         };
         let desired_size = galley.size.max(vec2(available_width, line_spacing));
         let rect = ui.allocate_space(desired_size);
-        let interact = ui.interact(rect, id, Sense::click_and_drag()); // TODO: implement drag-select
+        let interact = ui.interact(rect, &id, Sense::click_and_drag()); // TODO: implement drag-select
 
         if interact.clicked {
-            ui.request_kb_focus(id);
+            ui.request_kb_focus(id.clone());
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
             }
@@ -83,7 +83,7 @@ impl<'t> Widget for TextEdit<'t> {
         if interact.hovered {
             ui.output().cursor_icon = CursorIcon::Text;
         }
-        let has_kb_focus = ui.has_kb_focus(id);
+        let has_kb_focus = ui.has_kb_focus(&id);
 
         if has_kb_focus {
             let mut cursor = state.cursor.unwrap_or_else(|| text.chars().count());

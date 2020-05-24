@@ -147,7 +147,7 @@ impl Prepared {
 
         if content_is_too_small {
             // Drag contents to scroll (for touch screens mostly):
-            let content_interact = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            let content_interact = ui.interact(inner_rect, &id.with("area"), Sense::drag());
             if content_interact.active {
                 state.offset.y -= ui.input().mouse.delta.y;
             }
@@ -181,7 +181,7 @@ impl Prepared {
 
             // intentionally use same id for inside and outside of handle
             let interact_id = id.with("vertical");
-            let mut interact = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
+            let mut interact = ui.interact(handle_rect, &interact_id, Sense::click_and_drag());
 
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 if interact.active {
@@ -192,7 +192,7 @@ impl Prepared {
                 } else {
                     // Check for mouse down outside handle:
                     let scroll_bg_interact =
-                        ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
+                        ui.interact(outer_scroll_rect, &interact_id, Sense::click_and_drag());
 
                     if scroll_bg_interact.active {
                         // Center scroll at mouse pos:

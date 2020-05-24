@@ -149,21 +149,19 @@ impl<'open> Window<'open> {
         }
 
         let window_id = Id::new(title_label.text());
-        let area_layer = area.layer();
         let resize_id = window_id.with("resize");
         let collapsing_id = window_id.with("collapsing");
 
         let possible = PossibleInteractions {
             movable: area.is_movable(),
             resizable: resize.is_resizable()
-                && collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default(),
+                && collapsing_header::State::is_open(ctx, &collapsing_id).unwrap_or_default(),
         };
 
         let area = area.movable(false); // We move it manually
+        let area_layer = area.layer().clone();
         let resize = resize.resizable(false); // We move it manually
-
-        let resize = resize.id(resize_id);
-
+        let resize = resize.id(resize_id.clone());
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let mut area = area.begin(ctx);
@@ -174,7 +172,7 @@ impl<'open> Window<'open> {
             let default_expanded = true;
             let mut collapsing = collapsing_header::State::from_memory_with_default_open(
                 &mut frame.content_ui,
-                collapsing_id,
+                &collapsing_id,
                 default_expanded,
             );
             let show_close_button = open.is_some();
@@ -182,7 +180,7 @@ impl<'open> Window<'open> {
                 &mut frame.content_ui,
                 title_label,
                 show_close_button,
-                collapsing_id,
+                &collapsing_id,
                 &mut collapsing,
             );
 
@@ -208,16 +206,16 @@ impl<'open> Window<'open> {
                 interact(
                     ctx,
                     possible,
-                    area_layer,
+                    &area_layer,
                     &mut area.state,
-                    window_id,
-                    resize_id,
+                    &window_id,
+                    &resize_id,
                     outer_rect,
                 )
             } else {
                 None
             };
-            let hover_interaction = resize_hover(ctx, possible, area_layer, outer_rect);
+            let hover_interaction = resize_hover(ctx, possible, &area_layer, outer_rect);
 
             title_bar.ui(
                 &mut area.content_ui,
@@ -264,7 +262,7 @@ struct PossibleInteractions {
     resizable: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct WindowInteraction {
     pub(crate) area_layer: Layer,
     pub(crate) start_rect: Rect,
@@ -299,10 +297,10 @@ impl WindowInteraction {
 fn interact(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer: Layer,
+    area_layer: &Layer,
     area_state: &mut area::State,
-    window_id: Id,
-    resize_id: Id,
+    window_id: &Id,
+    resize_id: &Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
     let pre_resize = ctx.round_rect_to_pixels(rect);
@@ -310,7 +308,7 @@ fn interact(
         ctx,
         possible,
         area_layer,
-        window_id.with("frame_resize"),
+        &window_id.with("frame_resize"),
         rect,
     )?;
     let new_rect = resize_window(ctx, &window_interaction)?;
@@ -324,9 +322,9 @@ fn interact(
     // resize_state.size += new_rect.size() - pre_resize.size();
     // resize_state.size = new_rect.size() - some margin;
     resize_state.requested_size = Some(resize_state.size + new_rect.size() - pre_resize.size());
-    ctx.memory().resize.insert(resize_id, resize_state);
+    ctx.memory().resize.insert(resize_id.clone(), resize_state);
 
-    ctx.memory().areas.move_to_top(area_layer);
+    ctx.memory().areas.move_to_top(&area_layer);
     Some(window_interaction)
 }
 
@@ -358,14 +356,14 @@ fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Optio
 fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer: Layer,
-    id: Id,
+    area_layer: &Layer,
+    id: &Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
     {
-        let drag_id = ctx.memory().interaction.drag_id;
+        let drag_id = ctx.memory().interaction.drag_id.clone();
 
-        if drag_id.is_some() && drag_id != Some(id) {
+        if drag_id.is_some() && drag_id.as_ref() != Some(id) {
             return None;
         }
     }
@@ -376,17 +374,17 @@ fn window_interaction(
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().mouse.pressed {
-                ctx.memory().interaction.drag_id = Some(id);
+                ctx.memory().interaction.drag_id = Some(id.clone());
                 window_interaction = Some(hover_window_interaction);
-                ctx.memory().window_interaction = window_interaction;
+                ctx.memory().window_interaction = window_interaction.clone();
             }
         }
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory().interaction.drag_id == Some(id);
+        let is_active = ctx.memory().interaction.drag_id.as_ref() == Some(id);
 
-        if is_active && window_interaction.area_layer == area_layer {
+        if is_active && &window_interaction.area_layer == area_layer {
             return Some(window_interaction);
         }
     }
@@ -397,7 +395,7 @@ fn window_interaction(
 fn resize_hover(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer: Layer,
+    area_layer: &Layer,
     rect: Rect,
 ) -> Option<WindowInteraction> {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
@@ -451,7 +449,7 @@ fn resize_hover(
 
             if any_resize || possible.movable {
                 Some(WindowInteraction {
-                    area_layer,
+                    area_layer: area_layer.clone(),
                     start_rect: rect,
                     left,
                     right,
@@ -528,7 +526,7 @@ fn show_title_bar(
     ui: &mut Ui,
     title_label: Label,
     show_close_button: bool,
-    collapsing_id: Id,
+    collapsing_id: &Id,
     collapsing: &mut collapsing_header::State,
 ) -> TitleBar {
     let title_bar_and_rect = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
@@ -618,7 +616,7 @@ impl TitleBar {
 
         let title_bar_id = ui.make_child_id("title_bar");
         if ui
-            .interact(self.rect, title_bar_id, Sense::click())
+            .interact(self.rect, &title_bar_id, Sense::click())
             .double_clicked
         {
             collapsing.toggle(ui);
@@ -641,7 +639,7 @@ impl TitleBar {
 
 fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
     let close_id = ui.make_child_id("window_close_button");
-    let interact = ui.interact(rect, close_id, Sense::click());
+    let interact = ui.interact(rect, &close_id, Sense::click());
     ui.expand_to_include_child(interact.rect);
 
     let stroke_color = ui.style().interact(&interact).stroke_color;

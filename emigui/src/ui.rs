@@ -55,11 +55,11 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
+    pub fn new(ctx: Arc<Context>, layer: Layer, rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
             ctx,
-            id,
+            id: layer.id.clone(),
             layer,
             clip_rect: rect.expand(style.clip_rect_margin),
             desired_rect: rect,
@@ -77,8 +77,8 @@ impl Ui {
         let clip_rect = self.clip_rect(); // Keep it unless the child explciitly desires differently
         Ui {
             ctx: self.ctx.clone(),
-            id: self.id,
-            layer: self.layer,
+            id: self.id.clone(),
+            layer: self.layer.clone(),
             clip_rect,
             desired_rect: child_rect,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
@@ -102,8 +102,8 @@ impl Ui {
         self.ctx.round_pos_to_pixels(pos)
     }
 
-    pub fn id(&self) -> Id {
-        self.id
+    pub fn id(&self) -> &Id {
+        &self.id
     }
 
     /// Options for this ui, and any child uis we may spawn.
@@ -263,11 +263,11 @@ impl Ui {
     // ------------------------------------------------------------------------
 
     pub fn contains_mouse(&self, rect: Rect) -> bool {
-        self.ctx.contains_mouse(self.layer, self.clip_rect, rect)
+        self.ctx.contains_mouse(&self.layer, self.clip_rect, rect)
     }
 
-    pub fn has_kb_focus(&self, id: Id) -> bool {
-        self.memory().kb_focus_id == Some(id)
+    pub fn has_kb_focus(&self, id: &Id) -> bool {
+        self.memory().kb_focus_id.as_ref() == Some(id)
     }
 
     pub fn request_kb_focus(&self, id: Id) {
@@ -303,14 +303,14 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Interaction
 
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> InteractInfo {
+    pub fn interact(&self, rect: Rect, id: &Id, sense: Sense) -> InteractInfo {
         self.ctx
-            .interact(self.layer, self.clip_rect, rect, Some(id), sense)
+            .interact(&self.layer, self.clip_rect, rect, Some(id), sense)
     }
 
     pub fn interact_hover(&self, rect: Rect) -> InteractInfo {
         self.ctx
-            .interact(self.layer, self.clip_rect, rect, None, Sense::nothing())
+            .interact(&self.layer, self.clip_rect, rect, None, Sense::nothing())
     }
 
     pub fn hovered(&self, rect: Rect) -> bool {
@@ -405,7 +405,7 @@ impl Ui {
     pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
         self.ctx
             .graphics()
-            .layer(self.layer)
+            .layer(&self.layer)
             .push((self.clip_rect(), paint_cmd))
     }
 
@@ -413,7 +413,7 @@ impl Ui {
         let clip_rect = self.clip_rect();
         self.ctx
             .graphics()
-            .layer(self.layer)
+            .layer(&self.layer)
             .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
     }
 
@@ -421,12 +421,12 @@ impl Ui {
     pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
         self.ctx
             .graphics()
-            .layer(self.layer)
+            .layer(&self.layer)
             .insert(pos, (self.clip_rect(), paint_cmd));
     }
 
     pub fn paint_list_len(&self) -> usize {
-        self.ctx.graphics().layer(self.layer).len()
+        self.ctx.graphics().layer(&self.layer).len()
     }
 
     /// Paint some debug text at current cursor

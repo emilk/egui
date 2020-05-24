@@ -18,7 +18,7 @@ pub enum Order {
 
 /// An ideintifer for a paint layer.
 /// Also acts as an identifier for `Area`:s.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Layer {
     pub order: Order,
     pub id: Id,
@@ -41,8 +41,8 @@ type PaintList = Vec<(Rect, PaintCmd)>;
 pub struct GraphicLayers(AHashMap<Layer, PaintList>);
 
 impl GraphicLayers {
-    pub fn layer(&mut self, layer: Layer) -> &mut PaintList {
-        self.0.entry(layer).or_default()
+    pub fn layer(&mut self, layer: &Layer) -> &mut PaintList {
+        self.0.entry(layer.clone()).or_default()
     }
 
     pub fn drain(

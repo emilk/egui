@@ -52,7 +52,7 @@ impl Id {
         Id(hasher.finish())
     }
 
-    pub fn with(self, child: impl Hash) -> Id {
+    pub fn with(&self, child: impl Hash) -> Id {
         use std::hash::Hasher;
         let mut hasher = ahash::AHasher::default();
         hasher.write_u64(self.0);

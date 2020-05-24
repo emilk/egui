@@ -11,7 +11,7 @@ pub(crate) struct State {
 }
 
 // TODO: auto-shink/grow should be part of another container!
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Resize {
     id: Option<Id>,
 
@@ -178,7 +178,10 @@ struct Prepared {
 
 impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
-        let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
+        let id = self
+            .id
+            .clone()
+            .unwrap_or_else(|| ui.make_child_id("resize"));
         self.min_size = self.min_size.min(ui.available().size());
         self.max_size = self.max_size.min(ui.available().size());
         self.max_size = self.max_size.max(self.min_size);
@@ -209,7 +212,7 @@ impl Resize {
                 position + state.size + self.handle_offset - corner_size,
                 corner_size,
             );
-            let corner_interact = ui.interact(corner_rect, id.with("corner"), Sense::drag());
+            let corner_interact = ui.interact(corner_rect, &id.with("corner"), Sense::drag());
 
             if corner_interact.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {

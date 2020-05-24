@@ -159,7 +159,7 @@ impl Widget for Hyperlink {
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
         let rect = ui.allocate_space(galley.size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, &id, Sense::click());
         if interact.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
@@ -241,7 +241,7 @@ impl Widget for Button {
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, &id, Sense::click());
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
         ui.add_paint_cmd(PaintCmd::Rect {
@@ -298,7 +298,7 @@ impl<'a> Widget for Checkbox<'a> {
             + galley.size
             + ui.style().button_padding;
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, &id, Sense::click());
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
         if interact.clicked {
@@ -377,7 +377,7 @@ impl Widget for RadioButton {
             + galley.size
             + ui.style().button_padding;
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, &id, Sense::click());
         let text_cursor =
             interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 

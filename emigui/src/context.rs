@@ -204,7 +204,7 @@ impl Context {
         };
         // Ensure we register the background area so it is painted:
         self.memory().areas.set_state(
-            layer,
+            layer.clone(),
             containers::area::State {
                 pos: rect.min,
                 size: rect.size(),
@@ -212,7 +212,7 @@ impl Context {
                 vel: Default::default(),
             },
         );
-        Ui::new(self.clone(), layer, id, rect)
+        Ui::new(self.clone(), layer, rect)
     }
 
     // ---------------------------------------------------------------------
@@ -228,7 +228,7 @@ impl Context {
 
     /// If the given Id is not unique, an error will be printed at the given position.
     pub fn register_unique_id(&self, id: Id, source_name: impl std::fmt::Debug, pos: Pos2) -> Id {
-        if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
+        if let Some(clash_pos) = self.used_ids.lock().insert(id.clone(), pos) {
             if clash_pos.distance(pos) < 4.0 {
                 self.show_error(
                     pos,
@@ -253,7 +253,7 @@ impl Context {
         }
     }
 
-    pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
+    pub fn contains_mouse(&self, layer: &Layer, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse.pos {
             rect.contains(mouse_pos) && self.memory().layer_at(mouse_pos) == Some(layer)
@@ -264,10 +264,10 @@ impl Context {
 
     pub fn interact(
         &self,
-        layer: Layer,
+        layer: &Layer,
         clip_rect: Rect,
         rect: Rect,
-        interaction_id: Option<Id>,
+        interaction_id: Option<&Id>,
         sense: Sense,
     ) -> InteractInfo {
         let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
@@ -290,8 +290,8 @@ impl Context {
         memory.interaction.click_interest |= hovered && sense.click;
         memory.interaction.drag_interest |= hovered && sense.drag;
 
-        let active = memory.interaction.click_id == Some(interaction_id)
-            || memory.interaction.drag_id == Some(interaction_id);
+        let active = memory.interaction.click_id.as_ref() == Some(interaction_id)
+            || memory.interaction.drag_id.as_ref() == Some(interaction_id);
 
         if self.input.mouse.pressed {
             if hovered {
@@ -305,13 +305,13 @@ impl Context {
 
                 if sense.click && !memory.interaction.click_id.is_some() {
                     // start of a click
-                    memory.interaction.click_id = Some(interaction_id);
+                    memory.interaction.click_id = Some(interaction_id.clone());
                     info.active = true;
                 }
 
                 if sense.drag && !memory.interaction.drag_id.is_some() {
                     // start of a drag
-                    memory.interaction.drag_id = Some(interaction_id);
+                    memory.interaction.drag_id = Some(interaction_id.clone());
                     info.active = true;
                 }
 
@@ -365,7 +365,7 @@ impl Context {
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
         self.add_paint_cmd(
-            layer,
+            &layer,
             PaintCmd::Rect {
                 corner_radius: 0.0,
                 fill: Some(color::gray(0, 240)),
@@ -373,7 +373,7 @@ impl Context {
                 rect: rect.expand(2.0),
             },
         );
-        self.add_galley(layer, rect.min, galley, text_style, Some(color::RED));
+        self.add_galley(&layer, rect.min, galley, text_style, Some(color::RED));
     }
 
     pub fn debug_text(&self, pos: Pos2, text: impl Into<String>) {
@@ -381,7 +381,7 @@ impl Context {
         let layer = Layer::debug();
         let align = (Align::Min, Align::Min);
         self.floating_text(
-            layer,
+            &layer,
             pos,
             text,
             TextStyle::Monospace,
@@ -394,7 +394,7 @@ impl Context {
         let text = text.into();
         let layer = Layer::debug();
         self.add_paint_cmd(
-            layer,
+            &layer,
             PaintCmd::Rect {
                 corner_radius: 0.0,
                 fill: None,
@@ -404,14 +404,14 @@ impl Context {
         );
         let align = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
-        self.floating_text(layer, rect.min, text, text_style, align, Some(color::RED));
+        self.floating_text(&layer, rect.min, text, text_style, align, Some(color::RED));
     }
 
     /// Show some text anywhere on screen.
     /// To center the text at the given position, use `align: (Center, Center)`.
     pub fn floating_text(
         &self,
-        layer: Layer,
+        layer: &Layer,
         pos: Pos2,
         text: String,
         text_style: TextStyle,
@@ -428,7 +428,7 @@ impl Context {
     /// Already layed out text.
     pub fn add_galley(
         &self,
-        layer: Layer,
+        layer: &Layer,
         pos: Pos2,
         galley: font::Galley,
         text_style: TextStyle,
@@ -446,7 +446,7 @@ impl Context {
         );
     }
 
-    pub fn add_paint_cmd(&self, layer: Layer, paint_cmd: PaintCmd) {
+    pub fn add_paint_cmd(&self, layer: &Layer, paint_cmd: PaintCmd) {
         self.graphics()
             .layer(layer)
             .push((Rect::everything(), paint_cmd))

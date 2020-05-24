@@ -28,10 +28,10 @@ impl Default for State {
 }
 
 impl State {
-    pub fn from_memory_with_default_open(ui: &Ui, id: Id, default_open: bool) -> Self {
+    pub fn from_memory_with_default_open(ui: &Ui, id: &Id, default_open: bool) -> Self {
         ui.memory()
             .collapsing_headers
-            .entry(id)
+            .entry(id.clone())
             .or_insert(State {
                 open: default_open,
                 ..Default::default()
@@ -40,12 +40,19 @@ impl State {
     }
 
     // Helper
-    pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
+    pub fn is_open(ctx: &Context, id: &Id) -> Option<bool> {
         ctx.memory()
             .collapsing_headers
-            .get(&id)
+            .get(id)
             .map(|state| state.open)
     }
+
+    // // Helper
+    // pub fn toggle_by_id(ui: &Ui, id: &Id) {
+    //     if let Some(state) = ui.memory().collapsing_headers.get_mut(id) {
+    //         state.toggle(ui);
+    //     }
+    // }
 
     pub fn toggle(&mut self, ui: &Ui) {
         self.open = !self.open;
@@ -196,10 +203,10 @@ impl CollapsingHeader {
         );
 
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, &id, Sense::click());
         let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
 
-        let mut state = State::from_memory_with_default_open(ui, id, default_open);
+        let mut state = State::from_memory_with_default_open(ui, &id, default_open);
         if interact.clicked {
             state.toggle(ui);
         }
@@ -241,7 +248,7 @@ impl CollapsingHeader {
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         let Prepared { id, mut state } = self.begin(ui);
-        let r_interact = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
+        let r_interact = state.add_contents(ui, |ui| ui.indent(&id, add_contents).0);
         let ret = r_interact.map(|ri| ri.0);
         ui.memory().collapsing_headers.insert(id, state);
         ret
