@@ -36,7 +36,7 @@ impl FractalClock {
     pub fn window(&mut self, ctx: &Arc<Context>, open: &mut bool) {
         Window::new("FractalClock")
             .open(open)
-            .default_rect(ctx.rect().expand(-40.0))
+            .default_rect(ctx.rect().expand(-42.0))
             .scroll(false)
             // Dark background frame to make it pop:
             .frame(Frame::window(&ctx.style()).fill(Some(color::black(250))))
@@ -51,7 +51,7 @@ impl FractalClock {
                 .unwrap_or_else(|| ui.input().time);
         }
 
-        self.fractal_ui(ui);
+        self.fractal_ui(ui, ui.available_finite());
 
         let frame = Frame::popup(ui.style())
             .fill(Some(color::gray(34, 160)))
@@ -60,6 +60,9 @@ impl FractalClock {
         frame.show(&mut ui.left_column(320.0), |ui| {
             CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
         });
+
+        // Make sure we allocate what we used (everything)
+        ui.allocate_space(ui.available_finite().size());
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -94,7 +97,7 @@ impl FractalClock {
         );
     }
 
-    fn fractal_ui(&mut self, ui: &mut Ui) {
+    fn fractal_ui(&mut self, ui: &mut Ui, rect: Rect) {
         struct Hand {
             length: f32,
             angle: f32,
@@ -122,8 +125,6 @@ impl FractalClock {
             // Hour hand:
             Hand::from_length_angle(0.5, angle_from_period(12.0 * 60.0 * 60.0)),
         ];
-
-        let rect = ui.available_finite();
 
         let scale = self.zoom * rect.width().min(rect.height());
         let mut paint_line = |points: [Pos2; 2], color: Color, width: f32| {
