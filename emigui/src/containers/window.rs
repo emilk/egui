@@ -167,9 +167,29 @@ impl<'open> Window<'open> {
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let mut area = area.begin(ctx);
+
+        // First interact (move etc) to avoid frame delay:
+        let last_frame_outer_rect = area.state().rect();
+        let interaction = if possible.movable || possible.resizable {
+            interact(
+                ctx,
+                possible,
+                area_layer,
+                area.state_mut(),
+                window_id,
+                resize_id,
+                last_frame_outer_rect,
+            )
+        } else {
+            None
+        };
+        let hover_interaction = resize_hover(ctx, possible, area_layer, last_frame_outer_rect);
+
+        let mut area_content_ui = area.content_ui(ctx);
+
         {
             // BEGIN FRAME --------------------------------
-            let mut frame = frame.begin(&mut area.content_ui);
+            let mut frame = frame.begin(&mut area_content_ui);
 
             let default_expanded = true;
             let mut collapsing = collapsing_header::State::from_memory_with_default_open(
@@ -201,40 +221,25 @@ impl<'open> Window<'open> {
                 })
                 .map(|ri| ri.1);
 
-            let outer_rect = frame.end(&mut area.content_ui);
+            let outer_rect = frame.end(&mut area_content_ui);
             // END FRAME --------------------------------
 
-            let interaction = if possible.movable || possible.resizable {
-                interact(
-                    ctx,
-                    possible,
-                    area_layer,
-                    &mut area.state,
-                    window_id,
-                    resize_id,
-                    outer_rect,
-                )
-            } else {
-                None
-            };
-            let hover_interaction = resize_hover(ctx, possible, area_layer, outer_rect);
-
             title_bar.ui(
-                &mut area.content_ui,
+                &mut area_content_ui,
                 outer_rect,
                 content_rect,
                 open,
                 &mut collapsing,
             );
 
-            area.content_ui
+            area_content_ui
                 .memory()
                 .collapsing_headers
                 .insert(collapsing_id, collapsing);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
-                    &mut area.content_ui,
+                    &mut area_content_ui,
                     outer_rect,
                     interaction,
                     ctx.style().interact.active,
@@ -242,7 +247,7 @@ impl<'open> Window<'open> {
             } else {
                 if let Some(hover_interaction) = hover_interaction {
                     paint_frame_interaction(
-                        &mut area.content_ui,
+                        &mut area_content_ui,
                         outer_rect,
                         hover_interaction,
                         ctx.style().interact.hovered,
@@ -250,7 +255,7 @@ impl<'open> Window<'open> {
                 }
             }
         }
-        let full_interact = area.end(ctx);
+        let full_interact = area.end(ctx, area_content_ui);
 
         Some(full_interact)
     }
@@ -377,6 +382,7 @@ fn window_interaction(
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().mouse.pressed {
                 ctx.memory().interaction.drag_id = Some(id);
+                ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
                 ctx.memory().window_interaction = window_interaction;
             }

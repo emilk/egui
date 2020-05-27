@@ -24,6 +24,12 @@ pub(crate) struct State {
     pub vel: Vec2,
 }
 
+impl State {
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.size)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     id: Id,
@@ -93,9 +99,8 @@ impl Area {
 
 pub(crate) struct Prepared {
     layer: Layer,
-    pub(crate) state: State,
+    state: State,
     movable: bool,
-    pub(crate) content_ui: Ui,
 }
 
 impl Area {
@@ -122,35 +127,44 @@ impl Area {
         state.pos = fixed_pos.unwrap_or(state.pos);
         state.pos = state.pos.round();
 
-        let content_ui = Ui::new(
-            ctx.clone(),
-            layer,
-            id,
-            Rect::from_min_size(state.pos, Vec2::infinity()),
-        );
-
         Prepared {
             layer,
             state,
             movable,
-            content_ui,
         }
     }
 
     pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
-        let mut prepared = self.begin(ctx);
-        add_contents(&mut prepared.content_ui);
-        prepared.end(ctx)
+        let prepared = self.begin(ctx);
+        let mut content_ui = prepared.content_ui(ctx);
+        add_contents(&mut content_ui);
+        prepared.end(ctx, content_ui)
     }
 }
 
 impl Prepared {
-    pub(crate) fn end(self, ctx: &Arc<Context>) -> InteractInfo {
+    pub(crate) fn state(&self) -> &State {
+        &self.state
+    }
+
+    pub(crate) fn state_mut(&mut self) -> &mut State {
+        &mut self.state
+    }
+
+    pub(crate) fn content_ui(&self, ctx: &Arc<Context>) -> Ui {
+        Ui::new(
+            ctx.clone(),
+            self.layer,
+            self.layer.id,
+            Rect::from_min_size(self.state.pos, Vec2::infinity()),
+        )
+    }
+
+    pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> InteractInfo {
         let Prepared {
             layer,
             mut state,
             movable,
-            content_ui,
         } = self;
 
         state.size = (content_ui.child_bounds().max - state.pos).ceil();

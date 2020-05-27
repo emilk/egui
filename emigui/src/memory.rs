@@ -44,6 +44,13 @@ pub struct Interaction {
     /// A widget interested in drags that has a mouse press on it.
     pub drag_id: Option<Id>,
 
+    /// HACK: windows have low priority on dragging.
+    /// This is so that if you drag a slider in a window,
+    /// the slider will steal the drag away from the window.
+    /// This is needed because we do window interaction first (to prevent frame delay),
+    /// and then do content layout.
+    pub drag_is_window: bool,
+
     /// Any interest in catching clicks this frame?
     /// Cleared to false at start of each frame.
     pub click_interest: bool,

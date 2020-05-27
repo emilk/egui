@@ -309,9 +309,13 @@ impl Context {
                     info.active = true;
                 }
 
-                if sense.drag && !memory.interaction.drag_id.is_some() {
+                if sense.drag
+                    && (!memory.interaction.drag_id.is_some() || memory.interaction.drag_is_window)
+                {
                     // start of a drag
                     memory.interaction.drag_id = Some(interaction_id);
+                    memory.interaction.drag_is_window = false;
+                    memory.window_interaction = None; // HACK: stop moving windows (if any)
                     info.active = true;
                 }
 
