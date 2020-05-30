@@ -16,13 +16,14 @@ struct PaintStats {
 /// `Ui`:s keep an Arc pointer to this.
 /// This allows us to create several child `Ui`:s at once,
 /// all working against the same shared Context.
+#[derive(Default)]
 pub struct Context {
     /// The default style for new `Ui`:s
     style: Mutex<Style>,
     paint_options: Mutex<paint::PaintOptions>,
-    fonts: Arc<Fonts>,
-    /// HACK: set a new font next frame
-    new_fonts: Mutex<Option<Arc<Fonts>>>,
+    /// None until first call to `begin_frame`.
+    fonts: Option<Arc<Fonts>>,
+    font_definitions: Mutex<FontDefinitions>,
     memory: Arc<Mutex<Memory>>,
 
     input: InputState,
@@ -42,7 +43,7 @@ impl Clone for Context {
             style: Mutex::new(self.style()),
             paint_options: Mutex::new(*self.paint_options.lock()),
             fonts: self.fonts.clone(),
-            new_fonts: Mutex::new(self.new_fonts.lock().clone()),
+            font_definitions: Mutex::new(self.font_definitions.lock().clone()),
             memory: self.memory.clone(),
             input: self.input.clone(),
             graphics: Mutex::new(self.graphics.lock().clone()),
@@ -54,21 +55,8 @@ impl Clone for Context {
 }
 
 impl Context {
-    pub fn new(pixels_per_point: f32) -> Arc<Context> {
-        Arc::new(Context {
-            style: Default::default(),
-            paint_options: Default::default(),
-            fonts: Arc::new(Fonts::new(pixels_per_point)),
-            new_fonts: Default::default(),
-            memory: Default::default(),
-
-            input: Default::default(),
-
-            graphics: Default::default(),
-            output: Default::default(),
-            used_ids: Default::default(),
-            paint_stats: Default::default(),
-        })
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
     }
 
     pub fn rect(&self) -> Rect {
@@ -91,17 +79,25 @@ impl Context {
         &self.input
     }
 
+    /// Not valid until first call to `begin_frame()`
+    /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn fonts(&self) -> &Fonts {
-        &*self.fonts
+        &*self
+            .fonts
+            .as_ref()
+            .expect("No fonts available until first call to Contex::begin_frame()`")
     }
 
+    /// Not valid until first call to `begin_frame()`
+    /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn texture(&self) -> &paint::Texture {
         self.fonts().texture()
     }
 
-    /// Will become active next frame
-    pub fn set_fonts(&self, fonts: Fonts) {
-        *self.new_fonts.lock() = Some(Arc::new(fonts));
+    /// Will become active at the start of the next frame.
+    /// `pixels_per_point` will be ignored (overwitten at start of each frame with the contents of input)
+    pub fn set_fonts(&self, font_definitions: FontDefinitions) {
+        *self.font_definitions.lock() = font_definitions;
     }
 
     // TODO: return MutexGuard
@@ -139,10 +135,13 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
+    /// Call at the start of every frame.
+    /// Returns a master fullscreen UI, covering the entire screen.
+    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) -> Ui {
         let mut self_: Self = (**self).clone();
         self_.begin_frame_mut(new_input);
         *self = Arc::new(self_);
+        self.fullscreen_ui()
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
@@ -150,13 +149,19 @@ impl Context {
 
         self.used_ids.lock().clear();
 
-        if let Some(new_fonts) = self.new_fonts.lock().take() {
-            self.fonts = new_fonts;
-        }
-
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+
+        let mut font_definitions = self.font_definitions.lock();
+        font_definitions.pixels_per_point = self.input.pixels_per_point;
+        if self.fonts.is_none() || *self.fonts.as_ref().unwrap().definitions() != *font_definitions
+        {
+            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions.clone())));
+        }
     }
 
+    /// Call at the end of each frame.
+    /// Returns what has happened this frame (`Output`) as well as what you need to paint.
+    #[must_use]
     pub fn end_frame(&self) -> (Output, PaintBatches) {
         self.memory().end_frame();
         let output: Output = std::mem::take(&mut self.output());
@@ -195,7 +200,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// A `Ui` for the entire screen, behind any windows.
-    pub fn fullscreen_ui(self: &Arc<Self>) -> Ui {
+    fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
         let id = Id::background();
         let layer = Layer {
@@ -365,7 +370,7 @@ impl Context {
         let align = (Align::Min, Align::Min);
         let layer = Layer::debug();
         let text_style = TextStyle::Monospace;
-        let font = &self.fonts[text_style];
+        let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
         self.add_paint_cmd(
@@ -422,7 +427,7 @@ impl Context {
         align: (Align, Align),
         text_color: Option<Color>,
     ) -> Rect {
-        let font = &self.fonts[text_style];
+        let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
         self.add_galley(layer, rect.min, galley, text_style, text_color);
@@ -471,17 +476,10 @@ impl Context {
         CollapsingHeader::new("Fonts")
             .default_open(false)
             .show(ui, |ui| {
-                let old_font_definitions = self.fonts().definitions();
-                let mut new_font_definitions = old_font_definitions.clone();
-                font_definitions_ui(&mut new_font_definitions, ui);
+                let mut font_definitions = self.fonts().definitions().clone();
+                font_definitions.ui(ui);
                 self.fonts().texture().ui(ui);
-                if *old_font_definitions != new_font_definitions {
-                    let fonts = Fonts::from_definitions(
-                        new_font_definitions,
-                        self.input().pixels_per_point,
-                    );
-                    self.set_fonts(fonts);
-                }
+                self.set_fonts(font_definitions);
             });
     }
 
@@ -561,21 +559,6 @@ impl Context {
             label!("NOTE: the position of this window cannot be reset from within itself.")
                 .auto_shrink(),
         );
-    }
-}
-
-fn font_definitions_ui(font_definitions: &mut paint::FontDefinitions, ui: &mut Ui) {
-    use crate::widgets::*;
-    for (text_style, (_family, size)) in font_definitions.iter_mut() {
-        // TODO: radiobutton for family
-        ui.add(
-            Slider::f32(size, 4.0..=40.0)
-                .precision(0)
-                .text(format!("{:?}", text_style)),
-        );
-    }
-    if ui.add(Button::new("Reset fonts")).clicked {
-        *font_definitions = paint::fonts::default_font_definitions();
     }
 }
 

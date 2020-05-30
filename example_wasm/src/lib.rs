@@ -38,8 +38,8 @@ pub struct State {
 }
 
 impl State {
-    fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
-        let ctx = Context::new(pixels_per_point);
+    fn new(canvas_id: &str) -> Result<State, JsValue> {
+        let ctx = Context::new();
         egui_wasm::load_memory(&ctx);
         Ok(State {
             example_app: Default::default(),
@@ -52,9 +52,7 @@ impl State {
     fn run(&mut self, web_input: WebInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
-        self.ctx.begin_frame(web_input.egui);
-
-        let mut ui = self.ctx.fullscreen_ui();
+        let mut ui = self.ctx.begin_frame(web_input.egui);
         self.example_app.ui(&mut ui, &web_input.web.location_hash);
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
@@ -111,8 +109,8 @@ impl State {
 }
 
 #[wasm_bindgen]
-pub fn new_webgl_gui(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
-    State::new(canvas_id, pixels_per_point)
+pub fn new_webgl_gui(canvas_id: &str) -> Result<State, JsValue> {
+    State::new(canvas_id)
 }
 
 #[wasm_bindgen]

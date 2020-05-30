@@ -28,37 +28,47 @@ pub enum FontFamily {
     VariableWidth,
 }
 
-pub type FontDefinitions = BTreeMap<TextStyle, (FontFamily, f32)>;
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontDefinitions {
+    /// The dpi scale factor. Needed to get pixel perfect fonts.
+    pub pixels_per_point: f32,
 
-pub fn default_font_definitions() -> FontDefinitions {
-    let mut definitions = FontDefinitions::new();
-    definitions.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
-    definitions.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
-    definitions.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
-    definitions.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
-    definitions
+    pub fonts: BTreeMap<TextStyle, (FontFamily, f32)>,
 }
 
+impl Default for FontDefinitions {
+    fn default() -> Self {
+        Self::with_pixels_per_point(f32::NAN) // must be set later
+    }
+}
+
+impl FontDefinitions {
+    pub fn with_pixels_per_point(pixels_per_point: f32) -> Self {
+        let mut fonts = BTreeMap::new();
+        fonts.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
+        fonts.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
+        fonts.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
+        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
+
+        Self {
+            pixels_per_point,
+            fonts,
+        }
+    }
+}
+
+/// Note: the `default()` fonts are invalid (missing `pixels_per_point`).
+#[derive(Default)]
 pub struct Fonts {
-    pixels_per_point: f32,
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     texture: Texture,
 }
 
 impl Fonts {
-    pub fn new(pixels_per_point: f32) -> Fonts {
-        Fonts::from_definitions(default_font_definitions(), pixels_per_point)
-    }
-
-    pub fn from_definitions(definitions: FontDefinitions, pixels_per_point: f32) -> Fonts {
-        let mut fonts = Fonts {
-            pixels_per_point,
-            definitions: Default::default(),
-            fonts: Default::default(),
-            texture: Default::default(),
-        };
-        fonts.set_sizes(definitions);
+    pub fn from_definitions(definitions: FontDefinitions) -> Fonts {
+        let mut fonts = Self::default();
+        fonts.set_definitions(definitions);
         fonts
     }
 
@@ -66,7 +76,7 @@ impl Fonts {
         &self.definitions
     }
 
-    pub fn set_sizes(&mut self, definitions: FontDefinitions) {
+    pub fn set_definitions(&mut self, definitions: FontDefinitions) {
         if self.definitions == definitions {
             return;
         }
@@ -93,7 +103,11 @@ impl Fonts {
         // let variable_typeface_data = include_bytes!("../../fonts/DejaVuSans.ttf"); // Basic, boring, takes up more space
 
         self.definitions = definitions.clone();
-        self.fonts = definitions
+        let FontDefinitions {
+            pixels_per_point,
+            fonts,
+        } = definitions;
+        self.fonts = fonts
             .into_iter()
             .map(|(text_style, (family, size))| {
                 let typeface_data: &[u8] = match family {
@@ -103,7 +117,7 @@ impl Fonts {
 
                 (
                     text_style,
-                    Font::new(atlas.clone(), typeface_data, size, self.pixels_per_point),
+                    Font::new(atlas.clone(), typeface_data, size, pixels_per_point),
                 )
             })
             .collect();

@@ -50,7 +50,7 @@ fn main() {
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
-    let size = window_settings.size.unwrap_or(vec2(1024.0, 800.0));
+    let size = window_settings.size.unwrap_or_else(|| vec2(1024.0, 800.0));
 
     display
         .gl_window()
@@ -67,7 +67,7 @@ fn main() {
 
     let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
 
-    let mut ctx = profile("initializing emilib", || Context::new(pixels_per_point));
+    let mut ctx = profile("initializing emilib", Context::new);
     let mut painter = profile("initializing painter", || {
         egui_glium::Painter::new(&display)
     });
@@ -111,8 +111,7 @@ fn main() {
         }
 
         let egui_start = Instant::now();
-        ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
-        let mut ui = ctx.fullscreen_ui();
+        let mut ui = ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
         example_app.ui(&mut ui, "");
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));

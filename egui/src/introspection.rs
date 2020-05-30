@@ -1,13 +1,13 @@
 //! uis for egui types.
 use crate::{
     containers::show_tooltip,
-    label,
     math::*,
-    paint::{color::WHITE, PaintCmd, Texture, Triangles, Vertex},
+    paint::{self, color::WHITE, PaintCmd, Texture, Triangles, Vertex},
+    *,
 };
 
 impl Texture {
-    pub fn ui(&self, ui: &mut crate::Ui) {
+    pub fn ui(&self, ui: &mut Ui) {
         ui.add(label!(
             "Texture size: {} x {} (hover to zoom)",
             self.width,
@@ -57,6 +57,22 @@ impl Texture {
                 triangles.add_rect(top_left, bottom_right);
                 ui.add_paint_cmd(PaintCmd::Triangles(triangles));
             });
+        }
+    }
+}
+
+impl paint::FontDefinitions {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        for (text_style, (_family, size)) in self.fonts.iter_mut() {
+            // TODO: radiobutton for family
+            ui.add(
+                Slider::f32(size, 4.0..=40.0)
+                    .precision(0)
+                    .text(format!("{:?}", text_style)),
+            );
+        }
+        if ui.add(Button::new("Reset fonts")).clicked {
+            *self = paint::FontDefinitions::with_pixels_per_point(self.pixels_per_point);
         }
     }
 }
