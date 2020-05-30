@@ -12,6 +12,12 @@ pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
 
+impl From<[f32; 2]> for Vec2 {
+    fn from(v: [f32; 2]) -> Self {
+        Self { x: v[0], y: v[1] }
+    }
+}
+
 impl Vec2 {
     pub fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
@@ -221,6 +227,12 @@ pub struct Pos2 {
 
 pub fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
+}
+
+impl From<[f32; 2]> for Pos2 {
+    fn from(v: [f32; 2]) -> Self {
+        Self { x: v[0], y: v[1] }
+    }
 }
 
 impl Pos2 {

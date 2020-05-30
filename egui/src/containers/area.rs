@@ -85,12 +85,13 @@ impl Area {
         self
     }
 
-    pub fn default_pos(mut self, default_pos: Pos2) -> Self {
-        self.default_pos = Some(default_pos);
+    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
+        self.default_pos = Some(default_pos.into());
         self
     }
 
-    pub fn fixed_pos(mut self, fixed_pos: Pos2) -> Self {
+    pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
+        let fixed_pos = fixed_pos.into();
         self.default_pos = Some(fixed_pos);
         self.fixed_pos = Some(fixed_pos);
         self.movable = false;

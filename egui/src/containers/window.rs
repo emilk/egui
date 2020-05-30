@@ -70,12 +70,12 @@ impl<'open> Window<'open> {
         self
     }
 
-    pub fn default_pos(mut self, default_pos: Pos2) -> Self {
+    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
         self
     }
 
-    pub fn default_size(mut self, default_size: Vec2) -> Self {
+    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.default_size(default_size);
         self
     }
@@ -84,17 +84,17 @@ impl<'open> Window<'open> {
         self.default_pos(rect.min).default_size(rect.size())
     }
 
-    pub fn min_size(mut self, min_size: Vec2) -> Self {
+    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.min_size(min_size);
         self
     }
 
-    pub fn max_size(mut self, max_size: Vec2) -> Self {
+    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.max_size(max_size);
         self
     }
 
-    pub fn fixed_size(mut self, size: Vec2) -> Self {
+    pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
     }

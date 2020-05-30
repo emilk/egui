@@ -50,31 +50,31 @@ impl ExampleApp {
 
         Window::new("Examples")
             .open(&mut open_windows.examples)
-            .default_pos(pos2(32.0, 100.0))
-            .default_size(vec2(430.0, 600.0))
+            .default_pos([32.0, 100.0])
+            .default_size([430.0, 600.0])
             .show(ctx, |ui| {
                 example_window.ui(ui);
             });
 
         Window::new("Settings")
             .open(&mut open_windows.settings)
-            .default_pos(pos2(500.0, 100.0))
-            .default_size(vec2(350.0, 400.0))
+            .default_pos([500.0, 100.0])
+            .default_size([350.0, 400.0])
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         Window::new("Inspection")
             .open(&mut open_windows.inspection)
-            .default_pos(pos2(500.0, 400.0))
-            .default_size(vec2(400.0, 300.0))
+            .default_pos([500.0, 400.0])
+            .default_size([400.0, 300.0])
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         Window::new("Memory")
             .open(&mut open_windows.memory)
-            .default_pos(pos2(700.0, 350.0))
+            .default_pos([700.0, 350.0])
             .auto_sized()
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
@@ -493,7 +493,7 @@ impl Default for LayoutExample {
 impl LayoutExample {
     pub fn ui(&mut self, ui: &mut Ui) {
         Resize::default()
-            .default_size(vec2(200.0, 200.0))
+            .default_size([200.0, 200.0])
             .show(ui, |ui| self.content_ui(ui));
     }
 

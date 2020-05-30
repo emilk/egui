@@ -72,18 +72,18 @@ impl Resize {
         self
     }
 
-    pub fn default_size(mut self, default_size: Vec2) -> Self {
-        self.default_size = default_size;
+    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+        self.default_size = default_size.into();
         self
     }
 
-    pub fn min_size(mut self, min_size: Vec2) -> Self {
-        self.min_size = min_size;
+    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
+        self.min_size = min_size.into();
         self
     }
 
-    pub fn max_size(mut self, max_size: Vec2) -> Self {
-        self.max_size = max_size;
+    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
+        self.max_size = max_size.into();
         self
     }
 
@@ -108,7 +108,8 @@ impl Resize {
             .auto_expand_height(true)
     }
 
-    pub fn fixed_size(mut self, size: Vec2) -> Self {
+    pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
         self.auto_shrink_width = false;
         self.auto_shrink_height = false;
         self.expand_width_to_fit_content = false;
@@ -158,8 +159,8 @@ impl Resize {
     }
 
     /// Offset the position of the resize handle by this much
-    pub fn handle_offset(mut self, handle_offset: Vec2) -> Self {
-        self.handle_offset = handle_offset;
+    pub fn handle_offset(mut self, handle_offset: impl Into<Vec2>) -> Self {
+        self.handle_offset = handle_offset.into();
         self
     }
 
