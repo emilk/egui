@@ -8,7 +8,7 @@ const MAX_CLICK_DIST: f32 = 6.0;
 const MAX_CLICK_DELAY: f64 = 0.3;
 
 /// What the integration gives to the gui.
-/// All coordinates in emigui is in point/logical coordinates.
+/// All coordinates in egui is in point/logical coordinates.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct RawInput {
@@ -38,7 +38,7 @@ pub struct RawInput {
     pub events: Vec<Event>,
 }
 
-/// What emigui maintains
+/// What egui maintains
 #[derive(Clone, Debug, Default)]
 pub struct InputState {
     /// The raw input we got this fraem
@@ -68,7 +68,7 @@ pub struct InputState {
     pub events: Vec<Event>,
 }
 
-/// What emigui maintains
+/// What egui maintains
 #[derive(Clone, Debug)]
 pub struct MouseInput {
     /// Is the button currently down?

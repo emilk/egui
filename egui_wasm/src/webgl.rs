@@ -4,7 +4,7 @@ use {
     web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
 };
 
-use emigui::{
+use egui::{
     paint::{Color, PaintBatches, Texture, Triangles},
     vec2, Pos2,
 };

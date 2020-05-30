@@ -1,7 +1,5 @@
-# Emigui
-(Experimental, Modularized Immediate mode Graphical User Interface)
-
-An immediate mode GUI library written in Rust. For web apps or native apps.
+# Egui
+An immediate mode GUI library written in Rust. Works anywhere you can draw textured triangles.
 
 ## Goals:
 * Lightweight
@@ -18,22 +16,21 @@ Loop:
 * Render with e.g. OpenGL
 
 ## Available backends:
-Wherever you can render textured triangles you can use Emigui.
+Wherever you can render textured triangles you can use Egui.
 
-Currently two backends have been tested:
-* WebAssembly (emigui_wasm) for making a web app
+* WebAssembly (`egui_wasm`) for making a web app. [Click to run](https://emilk.github.io/emigui/index.html).
 * [Glium](https://github.com/glium/glium) for native apps (see example_glium).
 * [miniquad](https://github.com/not-fl3/emigui-miniquad) [web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs)
 
 The same application code can thus be compiled to either into a native app or a web app.
 
 ## Demos
-[Emigui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/emigui/src/examples/app.rs
+[Egui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/egui/src/examples/app.rs
 
-[Hobogo: A small game using Emigui](https://emilk.github.io/hobogo/index.html), source: https://github.com/emilk/hobogo
+[Hobogo: A small game using Egui](https://emilk.github.io/hobogo/index.html), source: https://github.com/emilk/hobogo
 
 ## State
-Mostly a tech demo at this point. I hope to find time to work more on this in the future.
+Alpha state. It works, but is somewhat incomplete.
 
 Features:
 
@@ -54,6 +51,11 @@ Features:
 
 ## Inspiration
 The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immediate Mode GUI for C++ which works with many backends. That library revolutionized how I think about GUI code from something I hated to do to something I now like to do.
+
+## Name
+The name of the gui library is "Egui", written like that in text and as `egui` in code and pronounced as "e-gooey".
+
+The library used to be called `Emigui`, which is why it is still hosted at [github.com/emilk/emigui](https://github.com/emilk/emigui). If you like, `emigui` is the collection of helper crates that surrounds `egui`, while `egui` is the actual GUI library.
 
 ## Credits / Licenses
 Fonts:

@@ -195,13 +195,13 @@ function _assertClass(instance, klass) {
 }
 /**
 * @param {State} state
-* @param {string} raw_input_json
+* @param {string} web_input_json
 * @returns {string}
 */
-__exports.run_gui = function(state, raw_input_json) {
+__exports.run_gui = function(state, web_input_json) {
     try {
         _assertClass(state, State);
-        var ptr0 = passStringToWasm0(raw_input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var ptr0 = passStringToWasm0(web_input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len0 = WASM_VECTOR_LEN;
         wasm.run_gui(8, state.ptr, ptr0, len0);
         var r0 = getInt32Memory0()[8 / 4 + 0];
@@ -479,14 +479,18 @@ async function init(input) {
     imports.wbg.__wbg_setItem_535f63295c5e7cec = handleError(function(arg0, arg1, arg2, arg3, arg4) {
         getObject(arg0).setItem(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
     });
-    imports.wbg.__wbg_newnoargs_8aad4a6554f38345 = function(arg0, arg1) {
-        var ret = new Function(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbg_call_1f85aaa5836dfb23 = handleError(function(arg0, arg1) {
         var ret = getObject(arg0).call(getObject(arg1));
         return addHeapObject(ret);
     });
+    imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
+        var ret = getObject(arg0);
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbg_newnoargs_8aad4a6554f38345 = function(arg0, arg1) {
+        var ret = new Function(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbg_self_c0d3a5923e013647 = handleError(function() {
         var ret = self.self;
         return addHeapObject(ret);
@@ -541,10 +545,6 @@ async function init(input) {
     };
     imports.wbg.__wbg_subarray_618d0460088cd7d6 = function(arg0, arg1, arg2) {
         var ret = getObject(arg0).subarray(arg1 >>> 0, arg2 >>> 0);
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
-        var ret = getObject(arg0);
         return addHeapObject(ret);
     };
     imports.wbg.__wbg_instanceof_Memory_ce2336191e545514 = function(arg0) {

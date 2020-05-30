@@ -14,5 +14,5 @@ serde_derive = "1"
 serde_json = "1"
 wasm-bindgen = "0.2"
 
-emigui = { path = "../emigui" }
-emigui_wasm = { path = "../emigui_wasm" }
+egui = { path = "../egui" }
+egui_wasm = { path = "../egui_wasm" }

@@ -1,7 +1,7 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    emigui::{
+    egui::{
         paint::{PaintBatches, Triangles},
         Rect,
     },
@@ -195,7 +195,7 @@ impl Painter {
         }
     }
 
-    fn upload_texture(&mut self, facade: &dyn glium::backend::Facade, texture: &emigui::Texture) {
+    fn upload_texture(&mut self, facade: &dyn glium::backend::Facade, texture: &egui::Texture) {
         if self.current_texture_id == Some(texture.id) {
             return; // No change
         }
@@ -217,7 +217,7 @@ impl Painter {
         &mut self,
         display: &glium::Display,
         batches: PaintBatches,
-        texture: &emigui::Texture,
+        texture: &egui::Texture,
     ) {
         self.upload_texture(display, texture);
 
@@ -236,7 +236,7 @@ impl Painter {
         display: &glium::Display,
         clip_rect: Rect,
         triangles: &Triangles,
-        texture: &emigui::Texture,
+        texture: &egui::Texture,
     ) {
         let vertex_buffer = {
             #[derive(Copy, Clone)]

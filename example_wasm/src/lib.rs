@@ -4,11 +4,11 @@
 use std::sync::Arc;
 
 use {
-    emigui::{
+    egui::{
         color::srgba, examples::ExampleApp, label, widgets::Separator, Align, RawInput, TextStyle,
         *,
     },
-    emigui_wasm::now_sec,
+    egui_wasm::now_sec,
 };
 
 use wasm_bindgen::prelude::*;
@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::*;
 #[derive(Clone, Debug, Default, serde_derive::Deserialize)]
 #[serde(default)]
 struct WebInput {
-    emigui: RawInput,
+    egui: RawInput,
     web: Web,
 }
 
@@ -32,34 +32,34 @@ pub struct Web {
 pub struct State {
     example_app: ExampleApp,
     ctx: Arc<Context>,
-    webgl_painter: emigui_wasm::webgl::Painter,
+    webgl_painter: egui_wasm::webgl::Painter,
 
-    frame_times: emigui::MovementTracker<f32>,
+    frame_times: egui::MovementTracker<f32>,
 }
 
 impl State {
     fn new(canvas_id: &str, pixels_per_point: f32) -> Result<State, JsValue> {
         let ctx = Context::new(pixels_per_point);
-        emigui_wasm::load_memory(&ctx);
+        egui_wasm::load_memory(&ctx);
         Ok(State {
             example_app: Default::default(),
             ctx,
-            webgl_painter: emigui_wasm::webgl::Painter::new(canvas_id)?,
-            frame_times: emigui::MovementTracker::new(1000, 1.0),
+            webgl_painter: egui_wasm::webgl::Painter::new(canvas_id)?,
+            frame_times: egui::MovementTracker::new(1000, 1.0),
         })
     }
 
     fn run(&mut self, web_input: WebInput) -> Result<Output, JsValue> {
         let everything_start = now_sec();
 
-        self.ctx.begin_frame(web_input.emigui);
+        self.ctx.begin_frame(web_input.egui);
 
         let mut ui = self.ctx.fullscreen_ui();
         self.example_app.ui(&mut ui, &web_input.web.location_hash);
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
-        ui.add(label!("Emigui!").text_style(TextStyle::Heading));
-        ui.label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+        ui.add(label!("Egui!").text_style(TextStyle::Heading));
+        ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
         ui.label(
             "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
         );
@@ -104,7 +104,7 @@ impl State {
             self.ctx.pixels_per_point(),
         )?;
 
-        emigui_wasm::save_memory(&self.ctx); // TODO: don't save every frame
+        egui_wasm::save_memory(&self.ctx); // TODO: don't save every frame
 
         Ok(output)
     }

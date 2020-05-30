@@ -35,8 +35,8 @@ pub fn local_storage_remove(key: &str) {
     local_storage().map(|storage| storage.remove_item(key));
 }
 
-pub fn load_memory(ctx: &emigui::Context) {
-    if let Some(memory_string) = local_storage_get("emigui_memory_json") {
+pub fn load_memory(ctx: &egui::Context) {
+    if let Some(memory_string) = local_storage_get("egui_memory_json") {
         match serde_json::from_str(&memory_string) {
             Ok(memory) => {
                 *ctx.memory() = memory;
@@ -48,10 +48,10 @@ pub fn load_memory(ctx: &emigui::Context) {
     }
 }
 
-pub fn save_memory(ctx: &emigui::Context) {
+pub fn save_memory(ctx: &egui::Context) {
     match serde_json::to_string(&*ctx.memory()) {
         Ok(json) => {
-            local_storage_set("emigui_memory_json", &json);
+            local_storage_set("egui_memory_json", &json);
         }
         Err(err) => {
             console_log(format!(

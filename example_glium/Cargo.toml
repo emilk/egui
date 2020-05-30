@@ -6,8 +6,8 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-emigui = { path = "../emigui" }
-emigui_glium = { path = "../emigui_glium" }
+egui = { path = "../egui" }
+egui_glium = { path = "../egui_glium" }
 serde = "1"
 serde_derive = "1"
 serde_json = "1"

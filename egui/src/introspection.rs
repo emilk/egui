@@ -1,4 +1,4 @@
-//! uis for emigui types.
+//! uis for egui types.
 use crate::{
     containers::show_tooltip,
     label,

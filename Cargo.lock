@@ -347,12 +347,7 @@ version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "either"
-version = "1.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "emigui"
+name = "egui"
 version = "0.1.0"
 dependencies = [
  "ahash 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -364,22 +359,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "emigui_glium"
+name = "egui_glium"
 version = "0.1.0"
 dependencies = [
  "chrono 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "emigui 0.1.0",
+ "egui 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.53 (registry+https://github.com/rust-lang/crates.io-index)",
  "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "emigui_wasm"
+name = "egui_wasm"
 version = "0.1.0"
 dependencies = [
- "emigui 0.1.0",
+ "egui 0.1.0",
  "js-sys 0.3.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.110 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.53 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -388,11 +383,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "example_glium"
 version = "0.1.0"
 dependencies = [
- "emigui 0.1.0",
- "emigui_glium 0.1.0",
+ "egui 0.1.0",
+ "egui_glium 0.1.0",
  "glium 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.110 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.110 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -403,8 +403,8 @@ dependencies = [
 name = "example_wasm"
 version = "0.1.0"
 dependencies = [
- "emigui 0.1.0",
- "emigui_wasm 0.1.0",
+ "egui 0.1.0",
+ "egui_wasm 0.1.0",
  "serde 1.0.110 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.110 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.53 (registry+https://github.com/rust-lang/crates.io-index)",

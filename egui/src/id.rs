@@ -1,6 +1,6 @@
-//! Emigui tracks widgets frame-to-frame using `Id`s.
+//! Egui tracks widgets frame-to-frame using `Id`s.
 //!
-//! For instance, if you start dragging a slider one frame, emigui stores
+//! For instance, if you start dragging a slider one frame, egui stores
 //! the sldiers Id as the current `interact_id` so that next frame when
 //! you move the mouse the same slider changes, even if the mouse has
 //! moved outside the slider.

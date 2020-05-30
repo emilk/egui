@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use {
-    emigui::{examples::ExampleApp, paint::TextStyle, widgets::*, *},
+    egui::{examples::ExampleApp, paint::TextStyle, widgets::*, *},
     glium::glutin,
 };
 
@@ -38,7 +38,7 @@ where
 
 fn main() {
     // TODO: combine
-    let memory_path = "emigui.json";
+    let memory_path = "egui.json";
     let settings_json_path: &str = "window.json";
     let app_json_path: &str = "example_app.json";
 
@@ -46,7 +46,7 @@ fn main() {
     let mut window_settings: Window = read_json(settings_json_path).unwrap_or_default();
 
     let mut events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_title("Emigui example");
+    let window = glutin::WindowBuilder::new().with_title("Egui example");
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
@@ -69,10 +69,10 @@ fn main() {
 
     let mut ctx = profile("initializing emilib", || Context::new(pixels_per_point));
     let mut painter = profile("initializing painter", || {
-        emigui_glium::Painter::new(&display)
+        egui_glium::Painter::new(&display)
     });
 
-    let mut raw_input = emigui::RawInput {
+    let mut raw_input = egui::RawInput {
         screen_size: {
             let (width, height) = display.get_framebuffer_dimensions();
             vec2(width as f32, height as f32) / pixels_per_point
@@ -85,10 +85,10 @@ fn main() {
     let start_time = Instant::now();
     let mut running = true;
     let mut frame_start = Instant::now();
-    let mut frame_times = emigui::MovementTracker::new(1000, 1.0);
-    let mut clipboard = emigui_glium::init_clipboard();
+    let mut frame_times = egui::MovementTracker::new(1000, 1.0);
+    let mut clipboard = egui_glium::init_clipboard();
 
-    emigui_glium::read_memory(&ctx, memory_path);
+    egui_glium::read_memory(&ctx, memory_path);
 
     while running {
         {
@@ -102,21 +102,21 @@ fn main() {
 
         {
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
-            raw_input.seconds_since_midnight = Some(emigui_glium::local_time_of_day());
+            raw_input.seconds_since_midnight = Some(egui_glium::local_time_of_day());
             raw_input.scroll_delta = vec2(0.0, 0.0);
             raw_input.events.clear();
             events_loop.poll_events(|event| {
-                emigui_glium::input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)
+                egui_glium::input_event(event, clipboard.as_mut(), &mut raw_input, &mut running)
             });
         }
 
-        let emigui_start = Instant::now();
+        let egui_start = Instant::now();
         ctx.begin_frame(raw_input.clone()); // TODO: avoid clone
         let mut ui = ctx.fullscreen_ui();
         example_app.ui(&mut ui, "");
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
-        ui.add(label!("Emigui running inside of Glium").text_style(TextStyle::Heading));
+        ui.add(label!("Egui running inside of Glium").text_style(TextStyle::Heading));
         if ui.add(Button::new("Quit")).clicked {
             running = false;
         }
@@ -140,11 +140,11 @@ fn main() {
 
         frame_times.add(
             raw_input.time,
-            (Instant::now() - emigui_start).as_secs_f64() as f32,
+            (Instant::now() - egui_start).as_secs_f64() as f32,
         );
 
         painter.paint_batches(&display, paint_batches, ctx.texture());
-        emigui_glium::handle_output(output, &display, clipboard.as_mut());
+        egui_glium::handle_output(output, &display, clipboard.as_mut());
     }
 
     // Save state to disk:
@@ -157,8 +157,8 @@ fn main() {
         .get_inner_size()
         .map(|size| vec2(size.width as f32, size.height as f32));
 
-    if let Err(err) = emigui_glium::write_memory(&ctx, memory_path) {
-        eprintln!("ERROR: Failed to save emigui state: {}", err);
+    if let Err(err) = egui_glium::write_memory(&ctx, memory_path) {
+        eprintln!("ERROR: Failed to save egui state: {}", err);
     }
 
     serde_json::to_writer_pretty(std::fs::File::create(app_json_path).unwrap(), &example_app)

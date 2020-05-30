@@ -8,7 +8,7 @@
 <!-- TODO: read https://www.html5rocks.com/en/mobile/mobifying/#toc-meta-viewport -->
 
 <head>
-    <title>Emigui – An experimental immediate mode GUI written in Rust</title>
+    <title>Egui – An experimental immediate mode GUI written in Rust</title>
     <style>
         html {
             /* Remove touch delay: */
@@ -61,7 +61,7 @@
             }
 
             let input = {
-                emigui: get_emigui_input(canvas),
+                egui: get_egui_input(canvas),
                 web: {
                     location: window.location.toString(),
                     location_hash: window.location.hash.toString(), // i.e. #fragment
@@ -70,14 +70,14 @@
 
             let output = JSON.parse(wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input)));
             // console.log(`output: ${JSON.stringify(output)}`);
-            document.body.style.cursor = from_emigui_cursor(output.cursor_icon);
+            document.body.style.cursor = from_egui_cursor(output.cursor_icon);
             // console.log(`Translated ${output.cursor_icon} to ${document.body.style.cursor}`);
             if (output.open_url) {
                 window.open(output.open_url, "_self");
             }
         }
 
-        function from_emigui_cursor(cursor) {
+        function from_egui_cursor(cursor) {
             if (cursor == "no_drop") { return "no-drop"; }
             else if (cursor == "not_allowed") { return "not-allowed"; }
             else if (cursor == "resize_horizontal") { return "ew-resize"; }
@@ -111,7 +111,7 @@
             canvas.height = window.innerHeight * pixels_per_point();
         }
 
-        function get_emigui_input(canvas) {
+        function get_egui_input(canvas) {
             var input = {
                 mouse_down: g_mouse_down,
                 mouse_pos: g_mouse_pos,

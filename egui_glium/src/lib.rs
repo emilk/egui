@@ -7,7 +7,7 @@ pub use painter::Painter;
 
 use {
     clipboard::{ClipboardContext, ClipboardProvider},
-    emigui::*,
+    egui::*,
     glium::glutin::{self, VirtualKeyCode},
 };
 
@@ -126,7 +126,7 @@ fn should_ignore_char(chr: char) -> bool {
     }
 }
 
-pub fn translate_virtual_key_code(key: glutin::VirtualKeyCode) -> Option<emigui::Key> {
+pub fn translate_virtual_key_code(key: glutin::VirtualKeyCode) -> Option<egui::Key> {
     use VirtualKeyCode::*;
 
     Some(match key {
@@ -157,7 +157,7 @@ pub fn translate_virtual_key_code(key: glutin::VirtualKeyCode) -> Option<emigui:
     })
 }
 
-pub fn translate_cursor(cursor_icon: emigui::CursorIcon) -> glutin::MouseCursor {
+pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::MouseCursor {
     match cursor_icon {
         CursorIcon::Default => glutin::MouseCursor::Default,
         CursorIcon::PointingHand => glutin::MouseCursor::Hand,
@@ -170,7 +170,7 @@ pub fn translate_cursor(cursor_icon: emigui::CursorIcon) -> glutin::MouseCursor 
 }
 
 pub fn handle_output(
-    output: emigui::Output,
+    output: egui::Output,
     display: &glium::backend::glutin::Display,
     clipboard: Option<&mut ClipboardContext>,
 ) {

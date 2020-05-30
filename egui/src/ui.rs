@@ -644,8 +644,8 @@ impl Ui {
     ///
     /// ``` ignore
     /// ui.columns(2, |columns| {
-    ///     columns[0].add(emigui::widgets::label!("First column"));
-    ///     columns[1].add(emigui::widgets::label!("Second column"));
+    ///     columns[0].add(egui::widgets::label!("First column"));
+    ///     columns[1].add(egui::widgets::label!("Second column"));
     /// });
     /// ```
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R

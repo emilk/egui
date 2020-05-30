@@ -40,6 +40,7 @@ mod ui;
 pub mod widgets;
 
 pub use {
+    containers::*,
     context::Context,
     id::Id,
     input::*,
@@ -53,5 +54,4 @@ pub use {
     types::*,
     ui::Ui,
     widgets::*,
-    containers::*,
 };

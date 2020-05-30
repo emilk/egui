@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let mut example_app = emigui::examples::ExampleApp::default();
-    let mut ctx = emigui::Context::new(1.0);
+    let mut example_app = egui::examples::ExampleApp::default();
+    let mut ctx = egui::Context::new(1.0);
 
-    let raw_input = emigui::RawInput {
-        screen_size: emigui::vec2(1280.0, 1024.0),
+    let raw_input = egui::RawInput {
+        screen_size: egui::vec2(1280.0, 1024.0),
         ..Default::default()
     };
 

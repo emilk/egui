@@ -510,7 +510,7 @@ impl Context {
 
         if ui
             .add(Button::new("Reset all"))
-            .tooltip_text("Reset all Emigui state")
+            .tooltip_text("Reset all Egui state")
             .clicked
         {
             *self.memory() = Default::default();

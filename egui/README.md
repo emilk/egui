@@ -1,5 +1,5 @@
 # GUI implementation
-This is the core library crate Emigui. It is fully platform independent without any backend. You give the Emigui library input each frame (mouse pos etc), and it outputs a triangle mesh for you to paint.
+This is the core library crate Egui. It is fully platform independent without any backend. You give the Egui library input each frame (mouse pos etc), and it outputs a triangle mesh for you to paint.
 
 ## TODO:
 ### Widgets
@@ -96,7 +96,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui
-* [x] Combine Emigui and Context?
+* [x] Combine Egui and Context?
 * [x] Solve which parts of Context are behind a mutex
 * [x] Rename Region to Ui
 * [ ] Move Path and Triangles to own crate

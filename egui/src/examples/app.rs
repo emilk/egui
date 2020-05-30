@@ -94,7 +94,7 @@ struct OpenWindows {
     example_tree: bool,
     fractal_clock: bool,
 
-    // emigui stuff:
+    // egui stuff:
     settings: bool,
     inspection: bool,
     memory: bool,
@@ -139,8 +139,8 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             ui.add(Checkbox::new(&mut windows.memory, "Memory"));
         });
         menu::menu(ui, "About", |ui| {
-            ui.add(label!("This is Emigui"));
-            ui.add(Hyperlink::new("https://github.com/emilk/emigui/").text("Emigui home page"));
+            ui.add(label!("This is Egui"));
+            ui.add(Hyperlink::new("https://github.com/emilk/emigui/").text("Egui home page"));
         });
 
         if let Some(time) = ui.input().seconds_since_midnight {
@@ -193,9 +193,9 @@ impl Default for ExampleWindow {
 
 impl ExampleWindow {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.collapsing("About Emigui", |ui| {
+        ui.collapsing("About Egui", |ui| {
             ui.add(label!(
-                "Emigui is an experimental immediate mode GUI written in Rust."
+                "Egui is an experimental immediate mode GUI written in Rust."
             ));
 
             ui.horizontal(|ui| {
