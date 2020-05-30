@@ -57,7 +57,7 @@
 
         function paint_gui(canvas) {
             if (g_wasm_app === null) {
-                g_wasm_app = wasm_bindgen.new_webgl_gui("canvas", pixels_per_point());
+                g_wasm_app = wasm_bindgen.new_webgl_gui("canvas");
             }
 
             let input = {

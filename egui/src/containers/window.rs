@@ -203,8 +203,8 @@ impl<'open> Window<'open> {
             let content_rect = collapsing
                 .add_contents(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
-                        // Add some spacing (item_spacing) between title and content:
-                        ui.allocate_space(Vec2::zero());
+                        // Add some spacing between title and content:
+                        ui.allocate_space(ui.style().item_spacing);
 
                         if let Some(scroll) = scroll {
                             scroll.show(ui, add_contents)

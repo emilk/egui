@@ -177,13 +177,12 @@ function getInt32Memory0() {
 }
 /**
 * @param {string} canvas_id
-* @param {number} pixels_per_point
 * @returns {State}
 */
-__exports.new_webgl_gui = function(canvas_id, pixels_per_point) {
+__exports.new_webgl_gui = function(canvas_id) {
     var ptr0 = passStringToWasm0(canvas_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     var len0 = WASM_VECTOR_LEN;
-    var ret = wasm.new_webgl_gui(ptr0, len0, pixels_per_point);
+    var ret = wasm.new_webgl_gui(ptr0, len0);
     return State.__wrap(ret);
 };
 
