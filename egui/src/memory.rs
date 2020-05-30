@@ -98,7 +98,7 @@ impl Memory {
                 if window_interaction.is_pure_move() {
                     // Throw windows because it is fun:
                     let area_layer = window_interaction.area_layer;
-                    let area_state = self.areas.get(area_layer.id).clone();
+                    let area_state = self.areas.get(area_layer.id);
                     if let Some(mut area_state) = area_state {
                         area_state.vel = prev_input.mouse.velocity;
                         self.areas.set_state(area_layer, area_state);

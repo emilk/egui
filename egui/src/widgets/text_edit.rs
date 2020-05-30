@@ -258,5 +258,5 @@ fn line_from_number(s: &str, desired_line_number: usize) -> &str {
             return line;
         }
     }
-    return s;
+    s
 }

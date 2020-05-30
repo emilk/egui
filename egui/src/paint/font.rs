@@ -133,7 +133,7 @@ impl Line {
         *self.x_offsets.last().unwrap()
     }
 
-    /// Closest char at the desired x coordinate. return [0, char_count()]
+    /// Closest char at the desired x coordinate. returns something in the range `[0, char_count()]`
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, char_x_bounds) in self.x_offsets.windows(2).enumerate() {
             let char_center_x = 0.5 * (char_x_bounds[0] + char_x_bounds[1]);
@@ -382,7 +382,7 @@ impl Font {
 
     /// Typeset the given text onto one line.
     /// Assumes there are no \n in the text.
-    /// Return x_offsets, one longer than the number of characters in the text.
+    /// Return `x_offsets`, one longer than the number of characters in the text.
     fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
@@ -417,7 +417,12 @@ impl Font {
         let full_x_offsets = self.layout_single_line_fragment(text);
 
         let mut line_start_x = full_x_offsets[0];
-        assert_eq!(line_start_x, 0.0);
+
+        {
+            #![allow(clippy::float_cmp)]
+            assert_eq!(line_start_x, 0.0);
+        }
+
         let mut cursor_y = 0.0;
         let mut line_start_idx = 0;
 

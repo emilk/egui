@@ -193,7 +193,7 @@ impl<'open> Window<'open> {
 
             let default_expanded = true;
             let mut collapsing = collapsing_header::State::from_memory_with_default_open(
-                &mut frame.content_ui,
+                &frame.content_ui,
                 collapsing_id,
                 default_expanded,
             );
@@ -244,15 +244,13 @@ impl<'open> Window<'open> {
                     interaction,
                     ctx.style().interact.active,
                 );
-            } else {
-                if let Some(hover_interaction) = hover_interaction {
-                    paint_frame_interaction(
-                        &mut area_content_ui,
-                        outer_rect,
-                        hover_interaction,
-                        ctx.style().interact.hovered,
-                    );
-                }
+            } else if let Some(hover_interaction) = hover_interaction {
+                paint_frame_interaction(
+                    &mut area_content_ui,
+                    outer_rect,
+                    hover_interaction,
+                    ctx.style().interact.hovered,
+                );
             }
         }
         let full_interact = area.end(ctx, area_content_ui);
@@ -357,7 +355,7 @@ fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Optio
         rect = rect.translate(mouse_pos - ctx.input().mouse.press_origin?);
     }
 
-    return Some(rect);
+    Some(rect)
 }
 
 fn window_interaction(
@@ -375,7 +373,7 @@ fn window_interaction(
         }
     }
 
-    let mut window_interaction = { ctx.memory().window_interaction.clone() };
+    let mut window_interaction = { ctx.memory().window_interaction };
 
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {

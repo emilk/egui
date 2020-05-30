@@ -3,7 +3,7 @@
 use crate::{color::*, math::*, paint::LineStyle, types::*};
 
 // TODO: split into Spacing and Style?
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Style {
     /// Horizontal and vertical padding within a window frame.

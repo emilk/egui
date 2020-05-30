@@ -125,17 +125,17 @@ impl Layout {
         }
     }
 
-    pub fn dir(&self) -> Direction {
+    pub fn dir(self) -> Direction {
         self.dir
     }
 
-    pub fn is_reversed(&self) -> bool {
+    pub fn is_reversed(self) -> bool {
         self.reversed
     }
 
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    pub fn available(&self, cursor: Pos2, rect: Rect) -> Rect {
+    pub fn available(self, cursor: Pos2, rect: Rect) -> Rect {
         if self.reversed {
             Rect::from_min_max(rect.min, cursor)
         } else {
@@ -156,7 +156,7 @@ impl Layout {
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(
-        &self,
+        self,
         cursor: &mut Pos2,
         style: &Style,
         available_size: Vec2,

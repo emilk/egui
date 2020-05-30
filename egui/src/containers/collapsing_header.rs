@@ -31,14 +31,10 @@ impl Default for State {
 
 impl State {
     pub fn from_memory_with_default_open(ui: &Ui, id: Id, default_open: bool) -> Self {
-        ui.memory()
-            .collapsing_headers
-            .entry(id)
-            .or_insert(State {
+        *ui.memory().collapsing_headers.entry(id).or_insert(State {
             open: default_open,
             ..Default::default()
         })
-            .clone()
     }
 
     // Helper

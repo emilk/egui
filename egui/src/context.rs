@@ -106,7 +106,7 @@ impl Context {
 
     // TODO: return MutexGuard
     pub fn style(&self) -> Style {
-        *self.style.try_lock().expect("style already locked")
+        self.style.try_lock().expect("style already locked").clone()
     }
 
     pub fn set_style(&self, style: Style) {
@@ -303,14 +303,14 @@ impl Context {
                     active: false,
                 };
 
-                if sense.click && !memory.interaction.click_id.is_some() {
+                if sense.click && memory.interaction.click_id.is_none() {
                     // start of a click
                     memory.interaction.click_id = Some(interaction_id);
                     info.active = true;
                 }
 
                 if sense.drag
-                    && (!memory.interaction.drag_id.is_some() || memory.interaction.drag_is_window)
+                    && (memory.interaction.drag_id.is_none() || memory.interaction.drag_is_window)
                 {
                     // start of a drag
                     memory.interaction.drag_id = Some(interaction_id);

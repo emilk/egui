@@ -90,7 +90,6 @@ impl ExampleApp {
 struct OpenWindows {
     // examples:
     examples: bool,
-    example_tree: bool,
     fractal_clock: bool,
 
     // egui stuff:
@@ -112,7 +111,6 @@ impl OpenWindows {
     fn none() -> Self {
         Self {
             examples: false,
-            example_tree: true,
             fractal_clock: false,
 
             settings: false,

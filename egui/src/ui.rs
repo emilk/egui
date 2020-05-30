@@ -82,7 +82,7 @@ impl Ui {
             clip_rect,
             desired_rect: child_rect,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
-            style: self.style,
+            style: self.style.clone(),
             layout: self.layout,
             cursor: child_rect.min,
         }

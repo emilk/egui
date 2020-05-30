@@ -65,7 +65,7 @@ impl Vec2 {
     }
 
     /// Use this vector as a rotor, rotating something else.
-    /// Example: Vec2::angled(angle).rotate_other(some_vec)
+    /// Example: `Vec2::angled(angle).rotate_other(some_vec)`
     #[must_use]
     pub fn rotate_other(self, v: Vec2) -> Self {
         Self {

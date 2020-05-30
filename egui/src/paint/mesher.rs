@@ -1,3 +1,5 @@
+// TODO: rename tessellator
+
 #![allow(clippy::identity_op)]
 
 /// Outputs render info in a format suitable for e.g. OpenGL.
@@ -380,7 +382,7 @@ pub fn paint_path_outline(
     options: PaintOptions,
     path_type: PathType,
     path: &[PathPoint],
-    style: &LineStyle,
+    style: LineStyle,
 ) {
     if style.color == color::TRANSPARENT {
         return;
@@ -574,7 +576,7 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, &outline);
+                paint_path_outline(out, options, Closed, &path.0, outline);
             }
         }
         PaintCmd::Triangles(triangles) => {
@@ -582,7 +584,7 @@ pub fn paint_command_into_triangles(
         }
         PaintCmd::LineSegment { points, style } => {
             path.add_line_segment(points);
-            paint_path_outline(out, options, Open, &path.0, &style);
+            paint_path_outline(out, options, Open, &path.0, style);
         }
         PaintCmd::Path {
             path,
@@ -600,7 +602,7 @@ pub fn paint_command_into_triangles(
                 }
                 if let Some(outline) = outline {
                     let typ = if closed { Closed } else { Open };
-                    paint_path_outline(out, options, typ, &path.0, &outline);
+                    paint_path_outline(out, options, typ, &path.0, outline);
                 }
             }
         }
@@ -620,7 +622,7 @@ pub fn paint_command_into_triangles(
                 fill_closed_path(out, options, &path.0, fill);
             }
             if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, &outline);
+                paint_path_outline(out, options, Closed, &path.0, outline);
             }
         }
         PaintCmd::Text {
