@@ -80,7 +80,7 @@ fn menu_impl<'c>(
             .fixed_pos(button_interact.rect.left_bottom());
         let frame = Frame::menu(ui.style());
 
-        let resize = Resize::default().auto_sized();
+        let resize = Resize::default().auto_sized().outline(false);
 
         let menu_interact = area.show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {

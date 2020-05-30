@@ -50,32 +50,25 @@ impl ExampleApp {
 
         Window::new("Examples")
             .open(&mut open_windows.examples)
-            .default_pos([32.0, 100.0])
-            .default_size([430.0, 600.0])
             .show(ctx, |ui| {
                 example_window.ui(ui);
             });
 
         Window::new("Settings")
             .open(&mut open_windows.settings)
-            .default_pos([500.0, 100.0])
-            .default_size([350.0, 400.0])
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         Window::new("Inspection")
             .open(&mut open_windows.inspection)
-            .default_pos([500.0, 400.0])
-            .default_size([400.0, 300.0])
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         Window::new("Memory")
             .open(&mut open_windows.memory)
-            .default_pos([700.0, 350.0])
-            .auto_sized()
+            .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
@@ -244,14 +237,10 @@ impl ExampleWindow {
         CollapsingHeader::new("Resize")
             .default_open(false)
             .show(ui, |ui| {
-                Resize::default()
-                    .default_height(200.0)
-                    // .as_wide_as_possible()
-                    .auto_shrink_height(false)
-                    .show(ui, |ui| {
-                        ui.add(label!("This ui can be resized!"));
-                        ui.add(label!("Just pull the handle on the bottom right"));
-                    });
+                Resize::default().default_height(200.0).show(ui, |ui| {
+                    ui.add(label!("This ui can be resized!"));
+                    ui.add(label!("Just pull the handle on the bottom right"));
+                });
             });
 
         ui.collapsing("Name clash example", |ui| {

@@ -27,13 +27,7 @@ impl<'open> Window<'open> {
             open: None,
             area,
             frame: None,
-            resize: Resize::default()
-                .auto_expand_height(false)
-                .auto_expand_width(true)
-                .auto_shrink_height(false)
-                .auto_shrink_width(true)
-                .handle_offset(Vec2::splat(4.0))
-                .outline(false),
+            resize: Resize::default().outline(false),
             scroll: Some(
                 ScrollArea::default()
                     .always_show_scroll(false)
@@ -326,7 +320,8 @@ fn interact(
     let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
     // resize_state.size += new_rect.size() - pre_resize.size();
     // resize_state.size = new_rect.size() - some margin;
-    resize_state.requested_size = Some(resize_state.size + new_rect.size() - pre_resize.size());
+    resize_state.requested_size =
+        Some(resize_state.desired_size + new_rect.size() - pre_resize.size());
     ctx.memory().resize.insert(resize_id, resize_state);
 
     ctx.memory().areas.move_to_top(area_layer);

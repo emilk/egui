@@ -412,7 +412,7 @@ impl Widget for RadioButton {
 
 pub struct Separator {
     line_width: Option<f32>,
-    min_spacing: f32,
+    spacing: f32,
     extra: f32,
     color: Color,
 }
@@ -421,7 +421,7 @@ impl Separator {
     pub fn new() -> Self {
         Self {
             line_width: None,
-            min_spacing: 6.0,
+            spacing: 6.0,
             extra: 0.0,
             color: color::WHITE,
         }
@@ -432,8 +432,9 @@ impl Separator {
         self
     }
 
-    pub fn min_spacing(mut self, min_spacing: f32) -> Self {
-        self.min_spacing = min_spacing;
+    /// How much space we take up. The line is painted in the middle of this.
+    pub fn spacing(mut self, spacing: f32) -> Self {
+        self.spacing = spacing;
         self
     }
 
@@ -453,7 +454,7 @@ impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> InteractInfo {
         let Separator {
             line_width,
-            min_spacing,
+            spacing,
             extra,
             color,
         } = self;
@@ -462,9 +463,13 @@ impl Widget for Separator {
 
         let available_space = ui.available_finite().size();
 
+        // TODO: only allocate `spacing`, but not our full width/height
+        // as that would make the false impression that we *need* all that space,
+        // wich would prevent regions from autoshrinking
+
         let (points, rect) = match ui.layout().dir() {
             Direction::Horizontal => {
-                let rect = ui.allocate_space(vec2(min_spacing, available_space.y));
+                let rect = ui.allocate_space(vec2(spacing, available_space.y));
                 (
                     [
                         pos2(rect.center().x, rect.top() - extra),
@@ -474,7 +479,7 @@ impl Widget for Separator {
                 )
             }
             Direction::Vertical => {
-                let rect = ui.allocate_space(vec2(available_space.x, min_spacing));
+                let rect = ui.allocate_space(vec2(available_space.x, spacing));
                 (
                     [
                         pos2(rect.left() - extra, rect.center().y),

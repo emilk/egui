@@ -72,7 +72,7 @@ impl ScrollArea {
             .cloned()
             .unwrap_or_default();
 
-        // content: size of contents (generally large)
+        // content: size of contents (generally large; that's why we want scroll bars)
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
 
@@ -154,7 +154,7 @@ impl Prepared {
             }
         }
 
-        // TODO: check that nothing else is being inteacted with
+        // TODO: check that nothing else is being interacted with
         if ui.contains_mouse(outer_rect) {
             state.offset.y -= ui.input().scroll_delta.y;
         }
@@ -209,10 +209,17 @@ impl Prepared {
             state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
 
             // Avoid frame-delay by calculating a new handle rect:
-            let handle_rect = Rect::from_min_max(
+            let mut handle_rect = Rect::from_min_max(
                 pos2(left, from_content(state.offset.y)),
                 pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
+            let min_handle_height = (2.0 * corner_radius).max(8.0);
+            if handle_rect.size().y < min_handle_height {
+                handle_rect = Rect::from_center_size(
+                    handle_rect.center(),
+                    vec2(handle_rect.size().x, min_handle_height),
+                );
+            }
 
             let style = ui.style();
             let handle_fill = style.interact(&interact).fill;
@@ -233,12 +240,10 @@ impl Prepared {
             });
         }
 
-        // let size = content_size.min(inner_rect.size());
-        // let size = vec2(
-        //     content_size.x, // ignore inner_rect, i.e. try to expand horizontally if necessary
-        //     content_size.y.min(inner_rect.size().y), // respect vertical height.
-        // );
-        let size = outer_rect.size();
+        let size = vec2(
+            outer_rect.size().x,
+            outer_rect.size().y.min(content_size.y), // shrink if content is so small that we don't need scroll bars
+        );
         ui.allocate_space(size);
 
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());

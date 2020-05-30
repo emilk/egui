@@ -5,13 +5,19 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
-    pub(crate) size: Vec2,
+    /// This is the size that the user has picked by dragging the resize handles.
+    /// This may be smaller and/or larger than the actual size.
+    /// For instance, the user may have tried to shrink too much (not fitting the contents).
+    /// Or the user requested a large area, but the content don't need that much space.
+    pub(crate) desired_size: Vec2,
+
+    /// Actual size of content last frame
+    last_content_size: Vec2,
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
 }
 
-// TODO: auto-shink/grow should be part of another container!
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
     id: Option<Id>,
@@ -25,14 +31,6 @@ pub struct Resize {
 
     default_size: Vec2,
 
-    // If true, won't allow you to make window so big that it creates spacing
-    auto_shrink_width: bool,
-    auto_shrink_height: bool,
-
-    // If true, won't allow you to resize smaller than that everything fits.
-    expand_width_to_fit_content: bool,
-    expand_height_to_fit_content: bool,
-
     outline: bool,
     handle_offset: Vec2,
 }
@@ -44,11 +42,7 @@ impl Default for Resize {
             resizable: true,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::infinity(),
-            default_size: vec2(f32::INFINITY, 200.0), // TODO
-            auto_shrink_width: false,
-            auto_shrink_height: false,
-            expand_width_to_fit_content: true,
-            expand_height_to_fit_content: true,
+            default_size: vec2(200.0, 400.0), // TODO: default height for a resizable area (e.g. a window)
             outline: true,
             handle_offset: Default::default(),
         }
@@ -98,22 +92,14 @@ impl Resize {
         self.resizable
     }
 
-    /// Not resizable, just takes the size of its contents.
+    /// Not manually resizable, just takes the size of its contents.
     pub fn auto_sized(self) -> Self {
         self.default_size(Vec2::splat(f32::INFINITY))
             .resizable(false)
-            .auto_shrink_width(true)
-            .auto_expand_width(true)
-            .auto_shrink_height(true)
-            .auto_expand_height(true)
     }
 
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         let size = size.into();
-        self.auto_shrink_width = false;
-        self.auto_shrink_height = false;
-        self.expand_width_to_fit_content = false;
-        self.expand_height_to_fit_content = false;
         self.default_size = size;
         self.min_size = size;
         self.max_size = size;
@@ -123,38 +109,6 @@ impl Resize {
 
     pub fn as_wide_as_possible(mut self) -> Self {
         self.min_size.x = f32::INFINITY;
-        self
-    }
-
-    /// true: prevent from resizing to smaller than contents.
-    /// false: allow shrinking to smaller than contents.
-    pub fn auto_expand(mut self, auto_expand: bool) -> Self {
-        self.expand_width_to_fit_content = auto_expand;
-        self.expand_height_to_fit_content = auto_expand;
-        self
-    }
-
-    /// true: prevent from resizing to smaller than contents.
-    /// false: allow shrinking to smaller than contents.
-    pub fn auto_expand_width(mut self, auto_expand: bool) -> Self {
-        self.expand_width_to_fit_content = auto_expand;
-        self
-    }
-
-    /// true: prevent from resizing to smaller than contents.
-    /// false: allow shrinking to smaller than contents.
-    pub fn auto_expand_height(mut self, auto_expand: bool) -> Self {
-        self.expand_height_to_fit_content = auto_expand;
-        self
-    }
-
-    pub fn auto_shrink_width(mut self, auto_shrink_width: bool) -> Self {
-        self.auto_shrink_width = auto_shrink_width;
-        self
-    }
-
-    pub fn auto_shrink_height(mut self, auto_shrink_height: bool) -> Self {
-        self.auto_shrink_height = auto_shrink_height;
         self
     }
 
@@ -173,7 +127,6 @@ impl Resize {
 struct Prepared {
     id: Id,
     state: State,
-    is_new: bool,
     corner_interact: Option<InteractInfo>,
     content_ui: Ui,
 }
@@ -185,22 +138,17 @@ impl Resize {
         self.max_size = self.max_size.min(ui.available().size());
         self.max_size = self.max_size.max(self.min_size);
 
-        let (is_new, mut state) = match ui.memory().resize.get(&id) {
-            Some(state) => (false, *state),
-            None => {
-                let default_size = self.default_size.clamp(self.min_size..=self.max_size);
-                (
-                    true,
-                    State {
-                        size: default_size,
-                        requested_size: None,
-                    },
-                )
-            }
-        };
+        let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
+            let default_size = self.default_size.clamp(self.min_size..=self.max_size);
 
-        state.size = state.size.clamp(self.min_size..=self.max_size);
-        let last_frame_size = state.size;
+            State {
+                desired_size: default_size,
+                last_content_size: vec2(0.0, 0.0),
+                requested_size: None,
+            }
+        });
+
+        state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
 
         let position = ui.available().min;
 
@@ -208,7 +156,7 @@ impl Resize {
             // Resize-corner:
             let corner_size = Vec2::splat(16.0); // TODO: style
             let corner_rect = Rect::from_min_size(
-                position + state.size + self.handle_offset - corner_size,
+                position + state.desired_size + self.handle_offset - corner_size,
                 corner_size,
             );
             let corner_interact = ui.interact(corner_rect, id.with("corner"), Sense::drag());
@@ -217,12 +165,12 @@ impl Resize {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
                     // This is the desired size. We may not be able to achieve it.
 
-                    state.size = mouse_pos - position + 0.5 * corner_interact.rect.size()
+                    state.desired_size = mouse_pos - position + 0.5 * corner_interact.rect.size()
                         - self.handle_offset;
                     // We don't clamp to max size, because we want to be able to push against outer bounds.
                     // For instance, if we are inside a bigger Resize region, we want to expand that.
-                    // state.size = state.size.clamp(self.min_size..=self.max_size);
-                    state.size = state.size.max(self.min_size);
+                    // state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
+                    state.desired_size = state.desired_size.max(self.min_size);
                 }
             }
             Some(corner_interact)
@@ -231,30 +179,29 @@ impl Resize {
         };
 
         if let Some(requested_size) = state.requested_size.take() {
-            state.size = requested_size;
+            state.desired_size = requested_size;
             // We don't clamp to max size, because we want to be able to push against outer bounds.
             // For instance, if we are inside a bigger Resize region, we want to expand that.
-            // state.size = state.size.clamp(self.min_size..=self.max_size);
-            state.size = state.size.max(self.min_size);
+            // state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
+            state.desired_size = state.desired_size.max(self.min_size);
         }
 
         // ------------------------------
 
-        let inner_rect = Rect::from_min_size(position, state.size);
+        let inner_rect = Rect::from_min_size(position, state.desired_size);
 
-        let mut content_clip_rect = ui
-            .clip_rect()
-            .intersect(inner_rect.expand(ui.style().clip_rect_margin));
+        let mut content_clip_rect = inner_rect.expand(ui.style().clip_rect_margin);
 
         // If we pull the resize handle to shrink, we want to TRY to shink it.
         // After laying out the contents, we might be much bigger.
         // In those cases we don't want the clip_rect to be smaller, because
         // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
-        // So we use the memory of last_frame_size to make the clip rect large enough.
-        content_clip_rect.max = content_clip_rect
-            .max
-            .max(content_clip_rect.min + last_frame_size)
-            .min(ui.clip_rect().max); // Respect parent region
+        // So we use the memory of last_content_size to make the clip rect large enough.
+        content_clip_rect.max = content_clip_rect.max.max(
+            inner_rect.min + state.last_content_size + Vec2::splat(ui.style().clip_rect_margin),
+        );
+
+        content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
         let mut content_ui = ui.child_ui(inner_rect);
         content_ui.set_clip_rect(content_clip_rect);
@@ -262,7 +209,6 @@ impl Resize {
         Prepared {
             id,
             state,
-            is_new,
             corner_interact,
             content_ui,
         }
@@ -279,39 +225,33 @@ impl Resize {
         let Prepared {
             id,
             mut state,
-            is_new,
             corner_interact,
             content_ui,
         } = prepared;
 
-        let desired_size = content_ui.bounding_size();
-        let desired_size = desired_size.ceil(); // Avoid rounding errors in math
+        state.last_content_size = content_ui.bounding_size();
+        state.last_content_size = state.last_content_size.ceil(); // Avoid rounding errors in math
 
         // ------------------------------
 
-        if self.auto_shrink_width {
-            state.size.x = state.size.x.min(desired_size.x);
-        }
-        if self.auto_shrink_height {
-            state.size.y = state.size.y.min(desired_size.y);
-        }
-        if self.expand_width_to_fit_content || is_new {
-            state.size.x = state.size.x.max(desired_size.x);
-        }
-        if self.expand_height_to_fit_content || is_new {
-            state.size.y = state.size.y.max(desired_size.y);
-        }
+        if self.outline || self.resizable {
+            // We show how large we are,
+            // so we must follow the contents:
 
-        state.size = state.size.max(self.min_size);
-        // state.size = state.size.clamp(self.min_size..=self.max_size);
-        state.size = state.size.round(); // TODO: round to pixels
+            state.desired_size = state.desired_size.max(state.last_content_size);
+            state.desired_size = ui.round_vec_to_pixels(state.desired_size);
 
-        ui.allocate_space(state.size);
+            // We are as large as we look
+            ui.allocate_space(state.desired_size);
+        } else {
+            // Probably a window.
+            ui.allocate_space(state.last_content_size);
+        }
 
         // ------------------------------
 
         if self.outline && corner_interact.is_some() {
-            let rect = Rect::from_min_size(content_ui.top_left(), state.size);
+            let rect = Rect::from_min_size(content_ui.top_left(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.add_paint_cmd(paint::PaintCmd::Rect {
                 rect,

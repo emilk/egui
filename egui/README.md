@@ -16,7 +16,7 @@ This is the core library crate Egui. It is fully platform independent without an
     * [ ] Windows should open from `UI`s and be boxed by parent ui.
         * Then we could open the example app inside a window in the example app, recursively.
     * [x] Resize any side and corner on windows
-    * [ ] Fix autoshrink
+    * [x] Fix autoshrink
 * [ ] Scroll areas
     * [x] Vertical scrolling
     * [ ] Horizontal scrolling
