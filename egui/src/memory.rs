@@ -98,7 +98,7 @@ impl Memory {
                 if window_interaction.is_pure_move() {
                     // Throw windows because it is fun:
                     let area_layer = window_interaction.area_layer;
-                    let area_state = self.areas.get(area_layer.id);
+                    let area_state = self.areas.get(area_layer.id).cloned();
                     if let Some(mut area_state) = area_state {
                         area_state.vel = prev_input.mouse.velocity;
                         self.areas.set_state(area_layer, area_state);
@@ -123,8 +123,8 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&mut self, id: Id) -> Option<area::State> {
-        self.areas.get(&id).cloned()
+    pub(crate) fn get(&self, id: Id) -> Option<&area::State> {
+        self.areas.get(&id)
     }
 
     pub(crate) fn order(&self) -> &[Layer] {
@@ -162,6 +162,22 @@ impl Areas {
 
     pub fn is_visible(&self, layer: &Layer) -> bool {
         self.visible_last_frame.contains(layer) || self.visible_current_frame.contains(layer)
+    }
+
+    pub fn visible_layers(&self) -> HashSet<Layer> {
+        self.visible_last_frame
+            .iter()
+            .cloned()
+            .chain(self.visible_current_frame.iter().cloned())
+            .collect()
+    }
+
+    pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
+        self.visible_layers()
+            .iter()
+            .filter(|layer| layer.order == crate::layers::Order::Middle)
+            .filter_map(|layer| self.get(layer.id))
+            .collect()
     }
 
     pub fn move_to_top(&mut self, layer: Layer) {

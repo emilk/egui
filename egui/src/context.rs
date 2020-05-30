@@ -399,8 +399,8 @@ impl Context {
         );
     }
 
-    pub fn debug_rect(&self, rect: Rect, text: impl Into<String>) {
-        let text = text.into();
+    pub fn debug_rect(&self, rect: Rect, name: impl Into<String>) {
+        let text = format!("{} {:?}", name.into(), rect);
         let layer = Layer::debug();
         self.add_paint_cmd(
             layer,

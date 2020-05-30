@@ -116,12 +116,11 @@ impl Area {
             fixed_pos,
         } = self;
 
-        let default_pos = default_pos.unwrap_or_else(|| pos2(100.0, 100.0)); // TODO
-        let id = ctx.register_unique_id(id, "Area", default_pos);
         let layer = Layer { order, id };
 
-        let mut state = ctx.memory().areas.get(id).unwrap_or_else(|| State {
-            pos: default_pos,
+        let state = ctx.memory().areas.get(id).cloned();
+        let mut state = state.unwrap_or_else(|| State {
+            pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::zero(),
             interactable,
             vel: Vec2::zero(),
@@ -232,4 +231,60 @@ fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
     } else {
         false
     }
+}
+
+fn automatic_area_position(ctx: &Context) -> Pos2 {
+    let mut existing: Vec<Rect> = ctx
+        .memory()
+        .areas
+        .visible_windows()
+        .into_iter()
+        .map(State::rect)
+        .collect();
+    existing.sort_by_key(|r| r.left().round() as i32);
+
+    let left = 16.0;
+    let top = 32.0; // allow existence of menu bar. TODO: get from ui.available()
+    let spacing = 32.0;
+
+    if existing.is_empty() {
+        return pos2(left, top);
+    }
+
+    // Separate existing rectangles into columns:
+    let mut column_bbs = vec![existing[0]];
+
+    for &rect in &existing {
+        let current_column_bb = column_bbs.last_mut().unwrap();
+        if rect.left() < current_column_bb.right() {
+            // same column
+            *current_column_bb = current_column_bb.union(rect);
+        } else {
+            // new column
+            column_bbs.push(rect);
+        }
+    }
+
+    // Find first column with some available space at the bottom of it:
+    for col_bb in &column_bbs {
+        if col_bb.bottom() < ctx.input().screen_size.y * 0.5 {
+            return pos2(col_bb.left(), col_bb.bottom() + spacing);
+        }
+    }
+
+    // Maybe we can fit a new column?
+    let rightmost = column_bbs.last().unwrap().right();
+    if rightmost < ctx.input().screen_size.x - 200.0 {
+        return pos2(rightmost + spacing, top);
+    }
+
+    // Ok, just put us in the column with the most space at the bottom:
+    let mut best_pos = pos2(left, column_bbs[0].bottom() + spacing);
+    for col_bb in &column_bbs {
+        let col_pos = pos2(col_bb.left(), col_bb.bottom() + spacing);
+        if col_pos.y < best_pos.y {
+            best_pos = col_pos;
+        }
+    }
+    best_pos
 }

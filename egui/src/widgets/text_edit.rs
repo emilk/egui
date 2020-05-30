@@ -151,7 +151,7 @@ impl<'t> Widget for TextEdit<'t> {
 }
 
 fn insert_text(cursor: &mut usize, text: &mut String, text_to_insert: &str) {
-    eprintln!("insert_text {:?}", text_to_insert);
+    // eprintln!("insert_text {:?}", text_to_insert);
 
     let mut char_it = text.chars();
     let mut new_text = String::with_capacity(text.capacity());
