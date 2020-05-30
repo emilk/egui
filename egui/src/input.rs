@@ -224,6 +224,12 @@ impl MouseInput {
             could_be_click = false;
         }
 
+        if self.pressed {
+            // Start of a drag: we want to track the velocity for during the drag
+            // and ignore any incoming movement
+            self.pos_tracker.clear();
+        }
+
         if let Some(mouse_pos) = new.mouse_pos {
             self.pos_tracker.add(new.time, mouse_pos);
         } else {
@@ -232,7 +238,12 @@ impl MouseInput {
             // the user tried to throw
         }
 
-        let velocity = self.pos_tracker.velocity_noew(new.time).unwrap_or_default();
+        self.pos_tracker.flush(new.time);
+        let velocity = if self.pos_tracker.len() >= 3 && self.pos_tracker.dt() > 0.01 {
+            self.pos_tracker.velocity().unwrap_or_default()
+        } else {
+            Vec2::default()
+        };
 
         MouseInput {
             down: new.mouse_down && new.mouse_pos.is_some(),

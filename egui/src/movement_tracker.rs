@@ -33,6 +33,15 @@ where
         self.values.len()
     }
 
+    /// Amount of time contained from start to end in this `MovementTracker`
+    pub fn dt(&self) -> f32 {
+        if let (Some(front), Some(back)) = (self.values.front(), self.values.back()) {
+            (back.0 - front.0) as f32
+        } else {
+            0.0
+        }
+    }
+
     pub fn values<'a>(&'a self) -> impl Iterator<Item = T> + 'a {
         self.values.iter().map(|(_time, value)| *value)
     }
@@ -64,7 +73,8 @@ where
         }
     }
 
-    fn flush(&mut self, now: f64) {
+    /// Remove samples that are too old
+    pub fn flush(&mut self, now: f64) {
         while self.values.len() > self.max_len {
             self.values.pop_front();
         }
@@ -104,14 +114,8 @@ where
     T: std::ops::Sub<Output = Vel>,
     Vel: std::ops::Div<f32, Output = Vel>,
 {
-    /// Calculate a smooth velocity (per second) from start until now
-    pub fn velocity_noew(&mut self, now: f64) -> Option<Vel> {
-        self.flush(now);
-        self.velocity_all()
-    }
-
     /// Calculate a smooth velocity (per second) over the entire time span
-    pub fn velocity_all(&self) -> Option<Vel> {
+    pub fn velocity(&self) -> Option<Vel> {
         if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
             let dt = (last.0 - first.0) as f32;
             if dt > 0.0 {
