@@ -3,8 +3,6 @@ use {
     crate::math::{Pos2, Rect},
 };
 
-use serde_derive::{Deserialize, Serialize};
-
 // TODO: rename, e.g. `paint::Cmd`?
 #[derive(Clone, Debug)]
 pub enum PaintCmd {
@@ -50,7 +48,8 @@ impl PaintCmd {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LineStyle {
     pub width: f32,
     pub color: Color,

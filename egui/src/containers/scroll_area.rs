@@ -1,7 +1,8 @@
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
-#[serde(default)]
+#[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,

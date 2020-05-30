@@ -6,7 +6,8 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use crate::*;
 
-#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// Last known pos
     pub pos: Pos2,
@@ -20,7 +21,7 @@ pub(crate) struct State {
 
     /// You can throw a moveable Area. It's fun.
     /// TODO: separate out moveable to container?
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     pub vel: Vec2,
 }
 

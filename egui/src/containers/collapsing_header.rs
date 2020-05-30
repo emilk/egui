@@ -5,12 +5,14 @@ use crate::{
     *,
 };
 
-#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
-#[serde(default)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub(crate) struct State {
     open: bool,
 
-    #[serde(skip)] // Times are relative, and we don't want to continue animations anyway
+    // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     toggle_time: f64,
 
     /// Height of the region when open. Used for animations
@@ -33,9 +35,9 @@ impl State {
             .collapsing_headers
             .entry(id)
             .or_insert(State {
-                open: default_open,
-                ..Default::default()
-            })
+            open: default_open,
+            ..Default::default()
+        })
             .clone()
     }
 

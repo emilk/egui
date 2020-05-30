@@ -12,7 +12,8 @@ use {
 
 const WHITE_UV: (u16, u16) = (1, 1);
 
-#[derive(Clone, Copy, Debug, Default, serde_derive::Serialize)]
+#[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vertex {
     /// Pixel coordinates
     pub pos: Pos2,
@@ -22,7 +23,8 @@ pub struct Vertex {
     pub color: Color,
 }
 
-#[derive(Clone, Debug, Default, serde_derive::Serialize)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Triangles {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,

@@ -2,7 +2,8 @@
 
 use crate::*;
 
-#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     pub(crate) size: Vec2,
 

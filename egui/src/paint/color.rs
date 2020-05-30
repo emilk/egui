@@ -1,8 +1,7 @@
-use serde_derive::{Deserialize, Serialize};
-
 /// 0-255 `sRGBA`. TODO: rename `sRGBA` for clarity.
 /// Uses premultiplied alpha.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Color {
     pub r: u8,
     pub g: u8,

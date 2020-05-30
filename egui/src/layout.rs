@@ -1,11 +1,10 @@
-use serde_derive::{Deserialize, Serialize};
-
 use crate::{math::*, style::Style};
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+
 pub enum Direction {
     Horizontal,
     Vertical,
@@ -17,8 +16,9 @@ impl Default for Direction {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum Align {
     /// Left/Top
     Min,
@@ -55,7 +55,8 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Lay out things horizontally or vertically?
     dir: Direction,

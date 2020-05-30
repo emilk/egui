@@ -1,8 +1,7 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
-use serde_derive::{Deserialize, Serialize};
-
-#[derive(Clone, Copy, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -212,7 +211,8 @@ impl std::fmt::Debug for Vec2 {
 // ----------------------------------------------------------------------------
 
 /// Sometimes called a Point. I prefer the shorter Pos2 so it is equal length to Vec2
-#[derive(Clone, Copy, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
     pub x: f32,
     pub y: f32,
@@ -337,7 +337,8 @@ impl std::fmt::Debug for Pos2 {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Rect {
     pub min: Pos2,
     pub max: Pos2,

@@ -6,14 +6,15 @@ use crate::{
     Id, Layer, Pos2, Rect,
 };
 
-#[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
-#[serde(default)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub struct Memory {
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
     /// The widget with keyboard focus (i.e. a text input field).
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     pub(crate) kb_focus_id: Option<Id>,
 
     // states of various types of widgets
@@ -23,7 +24,7 @@ pub struct Memory {
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     pub(crate) areas: Areas,
@@ -60,8 +61,9 @@ pub struct Interaction {
     pub drag_interest: bool,
 }
 
-#[derive(Clone, Debug, Default, serde_derive::Deserialize, serde_derive::Serialize)]
-#[serde(default)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub struct Areas {
     areas: HashMap<Id, area::State>,
     /// Top is last

@@ -1,12 +1,12 @@
 [package]
 name = "egui_glium"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-egui = { path = "../egui" }
+egui = { path = "../egui", features = ["with_serde"] }
 
 chrono = { version = "0.4" }
 clipboard = "0.5"

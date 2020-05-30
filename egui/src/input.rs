@@ -1,5 +1,3 @@
-use serde_derive::Deserialize;
-
 use crate::{math::*, movement_tracker::MovementTracker};
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
@@ -9,8 +7,9 @@ const MAX_CLICK_DELAY: f64 = 0.3;
 
 /// What the integration gives to the gui.
 /// All coordinates in egui is in point/logical coordinates.
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(default)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub struct RawInput {
     /// Is the button currently down?
     pub mouse_down: bool,
@@ -134,8 +133,9 @@ impl Default for MouseInput {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum Event {
     Copy,
     Cut,
@@ -147,8 +147,9 @@ pub enum Event {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum Key {
     Alt,
     Backspace,

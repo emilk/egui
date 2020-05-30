@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use serde_derive::{Deserialize, Serialize};
-
 use crate::{containers::*, widgets::*, *};
 
-#[derive(Deserialize, Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(default))]
 pub struct FractalClock {
     paused: bool,
     time: f64,

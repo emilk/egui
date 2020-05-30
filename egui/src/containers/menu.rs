@@ -2,11 +2,12 @@ use crate::{widgets::*, *};
 
 use super::*;
 
-#[derive(Clone, Copy, Debug, serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BarState {
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     open_menu: Option<Id>,
-    #[serde(skip)]
+    #[cfg_attr(feature = "with_serde", serde(skip))]
     /// When did we open a menu?
     open_time: f64,
 }

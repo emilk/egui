@@ -8,7 +8,7 @@ use {
     glium::glutin,
 };
 
-#[derive(Default, serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 struct Window {
     pos: Option<Pos2>,
     size: Option<Vec2>,

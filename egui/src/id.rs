@@ -31,9 +31,8 @@ use std::hash::Hash;
 
 use crate::math::Pos2;
 
-#[derive(
-    Clone, Copy, Debug, Hash, Eq, PartialEq, serde_derive::Deserialize, serde_derive::Serialize,
-)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(u64);
 
 impl Id {

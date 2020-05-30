@@ -11,8 +11,10 @@ edition = "2018"
 ahash = "0.3"
 parking_lot = "0.10"
 rusttype = "0.9"
-serde = "1"
-serde_derive = "1"
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+with_serde = ["serde"]
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }

@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use {parking_lot::Mutex, serde_derive::Serialize};
+use parking_lot::Mutex;
 
 use super::{
     font::Font,
@@ -12,7 +12,8 @@ use super::{
 };
 
 /// TODO: rename
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextStyle {
     Body,
     Button,
@@ -20,7 +21,8 @@ pub enum TextStyle {
     Monospace,
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     Monospace,
     VariableWidth,

@@ -1,11 +1,10 @@
 #![allow(clippy::if_same_then_else)]
 
-use serde_derive::{Deserialize, Serialize};
-
 use crate::{color::*, math::*, paint::LineStyle, types::*};
 
 // TODO: split into Spacing and Style?
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Style {
     /// Horizontal and vertical padding within a window frame.
     pub window_padding: Vec2,
@@ -89,7 +88,8 @@ impl Default for Style {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Interact {
     pub active: WidgetStyle,
     pub hovered: WidgetStyle,
@@ -139,7 +139,8 @@ impl Interact {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetStyle {
     /// Background color of widget
     pub bg_fill: Option<Color>,
@@ -162,7 +163,8 @@ pub struct WidgetStyle {
     pub corner_radius: f32,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Window {
     pub corner_radius: f32,
 }
@@ -175,7 +177,8 @@ impl Default for Window {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MenuBar {
     pub height: f32,
 }

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use serde_derive::Serialize;
-
 use crate::{math::Rect, Context, Ui};
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct Output {
     pub cursor_icon: CursorIcon,
 
@@ -17,8 +16,9 @@ pub struct Output {
     pub copied_text: String,
 }
 
-#[derive(Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
@@ -38,7 +38,8 @@ impl Default for CursorIcon {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct InteractInfo {
     /// The mouse is hovering above this thing
     pub hovered: bool,

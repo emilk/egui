@@ -13,14 +13,14 @@ use {
 
 use wasm_bindgen::prelude::*;
 
-#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(default)]
 struct WebInput {
     egui: RawInput,
     web: Web,
 }
 
-#[derive(Clone, Debug, Default, serde_derive::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(default)]
 pub struct Web {
     pub location: String,
