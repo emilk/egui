@@ -199,8 +199,8 @@ impl ExampleWindow {
             ));
 
             ui.horizontal(|ui| {
-                ui.add_label("Project home page:");
-                ui.add_hyperlink("https://github.com/emilk/emigui/");
+                ui.label("Project home page:");
+                ui.hyperlink("https://github.com/emilk/emigui/");
             });
         });
 
@@ -236,7 +236,7 @@ impl ExampleWindow {
             .default_open(false)
             .show(ui, |ui| {
                 ScrollArea::default().show(ui, |ui| {
-                    ui.add_label(LOREM_IPSUM);
+                    ui.label(LOREM_IPSUM);
                 });
             });
 
@@ -258,23 +258,23 @@ impl ExampleWindow {
             });
 
         ui.collapsing("Name clash example", |ui| {
-            ui.add_label("\
+            ui.label("\
                 Widgets that store state require unique identifiers so we can track their state between frames. \
                 Identifiers are normally derived from the titles of the widget.");
 
-            ui.add_label("\
+            ui.label("\
                 For instance, collapsable headers needs to store wether or not they are open. \
                 If you fail to give them unique names then clicking one will open both. \
                 To help you debug this, an error message is printed on screen:");
 
             ui.collapsing("Collapsing header", |ui| {
-                ui.add_label("Contents of first folddable ui");
+                ui.label("Contents of first folddable ui");
             });
             ui.collapsing("Collapsing header", |ui| {
-                ui.add_label("Contents of second folddable ui");
+                ui.label("Contents of second folddable ui");
             });
 
-            ui.add_label("\
+            ui.label("\
                 Most widgets don't need unique names, but are tracked \
                 based on their position on screen. For instance, buttons:");
             ui.add(Button::new("Button"));
@@ -423,7 +423,7 @@ struct Painting {
 
 impl Painting {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add_label("Draw with your mouse to paint");
+        ui.label("Draw with your mouse to paint");
         if ui.add(Button::new("Clear")).clicked {
             self.lines.clear();
         }
@@ -599,7 +599,7 @@ impl Tree {
             })
             .collect();
 
-        if ui.button("+") {
+        if ui.button("+").clicked {
             self.0.push(Tree::default());
         }
 

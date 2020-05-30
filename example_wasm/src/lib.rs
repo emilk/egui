@@ -59,21 +59,21 @@ impl State {
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
         ui.add(label!("Emigui!").text_style(TextStyle::Heading));
-        ui.add_label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-        ui.add_label(
+        ui.label("Emigui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+        ui.label(
             "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
         );
-        ui.add_label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
-        ui.add_label("This is also work in progress, and not ready for production... yet :)");
+        ui.label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
+        ui.label("This is also work in progress, and not ready for production... yet :)");
         ui.horizontal(|ui| {
-            ui.add_label("Project home page:");
-            ui.add_hyperlink("https://github.com/emilk/emigui/");
+            ui.label("Project home page:");
+            ui.hyperlink("https://github.com/emilk/emigui/");
         });
         ui.add(Separator::new());
 
-        ui.add_label("WebGl painter info:");
+        ui.label("WebGl painter info:");
         ui.indent("webgl region id", |ui| {
-            ui.add_label(self.webgl_painter.debug_info());
+            ui.label(self.webgl_painter.debug_info());
         });
 
         ui.add(

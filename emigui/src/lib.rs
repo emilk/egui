@@ -52,5 +52,6 @@ pub use {
     style::Style,
     types::*,
     ui::Ui,
-    widgets::Widget,
+    widgets::*,
+    containers::*,
 };

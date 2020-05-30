@@ -496,16 +496,30 @@ impl Ui {
 
     // Convenience functions:
 
-    pub fn add_label(&mut self, text: impl Into<String>) -> GuiResponse {
-        self.add(Label::new(text))
+    pub fn label(&mut self, label: impl Into<Label>) -> GuiResponse {
+        self.add(label.into())
     }
 
-    pub fn button(&mut self, text: impl Into<String>) -> bool {
-        self.add(Button::new(text)).clicked
-    }
-
-    pub fn add_hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
+    pub fn hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
         self.add(Hyperlink::new(url))
+    }
+
+    pub fn button(&mut self, text: impl Into<String>) -> GuiResponse {
+        self.add(Button::new(text))
+    }
+
+    // TODO: argument order?
+    pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> GuiResponse {
+        self.add(Checkbox::new(checked, text))
+    }
+
+    // TODO: argument order?
+    pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> GuiResponse {
+        self.add(RadioButton::new(checked, text))
+    }
+
+    pub fn separator(&mut self) -> GuiResponse {
+        self.add(Separator::new())
     }
 
     // ------------------------------------------------------------------------
