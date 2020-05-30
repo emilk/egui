@@ -595,7 +595,7 @@ impl TitleBar {
     ) {
         if let Some(content_rect) = content_rect {
             // Now we know how large we got to be:
-            self.rect.max.x = content_rect.max.x;
+            self.rect.max.x = self.rect.max.x.max(content_rect.max.x);
         }
 
         if let Some(open) = open {
