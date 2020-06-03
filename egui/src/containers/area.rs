@@ -265,6 +265,18 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
         }
     }
 
+    {
+        // Look for large spaces between columns (empty columns):
+        let mut x = left;
+        for col_bb in &column_bbs {
+            let available = col_bb.left() - x;
+            if available >= 300.0 {
+                return pos2(x, top);
+            }
+            x = col_bb.right() + spacing;
+        }
+    }
+
     // Find first column with some available space at the bottom of it:
     for col_bb in &column_bbs {
         if col_bb.bottom() < ctx.input().screen_size.y * 0.5 {
