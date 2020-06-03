@@ -280,7 +280,7 @@ impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
     /// If the `id_source` is not unique within this ui
     /// then an error will be printed at the current cursor position.
-    pub fn make_unique_id<IdSource>(&self, id_source: IdSource) -> Id
+    pub fn make_unique_child_id<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {

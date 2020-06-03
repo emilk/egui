@@ -105,7 +105,7 @@ impl<'a> Widget for Slider<'a> {
 
         if let Some(text) = &self.text {
             if self.id.is_none() {
-                self.id = Some(Id::new(text));
+                self.id = Some(ui.make_unique_child_id(text));
             }
 
             let text_on_top = self.text_on_top.unwrap_or_default();

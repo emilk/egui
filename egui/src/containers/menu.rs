@@ -55,7 +55,7 @@ fn menu_impl<'c>(
 ) {
     let title = title.into();
     let bar_id = ui.id();
-    let menu_id = Id::new(&title);
+    let menu_id = bar_id.with(&title);
 
     let mut bar_state = ui
         .memory()

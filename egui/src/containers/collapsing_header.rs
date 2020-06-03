@@ -179,7 +179,7 @@ impl CollapsingHeader {
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let title = label.text();
-        let id = ui.make_unique_id(title);
+        let id = ui.make_unique_child_id(title);
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().indent, 0.0);
