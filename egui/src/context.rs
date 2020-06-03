@@ -258,10 +258,17 @@ impl Context {
         }
     }
 
+    // ---------------------------------------------------------------------
+
+    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+        let resize_interact_radius_side = self.style().resize_interact_radius_side;
+        self.memory().layer_at(pos, resize_interact_radius_side)
+    }
+
     pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse.pos {
-            rect.contains(mouse_pos) && self.memory().layer_at(mouse_pos) == Some(layer)
+            rect.contains(mouse_pos) && self.layer_at(mouse_pos) == Some(layer)
         } else {
             false
         }
@@ -399,7 +406,7 @@ impl Context {
         );
     }
 
-    pub fn debug_rect(&self, rect: Rect, name: impl Into<String>) {
+    pub fn debug_rect(&self, rect: Rect, color: Color, name: impl Into<String>) {
         let text = format!("{} {:?}", name.into(), rect);
         let layer = Layer::debug();
         self.add_paint_cmd(
@@ -407,13 +414,13 @@ impl Context {
             PaintCmd::Rect {
                 corner_radius: 0.0,
                 fill: None,
-                outline: Some(LineStyle::new(1.0, color::RED)),
+                outline: Some(LineStyle::new(2.0, color)),
                 rect,
             },
         );
         let align = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
-        self.floating_text(layer, rect.min, text, text_style, align, Some(color::RED));
+        self.floating_text(layer, rect.min, text, text_style, align, Some(color));
     }
 
     /// Show some text anywhere on screen.

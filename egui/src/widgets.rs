@@ -81,8 +81,8 @@ impl Label {
         }
     }
 
-    pub fn font_height(&self, ui: &Ui) -> f32 {
-        ui.fonts()[self.text_style].height()
+    pub fn font_height(&self, fonts: &Fonts) -> f32 {
+        fonts[self.text_style].height()
     }
 
     // TODO: this should return a LabelLayout which has a paint method.

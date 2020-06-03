@@ -25,6 +25,12 @@ pub struct Style {
     /// The text starts after this many pixels.
     pub start_icon_width: f32,
 
+    /// Mouse must be the close to the side of a window to resize
+    pub resize_interact_radius_side: f32,
+
+    /// Mouse must be the close to the corner of a window to resize
+    pub resize_interact_radius_corner: f32,
+
     // -----------------------------------------------
     // Purely visual:
     pub interact: Interact,
@@ -60,6 +66,7 @@ pub struct Style {
     // -----------------------------------------------
     // Debug rendering:
     pub debug_widget_rects: bool,
+    pub debug_resize: bool,
 }
 
 impl Default for Style {
@@ -71,6 +78,8 @@ impl Default for Style {
             indent: 21.0,
             clickable_diameter: 22.0,
             start_icon_width: 14.0,
+            resize_interact_radius_side: 5.0,
+            resize_interact_radius_corner: 10.0,
             interact: Default::default(),
             text_color: gray(160, 255),
             line_width: 1.0,
@@ -84,6 +93,7 @@ impl Default for Style {
             menu_bar: MenuBar::default(),
             clip_rect_margin: 3.0,
             debug_widget_rects: false,
+            debug_resize: false,
         }
     }
 }
@@ -220,6 +230,7 @@ impl Style {
         }
 
         ui.add(Checkbox::new(&mut self.debug_widget_rects, "Paint debug rectangles around widgets"));
+        ui.add(Checkbox::new(&mut self.debug_resize, "Debug Resize"));
 
         ui.add(Slider::f32(&mut self.item_spacing.x,     0.0..=10.0).text("item_spacing.x").precision(0));
         ui.add(Slider::f32(&mut self.item_spacing.y,     0.0..=10.0).text("item_spacing.y").precision(0));

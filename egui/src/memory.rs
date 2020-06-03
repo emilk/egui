@@ -112,9 +112,8 @@ impl Memory {
         self.areas.end_frame()
     }
 
-    /// TODO: call once at the start of the frame for the current mouse pos
-    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
-        self.areas.layer_at(pos)
+    pub fn layer_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<Layer> {
+        self.areas.layer_at(pos, resize_interact_radius_side)
     }
 }
 
@@ -139,13 +138,14 @@ impl Areas {
         }
     }
 
-    /// TODO: call once at the start of the frame for the current mouse pos
-    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+    pub fn layer_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<Layer> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     if state.interactable {
                         let rect = Rect::from_min_size(state.pos, state.size);
+                        // Allow us to resize by dragging just outside the window:
+                        let rect = rect.expand(resize_interact_radius_side);
                         if rect.contains(pos) {
                             return Some(*layer);
                         }

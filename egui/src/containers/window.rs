@@ -27,7 +27,10 @@ impl<'open> Window<'open> {
             open: None,
             area,
             frame: None,
-            resize: Resize::default().outline(false),
+            resize: Resize::default()
+                .outline(false)
+                .min_content_size([96.0, 32.0])
+                .min_desired_size([96.0, 200.0]),
             scroll: Some(
                 ScrollArea::default()
                     .always_show_scroll(false)
@@ -76,16 +79,6 @@ impl<'open> Window<'open> {
 
     pub fn default_rect(self, rect: Rect) -> Self {
         self.default_pos(rect.min).default_size(rect.size())
-    }
-
-    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.min_size(min_size);
-        self
-    }
-
-    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.max_size(max_size);
-        self
     }
 
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -165,8 +158,12 @@ impl<'open> Window<'open> {
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
+            let title_bar_height =
+                title_label.font_height(ctx.fonts()) + 1.0 * ctx.style().item_spacing.y; // this could be better
+            let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
             interact(
                 ctx,
+                margins,
                 possible,
                 area_layer,
                 area.state_mut(),
@@ -295,6 +292,7 @@ impl WindowInteraction {
 
 fn interact(
     ctx: &Context,
+    margins: Vec2,
     possible: PossibleInteractions,
     area_layer: Layer,
     area_state: &mut area::State,
@@ -302,7 +300,6 @@ fn interact(
     resize_id: Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    let pre_resize = ctx.round_rect_to_pixels(rect);
     let window_interaction = window_interaction(
         ctx,
         possible,
@@ -317,12 +314,11 @@ fn interact(
 
     area_state.pos = new_rect.min;
 
-    let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
-    // resize_state.size += new_rect.size() - pre_resize.size();
-    // resize_state.size = new_rect.size() - some margin;
-    resize_state.requested_size =
-        Some(resize_state.desired_size + new_rect.size() - pre_resize.size());
-    ctx.memory().resize.insert(resize_id, resize_state);
+    if window_interaction.is_resize() {
+        let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
+        resize_state.requested_size = Some(new_rect.size() - margins);
+        ctx.memory().resize.insert(resize_id, resize_state);
+    }
 
     ctx.memory().areas.move_to_top(area_layer);
     Some(window_interaction)
@@ -400,7 +396,7 @@ fn resize_hover(
     rect: Rect,
 ) -> Option<WindowInteraction> {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
-        if let Some(top_layer) = ctx.memory().layer_at(mouse_pos) {
+        if let Some(top_layer) = ctx.layer_at(mouse_pos) {
             if top_layer != area_layer && top_layer.order != Order::Background {
                 return None; // Another window is on top here
             }
@@ -411,8 +407,8 @@ fn resize_hover(
             return None;
         }
 
-        let side_interact_radius = 5.0; // TODO: from style
-        let corner_interact_radius = 10.0; // TODO
+        let side_interact_radius = ctx.style().resize_interact_radius_side;
+        let corner_interact_radius = ctx.style().resize_interact_radius_corner;
         if rect.expand(side_interact_radius).contains(mouse_pos) {
             let (mut left, mut right, mut top, mut bottom) = Default::default();
             if possible.resizable {
@@ -531,7 +527,7 @@ fn show_title_bar(
     collapsing: &mut collapsing_header::State,
 ) -> TitleBar {
     let title_bar_and_rect = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
-        ui.set_desired_height(title_label.font_height(ui));
+        ui.set_desired_height(title_label.font_height(ui.fonts()));
 
         let item_spacing = ui.style().item_spacing;
         let button_size = ui.style().start_icon_width;

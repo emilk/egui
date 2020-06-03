@@ -227,7 +227,7 @@ impl Prepared {
 
 fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
-        ctx.input().mouse.pressed && ctx.memory().layer_at(mouse_pos) == Some(layer)
+        ctx.input().mouse.pressed && ctx.layer_at(mouse_pos) == Some(layer)
     } else {
         false
     }

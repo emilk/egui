@@ -25,9 +25,8 @@ pub struct Resize {
     /// If false, we are no enabled
     resizable: bool,
 
-    // Will still try to stay within parent ui bounds
-    min_size: Vec2,
-    max_size: Vec2,
+    min_content_size: Vec2,
+    min_desired_size: Vec2,
 
     default_size: Vec2,
 
@@ -40,8 +39,8 @@ impl Default for Resize {
         Self {
             id: None,
             resizable: true,
-            min_size: Vec2::splat(16.0),
-            max_size: Vec2::infinity(),
+            min_content_size: Vec2::splat(16.0),
+            min_desired_size: vec2(200.0, 400.0),
             default_size: vec2(280.0, 400.0), // TODO: perferred size for a resizable area (e.g. a window)
             outline: true,
             handle_offset: Default::default(),
@@ -84,13 +83,15 @@ impl Resize {
         self
     }
 
-    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
-        self.min_size = min_size.into();
+    /// Won't shrink to smaller than this
+    pub fn min_content_size(mut self, min_content_size: impl Into<Vec2>) -> Self {
+        self.min_content_size = min_content_size.into();
         self
     }
 
-    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
-        self.max_size = max_size.into();
+    /// Won't shrink to smaller than this
+    pub fn min_desired_size(mut self, min_desired_size: impl Into<Vec2>) -> Self {
+        self.min_desired_size = min_desired_size.into();
         self
     }
 
@@ -114,14 +115,9 @@ impl Resize {
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         let size = size.into();
         self.default_size = size;
-        self.min_size = size;
-        self.max_size = size;
+        self.min_content_size = size;
+        self.min_desired_size = size;
         self.resizable = false;
-        self
-    }
-
-    pub fn as_wide_as_possible(mut self) -> Self {
-        self.min_size.x = f32::INFINITY;
         self
     }
 
@@ -147,12 +143,9 @@ struct Prepared {
 impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
-        self.min_size = self.min_size.min(ui.available().size());
-        self.max_size = self.max_size.min(ui.available().size());
-        self.max_size = self.max_size.max(self.min_size);
 
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
-            let default_size = self.default_size.clamp(self.min_size..=self.max_size);
+            let default_size = self.default_size.max(self.min_content_size);
 
             State {
                 desired_size: default_size,
@@ -161,7 +154,7 @@ impl Resize {
             }
         });
 
-        state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
+        state.desired_size = state.desired_size.max(self.min_desired_size);
 
         let position = ui.available().min;
 
@@ -176,14 +169,8 @@ impl Resize {
 
             if corner_interact.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    // This is the desired size. We may not be able to achieve it.
-
                     state.desired_size = mouse_pos - position + 0.5 * corner_interact.rect.size()
                         - self.handle_offset;
-                    // We don't clamp to max size, because we want to be able to push against outer bounds.
-                    // For instance, if we are inside a bigger Resize region, we want to expand that.
-                    // state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
-                    state.desired_size = state.desired_size.max(self.min_size);
                 }
             }
             Some(corner_interact)
@@ -193,11 +180,8 @@ impl Resize {
 
         if let Some(requested_size) = state.requested_size.take() {
             state.desired_size = requested_size;
-            // We don't clamp to max size, because we want to be able to push against outer bounds.
-            // For instance, if we are inside a bigger Resize region, we want to expand that.
-            // state.desired_size = state.desired_size.clamp(self.min_size..=self.max_size);
-            state.desired_size = state.desired_size.max(self.min_size);
         }
+        state.desired_size = state.desired_size.max(self.min_desired_size);
 
         // ------------------------------
 
@@ -283,6 +267,19 @@ impl Resize {
         }
 
         ui.memory().resize.insert(id, state);
+
+        if ui.ctx().style().debug_resize {
+            ui.ctx().debug_rect(
+                Rect::from_min_size(content_ui.top_left(), state.desired_size),
+                color::GREEN,
+                "desired_size",
+            );
+            ui.ctx().debug_rect(
+                Rect::from_min_size(content_ui.top_left(), state.last_content_size),
+                color::LIGHT_BLUE,
+                "last_content_size",
+            );
+        }
     }
 }
 
