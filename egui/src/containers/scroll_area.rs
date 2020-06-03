@@ -76,7 +76,7 @@ impl ScrollArea {
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
 
-        let max_scroll_bar_width = 16.0;
+        let max_scroll_bar_width = ui.style().item_spacing.x + 16.0;
 
         let current_scroll_bar_width = if state.show_scroll || !auto_hide_scroll {
             max_scroll_bar_width // TODO: animate?
@@ -161,7 +161,8 @@ impl Prepared {
 
         let show_scroll_this_frame = content_is_too_small || always_show_scroll;
         if show_scroll_this_frame || state.show_scroll {
-            let left = inner_rect.right() + 2.0;
+            let margin = ui.style().item_spacing.x; // margin between contents and scroll bar
+            let left = inner_rect.right() + margin;
             let right = outer_rect.right();
             let corner_radius = (right - left) / 2.0;
             let top = inner_rect.top();

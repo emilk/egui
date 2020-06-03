@@ -105,7 +105,7 @@ impl Default for Interact {
                 stroke_color: WHITE,
                 stroke_width: 2.0,
                 rect_outline: Some(LineStyle::new(2.0, WHITE)),
-                corner_radius: 5.0,
+                corner_radius: 0.0,
             },
             hovered: WidgetStyle {
                 bg_fill: None,
@@ -113,7 +113,7 @@ impl Default for Interact {
                 stroke_color: gray(240, 255),
                 stroke_width: 1.5,
                 rect_outline: Some(LineStyle::new(1.0, WHITE)),
-                corner_radius: 5.0,
+                corner_radius: 2.0,
             },
             inactive: WidgetStyle {
                 bg_fill: None,
@@ -121,7 +121,7 @@ impl Default for Interact {
                 stroke_color: gray(210, 255), // Mustn't look grayed out!
                 stroke_width: 1.0,
                 rect_outline: Some(LineStyle::new(1.0, white(128))),
-                corner_radius: 0.0,
+                corner_radius: 4.0,
             },
         }
     }

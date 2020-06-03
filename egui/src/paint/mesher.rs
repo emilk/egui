@@ -287,7 +287,9 @@ impl Path {
     ///    quadrant 3 right top
     /// 4 * TAU / 4 = right
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
-        let n = (radius * 0.5).round() as i32; // TODO: tweak a bit more
+        // TODO: optimize with precalculated vertices for some radii ranges
+
+        let n = (radius * 0.75).round() as i32; // TODO: tweak a bit more
         let n = clamp(n, 2..=32);
         self.reserve(n as usize + 1);
         const RIGHT_ANGLE: f32 = TAU / 4.0;

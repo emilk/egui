@@ -42,7 +42,7 @@ impl Default for Resize {
             resizable: true,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::infinity(),
-            default_size: vec2(200.0, 400.0), // TODO: default height for a resizable area (e.g. a window)
+            default_size: vec2(280.0, 400.0), // TODO: perferred size for a resizable area (e.g. a window)
             outline: true,
             handle_offset: Default::default(),
         }
@@ -56,11 +56,24 @@ impl Resize {
         self
     }
 
+    /// Preferred / suggested width. Actual width will depend on contents.
+    ///
+    /// Examples:
+    /// * if the contents is text, this will decide where we break long lines.
+    /// * if the contents is a canvas, this decides the width of it,
+    /// * if the contents is some buttons, this is ignored and we will auto-size.
     pub fn default_width(mut self, width: f32) -> Self {
         self.default_size.x = width;
         self
     }
 
+    /// Preferred / suggested height. Actual height will depend on contents.
+    ///
+    /// Examples:
+    /// * if the contents is a `ScrollArea` then this decides the maximum size.
+    /// * if the contents is a canvas, this decides the height of it,
+    /// * if the contents is text and buttons, then the `default_height` is ignored
+    ///   and the height is picked automatically..
     pub fn default_height(mut self, height: f32) -> Self {
         self.default_size.y = height;
         self

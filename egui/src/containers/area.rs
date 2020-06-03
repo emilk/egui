@@ -245,7 +245,7 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
 
     let left = 16.0;
     let top = 32.0; // allow existence of menu bar. TODO: get from ui.available()
-    let spacing = 32.0;
+    let spacing = 16.0;
 
     if existing.is_empty() {
         return pos2(left, top);
