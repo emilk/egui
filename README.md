@@ -1,3 +1,8 @@
+[![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
+[![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
+![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+
 # Egui
 An immediate mode GUI library written in Rust. Works anywhere you can draw textured triangles.
 
