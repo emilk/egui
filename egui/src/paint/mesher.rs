@@ -573,12 +573,14 @@ pub fn paint_command_into_triangles(
             outline,
             radius,
         } => {
-            path.add_circle(center, radius);
-            if let Some(fill) = fill {
-                fill_closed_path(out, options, &path.0, fill);
-            }
-            if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, outline);
+            if radius > 0.0 {
+                path.add_circle(center, radius);
+                if let Some(fill) = fill {
+                    fill_closed_path(out, options, &path.0, fill);
+                }
+                if let Some(outline) = outline {
+                    paint_path_outline(out, options, Closed, &path.0, outline);
+                }
             }
         }
         PaintCmd::Triangles(triangles) => {
@@ -614,17 +616,19 @@ pub fn paint_command_into_triangles(
             outline,
             mut rect,
         } => {
-            // Common bug is to accidentally create an infinitely sized ractangle.
-            // Make sure we can visualize that:
-            rect.min = rect.min.max(pos2(-1e7, -1e7));
-            rect.max = rect.max.min(pos2(1e7, 1e7));
+            if !rect.is_empty() {
+                // It is common to (sometimes accidentally) create an infinitely sized ractangle.
+                // Make sure we can handle that:
+                rect.min = rect.min.max(pos2(-1e7, -1e7));
+                rect.max = rect.max.min(pos2(1e7, 1e7));
 
-            path.add_rounded_rectangle(rect, corner_radius);
-            if let Some(fill) = fill {
-                fill_closed_path(out, options, &path.0, fill);
-            }
-            if let Some(outline) = outline {
-                paint_path_outline(out, options, Closed, &path.0, outline);
+                path.add_rounded_rectangle(rect, corner_radius);
+                if let Some(fill) = fill {
+                    fill_closed_path(out, options, &path.0, fill);
+                }
+                if let Some(outline) = outline {
+                    paint_path_outline(out, options, Closed, &path.0, outline);
+                }
             }
         }
         PaintCmd::Text {
