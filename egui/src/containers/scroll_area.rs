@@ -1,13 +1,28 @@
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,
 
-    show_scroll: bool, // TODO: default value?
+    show_scroll: bool,
+
+    // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
+    /// Used to animate the showing of the scroll bar
+    #[cfg_attr(feature = "with_serde", serde(skip))]
+    toggle_time: f64,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            offset: Vec2::zero(),
+            show_scroll: false,
+            toggle_time: f64::NEG_INFINITY,
+        }
+    }
 }
 
 // TODO: rename VScroll
@@ -15,7 +30,6 @@ pub(crate) struct State {
 pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,
-    auto_hide_scroll: bool,
 }
 
 impl Default for ScrollArea {
@@ -23,7 +37,6 @@ impl Default for ScrollArea {
         Self {
             max_height: 200.0,
             always_show_scroll: false,
-            auto_hide_scroll: true,
         }
     }
 }
@@ -34,13 +47,10 @@ impl ScrollArea {
         self
     }
 
+    /// If `false` (defualt), the scroll bar will be hidden when not needed/
+    /// If `true`, the scroll bar will always be displayed even if not needed.
     pub fn always_show_scroll(mut self, always_show_scroll: bool) -> Self {
         self.always_show_scroll = always_show_scroll;
-        self
-    }
-
-    pub fn auto_hide_scroll(mut self, auto_hide_scroll: bool) -> Self {
-        self.auto_hide_scroll = auto_hide_scroll;
         self
     }
 }
@@ -59,7 +69,6 @@ impl ScrollArea {
         let Self {
             max_height,
             always_show_scroll,
-            auto_hide_scroll,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -76,12 +85,26 @@ impl ScrollArea {
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
 
-        let max_scroll_bar_width = ui.style().item_spacing.x + 16.0;
+        let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
-        let current_scroll_bar_width = if state.show_scroll || !auto_hide_scroll {
-            max_scroll_bar_width // TODO: animate?
+        let current_scroll_bar_width = if always_show_scroll {
+            max_scroll_bar_width
         } else {
-            0.0
+            let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
+            let animation_time = ui.style().animation_time;
+            if state.show_scroll {
+                remap_clamp(
+                    time_since_toggle,
+                    0.0..=animation_time,
+                    0.0..=max_scroll_bar_width,
+                )
+            } else {
+                remap_clamp(
+                    time_since_toggle,
+                    0.0..=animation_time,
+                    max_scroll_bar_width..=0.0,
+                )
+            }
         };
 
         let outer_size = vec2(
@@ -126,7 +149,7 @@ impl Prepared {
             mut state,
             inner_rect,
             always_show_scroll,
-            current_scroll_bar_width,
+            mut current_scroll_bar_width,
             content_ui,
         } = self;
 
@@ -161,8 +184,22 @@ impl Prepared {
         }
 
         let show_scroll_this_frame = content_is_too_small || always_show_scroll;
-        if show_scroll_this_frame || state.show_scroll {
-            let margin = ui.style().item_spacing.x; // margin between contents and scroll bar
+
+        let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
+
+        if show_scroll_this_frame && current_scroll_bar_width <= 0.0 {
+            // Avoid frame delay; start shwoing scroll bar right away:
+            current_scroll_bar_width = remap_clamp(
+                ui.input().dt,
+                0.0..=ui.style().animation_time,
+                0.0..=max_scroll_bar_width,
+            );
+        }
+
+        if current_scroll_bar_width > 0.0 {
+            let animation_t = current_scroll_bar_width / max_scroll_bar_width;
+            // margin between contents and scroll bar
+            let margin = animation_t * ui.style().item_spacing.x;
             let left = inner_rect.right() + margin;
             let right = outer_rect.right();
             let corner_radius = (right - left) / 2.0;
@@ -248,10 +285,18 @@ impl Prepared {
         );
         ui.allocate_space(size);
 
+        if show_scroll_this_frame != state.show_scroll {
+            state.toggle_time = ui.input().time;
+        }
+
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
         state.offset.y = state.offset.y.max(0.0);
         state.show_scroll = show_scroll_this_frame;
 
         ui.memory().scroll_areas.insert(id, state);
     }
+}
+
+fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
+    ui.style().item_spacing.x + 16.0
 }
