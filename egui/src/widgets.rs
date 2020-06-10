@@ -197,6 +197,7 @@ pub struct Button {
     text_style: TextStyle,
     /// None means default for interact
     fill: Option<Color>,
+    sense: Sense,
 }
 
 impl Button {
@@ -206,6 +207,7 @@ impl Button {
             text_color: None,
             text_style: TextStyle::Button,
             fill: None,
+            sense: Sense::click(),
         }
     }
 
@@ -223,6 +225,13 @@ impl Button {
         self.fill = fill;
         self
     }
+
+    /// By default, buttons senses clicks.
+    /// Change this to a drag-button with `Sense::drag()`.
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+}
 }
 
 impl Widget for Button {
@@ -232,6 +241,7 @@ impl Widget for Button {
             text_color,
             text_style,
             fill,
+            sense,
         } = self;
 
         let id = ui.make_position_id();
@@ -241,7 +251,7 @@ impl Widget for Button {
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let interact = ui.interact(rect, id, sense);
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
         ui.add_paint_cmd(PaintCmd::Rect {
