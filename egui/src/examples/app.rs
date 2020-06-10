@@ -277,7 +277,7 @@ struct Widgets {
     checked: bool,
     count: usize,
     radio: usize,
-    slider_value: usize,
+    slider_value: f32,
     single_line_text_input: String,
     multiline_text_input: String,
 }
@@ -288,7 +288,7 @@ impl Default for Widgets {
             checked: true,
             radio: 0,
             count: 0,
-            slider_value: 100,
+            slider_value: 3.14,
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a linebreak, but you can also add manual linebreak by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }
@@ -330,10 +330,18 @@ impl Widgets {
             ui.add(label!("The button has been clicked {} times", self.count));
         });
 
-        ui.add(Slider::usize(&mut self.slider_value, 1..=1000).text("value"));
+        ui.add(
+            Slider::f32(&mut self.slider_value, -10.0..=10.0)
+                .text("value")
+                .precision(2),
+        );
         if ui.add(Button::new("Double it")).clicked {
-            self.slider_value *= 2;
+            self.slider_value *= 2.0;
         }
+        ui.horizontal(|ui| {
+            ui.label("drag this number:");
+            ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
+        });
 
         ui.horizontal(|ui| {
             ui.add(label!("Single line text input:"));

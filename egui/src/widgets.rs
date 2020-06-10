@@ -231,7 +231,7 @@ impl Button {
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
-}
+    }
 }
 
 impl Widget for Button {
@@ -504,5 +504,47 @@ impl Widget for Separator {
             style: LineStyle::new(line_width, color),
         });
         ui.interact_hover(rect)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+pub struct DragValue<'a> {
+    value: &'a mut f32,
+    speed: f32,
+}
+
+impl<'a> DragValue<'a> {
+    pub fn f32(value: &'a mut f32) -> Self {
+        DragValue { value, speed: 1.0 }
+    }
+
+    /// How much the value changes when dragged one point (logical pixel).
+    pub fn speed(mut self, speed: f32) -> Self {
+        self.speed = speed;
+        self
+    }
+}
+
+impl<'a> Widget for DragValue<'a> {
+    fn ui(self, ui: &mut Ui) -> InteractInfo {
+        let Self { value, speed } = self;
+        let speed_in_physical_pixels = speed / ui.input().pixels_per_point;
+        let precision = (1.0 / speed_in_physical_pixels.abs())
+            .log10()
+            .ceil()
+            .max(0.0) as usize;
+        let button = Button::new(format!("{:.*}", precision, *value)).sense(Sense::drag());
+        let interact = ui.add(button);
+        if interact.active {
+            let mdelta = ui.input().mouse.delta;
+            let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
+            let delta_value = speed * delta_points;
+            if delta_value != 0.0 {
+                *value += delta_value;
+                *value = round_to_precision(*value, precision);
+            }
+        }
+        interact.into()
     }
 }
