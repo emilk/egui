@@ -91,9 +91,7 @@ impl<'a> Slider<'a> {
     }
 
     fn set_value_f32(&mut self, mut value: f32) {
-        if self.precision == 0 {
-            value = value.round();
-        }
+        value = round_to_precision(value, self.precision);
         (self.get_set_value)(Some(value));
     }
 }

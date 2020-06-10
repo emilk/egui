@@ -591,3 +591,10 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 }
 
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
+
+pub fn round_to_precision(value: f32, precision: usize) -> f32 {
+    // This is a stupid way of doing this, but stupid works.
+    format!("{:.*}", precision, value)
+        .parse()
+        .unwrap_or_else(|_| value)
+}
