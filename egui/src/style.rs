@@ -73,7 +73,7 @@ impl Default for Style {
     fn default() -> Self {
         Self {
             window_padding: vec2(6.0, 6.0),
-            button_padding: vec2(5.0, 3.0),
+            button_padding: vec2(4.0, 1.0),
             item_spacing: vec2(8.0, 4.0),
             indent: 21.0,
             clickable_diameter: 22.0,

@@ -534,7 +534,9 @@ impl<'a> Widget for DragValue<'a> {
             .log10()
             .ceil()
             .max(0.0) as usize;
-        let button = Button::new(format!("{:.*}", precision, *value)).sense(Sense::drag());
+        let button = Button::new(format!("{:.*}", precision, *value))
+            .sense(Sense::drag())
+            .text_style(TextStyle::Monospace);
         let interact = ui.add(button);
         if interact.active {
             let mdelta = ui.input().mouse.delta;
