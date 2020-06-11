@@ -49,6 +49,11 @@ pub struct Ui {
     /// If something has already been added, this will point ot style.item_spacing beyond the latest child.
     /// The cursor can thus be style.item_spacing pixels outside of the child_bounds.
     cursor: Pos2, // TODO: move into Layout?
+
+    /// How many children has been added to us?
+    /// This is only used to create a unique interact ID for some widgets
+    /// that work as long as no other widgets are added/removed while interacting.
+    child_count: usize,
 }
 
 impl Ui {
@@ -67,17 +72,17 @@ impl Ui {
             style,
             layout: Default::default(),
             cursor: rect.min,
+            child_count: 0,
         }
     }
 
-    pub fn child_ui(&self, child_rect: Rect) -> Self {
-        // let clip_rect = self
-        //     .clip_rect
-        //     .intersect(&child_rect.expand(self.style().clip_rect_margin));
-        let clip_rect = self.clip_rect(); // Keep it unless the child explciitly desires differently
+    pub fn child_ui(&mut self, child_rect: Rect) -> Self {
+        let clip_rect = self.clip_rect(); // Keep it unless the child excplicitly desires differently
+        let id = self.make_position_id(); // TODO: is this a good idea?
+        self.child_count += 1;
         Ui {
             ctx: self.ctx.clone(),
-            id: self.id,
+            id,
             layer: self.layer,
             clip_rect,
             desired_rect: child_rect,
@@ -85,6 +90,7 @@ impl Ui {
             style: self.style.clone(),
             layout: self.layout,
             cursor: child_rect.min,
+            child_count: 0,
         }
     }
 
@@ -293,7 +299,7 @@ impl Ui {
     /// Can be used for widgets that do NOT persist state in Memory
     /// but you still need to interact with (e.g. buttons, sliders).
     pub fn make_position_id(&self) -> Id {
-        self.id.with(&Id::from_pos(self.cursor))
+        self.id.with(self.child_count)
     }
 
     pub fn make_child_id(&self, id_seed: impl Hash) -> Id {
@@ -393,6 +399,7 @@ impl Ui {
             self.layout
                 .allocate_space(&mut self.cursor, &self.style, available_size, child_size);
         self.child_bounds = self.child_bounds.union(child_rect);
+        self.child_count += 1;
         child_rect
     }
 
@@ -630,9 +637,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
         let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
-        let mut child_ui = Self {
-            ..self.child_ui(child_rect)
-        };
+        let mut child_ui = self.child_ui(child_rect);
         child_ui.set_layout(layout); // HACK: need a separate call right now
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
