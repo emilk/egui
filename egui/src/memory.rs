@@ -61,6 +61,12 @@ pub struct Interaction {
     pub drag_interest: bool,
 }
 
+impl Interaction {
+    pub fn is_using_mouse(&self) -> bool {
+        self.click_id.is_some() || self.drag_id.is_some()
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]

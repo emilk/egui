@@ -260,6 +260,35 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Is the mouse over any Egui area?
+    pub fn is_mouse_over_area(&self) -> bool {
+        if let Some(mouse_pos) = self.input.mouse.pos {
+            if let Some(layer) = self.layer_at(mouse_pos) {
+                layer.order != Order::Background
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// True if Egui is currently interested in the mouse.
+    /// Could be the mouse is hovering over a Egui window,
+    /// or the user is dragging an Egui widget.
+    /// If false, the mouse is outside of any Egui area and so
+    /// you may be interested in what it is doing (e.g. controlling your game).
+    pub fn wants_mouse_input(&self) -> bool {
+        self.is_mouse_over_area() || self.memory().interaction.is_using_mouse()
+    }
+
+    /// If true, Egui is currently listening on text input (e.g. typing text in a `TextEdit`).
+    pub fn wants_keyboard_input(&self) -> bool {
+        self.memory().kb_focus_id.is_some()
+    }
+
+    // ---------------------------------------------------------------------
+
     pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
         let resize_interact_radius_side = self.style().resize_interact_radius_side;
         self.memory().layer_at(pos, resize_interact_radius_side)
