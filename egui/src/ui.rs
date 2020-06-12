@@ -295,6 +295,29 @@ impl Ui {
         self.ctx.register_unique_id(id, id_source, self.cursor)
     }
 
+    /// Ideally, all widgets should use this. TODO
+    /// Widgets can set an explicit id source (user picked, e.g. some loop index),
+    /// and a defualt id source (e.g. label).
+    /// If they fail to be unique, a positional id will be used instead.
+    pub fn make_unique_child_id_full(
+        &mut self,
+        explicit_id_source: Option<Id>,
+        default_id_source: Option<&str>,
+    ) -> Id
+    {
+        let id = if let Some(explicit_id_source) = explicit_id_source {
+            self.id.with(&explicit_id_source)
+        } else {
+            let id = self.id.with(default_id_source);
+            if self.ctx.is_unique_id(id) {
+                id
+            } else {
+                self.make_position_id()
+            }
+        };
+        self.ctx.register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
+    }
+
     /// Make an Id that is unique to this positon.
     /// Can be used for widgets that do NOT persist state in Memory
     /// but you still need to interact with (e.g. buttons, sliders).

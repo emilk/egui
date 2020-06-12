@@ -231,6 +231,10 @@ impl Context {
         self.register_unique_id(Id::new(source), source, pos)
     }
 
+    pub fn is_unique_id(&self, id: Id) -> bool {
+        !self.used_ids.lock().contains_key(&id)
+    }
+
     /// If the given Id is not unique, an error will be printed at the given position.
     pub fn register_unique_id(&self, id: Id, source_name: impl std::fmt::Debug, pos: Pos2) -> Id {
         if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
