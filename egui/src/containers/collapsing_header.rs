@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use crate::{
     layout::Direction,
     paint::{LineStyle, PaintCmd, Path, TextStyle},
@@ -142,6 +144,7 @@ impl State {
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
+    id_source: Option<Id>,
 }
 
 impl CollapsingHeader {
@@ -151,11 +154,19 @@ impl CollapsingHeader {
                 .text_style(TextStyle::Button)
                 .multiline(false),
             default_open: false,
+            id_source : None,
         }
     }
 
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
+        self
+    }
+
+    /// Explicitly set the source of the `Id` of this widget, instead of using title label.
+    /// This is useful if the title label is dynamics.
+    pub fn id_source(mut self, id_source: impl Hash) -> Self {
+        self.id_source = Some(Id::new(id_source));
         self
     }
 }
@@ -174,12 +185,14 @@ impl CollapsingHeader {
         let Self {
             label,
             default_open,
+            id_source,
         } = self;
 
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let title = label.text();
-        let id = ui.make_unique_child_id(title);
+        let id_source = id_source.unwrap_or_else(|| Id::new(title));
+        let id = ui.make_unique_child_id(id_source);
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().indent, 0.0);
