@@ -321,6 +321,7 @@ impl Context {
         if interaction_id.is_none() || sense == Sense::nothing() {
             // Not interested in input:
             return InteractInfo {
+                sense,
                 rect,
                 hovered,
                 clicked: false,
@@ -341,6 +342,7 @@ impl Context {
         if self.input.mouse.pressed {
             if hovered {
                 let mut info = InteractInfo {
+                    sense,
                     rect,
                     hovered: true,
                     clicked: false,
@@ -368,6 +370,7 @@ impl Context {
             } else {
                 // miss
                 InteractInfo {
+                    sense,
                     rect,
                     hovered,
                     clicked: false,
@@ -378,6 +381,7 @@ impl Context {
         } else if self.input.mouse.released {
             let clicked = hovered && active;
             InteractInfo {
+                sense,
                 rect,
                 hovered,
                 clicked,
@@ -386,6 +390,7 @@ impl Context {
             }
         } else if self.input.mouse.down {
             InteractInfo {
+                sense,
                 rect,
                 hovered: hovered && active,
                 clicked: false,
@@ -394,6 +399,7 @@ impl Context {
             }
         } else {
             InteractInfo {
+                sense,
                 rect,
                 hovered,
                 clicked: false,

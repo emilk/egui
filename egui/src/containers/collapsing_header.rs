@@ -154,7 +154,7 @@ impl CollapsingHeader {
                 .text_style(TextStyle::Button)
                 .multiline(false),
             default_open: false,
-            id_source : None,
+            id_source: None,
         }
     }
 

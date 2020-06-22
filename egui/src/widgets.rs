@@ -232,6 +232,15 @@ impl Button {
         self.sense = sense;
         self
     }
+
+    /// If you set this to `false`, the button will be grayed out and un-clickable.
+    /// `enabled(false)` has the same effect as calling `sense(Sense::nothing())`.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        if !enabled {
+            self.sense = Sense::nothing();
+        }
+        self
+    }
 }
 
 impl Widget for Button {

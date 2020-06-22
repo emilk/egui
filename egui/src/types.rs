@@ -41,6 +41,9 @@ impl Default for CursorIcon {
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct InteractInfo {
+    /// The senses (click or drag) that the widget is interested in (if any).
+    pub sense: Sense,
+
     /// The mouse is hovering above this thing
     pub hovered: bool,
 
@@ -59,6 +62,7 @@ pub struct InteractInfo {
 impl InteractInfo {
     pub fn nothing() -> Self {
         Self {
+            sense: Sense::nothing(),
             hovered: false,
             clicked: false,
             double_clicked: false,
@@ -69,6 +73,7 @@ impl InteractInfo {
 
     pub fn union(self, other: Self) -> Self {
         Self {
+            sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
             clicked: self.clicked || other.clicked,
             double_clicked: self.double_clicked || other.double_clicked,
@@ -82,6 +87,9 @@ impl InteractInfo {
 
 // TODO: rename GuiResponse
 pub struct GuiResponse {
+    /// The senses (click or drag) that the widget is interested in (if any).
+    pub sense: Sense,
+
     /// The mouse is hovering above this
     pub hovered: bool,
 
@@ -120,6 +128,7 @@ impl GuiResponse {
 impl Into<InteractInfo> for GuiResponse {
     fn into(self) -> InteractInfo {
         InteractInfo {
+            sense: self.sense,
             hovered: self.hovered,
             clicked: self.clicked,
             double_clicked: self.double_clicked,
@@ -133,6 +142,7 @@ impl Into<InteractInfo> for GuiResponse {
 
 /// What sort of interaction is a widget sensitive to?
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct Sense {
     /// buttons, sliders, windows ...
     pub click: bool,
@@ -168,6 +178,14 @@ impl Sense {
         Self {
             click: true,
             drag: true,
+        }
+    }
+
+    #[must_use]
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            click: self.click | other.click,
+            drag: self.drag | other.drag,
         }
     }
 }

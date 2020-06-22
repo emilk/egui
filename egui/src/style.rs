@@ -104,6 +104,7 @@ pub struct Interact {
     pub active: WidgetStyle,
     pub hovered: WidgetStyle,
     pub inactive: WidgetStyle,
+    pub disabled: WidgetStyle,
 }
 
 impl Default for Interact {
@@ -133,13 +134,23 @@ impl Default for Interact {
                 rect_outline: Some(LineStyle::new(1.0, white(128))),
                 corner_radius: 4.0,
             },
+            disabled: WidgetStyle {
+                bg_fill: None,
+                fill: srgba(50, 50, 50, 255),
+                stroke_color: gray(128, 255), // Should look grayed out
+                stroke_width: 0.5,
+                rect_outline: Some(LineStyle::new(0.5, white(128))),
+                corner_radius: 4.0,
+            },
         }
     }
 }
 
 impl Interact {
     pub fn style(&self, interact: &InteractInfo) -> &WidgetStyle {
-        if interact.active {
+        if interact.sense == Sense::nothing() {
+            &self.disabled
+        } else if interact.active {
             &self.active
         } else if interact.hovered {
             &self.hovered

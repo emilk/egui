@@ -303,8 +303,7 @@ impl Ui {
         &mut self,
         explicit_id_source: Option<Id>,
         default_id_source: Option<&str>,
-    ) -> Id
-    {
+    ) -> Id {
         let id = if let Some(explicit_id_source) = explicit_id_source {
             self.id.with(&explicit_id_source)
         } else {
@@ -315,7 +314,8 @@ impl Ui {
                 self.make_position_id()
             }
         };
-        self.ctx.register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
+        self.ctx
+            .register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
     }
 
     /// Make an Id that is unique to this positon.
@@ -349,12 +349,21 @@ impl Ui {
     #[must_use]
     pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
         // TODO: unify GuiResponse and InteractInfo. They are the same thing!
+        let InteractInfo {
+            sense,
+            hovered,
+            clicked,
+            double_clicked,
+            active,
+            rect,
+        } = interact;
         GuiResponse {
-            hovered: interact.hovered,
-            clicked: interact.clicked,
-            double_clicked: interact.double_clicked,
-            active: interact.active,
-            rect: interact.rect,
+            sense,
+            hovered,
+            clicked,
+            double_clicked,
+            active,
+            rect,
             ctx: self.ctx.clone(),
         }
     }

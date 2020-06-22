@@ -274,7 +274,7 @@ impl ExampleWindow {
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]
 struct Widgets {
-    checked: bool,
+    button_enabled: bool,
     count: usize,
     radio: usize,
     slider_value: f32,
@@ -285,7 +285,7 @@ struct Widgets {
 impl Default for Widgets {
     fn default() -> Self {
         Self {
-            checked: true,
+            button_enabled: true,
             radio: 0,
             count: 0,
             slider_value: 3.14,
@@ -305,8 +305,6 @@ impl Widgets {
                 );
             });
 
-        ui.add(Checkbox::new(&mut self.checked, "checkbox"));
-
         ui.horizontal(|ui| {
             if ui.add(radio(self.radio == 0, "First")).clicked {
                 self.radio = 0;
@@ -319,9 +317,11 @@ impl Widgets {
             }
         });
 
+        ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));
+
         ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
             if ui
-                .add(Button::new("Click me"))
+                .add(Button::new("Click me").enabled(self.button_enabled))
                 .tooltip_text("This will just increase a counter.")
                 .clicked
             {
