@@ -2,6 +2,7 @@
 
 use {
     egui::{
+        math::clamp,
         paint::{PaintBatches, Triangles},
         Rect,
     },
@@ -20,36 +21,29 @@ impl Painter {
             140 => {
                     vertex: "
                         #version 140
-                        uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         in vec2 a_pos;
                         in vec4 a_color;
                         in vec2 a_tc;
-                        out vec2 v_pos;
                         out vec4 v_color;
                         out vec2 v_tc;
-                        out vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
-                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
                     fragment: "
                         #version 140
                         uniform sampler2D u_sampler;
-                        in vec2 v_pos;
                         in vec4 v_color;
                         in vec2 v_tc;
-                        in vec4 v_clip_rect;
                         out vec4 f_color;
 
                         // glium expects linear output.
@@ -61,10 +55,6 @@ impl Painter {
                         }
 
                         void main() {
-                            if (v_pos.x < v_clip_rect.x) { discard; }
-                            if (v_pos.y < v_clip_rect.y) { discard; }
-                            if (v_pos.x > v_clip_rect.z) { discard; }
-                            if (v_pos.y > v_clip_rect.w) { discard; }
                             f_color = v_color;
                             f_color.rgb = linear_from_srgb(f_color.rgb);
                             f_color *= texture(u_sampler, v_tc).r;
@@ -75,36 +65,29 @@ impl Painter {
             110 => {
                     vertex: "
                         #version 110
-                        uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         attribute vec2 a_pos;
                         attribute vec4 a_color;
                         attribute vec2 a_tc;
-                        varying vec2 v_pos;
                         varying vec4 v_color;
                         varying vec2 v_tc;
-                        varying vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
-                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
                     fragment: "
                         #version 110
                         uniform sampler2D u_sampler;
-                        varying vec2 v_pos;
                         varying vec4 v_color;
                         varying vec2 v_tc;
-                        varying vec4 v_clip_rect;
 
                         // glium expects linear output.
                         vec3 linear_from_srgb(vec3 srgb) {
@@ -115,10 +98,6 @@ impl Painter {
                         }
 
                         void main() {
-                            if (v_pos.x < v_clip_rect.x) { discard; }
-                            if (v_pos.y < v_clip_rect.y) { discard; }
-                            if (v_pos.x > v_clip_rect.z) { discard; }
-                            if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
                             gl_FragColor *= texture2D(u_sampler, v_tc).r;
@@ -129,36 +108,29 @@ impl Painter {
             100 => {
                     vertex: "
                         #version 100
-                        uniform mediump vec4 u_clip_rect; // min_x, min_y, max_x, max_y
                         uniform mediump vec2 u_screen_size;
                         uniform mediump vec2 u_tex_size;
                         attribute mediump vec2 a_pos;
                         attribute mediump vec4 a_color;
                         attribute mediump vec2 a_tc;
-                        varying mediump vec2 v_pos;
                         varying mediump vec4 v_color;
                         varying mediump vec2 v_tc;
-                        varying mediump vec4 v_clip_rect;
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_pos = a_pos;
                             v_color = a_color / 255.0;
                             v_tc = a_tc / u_tex_size;
-                            v_clip_rect = u_clip_rect;
                         }
                     ",
 
                     fragment: "
                         #version 100
                         uniform sampler2D u_sampler;
-                        varying mediump vec2 v_pos;
                         varying mediump vec4 v_color;
                         varying mediump vec2 v_tc;
-                        varying mediump vec4 v_clip_rect
 
                         // glium expects linear output.
                         vec3 linear_from_srgb(vec3 srgb) {
@@ -169,10 +141,6 @@ impl Painter {
                         }
 
                         void main() {
-                            if (v_pos.x < v_clip_rect.x) { discard; }
-                            if (v_pos.y < v_clip_rect.y) { discard; }
-                            if (v_pos.x > v_clip_rect.z) { discard; }
-                            if (v_pos.y > v_clip_rect.w) { discard; }
                             gl_FragColor = v_color;
                             gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
                             gl_FragColor *= texture2D(u_sampler, v_tc).r;
@@ -271,7 +239,6 @@ impl Painter {
         let height_points = height_pixels as f32 / pixels_per_point;
 
         let uniforms = uniform! {
-            u_clip_rect: [clip_rect.min.x, clip_rect.min.y, clip_rect.max.x, clip_rect.max.y],
             u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: &self.texture,
@@ -288,8 +255,27 @@ impl Painter {
             ..Default::default()
         };
 
+        let clip_min_x = pixels_per_point * clip_rect.min.x;
+        let clip_min_y = pixels_per_point * clip_rect.min.y;
+        let clip_max_x = pixels_per_point * clip_rect.max.x;
+        let clip_max_y = pixels_per_point * clip_rect.max.y;
+        let clip_min_x = clamp(clip_min_x, 0.0..=width_pixels as f32);
+        let clip_min_y = clamp(clip_min_y, 0.0..=height_pixels as f32);
+        let clip_max_x = clamp(clip_max_x, clip_min_x..=width_pixels as f32);
+        let clip_max_y = clamp(clip_max_y, clip_min_y..=height_pixels as f32);
+        let clip_min_x = clip_min_x.round() as u32;
+        let clip_min_y = clip_min_y.round() as u32;
+        let clip_max_x = clip_max_x.round() as u32;
+        let clip_max_y = clip_max_y.round() as u32;
+
         let params = glium::DrawParameters {
             blend,
+            scissor: Some(glium::Rect {
+                left: clip_min_x,
+                bottom: height_pixels - clip_max_y,
+                width: clip_max_x - clip_min_x,
+                height: clip_max_y - clip_min_y,
+            }),
             ..Default::default()
         };
 

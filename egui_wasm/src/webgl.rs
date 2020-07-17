@@ -5,8 +5,9 @@ use {
 };
 
 use egui::{
+    math::clamp,
     paint::{Color, PaintBatches, Texture, Triangles},
-    vec2, Pos2,
+    vec2,
 };
 
 type Gl = WebGlRenderingContext;
@@ -61,26 +62,21 @@ impl Painter {
             &gl,
             Gl::VERTEX_SHADER,
             r#"
-            uniform vec4 u_clip_rect; // min_x, min_y, max_x, max_y
             uniform vec2 u_screen_size;
             uniform vec2 u_tex_size;
             attribute vec2 a_pos;
             attribute vec2 a_tc;
             attribute vec4 a_color;
-            varying vec2 v_pos;
             varying vec4 v_color;
             varying vec2 v_tc;
-            varying vec4 v_clip_rect;
             void main() {
                 gl_Position = vec4(
                     2.0 * a_pos.x / u_screen_size.x - 1.0,
                     1.0 - 2.0 * a_pos.y / u_screen_size.y,
                     0.0,
                     1.0);
-                v_pos = a_pos;
                 v_color = a_color;
                 v_tc = a_tc / u_tex_size;
-                v_clip_rect = u_clip_rect;
             }
         "#,
         )?;
@@ -90,15 +86,9 @@ impl Painter {
             r#"
             uniform sampler2D u_sampler;
             precision highp float;
-            varying vec2 v_pos;
             varying vec4 v_color;
             varying vec2 v_tc;
-            varying vec4 v_clip_rect;
             void main() {
-                if (v_pos.x < v_clip_rect.x) { discard; }
-                if (v_pos.y < v_clip_rect.y) { discard; }
-                if (v_pos.x > v_clip_rect.z) { discard; }
-                if (v_pos.y > v_clip_rect.w) { discard; }
                 gl_FragColor = v_color;
                 gl_FragColor *= texture2D(u_sampler, v_tc).a;
             }
@@ -165,15 +155,12 @@ impl Painter {
 
         let gl = &self.gl;
 
+        gl.enable(Gl::SCISSOR_TEST);
         gl.enable(Gl::BLEND);
         gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
         gl.use_program(Some(&self.program));
         gl.active_texture(Gl::TEXTURE0);
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
-
-        let u_clip_rect_loc = gl
-            .get_uniform_location(&self.program, "u_clip_rect")
-            .unwrap();
 
         let u_screen_size_loc = gl
             .get_uniform_location(&self.program, "u_screen_size")
@@ -204,6 +191,7 @@ impl Painter {
             self.canvas.width() as i32,
             self.canvas.height() as i32,
         );
+        // TODO: sRGBA
         gl.clear_color(
             bg_color.r as f32 / 255.0,
             bg_color.g as f32 / 255.0,
@@ -213,16 +201,25 @@ impl Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, triangles) in batches {
-            // Avoid infinities in shader:
-            let clip_min = clip_rect.min.max(Pos2::default());
-            let clip_max = clip_rect.max.min(Pos2::default() + screen_size_points);
+            let clip_min_x = pixels_per_point * clip_rect.min.x;
+            let clip_min_y = pixels_per_point * clip_rect.min.y;
+            let clip_max_x = pixels_per_point * clip_rect.max.x;
+            let clip_max_y = pixels_per_point * clip_rect.max.y;
+            let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
+            let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
+            let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
+            let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
+            let clip_min_x = clip_min_x.round() as i32;
+            let clip_min_y = clip_min_y.round() as i32;
+            let clip_max_x = clip_max_x.round() as i32;
+            let clip_max_y = clip_max_y.round() as i32;
 
-            gl.uniform4f(
-                Some(&u_clip_rect_loc),
-                clip_min.x,
-                clip_min.y,
-                clip_max.x,
-                clip_max.y,
+            // scissor Y coordinate is from the bottom
+            gl.scissor(
+                clip_min_x,
+                self.canvas.height() as i32 - clip_max_y,
+                clip_max_x - clip_min_x,
+                clip_max_y - clip_min_y,
             );
 
             for triangles in triangles.split_to_u16() {

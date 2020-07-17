@@ -68,7 +68,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Use clip rectangles when painting
 * [x] Use clip rectangles when interacting
 * [x] Adjust clip rects so edges of child widgets aren't clipped
-* [ ] Use HW clip rects
+* [x] Use HW clip rects
 
 ### Modularity
 * [x] `trait Widget` (`Label`, `Slider`, `Checkbox`, ...)
