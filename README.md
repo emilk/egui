@@ -23,7 +23,7 @@ Loop:
 ## Available backends:
 Wherever you can render textured triangles you can use Egui.
 
-* WebAssembly (`egui_wasm`) for making a web app. [Click to run](https://emilk.github.io/emigui/index.html).
+* WebAssembly (`egui_web`) for making a web app. [Click to run](https://emilk.github.io/emigui/index.html).
 * [Glium](https://github.com/glium/glium) for native apps (see example_glium).
 * [miniquad](https://github.com/not-fl3/emigui-miniquad) [web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs)
 

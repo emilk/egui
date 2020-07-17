@@ -8,7 +8,7 @@ use {
         color::srgba, examples::ExampleApp, label, widgets::Separator, Align, RawInput, TextStyle,
         *,
     },
-    egui_wasm::now_sec,
+    egui_web::now_sec,
 };
 
 use wasm_bindgen::prelude::*;
@@ -32,7 +32,7 @@ pub struct Web {
 pub struct State {
     example_app: ExampleApp,
     ctx: Arc<Context>,
-    webgl_painter: egui_wasm::webgl::Painter,
+    webgl_painter: egui_web::webgl::Painter,
 
     frame_times: egui::MovementTracker<f32>,
 }
@@ -40,11 +40,11 @@ pub struct State {
 impl State {
     fn new(canvas_id: &str) -> Result<State, JsValue> {
         let ctx = Context::new();
-        egui_wasm::load_memory(&ctx);
+        egui_web::load_memory(&ctx);
         Ok(State {
             example_app: Default::default(),
             ctx,
-            webgl_painter: egui_wasm::webgl::Painter::new(canvas_id)?,
+            webgl_painter: egui_web::webgl::Painter::new(canvas_id)?,
             frame_times: egui::MovementTracker::new(1000, 1.0),
         })
     }
@@ -102,7 +102,7 @@ impl State {
             self.ctx.pixels_per_point(),
         )?;
 
-        egui_wasm::save_memory(&self.ctx); // TODO: don't save every frame
+        egui_web::save_memory(&self.ctx); // TODO: don't save every frame
 
         Ok(output)
     }

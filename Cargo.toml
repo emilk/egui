@@ -2,7 +2,7 @@
 members = [
     "egui",
     "egui_glium",
-    "egui_wasm",
+    "egui_web",
     "example_glium",
     "example_wasm",
 ]
