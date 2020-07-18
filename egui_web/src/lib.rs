@@ -8,23 +8,28 @@ pub mod webgl;
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 
-pub struct State {
+pub struct EguiWeb {
     ctx: Arc<egui::Context>,
     webgl_painter: webgl::Painter,
     frame_times: egui::MovementTracker<f32>,
     frame_start: Option<f64>,
 }
 
-impl State {
-    pub fn new(canvas_id: &str) -> Result<State, JsValue> {
+impl EguiWeb {
+    pub fn new(canvas_id: &str) -> Result<EguiWeb, JsValue> {
         let ctx = egui::Context::new();
         load_memory(&ctx);
-        Ok(State {
+        Ok(EguiWeb {
             ctx,
             webgl_painter: webgl::Painter::new(canvas_id)?,
             frame_times: egui::MovementTracker::new(1000, 1.0),
             frame_start: None,
         })
+    }
+
+    /// id of the canvas html element containing the rendering
+    pub fn canvas_id(&self) -> &str {
+        self.webgl_painter.canvas_id()
     }
 
     pub fn begin_frame(&mut self, raw_input: egui::RawInput) -> egui::Ui {
@@ -109,12 +114,37 @@ pub fn pixels_per_point() -> f32 {
     }
 }
 
-pub fn resize_to_screen_size(canvas_id: &str) -> Option<()> {
+pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     use wasm_bindgen::JsCast;
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
-    let canvas: web_sys::HtmlCanvasElement =
-        canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
+    canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
+}
+
+pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+    crate::canvas_element(canvas_id)
+        .unwrap_or_else(|| panic!("Failed to find canvas with id '{}'", canvas_id))
+}
+
+pub fn pos_from_mouse_event(canvas_id: &str, event: &web_sys::MouseEvent) -> egui::Pos2 {
+    let canvas = canvas_element(canvas_id).unwrap();
+    let rect = canvas.get_bounding_client_rect();
+    egui::Pos2 {
+        x: event.client_x() as f32 - rect.left() as f32,
+        y: event.client_y() as f32 - rect.top() as f32,
+    }
+}
+
+pub fn pos_from_touch_event(event: &web_sys::TouchEvent) -> egui::Pos2 {
+    let t = event.touches().get(0).unwrap();
+    egui::Pos2 {
+        x: t.page_x() as f32,
+        y: t.page_y() as f32,
+    }
+}
+
+pub fn resize_to_screen_size(canvas_id: &str) -> Option<()> {
+    let canvas = canvas_element(canvas_id)?;
 
     let screen_size = screen_size()?;
     let pixels_per_point = pixels_per_point();
@@ -217,4 +247,28 @@ pub fn open_url(url: &str) -> Option<()> {
 /// e.g. "#fragment" part of "www.example.com/index.html#fragment"
 pub fn location_hash() -> Option<String> {
     web_sys::window()?.location().hash().ok()
+}
+
+pub fn translate_key(key: &str) -> Option<egui::Key> {
+    match key {
+        "Alt" => Some(egui::Key::Alt),
+        "Backspace" => Some(egui::Key::Backspace),
+        "Control" => Some(egui::Key::Control),
+        "Delete" => Some(egui::Key::Delete),
+        "ArrowDown" => Some(egui::Key::Down),
+        "End" => Some(egui::Key::End),
+        "Escape" => Some(egui::Key::Escape),
+        "Home" => Some(egui::Key::Home),
+        "Help" => Some(egui::Key::Insert),
+        "ArrowLeft" => Some(egui::Key::Left),
+        "Meta" => Some(egui::Key::Logo),
+        "PageDown" => Some(egui::Key::PageDown),
+        "PageUp" => Some(egui::Key::PageUp),
+        "Enter" => Some(egui::Key::Return),
+        "ArrowRight" => Some(egui::Key::Right),
+        "Shift" => Some(egui::Key::Shift),
+        "Tab" => Some(egui::Key::Tab),
+        "ArrowUp" => Some(egui::Key::Up),
+        _ => None,
+    }
 }

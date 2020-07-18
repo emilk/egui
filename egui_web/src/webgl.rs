@@ -13,6 +13,7 @@ use egui::{
 type Gl = WebGlRenderingContext;
 
 pub struct Painter {
+    canvas_id: String,
     canvas: web_sys::HtmlCanvasElement,
     gl: WebGlRenderingContext,
     texture: WebGlTexture,
@@ -38,9 +39,7 @@ impl Painter {
     }
 
     pub fn new(canvas_id: &str) -> Result<Painter, JsValue> {
-        let document = web_sys::window().unwrap().document().unwrap();
-        let canvas = document.get_element_by_id(canvas_id).unwrap();
-        let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
+        let canvas = crate::canvas_element_or_die(canvas_id);
 
         let gl = canvas
             .get_context("webgl")?
@@ -101,6 +100,7 @@ impl Painter {
         let color_buffer = gl.create_buffer().ok_or("failed to create color_buffer")?;
 
         Ok(Painter {
+            canvas_id: canvas_id.to_owned(),
             canvas,
             gl,
             texture: gl_texture,
@@ -112,6 +112,11 @@ impl Painter {
             tex_size: (0, 0),
             current_texture_id: None,
         })
+    }
+
+    /// id of the canvas html element containing the rendering
+    pub fn canvas_id(&self) -> &str {
+        &self.canvas_id
     }
 
     fn upload_texture(&mut self, texture: &Texture) {
