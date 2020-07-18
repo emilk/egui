@@ -193,7 +193,7 @@ impl Prepared {
         if show_scroll_this_frame && current_scroll_bar_width <= 0.0 {
             // Avoid frame delay; start shwoing scroll bar right away:
             current_scroll_bar_width = remap_clamp(
-                ui.input().dt,
+                ui.input().predicted_dt,
                 0.0..=ui.style().animation_time,
                 0.0..=max_scroll_bar_width,
             );
@@ -291,6 +291,7 @@ impl Prepared {
 
         if show_scroll_this_frame != state.show_scroll {
             state.toggle_time = ui.input().time;
+            ui.ctx().request_repaint();
         }
 
         state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());

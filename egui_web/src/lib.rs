@@ -25,7 +25,7 @@ pub enum RunMode {
     /// This is good for games and stuff where you want to run logic at e.g. 60 FPS.
     Continuous,
 
-    /// Only repaint when there is new input (mouse movement, keyboard input etc).
+    /// Only repaint when there are animations or input (mouse movement, keyboard input etc).
     Reactive,
 }
 
@@ -410,13 +410,13 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
 pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
 
 fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
-    fn paint(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+    fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.backend.run_mode() == RunMode::Continuous || runner_lock.needs_repaint {
             runner_lock.needs_repaint = false;
             let (output, paint_jobs) = runner_lock.logic()?;
             runner_lock.paint(paint_jobs)?;
-            runner_lock.needs_repaint = output.needs_repaint;
+            runner_lock.needs_repaint |= output.needs_repaint;
         }
         Ok(())
     }
@@ -430,7 +430,7 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
         Ok(())
     }
 
-    paint(&runner_ref)?;
+    paint_if_needed(&runner_ref)?;
     request_animation_frame(runner_ref)
 }
 
@@ -501,6 +501,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.web_input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
                 runner_lock.web_input.mouse_down = true;
+                runner_lock.logic().unwrap(); // in case we get "mouseup" the same frame. TODO: handle via events instead
                 runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
@@ -599,7 +600,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.web_input.is_touch = true;
             runner_lock.web_input.mouse_down = false; // First release mouse to click...
-            runner_lock.logic().unwrap(); // ...do the clicking...
+            runner_lock.logic().unwrap(); // ...do the clicking... (TODO: handle via events instead)
             runner_lock.web_input.mouse_pos = None; // ...remove hover effect
             runner_lock.needs_repaint = true;
             event.stop_propagation();

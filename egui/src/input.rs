@@ -58,7 +58,11 @@ pub struct InputState {
     pub time: f64,
 
     /// Time since last frame, in seconds.
-    pub dt: f32,
+    /// This can be very unstable in reactive mode (when we don't paint each frame).
+    pub unstable_dt: f32,
+
+    /// Can be used to fast-forward to next frame for instance feedback. hacky.
+    pub predicted_dt: f32,
 
     /// Local time. Only used for the clock in the example app.
     pub seconds_since_midnight: Option<f64>,
@@ -177,14 +181,15 @@ impl InputState {
     #[must_use]
     pub fn begin_frame(self, new: RawInput) -> InputState {
         let mouse = self.mouse.begin_frame(&new);
-        let dt = (new.time - self.raw.time) as f32;
+        let unstable_dt = (new.time - self.raw.time) as f32;
         InputState {
             mouse,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point.unwrap_or(1.0),
             time: new.time,
-            dt,
+            unstable_dt,
+            predicted_dt: 1.0 / 60.0, // TODO: remove this hack
             seconds_since_midnight: new.seconds_since_midnight,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
@@ -312,7 +317,7 @@ impl InputState {
             self.pixels_per_point
         ));
         ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!("dt: {:.3} s", self.dt));
+        ui.add(label!("dt: {:.1} ms", 1e3 * self.unstable_dt));
         ui.add(label!(
             "seconds_since_midnight: {:?} s",
             self.seconds_since_midnight

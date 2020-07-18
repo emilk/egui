@@ -185,16 +185,18 @@ impl Prepared {
         if move_interact.active {
             state.pos += input.mouse.delta;
             state.vel = input.mouse.velocity;
+            ctx.request_repaint();
         } else {
             let stop_speed = 20.0; // Pixels per second.
             let friction_coeff = 1000.0; // Pixels per second squared.
+            let dt = input.unstable_dt;
 
-            let friction = friction_coeff * input.dt;
+            let friction = friction_coeff * dt;
             if friction > state.vel.length() || state.vel.length() < stop_speed {
                 state.vel = Vec2::zero();
             } else {
                 state.vel -= friction * state.vel.normalized();
-                state.pos += state.vel * input.dt;
+                state.pos += state.vel * dt;
                 ctx.request_repaint();
             }
         }

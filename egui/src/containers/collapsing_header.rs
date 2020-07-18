@@ -50,13 +50,14 @@ impl State {
     pub fn toggle(&mut self, ui: &Ui) {
         self.open = !self.open;
         self.toggle_time = ui.input().time;
+        ui.ctx().request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening
     pub fn openness(&self, ui: &Ui) -> f32 {
         let animation_time = ui.style().animation_time;
         let time_since_toggle = (ui.input().time - self.toggle_time) as f32;
-        let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
+        let time_since_toggle = time_since_toggle + ui.input().predicted_dt; // Instant feedback
         if time_since_toggle <= animation_time {
             ui.ctx().request_repaint();
         }
@@ -103,6 +104,7 @@ impl State {
         let openness = self.openness(ui);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
+            ui.ctx().request_repaint();
             Some(ui.add_custom(|child_ui| {
                 let max_height = if self.open {
                     if let Some(full_height) = self.open_height {

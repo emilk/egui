@@ -1,7 +1,7 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 
-use egui::{label, widgets::Separator, Align, TextStyle, *};
+use egui::{label, Align, Layout, TextStyle};
 
 use wasm_bindgen::prelude::*;
 
@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 
 /// This is the entry-point for all the web-assembly.
 #[wasm_bindgen]
-pub fn start(canvas_id: &str) -> Result<(), JsValue> {
+pub fn start(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
     let backend = egui_web::Backend::new(canvas_id, egui_web::RunMode::Reactive)?;
     let app = Box::new(MyApp::default());
     let runner = egui_web::AppRunner::new(backend, app)?;
@@ -22,6 +22,7 @@ pub fn start(canvas_id: &str) -> Result<(), JsValue> {
 #[derive(Default)]
 pub struct MyApp {
     example_app: egui::examples::ExampleApp,
+    frames_painted: u64,
 }
 
 impl egui_web::App for MyApp {
@@ -41,7 +42,7 @@ impl egui_web::App for MyApp {
             ui.label("Project home page:");
             ui.hyperlink("https://github.com/emilk/emigui/");
         });
-        ui.add(Separator::new());
+        ui.separator();
 
         ui.label("WebGl painter info:");
         ui.indent("webgl region id", |ui| {
@@ -56,13 +57,15 @@ impl egui_web::App for MyApp {
             .text_style(TextStyle::Monospace),
         );
 
+        ui.separator();
+
         ui.horizontal(|ui| {
             let mut run_mode = backend.run_mode();
             ui.label("Run mode:");
             ui.radio_value("Continuous", &mut run_mode, egui_web::RunMode::Continuous)
                 .tooltip_text("Repaint everything each frame");
             ui.radio_value("Reactive", &mut run_mode, egui_web::RunMode::Reactive)
-                .tooltip_text("Repaint when there is new input (e.g. mouse movement)");
+                .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
             backend.set_run_mode(run_mode);
         });
 
@@ -72,7 +75,10 @@ impl egui_web::App for MyApp {
                     .text_style(TextStyle::Monospace),
             );
         } else {
-            ui.label("Only running UI code when there is new input");
+            ui.label("Only running UI code when there are animations or input");
         }
+
+        self.frames_painted += 1;
+        ui.label(format!("Total frames painted: {}", self.frames_painted));
     }
 }

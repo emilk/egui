@@ -142,6 +142,7 @@ impl<'t> Widget for TextEdit<'t> {
                     ));
                 }
             }
+            ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
         }
 
         ui.add_galley(interact.rect.min, galley, text_style, text_color);

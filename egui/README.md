@@ -51,6 +51,7 @@ This is the core library crate Egui. It is fully platform independent without an
 * [x] Change to resize cursor on hover
 * [ ] Make it a JS library for easily creating your own stuff
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)
+* [ ] Read https://www.html5rocks.com/en/mobile/mobifying/#toc-meta-viewport
 
 ### Visuals
 * [x] Simplify button style to make for nicer collapsible headers. Maybe weak outline? Or just subtle different text color?
@@ -101,7 +102,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
 * [x] Solve which parts of Context are behind a mutex
 * [x] Rename Region to Ui
 * [ ] Move Path and Triangles to own crate
-* [ ] Maybe find a shorter name for the library like `egui`?
+* [x] Maybe find a shorter name for the library like `egui`?
 
 ### Global widget search
 Ability to do a search for any widget. The search works even for collapsed regions and closed windows and menus. This is implemented like this: while searching, all region are layed out and their add_content functions are run. If none of the contents matches the search, the layout is reverted and nothing is shown. So windows will get temporarily opened and run, but if the search is not a match in the window it is closed again. This means then when searching your whole GUI is being run, which may be a bit slower, but it would be a really awesome feature.
