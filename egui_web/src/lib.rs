@@ -102,7 +102,7 @@ impl Backend {
 
     pub fn auto_save(&mut self) {
         let now = now_sec();
-        let time_since_last_save = now - self.last_save_time.unwrap_or(now);
+        let time_since_last_save = now - self.last_save_time.unwrap_or(std::f64::NEG_INFINITY);
         const AUTO_SAVE_INTERVAL: f64 = 5.0;
         if time_since_last_save > AUTO_SAVE_INTERVAL {
             self.last_save_time = Some(now);
