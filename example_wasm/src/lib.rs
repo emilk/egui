@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 /// This is the entry-point for all the web-assembly.
 #[wasm_bindgen]
 pub fn start(canvas_id: &str) -> Result<(), JsValue> {
-    let backend = egui_web::Backend::new(canvas_id, egui_web::RunMode::Continuous)?;
+    let backend = egui_web::Backend::new(canvas_id, egui_web::RunMode::Reactive)?;
     let app = Box::new(MyApp::default());
     let runner = egui_web::AppRunner::new(backend, app)?;
     egui_web::run(runner)?;
