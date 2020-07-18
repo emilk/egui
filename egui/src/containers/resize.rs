@@ -25,9 +25,7 @@ pub struct Resize {
     /// If false, we are no enabled
     resizable: bool,
 
-    // TODO: do we really need both?
-    min_content_size: Vec2,
-    min_desired_size: Vec2,
+    min_size: Vec2,
 
     default_size: Vec2,
 
@@ -40,8 +38,7 @@ impl Default for Resize {
         Self {
             id: None,
             resizable: true,
-            min_content_size: Vec2::splat(16.0),
-            min_desired_size: vec2(64.0, 64.0), // TODO: min size of a a resizable area (e.g. a window or a text edit)
+            min_size: Vec2::splat(16.0),
             default_size: vec2(128.0, 128.0), // TODO: perferred size for a resizable area (e.g. a window or a text edit)
             outline: true,
             handle_offset: Default::default(),
@@ -85,14 +82,8 @@ impl Resize {
     }
 
     /// Won't shrink to smaller than this
-    pub fn min_content_size(mut self, min_content_size: impl Into<Vec2>) -> Self {
-        self.min_content_size = min_content_size.into();
-        self
-    }
-
-    /// Won't shrink to smaller than this
-    pub fn min_desired_size(mut self, min_desired_size: impl Into<Vec2>) -> Self {
-        self.min_desired_size = min_desired_size.into();
+    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
+        self.min_size = min_size.into();
         self
     }
 
@@ -109,7 +100,7 @@ impl Resize {
 
     /// Not manually resizable, just takes the size of its contents.
     pub fn auto_sized(self) -> Self {
-        self.min_desired_size(Vec2::zero())
+        self.min_size(Vec2::zero())
             .default_size(Vec2::splat(f32::INFINITY))
             .resizable(false)
     }
@@ -117,8 +108,7 @@ impl Resize {
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         let size = size.into();
         self.default_size = size;
-        self.min_content_size = size;
-        self.min_desired_size = size;
+        self.min_size = size;
         self.resizable = false;
         self
     }
@@ -147,7 +137,7 @@ impl Resize {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
 
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
-            let default_size = self.default_size.max(self.min_content_size);
+            let default_size = self.default_size.max(self.min_size);
 
             State {
                 desired_size: default_size,
@@ -156,7 +146,7 @@ impl Resize {
             }
         });
 
-        state.desired_size = state.desired_size.max(self.min_desired_size);
+        state.desired_size = state.desired_size.max(self.min_size);
 
         let position = ui.available().min;
 
@@ -183,7 +173,7 @@ impl Resize {
         if let Some(requested_size) = state.requested_size.take() {
             state.desired_size = requested_size;
         }
-        state.desired_size = state.desired_size.max(self.min_desired_size);
+        state.desired_size = state.desired_size.max(self.min_size);
 
         // ------------------------------
 
