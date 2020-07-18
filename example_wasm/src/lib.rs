@@ -1,7 +1,7 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 
-use egui::{label, Align, Layout, TextStyle};
+use egui::{label, TextStyle};
 
 use wasm_bindgen::prelude::*;
 
@@ -25,17 +25,12 @@ pub struct MyApp {
     frames_painted: u64,
 }
 
-impl egui_web::App for MyApp {
-    fn ui(&mut self, ui: &mut egui::Ui, backend: &mut egui_web::Backend, info: &egui_web::WebInfo) {
-        self.example_app.ui(ui, &info.web_location_hash);
-
-        let mut ui = ui.centered_column(ui.available().width().min(480.0));
-        ui.set_layout(Layout::vertical(Align::Min));
-        ui.add(label!("Egui!").text_style(TextStyle::Heading));
+impl MyApp {
+    fn window_ui(&mut self, ui: &mut egui::Ui, backend: &mut egui_web::Backend) {
         ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
         ui.label(
-            "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
-        );
+                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
+            );
         ui.label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
         ui.label("This is also work in progress, and not ready for production... yet :)");
         ui.horizontal(|ui| {
@@ -80,5 +75,17 @@ impl egui_web::App for MyApp {
 
         self.frames_painted += 1;
         ui.label(format!("Total frames painted: {}", self.frames_painted));
+    }
+}
+
+impl egui_web::App for MyApp {
+    fn ui(&mut self, ui: &mut egui::Ui, backend: &mut egui_web::Backend, info: &egui_web::WebInfo) {
+        egui::Window::new("Egui")
+            .default_width(500.0)
+            .show(ui.ctx(), |ui| {
+                self.window_ui(ui, backend);
+            });
+
+        self.example_app.ui(ui, &info.web_location_hash);
     }
 }

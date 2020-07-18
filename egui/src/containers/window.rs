@@ -77,6 +77,16 @@ impl<'open> Window<'open> {
         self
     }
 
+    pub fn default_width(mut self, default_width: f32) -> Self {
+        self.resize = self.resize.default_width(default_width);
+        self
+    }
+
+    pub fn default_height(mut self, default_height: f32) -> Self {
+        self.resize = self.resize.default_height(default_height);
+        self
+    }
+
     pub fn default_rect(self, rect: Rect) -> Self {
         self.default_pos(rect.min).default_size(rect.size())
     }
