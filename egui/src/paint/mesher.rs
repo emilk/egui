@@ -33,8 +33,10 @@ pub struct Triangles {
     pub vertices: Vec<Vertex>,
 }
 
+pub type PaintJob = (Rect, Triangles);
+
 /// Grouped by clip rectangles, in pixel coordinates
-pub type PaintBatches = Vec<(Rect, Triangles)>;
+pub type PaintJobs = Vec<PaintJob>;
 
 // ----------------------------------------------------------------------------
 
@@ -680,20 +682,20 @@ pub fn paint_commands_into_triangles(
 ) -> Vec<(Rect, Triangles)> {
     let mut reused_path = Path::default();
 
-    let mut batches = PaintBatches::default();
+    let mut jobs = PaintJobs::default();
     for (clip_rect, cmd) in commands {
         // TODO: cull(clip_rect, cmd)
 
-        if batches.is_empty() || batches.last().unwrap().0 != clip_rect {
-            batches.push((clip_rect, Triangles::default()));
+        if jobs.is_empty() || jobs.last().unwrap().0 != clip_rect {
+            jobs.push((clip_rect, Triangles::default()));
         }
 
-        let out = &mut batches.last_mut().unwrap().1;
+        let out = &mut jobs.last_mut().unwrap().1;
         paint_command_into_triangles(&mut reused_path, options, fonts, cmd, out);
     }
 
     if options.debug_paint_clip_rects {
-        for (clip_rect, triangles) in &mut batches {
+        for (clip_rect, triangles) in &mut jobs {
             paint_command_into_triangles(
                 &mut reused_path,
                 options,
@@ -709,5 +711,5 @@ pub fn paint_commands_into_triangles(
         }
     }
 
-    batches
+    jobs
 }

@@ -74,27 +74,27 @@ impl Backend {
         self.ctx.begin_frame(raw_input)
     }
 
-    pub fn end_frame(&mut self) -> Result<(egui::Output, egui::PaintBatches), JsValue> {
+    pub fn end_frame(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         let frame_start = self
             .frame_start
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
-        let (output, batches) = self.ctx.end_frame();
+        let (output, paint_jobs) = self.ctx.end_frame();
 
         self.auto_save();
 
         let now = now_sec();
         self.frame_times.add(now, (now - frame_start) as f32);
 
-        Ok((output, batches))
+        Ok((output, paint_jobs))
     }
 
-    pub fn paint(&mut self, batches: egui::PaintBatches) -> Result<(), JsValue> {
+    pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
         let bg_color = egui::color::TRANSPARENT; // Use background css color.
-        self.painter.paint_batches(
+        self.painter.paint_jobs(
             bg_color,
-            batches,
+            paint_jobs,
             self.ctx.texture(),
             self.ctx.pixels_per_point(),
         )
@@ -175,7 +175,7 @@ impl AppRunner {
         self.backend.canvas_id()
     }
 
-    pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintBatches), JsValue> {
+    pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         resize_to_screen_size(self.backend.canvas_id());
 
         let raw_input = self.web_input.new_frame();
@@ -186,13 +186,13 @@ impl AppRunner {
 
         let mut ui = self.backend.begin_frame(raw_input);
         self.app.ui(&mut ui, &mut self.backend, &info);
-        let (output, batches) = self.backend.end_frame()?;
+        let (output, paint_jobs) = self.backend.end_frame()?;
         handle_output(&output);
-        Ok((output, batches))
+        Ok((output, paint_jobs))
     }
 
-    pub fn paint(&mut self, batches: egui::PaintBatches) -> Result<(), JsValue> {
-        self.backend.paint(batches)
+    pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
+        self.backend.paint(paint_jobs)
     }
 }
 
@@ -414,8 +414,8 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.backend.run_mode() == RunMode::Continuous || runner_lock.needs_repaint {
             runner_lock.needs_repaint = false;
-            let (output, batches) = runner_lock.logic()?;
-            runner_lock.paint(batches)?;
+            let (output, paint_jobs) = runner_lock.logic()?;
+            runner_lock.paint(paint_jobs)?;
             runner_lock.needs_repaint = output.needs_repaint;
         }
         Ok(())

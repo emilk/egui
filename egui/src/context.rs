@@ -6,7 +6,7 @@ use crate::{layout::align_rect, paint::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct PaintStats {
-    num_batches: usize,
+    num_jobs: usize,
     num_primitives: usize,
     num_vertices: usize,
     num_triangles: usize,
@@ -168,15 +168,15 @@ impl Context {
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
     #[must_use]
-    pub fn end_frame(&self) -> (Output, PaintBatches) {
+    pub fn end_frame(&self) -> (Output, PaintJobs) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
 
         self.memory().end_frame();
         let output: Output = std::mem::take(&mut self.output());
-        let paint_batches = self.paint();
-        (output, paint_batches)
+        let paint_jobs = self.paint();
+        (output, paint_jobs)
     }
 
     fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
@@ -184,27 +184,27 @@ impl Context {
         self.graphics().drain(memory.areas.order()).collect()
     }
 
-    fn paint(&self) -> PaintBatches {
+    fn paint(&self) -> PaintJobs {
         let mut paint_options = *self.paint_options.lock();
         paint_options.aa_size = 1.0 / self.pixels_per_point();
         paint_options.aa_size *= 1.5; // Looks better, but TODO: should not be needed
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
-        let batches =
+        let paint_jobs =
             mesher::paint_commands_into_triangles(paint_options, self.fonts(), paint_commands);
 
         {
             let mut stats = PaintStats::default();
-            stats.num_batches = batches.len();
+            stats.num_jobs = paint_jobs.len();
             stats.num_primitives = num_primitives;
-            for (_, triangles) in &batches {
+            for (_, triangles) in &paint_jobs {
                 stats.num_vertices += triangles.vertices.len();
                 stats.num_triangles += triangles.indices.len() / 3;
             }
             *self.paint_stats.lock() = stats;
         }
 
-        batches
+        paint_jobs
     }
 
     // ---------------------------------------------------------------------
@@ -639,7 +639,7 @@ impl paint::PaintOptions {
 
 impl PaintStats {
     pub fn ui(&self, ui: &mut Ui) {
-        ui.add(label!("Batches: {}", self.num_batches))
+        ui.add(label!("Jobs: {}", self.num_jobs))
             .tooltip_text("Number of separate clip rectanlges");
         ui.add(label!("Primitives: {}", self.num_primitives))
             .tooltip_text("Boxes, circles, text areas etc");

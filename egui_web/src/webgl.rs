@@ -6,7 +6,7 @@ use {
 
 use egui::{
     math::clamp,
-    paint::{Color, PaintBatches, Texture, Triangles},
+    paint::{Color, PaintJobs, Texture, Triangles},
     vec2,
 };
 
@@ -149,10 +149,10 @@ impl Painter {
         self.current_texture_id = Some(texture.id);
     }
 
-    pub fn paint_batches(
+    pub fn paint_jobs(
         &mut self,
         bg_color: Color,
-        batches: PaintBatches,
+        jobs: PaintJobs,
         texture: &Texture,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
@@ -205,7 +205,7 @@ impl Painter {
         );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
-        for (clip_rect, triangles) in batches {
+        for (clip_rect, triangles) in jobs {
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
             let clip_max_x = pixels_per_point * clip_rect.max.x;

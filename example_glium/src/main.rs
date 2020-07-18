@@ -135,14 +135,14 @@ fn main() {
             .text_style(TextStyle::Monospace),
         );
 
-        let (output, paint_batches) = ctx.end_frame();
+        let (output, paint_jobs) = ctx.end_frame();
 
         frame_times.add(
             raw_input.time,
             (Instant::now() - egui_start).as_secs_f64() as f32,
         );
 
-        painter.paint_batches(&display, paint_batches, ctx.texture());
+        painter.paint_jobs(&display, paint_jobs, ctx.texture());
         egui_glium::handle_output(output, &display, clipboard.as_mut());
     }
 

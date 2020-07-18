@@ -9,6 +9,6 @@ pub use {
     color::Color,
     command::{LineStyle, PaintCmd},
     fonts::{FontDefinitions, Fonts, TextStyle},
-    mesher::{PaintBatches, PaintOptions, Path, Triangles, Vertex},
+    mesher::{PaintJobs, PaintOptions, Path, Triangles, Vertex},
     texture_atlas::Texture,
 };

@@ -3,7 +3,7 @@
 use {
     egui::{
         math::clamp,
-        paint::{PaintBatches, Triangles},
+        paint::{PaintJobs, Triangles},
         Rect,
     },
     glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Frame, Surface},
@@ -181,24 +181,24 @@ impl Painter {
         self.current_texture_id = Some(texture.id);
     }
 
-    pub fn paint_batches(
+    pub fn paint_jobs(
         &mut self,
         display: &glium::Display,
-        batches: PaintBatches,
+        jobs: PaintJobs,
         texture: &egui::Texture,
     ) {
         self.upload_texture(display, texture);
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
-        for (clip_rect, triangles) in batches {
-            self.paint_batch(&mut target, display, clip_rect, &triangles, texture)
+        for (clip_rect, triangles) in jobs {
+            self.paint_job(&mut target, display, clip_rect, &triangles, texture)
         }
         target.finish().unwrap();
     }
 
     #[inline(never)] // Easier profiling
-    fn paint_batch(
+    fn paint_job(
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
