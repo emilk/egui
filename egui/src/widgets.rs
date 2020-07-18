@@ -120,6 +120,12 @@ impl Into<Label> for &str {
     }
 }
 
+impl Into<Label> for &String {
+    fn into(self) -> Label {
+        Label::new(self)
+    }
+}
+
 impl Into<Label> for String {
     fn into(self) -> Label {
         Label::new(self)
