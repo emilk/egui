@@ -39,6 +39,7 @@ pub struct Backend {
     /// If true, paint at full framerate always.
     /// If false, only paint on input.
     run_mode: RunMode,
+    last_save_time: Option<f64>,
 }
 
 impl Backend {
@@ -51,6 +52,7 @@ impl Backend {
             frame_times: egui::MovementTracker::new(1000, 1.0),
             frame_start: None,
             run_mode,
+            last_save_time: None,
         })
     }
 
@@ -72,28 +74,40 @@ impl Backend {
         self.ctx.begin_frame(raw_input)
     }
 
-    pub fn end_frame(&mut self) -> Result<egui::Output, JsValue> {
+    pub fn end_frame(&mut self) -> Result<(egui::Output, egui::PaintBatches), JsValue> {
         let frame_start = self
             .frame_start
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
-        let bg_color = egui::color::srgba(0, 0, 0, 0); // Use background css color.
         let (output, batches) = self.ctx.end_frame();
+
+        self.auto_save();
 
         let now = now_sec();
         self.frame_times.add(now, (now - frame_start) as f32);
 
+        Ok((output, batches))
+    }
+
+    pub fn paint(&mut self, batches: egui::PaintBatches) -> Result<(), JsValue> {
+        let bg_color = egui::color::TRANSPARENT; // Use background css color.
         self.painter.paint_batches(
             bg_color,
             batches,
             self.ctx.texture(),
             self.ctx.pixels_per_point(),
-        )?;
+        )
+    }
 
-        save_memory(&self.ctx); // TODO: don't save every frame
-
-        Ok(output)
+    pub fn auto_save(&mut self) {
+        let now = now_sec();
+        let time_since_last_save = now - self.last_save_time.unwrap_or(now);
+        const AUTO_SAVE_INTERVAL: f64 = 5.0;
+        if time_since_last_save > AUTO_SAVE_INTERVAL {
+            self.last_save_time = Some(now);
+            save_memory(&self.ctx);
+        }
     }
 
     pub fn painter_debug_info(&self) -> String {
@@ -144,8 +158,7 @@ pub struct AppRunner {
     pub backend: Backend,
     pub web_input: WebInput,
     pub app: Box<dyn App>,
-    /// Used to prevent calling paint() twice in one frame
-    pub has_requested_animaiton_frame: bool,
+    pub needs_repaint: bool, // TODO: move
 }
 
 impl AppRunner {
@@ -154,7 +167,7 @@ impl AppRunner {
             backend,
             web_input: Default::default(),
             app,
-            has_requested_animaiton_frame: false,
+            needs_repaint: true, // TODO: move
         })
     }
 
@@ -162,7 +175,7 @@ impl AppRunner {
         self.backend.canvas_id()
     }
 
-    pub fn paint(&mut self) -> Result<egui::Output, JsValue> {
+    pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintBatches), JsValue> {
         resize_to_screen_size(self.backend.canvas_id());
 
         let raw_input = self.web_input.new_frame();
@@ -173,11 +186,13 @@ impl AppRunner {
 
         let mut ui = self.backend.begin_frame(raw_input);
         self.app.ui(&mut ui, &mut self.backend, &info);
-        let output = self.backend.end_frame()?;
-
+        let (output, batches) = self.backend.end_frame()?;
         handle_output(&output);
+        Ok((output, batches))
+    }
 
-        Ok(output)
+    pub fn paint(&mut self, batches: egui::PaintBatches) -> Result<(), JsValue> {
+        self.backend.paint(batches)
     }
 }
 
@@ -395,33 +410,27 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
 pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
 
 fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
-    let needs_repaint = {
+    fn paint(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
-        runner_lock.has_requested_animaiton_frame = false;
-        let output = runner_lock.paint()?;
-        let run_mode = runner_lock.backend.run_mode();
-        run_mode == RunMode::Continuous || output.needs_repaint
-    };
-    if needs_repaint {
-        request_animation_frame(runner_ref)?;
+        if runner_lock.backend.run_mode() == RunMode::Continuous || runner_lock.needs_repaint {
+            runner_lock.needs_repaint = false;
+            let (output, batches) = runner_lock.logic()?;
+            runner_lock.paint(batches)?;
+            runner_lock.needs_repaint = output.needs_repaint;
+        }
+        Ok(())
     }
-    Ok(())
-}
 
-fn request_animation_frame(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
-    if !{ runner_ref.0.lock().has_requested_animaiton_frame } {
-        runner_ref.0.lock().has_requested_animaiton_frame = true;
-
+    fn request_animation_frame(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
         use wasm_bindgen::JsCast;
         let window = web_sys::window().unwrap();
         let closure = Closure::once(move || paint_and_schedule(runner_ref));
         window.request_animation_frame(closure.as_ref().unchecked_ref())?;
         closure.forget(); // We must forget it, or else the callback is canceled on drop
+        Ok(())
     }
-    Ok(())
-}
 
-fn invalidate(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
+    paint(&runner_ref)?;
     request_animation_frame(runner_ref)
 }
 
@@ -443,8 +452,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             } else {
                 runner_lock.web_input.events.push(egui::Event::Text(key));
             }
-            drop(runner_lock);
-            invalidate(runner_ref.clone()).unwrap();
+            runner_lock.needs_repaint = true;
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -461,8 +469,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     key,
                     pressed: false,
                 });
-                drop(runner_lock);
-                invalidate(runner_ref.clone()).unwrap();
+                runner_lock.needs_repaint = true;
             }
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keyup", closure.as_ref().unchecked_ref())?;
@@ -472,7 +479,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move || {
-            invalidate(runner_ref.clone()).unwrap();
+            runner_ref.0.lock().needs_repaint = true;
         }) as Box<dyn FnMut()>);
         document.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -494,8 +501,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.web_input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
                 runner_lock.web_input.mouse_down = true;
-                drop(runner_lock);
-                invalidate(runner_ref.clone()).unwrap();
+                runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -512,8 +518,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if !runner_lock.web_input.is_touch {
                 runner_lock.web_input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                drop(runner_lock);
-                invalidate(runner_ref.clone()).unwrap();
+                runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -531,8 +536,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.web_input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
                 runner_lock.web_input.mouse_down = false;
-                drop(runner_lock);
-                invalidate(runner_ref.clone()).unwrap();
+                runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -548,8 +552,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.web_input.is_touch {
                 runner_lock.web_input.mouse_pos = None;
-                drop(runner_lock);
-                invalidate(runner_ref.clone()).unwrap();
+                runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -566,8 +569,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.web_input.is_touch = true;
             runner_lock.web_input.mouse_pos = Some(pos_from_touch_event(&event));
             runner_lock.web_input.mouse_down = true;
-            drop(runner_lock);
-            invalidate(runner_ref.clone()).unwrap();
+            runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
@@ -582,8 +584,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.web_input.is_touch = true;
             runner_lock.web_input.mouse_pos = Some(pos_from_touch_event(&event));
-            drop(runner_lock);
-            invalidate(runner_ref.clone()).unwrap();
+            runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
@@ -595,14 +596,12 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchend";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            // TODO: this paints twice in one frame, which is not great
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.web_input.is_touch = true;
             runner_lock.web_input.mouse_down = false; // First release mouse to click...
-            runner_lock.paint().unwrap(); // ...do the clicking...
+            runner_lock.logic().unwrap(); // ...do the clicking...
             runner_lock.web_input.mouse_pos = None; // ...remove hover effect
-            drop(runner_lock);
-            invalidate(runner_ref.clone()).unwrap();
+            runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
@@ -617,8 +616,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.web_input.scroll_delta.x -= event.delta_x() as f32;
             runner_lock.web_input.scroll_delta.y -= event.delta_y() as f32;
-            drop(runner_lock);
-            invalidate(runner_ref.clone()).unwrap();
+            runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
