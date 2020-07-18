@@ -47,6 +47,7 @@ impl FractalClock {
                 .input()
                 .seconds_since_midnight
                 .unwrap_or_else(|| ui.input().time);
+            ui.ctx().request_repaint();
         }
 
         self.fractal_ui(ui, ui.available_finite());

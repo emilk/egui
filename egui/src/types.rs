@@ -14,6 +14,11 @@ pub struct Output {
 
     /// Response to Event::Copy or Event::Cut. Ignore if empty.
     pub copied_text: String,
+
+    /// Set to `true` to request another repaint right after this one.
+    /// This is only used in reactive backends (i.e. backends where we repaint on new input).
+    /// For instance, you may want to set this to `true` while there is an animation.
+    pub needs_repaint: bool,
 }
 
 #[derive(Clone, Copy)]

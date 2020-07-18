@@ -190,6 +190,14 @@ impl InputState {
             raw: new,
         }
     }
+
+    pub fn wants_repaint(&self) -> bool {
+        self.mouse.pressed
+            || self.mouse.released
+            || self.mouse.delta != Vec2::zero()
+            || self.scroll_delta != Vec2::zero()
+            || !self.events.is_empty()
+    }
 }
 
 impl MouseInput {

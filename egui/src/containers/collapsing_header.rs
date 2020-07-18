@@ -57,6 +57,9 @@ impl State {
         let animation_time = ui.style().animation_time;
         let time_since_toggle = (ui.input().time - self.toggle_time) as f32;
         let time_since_toggle = time_since_toggle + ui.input().dt; // Instant feedback
+        if time_since_toggle <= animation_time {
+            ui.ctx().request_repaint();
+        }
         if self.open {
             remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
         } else {

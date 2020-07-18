@@ -75,6 +75,13 @@ impl Context {
         self.output.try_lock().expect("output already locked")
     }
 
+    /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
+    /// If this is called at least once in a frame, then there will be another frame right after this.
+    /// Call as many times as you wish, only one repaint will be issued.
+    pub fn request_repaint(&self) {
+        self.output().needs_repaint = true;
+    }
+
     pub fn input(&self) -> &InputState {
         &self.input
     }
@@ -150,7 +157,6 @@ impl Context {
         self.used_ids.lock().clear();
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
-
         let mut font_definitions = self.font_definitions.lock();
         font_definitions.pixels_per_point = self.input.pixels_per_point;
         if self.fonts.is_none() || *self.fonts.as_ref().unwrap().definitions() != *font_definitions
@@ -163,6 +169,10 @@ impl Context {
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
     #[must_use]
     pub fn end_frame(&self) -> (Output, PaintBatches) {
+        if self.input.wants_repaint() {
+            self.request_repaint();
+        }
+
         self.memory().end_frame();
         let output: Output = std::mem::take(&mut self.output());
         let paint_batches = self.paint();

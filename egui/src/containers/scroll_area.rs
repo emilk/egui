@@ -92,6 +92,9 @@ impl ScrollArea {
         } else {
             let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
             let animation_time = ui.style().animation_time;
+            if time_since_toggle <= animation_time {
+                ui.ctx().request_repaint();
+            }
             if state.show_scroll {
                 remap_clamp(
                     time_since_toggle,
@@ -194,6 +197,7 @@ impl Prepared {
                 0.0..=ui.style().animation_time,
                 0.0..=max_scroll_bar_width,
             );
+            ui.ctx().request_repaint();
         }
 
         if current_scroll_bar_width > 0.0 {

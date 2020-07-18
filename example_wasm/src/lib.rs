@@ -10,8 +10,9 @@ use wasm_bindgen::prelude::*;
 /// This is the entry-point for all the web-assembly.
 #[wasm_bindgen]
 pub fn start(canvas_id: &str) -> Result<(), JsValue> {
+    let backend = egui_web::Backend::new(canvas_id, egui_web::RunMode::Continuous)?;
     let app = Box::new(MyApp::default());
-    let runner = egui_web::AppRunner::new(canvas_id, app)?;
+    let runner = egui_web::AppRunner::new(backend, app)?;
     egui_web::run(runner)?;
     Ok(())
 }
@@ -24,7 +25,7 @@ pub struct MyApp {
 }
 
 impl egui_web::App for MyApp {
-    fn ui(&mut self, ui: &mut egui::Ui, info: &egui_web::BackendInfo) {
+    fn ui(&mut self, ui: &mut egui::Ui, backend: &mut egui_web::Backend, info: &egui_web::WebInfo) {
         self.example_app.ui(ui, &info.web_location_hash);
 
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
@@ -44,16 +45,34 @@ impl egui_web::App for MyApp {
 
         ui.label("WebGl painter info:");
         ui.indent("webgl region id", |ui| {
-            ui.label(&info.painter_debug_info);
+            ui.label(&backend.painter_debug_info());
         });
 
         ui.add(
             label!(
-                "CPU usage: {:.2} ms (excludes painting)",
-                1e3 * info.cpu_time
+                "CPU usage: {:.2} ms / frame (excludes painting)",
+                1e3 * backend.cpu_time()
             )
             .text_style(TextStyle::Monospace),
         );
-        ui.add(label!("FPS: {:.1}", info.fps).text_style(TextStyle::Monospace));
+
+        ui.horizontal(|ui| {
+            let mut run_mode = backend.run_mode();
+            ui.label("Run mode:");
+            ui.radio_value("Continuous", &mut run_mode, egui_web::RunMode::Continuous)
+                .tooltip_text("Repaint everything each frame");
+            ui.radio_value("Reactive", &mut run_mode, egui_web::RunMode::Reactive)
+                .tooltip_text("Repaint when there is new input (e.g. mouse movement)");
+            backend.set_run_mode(run_mode);
+        });
+
+        if backend.run_mode() == egui_web::RunMode::Continuous {
+            ui.add(
+                label!("Repainting the UI each frame. FPS: {:.1}", backend.fps())
+                    .text_style(TextStyle::Monospace),
+            );
+        } else {
+            ui.label("Only running UI code when there is new input");
+        }
     }
 }

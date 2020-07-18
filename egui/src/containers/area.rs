@@ -195,6 +195,7 @@ impl Prepared {
             } else {
                 state.vel -= friction * state.vel.normalized();
                 state.pos += state.vel * input.dt;
+                ctx.request_repaint();
             }
         }
 

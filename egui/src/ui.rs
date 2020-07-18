@@ -547,14 +547,27 @@ impl Ui {
         self.add(Button::new(text))
     }
 
-    // TODO: argument order?
+    // Argument order matching that of Dear ImGui
     pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> GuiResponse {
         self.add(Checkbox::new(checked, text))
     }
 
-    // TODO: argument order?
+    // Argument order matching that of Dear ImGui
     pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> GuiResponse {
         self.add(RadioButton::new(checked, text))
+    }
+
+    pub fn radio_value<Value: PartialEq>(
+        &mut self,
+        text: impl Into<String>,
+        curr_value: &mut Value,
+        radio_value: Value,
+    ) -> GuiResponse {
+        let response = self.radio(text, *curr_value == radio_value);
+        if response.clicked {
+            *curr_value = radio_value;
+        }
+        response
     }
 
     pub fn separator(&mut self) -> GuiResponse {
