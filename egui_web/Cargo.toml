@@ -20,9 +20,12 @@ egui = { path = "../egui", features = ["with_serde"] }
 version = "0.3"
 features = [
   'console',
+  'CssStyleDeclaration',
   'Document',
   'Element',
   'HtmlCanvasElement',
+  'HtmlElement',
+  'Location',
   'Performance',
   'Storage',
   'WebGlBuffer',

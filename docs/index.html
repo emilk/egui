@@ -30,6 +30,9 @@
 </head>
 
 <body>
+    <!-- We later make this cover the entire screen even when resized -->
+    <canvas id="canvas" width="1024" height="1024"></canvas>
+
     <script>
         // The `--no-modules`-generated JS from `wasm-bindgen` attempts to use
         // `WebAssembly.instantiateStreaming` to instantiate the wasm module,
@@ -52,79 +55,45 @@
         // initialization and return to us a promise when it's done
         wasm_bindgen("./example_wasm_bg.wasm")
             .then(on_wasm_loaded)["catch"](console.error);
+
         // ----------------------------------------------------------------------------
+
         var g_wasm_app = null;
 
-        function paint_gui(canvas) {
-            if (g_wasm_app === null) {
-                g_wasm_app = wasm_bindgen.new_webgl_gui("canvas");
-            }
-
-            let input = {
-                egui: get_egui_input(canvas),
-                web: {
-                    location: window.location.toString(),
-                    location_hash: window.location.hash.toString(), // i.e. #fragment
-                },
-            }
-
-            let output = JSON.parse(wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input)));
-            // console.log(`output: ${JSON.stringify(output)}`);
-            document.body.style.cursor = from_egui_cursor(output.cursor_icon);
-            // console.log(`Translated ${output.cursor_icon} to ${document.body.style.cursor}`);
-            if (output.open_url) {
-                window.open(output.open_url, "_self");
-            }
-        }
-
-        function from_egui_cursor(cursor) {
-            if (cursor == "no_drop") { return "no-drop"; }
-            else if (cursor == "not_allowed") { return "not-allowed"; }
-            else if (cursor == "resize_horizontal") { return "ew-resize"; }
-            else if (cursor == "resize_ne_sw") { return "nesw-resize"; }
-            else if (cursor == "resize_nw_se") { return "nwse-resize"; }
-            else if (cursor == "resize_vertical") { return "ns-resize"; }
-            else if (cursor == "pointing_hand") { return "pointer"; }
-            // TODO: more
-            else {
-                // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move, grab, grabbing,
-                return cursor;
-            }
-        }
+        function egui_state() {
+            window.g_egui_state = window.g_egui_state || {
+                mouse_pos: null,
+                mouse_down: false,
+                is_touch: false, // we don't know yet
+                scroll_delta_x: 0,
+                scroll_delta_y: 0,
+                events: [],
+            };
+            return window.g_egui_state;
+        };
 
         // ----------------------------------------------------------------------------
-        var g_mouse_pos = null;
-        var g_mouse_down = false;
-        var g_is_touch = false; // we don't know yet
-        var g_scroll_delta_x = 0;
-        var g_scroll_delta_y = 0;
-        var g_events = [];
 
         function pixels_per_point() {
             return window.devicePixelRatio || 1.0;
         }
 
-        function auto_resize_canvas(canvas) {
-            canvas.style.width = window.innerWidth + "px";
-            canvas.style.height = window.innerHeight + "px";
-            canvas.width = window.innerWidth * pixels_per_point();
-            canvas.height = window.innerHeight * pixels_per_point();
-        }
+        function get_egui_input() {
+            let state = egui_state();
 
-        function get_egui_input(canvas) {
             var input = {
-                mouse_down: g_mouse_down,
-                mouse_pos: g_mouse_pos,
-                scroll_delta: { x: -g_scroll_delta_x, y: -g_scroll_delta_y }, // TODO: standardize scroll direction
+                mouse_down: state.mouse_down,
+                mouse_pos: state.mouse_pos,
+                scroll_delta: { x: -state.scroll_delta_x, y: -state.scroll_delta_y }, // TODO: standardize scroll direction
                 screen_size: { x: window.innerWidth, y: window.innerHeight },
                 pixels_per_point: pixels_per_point(),
                 time: window.performance.now() / 1000.0,
                 seconds_since_midnight: seconds_since_midnight(),
-                events: g_events,
+                events: state.events,
             };
-            g_scroll_delta_x = 0;
-            g_scroll_delta_y = 0;
-            g_events = [];
+            state.scroll_delta_x = 0;
+            state.scroll_delta_y = 0;
+            state.events = [];
             return input;
         }
 
@@ -147,9 +116,12 @@
         const ANIMATION_FRAME = true;
 
         function paint() {
-            var canvas = document.getElementById("canvas");
-            auto_resize_canvas(canvas);
-            paint_gui(canvas);
+            wasm_bindgen.resize_to_screen_size("canvas");
+            if (g_wasm_app === null) {
+                g_wasm_app = wasm_bindgen.new_webgl_gui("canvas");
+            }
+            let input = get_egui_input();
+            wasm_bindgen.run_gui(g_wasm_app, JSON.stringify(input));
         }
 
         function paint_and_schedule() {
@@ -161,89 +133,32 @@
 
         function on_wasm_loaded() {
             var canvas = document.getElementById("canvas");
+            console.assert(canvas);
+            install_canvas_events(canvas, paint);
+            install_document_events(paint);
+            paint_and_schedule();
+        }
+
+        function install_document_events(paint) {
             var invalidate = function () {
                 if (!ANIMATION_FRAME) {
                     paint();
                 }
             };
 
-            canvas.addEventListener("mousedown", function (event) {
-                if (g_is_touch) { return; }
-                g_mouse_pos = mouse_pos_from_event(canvas, event);
-                g_mouse_down = true;
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-            canvas.addEventListener("mousemove", function (event) {
-                if (g_is_touch) { return; }
-                g_mouse_pos = mouse_pos_from_event(canvas, event);
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-            canvas.addEventListener("mouseup", function (event) {
-                if (g_is_touch) { return; }
-                g_mouse_pos = mouse_pos_from_event(canvas, event);
-                g_mouse_down = false;
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-            canvas.addEventListener("mouseleave", function (event) {
-                if (g_is_touch) { return; }
-                g_mouse_pos = null;
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-
-            canvas.addEventListener("touchstart", function (event) {
-                g_is_touch = true;
-                g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
-                g_mouse_down = true;
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-            canvas.addEventListener("touchmove", function (event) {
-                g_is_touch = true;
-                g_mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-            canvas.addEventListener("touchend", function (event) {
-                g_is_touch = true;
-                g_mouse_down = false; // First release mouse to click...
-                paint();
-                g_mouse_pos = null; // ...remove hover effect
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-
-            canvas.addEventListener("wheel", function (event) {
-                g_scroll_delta_x += event.deltaX;
-                g_scroll_delta_y += event.deltaY;
-                invalidate();
-                event.stopPropagation();
-                event.preventDefault();
-            });
-
             document.addEventListener("keydown", function (event) {
                 var key = translate_key(event.key);
                 if (key) {
-                    g_events.push({ "key": { "key": key, 'pressed': true } });
+                    egui_state().events.push({ "key": { "key": key, 'pressed': true } });
                 } else {
-                    g_events.push({ "text": event.key });
+                    egui_state().events.push({ "text": event.key });
                 }
                 invalidate();
                 // event.stopPropagation();
                 // event.preventDefault();
             });
 
-            // document.addEventListener("keypress", function (event) {
+            // document.addEventListener("keypress", (event)=>{
             //     console.log(`keypress: ${event.key} ${JSON.stringify(event)}`);
             //     invalidate();
             //     event.stopPropagation();
@@ -254,7 +169,7 @@
                 // console.log(`keyup: ${event.key} ${JSON.stringify(event)}`);
                 var key = translate_key(event.key);
                 if (key) {
-                    g_events.push({ "key": { "key": key, 'pressed': false } });
+                    egui_state().events.push({ "key": { "key": key, 'pressed': false } });
                 }
                 invalidate();
                 // event.stopPropagation();
@@ -267,8 +182,77 @@
                 window.addEventListener("pageshow", invalidate);
                 window.addEventListener("resize", invalidate);
             }
+        }
 
-            paint_and_schedule();
+        function install_canvas_events(canvas, paint) {
+            var invalidate = function () {
+                if (!ANIMATION_FRAME) {
+                    paint();
+                }
+            };
+            canvas.addEventListener("mousedown", function (event) {
+                if (egui_state().is_touch) { return; }
+                egui_state().mouse_pos = mouse_pos_from_event(canvas, event);
+                egui_state().mouse_down = true;
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+            canvas.addEventListener("mousemove", function (event) {
+                if (egui_state().is_touch) { return; }
+                egui_state().mouse_pos = mouse_pos_from_event(canvas, event);
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+            canvas.addEventListener("mouseup", function (event) {
+                if (egui_state().is_touch) { return; }
+                egui_state().mouse_pos = mouse_pos_from_event(canvas, event);
+                egui_state().mouse_down = false;
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+            canvas.addEventListener("mouseleave", function (event) {
+                if (egui_state().is_touch) { return; }
+                egui_state().mouse_pos = null;
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+
+            canvas.addEventListener("touchstart", function (event) {
+                egui_state().is_touch = true;
+                egui_state().mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
+                egui_state().mouse_down = true;
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+            canvas.addEventListener("touchmove", function (event) {
+                egui_state().is_touch = true;
+                egui_state().mouse_pos = { x: event.touches[0].pageX, y: event.touches[0].pageY };
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+            canvas.addEventListener("touchend", function (event) {
+                egui_state().is_touch = true;
+                egui_state().mouse_down = false; // First release mouse to click...
+                paint();                    // ...do the clicking...
+                egui_state().mouse_pos = null;   // ...remove hover effect
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
+
+            canvas.addEventListener("wheel", function (event) {
+                egui_state().scroll_delta_x += event.deltaX;
+                egui_state().scroll_delta_y += event.deltaY;
+                invalidate();
+                event.stopPropagation();
+                event.preventDefault();
+            });
         }
 
         function translate_key(key) {
@@ -294,8 +278,6 @@
             return null;
         }
     </script>
-    <!-- We later make this cover the entire screen even when resized -->
-    <canvas id="canvas" width="1024" height="1024"></canvas>
 </body>
 
 </html>

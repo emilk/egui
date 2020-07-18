@@ -1,59 +1,32 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 
-use std::sync::Arc;
-
-use {
-    egui::{
-        color::srgba, examples::ExampleApp, label, widgets::Separator, Align, RawInput, TextStyle,
-        *,
-    },
-    egui_web::now_sec,
-};
+use egui::{examples::ExampleApp, label, widgets::Separator, Align, RawInput, TextStyle, *};
 
 use wasm_bindgen::prelude::*;
 
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(default)]
-struct WebInput {
-    egui: RawInput,
-    web: Web,
-}
-
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(default)]
-pub struct Web {
-    pub location: String,
-    /// i.e. "#fragment"
-    pub location_hash: String,
-}
-
 #[wasm_bindgen]
 pub struct State {
+    egui_web: egui_web::State,
     example_app: ExampleApp,
-    ctx: Arc<Context>,
-    webgl_painter: egui_web::webgl::Painter,
-
-    frame_times: egui::MovementTracker<f32>,
 }
 
 impl State {
     fn new(canvas_id: &str) -> Result<State, JsValue> {
-        let ctx = Context::new();
-        egui_web::load_memory(&ctx);
         Ok(State {
+            egui_web: egui_web::State::new(canvas_id)?,
             example_app: Default::default(),
-            ctx,
-            webgl_painter: egui_web::webgl::Painter::new(canvas_id)?,
-            frame_times: egui::MovementTracker::new(1000, 1.0),
         })
     }
 
-    fn run(&mut self, web_input: WebInput) -> Result<Output, JsValue> {
-        let everything_start = now_sec();
+    fn run(&mut self, raw_input: RawInput, web_location_hash: &str) -> Result<Output, JsValue> {
+        let mut ui = self.egui_web.begin_frame(raw_input);
+        self.ui(&mut ui, web_location_hash);
+        self.egui_web.end_frame()
+    }
 
-        let mut ui = self.ctx.begin_frame(web_input.egui);
-        self.example_app.ui(&mut ui, &web_input.web.location_hash);
+    fn ui(&mut self, ui: &mut egui::Ui, web_location_hash: &str) {
+        self.example_app.ui(ui, web_location_hash);
         let mut ui = ui.centered_column(ui.available().width().min(480.0));
         ui.set_layout(Layout::vertical(Align::Min));
         ui.add(label!("Egui!").text_style(TextStyle::Heading));
@@ -71,40 +44,17 @@ impl State {
 
         ui.label("WebGl painter info:");
         ui.indent("webgl region id", |ui| {
-            ui.label(self.webgl_painter.debug_info());
+            ui.label(self.egui_web.painter_debug_info());
         });
 
         ui.add(
             label!(
                 "CPU usage: {:.2} ms (excludes painting)",
-                1e3 * self.frame_times.average().unwrap_or_default()
+                1e3 * self.egui_web.cpu_usage()
             )
             .text_style(TextStyle::Monospace),
         );
-        ui.add(
-            label!(
-                "FPS: {:.1}",
-                1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
-            )
-            .text_style(TextStyle::Monospace),
-        );
-
-        let bg_color = srgba(0, 0, 0, 0); // Use background css color.
-        let (output, batches) = self.ctx.end_frame();
-
-        let now = now_sec();
-        self.frame_times.add(now, (now - everything_start) as f32);
-
-        self.webgl_painter.paint_batches(
-            bg_color,
-            batches,
-            self.ctx.texture(),
-            self.ctx.pixels_per_point(),
-        )?;
-
-        egui_web::save_memory(&self.ctx); // TODO: don't save every frame
-
-        Ok(output)
+        ui.add(label!("FPS: {:.1}", self.egui_web.fps()).text_style(TextStyle::Monospace));
     }
 }
 
@@ -114,9 +64,16 @@ pub fn new_webgl_gui(canvas_id: &str) -> Result<State, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn run_gui(state: &mut State, web_input_json: &str) -> Result<String, JsValue> {
+pub fn resize_to_screen_size(canvas_id: &str) {
+    egui_web::resize_to_screen_size(canvas_id);
+}
+
+#[wasm_bindgen]
+pub fn run_gui(state: &mut State, web_input_json: &str) -> Result<(), JsValue> {
     // TODO: nicer interface than JSON
-    let web_input: WebInput = serde_json::from_str(web_input_json).unwrap();
-    let output = state.run(web_input)?;
-    Ok(serde_json::to_string(&output).unwrap())
+    let raw_input: RawInput = serde_json::from_str(web_input_json).unwrap();
+    let web_location_hash = egui_web::location_hash().unwrap_or_default();
+    let output = state.run(raw_input, &web_location_hash)?;
+    egui_web::handle_output(&output);
+    Ok(())
 }

@@ -30,6 +30,10 @@ impl Vec2 {
         }
     }
 
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+
     pub fn splat(v: impl Into<f32>) -> Self {
         let v: f32 = v.into();
         Self { x: v, y: v }
