@@ -30,7 +30,8 @@ impl<'open> Window<'open> {
             resize: Resize::default()
                 .outline(false)
                 .min_content_size([96.0, 32.0])
-                .min_desired_size([96.0, 200.0]),
+                .min_desired_size([96.0, 32.0])
+                .default_size([280.0, 400.0]),
             scroll: Some(
                 ScrollArea::default()
                     .always_show_scroll(false)

@@ -25,6 +25,7 @@ pub struct Resize {
     /// If false, we are no enabled
     resizable: bool,
 
+    // TODO: do we really need both?
     min_content_size: Vec2,
     min_desired_size: Vec2,
 
@@ -40,8 +41,8 @@ impl Default for Resize {
             id: None,
             resizable: true,
             min_content_size: Vec2::splat(16.0),
-            min_desired_size: vec2(200.0, 400.0),
-            default_size: vec2(280.0, 400.0), // TODO: perferred size for a resizable area (e.g. a window)
+            min_desired_size: vec2(64.0, 64.0), // TODO: min size of a a resizable area (e.g. a window or a text edit)
+            default_size: vec2(128.0, 128.0), // TODO: perferred size for a resizable area (e.g. a window or a text edit)
             outline: true,
             handle_offset: Default::default(),
         }
@@ -108,7 +109,8 @@ impl Resize {
 
     /// Not manually resizable, just takes the size of its contents.
     pub fn auto_sized(self) -> Self {
-        self.default_size(Vec2::splat(f32::INFINITY))
+        self.min_desired_size(Vec2::zero())
+            .default_size(Vec2::splat(f32::INFINITY))
             .resizable(false)
     }
 

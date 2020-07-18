@@ -237,7 +237,7 @@ impl ExampleWindow {
         CollapsingHeader::new("Resize")
             .default_open(false)
             .show(ui, |ui| {
-                Resize::default().default_height(200.0).show(ui, |ui| {
+                Resize::default().default_height(100.0).show(ui, |ui| {
                     ui.add(label!("This ui can be resized!"));
                     ui.add(label!("Just pull the handle on the bottom right"));
                 });
@@ -424,7 +424,7 @@ impl Painting {
         }
 
         Resize::default()
-            .default_height(200.0)
+            .default_size([200.0, 200.0])
             .show(ui, |ui| self.content(ui));
     }
 
@@ -490,7 +490,7 @@ impl Default for LayoutExample {
 impl LayoutExample {
     pub fn ui(&mut self, ui: &mut Ui) {
         Resize::default()
-            .default_size([200.0, 200.0])
+            .default_size([200.0, 100.0])
             .show(ui, |ui| self.content_ui(ui));
     }
 
