@@ -293,7 +293,11 @@ impl Context {
     /// If false, the mouse is outside of any Egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     pub fn wants_mouse_input(&self) -> bool {
-        self.is_mouse_over_area() || self.memory().interaction.is_using_mouse()
+        self.is_mouse_over_area() || self.is_using_mouse()
+    }
+
+    pub fn is_using_mouse(&self) -> bool {
+        self.memory().interaction.is_using_mouse()
     }
 
     /// If true, Egui is currently listening on text input (e.g. typing text in a `TextEdit`).

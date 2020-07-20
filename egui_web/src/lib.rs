@@ -69,6 +69,7 @@ impl Backend {
         self.painter.canvas_id()
     }
 
+    /// Returns a master fullscreen UI, covering the entire screen.
     pub fn begin_frame(&mut self, raw_input: egui::RawInput) -> egui::Ui {
         self.frame_start = Some(now_sec());
         self.ctx.begin_frame(raw_input)
@@ -436,7 +437,8 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
 
 fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
-    let document = web_sys::window().unwrap().document().unwrap();
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
 
     {
         // keydown
@@ -481,7 +483,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move || {
             runner_ref.0.lock().needs_repaint = true;
         }) as Box<dyn FnMut()>);
-        document.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        window.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
 
