@@ -91,6 +91,11 @@ impl<'open> Window<'open> {
         self.default_pos(rect.min).default_size(rect.size())
     }
 
+    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
+        self.area = self.area.fixed_pos(pos);
+        self
+    }
+
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
