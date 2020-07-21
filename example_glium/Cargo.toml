@@ -8,7 +8,6 @@ edition = "2018"
 [dependencies]
 egui = { path = "../egui", features = ["with_serde"] }
 egui_glium = { path = "../egui_glium" }
+glium = "0.27"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-glium = "0.24"

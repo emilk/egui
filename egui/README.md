@@ -95,6 +95,7 @@ Add extremely quick animations for some things, maybe 2-3 frames. For instance:
     * [ ] Draw as flame graph
     * [ ] Draw as hotmap
 * [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
+* [ ] Egui icon
 
 ### Names and structure
 * [ ] Rename things to be more consistent with Dear ImGui

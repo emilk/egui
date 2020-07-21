@@ -42,6 +42,7 @@ pub mod widgets;
 pub use {
     containers::*,
     context::Context,
+    examples::ExampleApp,
     id::Id,
     input::*,
     layers::*,

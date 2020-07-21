@@ -233,7 +233,7 @@ impl Painter {
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
 
-        let pixels_per_point = display.gl_window().get_hidpi_factor() as f32;
+        let pixels_per_point = display.gl_window().window().scale_factor() as f32;
         let (width_pixels, height_pixels) = display.get_framebuffer_dimensions();
         let width_points = width_pixels as f32 / pixels_per_point;
         let height_points = height_pixels as f32 / pixels_per_point;

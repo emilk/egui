@@ -127,6 +127,7 @@ impl Backend {
 
 // ----------------------------------------------------------------------------
 
+// TODO: Just use RawInput?
 /// Data gathered between frames.
 /// Is translated to `egui::RawInput` at the start of each frame.
 #[derive(Default)]

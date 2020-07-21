@@ -37,6 +37,22 @@ pub struct RawInput {
     pub events: Vec<Event>,
 }
 
+impl RawInput {
+    /// Helper: move volatile (deltas and events), clone the rest
+    pub fn take(&mut self) -> RawInput {
+        RawInput {
+            mouse_down: self.mouse_down,
+            mouse_pos: self.mouse_pos,
+            scroll_delta: std::mem::take(&mut self.scroll_delta),
+            screen_size: self.screen_size,
+            pixels_per_point: self.pixels_per_point,
+            time: self.time,
+            seconds_since_midnight: self.seconds_since_midnight,
+            events: std::mem::take(&mut self.events),
+        }
+    }
+}
+
 /// What egui maintains
 #[derive(Clone, Debug, Default)]
 pub struct InputState {
