@@ -2,7 +2,9 @@
 #![warn(clippy::all)]
 #![allow(clippy::single_match)]
 #![allow(deprecated)] // TODO: remove
+
 mod painter;
+pub mod persistence;
 
 pub use painter::Painter;
 
@@ -212,126 +214,11 @@ pub fn init_clipboard() -> Option<ClipboardContext> {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_json<T>(memory_json_path: impl AsRef<std::path::Path>) -> Option<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    match std::fs::File::open(memory_json_path) {
-        Ok(file) => {
-            let reader = std::io::BufReader::new(file);
-            match serde_json::from_reader(reader) {
-                Ok(value) => Some(value),
-                Err(err) => {
-                    eprintln!("ERROR: Failed to parse json: {}", err);
-                    None
-                }
-            }
-        }
-        Err(_err) => {
-            // File probably doesn't exist. That's fine.
-            None
-        }
-    }
-}
-
-pub fn read_memory(ctx: &Context, memory_json_path: impl AsRef<std::path::Path>) {
-    let memory: Option<Memory> = read_json(memory_json_path);
-    if let Some(memory) = memory {
-        *ctx.memory() = memory;
-    }
-}
-
-pub fn write_memory(
-    ctx: &Context,
-    memory_json_path: impl AsRef<std::path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    serde_json::to_writer_pretty(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
-    Ok(())
-}
-
-// ----------------------------------------------------------------------------
-
 /// Time of day as seconds since midnight. Used for clock in example app.
 pub fn local_time_of_day() -> f64 {
     use chrono::Timelike;
     let time = chrono::Local::now().time();
     time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-pub struct WindowSettings {
-    pos: Option<Pos2>,
-    size: Option<Vec2>,
-}
-
-impl WindowSettings {
-    pub fn from_json_file(
-        settings_json_path: impl AsRef<std::path::Path>,
-    ) -> Option<WindowSettings> {
-        read_json(settings_json_path)
-    }
-
-    pub fn from_display(display: &glium::Display) -> Self {
-        Self {
-            pos: display
-                .gl_window()
-                .window()
-                .outer_position()
-                .ok()
-                .map(|p| pos2(p.x as f32, p.y as f32)),
-
-            size: Some(vec2(
-                display.gl_window().window().inner_size().width as f32,
-                display.gl_window().window().inner_size().height as f32,
-            )),
-        }
-    }
-
-    pub fn initialize_size(
-        &self,
-        window: glutin::window::WindowBuilder,
-    ) -> glutin::window::WindowBuilder {
-        if let Some(size) = self.size {
-            window.with_inner_size(glutin::dpi::PhysicalSize {
-                width: size.x as f64,
-                height: size.y as f64,
-            })
-        } else {
-            window
-        }
-
-        // Not yet available in winit: https://github.com/rust-windowing/winit/issues/1190
-        // if let Some(pos) = self.pos {
-        //     *window = window.with_outer_pos(glutin::dpi::PhysicalPosition {
-        //         x: pos.x as f64,
-        //         y: pos.y as f64,
-        //     });
-        // }
-    }
-
-    pub fn restore_positions(&self, display: &glium::Display) {
-        // not needed, done by `initialize_size`
-        // let size = self.size.unwrap_or_else(|| vec2(1024.0, 800.0));
-        // display
-        //     .gl_window()
-        //     .window()
-        //     .set_inner_size(glutin::dpi::PhysicalSize {
-        //         width: size.x as f64,
-        //         height: size.y as f64,
-        //     });
-
-        if let Some(pos) = self.pos {
-            display
-                .gl_window()
-                .window()
-                .set_outer_position(glutin::dpi::PhysicalPosition::new(
-                    pos.x as f64,
-                    pos.y as f64,
-                ));
-        }
-    }
 }
 
 pub fn make_raw_input(display: &glium::Display) -> egui::RawInput {

@@ -36,8 +36,6 @@ pub struct Backend {
     painter: webgl::Painter,
     frame_times: egui::MovementTracker<f32>,
     frame_start: Option<f64>,
-    /// If true, paint at full framerate always.
-    /// If false, only paint on input.
     run_mode: RunMode,
     last_save_time: Option<f64>,
 }
