@@ -5,10 +5,18 @@
 
 mod painter;
 pub mod persistence;
+mod runner;
 
 pub use painter::Painter;
+pub use runner::*;
 
-use glutin::event_loop::ControlFlow;
+use {
+    clipboard::ClipboardProvider,
+    egui::*,
+    glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
+};
+
+pub use clipboard::ClipboardContext; // TODO: remove
 
 pub fn input_to_egui(
     event: glutin::event::WindowEvent,
@@ -195,12 +203,6 @@ pub fn handle_output(
         .window()
         .set_cursor_icon(translate_cursor(output.cursor_icon));
 }
-
-use {
-    clipboard::{ClipboardContext, ClipboardProvider},
-    egui::*,
-    glium::glutin::{self, event::VirtualKeyCode},
-};
 
 pub fn init_clipboard() -> Option<ClipboardContext> {
     match ClipboardContext::new() {

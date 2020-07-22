@@ -92,7 +92,9 @@ use glium::glutin;
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct WindowSettings {
+    /// outer position of window in physical pixels
     pos: Option<egui::Pos2>,
+    /// inner size of window in physical pixels
     size: Option<egui::Vec2>,
 }
 
