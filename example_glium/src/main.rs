@@ -1,13 +1,14 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 
-use egui_glium::{persistence::Persistence, Runner};
+use egui_glium::{persistence::Persistence, RunMode, Runner};
 
 const APP_KEY: &str = "app";
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 struct MyApp {
     egui_example_app: egui::ExampleApp,
+    frames_painted: u64,
 }
 
 impl egui_glium::App for MyApp {
@@ -25,12 +26,35 @@ impl egui_glium::App for MyApp {
 
         ui.add(
             label!(
-                "CPU usage: {:.2} ms (excludes painting)",
-                1e3 * runner.cpu_usage()
+                "CPU usage: {:.2} ms / frame (excludes painting)",
+                1e3 * runner.cpu_time()
             )
             .text_style(TextStyle::Monospace),
         );
-        ui.add(label!("FPS: {:.1}", runner.fps()).text_style(TextStyle::Monospace));
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            let mut run_mode = runner.run_mode();
+            ui.label("Run mode:");
+            ui.radio_value("Continuous", &mut run_mode, RunMode::Continuous)
+                .tooltip_text("Repaint everything each frame");
+            ui.radio_value("Reactive", &mut run_mode, RunMode::Reactive)
+                .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
+            runner.set_run_mode(run_mode);
+        });
+
+        if runner.run_mode() == RunMode::Continuous {
+            ui.add(
+                label!("Repainting the UI each frame. FPS: {:.1}", runner.fps())
+                    .text_style(TextStyle::Monospace),
+            );
+        } else {
+            ui.label("Only running UI code when there are animations or input");
+        }
+
+        self.frames_painted += 1;
+        ui.label(format!("Total frames painted: {}", self.frames_painted));
     }
 
     fn on_exit(&mut self, persistence: &mut Persistence) {
@@ -42,5 +66,5 @@ fn main() {
     let title = "Egui glium example";
     let persistence = Persistence::from_path(".egui_example_glium.json".into());
     let app: MyApp = persistence.get_value(APP_KEY).unwrap_or_default();
-    egui_glium::run(title, persistence, app);
+    egui_glium::run(title, RunMode::Reactive, persistence, app);
 }

@@ -39,11 +39,6 @@ impl MyApp {
         });
         ui.separator();
 
-        ui.label("WebGl painter info:");
-        ui.indent("webgl region id", |ui| {
-            ui.label(&backend.painter_debug_info());
-        });
-
         ui.add(
             label!(
                 "CPU usage: {:.2} ms / frame (excludes painting)",
