@@ -4,54 +4,31 @@
 use std::time::Instant;
 
 use {
-    egui::{examples::ExampleApp, pos2, vec2, Pos2, Vec2},
+    egui::examples::ExampleApp,
+    egui_glium::{make_raw_input, read_json, WindowSettings},
     glium::glutin,
-    glutin::dpi::PhysicalPosition,
 };
 
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-struct Window {
-    pos: Option<Pos2>,
-    size: Option<Vec2>,
-}
-
-fn read_json<T>(memory_json_path: impl AsRef<std::path::Path>) -> Option<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    match std::fs::File::open(memory_json_path) {
-        Ok(file) => {
-            let reader = std::io::BufReader::new(file);
-            match serde_json::from_reader(reader) {
-                Ok(value) => Some(value),
-                Err(err) => {
-                    eprintln!("ERROR: Failed to parse json: {}", err);
-                    None
-                }
-            }
-        }
-        Err(_err) => {
-            // File probably doesn't exist. That's fine.
-            None
-        }
-    }
-}
-
 fn main() {
-    // TODO: combine
+    // TODO: combine into one json file?
     let memory_path = "egui.json";
     let settings_json_path: &str = "window.json";
     let app_json_path: &str = "egui_example_app.json";
 
     let mut egui_example_app: ExampleApp = read_json(app_json_path).unwrap_or_default();
-    let mut window_settings: Window = read_json(settings_json_path).unwrap_or_default();
 
     let event_loop = glutin::event_loop::EventLoop::new();
-    let window = glutin::window::WindowBuilder::new()
+    let mut window = glutin::window::WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(true)
         .with_title("Egui glium example")
         .with_transparent(false);
+
+    let window_settings = WindowSettings::from_json_file(settings_json_path);
+    if let Some(window_settings) = &window_settings {
+        window = window_settings.initialize_size(window);
+    }
+
     let context = glutin::ContextBuilder::new()
         .with_depth_buffer(0)
         .with_srgb(true)
@@ -59,36 +36,13 @@ fn main() {
         .with_vsync(true);
     let display = glium::Display::new(window, context, &event_loop).unwrap();
 
-    let size = window_settings.size.unwrap_or_else(|| vec2(1024.0, 800.0));
-
-    display
-        .gl_window()
-        .window()
-        .set_inner_size(glutin::dpi::PhysicalSize {
-            width: size.x as f64,
-            height: size.y as f64,
-        });
-
-    if let Some(pos) = window_settings.pos {
-        display
-            .gl_window()
-            .window()
-            .set_outer_position(PhysicalPosition::new(pos.x as f64, pos.y as f64));
+    if let Some(window_settings) = &window_settings {
+        window_settings.restore_positions(&display);
     }
-
-    let pixels_per_point = display.gl_window().window().scale_factor() as f32;
 
     let mut ctx = egui::Context::new();
     let mut painter = egui_glium::Painter::new(&display);
-
-    let mut raw_input = egui::RawInput {
-        screen_size: {
-            let (width, height) = display.get_framebuffer_dimensions();
-            vec2(width as f32, height as f32) / pixels_per_point
-        },
-        pixels_per_point: Some(pixels_per_point),
-        ..Default::default()
-    };
+    let mut raw_input = make_raw_input(&display);
 
     // used to keep track of time for animations
     let start_time = Instant::now();
@@ -146,25 +100,10 @@ fn main() {
                 display.gl_window().window().request_redraw(); // TODO: only if needed (new events etc)
             }
             glutin::event::Event::WindowEvent { event, .. } => {
-                let mut running = true;
-                egui_glium::input_to_egui(event, clipboard.as_mut(), &mut raw_input, &mut running);
-                if !running {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
-                }
+                egui_glium::input_to_egui(event, clipboard.as_mut(), &mut raw_input, control_flow);
             }
             glutin::event::Event::LoopDestroyed => {
                 // Save state to disk:
-                window_settings.pos = display
-                    .gl_window()
-                    .window()
-                    .outer_position()
-                    .ok()
-                    .map(|p| pos2(p.x as f32, p.y as f32));
-                window_settings.size = Some(vec2(
-                    display.gl_window().window().inner_size().width as f32,
-                    display.gl_window().window().inner_size().height as f32,
-                ));
-
                 if let Err(err) = egui_glium::write_memory(&ctx, memory_path) {
                     eprintln!("ERROR: Failed to save egui state: {}", err);
                 }
@@ -177,7 +116,7 @@ fn main() {
 
                 serde_json::to_writer_pretty(
                     std::fs::File::create(settings_json_path).unwrap(),
-                    &window_settings,
+                    &WindowSettings::from_display(&display),
                 )
                 .unwrap();
             }
