@@ -1,7 +1,3 @@
-// TODO: rename tessellator
-
-#![allow(clippy::identity_op)]
-
 /// Outputs render info in a format suitable for e.g. OpenGL.
 use {
     super::{
@@ -15,7 +11,6 @@ use {
 const WHITE_UV: (u16, u16) = (1, 1);
 
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vertex {
     /// Pixel coordinates
     pub pos: Pos2,
@@ -26,7 +21,6 @@ pub struct Vertex {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Triangles {
     /// Draw as triangles (i.e. the length is a multiple of three)
     pub indices: Vec<u32>,
@@ -558,7 +552,7 @@ fn mul_color(color: Color, factor: f32) -> Color {
 // ----------------------------------------------------------------------------
 
 /// `reused_path`: only used to reuse memory
-pub fn paint_command_into_triangles(
+pub fn tessellate_paint_command(
     reused_path: &mut Path,
     options: PaintOptions,
     fonts: &Fonts,
@@ -675,7 +669,7 @@ pub fn paint_command_into_triangles(
 }
 
 /// Turns `PaintCmd`:s into sets of triangles
-pub fn paint_commands_into_triangles(
+pub fn tessellate_paint_commands(
     options: PaintOptions,
     fonts: &Fonts,
     commands: Vec<(Rect, PaintCmd)>,
@@ -691,12 +685,12 @@ pub fn paint_commands_into_triangles(
         }
 
         let out = &mut jobs.last_mut().unwrap().1;
-        paint_command_into_triangles(&mut reused_path, options, fonts, cmd, out);
+        tessellate_paint_command(&mut reused_path, options, fonts, cmd, out);
     }
 
     if options.debug_paint_clip_rects {
         for (clip_rect, triangles) in &mut jobs {
-            paint_command_into_triangles(
+            tessellate_paint_command(
                 &mut reused_path,
                 options,
                 fonts,

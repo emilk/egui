@@ -5,7 +5,7 @@ use crate::{math::Rect, Context, Ui};
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct Output {
     pub cursor_icon: CursorIcon,
 
@@ -22,8 +22,8 @@ pub struct Output {
 }
 
 #[derive(Clone, Copy)]
-#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
+// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
@@ -44,7 +44,7 @@ impl Default for CursorIcon {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct InteractInfo {
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,
@@ -147,7 +147,7 @@ impl Into<InteractInfo> for GuiResponse {
 
 /// What sort of interaction is a widget sensitive to?
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct Sense {
     /// buttons, sliders, windows ...
     pub click: bool,

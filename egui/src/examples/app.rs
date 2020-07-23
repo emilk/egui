@@ -1,4 +1,3 @@
-// #![allow(dead_code, unused_variables)] // should be commented out
 use std::sync::Arc;
 
 use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
@@ -37,10 +36,6 @@ impl ExampleApp {
     }
 
     pub fn windows(&mut self, ctx: &Arc<Context>) {
-        // TODO: Make it even simpler to show a window
-
-        // TODO: window manager for automatic positioning?
-
         let ExampleApp {
             open_windows,
             example_window,

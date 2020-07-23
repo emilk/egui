@@ -1,5 +1,3 @@
-#![allow(unused_variables)] // TODO
-
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]

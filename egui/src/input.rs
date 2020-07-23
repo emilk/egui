@@ -8,8 +8,6 @@ const MAX_CLICK_DELAY: f64 = 0.3;
 /// What the integration gives to the gui.
 /// All coordinates in egui is in point/logical coordinates.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
 pub struct RawInput {
     /// Is the button currently down?
     pub mouse_down: bool,
@@ -154,8 +152,6 @@ impl Default for MouseInput {
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
-#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum Event {
     Copy,
     Cut,
@@ -168,8 +164,6 @@ pub enum Event {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize))]
-#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
 pub enum Key {
     Alt,
     Backspace,
