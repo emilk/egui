@@ -112,7 +112,7 @@ impl Ui {
         self.id
     }
 
-    /// Options for this ui, and any child uis we may spawn.
+    /// Style options for this `Ui` and its children.
     pub fn style(&self) -> &Style {
         &self.style
     }
@@ -279,9 +279,10 @@ impl Ui {
     pub fn request_kb_focus(&self, id: Id) {
         self.memory().kb_focus_id = Some(id);
     }
+}
 
-    // ------------------------------------------------------------------------
-
+/// # `Id` creation
+impl Ui {
     /// Will warn if the returned id is not guaranteed unique.
     /// Use this to generate widget ids for widgets that have persistent state in Memory.
     /// If the `id_source` is not unique within this ui
@@ -328,10 +329,10 @@ impl Ui {
     pub fn make_child_id(&self, id_seed: impl Hash) -> Id {
         self.id.with(id_seed)
     }
+}
 
-    // ------------------------------------------------------------------------
-    // Interaction
-
+/// # Interaction
+impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> InteractInfo {
         self.ctx
             .interact(self.layer, self.clip_rect, rect, Some(id), sense)
@@ -374,7 +375,7 @@ impl Ui {
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///
-    /// # How sizes are negotiated
+    /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.
@@ -434,10 +435,10 @@ impl Ui {
         self.child_count += 1;
         child_rect
     }
+}
 
-    // ------------------------------------------------
-    // Painting related stuff
-
+/// # Painting related stuff
+impl Ui {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
@@ -524,39 +525,44 @@ impl Ui {
             color,
         });
     }
+}
 
-    // ------------------------------------------------------------------------
-    // Addding Widgets
-
+/// # Adding widgets
+impl Ui {
     pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
         let interact = widget.ui(self);
         self.response(interact)
     }
 
-    // Convenience functions:
-
+    /// Shortcut for `add(Label::new(text))`
     pub fn label(&mut self, label: impl Into<Label>) -> GuiResponse {
         self.add(label.into())
     }
 
+    /// Shortcut for `add(Hyperlink::new(url))`
     pub fn hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
         self.add(Hyperlink::new(url))
     }
 
+    /// Shortcut for `add(Button::new(text))`
     pub fn button(&mut self, text: impl Into<String>) -> GuiResponse {
         self.add(Button::new(text))
     }
 
     // Argument order matching that of Dear ImGui
+    /// Show a checkbox.
     pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> GuiResponse {
         self.add(Checkbox::new(checked, text))
     }
 
     // Argument order matching that of Dear ImGui
+    /// Show a radio button.
     pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> GuiResponse {
         self.add(RadioButton::new(checked, text))
     }
 
+    /// Show a radio button. It is selected if `*curr_value == radio_value`.
+    /// If clicked, `radio_value` is assigned to `*curr_value`;
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         text: impl Into<String>,
@@ -570,13 +576,14 @@ impl Ui {
         response
     }
 
+    /// Shortcut for `add(Separator::new())`
     pub fn separator(&mut self) -> GuiResponse {
         self.add(Separator::new())
     }
+}
 
-    // ------------------------------------------------------------------------
-    // Addding Containers / Sub-uis:
-
+/// # Addding Containers / Sub-uis:
+impl Ui {
     pub fn collapsing<R>(
         &mut self,
         text: impl Into<String>,
@@ -737,6 +744,4 @@ impl Ui {
         self.allocate_space(size);
         result
     }
-
-    // ------------------------------------------------
 }

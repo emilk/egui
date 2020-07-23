@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{color::*, containers::*, demos::FractalClock, widgets::*, *};
+use crate::{color::*, containers::*, demos::FractalClock, paint::*, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
@@ -298,15 +298,9 @@ impl Widgets {
             });
 
         ui.horizontal(|ui| {
-            if ui.add(radio(self.radio == 0, "First")).clicked {
-                self.radio = 0;
-            }
-            if ui.add(radio(self.radio == 1, "Second")).clicked {
-                self.radio = 1;
-            }
-            if ui.add(radio(self.radio == 2, "Final")).clicked {
-                self.radio = 2;
-            }
+            ui.radio_value("First", &mut self.radio, 0);
+            ui.radio_value("Second", &mut self.radio, 1);
+            ui.radio_value("Final", &mut self.radio, 2);
         });
 
         ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));

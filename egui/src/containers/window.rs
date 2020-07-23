@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{widgets::*, *};
+use crate::{paint::*, widgets::*, *};
 
 use super::*;
 

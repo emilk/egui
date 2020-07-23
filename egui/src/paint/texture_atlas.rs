@@ -1,7 +1,8 @@
+/// An 8-bit texture containing font data.
 #[derive(Clone, Default)]
 pub struct Texture {
     /// e.g. a hash of the data. Use this to detect changes!
-    pub id: u64, // TODO
+    pub id: u64,
     pub width: usize,
     pub height: usize,
     pub pixels: Vec<u8>,
@@ -25,7 +26,9 @@ impl std::ops::IndexMut<(usize, usize)> for Texture {
     }
 }
 
-/// A texture pixels, used for fonts.
+/// Contains font data in an atlas, where each character occupied a small rectangle.
+///
+/// More characters can be added, possibly expanding the texture.
 #[derive(Clone, Default)]
 pub struct TextureAtlas {
     texture: Texture,

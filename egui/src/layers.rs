@@ -37,7 +37,7 @@ impl Layer {
 /// Each `PaintCmd` is paired with a clip rectangle.
 type PaintList = Vec<(Rect, PaintCmd)>;
 
-/// TODO: improve this
+// TODO: improve this
 #[derive(Clone, Default)]
 pub struct GraphicLayers(AHashMap<Layer, PaintList>);
 

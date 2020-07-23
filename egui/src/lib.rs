@@ -50,7 +50,7 @@ pub use {
     math::*,
     memory::Memory,
     movement_tracker::MovementTracker,
-    paint::{color, Color, TextStyle, Texture},
+    paint::{color, Color, PaintJobs, TextStyle, Texture},
     style::Style,
     types::*,
     ui::Ui,

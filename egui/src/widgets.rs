@@ -1,11 +1,19 @@
+//! Example widget uses:
+//!
+//! * `ui.add(Label::new("Text").text_color(color::red));`
+//!
+//! * `if ui.add(Button::new("Click me")).clicked { ... }`
+
 #![allow(clippy::new_without_default)]
 
 use crate::{layout::Direction, *};
 
 mod slider;
-pub mod text_edit;
+pub(crate) mod text_edit;
 
-pub use {paint::*, slider::*, text_edit::*};
+pub use {slider::*, text_edit::*};
+
+use paint::*;
 
 // ----------------------------------------------------------------------------
 
@@ -98,7 +106,9 @@ impl Label {
     }
 }
 
-/// Usage:  label!("Foo: {}", bar)
+/// Shortcut for creating a `Label` widget.
+///
+/// Usage: `label!("Foo: {}", bar)` equivalent to `Label::new(format!("Foo: {}", bar))`.
 #[macro_export]
 macro_rules! label {
     ($fmt:expr) => ($crate::widgets::Label::new($fmt));
@@ -380,10 +390,6 @@ impl RadioButton {
         self.text_color = Some(text_color);
         self
     }
-}
-
-pub fn radio(checked: bool, text: impl Into<String>) -> RadioButton {
-    RadioButton::new(checked, text)
 }
 
 impl Widget for RadioButton {

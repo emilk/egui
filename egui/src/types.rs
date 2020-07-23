@@ -4,9 +4,12 @@ use crate::{math::Rect, Context, Ui};
 
 // ----------------------------------------------------------------------------
 
+/// What Egui emits each frame.
+/// The backend should use this.
 #[derive(Clone, Default)]
 // #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct Output {
+    /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
@@ -43,6 +46,9 @@ impl Default for CursorIcon {
 
 // ----------------------------------------------------------------------------
 
+/// The result of an interaction.
+///
+/// For instance, this lets you know whether or not a widget has been clicked this frame.
 #[derive(Clone, Copy, Debug)]
 // #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
 pub struct InteractInfo {
@@ -90,7 +96,10 @@ impl InteractInfo {
 
 // ----------------------------------------------------------------------------
 
-// TODO: rename GuiResponse
+/// The result of adding a widget to an `Ui`.
+///
+/// This lets you know whether or not a widget has been clicked this frame.
+/// It also lets you easily show a tooltip on hover.
 pub struct GuiResponse {
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,

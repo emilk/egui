@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{containers::*, widgets::*, *};
+use crate::{containers::*, paint::PaintCmd, widgets::*, *};
 
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]

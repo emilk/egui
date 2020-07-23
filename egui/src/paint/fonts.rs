@@ -11,7 +11,7 @@ use super::{
     texture_atlas::{Texture, TextureAtlas},
 };
 
-/// TODO: rename
+// TODO: rename
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 // #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextStyle {

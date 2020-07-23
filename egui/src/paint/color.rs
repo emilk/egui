@@ -1,5 +1,5 @@
-/// 0-255 `sRGBA`. TODO: rename `sRGBA` for clarity.
-/// Uses premultiplied alpha.
+// TODO: rename `Color` to `sRGBA` for clarity.
+/// 0-255 `sRGBA`. Uses premultiplied alpha.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Color {

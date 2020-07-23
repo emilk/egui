@@ -39,7 +39,7 @@ impl Default for Align {
 
 /// Used e.g. to anchor a piece of text to a part of the rectangle.
 /// Give a position within the rect, specified by the aligns
-pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
+pub(crate) fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
     let x = match align.0 {
         Align::Min => rect.left(),
         Align::Center => rect.left() - 0.5 * rect.width(),
@@ -55,6 +55,7 @@ pub fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
 
 // ----------------------------------------------------------------------------
 
+/// The layout of a `Ui`, e.g. horizontal left-aligned.
 #[derive(Clone, Copy, Debug, PartialEq)]
 // #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
@@ -146,7 +147,7 @@ impl Layout {
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///
-    /// # How sizes are negotiated
+    /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.

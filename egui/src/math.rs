@@ -1,5 +1,8 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
+/// A size or direction in 2D space.
+///
+/// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
@@ -220,7 +223,10 @@ impl std::fmt::Debug for Vec2 {
 
 // ----------------------------------------------------------------------------
 
-/// Sometimes called a Point. I prefer the shorter Pos2 so it is equal length to Vec2
+// Sometimes called a Point. I prefer the shorter Pos2 so it is equal length to Vec2
+/// A position on screen.
+///
+/// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
@@ -353,6 +359,9 @@ impl std::fmt::Debug for Pos2 {
 
 // ----------------------------------------------------------------------------
 
+/// A rectangular region of space.
+///
+/// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Rect {
@@ -594,6 +603,11 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
     3.0 * t * t - 2.0 * t * t * t
 }
 
+/// The circumference of a circle divided by its radius.
+///
+/// Represents one turn in radian angles. Equal to `2 * pi`.
+///
+/// See https://tauday.com/
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
 pub fn round_to_precision(value: f32, precision: usize) -> f32 {

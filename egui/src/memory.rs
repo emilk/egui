@@ -6,6 +6,12 @@ use crate::{
     Id, Layer, Pos2, Rect,
 };
 
+/// The data that Egui persists between frames.
+///
+/// This includes window positions and sizes,
+/// how far the user has scrolled in a `ScrollArea` etc.
+///
+/// If you want this to persist when closing your app you should serialize `Memory` and store it.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]
@@ -30,7 +36,7 @@ pub struct Memory {
     pub(crate) areas: Areas,
 }
 
-/// Say there is a butotn in a scroll area.
+/// Say there is a button in a scroll area.
 /// If the user clicks the button, the button should click.
 /// If the user drags the button we should scroll the scroll area.
 /// So what we do is that when the mouse is pressed we register both the button
