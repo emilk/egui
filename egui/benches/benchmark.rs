@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let mut example_app = egui::examples::ExampleApp::default();
+    let mut demo_app = egui::demos::DemoApp::default();
     let mut ctx = egui::Context::new();
 
     let raw_input = egui::RawInput {
@@ -9,10 +9,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         ..Default::default()
     };
 
-    c.bench_function("example_app", |b| {
+    c.bench_function("demo_app", |b| {
         b.iter(|| {
             let mut ui = ctx.begin_frame(raw_input.clone());
-            example_app.ui(&mut ui, "");
+            demo_app.ui(&mut ui, "");
             ctx.end_frame()
         })
     });

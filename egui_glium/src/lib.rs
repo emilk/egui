@@ -216,7 +216,7 @@ pub fn init_clipboard() -> Option<ClipboardContext> {
 
 // ----------------------------------------------------------------------------
 
-/// Time of day as seconds since midnight. Used for clock in example app.
+/// Time of day as seconds since midnight. Used for clock in demo app.
 pub fn local_time_of_day() -> f64 {
     use chrono::Timelike;
     let time = chrono::Local::now().time();

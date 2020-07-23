@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
-use crate::{color::*, containers::*, examples::FractalClock, widgets::*, *};
+use crate::{color::*, containers::*, demos::FractalClock, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]
-pub struct ExampleApp {
+pub struct DemoApp {
     previous_web_location_hash: String,
-
     open_windows: OpenWindows,
-    // TODO: group the following together as ExampleWindows
-    example_window: ExampleWindow,
+    demo_window: DemoWindow,
     fractal_clock: FractalClock,
 }
 
-impl ExampleApp {
+impl DemoApp {
     /// `web_location_hash`: for web demo only. e.g. "#fragmet".
     pub fn ui(&mut self, ui: &mut Ui, web_location_hash: &str) {
         if self.previous_web_location_hash != web_location_hash {
@@ -36,17 +34,17 @@ impl ExampleApp {
     }
 
     pub fn windows(&mut self, ctx: &Arc<Context>) {
-        let ExampleApp {
+        let DemoApp {
             open_windows,
-            example_window,
+            demo_window,
             fractal_clock,
             ..
         } = self;
 
-        Window::new("Examples")
-            .open(&mut open_windows.examples)
+        Window::new("Demo")
+            .open(&mut open_windows.demo)
             .show(ctx, |ui| {
-                example_window.ui(ui);
+                demo_window.ui(ui);
             });
 
         Window::new("Settings")
@@ -76,8 +74,7 @@ impl ExampleApp {
 
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 struct OpenWindows {
-    // examples:
-    examples: bool,
+    demo: bool,
     fractal_clock: bool,
 
     // egui stuff:
@@ -89,7 +86,7 @@ struct OpenWindows {
 impl Default for OpenWindows {
     fn default() -> Self {
         Self {
-            examples: true,
+            demo: true,
             ..OpenWindows::none()
         }
     }
@@ -98,7 +95,7 @@ impl Default for OpenWindows {
 impl OpenWindows {
     fn none() -> Self {
         Self {
-            examples: false,
+            demo: false,
             fractal_clock: false,
 
             settings: false,
@@ -116,7 +113,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             }
         });
         menu::menu(ui, "Windows", |ui| {
-            ui.add(Checkbox::new(&mut windows.examples, "Examples"));
+            ui.add(Checkbox::new(&mut windows.demo, "Demo"));
             ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
             ui.add(Separator::new());
             ui.add(Checkbox::new(&mut windows.settings, "Settings"));
@@ -152,31 +149,31 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
 
 /// Showcase some ui code
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ExampleWindow {
+pub struct DemoWindow {
     num_columns: usize,
 
     widgets: Widgets,
-    layout: LayoutExample,
+    layout: LayoutDemo,
     tree: Tree,
     box_painting: BoxPainting,
     painting: Painting,
 }
 
-impl Default for ExampleWindow {
-    fn default() -> ExampleWindow {
-        ExampleWindow {
+impl Default for DemoWindow {
+    fn default() -> DemoWindow {
+        DemoWindow {
             num_columns: 2,
 
             widgets: Default::default(),
             layout: Default::default(),
-            tree: Tree::example(),
+            tree: Tree::demo(),
             box_painting: Default::default(),
             painting: Default::default(),
         }
     }
 }
 
-impl ExampleWindow {
+impl DemoWindow {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.collapsing("About Egui", |ui| {
             ui.add(label!(
@@ -238,7 +235,7 @@ impl ExampleWindow {
                 });
             });
 
-        ui.collapsing("Name clash example", |ui| {
+        ui.collapsing("Name clash demo", |ui| {
             ui.label("\
                 Widgets that store state require unique identifiers so we can track their state between frames. \
                 Identifiers are normally derived from the titles of the widget.");
@@ -466,13 +463,13 @@ use crate::layout::*;
 
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(default))]
-struct LayoutExample {
+struct LayoutDemo {
     dir: Direction,
     align: Option<Align>, // None == jusitifed
     reversed: bool,
 }
 
-impl Default for LayoutExample {
+impl Default for LayoutDemo {
     fn default() -> Self {
         Self {
             dir: Direction::Vertical,
@@ -482,7 +479,7 @@ impl Default for LayoutExample {
     }
 }
 
-impl LayoutExample {
+impl LayoutDemo {
     pub fn ui(&mut self, ui: &mut Ui) {
         Resize::default()
             .default_size([200.0, 100.0])
@@ -555,7 +552,7 @@ enum Action {
 struct Tree(Vec<Tree>);
 
 impl Tree {
-    pub fn example() -> Self {
+    pub fn demo() -> Self {
         Self(vec![
             Tree(vec![Tree::default(); 4]),
             Tree(vec![Tree(vec![Tree::default(); 2]); 3]),

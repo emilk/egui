@@ -1,18 +1,11 @@
 [package]
-name = "example_wasm"
+name = "demo_glium"
 version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
-js-sys = "0.3"
+egui = { git = "https://github.com/emilk/emigui", features = ["with_serde"] }
+egui_glium = { git = "https://github.com/emilk/emigui" }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-wasm-bindgen = "0.2"
-
-egui = { path = "../egui" }
-egui_web = { path = "../egui_web" }

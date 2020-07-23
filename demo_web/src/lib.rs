@@ -21,7 +21,7 @@ pub fn start(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
 
 #[derive(Default)]
 pub struct MyApp {
-    example_app: egui::examples::ExampleApp,
+    demo_app: egui::demos::DemoApp,
     frames_painted: u64,
 }
 
@@ -81,6 +81,6 @@ impl egui_web::App for MyApp {
                 self.window_ui(ui, backend);
             });
 
-        self.example_app.ui(ui, &info.web_location_hash);
+        self.demo_app.ui(ui, &info.web_location_hash);
     }
 }

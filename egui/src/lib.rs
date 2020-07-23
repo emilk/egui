@@ -24,7 +24,7 @@
 
 pub mod containers;
 mod context;
-pub mod examples;
+pub mod demos;
 mod id;
 mod input;
 mod introspection;
@@ -42,7 +42,7 @@ pub mod widgets;
 pub use {
     containers::*,
     context::Context,
-    examples::ExampleApp,
+    demos::DemoApp,
     id::Id,
     input::*,
     layers::*,

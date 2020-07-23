@@ -2,6 +2,6 @@ mod app;
 mod fractal_clock;
 
 pub use {
-    app::{ExampleApp, ExampleWindow},
+    app::{DemoApp, DemoWindow},
     fractal_clock::FractalClock,
 };

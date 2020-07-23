@@ -1,70 +1,34 @@
-#![deny(warnings)]
-#![warn(clippy::all)]
-
 use egui_glium::{persistence::Persistence, RunMode, Runner};
 
 const APP_KEY: &str = "app";
 
+/// We dervive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 struct MyApp {
-    egui_example_app: egui::ExampleApp,
-    frames_painted: u64,
+    counter: u64,
 }
 
 impl egui_glium::App for MyApp {
-    fn ui(&mut self, ui: &mut egui::Ui, runner: &mut Runner) {
-        self.egui_example_app.ui(ui, "");
-
-        use egui::*;
-        let mut ui = ui.centered_column(ui.available().width().min(480.0));
-        ui.set_layout(Layout::vertical(Align::Min));
-        ui.add(label!("Egui inside of Glium").text_style(TextStyle::Heading));
-        if ui.add(Button::new("Quit")).clicked {
-            runner.quit();
-            return;
+    /// This function will be called whenever the Ui needs to be shown,
+    /// which may be many times per second.
+    fn ui(&mut self, ui: &mut egui::Ui, _: &mut Runner) {
+        if ui.button("Increment").clicked {
+            self.counter += 1;
         }
-
-        ui.add(
-            label!(
-                "CPU usage: {:.2} ms / frame (excludes painting)",
-                1e3 * runner.cpu_time()
-            )
-            .text_style(TextStyle::Monospace),
-        );
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            let mut run_mode = runner.run_mode();
-            ui.label("Run mode:");
-            ui.radio_value("Continuous", &mut run_mode, RunMode::Continuous)
-                .tooltip_text("Repaint everything each frame");
-            ui.radio_value("Reactive", &mut run_mode, RunMode::Reactive)
-                .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
-            runner.set_run_mode(run_mode);
-        });
-
-        if runner.run_mode() == RunMode::Continuous {
-            ui.add(
-                label!("Repainting the UI each frame. FPS: {:.1}", runner.fps())
-                    .text_style(TextStyle::Monospace),
-            );
-        } else {
-            ui.label("Only running UI code when there are animations or input");
+        if ui.button("Reset").clicked {
+            self.counter = 0;
         }
-
-        self.frames_painted += 1;
-        ui.label(format!("Total frames painted: {}", self.frames_painted));
+        ui.label(format!("Counter: {}", self.counter));
     }
 
     fn on_exit(&mut self, persistence: &mut Persistence) {
-        persistence.set_value(APP_KEY, self);
+        persistence.set_value(APP_KEY, self); // Save app state
     }
 }
 
 fn main() {
-    let title = "Egui glium example";
-    let persistence = Persistence::from_path(".egui_example_glium.json".into());
-    let app: MyApp = persistence.get_value(APP_KEY).unwrap_or_default();
+    let title = "My Egui Window";
+    let persistence = Persistence::from_path(".egui_example_glium.json".into()); // Where to persist app state
+    let app: MyApp = persistence.get_value(APP_KEY).unwrap_or_default(); // Restore `MyApp` from file, or create new `MyApp`.
     egui_glium::run(title, RunMode::Reactive, persistence, app);
 }

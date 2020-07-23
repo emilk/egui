@@ -28,7 +28,7 @@ pub struct RawInput {
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
 
-    /// Local time. Only used for the clock in the example app.
+    /// Local time. Only used for the clock in the demo app.
     pub seconds_since_midnight: Option<f64>,
 
     /// In-order events received this frame
@@ -78,7 +78,7 @@ pub struct InputState {
     /// Can be used to fast-forward to next frame for instance feedback. hacky.
     pub predicted_dt: f32,
 
-    /// Local time. Only used for the clock in the example app.
+    /// Local time. Only used for the clock in the demo app.
     pub seconds_since_midnight: Option<f64>,
 
     /// In-order events received this frame
