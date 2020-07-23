@@ -3,12 +3,12 @@
 #![allow(clippy::single_match)]
 #![allow(deprecated)] // TODO: remove
 
+mod backend;
 mod painter;
-pub mod persistence;
-mod runner;
+pub mod storage;
 
+pub use backend::*;
 pub use painter::Painter;
-pub use runner::*;
 
 use {
     clipboard::ClipboardProvider,

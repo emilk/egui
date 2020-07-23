@@ -4,13 +4,13 @@ use std::collections::HashMap;
 
 /// A key-value store backed by a JSON file on disk.
 /// Used to restore egui state, glium window position/size and app state.
-pub struct Persistence {
+pub struct FileStorage {
     path: String,
     kv: HashMap<String, String>,
     dirty: bool,
 }
 
-impl Persistence {
+impl FileStorage {
     pub fn from_path(path: String) -> Self {
         Self {
             kv: read_json(&path).unwrap_or_default(),
@@ -19,27 +19,23 @@ impl Persistence {
         }
     }
 
-    pub fn get_value<T: serde::de::DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.kv
-            .get(key)
-            .and_then(|value| serde_json::from_str(value).ok())
-    }
-
-    pub fn set_string(&mut self, key: &str, value: String) {
-        if self.kv.get(key) != Some(&value) {
-            self.kv.insert(key.to_owned(), value);
-            self.dirty = true;
-        }
-    }
-
-    pub fn set_value<T: serde::Serialize>(&mut self, key: &str, value: &T) {
-        self.set_string(key, serde_json::to_string(value).unwrap());
-    }
-
     pub fn save(&mut self) {
         if self.dirty {
             serde_json::to_writer(std::fs::File::create(&self.path).unwrap(), &self.kv).unwrap();
             self.dirty = false;
+        }
+    }
+}
+
+impl egui::app::Storage for FileStorage {
+    fn get_string(&self, key: &str) -> Option<&str> {
+        self.kv.get(key).map(String::as_str)
+    }
+
+    fn set_string(&mut self, key: &str, value: String) {
+        if self.kv.get(key) != Some(&value) {
+            self.kv.insert(key.to_owned(), value);
+            self.dirty = true;
         }
     }
 }
@@ -69,7 +65,7 @@ where
 }
 // ----------------------------------------------------------------------------
 
-/// Alternative to `Persistence`
+/// Alternative to `FileStorage`
 pub fn read_memory(ctx: &egui::Context, memory_json_path: impl AsRef<std::path::Path>) {
     let memory: Option<egui::Memory> = read_json(memory_json_path);
     if let Some(memory) = memory {
@@ -77,7 +73,7 @@ pub fn read_memory(ctx: &egui::Context, memory_json_path: impl AsRef<std::path::
     }
 }
 
-/// Alternative to `Persistence`
+/// Alternative to `FileStorage`
 pub fn write_memory(
     ctx: &egui::Context,
     memory_json_path: impl AsRef<std::path::Path>,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{color::*, containers::*, demos::FractalClock, paint::*, widgets::*, *};
+use crate::{app, color::*, containers::*, demos::FractalClock, paint::*, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
@@ -12,6 +12,7 @@ pub struct DemoApp {
     open_windows: OpenWindows,
     demo_window: DemoWindow,
     fractal_clock: FractalClock,
+    num_frames_painted: u64,
 }
 
 impl DemoApp {
@@ -67,6 +68,84 @@ impl DemoApp {
             });
 
         fractal_clock.window(ctx, &mut open_windows.fractal_clock);
+    }
+
+    fn backend_ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
+        let is_web = backend.web_info().is_some();
+
+        if is_web {
+            ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+            ui.label(
+                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
+            );
+            ui.label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
+            ui.label("This is also work in progress, and not ready for production... yet :)");
+            ui.horizontal(|ui| {
+                ui.label("Project home page:");
+                ui.hyperlink("https://github.com/emilk/emigui/");
+            });
+        } else {
+            ui.add(label!("Egui").text_style(TextStyle::Heading));
+            if ui.add(Button::new("Quit")).clicked {
+                backend.quit();
+                return;
+            }
+        }
+
+        ui.separator();
+
+        ui.add(
+            label!(
+                "CPU usage: {:.2} ms / frame (excludes painting)",
+                1e3 * backend.cpu_time()
+            )
+            .text_style(TextStyle::Monospace),
+        );
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            let mut run_mode = backend.run_mode();
+            ui.label("Run mode:");
+            ui.radio_value("Continuous", &mut run_mode, app::RunMode::Continuous)
+                .tooltip_text("Repaint everything each frame");
+            ui.radio_value("Reactive", &mut run_mode, app::RunMode::Reactive)
+                .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
+            backend.set_run_mode(run_mode);
+        });
+
+        if backend.run_mode() == app::RunMode::Continuous {
+            ui.add(
+                label!("Repainting the UI each frame. FPS: {:.1}", backend.fps())
+                    .text_style(TextStyle::Monospace),
+            );
+        } else {
+            ui.label("Only running UI code when there are animations or input");
+        }
+
+        self.num_frames_painted += 1;
+        ui.label(format!("Total frames painted: {}", self.num_frames_painted));
+    }
+}
+
+impl app::App for DemoApp {
+    fn ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
+        Window::new("Backend")
+            .default_width(500.0)
+            .show(ui.ctx(), |ui| {
+                self.backend_ui(ui, backend);
+            });
+
+        let web_info = backend.web_info();
+        let web_location_hash = web_info
+            .as_ref()
+            .map(|info| info.web_location_hash.as_str())
+            .unwrap_or_default();
+        self.ui(ui, web_location_hash);
+    }
+
+    fn on_exit(&mut self, storage: &mut dyn app::Storage) {
+        app::set_value(storage, app::APP_KEY, self);
     }
 }
 

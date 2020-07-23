@@ -22,6 +22,7 @@
     rust_2018_idioms,
 )]
 
+pub mod app;
 pub mod containers;
 mod context;
 pub mod demos;
