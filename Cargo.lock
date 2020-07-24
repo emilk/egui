@@ -427,7 +427,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "egui"
 version = "0.1.2"
-source = "git+https://github.com/emilk/emigui#e3d1d6c99ce37090d496b4f210aaef700235dd9b"
+source = "git+https://github.com/emilk/emigui#554e6e7120fa0d3d052b9802146c5dcf003f46ae"
 dependencies = [
  "ahash 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -451,7 +451,7 @@ dependencies = [
 [[package]]
 name = "egui_glium"
 version = "0.1.0"
-source = "git+https://github.com/emilk/emigui#e3d1d6c99ce37090d496b4f210aaef700235dd9b"
+source = "git+https://github.com/emilk/emigui#554e6e7120fa0d3d052b9802146c5dcf003f46ae"
 dependencies = [
  "chrono 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -478,7 +478,7 @@ dependencies = [
 [[package]]
 name = "egui_web"
 version = "0.1.0"
-source = "git+https://github.com/emilk/emigui#e3d1d6c99ce37090d496b4f210aaef700235dd9b"
+source = "git+https://github.com/emilk/emigui#554e6e7120fa0d3d052b9802146c5dcf003f46ae"
 dependencies = [
  "egui 0.1.2 (git+https://github.com/emilk/emigui)",
  "js-sys 0.3.42 (registry+https://github.com/rust-lang/crates.io-index)",
