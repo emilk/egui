@@ -171,16 +171,24 @@ impl<'open> Window<'open> {
             let title_bar_height =
                 title_label.font_height(ctx.fonts()) + 1.0 * ctx.style().item_spacing.y; // this could be better
             let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
-            interact(
+
+            window_interaction(
                 ctx,
-                margins,
                 possible,
                 area_layer,
-                area.state_mut(),
-                window_id,
-                resize_id,
+                window_id.with("frame_resize"),
                 last_frame_outer_rect,
             )
+            .and_then(|window_interaction| {
+                interact(
+                    window_interaction,
+                    ctx,
+                    margins,
+                    area_layer,
+                    area.state_mut(),
+                    resize_id,
+                )
+            })
         } else {
             None
         };
@@ -301,22 +309,13 @@ impl WindowInteraction {
 }
 
 fn interact(
+    window_interaction: WindowInteraction,
     ctx: &Context,
     margins: Vec2,
-    possible: PossibleInteractions,
     area_layer: Layer,
     area_state: &mut area::State,
-    window_id: Id,
     resize_id: Id,
-    rect: Rect,
 ) -> Option<WindowInteraction> {
-    let window_interaction = window_interaction(
-        ctx,
-        possible,
-        area_layer,
-        window_id.with("frame_resize"),
-        rect,
-    )?;
     let new_rect = resize_window(ctx, &window_interaction)?;
 
     let new_rect = ctx.round_rect_to_pixels(new_rect);

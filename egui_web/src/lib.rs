@@ -37,7 +37,7 @@ pub fn now_sec() -> f64 {
 pub fn seconds_since_midnight() -> f64 {
     let d = js_sys::Date::new_0();
     let seconds = (d.get_hours() * 60 + d.get_minutes()) * 60 + d.get_seconds();
-    return seconds as f64 + 1e-3 * (d.get_milliseconds() as f64);
+    seconds as f64 + 1e-3 * (d.get_milliseconds() as f64)
 }
 
 pub fn pixels_per_point() -> f32 {
@@ -187,7 +187,7 @@ pub fn location_hash() -> Option<String> {
 /// Web sends all all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 fn should_ignore_key(key: &str) -> bool {
-    let is_function_key = key.starts_with("F") && key.len() > 1;
+    let is_function_key = key.starts_with('F') && key.len() > 1;
     is_function_key
         || matches!(
             key,

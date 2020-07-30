@@ -1,4 +1,5 @@
-/// Outputs render info in a format suitable for e.g. OpenGL.
+#![allow(clippy::identity_op)]
+
 use {
     super::{
         color::{self, srgba, Color},

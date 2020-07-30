@@ -359,7 +359,7 @@ impl Default for Widgets {
             button_enabled: true,
             radio: 0,
             count: 0,
-            slider_value: 3.14,
+            slider_value: 3.4,
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a linebreak, but you can also add manual linebreak by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }

@@ -607,7 +607,7 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 ///
 /// Represents one turn in radian angles. Equal to `2 * pi`.
 ///
-/// See https://tauday.com/
+/// See <https://tauday.com/>
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
 pub fn round_to_precision(value: f32, precision: usize) -> f32 {
