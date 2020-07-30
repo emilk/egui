@@ -469,7 +469,7 @@ impl BoxPainting {
                 outline: Some(LineStyle::new(self.stroke_width, gray(255, 255))),
             });
         }
-        ui.add_paint_cmds(cmds);
+        ui.painter().extend(cmds);
     }
 }
 
@@ -498,7 +498,8 @@ impl Painting {
         let rect = ui.allocate_space(ui.available_finite().size());
         let interact = ui.interact(rect, ui.id(), Sense::drag());
         let rect = interact.rect;
-        ui.set_clip_rect(ui.clip_rect().intersect(rect)); // Make sure we don't paint out of bounds
+        let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
+        let painter = Painter::new(ui.ctx().clone(), ui.layer(), clip_rect);
 
         if self.lines.is_empty() {
             self.lines.push(vec![]);
@@ -520,7 +521,7 @@ impl Painting {
         for line in &self.lines {
             if line.len() >= 2 {
                 let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                ui.add_paint_cmd(PaintCmd::Path {
+                painter.add(PaintCmd::Path {
                     path: Path::from_open_points(&points),
                     closed: false,
                     outline: Some(LineStyle::new(2.0, LIGHT_GRAY)),

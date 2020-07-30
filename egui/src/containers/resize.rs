@@ -226,7 +226,7 @@ impl Resize {
             // so we must follow the contents:
 
             state.desired_size = state.desired_size.max(state.last_content_size);
-            state.desired_size = ui.round_vec_to_pixels(state.desired_size);
+            state.desired_size = ui.painter().round_vec_to_pixels(state.desired_size);
 
             // We are as large as we look
             ui.allocate_space(state.desired_size);
@@ -240,7 +240,7 @@ impl Resize {
         if self.outline && corner_interact.is_some() {
             let rect = Rect::from_min_size(content_ui.top_left(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.add_paint_cmd(paint::PaintCmd::Rect {
+            ui.painter().add(paint::PaintCmd::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: None,
@@ -259,12 +259,12 @@ impl Resize {
         ui.memory().resize.insert(id, state);
 
         if ui.ctx().style().debug_resize {
-            ui.ctx().debug_rect(
+            ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.top_left(), state.desired_size),
                 color::GREEN,
                 "desired_size",
             );
-            ui.ctx().debug_rect(
+            ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.top_left(), state.last_content_size),
                 color::LIGHT_BLUE,
                 "last_content_size",
@@ -277,11 +277,13 @@ fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
     let color = ui.style().interact(interact).stroke_color;
     let width = ui.style().interact(interact).stroke_width;
 
-    let corner = ui.round_pos_to_pixels(interact.rect.right_bottom());
+    let painter = ui.painter();
+
+    let corner = painter.round_pos_to_pixels(interact.rect.right_bottom());
     let mut w = 2.0;
 
     while w < 12.0 {
-        ui.add_paint_cmd(paint::PaintCmd::line_segment(
+        painter.add(paint::PaintCmd::line_segment(
             [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
             color,
             width,

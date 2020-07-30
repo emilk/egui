@@ -511,7 +511,7 @@ fn paint_frame_interaction(
         path.add_circle_quadrant(pos2(max.x - cr, min.y + cr), cr, 3.0);
         path.add_line_segment([pos2(max.x, min.y + cr), pos2(max.x, max.y - cr)]);
     }
-    ui.add_paint_cmd(PaintCmd::Path {
+    ui.painter().add(PaintCmd::Path {
         path,
         closed: false,
         fill: None,
@@ -614,7 +614,7 @@ impl TitleBar {
             let left = outer_rect.left();
             let right = outer_rect.right();
             let y = content_rect.top() + ui.style().item_spacing.y * 0.5;
-            ui.add_paint_cmd(PaintCmd::LineSegment {
+            ui.painter().add(PaintCmd::LineSegment {
                 points: [pos2(left, y), pos2(right, y)],
                 style: ui.style().interact.inactive.rect_outline.unwrap(),
             });
@@ -650,12 +650,12 @@ fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
 
     let stroke_color = ui.style().interact(&interact).stroke_color;
     let stroke_width = ui.style().interact(&interact).stroke_width;
-    ui.add_paint_cmd(PaintCmd::line_segment(
+    ui.painter().add(PaintCmd::line_segment(
         [rect.left_top(), rect.right_bottom()],
         stroke_color,
         stroke_width,
     ));
-    ui.add_paint_cmd(PaintCmd::line_segment(
+    ui.painter().add(PaintCmd::line_segment(
         [rect.right_top(), rect.left_bottom()],
         stroke_color,
         stroke_width,

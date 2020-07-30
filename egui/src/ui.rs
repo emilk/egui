@@ -5,9 +5,6 @@ use crate::{color::*, containers::*, layout::*, paint::*, widgets::*, *};
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
 pub struct Ui {
-    /// How we access input, output and memory
-    ctx: Arc<Context>,
-
     /// ID of this ui.
     /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
@@ -15,12 +12,7 @@ pub struct Ui {
     /// Hopefully unique.
     id: Id,
 
-    /// Where to put the graphics output of this Ui
-    layer: Layer,
-
-    /// Everything painted in this ui will be clipped against this.
-    /// This means nothing outside of this rectangle will be visible on screen.
-    clip_rect: Rect,
+    painter: Painter,
 
     /// The `rect` represents where in screen-space the ui is
     /// and its max size (original available_space).
@@ -62,11 +54,10 @@ impl Ui {
 
     pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
         let style = ctx.style();
+        let clip_rect = rect.expand(style.clip_rect_margin);
         Ui {
-            ctx,
             id,
-            layer,
-            clip_rect: rect.expand(style.clip_rect_margin),
+            painter: Painter::new(ctx, layer, clip_rect),
             desired_rect: rect,
             child_bounds: Rect::from_min_size(rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style,
@@ -77,14 +68,11 @@ impl Ui {
     }
 
     pub fn child_ui(&mut self, child_rect: Rect) -> Self {
-        let clip_rect = self.clip_rect(); // Keep it unless the child excplicitly desires differently
         let id = self.make_position_id(); // TODO: is this a good idea?
         self.child_count += 1;
         Ui {
-            ctx: self.ctx.clone(),
             id,
-            layer: self.layer,
-            clip_rect,
+            painter: self.painter.clone(),
             desired_rect: child_rect,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style: self.style.clone(),
@@ -95,18 +83,6 @@ impl Ui {
     }
 
     // -------------------------------------------------
-
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        self.ctx.round_to_pixel(point)
-    }
-
-    pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        self.ctx.round_vec_to_pixels(vec)
-    }
-
-    pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        self.ctx.round_pos_to_pixels(pos)
-    }
 
     pub fn id(&self) -> Id {
         self.id
@@ -122,34 +98,45 @@ impl Ui {
     }
 
     pub fn ctx(&self) -> &Arc<Context> {
-        &self.ctx
+        self.painter.ctx()
+    }
+
+    /// Use this to paint stuff within this `Ui`.
+    pub fn painter(&self) -> &Painter {
+        &self.painter
+    }
+
+    /// Use this to paint stuff within this `Ui`.
+    pub fn layer(&self) -> Layer {
+        self.painter().layer()
     }
 
     pub fn input(&self) -> &InputState {
-        self.ctx.input()
+        self.ctx().input()
     }
 
     pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
-        self.ctx.memory()
+        self.ctx().memory()
     }
 
     pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
-        self.ctx.output()
+        self.ctx().output()
     }
 
     pub fn fonts(&self) -> &Fonts {
-        self.ctx.fonts()
+        self.ctx().fonts()
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
-    /// This is used, for instance, to avoid painting outside a window that is smaller
-    /// than its contents.
+    /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     pub fn clip_rect(&self) -> Rect {
-        self.clip_rect
+        self.painter.clip_rect()
     }
 
+    /// Screen-space rectangle for clipping what we paint in this ui.
+    /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
-        self.clip_rect = clip_rect;
+        self.painter.set_clip_rect(clip_rect);
     }
 
     // ------------------------------------------------------------------------
@@ -269,7 +256,8 @@ impl Ui {
     // ------------------------------------------------------------------------
 
     pub fn contains_mouse(&self, rect: Rect) -> bool {
-        self.ctx.contains_mouse(self.layer, self.clip_rect, rect)
+        self.ctx()
+            .contains_mouse(self.layer(), self.clip_rect(), rect)
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {
@@ -293,7 +281,7 @@ impl Ui {
     {
         let id = self.id.with(&id_source);
         // TODO: clip name clash error messages to clip rect
-        self.ctx.register_unique_id(id, id_source, self.cursor)
+        self.ctx().register_unique_id(id, id_source, self.cursor)
     }
 
     /// Ideally, all widgets should use this. TODO
@@ -309,13 +297,13 @@ impl Ui {
             self.id.with(&explicit_id_source)
         } else {
             let id = self.id.with(default_id_source);
-            if self.ctx.is_unique_id(id) {
+            if self.ctx().is_unique_id(id) {
                 id
             } else {
                 self.make_position_id()
             }
         };
-        self.ctx
+        self.ctx()
             .register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
     }
 
@@ -334,13 +322,13 @@ impl Ui {
 /// # Interaction
 impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> InteractInfo {
-        self.ctx
-            .interact(self.layer, self.clip_rect, rect, Some(id), sense)
+        self.ctx()
+            .interact(self.layer(), self.clip_rect(), rect, Some(id), sense)
     }
 
     pub fn interact_hover(&self, rect: Rect) -> InteractInfo {
-        self.ctx
-            .interact(self.layer, self.clip_rect, rect, None, Sense::nothing())
+        self.ctx()
+            .interact(self.layer(), self.clip_rect(), rect, None, Sense::nothing())
     }
 
     pub fn hovered(&self, rect: Rect) -> bool {
@@ -365,7 +353,7 @@ impl Ui {
             double_clicked,
             active,
             rect,
-            ctx: self.ctx.clone(),
+            ctx: self.ctx().clone(),
         }
     }
 
@@ -385,8 +373,8 @@ impl Ui {
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, child_size: Vec2) -> Rect {
-        let child_size = self.round_vec_to_pixels(child_size);
-        self.cursor = self.round_pos_to_pixels(self.cursor);
+        let child_size = self.painter().round_vec_to_pixels(child_size);
+        self.cursor = self.painter().round_pos_to_pixels(self.cursor);
 
         // For debug rendering
         let too_wide = child_size.x > self.available().width();
@@ -395,7 +383,7 @@ impl Ui {
         let rect = self.reserve_space_impl(child_size);
 
         if self.style().debug_widget_rects {
-            self.add_paint_cmd(PaintCmd::Rect {
+            self.painter.add(PaintCmd::Rect {
                 rect,
                 corner_radius: 0.0,
                 outline: Some(LineStyle::new(1.0, LIGHT_BLUE)),
@@ -405,8 +393,10 @@ impl Ui {
             let color = color::srgba(200, 0, 0, 255);
             let width = 2.5;
 
-            let mut paint_line_seg =
-                |a, b| self.add_paint_cmd(PaintCmd::line_segment([a, b], color, width));
+            let paint_line_seg = |a, b| {
+                self.painter
+                    .add(PaintCmd::line_segment([a, b], color, width))
+            };
 
             if too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -434,96 +424,6 @@ impl Ui {
         self.child_bounds = self.child_bounds.union(child_rect);
         self.child_count += 1;
         child_rect
-    }
-}
-
-/// # Painting related stuff
-impl Ui {
-    /// It is up to the caller to make sure there is room for this.
-    /// Can be used for free painting.
-    /// NOTE: all coordinates are screen coordinates!
-    pub fn add_paint_cmd(&mut self, paint_cmd: PaintCmd) {
-        self.ctx
-            .graphics()
-            .layer(self.layer)
-            .push((self.clip_rect(), paint_cmd))
-    }
-
-    pub fn add_paint_cmds(&mut self, mut cmds: Vec<PaintCmd>) {
-        let clip_rect = self.clip_rect();
-        self.ctx
-            .graphics()
-            .layer(self.layer)
-            .extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)));
-    }
-
-    /// Insert a paint cmd before existing ones
-    pub fn insert_paint_cmd(&mut self, pos: usize, paint_cmd: PaintCmd) {
-        self.ctx
-            .graphics()
-            .layer(self.layer)
-            .insert(pos, (self.clip_rect(), paint_cmd));
-    }
-
-    pub fn paint_list_len(&self) -> usize {
-        self.ctx.graphics().layer(self.layer).len()
-    }
-
-    /// Paint some debug text at current cursor
-    pub fn debug_text(&self, text: impl Into<String>) {
-        self.debug_text_at(self.cursor, text);
-    }
-
-    pub fn debug_text_at(&self, pos: Pos2, text: impl Into<String>) {
-        self.ctx.debug_text(pos, text);
-    }
-
-    pub fn debug_rect(&mut self, rect: Rect, text: impl Into<String>) {
-        self.add_paint_cmd(PaintCmd::Rect {
-            corner_radius: 0.0,
-            fill: None,
-            outline: Some(LineStyle::new(1.0, color::RED)),
-            rect,
-        });
-        let align = (Align::Min, Align::Min);
-        let text_style = TextStyle::Monospace;
-        self.floating_text(rect.min, text.into(), text_style, align, Some(color::RED));
-    }
-
-    /// Show some text anywhere in the ui.
-    /// To center the text at the given position, use `align: (Center, Center)`.
-    /// If you want to draw text floating on top of everything,
-    /// consider using `Context.floating_text` instead.
-    pub fn floating_text(
-        &mut self,
-        pos: Pos2,
-        text: impl Into<String>,
-        text_style: TextStyle,
-        align: (Align, Align),
-        text_color: Option<Color>,
-    ) -> Rect {
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_galley(rect.min, galley, text_style, text_color);
-        rect
-    }
-
-    /// Already layed out text.
-    pub fn add_galley(
-        &mut self,
-        pos: Pos2,
-        galley: font::Galley,
-        text_style: TextStyle,
-        color: Option<Color>,
-    ) {
-        let color = color.unwrap_or_else(|| self.style().text_color);
-        self.add_paint_cmd(PaintCmd::Text {
-            pos,
-            galley,
-            text_style,
-            color,
-        });
     }
 }
 
@@ -637,9 +537,9 @@ impl Ui {
 
         // draw a grey line on the left to mark the indented section
         let line_start = child_rect.min - indent * 0.5;
-        let line_start = self.round_pos_to_pixels(line_start);
+        let line_start = self.painter().round_pos_to_pixels(line_start);
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
-        self.add_paint_cmd(PaintCmd::line_segment(
+        self.painter.add(PaintCmd::line_segment(
             [line_start, line_end],
             gray(150, 255),
             self.style.line_width,

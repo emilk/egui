@@ -87,7 +87,7 @@ impl State {
             *p = rect.center() + v;
         }
 
-        ui.add_paint_cmd(PaintCmd::Path {
+        ui.painter().add(PaintCmd::Path {
             path: Path::from_point_loop(&points),
             closed: true,
             fill: None,
@@ -219,7 +219,7 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
-        let where_to_put_background = ui.paint_list_len();
+        let bg_index = ui.painter().add(PaintCmd::Noop);
 
         {
             let (mut icon_rect, _) = ui.style().icon_rectangles(interact.rect);
@@ -234,15 +234,16 @@ impl CollapsingHeader {
             state.paint_icon(ui, &icon_interact);
         }
 
-        ui.add_galley(
+        let painter = ui.painter();
+        painter.add_galley(
             text_pos,
             galley,
             label.text_style,
-            Some(ui.style().interact(&interact).stroke_color),
+            ui.style().interact(&interact).stroke_color,
         );
 
-        ui.insert_paint_cmd(
-            where_to_put_background,
+        painter.set(
+            bg_index,
             PaintCmd::Rect {
                 corner_radius: ui.style().interact(&interact).corner_radius,
                 fill: ui.style().interact(&interact).bg_fill,

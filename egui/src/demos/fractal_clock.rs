@@ -50,18 +50,18 @@ impl FractalClock {
             ui.ctx().request_repaint();
         }
 
-        self.fractal_ui(ui, ui.available_finite());
+        let painter = Painter::new(ui.ctx().clone(), ui.layer(), ui.available_finite());
+        self.fractal_ui(&painter);
 
-        let frame = Frame::popup(ui.style())
+        Frame::popup(ui.style())
             .fill(Some(color::gray(34, 160)))
-            .outline(None);
-
-        frame.show(&mut ui.left_column(320.0), |ui| {
-            CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
-        });
+            .outline(None)
+            .show(&mut ui.left_column(320.0), |ui| {
+                CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
+            });
 
         // Make sure we allocate what we used (everything)
-        ui.allocate_space(ui.available_finite().size());
+        ui.allocate_space(painter.clip_rect().size());
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -96,7 +96,9 @@ impl FractalClock {
         );
     }
 
-    fn fractal_ui(&mut self, ui: &mut Ui, rect: Rect) {
+    fn fractal_ui(&mut self, painter: &Painter) {
+        let rect = painter.clip_rect();
+
         struct Hand {
             length: f32,
             angle: f32,
@@ -126,13 +128,13 @@ impl FractalClock {
         ];
 
         let scale = self.zoom * rect.width().min(rect.height());
-        let mut paint_line = |points: [Pos2; 2], color: Color, width: f32| {
+        let paint_line = |points: [Pos2; 2], color: Color, width: f32| {
             let line = [
                 rect.center() + scale * points[0].to_vec2(),
                 rect.center() + scale * points[1].to_vec2(),
             ];
 
-            ui.add_paint_cmd(PaintCmd::line_segment([line[0], line[1]], color, width));
+            painter.add(PaintCmd::line_segment([line[0], line[1]], color, width));
         };
 
         let hand_rotations = [

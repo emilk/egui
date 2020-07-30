@@ -107,7 +107,7 @@ impl<'a> Widget for Slider<'a> {
             }
 
             let text_on_top = self.text_on_top.unwrap_or_default();
-            let text_color = self.text_color;
+            let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
             let value = (self.get_set_value)(None);
             let full_text = format!("{}: {:.*}", text, self.precision, value);
 
@@ -116,7 +116,7 @@ impl<'a> Widget for Slider<'a> {
             if text_on_top {
                 let galley = font.layout_single_line(full_text);
                 let pos = ui.allocate_space(galley.size).min;
-                ui.add_galley(pos, galley, text_style, text_color);
+                ui.painter().add_galley(pos, galley, text_style, text_color);
                 slider_sans_text.ui(ui)
             } else {
                 ui.columns(2, |columns| {
@@ -162,21 +162,21 @@ impl<'a> Widget for Slider<'a> {
                 let value = self.get_value_f32();
 
                 let rect = interact.rect;
-                let rail_radius = ui.round_to_pixel((height / 8.0).max(2.0));
+                let rail_radius = ui.painter().round_to_pixel((height / 8.0).max(2.0));
                 let rail_rect = Rect::from_min_max(
                     pos2(interact.rect.left(), rect.center().y - rail_radius),
                     pos2(interact.rect.right(), rect.center().y + rail_radius),
                 );
                 let marker_center_x = remap_clamp(value, range, left..=right);
 
-                ui.add_paint_cmd(PaintCmd::Rect {
+                ui.painter().add(PaintCmd::Rect {
                     rect: rail_rect,
                     corner_radius: rail_radius,
                     fill: Some(ui.style().background_fill),
                     outline: Some(LineStyle::new(1.0, color::gray(200, 255))), // TODO
                 });
 
-                ui.add_paint_cmd(PaintCmd::Circle {
+                ui.painter().add(PaintCmd::Circle {
                     center: pos2(marker_center_x, rail_rect.center().y),
                     radius: handle_radius,
                     fill: Some(ui.style().interact(&interact).fill),

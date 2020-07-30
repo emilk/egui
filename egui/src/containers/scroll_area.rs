@@ -268,14 +268,14 @@ impl Prepared {
             let handle_fill = style.interact(&interact).fill;
             let handle_outline = style.interact(&interact).rect_outline;
 
-            ui.add_paint_cmd(paint::PaintCmd::Rect {
+            ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill: Some(ui.style().dark_bg_color),
                 outline: None,
             });
 
-            ui.add_paint_cmd(paint::PaintCmd::Rect {
+            ui.painter().add(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill: Some(handle_fill),

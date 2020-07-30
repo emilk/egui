@@ -102,7 +102,9 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
-        ui.add_galley(pos, galley, self.text_style, self.text_color);
+        let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
+        ui.painter()
+            .add_galley(pos, galley, self.text_style, text_color);
     }
 }
 
@@ -188,10 +190,10 @@ impl Widget for Hyperlink {
             for line in &galley.lines {
                 let pos = interact.rect.min;
                 let y = pos.y + line.y_max;
-                let y = ui.round_to_pixel(y);
+                let y = ui.painter().round_to_pixel(y);
                 let min_x = pos.x + line.min_x();
                 let max_x = pos.x + line.max_x();
-                ui.add_paint_cmd(PaintCmd::line_segment(
+                ui.painter().add(PaintCmd::line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
                     color,
                     ui.style().line_width,
@@ -199,7 +201,8 @@ impl Widget for Hyperlink {
             }
         }
 
-        ui.add_galley(interact.rect.min, galley, text_style, Some(color));
+        ui.painter()
+            .add_galley(interact.rect.min, galley, text_style, color);
 
         interact
     }
@@ -279,7 +282,7 @@ impl Widget for Button {
         let interact = ui.interact(rect, id, sense);
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
-        ui.add_paint_cmd(PaintCmd::Rect {
+        ui.painter().add(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
             fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
@@ -287,7 +290,8 @@ impl Widget for Button {
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
-        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
+        ui.painter()
+            .add_galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }
@@ -340,7 +344,7 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
         }
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
-        ui.add_paint_cmd(PaintCmd::Rect {
+        ui.painter().add(PaintCmd::Rect {
             corner_radius: ui.style().interact(&interact).corner_radius,
             fill: ui.style().interact(&interact).bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
@@ -350,7 +354,7 @@ impl<'a> Widget for Checkbox<'a> {
         let stroke_color = ui.style().interact(&interact).stroke_color;
 
         if *checked {
-            ui.add_paint_cmd(PaintCmd::Path {
+            ui.painter().add(PaintCmd::Path {
                 path: Path::from_open_points(&[
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
@@ -363,7 +367,8 @@ impl<'a> Widget for Checkbox<'a> {
         }
 
         let text_color = text_color.unwrap_or(stroke_color);
-        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
+        ui.painter()
+            .add_galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }
@@ -417,7 +422,9 @@ impl Widget for RadioButton {
 
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
 
-        ui.add_paint_cmd(PaintCmd::Circle {
+        let painter = ui.painter();
+
+        painter.add(PaintCmd::Circle {
             center: big_icon_rect.center(),
             fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline, // TODO
@@ -425,7 +432,7 @@ impl Widget for RadioButton {
         });
 
         if checked {
-            ui.add_paint_cmd(PaintCmd::Circle {
+            painter.add(PaintCmd::Circle {
                 center: small_icon_rect.center(),
                 fill: Some(stroke_color),
                 outline: None,
@@ -434,7 +441,7 @@ impl Widget for RadioButton {
         }
 
         let text_color = text_color.unwrap_or(stroke_color);
-        ui.add_galley(text_cursor, galley, text_style, Some(text_color));
+        painter.add_galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }
@@ -520,7 +527,7 @@ impl Widget for Separator {
                 )
             }
         };
-        ui.add_paint_cmd(PaintCmd::LineSegment {
+        ui.painter().add(PaintCmd::LineSegment {
             points,
             style: LineStyle::new(line_width, color),
         });

@@ -6,6 +6,8 @@ use {
 // TODO: rename, e.g. `paint::Cmd`?
 #[derive(Clone, Debug)]
 pub enum PaintCmd {
+    /// Paint nothing. This can be useful as a placeholder.
+    Noop,
     Circle {
         center: Pos2,
         fill: Option<Color>,

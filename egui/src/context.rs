@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use {ahash::AHashMap, parking_lot::Mutex};
 
-use crate::{layout::align_rect, paint::*, *};
+use crate::{paint::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct PaintStats {
@@ -234,7 +234,7 @@ impl Context {
 
     /// Generate a id from the given source.
     /// If it is not unique, an error will be printed at the given position.
-    pub fn make_unique_id<IdSource>(&self, source: IdSource, pos: Pos2) -> Id
+    pub fn make_unique_id<IdSource>(self: &Arc<Self>, source: IdSource, pos: Pos2) -> Id
     where
         IdSource: std::hash::Hash + std::fmt::Debug + Copy,
     {
@@ -246,19 +246,25 @@ impl Context {
     }
 
     /// If the given Id is not unique, an error will be printed at the given position.
-    pub fn register_unique_id(&self, id: Id, source_name: impl std::fmt::Debug, pos: Pos2) -> Id {
+    pub fn register_unique_id(
+        self: &Arc<Self>,
+        id: Id,
+        source_name: impl std::fmt::Debug,
+        pos: Pos2,
+    ) -> Id {
         if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
+            let painter = self.debug_painter();
             if clash_pos.distance(pos) < 4.0 {
-                self.show_error(
+                painter.error(
                     pos,
                     &format!("use of non-unique ID {:?} (name clash?)", source_name),
                 );
             } else {
-                self.show_error(
+                painter.error(
                     clash_pos,
                     &format!("first use of non-unique ID {:?} (name clash?)", source_name),
                 );
-                self.show_error(
+                painter.error(
                     pos,
                     &format!(
                         "second use of non-unique ID {:?} (name clash?)",
@@ -422,103 +428,12 @@ impl Context {
             }
         }
     }
+}
 
-    // ---------------------------------------------------------------------
-
-    pub fn show_error(&self, pos: Pos2, text: impl Into<String>) {
-        let text = text.into();
-        let align = (Align::Min, Align::Min);
-        let layer = Layer::debug();
-        let text_style = TextStyle::Monospace;
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_paint_cmd(
-            layer,
-            PaintCmd::Rect {
-                corner_radius: 0.0,
-                fill: Some(color::gray(0, 240)),
-                outline: Some(LineStyle::new(1.0, color::RED)),
-                rect: rect.expand(2.0),
-            },
-        );
-        self.add_galley(layer, rect.min, galley, text_style, Some(color::RED));
-    }
-
-    pub fn debug_text(&self, pos: Pos2, text: impl Into<String>) {
-        let text = text.into();
-        let layer = Layer::debug();
-        let align = (Align::Min, Align::Min);
-        self.floating_text(
-            layer,
-            pos,
-            text,
-            TextStyle::Monospace,
-            align,
-            Some(color::YELLOW),
-        );
-    }
-
-    pub fn debug_rect(&self, rect: Rect, color: Color, name: impl Into<String>) {
-        let text = format!("{} {:?}", name.into(), rect);
-        let layer = Layer::debug();
-        self.add_paint_cmd(
-            layer,
-            PaintCmd::Rect {
-                corner_radius: 0.0,
-                fill: None,
-                outline: Some(LineStyle::new(2.0, color)),
-                rect,
-            },
-        );
-        let align = (Align::Min, Align::Min);
-        let text_style = TextStyle::Monospace;
-        self.floating_text(layer, rect.min, text, text_style, align, Some(color));
-    }
-
-    /// Show some text anywhere on screen.
-    /// To center the text at the given position, use `align: (Center, Center)`.
-    pub fn floating_text(
-        &self,
-        layer: Layer,
-        pos: Pos2,
-        text: String,
-        text_style: TextStyle,
-        align: (Align, Align),
-        text_color: Option<Color>,
-    ) -> Rect {
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_galley(layer, rect.min, galley, text_style, text_color);
-        rect
-    }
-
-    /// Already layed out text.
-    pub fn add_galley(
-        &self,
-        layer: Layer,
-        pos: Pos2,
-        galley: font::Galley,
-        text_style: TextStyle,
-        color: Option<Color>,
-    ) {
-        let color = color.unwrap_or_else(|| self.style().text_color);
-        self.add_paint_cmd(
-            layer,
-            PaintCmd::Text {
-                pos,
-                galley,
-                text_style,
-                color,
-            },
-        );
-    }
-
-    pub fn add_paint_cmd(&self, layer: Layer, paint_cmd: PaintCmd) {
-        self.graphics()
-            .layer(layer)
-            .push((Rect::everything(), paint_cmd))
+/// ## Painting
+impl Context {
+    pub fn debug_painter(self: &Arc<Self>) -> Painter {
+        Painter::new(self.clone(), Layer::debug(), self.rect())
     }
 }
 

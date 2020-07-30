@@ -1,6 +1,6 @@
 //! Frame container
 
-use crate::{paint::*, *};
+use crate::{layers::PaintCmdIdx, paint::*, *};
 
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
@@ -62,7 +62,7 @@ impl Frame {
 pub struct Prepared {
     pub frame: Frame,
     outer_rect_bounds: Rect,
-    where_to_put_background: usize,
+    where_to_put_background: PaintCmdIdx,
     pub content_ui: Ui,
 }
 
@@ -70,7 +70,7 @@ impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
         let outer_rect_bounds = ui.available();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
-        let where_to_put_background = ui.paint_list_len();
+        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
         let content_ui = ui.child_ui(inner_rect);
         Prepared {
             frame: self,
@@ -105,7 +105,7 @@ impl Prepared {
             ..
         } = self;
 
-        ui.insert_paint_cmd(
+        ui.painter().set(
             where_to_put_background,
             PaintCmd::Rect {
                 corner_radius: frame.corner_radius,

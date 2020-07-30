@@ -564,6 +564,7 @@ pub fn tessellate_paint_command(
     path.clear();
 
     match command {
+        PaintCmd::Noop => {}
         PaintCmd::Circle {
             center,
             fill,

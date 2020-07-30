@@ -35,6 +35,7 @@ pub mod math;
 mod memory;
 mod movement_tracker;
 pub mod paint;
+mod painter;
 mod style;
 mod types;
 mod ui;
@@ -52,6 +53,7 @@ pub use {
     memory::Memory,
     movement_tracker::MovementTracker,
     paint::{color, Color, PaintJobs, TextStyle, Texture},
+    painter::Painter,
     style::Style,
     types::*,
     ui::Ui,

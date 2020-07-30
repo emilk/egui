@@ -30,7 +30,7 @@ impl Texture {
         };
         let mut triangles = Triangles::default();
         triangles.add_rect(top_left, bottom_right);
-        ui.add_paint_cmd(PaintCmd::Triangles(triangles));
+        ui.painter().add(PaintCmd::Triangles(triangles));
 
         if ui.hovered(rect) {
             show_tooltip(ui.ctx(), |ui| {
@@ -55,7 +55,7 @@ impl Texture {
                 };
                 let mut triangles = Triangles::default();
                 triangles.add_rect(top_left, bottom_right);
-                ui.add_paint_cmd(PaintCmd::Triangles(triangles));
+                ui.painter().add(PaintCmd::Triangles(triangles));
             });
         }
     }

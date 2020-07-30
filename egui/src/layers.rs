@@ -16,7 +16,7 @@ pub enum Order {
     Debug,
 }
 
-/// An ideintifer for a paint layer.
+/// An identifier for a paint layer.
 /// Also acts as an identifier for `Area`:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
@@ -34,15 +34,38 @@ impl Layer {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct PaintCmdIdx(usize);
+
 /// Each `PaintCmd` is paired with a clip rectangle.
-type PaintList = Vec<(Rect, PaintCmd)>;
+#[derive(Clone, Default)]
+pub struct PaintList(Vec<(Rect, PaintCmd)>);
+
+impl PaintList {
+    /// Returns the index of the new command that can be used with `PaintList::set`.
+    pub fn add(&mut self, clip_rect: Rect, cmd: PaintCmd) -> PaintCmdIdx {
+        let idx = PaintCmdIdx(self.0.len());
+        self.0.push((clip_rect, cmd));
+        idx
+    }
+
+    pub fn extend(&mut self, clip_rect: Rect, mut cmds: Vec<PaintCmd>) {
+        self.0.extend(cmds.drain(..).map(|cmd| (clip_rect, cmd)))
+    }
+
+    /// Modify an existing command.
+    pub fn set(&mut self, idx: PaintCmdIdx, clip_rect: Rect, cmd: PaintCmd) {
+        assert!(idx.0 < self.0.len());
+        self.0[idx.0] = (clip_rect, cmd);
+    }
+}
 
 // TODO: improve this
 #[derive(Clone, Default)]
 pub struct GraphicLayers(AHashMap<Layer, PaintList>);
 
 impl GraphicLayers {
-    pub fn layer(&mut self, layer: Layer) -> &mut PaintList {
+    pub fn list(&mut self, layer: Layer) -> &mut PaintList {
         self.0.entry(layer).or_default()
     }
 
@@ -54,12 +77,12 @@ impl GraphicLayers {
 
         for layer in area_order {
             if let Some(commands) = self.0.get_mut(layer) {
-                all_commands.extend(commands.drain(..));
+                all_commands.extend(commands.0.drain(..));
             }
         }
 
         if let Some(commands) = self.0.get_mut(&Layer::debug()) {
-            all_commands.extend(commands.drain(..));
+            all_commands.extend(commands.0.drain(..));
         }
 
         all_commands.into_iter()
