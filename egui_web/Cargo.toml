@@ -9,13 +9,12 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+egui = { path = "../egui", features = ["with_serde"] }
 js-sys = "0.3"
 parking_lot = "0.11"
 serde = "1"
 serde_json = "1"
 wasm-bindgen = "0.2"
-
-egui = { path = "../egui", features = ["with_serde"] }
 
 [dependencies.web-sys]
 version = "0.3"
