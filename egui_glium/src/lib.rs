@@ -57,12 +57,8 @@ pub fn input_to_egui(
             raw_input.mouse_pos = None;
         }
         ReceivedCharacter(ch) => {
-            if !should_ignore_char(ch) {
-                if ch == '\r' {
-                    raw_input.events.push(Event::Text("\n".to_owned()));
-                } else {
-                    raw_input.events.push(Event::Text(ch.to_string()));
-                }
+            if printable_char(ch) {
+                raw_input.events.push(Event::Text(ch.to_string()));
             }
         }
         KeyboardInput { input, .. } => {
@@ -116,24 +112,16 @@ pub fn input_to_egui(
     }
 }
 
-fn should_ignore_char(chr: char) -> bool {
-    // Glium sends some keys as chars:
-    match chr {
-        '\u{7f}' |    // backspace
-        '\u{f728}' |  // delete
-        '\u{f700}' |  // up
-        '\u{f701}' |  // down
-        '\u{f702}' |  // left
-        '\u{f703}' |  // right
-        '\u{f729}' |  // home
-        '\u{f72b}' |  // end
-        '\u{f72c}' |  // page up
-        '\u{f72d}' |  // page down
-        '\u{f710}' |  // print screen
-        '\u{f704}' | '\u{f705}'  // F1, F2, ...
-        => true,
-        _ => false,
-    }
+/// Glium sends special keys (backspace, delete, F1, ...) as characters.
+/// Ignore those.
+/// We also ignore '\r', '\n', '\t'.
+/// Newlines are handled by the `Key::Enter` event.
+fn printable_char(chr: char) -> bool {
+    let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
+        || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
+        || '\u{100000}' <= chr && chr <= '\u{10fffd}';
+
+    !is_in_private_use_area && !chr.is_ascii_control()
 }
 
 pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
@@ -152,7 +140,7 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
         Right => Key::Right,
         Down => Key::Down,
         Back => Key::Backspace,
-        Return => Key::Return,
+        Return => Key::Enter,
         // Space => Key::Space,
         Tab => Key::Tab,
 

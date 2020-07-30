@@ -97,7 +97,18 @@ impl<'t> Widget for TextEdit<'t> {
                         ui.ctx().output().copied_text = text.clone();
                     }
                     Event::Text(text_to_insert) => {
-                        insert_text(&mut cursor, text, text_to_insert);
+                        // newlines are handled by `Key::Enter`.
+                        if text_to_insert != "\n" && text_to_insert != "\r" {
+                            insert_text(&mut cursor, text, text_to_insert);
+                        }
+                    }
+                    Event::Key {
+                        key: Key::Enter,
+                        pressed: true,
+                    } => {
+                        if multiline {
+                            insert_text(&mut cursor, text, "\n");
+                        }
                     }
                     Event::Key { key, pressed: true } => {
                         on_key_press(&mut cursor, text, *key);
@@ -190,6 +201,7 @@ fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
             new_text.extend(char_it.skip(1));
             *text = new_text;
         }
+        Key::Enter => {} // handled earlier
         Key::Home => {
             // To start of paragraph:
             let pos = line_col_from_char_idx(text, *cursor);

@@ -155,7 +155,8 @@ impl Default for MouseInput {
 pub enum Event {
     Copy,
     Cut,
-    /// Text input, e.g. via keyboard or paste action
+    /// Text input, e.g. via keyboard or paste action.
+    /// Do not pass '\n', '\r' here, but send `Key::Enter` instead.
     Text(String),
     Key {
         key: Key,
@@ -179,7 +180,8 @@ pub enum Key {
     Logo,
     PageDown,
     PageUp,
-    Return,
+    /// Enter/Return key
+    Enter,
     Right,
     Shift,
     // Space,

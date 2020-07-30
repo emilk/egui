@@ -184,6 +184,19 @@ pub fn location_hash() -> Option<String> {
     web_sys::window()?.location().hash().ok()
 }
 
+/// Web sends all all keys as strings, so it is up to us to figure out if it is
+/// a real text input or the name of a key.
+fn should_ignore_key(key: &str) -> bool {
+    let is_function_key = key.starts_with("F") && key.len() > 1;
+    is_function_key
+        || matches!(
+            key,
+            "CapsLock" | "ContextMenu" | "NumLock" | "Pause" | "ScrollLock"
+        )
+}
+
+/// Web sends all all keys as strings, so it is up to us to figure out if it is
+/// a real text input or the name of a key.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
     match key {
         "Alt" => Some(egui::Key::Alt),
@@ -192,14 +205,14 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "Delete" => Some(egui::Key::Delete),
         "ArrowDown" => Some(egui::Key::Down),
         "End" => Some(egui::Key::End),
-        "Escape" => Some(egui::Key::Escape),
+        "Esc" | "Escape" => Some(egui::Key::Escape),
         "Home" => Some(egui::Key::Home),
-        "Help" => Some(egui::Key::Insert),
+        "Help" | "Insert" => Some(egui::Key::Insert),
         "ArrowLeft" => Some(egui::Key::Left),
         "Meta" => Some(egui::Key::Logo),
         "PageDown" => Some(egui::Key::PageDown),
         "PageUp" => Some(egui::Key::PageUp),
-        "Enter" => Some(egui::Key::Return),
+        "Enter" => Some(egui::Key::Enter),
         "ArrowRight" => Some(egui::Key::Right),
         "Shift" => Some(egui::Key::Shift),
         "Tab" => Some(egui::Key::Tab),
@@ -247,17 +260,23 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         // keydown
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+            if event.is_composing() || event.key_code() == 229 {
+                // https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+                return;
+            }
             let mut runner_lock = runner_ref.0.lock();
             let key = event.key();
-            if let Some(key) = translate_key(&key) {
-                runner_lock
-                    .web_input
-                    .events
-                    .push(egui::Event::Key { key, pressed: true });
-            } else {
-                runner_lock.web_input.events.push(egui::Event::Text(key));
+            if !should_ignore_key(&key) {
+                if let Some(key) = translate_key(&key) {
+                    runner_lock
+                        .web_input
+                        .events
+                        .push(egui::Event::Key { key, pressed: true });
+                } else {
+                    runner_lock.web_input.events.push(egui::Event::Text(key));
+                }
+                runner_lock.needs_repaint = true;
             }
-            runner_lock.needs_repaint = true;
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
         closure.forget();
