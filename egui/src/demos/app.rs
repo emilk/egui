@@ -144,6 +144,7 @@ impl app::App for DemoApp {
         self.ui(ui, web_location_hash);
     }
 
+    #[cfg(feature = "with_serde")]
     fn on_exit(&mut self, storage: &mut dyn app::Storage) {
         app::set_value(storage, app::APP_KEY, self);
     }
