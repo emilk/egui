@@ -30,6 +30,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+          arg: -p egui # Only test egui due to weird build issues with the others
 
   fmt:
     name: Rustfmt
