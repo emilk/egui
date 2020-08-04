@@ -8,6 +8,6 @@ pub(crate) mod scroll_area;
 pub(crate) mod window;
 
 pub use {
-    area::Area, collapsing_header::CollapsingHeader, frame::Frame, popup::*, resize::Resize,
-    scroll_area::ScrollArea, window::Window,
+    area::Area, collapsing_header::CollapsingHeader, frame::Frame, menu::*, popup::*,
+    resize::Resize, scroll_area::ScrollArea, window::Window,
 };
