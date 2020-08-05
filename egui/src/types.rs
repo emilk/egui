@@ -66,6 +66,9 @@ pub struct InteractInfo {
     /// The mouse is interacting with this thing (e.g. dragging it or holding it)
     pub active: bool,
 
+    /// This widget has the keyboard focus (i.e. is receiving key pressed)
+    pub has_kb_focus: bool,
+
     /// The region of the screen we are talking about
     pub rect: Rect,
 }
@@ -78,6 +81,7 @@ impl InteractInfo {
             clicked: false,
             double_clicked: false,
             active: false,
+            has_kb_focus: false,
             rect: Rect::nothing(),
         }
     }
@@ -89,6 +93,7 @@ impl InteractInfo {
             clicked: self.clicked || other.clicked,
             double_clicked: self.double_clicked || other.double_clicked,
             active: self.active || other.active,
+            has_kb_focus: self.has_kb_focus || other.has_kb_focus,
             rect: self.rect.union(other.rect),
         }
     }
@@ -114,6 +119,9 @@ pub struct GuiResponse {
 
     /// The mouse is interacting with this thing (e.g. dragging it)
     pub active: bool,
+
+    /// This widget has the keyboard focus (i.e. is receiving key pressed)
+    pub has_kb_focus: bool,
 
     /// The area of the screen we are talking about
     pub rect: Rect,
@@ -147,6 +155,7 @@ impl Into<InteractInfo> for GuiResponse {
             clicked: self.clicked,
             double_clicked: self.double_clicked,
             active: self.active,
+            has_kb_focus: self.has_kb_focus,
             rect: self.rect,
         }
     }

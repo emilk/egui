@@ -149,10 +149,10 @@ impl Default for Interact {
 
 impl Interact {
     pub fn style(&self, interact: &InteractInfo) -> &WidgetStyle {
-        if interact.sense == Sense::nothing() {
-            &self.disabled
-        } else if interact.active {
+        if interact.active || interact.has_kb_focus {
             &self.active
+        } else if interact.sense == Sense::nothing() {
+            &self.disabled
         } else if interact.hovered {
             &self.hovered
         } else {

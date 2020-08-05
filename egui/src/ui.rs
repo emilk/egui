@@ -336,6 +336,7 @@ impl Ui {
             clicked,
             double_clicked,
             active,
+            has_kb_focus,
             rect,
         } = interact;
         GuiResponse {
@@ -344,6 +345,7 @@ impl Ui {
             clicked,
             double_clicked,
             active,
+            has_kb_focus,
             rect,
             ctx: self.ctx().clone(),
         }

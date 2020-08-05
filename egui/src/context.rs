@@ -337,6 +337,9 @@ impl Context {
     ) -> InteractInfo {
         let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
         let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
+        let has_kb_focus = interaction_id
+            .map(|id| self.memory().has_kb_focus(id))
+            .unwrap_or(false);
 
         if interaction_id.is_none() || sense == Sense::nothing() {
             // Not interested in input:
@@ -347,6 +350,7 @@ impl Context {
                 clicked: false,
                 double_clicked: false,
                 active: false,
+                has_kb_focus,
             };
         }
         let interaction_id = interaction_id.unwrap();
@@ -368,6 +372,7 @@ impl Context {
                     clicked: false,
                     double_clicked: false,
                     active: false,
+                    has_kb_focus,
                 };
 
                 if sense.click && memory.interaction.click_id.is_none() {
@@ -396,6 +401,7 @@ impl Context {
                     clicked: false,
                     double_clicked: false,
                     active: false,
+                    has_kb_focus,
                 }
             }
         } else if self.input.mouse.released {
@@ -407,6 +413,7 @@ impl Context {
                 clicked,
                 double_clicked: clicked && self.input.mouse.double_click,
                 active,
+                has_kb_focus,
             }
         } else if self.input.mouse.down {
             InteractInfo {
@@ -416,6 +423,7 @@ impl Context {
                 clicked: false,
                 double_clicked: false,
                 active,
+                has_kb_focus,
             }
         } else {
             InteractInfo {
@@ -425,6 +433,7 @@ impl Context {
                 clicked: false,
                 double_clicked: false,
                 active,
+                has_kb_focus,
             }
         }
     }
