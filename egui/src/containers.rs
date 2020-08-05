@@ -1,7 +1,6 @@
 pub(crate) mod area;
 pub(crate) mod collapsing_header;
 pub(crate) mod frame;
-pub mod menu;
 pub(crate) mod popup;
 pub(crate) mod resize;
 pub(crate) mod scroll_area;

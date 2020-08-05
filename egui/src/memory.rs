@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    containers::{area, collapsing_header, menu, resize, scroll_area, window},
-    widgets::text_edit,
-    Id, Layer, Pos2, Rect,
+    area, collapsing_header, menu, resize, scroll_area, widgets::text_edit, window, Id, Layer,
+    Pos2, Rect,
 };
 
 /// The data that Egui persists between frames.

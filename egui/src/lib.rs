@@ -33,6 +33,7 @@ mod layers;
 mod layout;
 pub mod math;
 mod memory;
+pub mod menu;
 mod movement_tracker;
 pub mod paint;
 mod painter;

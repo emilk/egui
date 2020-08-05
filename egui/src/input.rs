@@ -215,6 +215,32 @@ impl InputState {
             || self.scroll_delta != Vec2::zero()
             || !self.events.is_empty()
     }
+
+    /// Was the given key pressed this frame?
+    pub fn key_pressed(&self, desired_key: Key) -> bool {
+        self.events.iter().any(|event| {
+            matches!(
+                event,
+                Event::Key {
+                    key,
+                    pressed: true
+                } if *key == desired_key
+            )
+        })
+    }
+
+    /// Was the given key released this frame?
+    pub fn key_released(&self, desired_key: Key) -> bool {
+        self.events.iter().any(|event| {
+            matches!(
+                event,
+                Event::Key {
+                    key,
+                    pressed: false
+                } if *key == desired_key
+            )
+        })
+    }
 }
 
 impl MouseInput {
