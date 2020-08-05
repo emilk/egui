@@ -50,7 +50,8 @@ pub struct Style {
     /// e.g. the background of the slider or text edit
     pub dark_bg_color: Color,
 
-    pub cursor_blink_hz: f32,
+    /// Blink text cursor by this frequency. If None, always show the cursor.
+    pub cursor_blink_hz: Option<f32>,
     pub text_cursor_width: f32,
 
     // TODO: add ability to disable animations!
@@ -87,7 +88,7 @@ impl Default for Style {
             thin_outline: LineStyle::new(0.5, GRAY),
             background_fill: gray(32, 250),
             dark_bg_color: gray(0, 140),
-            cursor_blink_hz: 1.0,
+            cursor_blink_hz: None, // Some(1.0)
             text_cursor_width: 2.0,
             animation_time: 1.0 / 15.0,
             window: Window::default(),

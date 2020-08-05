@@ -146,8 +146,13 @@ impl<'t> Widget for TextEdit<'t> {
 
         if ui.memory().has_kb_focus(id) {
             let cursor_blink_hz = ui.style().cursor_blink_hz;
-            let show_cursor =
-                (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0;
+            let show_cursor = if let Some(cursor_blink_hz) = cursor_blink_hz {
+                ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
+                (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0
+            } else {
+                true
+            };
+
             if show_cursor {
                 if let Some(cursor) = state.cursor {
                     let cursor_pos = interact.rect.min + galley.char_start_pos(cursor);
@@ -158,7 +163,6 @@ impl<'t> Widget for TextEdit<'t> {
                     ));
                 }
             }
-            ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
         }
 
         let text_color = text_color.unwrap_or_else(|| ui.style().text_color);
