@@ -30,7 +30,7 @@ Wherever you can render textured triangles you can use Egui.
 The same application code can thus be compiled to either into a native app or a web app.
 
 ## Demos
-[Egui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/egui/src/examples/app.rs
+[Egui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/egui/src/demos/app.rs
 
 [Hobogo: A small game using Egui](https://emilk.github.io/hobogo/index.html), source: https://github.com/emilk/hobogo
 
