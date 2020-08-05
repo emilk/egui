@@ -308,7 +308,7 @@ impl Context {
 
     /// If true, Egui is currently listening on text input (e.g. typing text in a `TextEdit`).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory().kb_focus_id.is_some()
+        self.memory().interaction.kb_focus_id.is_some()
     }
 
     // ---------------------------------------------------------------------

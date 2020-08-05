@@ -76,17 +76,20 @@ impl<'t> Widget for TextEdit<'t> {
         let interact = ui.interact(rect, id, Sense::click_and_drag()); // TODO: implement drag-select
 
         if interact.clicked {
-            ui.request_kb_focus(id);
+            ui.memory().request_kb_focus(id);
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
             }
+        } else if ui.input().mouse.click {
+            // User clicked somewhere else
+            ui.memory().surrender_kb_focus(id);
         }
+
         if interact.hovered {
             ui.output().cursor_icon = CursorIcon::Text;
         }
-        let has_kb_focus = ui.has_kb_focus(id);
 
-        if has_kb_focus {
+        if ui.memory().has_kb_focus(id) {
             let mut cursor = state.cursor.unwrap_or_else(|| text.chars().count());
             cursor = clamp(cursor, 0..=text.chars().count());
 
@@ -141,7 +144,7 @@ impl<'t> Widget for TextEdit<'t> {
             });
         }
 
-        if has_kb_focus {
+        if ui.memory().has_kb_focus(id) {
             let cursor_blink_hz = ui.style().cursor_blink_hz;
             let show_cursor =
                 (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0;

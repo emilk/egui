@@ -259,14 +259,6 @@ impl Ui {
         self.ctx()
             .contains_mouse(self.layer(), self.clip_rect(), rect)
     }
-
-    pub fn has_kb_focus(&self, id: Id) -> bool {
-        self.memory().kb_focus_id == Some(id)
-    }
-
-    pub fn request_kb_focus(&self, id: Id) {
-        self.memory().kb_focus_id = Some(id);
-    }
 }
 
 /// # `Id` creation
