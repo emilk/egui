@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    align_rect, color,
+    anchor_rect, color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{font, Fonts, LineStyle, PaintCmd, TextStyle},
@@ -30,16 +30,24 @@ impl Painter {
             clip_rect,
         }
     }
+
+    /// Create a painter for a sub-region of this `Painter`.
+    ///
+    /// The clip-rect of the returned `Painter` will be the intersection
+    /// of the given rectangle and the `clip_rect()` of this `Painter`.
+    pub fn sub_region(&self, rect: Rect) -> Self {
+        Self::new(self.ctx.clone(), self.layer, rect.intersect(self.clip_rect))
+    }
 }
 
 /// ## Accessors etc
 impl Painter {
-    pub fn ctx(&self) -> &Arc<Context> {
+    pub(crate) fn ctx(&self) -> &Arc<Context> {
         &self.ctx
     }
 
     /// Available fonts
-    pub fn fonts(&self) -> &Fonts {
+    pub(crate) fn fonts(&self) -> &Fonts {
         self.ctx.fonts()
     }
 
@@ -60,14 +68,17 @@ impl Painter {
         self.clip_rect = clip_rect;
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel(point)
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         self.ctx().round_vec_to_pixels(vec)
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)
     }
@@ -110,51 +121,52 @@ impl Painter {
             outline: Some(LineStyle::new(1.0, color)),
             rect,
         });
-        let align = (Align::Min, Align::Min);
+        let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
-        self.floating_text(rect.min, text.into(), text_style, align, color);
+        self.text(rect.min, anchor, text.into(), text_style, color);
     }
 
     pub fn error(&self, pos: Pos2, text: impl Into<String>) {
         let text = text.into();
-        let align = (Align::Min, Align::Min);
+        let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
+        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
         self.add(PaintCmd::Rect {
             corner_radius: 0.0,
             fill: Some(color::gray(0, 240)),
             outline: Some(LineStyle::new(1.0, color::RED)),
             rect: rect.expand(2.0),
         });
-        self.add_galley(rect.min, galley, text_style, color::RED);
+        self.galley(rect.min, galley, text_style, color::RED);
     }
 }
 
 /// ## Text
 impl Painter {
-    /// Show some text anywhere in the ui.
-    /// To center the text at the given position, use `align: (Center, Center)`.
-    /// If you want to draw text floating on top of everything,
-    /// consider using `Context.floating_text` instead.
-    pub fn floating_text(
+    /// Lay out and paint some text.
+    ///
+    /// To center the text at the given position, use `anchor: (Center, Center)`.
+    ///
+    /// Returns where the text ended up.
+    pub fn text(
         &self,
         pos: Pos2,
+        anchor: (Align, Align),
         text: impl Into<String>,
         text_style: TextStyle,
-        align: (Align, Align),
         text_color: Color,
     ) -> Rect {
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = align_rect(Rect::from_min_size(pos, galley.size), align);
-        self.add_galley(rect.min, galley, text_style, text_color);
+        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        self.galley(rect.min, galley, text_style, text_color);
         rect
     }
 
-    /// Already layed out text.
-    pub fn add_galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Color) {
+    /// Paint text that has already been layed out in a `Galley`.
+    pub fn galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Color) {
         self.add(PaintCmd::Text {
             pos,
             galley,

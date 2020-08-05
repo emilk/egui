@@ -106,6 +106,14 @@ impl Ui {
         &self.painter
     }
 
+    /// Create a painter for a sub-region of this Ui.
+    ///
+    /// The clip-rect of the returned `Painter` will be the intersection
+    /// of the given rectangle and the `clip_rect()` of this `Ui`.
+    pub fn painter_at(&self, rect: Rect) -> Painter {
+        self.painter().sub_region(rect)
+    }
+
     /// Use this to paint stuff within this `Ui`.
     pub fn layer(&self) -> Layer {
         self.painter().layer()
@@ -418,6 +426,12 @@ impl Ui {
         self.child_bounds = self.child_bounds.union(child_rect);
         self.child_count += 1;
         child_rect
+    }
+
+    /// Ask to allocate a certain amount of space and return a Painter for that region.
+    pub fn allocate_canvas(&mut self, size: Vec2) -> Painter {
+        let rect = self.allocate_space(size);
+        self.painter_at(rect)
     }
 }
 

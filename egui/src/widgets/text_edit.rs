@@ -166,7 +166,7 @@ impl<'t> Widget for TextEdit<'t> {
         }
 
         let text_color = text_color.unwrap_or_else(|| ui.style().text_color);
-        painter.add_galley(interact.rect.min, galley, text_style, text_color);
+        painter.galley(interact.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
         interact
     }

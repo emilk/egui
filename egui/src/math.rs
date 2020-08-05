@@ -21,6 +21,12 @@ impl From<[f32; 2]> for Vec2 {
     }
 }
 
+impl From<&[f32; 2]> for Vec2 {
+    fn from(v: &[f32; 2]) -> Self {
+        Self { x: v[0], y: v[1] }
+    }
+}
+
 impl Vec2 {
     pub fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
@@ -245,7 +251,17 @@ impl From<[f32; 2]> for Pos2 {
     }
 }
 
+impl From<&[f32; 2]> for Pos2 {
+    fn from(v: &[f32; 2]) -> Self {
+        Self { x: v[0], y: v[1] }
+    }
+}
+
 impl Pos2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+
     pub fn to_vec2(self) -> Vec2 {
         Vec2 {
             x: self.x,
@@ -491,6 +507,9 @@ impl Rect {
     }
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
+    }
+    pub fn area(&self) -> f32 {
+        self.width() * self.height()
     }
 
     pub fn range_x(&self) -> RangeInclusive<f32> {

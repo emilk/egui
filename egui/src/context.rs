@@ -125,14 +125,17 @@ impl Context {
         (point * self.input.pixels_per_point).round() / self.input.pixels_per_point
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
+    /// Useful for pixel-perfect rendering
     pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
         Rect {
             min: self.round_pos_to_pixels(rect.min),

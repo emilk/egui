@@ -39,13 +39,13 @@ impl Default for Align {
 
 /// Used e.g. to anchor a piece of text to a part of the rectangle.
 /// Give a position within the rect, specified by the aligns
-pub(crate) fn align_rect(rect: Rect, align: (Align, Align)) -> Rect {
-    let x = match align.0 {
+pub(crate) fn anchor_rect(rect: Rect, anchor: (Align, Align)) -> Rect {
+    let x = match anchor.0 {
         Align::Min => rect.left(),
         Align::Center => rect.left() - 0.5 * rect.width(),
         Align::Max => rect.left() - rect.width(),
     };
-    let y = match align.1 {
+    let y = match anchor.1 {
         Align::Min => rect.top(),
         Align::Center => rect.top() - 0.5 * rect.height(),
         Align::Max => rect.top() - rect.height(),

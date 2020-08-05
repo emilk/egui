@@ -10,9 +10,9 @@ pub enum PaintCmd {
     Noop,
     Circle {
         center: Pos2,
+        radius: f32,
         fill: Option<Color>,
         outline: Option<LineStyle>,
-        radius: f32,
     },
     LineSegment {
         points: [Pos2; 2],
@@ -46,6 +46,24 @@ impl PaintCmd {
         Self::LineSegment {
             points,
             style: LineStyle::new(width, color),
+        }
+    }
+
+    pub fn circle_filled(center: Pos2, radius: f32, fill_color: Color) -> Self {
+        Self::Circle {
+            center,
+            radius,
+            fill: Some(fill_color),
+            outline: None,
+        }
+    }
+
+    pub fn circle_outline(center: Pos2, radius: f32, outline: LineStyle) -> Self {
+        Self::Circle {
+            center,
+            radius,
+            fill: None,
+            outline: Some(outline),
         }
     }
 }

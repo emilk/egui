@@ -1,6 +1,9 @@
+#![deny(warnings)]
+#![warn(clippy::all)]
+
 use egui_glium::{storage::FileStorage, RunMode};
 
-/// We dervive Deserialize/Serialize so we can persist app state on shutdown.
+/// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 struct MyApp {
     counter: u64,

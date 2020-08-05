@@ -104,7 +104,7 @@ impl Label {
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
         let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
         ui.painter()
-            .add_galley(pos, galley, self.text_style, text_color);
+            .galley(pos, galley, self.text_style, text_color);
     }
 }
 
@@ -202,7 +202,7 @@ impl Widget for Hyperlink {
         }
 
         ui.painter()
-            .add_galley(interact.rect.min, galley, text_style, color);
+            .galley(interact.rect.min, galley, text_style, color);
 
         interact
     }
@@ -291,7 +291,7 @@ impl Widget for Button {
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
         ui.painter()
-            .add_galley(text_cursor, galley, text_style, text_color);
+            .galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }
@@ -368,7 +368,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         let text_color = text_color.unwrap_or(stroke_color);
         ui.painter()
-            .add_galley(text_cursor, galley, text_style, text_color);
+            .galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }
@@ -441,7 +441,7 @@ impl Widget for RadioButton {
         }
 
         let text_color = text_color.unwrap_or(stroke_color);
-        painter.add_galley(text_cursor, galley, text_style, text_color);
+        painter.galley(text_cursor, galley, text_style, text_color);
         interact
     }
 }

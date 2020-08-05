@@ -235,7 +235,7 @@ impl CollapsingHeader {
         }
 
         let painter = ui.painter();
-        painter.add_galley(
+        painter.galley(
             text_pos,
             galley,
             label.text_style,
