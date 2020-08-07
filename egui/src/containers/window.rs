@@ -91,6 +91,7 @@ impl<'open> Window<'open> {
         self.default_pos(rect.min).default_size(rect.size())
     }
 
+    /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
         self.area = self.area.fixed_pos(pos);
         self

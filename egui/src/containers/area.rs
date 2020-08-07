@@ -90,6 +90,7 @@ impl Area {
         self
     }
 
+    /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
         let fixed_pos = fixed_pos.into();
         self.default_pos = Some(fixed_pos);
