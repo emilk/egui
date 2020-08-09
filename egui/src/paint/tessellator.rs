@@ -9,25 +9,29 @@ use {
     crate::math::*,
 };
 
+/// The UV coordinate of a white region of the texture mesh.
 const WHITE_UV: (u16, u16) = (1, 1);
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Vertex {
-    /// Pixel coordinates
+    /// Logical pixel coordinates (points)
     pub pos: Pos2,
-    /// Texel indices into the texture
+    /// Texel coordinates in the texture
     pub uv: (u16, u16),
-    /// sRGBA, premultiplied alpha
+    /// sRGBA with premultiplied alpha
     pub color: Color,
 }
 
+/// Textured triangles
 #[derive(Clone, Debug, Default)]
 pub struct Triangles {
-    /// Draw as triangles (i.e. the length is a multiple of three)
+    /// Draw as triangles (i.e. the length is always multiple of three).
     pub indices: Vec<u32>,
+    /// The vertex data indexed by `indices`.
     pub vertices: Vec<Vertex>,
 }
 
+/// A clip triangle and some textured triangles.
 pub type PaintJob = (Rect, Triangles);
 
 /// Grouped by clip rectangles, in pixel coordinates
@@ -82,7 +86,7 @@ impl Triangles {
         self.vertices.push(bottom_right);
     }
 
-    /// This is for platsform that only support 16-bit index buffers.
+    /// This is for platforms that only support 16-bit index buffers.
     /// Splits this mesh into many small if needed.
     /// All the returned meshes will have indices that fit into a `u16`.
     pub fn split_to_u16(self) -> Vec<Triangles> {
@@ -150,6 +154,7 @@ pub struct PathPoint {
     normal: Vec2,
 }
 
+/// A 2D path that can be tesselated into triangles.
 #[derive(Clone, Debug, Default)]
 pub struct Path(Vec<PathPoint>);
 
@@ -313,9 +318,11 @@ use self::PathType::{Closed, Open};
 
 #[derive(Clone, Copy)]
 pub struct PaintOptions {
+    /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
     pub anti_alias: bool,
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
+    /// Output the clip rectangles to be painted?
     pub debug_paint_clip_rects: bool,
 }
 
@@ -442,6 +449,7 @@ pub fn paint_path_outline(
                 i0 = i1;
             }
         } else {
+            // thick line
             // TODO: line caps for really thick lines?
 
             /*

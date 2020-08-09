@@ -2,6 +2,7 @@ use crate::{math::*, style::Style};
 
 // ----------------------------------------------------------------------------
 
+/// `Layout` direction (horizontal or vertical).
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
@@ -16,6 +17,7 @@ impl Default for Direction {
     }
 }
 
+/// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]

@@ -6,6 +6,7 @@ use crate::{paint::*, widgets::Label, *};
 /// for the borrow checker.
 type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
 
+/// Control a number by a horizontal slider.
 pub struct Slider<'a> {
     get_set_value: SliderGetSet<'a>,
     range: RangeInclusive<f32>,

@@ -4,7 +4,7 @@ use crate::{paint::*, widgets::*, *};
 
 use super::*;
 
-/// A wrapper around other containers for things you often want in a window
+/// A floating window which can be moved, closed, collapsed, resized and scrolled.
 pub struct Window<'open> {
     pub title_label: Label,
     open: Option<&'open mut bool>,

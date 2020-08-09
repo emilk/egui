@@ -17,9 +17,10 @@
 
 use crate::{widgets::*, *};
 
+/// What is saved between frames.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct BarState {
+pub(crate) struct BarState {
     #[cfg_attr(feature = "with_serde", serde(skip))]
     open_menu: Option<Id>,
     #[cfg_attr(feature = "with_serde", serde(skip))]

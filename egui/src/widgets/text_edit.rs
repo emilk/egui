@@ -8,6 +8,7 @@ pub(crate) struct State {
     pub cursor: Option<usize>,
 }
 
+/// A text region that the user can edit the contents of.
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,

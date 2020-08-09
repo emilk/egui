@@ -2,6 +2,7 @@
 
 use crate::{layers::PaintCmdIdx, paint::*, *};
 
+/// Adds a rectangular frame and background to some `Ui`.
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
     // On each side

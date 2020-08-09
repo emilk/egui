@@ -151,6 +151,7 @@ impl Default for MouseInput {
     }
 }
 
+/// An input event. Only covers events used by Egui.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     Copy,
@@ -164,6 +165,7 @@ pub enum Event {
     },
 }
 
+/// Keyboard key name. Only covers keys used by Egui.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Key {
     Alt,

@@ -16,6 +16,7 @@ pub(crate) struct State {
     pub(crate) requested_size: Option<Vec2>,
 }
 
+/// A region that can be resized by dragging the bottom right corner.
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
     id: Option<Id>,

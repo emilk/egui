@@ -146,6 +146,7 @@ impl State {
     }
 }
 
+/// A header which can be collapsed/expanded, revealing a contained `Ui` region.
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,

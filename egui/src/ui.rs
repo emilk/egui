@@ -374,15 +374,15 @@ impl Ui {
     /// for `Justified` aligned layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    pub fn allocate_space(&mut self, child_size: Vec2) -> Rect {
-        let child_size = self.painter().round_vec_to_pixels(child_size);
+    pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
+        let desired_size = self.painter().round_vec_to_pixels(desired_size);
         self.cursor = self.painter().round_pos_to_pixels(self.cursor);
 
         // For debug rendering
-        let too_wide = child_size.x > self.available().width();
-        let too_high = child_size.x > self.available().height();
+        let too_wide = desired_size.x > self.available().width();
+        let too_high = desired_size.x > self.available().height();
 
-        let rect = self.reserve_space_impl(child_size);
+        let rect = self.reserve_space_impl(desired_size);
 
         if self.style().debug_widget_rects {
             self.painter.add(PaintCmd::Rect {
@@ -429,8 +429,11 @@ impl Ui {
     }
 
     /// Ask to allocate a certain amount of space and return a Painter for that region.
-    pub fn allocate_canvas(&mut self, size: Vec2) -> Painter {
-        let rect = self.allocate_space(size);
+    ///
+    /// You may get back a `Painter` with a smaller or larger size than what you desired,
+    /// depending on the avilable space and the current layout.
+    pub fn allocate_canvas(&mut self, desired_size: Vec2) -> Painter {
+        let rect = self.allocate_space(desired_size);
         self.painter_at(rect)
     }
 }

@@ -1,3 +1,7 @@
+//! Graphics module.
+//!
+//! Handles fonts, textures, color, geometry and tesselation.
+
 pub mod color;
 pub mod command;
 pub mod font;

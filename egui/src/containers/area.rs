@@ -6,6 +6,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use crate::*;
 
+/// State that is persisted between frames
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
@@ -31,6 +32,9 @@ impl State {
     }
 }
 
+/// An area on the screen that can be move by dragging.
+///
+/// This forms the base of the `Window` container.
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     id: Id,

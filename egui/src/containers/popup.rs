@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::*;
 
+/// Show a tooltip at the current mouse position (if any).
 pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
         //  TODO: default size
@@ -11,7 +12,7 @@ pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
     }
 }
 
-/// Show a pop-over window
+/// Show a pop-over window.
 pub fn show_popup(
     ctx: &Arc<Context>,
     id: Id,

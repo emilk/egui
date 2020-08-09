@@ -1,3 +1,5 @@
+//! Vectors, positions, rectangles etc.
+
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
 /// A size or direction in 2D space.
@@ -120,6 +122,18 @@ impl Vec2 {
     #[must_use]
     pub fn max(self, other: Self) -> Self {
         vec2(self.x.max(other.x), self.y.max(other.y))
+    }
+
+    /// Returns the minimum of `self.x` and `self.y`.
+    #[must_use]
+    pub fn min_elem(self) -> f32 {
+        self.x.min(self.y)
+    }
+
+    /// Returns the maximum of `self.x` and `self.y`.
+    #[must_use]
+    pub fn max_elem(self) -> f32 {
+        self.x.max(self.y)
     }
 
     #[must_use]
@@ -575,6 +589,7 @@ impl std::fmt::Debug for Rect {
 
 // ----------------------------------------------------------------------------
 
+/// Linear interpolation.
 pub fn lerp<T>(range: RangeInclusive<T>, t: f32) -> T
 where
     f32: Mul<T, Output = T>,
@@ -583,11 +598,15 @@ where
     (1.0 - t) * *range.start() + t * *range.end()
 }
 
+/// Linearly remap a value from one range to another,
+/// so that when `x == from.start()` returns `to.start()`
+/// and when `x == from.end()` returns `to.end()`.
 pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
     let t = (x - from.start()) / (from.end() - from.start());
     lerp(to, t)
 }
 
+/// Like `remap`, but also clamps the value so that the returned value is always in the `to` range.
 pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
     if x <= *from.start() {
         *to.start()
@@ -604,6 +623,9 @@ pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -
     }
 }
 
+/// Returns `range.start()` if `x <= range.start()`,
+/// returns `range.end()` if `x >= range.end()`
+/// and returns `x` elsewhen.
 pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
 where
     T: Copy + PartialOrd,
@@ -629,9 +651,10 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 /// See <https://tauday.com/>
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
-pub fn round_to_precision(value: f32, precision: usize) -> f32 {
+/// Round a value to the given number of decimal places.
+pub fn round_to_precision(value: f32, decimal_places: usize) -> f32 {
     // This is a stupid way of doing this, but stupid works.
-    format!("{:.*}", precision, value)
+    format!("{:.*}", decimal_places, value)
         .parse()
         .unwrap_or_else(|_| value)
 }

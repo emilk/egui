@@ -1,7 +1,7 @@
+//! Widgets are pieces of GUI such as labels, buttons, sliders etc.
+//!
 //! Example widget uses:
-//!
-//! * `ui.add(Label::new("Text").text_color(color::red));`
-//!
+//! * `ui.add(Label::new("Text").text_color(color::red));`//!
 //! * `if ui.add(Button::new("Click me")).clicked { ... }`
 
 #![allow(clippy::new_without_default)]
@@ -24,6 +24,7 @@ pub trait Widget {
 
 // ----------------------------------------------------------------------------
 
+/// Static text.
 pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
@@ -146,6 +147,7 @@ impl Into<Label> for String {
 
 // ----------------------------------------------------------------------------
 
+/// A clickable hyperlink, e.g. to `"https://github.com/emilk/emigui/"`.
 pub struct Hyperlink {
     url: String,
     text: String,
@@ -210,6 +212,7 @@ impl Widget for Hyperlink {
 
 // ----------------------------------------------------------------------------
 
+/// Clickable button with text
 pub struct Button {
     text: String,
     text_color: Option<Color>,
@@ -298,6 +301,8 @@ impl Widget for Button {
 
 // ----------------------------------------------------------------------------
 
+// TODO: allow checkbox without a text label
+/// Boolean on/off control with text label
 #[derive(Debug)]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
@@ -375,6 +380,7 @@ impl<'a> Widget for Checkbox<'a> {
 
 // ----------------------------------------------------------------------------
 
+/// One out of several alternatives, either checked or not.
 #[derive(Debug)]
 pub struct RadioButton {
     checked: bool,
@@ -448,6 +454,7 @@ impl Widget for RadioButton {
 
 // ----------------------------------------------------------------------------
 
+/// A visual separator. A horizontal or vertical line (depending on `Layout`).
 pub struct Separator {
     line_width: Option<f32>,
     spacing: f32,
@@ -537,6 +544,7 @@ impl Widget for Separator {
 
 // ----------------------------------------------------------------------------
 
+/// A floating point value that you can change by dragging the number. More compact than a slider.
 pub struct DragValue<'a> {
     value: &'a mut f32,
     speed: f32,
