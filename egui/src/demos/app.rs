@@ -5,8 +5,8 @@ use crate::{app, color::*, containers::*, demos::FractalClock, paint::*, widgets
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoApp {
     previous_web_location_hash: String,
     open_windows: OpenWindows,
@@ -144,7 +144,7 @@ impl app::App for DemoApp {
         self.ui(ui, web_location_hash);
     }
 
-    #[cfg(feature = "with_serde")]
+    #[cfg(feature = "serde_json")]
     fn on_exit(&mut self, storage: &mut dyn app::Storage) {
         app::set_value(storage, app::APP_KEY, self);
     }
@@ -152,7 +152,7 @@ impl app::App for DemoApp {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct OpenWindows {
     demo: bool,
     fractal_clock: bool,
@@ -228,7 +228,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
 // ----------------------------------------------------------------------------
 
 /// Showcase some ui code
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DemoWindow {
     num_columns: usize,
 
@@ -343,8 +343,8 @@ impl DemoWindow {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct Widgets {
     button_enabled: bool,
     count: usize,
@@ -425,8 +425,8 @@ impl Widgets {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
     corner_radius: f32,
@@ -476,8 +476,8 @@ impl BoxPainting {
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct Painting {
     lines: Vec<Vec<Vec2>>,
 }
@@ -536,8 +536,8 @@ impl Painting {
 
 use crate::layout::*;
 
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct LayoutDemo {
     dir: Direction,
     align: Option<Align>, // None == jusitifed
@@ -623,7 +623,7 @@ enum Action {
 }
 
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct Tree(Vec<Tree>);
 
 impl Tree {

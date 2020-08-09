@@ -12,10 +12,10 @@ use crate::{
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
-    #[cfg_attr(feature = "with_serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
     // states of various types of widgets
@@ -25,7 +25,7 @@ pub struct Memory {
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
-    #[cfg_attr(feature = "with_serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     pub(crate) areas: Areas,
@@ -87,8 +87,8 @@ impl Interaction {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: HashMap<Id, area::State>,
     /// Top is last

@@ -4,8 +4,8 @@ use crate::{math::*, style::Style};
 
 /// `Layout` direction (horizontal or vertical).
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Direction {
     Horizontal,
     Vertical,
@@ -19,8 +19,8 @@ impl Default for Direction {
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Align {
     /// Left/Top
     Min,
@@ -59,7 +59,7 @@ pub(crate) fn anchor_rect(rect: Rect, anchor: (Align, Align)) -> Rect {
 
 /// The layout of a `Ui`, e.g. horizontal left-aligned.
 #[derive(Clone, Copy, Debug, PartialEq)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Lay out things horizontally or vertically?
     dir: Direction,

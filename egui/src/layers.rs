@@ -4,7 +4,7 @@ use crate::{math::Rect, paint::PaintCmd, Id};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Order {
     /// Painted behind all floating windows
     Background,
@@ -19,7 +19,7 @@ pub enum Order {
 /// An identifier for a paint layer.
 /// Also acts as an identifier for `Area`:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layer {
     pub order: Order,
     pub id: Id,

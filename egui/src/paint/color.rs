@@ -1,7 +1,7 @@
 // TODO: rename `Color` to `sRGBA` for clarity.
 /// 0-255 `sRGBA`. Uses premultiplied alpha.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Color {
     pub r: u8,
     pub g: u8,

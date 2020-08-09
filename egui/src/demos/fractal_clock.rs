@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{containers::*, paint::PaintCmd, widgets::*, *};
 
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct FractalClock {
     paused: bool,
     time: f64,

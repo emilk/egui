@@ -21,9 +21,6 @@ rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
-[features]
-with_serde = ["serde", "serde_json"]
-
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
 

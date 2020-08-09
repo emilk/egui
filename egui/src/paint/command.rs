@@ -69,7 +69,7 @@ impl PaintCmd {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LineStyle {
     pub width: f32,
     pub color: Color,

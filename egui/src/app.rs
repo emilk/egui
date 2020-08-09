@@ -63,14 +63,14 @@ pub trait Storage {
     fn set_string(&mut self, key: &str, value: String);
 }
 
-#[cfg(feature = "with_serde")]
+#[cfg(feature = "serde_json")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
         .get_string(key)
         .and_then(|value| serde_json::from_str(value).ok())
 }
 
-#[cfg(feature = "with_serde")]
+#[cfg(feature = "serde_json")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
     storage.set_string(key, serde_json::to_string(value).unwrap());
 }

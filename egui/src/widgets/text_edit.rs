@@ -1,7 +1,7 @@
 use crate::{paint::*, *};
 
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// Charctaer based, NOT bytes.
     /// TODO: store as line + row

@@ -1,8 +1,8 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,
@@ -11,7 +11,7 @@ pub(crate) struct State {
 
     // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
     /// Used to animate the showing of the scroll bar
-    #[cfg_attr(feature = "with_serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     toggle_time: f64,
 }
 

@@ -8,13 +8,13 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "with_serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     open: bool,
 
     // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
-    #[cfg_attr(feature = "with_serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     toggle_time: f64,
 
     /// Height of the region when open. Used for animations

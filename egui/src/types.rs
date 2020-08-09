@@ -7,7 +7,7 @@ use crate::{math::Rect, Context, Ui};
 /// What Egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Output {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -25,8 +25,8 @@ pub struct Output {
 }
 
 #[derive(Clone, Copy)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
-// #[cfg_attr(feature = "with_serde", serde(rename_all = "snake_case"))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
@@ -50,7 +50,7 @@ impl Default for CursorIcon {
 ///
 /// For instance, this lets you know whether or not a widget has been clicked this frame.
 #[derive(Clone, Copy, Debug)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct InteractInfo {
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,
@@ -165,7 +165,7 @@ impl Into<InteractInfo> for GuiResponse {
 
 /// What sort of interaction is a widget sensitive to?
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Sense {
     /// buttons, sliders, windows ...
     pub click: bool,

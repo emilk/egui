@@ -13,7 +13,7 @@ use super::{
 
 // TODO: rename
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextStyle {
     Body,
     Button,
@@ -22,7 +22,7 @@ pub enum TextStyle {
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-// #[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     Monospace,
     VariableWidth,

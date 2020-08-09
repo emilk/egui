@@ -6,7 +6,7 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, Su
 ///
 /// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -248,7 +248,7 @@ impl std::fmt::Debug for Vec2 {
 ///
 /// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
     pub x: f32,
     pub y: f32,
@@ -393,7 +393,7 @@ impl std::fmt::Debug for Pos2 {
 ///
 /// Normally given in points, e.g. logical pixels.
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "with_serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Rect {
     pub min: Pos2,
     pub max: Pos2,
