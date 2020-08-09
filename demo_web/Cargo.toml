@@ -9,9 +9,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# egui = { git = "https://github.com/emilk/emigui", features = ["serde"] }
 egui = { path = "../egui", features = ["serde"] }
-# egui_web = { git = "https://github.com/emilk/emigui" }
 egui_web = { path = "../egui_web" }
 js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }
