@@ -23,14 +23,14 @@ Loop:
 ## Available backends:
 Wherever you can render textured triangles you can use Egui.
 
-* WebAssembly (`egui_web`) for making a web app. [Click to run](https://emilk.github.io/emigui/index.html).
+* WebAssembly (`egui_web`) for making a web app. [Click to run](https://emilk.github.io/egui/index.html).
 * [Glium](https://github.com/glium/glium) for native apps (see example_glium).
 * [miniquad](https://github.com/not-fl3/emigui-miniquad) [web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs)
 
 The same application code can thus be compiled to either into a native app or a web app.
 
 ## Demos
-[Egui feature demo](https://emilk.github.io/emigui/index.html), (partial) source: https://github.com/emilk/emigui/blob/master/egui/src/demos/app.rs
+[Egui feature demo](https://emilk.github.io/egui/index.html), (partial) source: https://github.com/emilk/egui/blob/master/egui/src/demos/app.rs
 
 [Hobogo: A small game using Egui](https://emilk.github.io/hobogo/index.html), source: https://github.com/emilk/hobogo
 
@@ -60,7 +60,7 @@ The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immed
 ## Name
 The name of the gui library is "Egui", written like that in text and as `egui` in code and pronounced as "e-gooey".
 
-The library used to be called `Emigui`, which is why it is still hosted at [github.com/emilk/emigui](https://github.com/emilk/emigui). If you like, `emigui` is the collection of helper crates that surrounds `egui`, while `egui` is the actual GUI library.
+The library was originally called "Emigui", but was renamed to Egui in 2020.
 
 ## Credits / Licenses
 Fonts:

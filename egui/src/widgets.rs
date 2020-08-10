@@ -147,7 +147,7 @@ impl Into<Label> for String {
 
 // ----------------------------------------------------------------------------
 
-/// A clickable hyperlink, e.g. to `"https://github.com/emilk/emigui/"`.
+/// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
 pub struct Hyperlink {
     url: String,
     text: String,

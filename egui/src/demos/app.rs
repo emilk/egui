@@ -82,7 +82,7 @@ impl DemoApp {
             ui.label("This is also work in progress, and not ready for production... yet :)");
             ui.horizontal(|ui| {
                 ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/emigui/");
+                ui.hyperlink("https://github.com/emilk/egui");
             });
         } else {
             ui.add(label!("Egui").text_style(TextStyle::Heading));
@@ -202,7 +202,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
         });
         menu::menu(ui, "About", |ui| {
             ui.add(label!("This is Egui"));
-            ui.add(Hyperlink::new("https://github.com/emilk/emigui/").text("Egui home page"));
+            ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
         });
 
         if let Some(time) = ui.input().seconds_since_midnight {
@@ -262,7 +262,7 @@ impl DemoWindow {
 
             ui.horizontal(|ui| {
                 ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/emigui/");
+                ui.hyperlink("https://github.com/emilk/egui");
             });
         });
 
