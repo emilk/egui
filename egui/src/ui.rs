@@ -257,6 +257,10 @@ impl Ui {
         &self.layout
     }
 
+    pub fn layout_mut(&mut self) -> &mut Layout {
+        &mut self.layout
+    }
+
     // TODO: remove
     pub fn set_layout(&mut self, layout: Layout) {
         self.layout = layout;
