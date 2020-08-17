@@ -93,6 +93,10 @@ impl Ui {
         &self.style
     }
 
+    pub fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
+    }
+
     pub fn set_style(&mut self, style: Style) {
         self.style = style
     }
