@@ -257,6 +257,8 @@ impl Ui {
         &self.layout
     }
 
+    /// Mutably borrow internal `Layout`.
+    /// Changes apply to this `Ui` and its subsequent children.
     pub fn layout_mut(&mut self) -> &mut Layout {
         &mut self.layout
     }
