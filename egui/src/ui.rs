@@ -93,6 +93,8 @@ impl Ui {
         &self.style
     }
 
+    /// Mutably borrow internal `Style`.
+    /// Changes apply to this `Ui` and its subsequent children.
     pub fn style_mut(&mut self) -> &mut Style {
         &mut self.style
     }
