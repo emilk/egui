@@ -4,6 +4,10 @@ use crate::{app, color::*, containers::*, demos::FractalClock, paint::*, widgets
 
 // ----------------------------------------------------------------------------
 
+/// Demonstrates how to make an app using Egui.
+///
+/// Implements `App` so it can be used with
+/// [`egui_glium`](https://crates.io/crates/egui_glium) and [`egui_web`](https://crates.io/crates/egui_web).
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -16,7 +20,9 @@ pub struct DemoApp {
 }
 
 impl DemoApp {
-    /// `web_location_hash`: for web demo only. e.g. "#fragmet".
+    /// Show the app ui (menu bar and windows).
+    ///
+    /// * `web_location_hash`: for web demo only. e.g. "#fragment". Set to "".
     pub fn ui(&mut self, ui: &mut Ui, web_location_hash: &str) {
         if self.previous_web_location_hash != web_location_hash {
             // #fragment end of URL:
@@ -34,6 +40,7 @@ impl DemoApp {
         self.windows(ui.ctx());
     }
 
+    /// Show the open windows.
     pub fn windows(&mut self, ctx: &Arc<Context>) {
         let DemoApp {
             open_windows,

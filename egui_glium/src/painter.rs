@@ -206,6 +206,8 @@ impl Painter {
         triangles: &Triangles,
         texture: &egui::Texture,
     ) {
+        debug_assert!(triangles.is_valid());
+
         let vertex_buffer = {
             #[derive(Copy, Clone)]
             struct Vertex {

@@ -6,7 +6,8 @@ const MAX_CLICK_DIST: f32 = 6.0;
 const MAX_CLICK_DELAY: f64 = 0.3;
 
 /// What the integration gives to the gui.
-/// All coordinates in egui is in point/logical coordinates.
+/// All coordinates in egui is in point/logical coordinates
+/// with origin (0, 0) in the top left corner.
 #[derive(Clone, Debug, Default)]
 pub struct RawInput {
     /// Is the button currently down?
@@ -19,13 +20,13 @@ pub struct RawInput {
     pub scroll_delta: Vec2,
 
     /// Size of the screen in points.
-    /// TODO: this should be screen_rect for easy sandboxing.
+    // TODO: this should be screen_rect for easy sandboxing.
     pub screen_size: Vec2,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     pub pixels_per_point: Option<f32>,
 
-    /// Time in seconds. Relative to whatever. Used for animation.
+    /// Time in seconds. Relative to whatever. Used for animations.
     pub time: f64,
 
     /// Local time. Only used for the clock in the demo app.

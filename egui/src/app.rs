@@ -5,8 +5,8 @@
 
 use crate::Ui;
 
-/// Implement this trait to write apps that can be compiled both natively using the `egui_glium` crate,
-/// and deployed as a web site using the `egui_web` crate.
+/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
+/// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn ui(&mut self, ui: &mut Ui, backend: &mut dyn Backend);
@@ -19,7 +19,7 @@ pub trait App {
 /// How the backend runs the app
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RunMode {
-    /// Rapint the UI all the time (at the display refresh rate of e.g. 60 Hz).
+    /// Repint the UI all the time (at the display refresh rate of e.g. 60 Hz).
     /// This is good for games where things are constantly moving.
     /// This can also be achieved with `RunMode::Reactive` combined with calling `egui::Context::request_repaint()` each frame.
     Continuous,

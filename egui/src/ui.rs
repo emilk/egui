@@ -472,6 +472,10 @@ impl Ui {
         self.add(RadioButton::new(checked, text))
     }
 
+    pub fn text_edit(&mut self, text: &mut String) -> GuiResponse {
+        self.add(TextEdit::new(text))
+    }
+
     /// Show a radio button. It is selected if `*curr_value == radio_value`.
     /// If clicked, `radio_value` is assigned to `*curr_value`;
     pub fn radio_value<Value: PartialEq>(

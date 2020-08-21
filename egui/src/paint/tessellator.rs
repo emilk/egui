@@ -1,3 +1,8 @@
+//! Converts graphics primitives into textured triangles.
+//!
+//! This module converts lines, circles, text and more represented by `PaintCmd`
+//! into textured triangles represented by `Triangles`.
+
 #![allow(clippy::identity_op)]
 
 use {
@@ -12,17 +17,22 @@ use {
 /// The UV coordinate of a white region of the texture mesh.
 const WHITE_UV: (u16, u16) = (1, 1);
 
+/// The vertex type.
+///
+/// Should be friendly to send to GPU as is.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Vertex {
-    /// Logical pixel coordinates (points)
-    pub pos: Pos2,
+    /// Logical pixel coordinates (points).
+    /// (0,0) is the top left corner of the screen.
+    pub pos: Pos2, // 64 bit
     /// Texel coordinates in the texture
-    pub uv: (u16, u16),
+    pub uv: (u16, u16), // 32 bit
     /// sRGBA with premultiplied alpha
-    pub color: Color,
+    pub color: Color, // 32 bit
 }
 
-/// Textured triangles
+/// Textured triangles.
 #[derive(Clone, Debug, Default)]
 pub struct Triangles {
     /// Draw as triangles (i.e. the length is always multiple of three).
@@ -39,36 +49,49 @@ pub type PaintJobs = Vec<PaintJob>;
 
 // ----------------------------------------------------------------------------
 
+/// ## Helpers for adding
 impl Triangles {
-    pub fn append(&mut self, triangles: &Triangles) {
-        let index_offset = self.vertices.len() as u32;
-        for index in &triangles.indices {
-            self.indices.push(index_offset + index);
-        }
-        self.vertices.extend(triangles.vertices.iter());
+    /// Are all indices within the bounds of the contained vertices?
+    pub fn is_valid(&self) -> bool {
+        let n = self.vertices.len() as u32;
+        self.indices.iter().all(|&i| i < n)
     }
 
-    fn triangle(&mut self, a: u32, b: u32, c: u32) {
+    /// Append all the indices and vertices of `other` to `self`.
+    pub fn append(&mut self, other: &Triangles) {
+        let index_offset = self.vertices.len() as u32;
+        for index in &other.indices {
+            self.indices.push(index_offset + index);
+        }
+        self.vertices.extend(other.vertices.iter());
+    }
+
+    /// Add a triangle.
+    pub fn add_triangle(&mut self, a: u32, b: u32, c: u32) {
         self.indices.push(a);
         self.indices.push(b);
         self.indices.push(c);
     }
 
+    /// Make room for this many additional triangles (will reserve 3x as many indices).
+    /// See also `reserve_vertices`.
     pub fn reserve_triangles(&mut self, additional_triangles: usize) {
         self.indices.reserve(3 * additional_triangles);
     }
 
+    /// Make room for this many additional vertices.
+    /// See also `reserve_triangles`.
     pub fn reserve_vertices(&mut self, additional: usize) {
         self.vertices.reserve(additional);
     }
 
-    /// Uniformly colored rectangle
+    /// Uniformly colored rectangle.
     pub fn add_rect(&mut self, top_left: Vertex, bottom_right: Vertex) {
         debug_assert_eq!(top_left.color, bottom_right.color);
 
         let idx = self.vertices.len() as u32;
-        self.triangle(idx + 0, idx + 1, idx + 2);
-        self.triangle(idx + 2, idx + 1, idx + 3);
+        self.add_triangle(idx + 0, idx + 1, idx + 2);
+        self.add_triangle(idx + 2, idx + 1, idx + 3);
 
         let top_right = Vertex {
             pos: pos2(bottom_right.pos.x, top_left.pos.y),
@@ -87,7 +110,8 @@ impl Triangles {
     }
 
     /// This is for platforms that only support 16-bit index buffers.
-    /// Splits this mesh into many small if needed.
+    ///
+    /// Splits this mesh into many smaller meshes (if needed).
     /// All the returned meshes will have indices that fit into a `u16`.
     pub fn split_to_u16(self) -> Vec<Triangles> {
         const MAX_SIZE: u32 = 1 << 16;
@@ -146,15 +170,20 @@ impl Triangles {
 pub struct PathPoint {
     pos: Pos2,
 
-    /// For filled paths the normal is used for antialiasing.
-    /// For outlines the normal is used for figuring out how to make the line wide
+    /// For filled paths the normal is used for anti-aliasing (both outlines and filled areas).
+    ///
+    /// For outlines the normal is also used for giving thickness to the path
     /// (i.e. in what direction to expand).
+    ///
     /// The normal could be estimated by differences between successive points,
     /// but that would be less accurate (and in some cases slower).
+    ///
+    /// Normals are normally unit-length.
     normal: Vec2,
 }
 
-/// A 2D path that can be tesselated into triangles.
+/// A connected line (without thickness or gaps) which can be tesselated
+/// to either to an outline (with thickness) or a filled convex area.
 #[derive(Clone, Debug, Default)]
 pub struct Path(Vec<PathPoint>);
 
@@ -277,17 +306,24 @@ impl Path {
         }
     }
 
-    /// with x right, and y down (GUI coords) we have:
-    /// angle       = dir
-    /// 0 * TAU / 4 = right
-    ///    quadrant 0, right bottom
-    /// 1 * TAU / 4 = bottom
-    ///    quadrant 1, left bottom
-    /// 2 * TAU / 4 = left
-    ///    quadrant 2 left top
-    /// 3 * TAU / 4 = top
-    ///    quadrant 3 right top
-    /// 4 * TAU / 4 = right
+    /// Add one quadrant of a circle
+    ///
+    /// * quadrant 0: right bottom
+    /// * quadrant 1: left bottom
+    /// * quadrant 2: left top
+    /// * quadrant 3: right top
+    //
+    // Derivation:
+    //
+    // * angle 0 * TAU / 4 = right
+    //   - quadrant 0: right bottom
+    // * angle 1 * TAU / 4 = bottom
+    //   - quadrant 1: left bottom
+    // * angle 2 * TAU / 4 = left
+    //   - quadrant 2: left top
+    // * angle 3 * TAU / 4 = top
+    //   - quadrant 3: right top
+    // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
         // TODO: optimize with precalculated vertices for some radii ranges
 
@@ -316,6 +352,7 @@ pub enum PathType {
 }
 use self::PathType::{Closed, Open};
 
+/// Tesselation quality options
 #[derive(Clone, Copy)]
 pub struct PaintOptions {
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
@@ -336,11 +373,12 @@ impl Default for PaintOptions {
     }
 }
 
+/// Tesselate the given convex area into a polygon.
 pub fn fill_closed_path(
-    triangles: &mut Triangles,
-    options: PaintOptions,
     path: &[PathPoint],
     color: Color,
+    options: PaintOptions,
+    out: &mut Triangles,
 ) {
     if color == color::TRANSPARENT {
         return;
@@ -353,49 +391,48 @@ pub fn fill_closed_path(
         color,
     };
     if options.anti_alias {
-        triangles.reserve_triangles(3 * n as usize);
-        triangles.reserve_vertices(2 * n as usize);
+        out.reserve_triangles(3 * n as usize);
+        out.reserve_vertices(2 * n as usize);
         let color_outer = color::TRANSPARENT;
-        let idx_inner = triangles.vertices.len() as u32;
+        let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
         for i in 2..n {
-            triangles.triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
         }
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
             let dm = p1.normal * options.aa_size * 0.5;
-            triangles.vertices.push(vert(p1.pos - dm, color));
-            triangles.vertices.push(vert(p1.pos + dm, color_outer));
-            triangles.triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-            triangles.triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+            out.vertices.push(vert(p1.pos - dm, color));
+            out.vertices.push(vert(p1.pos + dm, color_outer));
+            out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+            out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
         }
     } else {
-        triangles.reserve_triangles(n as usize);
-        let idx = triangles.vertices.len() as u32;
-        triangles
-            .vertices
-            .extend(path.iter().map(|p| vert(p.pos, color)));
+        out.reserve_triangles(n as usize);
+        let idx = out.vertices.len() as u32;
+        out.vertices.extend(path.iter().map(|p| vert(p.pos, color)));
         for i in 2..n {
-            triangles.triangle(idx, idx + i - 1, idx + i);
+            out.add_triangle(idx, idx + i - 1, idx + i);
         }
     }
 }
 
+/// Tesselate the given path as an outline with thickness.
 pub fn paint_path_outline(
-    triangles: &mut Triangles,
-    options: PaintOptions,
-    path_type: PathType,
     path: &[PathPoint],
+    path_type: PathType,
     style: LineStyle,
+    options: PaintOptions,
+    out: &mut Triangles,
 ) {
     if style.color == color::TRANSPARENT {
         return;
     }
 
     let n = path.len() as u32;
-    let idx = triangles.vertices.len() as u32;
+    let idx = out.vertices.len() as u32;
 
     let vert = |pos, color| Vertex {
         pos,
@@ -422,8 +459,8 @@ pub fn paint_path_outline(
                 return;
             }
 
-            triangles.reserve_triangles(4 * n as usize);
-            triangles.reserve_vertices(3 * n as usize);
+            out.reserve_triangles(4 * n as usize);
+            out.reserve_vertices(3 * n as usize);
 
             let mut i0 = n - 1;
             for i1 in 0..n {
@@ -431,20 +468,18 @@ pub fn paint_path_outline(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                triangles
-                    .vertices
+                out.vertices
                     .push(vert(p + n * options.aa_size, color_outer));
-                triangles.vertices.push(vert(p, color_inner));
-                triangles
-                    .vertices
+                out.vertices.push(vert(p, color_inner));
+                out.vertices
                     .push(vert(p - n * options.aa_size, color_outer));
 
                 if connect_with_previous {
-                    triangles.triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
-                    triangles.triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
+                    out.add_triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
+                    out.add_triangle(idx + 3 * i0 + 1, idx + 3 * i1 + 0, idx + 3 * i1 + 1);
 
-                    triangles.triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
-                    triangles.triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
+                    out.add_triangle(idx + 3 * i0 + 1, idx + 3 * i0 + 2, idx + 3 * i1 + 1);
+                    out.add_triangle(idx + 3 * i0 + 2, idx + 3 * i1 + 1, idx + 3 * i1 + 2);
                 }
                 i0 = i1;
             }
@@ -462,8 +497,8 @@ pub fn paint_path_outline(
             .           |-----|            inner_rad
             */
 
-            triangles.reserve_triangles(6 * n as usize);
-            triangles.reserve_vertices(4 * n as usize);
+            out.reserve_triangles(6 * n as usize);
+            out.reserve_vertices(4 * n as usize);
 
             let mut i0 = n - 1;
             for i1 in 0..n {
@@ -473,44 +508,36 @@ pub fn paint_path_outline(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                triangles
-                    .vertices
-                    .push(vert(p + n * outer_rad, color_outer));
-                triangles
-                    .vertices
-                    .push(vert(p + n * inner_rad, color_inner));
-                triangles
-                    .vertices
-                    .push(vert(p - n * inner_rad, color_inner));
-                triangles
-                    .vertices
-                    .push(vert(p - n * outer_rad, color_outer));
+                out.vertices.push(vert(p + n * outer_rad, color_outer));
+                out.vertices.push(vert(p + n * inner_rad, color_inner));
+                out.vertices.push(vert(p - n * inner_rad, color_inner));
+                out.vertices.push(vert(p - n * outer_rad, color_outer));
 
                 if connect_with_previous {
-                    triangles.triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                    triangles.triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+                    out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                    out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
 
-                    triangles.triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                    triangles.triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                    out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                    out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
 
-                    triangles.triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                    triangles.triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                    out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                    out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
                 }
                 i0 = i1;
             }
         }
     } else {
-        triangles.reserve_triangles(2 * n as usize);
-        triangles.reserve_vertices(2 * n as usize);
+        out.reserve_triangles(2 * n as usize);
+        out.reserve_vertices(2 * n as usize);
 
         let last_index = if path_type == Closed { n } else { n - 1 };
         for i in 0..last_index {
-            triangles.triangle(
+            out.add_triangle(
                 idx + (2 * i + 0) % (2 * n),
                 idx + (2 * i + 1) % (2 * n),
                 idx + (2 * i + 2) % (2 * n),
             );
-            triangles.triangle(
+            out.add_triangle(
                 idx + (2 * i + 2) % (2 * n),
                 idx + (2 * i + 1) % (2 * n),
                 idx + (2 * i + 3) % (2 * n),
@@ -526,21 +553,15 @@ pub fn paint_path_outline(
                 return;
             }
             for p in path {
-                triangles
-                    .vertices
-                    .push(vert(p.pos + radius * p.normal, color));
-                triangles
-                    .vertices
-                    .push(vert(p.pos - radius * p.normal, color));
+                out.vertices.push(vert(p.pos + radius * p.normal, color));
+                out.vertices.push(vert(p.pos - radius * p.normal, color));
             }
         } else {
             let radius = style.width / 2.0;
             for p in path {
-                triangles
-                    .vertices
+                out.vertices
                     .push(vert(p.pos + radius * p.normal, style.color));
-                triangles
-                    .vertices
+                out.vertices
                     .push(vert(p.pos - radius * p.normal, style.color));
             }
         }
@@ -560,32 +581,39 @@ fn mul_color(color: Color, factor: f32) -> Color {
 
 // ----------------------------------------------------------------------------
 
-/// `reused_path`: only used to reuse memory
+/// Tesselate a single `PaintCmd` into a `Triangles`.
+///
+/// * `command`: the command to tesselate
+/// * `options`: tesselation quality
+/// * `fonts`: font source when tesselating text
+/// * `out`: where the triangles are put
+/// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
+///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
 pub fn tessellate_paint_command(
-    reused_path: &mut Path,
+    command: PaintCmd,
     options: PaintOptions,
     fonts: &Fonts,
-    command: PaintCmd,
     out: &mut Triangles,
+    scratchpad_path: &mut Path,
 ) {
-    let path = reused_path;
+    let path = scratchpad_path;
     path.clear();
 
     match command {
         PaintCmd::Noop => {}
         PaintCmd::Circle {
             center,
+            radius,
             fill,
             outline,
-            radius,
         } => {
             if radius > 0.0 {
                 path.add_circle(center, radius);
                 if let Some(fill) = fill {
-                    fill_closed_path(out, options, &path.0, fill);
+                    fill_closed_path(&path.0, fill, options, out);
                 }
-                if let Some(outline) = outline {
-                    paint_path_outline(out, options, Closed, &path.0, outline);
+                if let Some(line_style) = outline {
+                    paint_path_outline(&path.0, Closed, line_style, options, out);
                 }
             }
         }
@@ -594,7 +622,7 @@ pub fn tessellate_paint_command(
         }
         PaintCmd::LineSegment { points, style } => {
             path.add_line_segment(points);
-            paint_path_outline(out, options, Open, &path.0, style);
+            paint_path_outline(&path.0, Open, style, options, out);
         }
         PaintCmd::Path {
             path,
@@ -608,19 +636,19 @@ pub fn tessellate_paint_command(
                         closed,
                         "You asked to fill a path that is not closed. That makes no sense."
                     );
-                    fill_closed_path(out, options, &path.0, fill);
+                    fill_closed_path(&path.0, fill, options, out);
                 }
-                if let Some(outline) = outline {
+                if let Some(line_style) = outline {
                     let typ = if closed { Closed } else { Open };
-                    paint_path_outline(out, options, typ, &path.0, outline);
+                    paint_path_outline(&path.0, typ, line_style, options, out);
                 }
             }
         }
         PaintCmd::Rect {
+            mut rect,
             corner_radius,
             fill,
             outline,
-            mut rect,
         } => {
             if !rect.is_empty() {
                 // It is common to (sometimes accidentally) create an infinitely sized ractangle.
@@ -630,10 +658,10 @@ pub fn tessellate_paint_command(
 
                 path.add_rounded_rectangle(rect, corner_radius);
                 if let Some(fill) = fill {
-                    fill_closed_path(out, options, &path.0, fill);
+                    fill_closed_path(&path.0, fill, options, out);
                 }
-                if let Some(outline) = outline {
-                    paint_path_outline(out, options, Closed, &path.0, outline);
+                if let Some(line_style) = outline {
+                    paint_path_outline(&path.0, Closed, line_style, options, out);
                 }
             }
         }
@@ -678,13 +706,23 @@ pub fn tessellate_paint_command(
     }
 }
 
-/// Turns `PaintCmd`:s into sets of triangles
+/// Turns `PaintCmd`:s into sets of triangles.
+///
+/// The given commands will be painted back-to-front (painters algorithm).
+/// They will be batched together by clip rectangle.
+///
+/// * `commands`: the command to tesselate
+/// * `options`: tesselation quality
+/// * `fonts`: font source when tesselating text
+///
+/// ## Returns
+/// A list of clip rectangles with matching `Triangles`.
 pub fn tessellate_paint_commands(
+    commands: Vec<(Rect, PaintCmd)>,
     options: PaintOptions,
     fonts: &Fonts,
-    commands: Vec<(Rect, PaintCmd)>,
 ) -> Vec<(Rect, Triangles)> {
-    let mut reused_path = Path::default();
+    let mut scratchpad_path = Path::default();
 
     let mut jobs = PaintJobs::default();
     for (clip_rect, cmd) in commands {
@@ -695,22 +733,22 @@ pub fn tessellate_paint_commands(
         }
 
         let out = &mut jobs.last_mut().unwrap().1;
-        tessellate_paint_command(&mut reused_path, options, fonts, cmd, out);
+        tessellate_paint_command(cmd, options, fonts, out, &mut scratchpad_path);
     }
 
     if options.debug_paint_clip_rects {
         for (clip_rect, triangles) in &mut jobs {
             tessellate_paint_command(
-                &mut reused_path,
-                options,
-                fonts,
                 PaintCmd::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,
                     fill: None,
                     outline: Some(LineStyle::new(2.0, srgba(150, 255, 150, 255))),
                 },
+                options,
+                fonts,
                 triangles,
+                &mut scratchpad_path,
             )
         }
     }

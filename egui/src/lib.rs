@@ -1,4 +1,26 @@
-#![deny(warnings)]
+//! Egui core library
+//!
+//! To get started with Egui, you can use one of the available backends
+//! such as [`egui_web`](https://crates.io/crates/egui_web) or  [`egui_glium`](https://crates.io/crates/egui_glium).
+//!
+//! To write your own backend for Egui you need to do this:
+//!
+//! ``` ignore
+//! let mut egui_ctx = egui::Context::new();
+//!
+//! // game loop:
+//! loop {
+//!     let raw_input: egui::RawInput = my_backend.gather_input();
+//!     let mut ui = egui_ctx.begin_frame(raw_input);
+//!     my_app.ui(&mut ui); // add windows and widgets to `ui` here
+//!     let (output, paint_jobs) = egui_ctx.end_frame();
+//!     my_backend.paint(paint_jobs);
+//!     my_backend.set_cursor_icon(output.cursor_icon);
+//!     // Also see `egui::Output` for more
+//! }
+//! ```
+
+// #![deny(warnings)] // TODO: remove
 #![warn(
     clippy::all,
     clippy::dbg_macro,

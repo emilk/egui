@@ -235,6 +235,7 @@ impl Painter {
     }
 
     fn paint_triangles(&self, triangles: &Triangles) -> Result<(), JsValue> {
+        debug_assert!(triangles.is_valid());
         let indices: Vec<u16> = triangles.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * triangles.vertices.len());

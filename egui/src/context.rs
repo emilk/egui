@@ -194,7 +194,7 @@ impl Context {
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
         let paint_jobs =
-            tessellator::tessellate_paint_commands(paint_options, self.fonts(), paint_commands);
+            tessellator::tessellate_paint_commands(paint_commands, paint_options, self.fonts());
 
         {
             let mut stats = PaintStats::default();

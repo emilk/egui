@@ -4,7 +4,14 @@ use crate::{paint::*, widgets::*, *};
 
 use super::*;
 
-/// A floating window which can be moved, closed, collapsed, resized and scrolled.
+/// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled.
+///
+/// You can customize:
+/// * title
+/// * default, minimum, maximum and/or fixed size
+/// * if the window has a scroll area
+/// * if the window can be collapsed (minimized) to just the title bar
+/// * if there should be a close button
 pub struct Window<'open> {
     pub title_label: Label,
     open: Option<&'open mut bool>,
@@ -41,71 +48,79 @@ impl<'open> Window<'open> {
         }
     }
 
-    /// If the given bool is false, the window will not be visible.
-    /// If the given bool is true, the window will have a close button that sets this bool to false.
+    /// Call this to add a close-button to the window title bar.
+    ///
+    /// * If `*open == false`, the window will not be visible.
+    /// * If `*open == true`, the window will have a close button.
+    /// * If the close button is pressed, `*open` will be set to `false`.
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
         self
     }
 
-    /// Usage: `Winmdow::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
+    /// Usage: `Window::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
-    /// Usage: `Winmdow::new(...).resize(|r| r.auto_expand_width(true))`
+    /// Usage: `Window::new(...).resize(|r| r.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
         self
     }
 
-    /// Usage: `Winmdow::new(...).frame(|f| f.fill(Some(BLUE)))`
+    /// Usage: `Window::new(...).frame(|f| f.fill(Some(BLUE)))`
     /// Not sure this is a good interface for this.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
+    /// Set initial position of the window.
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
         self
     }
 
+    /// Set initial size of the window.
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.default_size(default_size);
         self
     }
 
+    /// Set initial width of the window.
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
         self
     }
-
+    /// Set initial height of the window.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
         self
     }
 
+    /// Set initial position and size of the window.
     pub fn default_rect(self, rect: Rect) -> Self {
         self.default_pos(rect.min).default_size(rect.size())
     }
 
-    /// Positions the window and prevents it from being moved
+    /// Sets the window position and prevents it from being dragged around.
     pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
         self.area = self.area.fixed_pos(pos);
         self
     }
 
+    /// Sets the window size and prevents it from being resized by dragging its edges.
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
     }
 
-    /// Can you resize it with the mouse?
-    /// Note that a window can still auto-resize
+    /// Can the user resize the window by dragging its edges?
+    /// Note that even if you set this to `false` the window may still auto-resize.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
         self
@@ -118,14 +133,21 @@ impl<'open> Window<'open> {
     }
 
     /// Not resizable, just takes the size of its contents.
+    /// Also disabled scrolling.
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = None;
         self
     }
 
+    /// Enable/disable scrolling. True by default.
     pub fn scroll(mut self, scroll: bool) -> Self {
-        if !scroll {
+        if scroll {
+            debug_assert!(
+                self.scroll.is_some(),
+                "Window::scroll called multiple times"
+            );
+        } else {
             self.scroll = None;
         }
         self
