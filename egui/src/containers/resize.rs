@@ -151,7 +151,7 @@ impl Resize {
 
         let corner_interact = if self.resizable {
             // Resize-corner:
-            let corner_size = Vec2::splat(16.0); // TODO: style
+            let corner_size = Vec2::splat(ui.style().resize_corner_size);
             let corner_rect = Rect::from_min_size(
                 position + state.desired_size + self.handle_offset - corner_size,
                 corner_size,
@@ -274,21 +274,24 @@ impl Resize {
     }
 }
 
-fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
+use crate::paint::LineStyle;
+
+pub fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
     let color = ui.style().interact(interact).stroke_color;
     let width = ui.style().interact(interact).stroke_width;
+    paint_resize_corner_with_style(ui, &interact.rect, LineStyle::new(width, color));
+}
 
+pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle) {
     let painter = ui.painter();
-
-    let corner = painter.round_pos_to_pixels(interact.rect.right_bottom());
+    let corner = painter.round_pos_to_pixels(rect.right_bottom());
     let mut w = 2.0;
 
     while w < 12.0 {
-        painter.add(paint::PaintCmd::line_segment(
-            [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
-            color,
-            width,
-        ));
+        painter.add(paint::PaintCmd::LineSegment {
+            points: [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
+            style,
+        });
         w += 4.0;
     }
 }

@@ -32,6 +32,8 @@ pub struct Style {
     /// Mouse must be the close to the corner of a window to resize
     pub resize_interact_radius_corner: f32,
 
+    pub resize_corner_size: f32,
+
     // -----------------------------------------------
     // Purely visual:
     pub interact: Interact,
@@ -82,6 +84,7 @@ impl Default for Style {
             start_icon_width: 14.0,
             resize_interact_radius_side: 5.0,
             resize_interact_radius_corner: 10.0,
+            resize_corner_size: 16.0,
             interact: Default::default(),
             text_color: gray(160, 255),
             line_width: 1.0,

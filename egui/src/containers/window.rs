@@ -235,6 +235,7 @@ impl<'open> Window<'open> {
 
         {
             // BEGIN FRAME --------------------------------
+            let frame_outline = frame.outline;
             let mut frame = frame.begin(&mut area_content_ui);
 
             let default_expanded = true;
@@ -269,6 +270,12 @@ impl<'open> Window<'open> {
                 .map(|ri| ri.1);
 
             let outer_rect = frame.end(&mut area_content_ui);
+
+            if possible.resizable {
+                // TODO: draw BEHIND contents ?
+                paint_resize_corner(&mut area_content_ui, outer_rect, frame_outline);
+            }
+
             // END FRAME --------------------------------
 
             title_bar.ui(
@@ -305,6 +312,15 @@ impl<'open> Window<'open> {
 
         Some(full_interact)
     }
+}
+
+fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, frame_outline: Option<LineStyle>) {
+    let corner_size = Vec2::splat(ui.style().resize_corner_size);
+    let handle_offset = -Vec2::splat(2.0);
+    let corner_rect =
+        Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
+    let outline = frame_outline.unwrap_or_else(|| LineStyle::new(1.0, color::GRAY));
+    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, outline);
 }
 
 // ----------------------------------------------------------------------------
