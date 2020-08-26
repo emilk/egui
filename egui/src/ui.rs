@@ -21,7 +21,7 @@ pub struct Ui {
     /// but may overflow (which you will see in child_bounds).
     /// Some widgets (like separator lines) will try to fill the full desired width of the ui.
     /// If the desired size is zero, it is a signal that child widgets should be as small as possible.
-    /// If the desired size is initie, it is a signal that child widgets should take up as much room as they want.
+    /// If the desired size is infinite, it is a signal that child widgets should take up as much room as they want.
     desired_rect: Rect, // TODO: rename as max_rect ?
 
     /// Bounding box of all children.
@@ -30,7 +30,7 @@ pub struct Ui {
     /// You can think of this as the minimum size.
     child_bounds: Rect, // TODO: rename as min_rect ?
 
-    /// Overide default style in this ui
+    /// Override default style in this ui
     style: Style,
 
     layout: Layout,
@@ -164,16 +164,16 @@ impl Ui {
 
     /// Screen-space position of the current bottom right corner of this Ui.
     /// This may move when we add children that overflow our desired rectangle bounds.
-    /// This position may be at inifnity if the desired rect is initinite,
-    /// which mappens when a parent widget says "be as big as you want to be".
+    /// This position may be at infinity if the desired rect is infinite,
+    /// which happens when a parent widget says "be as big as you want to be".
     pub fn bottom_right(&self) -> Pos2 {
         // If a child doesn't fit in desired_rect, we have effectively expanded:
         self.desired_rect.max.max(self.child_bounds.max)
     }
 
     /// Position and current size of the ui.
-    /// The size is the maximum of the origional (minimum/desired) size and
-    /// the size of the containted children.
+    /// The size is the maximum of the original (minimum/desired) size and
+    /// the size of the contained children.
     pub fn rect(&self) -> Rect {
         Rect::from_min_max(self.top_left(), self.bottom_right())
     }
@@ -239,8 +239,8 @@ impl Ui {
     /// The available space at the moment, given the current cursor.
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
-    /// A small rectangle should be intepreted as "as little as possible".
-    /// An infinite rectangle should be interpred as "as much as you want".
+    /// A small rectangle should be interpreted as "as little as possible".
+    /// An infinite rectangle should be interpreted as "as much as you want".
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available(&self) -> Rect {
         self.layout.available(self.cursor, self.rect())
@@ -292,7 +292,7 @@ impl Ui {
 
     /// Ideally, all widgets should use this. TODO
     /// Widgets can set an explicit id source (user picked, e.g. some loop index),
-    /// and a defualt id source (e.g. label).
+    /// and a default id source (e.g. label).
     /// If they fail to be unique, a positional id will be used instead.
     pub fn make_unique_child_id_full(
         &mut self,
@@ -313,7 +313,7 @@ impl Ui {
             .register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
     }
 
-    /// Make an Id that is unique to this positon.
+    /// Make an Id that is unique to this position.
     /// Can be used for widgets that do NOT persist state in Memory
     /// but you still need to interact with (e.g. buttons, sliders).
     pub fn make_position_id(&self) -> Id {
@@ -437,7 +437,7 @@ impl Ui {
     /// Ask to allocate a certain amount of space and return a Painter for that region.
     ///
     /// You may get back a `Painter` with a smaller or larger size than what you desired,
-    /// depending on the avilable space and the current layout.
+    /// depending on the available space and the current layout.
     pub fn allocate_canvas(&mut self, desired_size: Vec2) -> Painter {
         let rect = self.allocate_space(desired_size);
         self.painter_at(rect)
@@ -482,17 +482,17 @@ impl Ui {
         self.add(TextEdit::new(text))
     }
 
-    /// Show a radio button. It is selected if `*curr_value == radio_value`.
-    /// If clicked, `radio_value` is assigned to `*curr_value`;
+    /// Show a radio button. It is selected if `*current_value == radio_value`.
+    /// If clicked, `radio_value` is assigned to `*current_value`;
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         text: impl Into<String>,
-        curr_value: &mut Value,
+        current_value: &mut Value,
         radio_value: Value,
     ) -> GuiResponse {
-        let response = self.radio(text, *curr_value == radio_value);
+        let response = self.radio(text, *current_value == radio_value);
         if response.clicked {
-            *curr_value = radio_value;
+            *current_value = radio_value;
         }
         response
     }
@@ -503,7 +503,7 @@ impl Ui {
     }
 }
 
-/// # Addding Containers / Sub-uis:
+/// # Adding Containers / Sub-uis:
 impl Ui {
     pub fn collapsing<R>(
         &mut self,
@@ -515,7 +515,7 @@ impl Ui {
 
     /// Create a child ui at the current cursor.
     /// `size` is the desired size.
-    /// Actual size may be much smaller if `avilable_size()` is not enough.
+    /// Actual size may be much smaller if `available_size()` is not enough.
     /// Set `size` to `Vec::infinity()` to get as much space as possible.
     /// Just because you ask for a lot of space does not mean you have to use it!
     /// After `add_contents` is called the contents of `bounding_size`

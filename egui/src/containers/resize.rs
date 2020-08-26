@@ -44,7 +44,7 @@ impl Default for Resize {
 }
 
 impl Resize {
-    /// Assign an explicit and globablly unique id.
+    /// Assign an explicit and globally unique id.
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
@@ -169,7 +169,7 @@ impl Resize {
 
         let mut content_clip_rect = inner_rect.expand(ui.style().clip_rect_margin);
 
-        // If we pull the resize handle to shrink, we want to TRY to shink it.
+        // If we pull the resize handle to shrink, we want to TRY to shrink it.
         // After laying out the contents, we might be much bigger.
         // In those cases we don't want the clip_rect to be smaller, because
         // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!

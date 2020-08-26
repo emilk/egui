@@ -406,7 +406,7 @@ fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Optio
             rect.max.y = ctx.round_to_pixel(mouse_pos.y);
         }
     } else {
-        // movevement
+        // movement
         rect = rect.translate(mouse_pos - ctx.input().mouse.press_origin?);
     }
 

@@ -185,7 +185,7 @@ pub struct WidgetStyle {
     /// like buttons, the box of the checkbox, etc.
     pub rect_outline: Option<LineStyle>,
 
-    /// Button frames etdc
+    /// Button frames etc
     pub corner_radius: f32,
 }
 

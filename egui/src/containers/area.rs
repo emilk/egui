@@ -1,5 +1,5 @@
 //! Area is a `Ui` that has no parent, it floats on the background.
-//! It has no frame or own size. It is potentioally movable.
+//! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
 use std::{fmt::Debug, hash::Hash, sync::Arc};
@@ -16,7 +16,7 @@ pub(crate) struct State {
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
 
-    /// If false, clicks goes stright throught to what is behind us.
+    /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
 
