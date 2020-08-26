@@ -29,7 +29,6 @@ pub struct Resize {
     default_size: Vec2,
 
     outline: bool,
-    handle_offset: Vec2,
 }
 
 impl Default for Resize {
@@ -40,7 +39,6 @@ impl Default for Resize {
             min_size: Vec2::splat(16.0),
             default_size: vec2(128.0, 128.0), // TODO: perferred size for a resizable area (e.g. a window or a text edit)
             outline: true,
-            handle_offset: Default::default(),
         }
     }
 }
@@ -112,12 +110,6 @@ impl Resize {
         self
     }
 
-    /// Offset the position of the resize handle by this much
-    pub fn handle_offset(mut self, handle_offset: impl Into<Vec2>) -> Self {
-        self.handle_offset = handle_offset.into();
-        self
-    }
-
     pub fn outline(mut self, outline: bool) -> Self {
         self.outline = outline;
         self
@@ -152,16 +144,13 @@ impl Resize {
         let corner_interact = if self.resizable {
             // Resize-corner:
             let corner_size = Vec2::splat(ui.style().resize_corner_size);
-            let corner_rect = Rect::from_min_size(
-                position + state.desired_size + self.handle_offset - corner_size,
-                corner_size,
-            );
+            let corner_rect =
+                Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
             let corner_interact = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
             if corner_interact.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    state.desired_size = mouse_pos - position + 0.5 * corner_interact.rect.size()
-                        - self.handle_offset;
+                    state.desired_size = mouse_pos - position + 0.5 * corner_interact.rect.size();
                 }
             }
             Some(corner_interact)
