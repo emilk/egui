@@ -1,4 +1,4 @@
-use crate::{math::*, movement_tracker::MovementTracker};
+use crate::math::*;
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0;

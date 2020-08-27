@@ -56,7 +56,6 @@ mod layout;
 pub mod math;
 mod memory;
 pub mod menu;
-mod movement_tracker;
 pub mod paint;
 mod painter;
 mod style;
@@ -74,7 +73,6 @@ pub use {
     layout::*,
     math::*,
     memory::Memory,
-    movement_tracker::MovementTracker,
     paint::{color, Color, PaintJobs, TextStyle, Texture},
     painter::Painter,
     style::Style,
