@@ -244,6 +244,18 @@ impl InputState {
             )
         })
     }
+
+    /// Size of a physical pixel in logical gui coordinates (points).
+    pub fn physical_pixel_size(&self) -> f32 {
+        1.0 / self.pixels_per_point
+    }
+
+    /// How imprecise do we expect the mouse/touch input to be?
+    /// Returns imprecision in points.
+    pub fn aim_radius(&self) -> f32 {
+        // TODO: multiply by ~3 for touch inputs because fingers are fat
+        self.physical_pixel_size()
+    }
 }
 
 impl MouseInput {

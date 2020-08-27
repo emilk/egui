@@ -581,6 +581,8 @@ impl<'a> Widget for DragValue<'a> {
             if delta_value != 0.0 {
                 *value += delta_value;
                 *value = round_to_precision(*value, precision);
+                // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
+                // otherwise we will just keep rounding to the same value while moving the mouse.
             }
         }
         interact.into()

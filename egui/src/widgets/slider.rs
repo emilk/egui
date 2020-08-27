@@ -82,6 +82,9 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Precision (number of decimals) used when displaying the value.
+    /// Values will also be rounded to this precision.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     pub fn precision(mut self, precision: usize) -> Self {
         self.precision = precision;
         self
@@ -94,6 +97,11 @@ impl<'a> Slider<'a> {
     fn set_value_f32(&mut self, mut value: f32) {
         value = round_to_precision(value, self.precision);
         (self.get_set_value)(Some(value));
+    }
+
+    /// For instance, `point` is the mouse position and `point_range` is the physical location of the slider on the screen.
+    fn value_from_point(&self, point: f32, point_range: RangeInclusive<f32>) -> f32 {
+        remap_clamp(point, point_range, self.range.clone())
     }
 }
 
@@ -154,7 +162,12 @@ impl<'a> Widget for Slider<'a> {
 
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 if interact.active {
-                    self.set_value_f32(remap_clamp(mouse_pos.x, left..=right, range.clone()));
+                    let aim_radius = ui.input().aim_radius();
+                    let new_value = crate::math::smart_aim::best_in_range_f32(
+                        self.value_from_point(mouse_pos.x - aim_radius, left..=right),
+                        self.value_from_point(mouse_pos.x + aim_radius, left..=right),
+                    );
+                    self.set_value_f32(new_value);
                 }
             }
 

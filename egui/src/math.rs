@@ -7,6 +7,7 @@ use std::ops::{Add, Mul, RangeInclusive};
 mod movement_tracker;
 mod pos2;
 mod rect;
+pub mod smart_aim;
 mod vec2;
 
 pub use {movement_tracker::*, pos2::*, rect::*, vec2::*};
