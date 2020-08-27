@@ -96,7 +96,7 @@ impl Label {
 
     // TODO: this should return a LabelLayout which has a paint method.
     // We can then split Widget::Ui in two: layout + allocating space, and painting.
-    // this allows us to assemble lables, THEN detect interaction, THEN chose color style based on that.
+    // this allows us to assemble labels, THEN detect interaction, THEN chose color style based on that.
     // pub fn layout(self, ui: &mut ui) -> LabelLayout { }
 
     // TODO: a paint method for painting anywhere in a ui.
@@ -570,7 +570,7 @@ impl<'a> Widget for DragValue<'a> {
             .log10()
             .ceil()
             .max(0.0) as usize;
-        let button = Button::new(format!("{:.*}", precision, *value))
+        let button = Button::new(format_with_minimum_precision(*value, precision))
             .sense(Sense::drag())
             .text_style(TextStyle::Monospace);
         let interact = ui.add(button);

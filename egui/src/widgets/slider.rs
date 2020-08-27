@@ -184,7 +184,7 @@ impl<'a> Slider<'a> {
     fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
         let aim_radius = ui.input().aim_radius();
         let value_text = self.format_value(aim_radius, x_range);
-        let label_text = self.text.as_ref().map(String::as_str).unwrap_or_default();
+        let label_text = self.text.as_deref().unwrap_or_default();
         let text = format!("{}: {}", label_text, value_text);
         let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
         ui.add(Label::new(text).multiline(false).text_color(text_color));
@@ -203,16 +203,7 @@ impl<'a> Slider<'a> {
             (-range.log10()).ceil().max(0.0) as usize
         });
 
-        let text = format!("{:.*}", precision, value);
-        if (text.parse::<f32>().unwrap() - value).abs() <= std::f32::EPSILON {
-            // Enough precision to show the value accurately - good!
-            text
-        } else {
-            // The value has more precision than we expected.
-            // Probably the value was set not by the slider, but from outside.
-            // In any case: show the full value
-            value.to_string()
-        }
+        format_with_minimum_precision(value, precision)
     }
 }
 

@@ -404,13 +404,13 @@ impl Widgets {
         });
 
         ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
-        if ui.add(Button::new("Double it")).clicked {
-            self.slider_value *= 2.0;
-        }
         ui.horizontal(|ui| {
             ui.label("drag this number:");
             ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
         });
+        if ui.add(Button::new("Assign PI")).clicked {
+            self.slider_value = std::f32::consts::PI;
+        }
 
         ui.horizontal(|ui| {
             ui.add(label!("Single line text input:"));

@@ -83,3 +83,16 @@ pub fn round_to_precision(value: f32, decimal_places: usize) -> f32 {
         .parse()
         .unwrap_or_else(|_| value)
 }
+
+pub fn format_with_minimum_precision(value: f32, precision: usize) -> String {
+    let text = format!("{:.*}", precision, value);
+    if (text.parse::<f32>().unwrap() - value).abs() <= std::f32::EPSILON {
+        // Enough precision to show the value accurately - good!
+        text
+    } else {
+        // The value has more precision than we expected.
+        // Probably the value was set not by the slider, but from outside.
+        // In any case: show the full value
+        value.to_string()
+    }
+}
