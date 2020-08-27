@@ -403,11 +403,7 @@ impl Widgets {
             ui.add(label!("The button has been clicked {} times", self.count));
         });
 
-        ui.add(
-            Slider::f32(&mut self.slider_value, -10.0..=10.0)
-                .text("value")
-                .precision(2),
-        );
+        ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
         if ui.add(Button::new("Double it")).clicked {
             self.slider_value *= 2.0;
         }

@@ -12,7 +12,7 @@ pub struct Slider<'a> {
     range: RangeInclusive<f32>,
     // TODO: label: Option<Label>
     text: Option<String>,
-    precision: usize,
+    precision: Option<usize>,
     text_color: Option<Color>,
     id: Option<Id>,
 }
@@ -26,7 +26,7 @@ impl<'a> Slider<'a> {
             get_set_value: Box::new(get_set_value),
             range,
             text: None,
-            precision: 3,
+            precision: None,
             text_color: None,
             id: None,
         }
@@ -34,7 +34,6 @@ impl<'a> Slider<'a> {
 
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         Slider {
-            precision: 3,
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v
@@ -47,7 +46,7 @@ impl<'a> Slider<'a> {
     pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
         let range = (*range.start() as f32)..=(*range.end() as f32);
         Slider {
-            precision: 0,
+            precision: Some(0),
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as i32
@@ -60,7 +59,7 @@ impl<'a> Slider<'a> {
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
         let range = (*range.start() as f32)..=(*range.end() as f32);
         Slider {
-            precision: 0,
+            precision: Some(0),
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v.round() as usize
@@ -82,9 +81,10 @@ impl<'a> Slider<'a> {
 
     /// Precision (number of decimals) used when displaying the value.
     /// Values will also be rounded to this precision.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     pub fn precision(mut self, precision: usize) -> Self {
-        self.precision = precision;
+        self.precision = Some(precision);
         self
     }
 
@@ -93,13 +93,23 @@ impl<'a> Slider<'a> {
     }
 
     fn set_value_f32(&mut self, mut value: f32) {
-        value = round_to_precision(value, self.precision);
+        if let Some(precision) = self.precision {
+            value = round_to_precision(value, precision);
+        }
         (self.get_set_value)(Some(value));
     }
 
-    /// For instance, `point` is the mouse position and `point_range` is the physical location of the slider on the screen.
-    fn value_from_point(&self, point: f32, point_range: RangeInclusive<f32>) -> f32 {
-        remap_clamp(point, point_range, self.range.clone())
+    /// For instance, `x` is the mouse position and `x_range` is the physical location of the slider on the screen.
+    fn value_from_x_clamped(&self, x: f32, x_range: RangeInclusive<f32>) -> f32 {
+        remap_clamp(x, x_range, self.range.clone())
+    }
+
+    fn value_from_x(&self, x: f32, x_range: RangeInclusive<f32>) -> f32 {
+        remap(x, x_range, self.range.clone())
+    }
+
+    fn x_from_value(&self, value: f32, x_range: RangeInclusive<f32>) -> f32 {
+        remap(value, self.range.clone(), x_range)
     }
 }
 
@@ -122,7 +132,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, interact: InteractInfo) -> InteractInfo {
+    fn slider_ui(&mut self, ui: &mut Ui, interact: InteractInfo) {
         let rect = &interact.rect;
         let x_range = x_range(rect);
 
@@ -133,8 +143,8 @@ impl<'a> Slider<'a> {
             if interact.active {
                 let aim_radius = ui.input().aim_radius();
                 let new_value = crate::math::smart_aim::best_in_range_f32(
-                    self.value_from_point(mouse_pos.x - aim_radius, x_range.clone()),
-                    self.value_from_point(mouse_pos.x + aim_radius, x_range.clone()),
+                    self.value_from_x_clamped(mouse_pos.x - aim_radius, x_range.clone()),
+                    self.value_from_x_clamped(mouse_pos.x + aim_radius, x_range.clone()),
                 );
                 self.set_value_f32(new_value);
             }
@@ -168,22 +178,31 @@ impl<'a> Slider<'a> {
                 )),
             });
         }
-
-        interact
     }
 
     /// Just the text label
-    fn text_ui(&mut self, ui: &mut Ui) {
-        if let Some(text) = &self.text {
-            let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
-            let value = (self.get_set_value)(None);
-            let full_text = format!("{}: {:.*}", text, self.precision, value);
-            ui.add(
-                Label::new(full_text)
-                    .multiline(false)
-                    .text_color(text_color),
-            );
-        }
+    fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
+        let aim_radius = ui.input().aim_radius();
+        let text = self.format_text(aim_radius, x_range);
+        let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
+        ui.add(Label::new(text).multiline(false).text_color(text_color));
+    }
+
+    fn format_text(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
+        let value = (self.get_set_value)(None);
+
+        let precision = self.precision.unwrap_or_else(|| {
+            // pick precision based upon how much moving the slider would change the value:
+            let value_from_x = |x| self.value_from_x(x, x_range.clone());
+            let x_from_value = |value| self.x_from_value(value, x_range.clone());
+            let left_value = value_from_x(x_from_value(value) - aim_radius);
+            let right_value = value_from_x(x_from_value(value) + aim_radius);
+            let range = (left_value - right_value).abs();
+            (-range.log10()).ceil().max(0.0) as usize
+        });
+
+        let text = self.text.as_ref().map(String::as_str).unwrap_or_default();
+        format!("{}: {:.*}", text, precision, value)
     }
 }
 
@@ -198,21 +217,23 @@ impl<'a> Widget for Slider<'a> {
 
             ui.columns(2, |columns| {
                 let slider_ui = &mut columns[0];
-                let interact = self.allocate_slide_space(slider_ui, height);
-                let slider_interact = self.slider_ui(slider_ui, interact);
+                let slider_interact = self.allocate_slide_space(slider_ui, height);
+                self.slider_ui(slider_ui, slider_interact);
+                let x_range = x_range(&slider_interact.rect);
 
                 // Place the text in line with the slider on the left:
                 let text_ui = &mut columns[1];
                 text_ui.set_desired_height(slider_interact.rect.height());
                 text_ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
-                    self.text_ui(ui);
+                    self.text_ui(ui, x_range);
                 });
 
                 slider_interact
             })
         } else {
             let interact = self.allocate_slide_space(ui, height);
-            self.slider_ui(ui, interact)
+            self.slider_ui(ui, interact);
+            interact
         }
     }
 }
