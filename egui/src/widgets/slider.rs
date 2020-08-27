@@ -185,9 +185,20 @@ impl<'a> Slider<'a> {
         let aim_radius = ui.input().aim_radius();
         let value_text = self.format_value(aim_radius, x_range);
         let label_text = self.text.as_deref().unwrap_or_default();
-        let text = format!("{}: {}", label_text, value_text);
+        let label_text = format!("{}: ", label_text);
         let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
-        ui.add(Label::new(text).multiline(false).text_color(text_color));
+        ui.style_mut().item_spacing.x = 0.0;
+        ui.add(
+            Label::new(label_text)
+                .multiline(false)
+                .text_color(text_color),
+        );
+        ui.add(
+            Label::new(value_text)
+                .multiline(false)
+                .text_color(text_color)
+                .text_style(TextStyle::Monospace),
+        );
     }
 
     fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
