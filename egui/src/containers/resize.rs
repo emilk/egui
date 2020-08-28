@@ -37,7 +37,7 @@ impl Default for Resize {
             id: None,
             resizable: true,
             min_size: Vec2::splat(16.0),
-            default_size: vec2(128.0, 128.0), // TODO: perferred size for a resizable area (e.g. a window or a text edit)
+            default_size: vec2(320.0, 128.0), // TODO: preferred size of `Resize` area.
             outline: true,
         }
     }

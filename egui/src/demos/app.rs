@@ -139,11 +139,9 @@ impl DemoApp {
 
 impl app::App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
-        Window::new("Backend")
-            .default_width(500.0)
-            .show(ui.ctx(), |ui| {
-                self.backend_ui(ui, backend);
-            });
+        Window::new("Backend").scroll(false).show(ui.ctx(), |ui| {
+            self.backend_ui(ui, backend);
+        });
 
         let web_info = backend.web_info();
         let web_location_hash = web_info

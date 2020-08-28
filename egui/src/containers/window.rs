@@ -40,7 +40,7 @@ impl<'open> Window<'open> {
             resize: Resize::default()
                 .outline(false)
                 .min_size([96.0, 32.0])
-                .default_size([280.0, 400.0]),
+                .default_size([420.0, 420.0]),
             scroll: None,
             collapsible: true,
         }
