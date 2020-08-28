@@ -190,7 +190,6 @@ impl Prepared {
         if move_interact.active {
             state.pos += input.mouse.delta;
             state.vel = input.mouse.velocity;
-            ctx.request_repaint();
         } else {
             let stop_speed = 20.0; // Pixels per second.
             let friction_coeff = 1000.0; // Pixels per second squared.
@@ -225,6 +224,7 @@ impl Prepared {
             || !ctx.memory().areas.visible_last_frame(&layer)
         {
             ctx.memory().areas.move_to_top(layer);
+            ctx.request_repaint();
         }
         ctx.memory().areas.set_state(layer, state);
 

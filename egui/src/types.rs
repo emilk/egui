@@ -18,9 +18,9 @@ pub struct Output {
     /// Response to Event::Copy or Event::Cut. Ignore if empty.
     pub copied_text: String,
 
-    /// Set to `true` to request another repaint right after this one.
-    /// This is only used in reactive backends (i.e. backends where we repaint on new input).
-    /// For instance, you may want to set this to `true` while there is an animation.
+    /// If `true`, Egui or a user is indicating that the UI needs immediate repaint (e.g. on the next frame).
+    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
+    /// Don't set this manually, but call `Context::request_repaint()` instead.
     pub needs_repaint: bool,
 }
 

@@ -128,6 +128,8 @@ impl Resize {
         let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
 
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
+            ui.ctx().request_repaint(); // counter frame delay
+
             let default_size = self.default_size.max(self.min_size);
 
             State {

@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU32, Ordering::SeqCst},
+    Arc,
+};
 
 use {
     ahash::AHashMap,
@@ -38,6 +41,9 @@ pub struct Context {
     used_ids: Mutex<AHashMap<Id, Pos2>>,
 
     paint_stats: Mutex<PaintStats>,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: AtomicU32,
 }
 
 impl Clone for Context {
@@ -53,6 +59,7 @@ impl Clone for Context {
             output: Mutex::new(self.output.lock().clone()),
             used_ids: Mutex::new(self.used_ids.lock().clone()),
             paint_stats: Mutex::new(*self.paint_stats.lock()),
+            repaint_requests: self.repaint_requests.load(SeqCst).into(),
         }
     }
 }
@@ -82,7 +89,9 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     pub fn request_repaint(&self) {
-        self.output().needs_repaint = true;
+        // request two frames of repaint, just to cover some corner cases (frame delays):
+        let times_to_repaint = 2;
+        self.repaint_requests.store(times_to_repaint, SeqCst);
     }
 
     pub fn input(&self) -> &InputState {
@@ -95,7 +104,7 @@ impl Context {
         &*self
             .fonts
             .as_ref()
-            .expect("No fonts available until first call to Contex::begin_frame()`")
+            .expect("No fonts available until first call to Context::begin_frame()`")
     }
 
     /// Not valid until first call to `begin_frame()`
@@ -105,7 +114,7 @@ impl Context {
     }
 
     /// Will become active at the start of the next frame.
-    /// `pixels_per_point` will be ignored (overwitten at start of each frame with the contents of input)
+    /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         *self.font_definitions.lock() = font_definitions;
     }
@@ -180,7 +189,13 @@ impl Context {
         }
 
         self.memory().end_frame();
-        let output: Output = std::mem::take(&mut self.output());
+
+        let mut output: Output = std::mem::take(&mut self.output());
+        if self.repaint_requests.load(SeqCst) > 0 {
+            self.repaint_requests.fetch_sub(1, SeqCst);
+            output.needs_repaint = true;
+        }
+
         let paint_jobs = self.paint();
         (output, paint_jobs)
     }
@@ -574,7 +589,7 @@ impl paint::PaintOptions {
 impl PaintStats {
     pub fn ui(&self, ui: &mut Ui) {
         ui.add(label!("Jobs: {}", self.num_jobs))
-            .tooltip_text("Number of separate clip rectanlges");
+            .tooltip_text("Number of separate clip rectangles");
         ui.add(label!("Primitives: {}", self.num_primitives))
             .tooltip_text("Boxes, circles, text areas etc");
         ui.add(label!("Vertices: {}", self.num_vertices));

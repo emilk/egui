@@ -104,7 +104,6 @@ impl State {
         let openness = self.openness(ui);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
-            ui.ctx().request_repaint();
             Some(ui.add_custom(|child_ui| {
                 let max_height = if self.open {
                     if let Some(full_height) = self.open_height {
