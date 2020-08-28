@@ -182,8 +182,6 @@ impl<'a> Slider<'a> {
 
     /// Just the text label
     fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let aim_radius = ui.input().aim_radius();
-        let value_text = self.format_value(aim_radius, x_range);
         let label_text = self.text.as_deref().unwrap_or_default();
         let label_text = format!("{}: ", label_text);
         let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
@@ -193,12 +191,48 @@ impl<'a> Slider<'a> {
                 .multiline(false)
                 .text_color(text_color),
         );
-        ui.add(
-            Label::new(value_text)
-                .multiline(false)
-                .text_color(text_color)
-                .text_style(TextStyle::Monospace),
-        );
+
+        let edit_id = self.id.expect("We should have an id by now").with("edit");
+        let is_editing = ui.memory().has_kb_focus(edit_id);
+
+        let aim_radius = ui.input().aim_radius();
+        let mut value_text = self.format_value(aim_radius, x_range);
+
+        if is_editing {
+            value_text = ui
+                .memory()
+                .temp_edit_string
+                .take()
+                .unwrap_or_else(|| value_text);
+            ui.add(
+                TextEdit::new(&mut value_text)
+                    .id(edit_id)
+                    .multiline(false)
+                    .text_color(text_color)
+                    .text_style(TextStyle::Monospace),
+            );
+            if let Ok(value) = value_text.parse() {
+                self.set_value_f32(value);
+            }
+            if ui.input().key_pressed(Key::Enter) {
+                ui.memory().surrender_kb_focus(edit_id);
+            } else {
+                ui.memory().temp_edit_string = Some(value_text);
+            }
+        } else {
+            let mut response = ui.add(
+                Label::new(value_text)
+                    .multiline(false)
+                    .text_color(text_color)
+                    .text_style(TextStyle::Monospace),
+            );
+            response.tooltip_text("Click to edit");
+            let response = ui.interact(response.rect, edit_id, Sense::click());
+            if response.clicked {
+                ui.memory().request_kb_focus(edit_id);
+                ui.memory().temp_edit_string = None; // Filled in next frame
+            }
+        }
     }
 
     fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {

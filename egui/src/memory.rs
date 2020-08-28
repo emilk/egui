@@ -28,6 +28,11 @@ pub struct Memory {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
+    /// For temporary edit of e.g. a slider value.
+    /// Couples with `kb_focus_id`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) temp_edit_string: Option<String>,
+
     pub(crate) areas: Areas,
 }
 

@@ -3,7 +3,7 @@ use crate::{paint::*, *};
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
-    /// Charctaer based, NOT bytes.
+    /// Character based, NOT bytes.
     /// TODO: store as line + row
     pub cursor: Option<usize>,
 }
@@ -13,9 +13,11 @@ pub(crate) struct State {
 pub struct TextEdit<'t> {
     text: &'t mut String,
     id: Option<Id>,
+    id_source: Option<Id>,
     text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the current Ui"
     text_color: Option<Color>,
     multiline: bool,
+    enabled: bool,
 }
 
 impl<'t> TextEdit<'t> {
@@ -23,14 +25,21 @@ impl<'t> TextEdit<'t> {
         TextEdit {
             text,
             id: None,
+            id_source: None,
             text_style: TextStyle::Body,
-            text_color: Default::default(),
+            text_color: None,
             multiline: true,
+            enabled: true,
         }
     }
 
-    pub fn id(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id = Some(Id::new(id_source));
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
+        self.id_source = Some(Id::new(id_source));
         self
     }
 
@@ -48,6 +57,12 @@ impl<'t> TextEdit<'t> {
         self.multiline = multiline;
         self
     }
+
+    /// Default is `true`. If set to `false` then you cannot edit the text.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
 }
 
 impl<'t> Widget for TextEdit<'t> {
@@ -55,12 +70,14 @@ impl<'t> Widget for TextEdit<'t> {
         let TextEdit {
             text,
             id,
+            id_source,
             text_style,
             text_color,
             multiline,
+            enabled,
         } = self;
 
-        let id = ui.make_child_id(id);
+        let id = id.unwrap_or_else(|| ui.make_child_id(id_source));
 
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
 
@@ -74,23 +91,31 @@ impl<'t> Widget for TextEdit<'t> {
         };
         let desired_size = galley.size.max(vec2(available_width, line_spacing));
         let rect = ui.allocate_space(desired_size);
-        let interact = ui.interact(rect, id, Sense::click_and_drag()); // TODO: implement drag-select
+        let sense = if enabled {
+            Sense::click_and_drag()
+        } else {
+            Sense::nothing()
+        };
+        let interact = ui.interact(rect, id, sense); // TODO: implement drag-select
 
-        if interact.clicked {
+        if interact.clicked && enabled {
             ui.memory().request_kb_focus(id);
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
             }
-        } else if ui.input().mouse.click {
+        } else if ui.input().mouse.click || (ui.input().mouse.pressed && !interact.hovered) {
             // User clicked somewhere else
             ui.memory().surrender_kb_focus(id);
         }
+        if !enabled {
+            ui.memory().surrender_kb_focus(id);
+        }
 
-        if interact.hovered {
+        if interact.hovered && enabled {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        if ui.memory().has_kb_focus(id) {
+        if ui.memory().has_kb_focus(id) && enabled {
             let mut cursor = state.cursor.unwrap_or_else(|| text.chars().count());
             cursor = clamp(cursor, 0..=text.chars().count());
 
@@ -113,6 +138,12 @@ impl<'t> Widget for TextEdit<'t> {
                         if multiline {
                             insert_text(&mut cursor, text, "\n");
                         }
+                    }
+                    Event::Key {
+                        key: Key::Escape,
+                        pressed: true,
+                    } => {
+                        ui.memory().surrender_kb_focus(id);
                     }
                     Event::Key { key, pressed: true } => {
                         on_key_press(&mut cursor, text, *key);
@@ -166,7 +197,8 @@ impl<'t> Widget for TextEdit<'t> {
             }
         }
 
-        let text_color = text_color.unwrap_or_else(|| ui.style().text_color);
+        let text_color =
+            text_color.unwrap_or_else(|| ui.style().interact.style(&interact).stroke_color);
         painter.galley(interact.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
         interact

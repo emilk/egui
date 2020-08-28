@@ -377,12 +377,13 @@ impl Default for Widgets {
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-                ui.add(label!("Text can have").text_color(srgba(110, 255, 110, 255)));
-                ui.add(label!("color").text_color(srgba(128, 140, 255, 255)));
-                ui.add(label!("and tooltips (hover me)")).tooltip_text(
-                    "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-                );
-            });
+            ui.style_mut().item_spacing.x = 0.0;
+            ui.add(label!("Text can have ").text_color(srgba(110, 255, 110, 255)));
+            ui.add(label!("color ").text_color(srgba(128, 140, 255, 255)));
+            ui.add(label!("and tooltips")).tooltip_text(
+                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+            );
+        });
 
         ui.horizontal(|ui| {
             ui.radio_value("First", &mut self.radio, 0);
@@ -403,26 +404,35 @@ impl Widgets {
             ui.add(label!("The button has been clicked {} times", self.count));
         });
 
-        ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
-        ui.horizontal(|ui| {
-            ui.label("drag this number:");
-            ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
-        });
-        if ui.add(Button::new("Assign PI")).clicked {
-            self.slider_value = std::f32::consts::PI;
+        ui.separator();
+        {
+            ui.label(
+                "The slider will show as many decimals as needed, \
+                and will intelligently help you select a round number when you interact with it.\n\
+                You can click a slider value to edit it with the keyboard.",
+            );
+            ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
+            ui.horizontal(|ui| {
+                ui.label("drag this number:");
+                ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
+            });
+            if ui.add(Button::new("Assign PI")).clicked {
+                self.slider_value = std::f32::consts::PI;
+            }
         }
+        ui.separator();
 
         ui.horizontal(|ui| {
             ui.add(label!("Single line text input:"));
             ui.add(
                 TextEdit::new(&mut self.single_line_text_input)
                     .multiline(false)
-                    .id("single line"),
+                    .id_source("single line"),
             );
         }); // TODO: .tooltip_text("Enter text to edit me")
 
         ui.add(label!("Multiline text input:"));
-        ui.add(TextEdit::new(&mut self.multiline_text_input).id("multiline"));
+        ui.add(TextEdit::new(&mut self.multiline_text_input).id_source("multiline"));
     }
 }
 
