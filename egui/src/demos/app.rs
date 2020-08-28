@@ -236,7 +236,14 @@ impl OpenWindows {
 fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            if ui.add(Button::new("Clear memory")).clicked {
+            if ui.add(Button::new("Reorganize windows")).clicked {
+                ui.ctx().memory().reset_areas();
+            }
+            if ui
+                .add(Button::new("Clear entire Egui memory"))
+                .tooltip_text("Forget scroll, collapsibles etc")
+                .clicked
+            {
                 *ui.ctx().memory() = Default::default();
             }
         });

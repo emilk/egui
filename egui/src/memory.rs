@@ -152,6 +152,12 @@ impl Memory {
             self.interaction.kb_focus_id = None;
         }
     }
+
+    /// Forget window positions, sizes etc.
+    /// Can be used to auto-layout windows.
+    pub fn reset_areas(&mut self) {
+        self.areas = Default::default();
+    }
 }
 
 impl Areas {
