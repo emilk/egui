@@ -609,7 +609,12 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
-        let child_rect = Rect::from_min_max(self.cursor, self.bottom_right());
+        let initial_size = if layout.dir() == Direction::Horizontal {
+            vec2(self.available().width(), 0.0)
+        } else {
+            vec2(0.0, self.available().height())
+        };
+        let child_rect = Rect::from_min_size(self.cursor, initial_size);
         let mut child_ui = self.child_ui(child_rect);
         child_ui.set_layout(layout); // HACK: need a separate call right now
         let ret = add_contents(&mut child_ui);
