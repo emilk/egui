@@ -51,6 +51,7 @@ impl DemoApp {
 
         Window::new("Demo")
             .open(&mut open_windows.demo)
+            .scroll(true)
             .show(ctx, |ui| {
                 demo_window.ui(ui);
             });
@@ -63,6 +64,7 @@ impl DemoApp {
 
         Window::new("Inspection")
             .open(&mut open_windows.inspection)
+            .scroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });

@@ -1,17 +1,19 @@
+// WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
+
 use std::sync::Arc;
 
 use crate::{paint::*, widgets::*, *};
 
 use super::*;
 
-/// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled.
+/// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
 /// You can customize:
 /// * title
 /// * default, minimum, maximum and/or fixed size
-/// * if the window has a scroll area
-/// * if the window can be collapsed (minimized) to just the title bar
-/// * if there should be a close button
+/// * if the window has a scroll area (off by default)
+/// * if the window can be collapsed (minimized) to just the title bar (yes, by default)
+/// * if there should be a close button (none by default)
 pub struct Window<'open> {
     pub title_label: Label,
     open: Option<&'open mut bool>,
@@ -39,11 +41,7 @@ impl<'open> Window<'open> {
                 .outline(false)
                 .min_size([96.0, 32.0])
                 .default_size([280.0, 400.0]),
-            scroll: Some(
-                ScrollArea::default()
-                    .always_show_scroll(false)
-                    .max_height(f32::INFINITY),
-            ), // As large as we can be
+            scroll: None,
             collapsible: true,
         }
     }
@@ -140,9 +138,16 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Enable/disable scrolling. True by default.
+    /// Enable/disable scrolling. `false` by default.
     pub fn scroll(mut self, scroll: bool) -> Self {
         if scroll {
+            if self.scroll.is_none() {
+                self.scroll = Some(
+                    ScrollArea::default()
+                        .always_show_scroll(false)
+                        .max_height(f32::INFINITY), // As large as we can be
+                );
+            }
             debug_assert!(
                 self.scroll.is_some(),
                 "Window::scroll called multiple times"
