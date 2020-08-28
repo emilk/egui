@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use {ahash::AHashMap, parking_lot::Mutex};
+use {
+    ahash::AHashMap,
+    parking_lot::{Mutex, MutexGuard},
+};
 
 use crate::{paint::*, *};
 
@@ -63,16 +66,16 @@ impl Context {
         Rect::from_min_size(pos2(0.0, 0.0), self.input.screen_size)
     }
 
-    pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
-        self.memory.try_lock().expect("memory already locked")
+    pub fn memory(&self) -> MutexGuard<'_, Memory> {
+        lock(&self.memory, "memory")
     }
 
-    pub fn graphics(&self) -> parking_lot::MutexGuard<'_, GraphicLayers> {
-        self.graphics.try_lock().expect("graphics already locked")
+    pub fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
+        lock(&self.graphics, "graphics")
     }
 
-    pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
-        self.output.try_lock().expect("output already locked")
+    pub fn output(&self) -> MutexGuard<'_, Output> {
+        lock(&self.output, "output")
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -109,11 +112,11 @@ impl Context {
 
     // TODO: return MutexGuard
     pub fn style(&self) -> Style {
-        self.style.try_lock().expect("style already locked").clone()
+        lock(&self.style, "style").clone()
     }
 
     pub fn set_style(&self, style: Style) {
-        *self.style.try_lock().expect("style already locked") = style;
+        *lock(&self.style, "style") = style;
     }
 
     pub fn pixels_per_point(&self) -> f32 {
@@ -577,4 +580,18 @@ impl PaintStats {
         ui.add(label!("Vertices: {}", self.num_vertices));
         ui.add(label!("Triangles: {}", self.num_triangles));
     }
+}
+
+#[cfg(debug_assertions)]
+fn lock<'m, T>(mutex: &'m Mutex<T>, what: &'static str) -> MutexGuard<'m, T> {
+    // TODO: detect if we are trying to lock the same mutex *from the same thread*.
+    // at the moment we just panic on any double-locking of a mutex (so no multithreaded support in debug builds)
+    mutex
+        .try_lock()
+        .unwrap_or_else(|| panic!("The Mutex for {} is already locked. Probably a bug", what))
+}
+
+#[cfg(not(debug_assertions))]
+fn lock<'m, T>(mutex: &'m Mutex<T>, _what: &'static str) -> MutexGuard<'m, T> {
+    mutex.lock()
 }
