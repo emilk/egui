@@ -32,8 +32,8 @@ impl Default for State {
 }
 
 impl State {
-    pub fn from_memory_with_default_open(ui: &Ui, id: Id, default_open: bool) -> Self {
-        *ui.memory().collapsing_headers.entry(id).or_insert(State {
+    pub fn from_memory_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
+        *ctx.memory().collapsing_headers.entry(id).or_insert(State {
             open: default_open,
             ..Default::default()
         })
@@ -112,7 +112,7 @@ impl State {
                     } else {
                         // First frame of expansion.
                         // We don't know full height yet, but we will next frame.
-                        // Just use a placehodler value that shows some movement:
+                        // Just use a placeholder value that shows some movement:
                         10.0
                     }
                 } else {
@@ -215,7 +215,7 @@ impl CollapsingHeader {
         let interact = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
 
-        let mut state = State::from_memory_with_default_open(ui, id, default_open);
+        let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
         if interact.clicked {
             state.toggle(ui);
         }

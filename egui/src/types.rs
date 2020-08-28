@@ -52,9 +52,14 @@ impl Default for CursorIcon {
 #[derive(Clone, Copy, Debug)]
 // #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct InteractInfo {
+    // IN:
+    /// The region of the screen we are talking about
+    pub rect: Rect,
+
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,
 
+    // OUT:
     /// The mouse is hovering above this thing
     pub hovered: bool,
 
@@ -68,33 +73,37 @@ pub struct InteractInfo {
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed)
     pub has_kb_focus: bool,
-
-    /// The region of the screen we are talking about
-    pub rect: Rect,
 }
 
 impl InteractInfo {
     pub fn nothing() -> Self {
         Self {
+            rect: Rect::nothing(),
             sense: Sense::nothing(),
             hovered: false,
             clicked: false,
             double_clicked: false,
             active: false,
             has_kb_focus: false,
-            rect: Rect::nothing(),
+        }
+    }
+
+    pub fn from_rect(rect: Rect) -> Self {
+        Self {
+            rect,
+            ..Self::nothing()
         }
     }
 
     pub fn union(self, other: Self) -> Self {
         Self {
+            rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
             clicked: self.clicked || other.clicked,
             double_clicked: self.double_clicked || other.double_clicked,
             active: self.active || other.active,
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
-            rect: self.rect.union(other.rect),
         }
     }
 }
@@ -106,9 +115,14 @@ impl InteractInfo {
 /// This lets you know whether or not a widget has been clicked this frame.
 /// It also lets you easily show a tooltip on hover.
 pub struct GuiResponse {
+    // IN:
+    /// The area of the screen we are talking about
+    pub rect: Rect,
+
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,
 
+    // OUT:
     /// The mouse is hovering above this
     pub hovered: bool,
 
@@ -123,9 +137,7 @@ pub struct GuiResponse {
     /// This widget has the keyboard focus (i.e. is receiving key pressed)
     pub has_kb_focus: bool,
 
-    /// The area of the screen we are talking about
-    pub rect: Rect,
-
+    // CONTEXT:
     /// Used for optionally showing a tooltip
     pub ctx: Arc<Context>,
 }
@@ -150,13 +162,13 @@ impl GuiResponse {
 impl Into<InteractInfo> for GuiResponse {
     fn into(self) -> InteractInfo {
         InteractInfo {
+            rect: self.rect,
             sense: self.sense,
             hovered: self.hovered,
             clicked: self.clicked,
             double_clicked: self.double_clicked,
             active: self.active,
             has_kb_focus: self.has_kb_focus,
-            rect: self.rect,
         }
     }
 }

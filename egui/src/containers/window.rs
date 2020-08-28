@@ -244,7 +244,7 @@ impl<'open> Window<'open> {
 
             let default_expanded = true;
             let mut collapsing = collapsing_header::State::from_memory_with_default_open(
-                &frame.content_ui,
+                ctx,
                 collapsing_id,
                 default_expanded,
             );

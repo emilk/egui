@@ -55,7 +55,7 @@ impl RawInput {
 /// What egui maintains
 #[derive(Clone, Debug, Default)]
 pub struct InputState {
-    /// The raw input we got this fraem
+    /// The raw input we got this frame
     pub raw: RawInput,
 
     pub mouse: MouseInput,
@@ -339,7 +339,7 @@ impl RawInput {
         ui.add(label!("screen_size: {:?} points", self.screen_size));
         ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point))
             .tooltip_text(
-                "Also called hdpi factor.\nNumber of physical pixels per each logical pixel.",
+                "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!(
