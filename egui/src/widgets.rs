@@ -570,21 +570,53 @@ impl<'a> Widget for DragValue<'a> {
             .log10()
             .ceil()
             .max(0.0) as usize;
-        let button = Button::new(format_with_minimum_precision(*value, precision))
-            .sense(Sense::drag())
-            .text_style(TextStyle::Monospace);
-        let interact = ui.add(button);
-        if interact.active {
-            let mdelta = ui.input().mouse.delta;
-            let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
-            let delta_value = speed * delta_points;
-            if delta_value != 0.0 {
-                *value += delta_value;
-                *value = round_to_precision(*value, precision);
-                // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
-                // otherwise we will just keep rounding to the same value while moving the mouse.
+        let value_text = format_with_minimum_precision(*value, precision);
+
+        let kb_edit_id = ui.make_position_id().with("edit");
+        let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
+
+        if is_kb_editing {
+            let mut value_text = ui
+                .memory()
+                .temp_edit_string
+                .take()
+                .unwrap_or_else(|| value_text);
+            let response = ui.add(
+                TextEdit::new(&mut value_text)
+                    .id(kb_edit_id)
+                    .multiline(false)
+                    .text_style(TextStyle::Monospace),
+            );
+            if let Ok(parsed_value) = value_text.parse() {
+                *value = parsed_value;
             }
+            if ui.input().key_pressed(Key::Enter) {
+                ui.memory().surrender_kb_focus(kb_edit_id);
+            } else {
+                ui.memory().temp_edit_string = Some(value_text);
+            }
+            response.into()
+        } else {
+            let button = Button::new(value_text)
+                .sense(Sense::click_and_drag())
+                .text_style(TextStyle::Monospace);
+            let response = ui.add(button);
+            // response.tooltip_text("Drag to edit, click to enter a value"); // TODO: may clash with users own tooltips
+            if response.clicked {
+                ui.memory().request_kb_focus(kb_edit_id);
+                ui.memory().temp_edit_string = None; // Filled in next frame
+            } else if response.active {
+                let mdelta = ui.input().mouse.delta;
+                let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
+                let delta_value = speed * delta_points;
+                if delta_value != 0.0 {
+                    *value += delta_value;
+                    *value = round_to_precision(*value, precision);
+                    // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
+                    // otherwise we will just keep rounding to the same value while moving the mouse.
+                }
+            }
+            response.into()
         }
-        interact.into()
     }
 }

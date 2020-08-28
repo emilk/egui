@@ -192,21 +192,21 @@ impl<'a> Slider<'a> {
                 .text_color(text_color),
         );
 
-        let edit_id = self.id.expect("We should have an id by now").with("edit");
-        let is_editing = ui.memory().has_kb_focus(edit_id);
+        let kb_edit_id = self.id.expect("We should have an id by now").with("edit");
+        let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         let aim_radius = ui.input().aim_radius();
-        let mut value_text = self.format_value(aim_radius, x_range);
+        let value_text = self.format_value(aim_radius, x_range);
 
-        if is_editing {
-            value_text = ui
+        if is_kb_editing {
+            let mut value_text = ui
                 .memory()
                 .temp_edit_string
                 .take()
                 .unwrap_or_else(|| value_text);
             ui.add(
                 TextEdit::new(&mut value_text)
-                    .id(edit_id)
+                    .id(kb_edit_id)
                     .multiline(false)
                     .text_color(text_color)
                     .text_style(TextStyle::Monospace),
@@ -215,7 +215,7 @@ impl<'a> Slider<'a> {
                 self.set_value_f32(value);
             }
             if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_kb_focus(edit_id);
+                ui.memory().surrender_kb_focus(kb_edit_id);
             } else {
                 ui.memory().temp_edit_string = Some(value_text);
             }
@@ -226,10 +226,10 @@ impl<'a> Slider<'a> {
                     .text_color(text_color)
                     .text_style(TextStyle::Monospace),
             );
-            response.tooltip_text("Click to edit");
-            let response = ui.interact(response.rect, edit_id, Sense::click());
+            response.tooltip_text("Click to enter a value");
+            let response = ui.interact(response.rect, kb_edit_id, Sense::click());
             if response.clicked {
-                ui.memory().request_kb_focus(edit_id);
+                ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
             }
         }
