@@ -131,7 +131,7 @@ impl Area {
             vel: Vec2::zero(),
         });
         state.pos = fixed_pos.unwrap_or(state.pos);
-        state.pos = state.pos.round();
+        state.pos = ctx.round_pos_to_pixels(state.pos);
 
         Prepared {
             layer,
@@ -213,8 +213,7 @@ impl Prepared {
             ctx.input().screen_size.x - margin,
             ctx.input().screen_size.y - margin,
         ));
-
-        state.pos = state.pos.round();
+        state.pos = ctx.round_pos_to_pixels(state.pos);
 
         // ctx.debug_rect(
         //     Rect::from_min_size(state.pos, state.size),
