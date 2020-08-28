@@ -456,6 +456,11 @@ impl Ui {
         self.add(label.into())
     }
 
+    /// Shortcut for `add(Label::new(text).heading())`
+    pub fn heading(&mut self, label: impl Into<Label>) -> GuiResponse {
+        self.add(label.into().heading())
+    }
+
     /// Shortcut for `add(Hyperlink::new(url))`
     pub fn hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
         self.add(Hyperlink::new(url))
