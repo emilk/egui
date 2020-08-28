@@ -24,7 +24,7 @@ pub struct Resize {
     /// If false, we are no enabled
     resizable: bool,
 
-    min_size: Vec2,
+    pub(crate) min_size: Vec2,
 
     default_size: Vec2,
 

@@ -195,8 +195,7 @@ impl<'open> Window<'open> {
 
         let area = area.movable(false); // We move it manually
         let resize = resize.resizable(false); // We move it manually
-
-        let resize = resize.id(resize_id);
+        let mut resize = resize.id(resize_id);
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
@@ -253,6 +252,7 @@ impl<'open> Window<'open> {
                 &mut collapsing,
                 collapsible,
             );
+            resize.min_size.x = resize.min_size.x.max(title_bar.rect.width()); // Prevent making window smaller than title bar width
 
             let content_rect = collapsing
                 .add_contents(&mut frame.content_ui, |ui| {
@@ -613,7 +613,7 @@ fn show_title_bar(
         let title_rect = ui.allocate_space(title_galley.size);
 
         if show_close_button {
-            // Reserve space for close button which will be added later:
+            // Reserve space for close button which will be added later (once we know our full width):
             let close_max_x = title_rect.right() + item_spacing.x + button_size + item_spacing.x;
             let close_max_x = close_max_x.max(ui.rect_finite().right());
             let close_rect = Rect::from_min_size(
