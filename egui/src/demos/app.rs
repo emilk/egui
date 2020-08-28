@@ -77,6 +77,45 @@ impl DemoApp {
             });
 
         fractal_clock.window(ctx, &mut open_windows.fractal_clock);
+
+        self.resize_windows(ctx);
+    }
+
+    fn resize_windows(&mut self, ctx: &Arc<Context>) {
+        let open = &mut self.open_windows.resize;
+
+        Window::new("Resizable window")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.label("scroll:    NO");
+                ui.label("resizable: YES");
+                ui.label(LOREM_IPSUM);
+            });
+
+        Window::new("Resizable window with scroll")
+            .open(open)
+            .scroll(true)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label("scroll:    YES");
+                ui.label("resizable: YES");
+                ui.label(LOREM_IPSUM_LONG);
+            });
+
+        Window::new("Auto sized window")
+            .open(open)
+            .auto_sized()
+            .show(ctx, |ui| {
+                ui.label("This window will auto-size based on its contents.");
+                ui.heading("Resize this area:");
+                Resize::default().show(ui, |ui| {
+                    ui.label(LOREM_IPSUM);
+                });
+                ui.heading("Resize the above area!");
+            });
     }
 
     fn backend_ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
@@ -168,6 +207,7 @@ struct OpenWindows {
     settings: bool,
     inspection: bool,
     memory: bool,
+    resize: bool,
 }
 
 impl Default for OpenWindows {
@@ -188,6 +228,7 @@ impl OpenWindows {
             settings: false,
             inspection: false,
             memory: false,
+            resize: false,
         }
     }
 }
@@ -200,12 +241,21 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             }
         });
         menu::menu(ui, "Windows", |ui| {
-            ui.add(Checkbox::new(&mut windows.demo, "Demo"));
-            ui.add(Checkbox::new(&mut windows.fractal_clock, "Fractal Clock"));
+            let OpenWindows {
+                demo,
+                fractal_clock,
+                settings,
+                inspection,
+                memory,
+                resize,
+            } = windows;
+            ui.add(Checkbox::new(demo, "Demo"));
+            ui.add(Checkbox::new(fractal_clock, "Fractal Clock"));
             ui.add(Separator::new());
-            ui.add(Checkbox::new(&mut windows.settings, "Settings"));
-            ui.add(Checkbox::new(&mut windows.inspection, "Inspection"));
-            ui.add(Checkbox::new(&mut windows.memory, "Memory"));
+            ui.add(Checkbox::new(settings, "Settings"));
+            ui.add(Checkbox::new(inspection, "Inspection"));
+            ui.add(Checkbox::new(memory, "Memory"));
+            ui.add(Checkbox::new(resize, "Resize examples"));
         });
         menu::menu(ui, "About", |ui| {
             ui.add(label!("This is Egui"));
@@ -305,7 +355,7 @@ impl DemoWindow {
             .default_open(false)
             .show(ui, |ui| {
                 ScrollArea::default().show(ui, |ui| {
-                    ui.label(LOREM_IPSUM);
+                    ui.label(LOREM_IPSUM_LONG);
                 });
             });
 
@@ -685,6 +735,8 @@ impl Tree {
 
 // ----------------------------------------------------------------------------
 
-const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+const LOREM_IPSUM_LONG: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis, laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu, feugiat in, orci. In hac habitasse platea dictumst.";
