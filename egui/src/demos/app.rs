@@ -341,7 +341,7 @@ impl DemoWindow {
             .show(ui, |ui| self.layout.ui(ui));
 
         CollapsingHeader::new("Tree")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| self.tree.ui(ui));
 
         ui.collapsing("Columns", |ui| {
@@ -379,29 +379,32 @@ impl DemoWindow {
                 });
             });
 
-        ui.collapsing("Name clash demo", |ui| {
-            ui.label("\
-                Widgets that store state require unique identifiers so we can track their state between frames. \
-                Identifiers are normally derived from the titles of the widget.");
+        if false {
+            // TODO: either show actual name clash, or remove this example
+            ui.collapsing("Name clash demo", |ui| {
+                ui.label("\
+                    Widgets that store state require unique identifiers so we can track their state between frames. \
+                    Identifiers are normally derived from the titles of the widget.");
 
-            ui.label("\
-                For instance, collapsable headers needs to store wether or not they are open. \
-                If you fail to give them unique names then clicking one will open both. \
-                To help you debug this, an error message is printed on screen:");
+                ui.label("\
+                    For instance, collapsable headers needs to store wether or not they are open. \
+                    If you fail to give them unique names then clicking one will open both. \
+                    To help you debug this, an error message is printed on screen:");
 
-            ui.collapsing("Collapsing header", |ui| {
-                ui.label("Contents of first folddable ui");
+                ui.collapsing("Collapsing header", |ui| {
+                    ui.label("Contents of first foldable ui");
+                });
+                ui.collapsing("Collapsing header", |ui| {
+                    ui.label("Contents of second foldable ui");
+                });
+
+                ui.label("\
+                    Most widgets don't need unique names, but are tracked \
+                    based on their position on screen. For instance, buttons:");
+                ui.add(Button::new("Button"));
+                ui.add(Button::new("Button"));
             });
-            ui.collapsing("Collapsing header", |ui| {
-                ui.label("Contents of second folddable ui");
-            });
-
-            ui.label("\
-                Most widgets don't need unique names, but are tracked \
-                based on their position on screen. For instance, buttons:");
-            ui.add(Button::new("Button"));
-            ui.add(Button::new("Button"));
-        });
+        }
     }
 }
 
@@ -426,7 +429,7 @@ impl Default for Widgets {
             count: 0,
             slider_value: 3.4,
             single_line_text_input: "Hello World!".to_owned(),
-            multiline_text_input: "Text can both be so wide that it needs a linebreak, but you can also add manual linebreak by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
+            multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }
     }
 }
