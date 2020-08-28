@@ -20,7 +20,7 @@
 //! }
 //! ```
 
-// #![deny(warnings)] // TODO: remove
+#![deny(warnings)]
 #![warn(
     clippy::all,
     clippy::dbg_macro,
