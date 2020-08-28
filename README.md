@@ -1,10 +1,18 @@
 # Egui
-An immediate mode GUI library for Rust. Egui works anywhere you can draw textured triangles.
+Highly portable immediate mode GUI library for Rust.
+
+Simple, fast, work in progress
+
+Made for games or for anyone who want to make their own GUI and share it easily on a web page or compile it natively.
+
+Egui can be used anywhere you can draw textured triangles.
+
 
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+
 
 Sections:
 * [Demo](#demos)
@@ -37,12 +45,12 @@ Window::new("Debug").show(ui.ctx(), |ui| {
 
 
 ## Goals
-* Short and convenient syntax
-* Responsive: 60 Hz without breaking a sweat
+* API: Simple and convenient
+* Responsive: target 60 Hz in debug build
 * Portable: the same code works on the web and as a native app
-* Safe: difficult to make a mistake
+* Friendly: difficult to make mistakes
 * Easy to integrate into a any environment
-* Provide a simple 2D graphics API for custom painting
+* A simple 2D graphics API for custom painting
 * Simple: no callbacks, minimal dependencies, avoid unnecessary monomorphization
 
 Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
@@ -56,7 +64,7 @@ Alpha state. It works well for what it does, but it lacks many features and the 
 * Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing
 * Layouts: horizontal, vertical, columns
 * Text input: very basic, multiline, copy/paste
-* Windows: move, resize, name, minimize and close
+* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
 * Regions: resizing, vertical scrolling, collapsing headers (sections)
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
