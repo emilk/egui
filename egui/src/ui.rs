@@ -608,29 +608,32 @@ impl Ui {
 
     /// Start a ui with horizontal layout
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        self.inner_layout(Layout::horizontal(Align::Min), add_contents)
+        let initial_size = vec2(self.available().width(), 0.0);
+        self.inner_layout(Layout::horizontal(Align::Min), initial_size, add_contents)
     }
 
     /// Start a ui with horizontal layout where elements are centered on the Y axis.
     pub fn horizontal_centered<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        self.inner_layout(Layout::horizontal(Align::Center), add_contents)
+        let initial_size = vec2(self.available().width(), 0.0);
+        self.inner_layout(
+            Layout::horizontal(Align::Center),
+            initial_size,
+            add_contents,
+        )
     }
 
     /// Start a ui with vertical layout
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        self.inner_layout(Layout::vertical(Align::Min), add_contents)
+        let initial_size = vec2(0.0, self.available().height());
+        self.inner_layout(Layout::vertical(Align::Min), initial_size, add_contents)
     }
 
     pub fn inner_layout<R>(
         &mut self,
         layout: Layout,
+        initial_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
-        let initial_size = if layout.dir() == Direction::Horizontal {
-            vec2(self.available().width(), 0.0)
-        } else {
-            vec2(0.0, self.available().height())
-        };
         let child_rect = Rect::from_min_size(self.cursor, initial_size);
         let mut child_ui = self.child_ui(child_rect);
         child_ui.set_layout(layout); // HACK: need a separate call right now
