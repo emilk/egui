@@ -201,7 +201,7 @@ impl InputState {
             mouse,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
-            pixels_per_point: new.pixels_per_point.unwrap_or(1.0),
+            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
             time: new.time,
             unstable_dt,
             predicted_dt: 1.0 / 60.0, // TODO: remove this hack
