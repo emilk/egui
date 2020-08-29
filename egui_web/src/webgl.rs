@@ -61,38 +61,66 @@ impl Painter {
             &gl,
             Gl::VERTEX_SHADER,
             r#"
+            precision mediump float;
             uniform vec2 u_screen_size;
             uniform vec2 u_tex_size;
             attribute vec2 a_pos;
             attribute vec2 a_tc;
-            attribute vec4 a_color;
-            varying vec4 v_color;
+            attribute vec4 a_srgba;
+            varying vec4 v_rgba;
             varying vec2 v_tc;
+
+            // 0-1 linear  from  0-255 sRGB
+            vec3 linear_from_srgb(vec3 srgb) {
+                bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+                vec3 lower = srgb / vec3(3294.6);
+                vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+                return mix(higher, lower, vec3(cutoff));
+            }
+
+            vec4 linear_from_srgba(vec4 srgba) {
+                return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+            }
+
             void main() {
                 gl_Position = vec4(
                     2.0 * a_pos.x / u_screen_size.x - 1.0,
                     1.0 - 2.0 * a_pos.y / u_screen_size.y,
                     0.0,
                     1.0);
-                v_color = a_color;
+                v_rgba = linear_from_srgba(a_srgba);
                 v_tc = a_tc / u_tex_size;
             }
         "#,
         )?;
+
         let frag_shader = compile_shader(
             &gl,
             Gl::FRAGMENT_SHADER,
             r#"
+            precision mediump float;
             uniform sampler2D u_sampler;
-            precision highp float;
-            varying vec4 v_color;
+            varying vec4 v_rgba;
             varying vec2 v_tc;
+
+            // 0-255 sRGB  from  0-1 linear
+            vec3 srgb_from_linear(vec3 rgb) {
+                bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
+                vec3 lower = rgb * vec3(3294.6);
+                vec3 higher = vec3(269.025) * pow(rgb, vec3(1.0 / 2.4)) - vec3(14.025);
+                return mix(higher, lower, vec3(cutoff));
+            }
+
+            vec4 srgba_from_linear(vec4 rgba) {
+                return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
+            }
+
             void main() {
-                gl_FragColor = v_color;
-                gl_FragColor *= texture2D(u_sampler, v_tc).a;
+                gl_FragColor = srgba_from_linear(v_rgba * texture2D(u_sampler, v_tc).a) / 255.0;
             }
         "#,
         )?;
+
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
         let index_buffer = gl.create_buffer().ok_or("failed to create index_buffer")?;
         let pos_buffer = gl.create_buffer().ok_or("failed to create pos_buffer")?;
@@ -196,7 +224,7 @@ impl Painter {
             self.canvas.width() as i32,
             self.canvas.height() as i32,
         );
-        // TODO: sRGBA
+        // TODO: sRGBA ?
         gl.clear_color(
             bg_color.r as f32 / 255.0,
             bg_color.g as f32 / 255.0,
@@ -336,22 +364,22 @@ impl Painter {
         gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&self.color_buffer));
         gl.buffer_data_with_array_buffer_view(Gl::ARRAY_BUFFER, &colors_array, Gl::STREAM_DRAW);
 
-        let a_color_loc = gl.get_attrib_location(&self.program, "a_color");
-        assert!(a_color_loc >= 0);
-        let a_color_loc = a_color_loc as u32;
+        let a_srgba_loc = gl.get_attrib_location(&self.program, "a_srgba");
+        assert!(a_srgba_loc >= 0);
+        let a_srgba_loc = a_srgba_loc as u32;
 
-        let normalize = true;
+        let normalize = false;
         let stride = 0;
         let offset = 0;
         gl.vertex_attrib_pointer_with_i32(
-            a_color_loc,
+            a_srgba_loc,
             4,
             Gl::UNSIGNED_BYTE,
             normalize,
             stride,
             offset,
         );
-        gl.enable_vertex_attrib_array(a_color_loc);
+        gl.enable_vertex_attrib_array(a_srgba_loc);
 
         // --------------------------------------------------------------------
 
