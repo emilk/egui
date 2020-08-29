@@ -584,7 +584,7 @@ impl Ui {
         self.painter.add(PaintCmd::line_segment(
             [line_start, line_end],
             self.style.line_width,
-            gray(150, 255),
+            Srgba::gray(150),
         ));
 
         (ret, self.allocate_space(indent + size))

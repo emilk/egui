@@ -39,7 +39,7 @@ pub struct Style {
     pub interact: Interact,
 
     // TODO: an WidgetStyle ?
-    pub text_color: Color,
+    pub text_color: Srgba,
 
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
@@ -47,10 +47,10 @@ pub struct Style {
     pub thin_outline: LineStyle,
 
     /// e.g. the background of windows
-    pub background_fill: Color,
+    pub background_fill: Srgba,
 
     /// e.g. the background of the slider or text edit
-    pub dark_bg_color: Color,
+    pub dark_bg_color: Srgba,
 
     /// Blink text cursor by this frequency. If None, always show the cursor.
     pub cursor_blink_hz: Option<f32>,
@@ -86,11 +86,11 @@ impl Default for Style {
             resize_interact_radius_corner: 10.0,
             resize_corner_size: 16.0,
             interact: Default::default(),
-            text_color: gray(160, 255),
+            text_color: Srgba::gray(160),
             line_width: 1.0,
             thin_outline: LineStyle::new(0.5, GRAY),
-            background_fill: gray(32, 250),
-            dark_bg_color: gray(0, 140),
+            background_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
+            dark_bg_color: Srgba::black_alpha(140),
             cursor_blink_hz: None, // Some(1.0)
             text_cursor_width: 2.0,
             animation_time: 1.0 / 15.0,
@@ -116,7 +116,7 @@ impl Default for Interact {
     fn default() -> Self {
         Self {
             active: WidgetStyle {
-                bg_fill: Some(gray(0, 128)),
+                bg_fill: Some(Srgba::black_alpha(128)),
                 fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
@@ -126,7 +126,7 @@ impl Default for Interact {
             hovered: WidgetStyle {
                 bg_fill: None,
                 fill: srgba(100, 100, 150, 255),
-                stroke_color: gray(240, 255),
+                stroke_color: Srgba::gray(240),
                 stroke_width: 1.5,
                 rect_outline: Some(LineStyle::new(1.0, WHITE)),
                 corner_radius: 2.0,
@@ -134,17 +134,17 @@ impl Default for Interact {
             inactive: WidgetStyle {
                 bg_fill: None,
                 fill: srgba(60, 60, 80, 255),
-                stroke_color: gray(210, 255), // Mustn't look grayed out!
+                stroke_color: Srgba::gray(200), // Mustn't look grayed out!
                 stroke_width: 1.0,
-                rect_outline: Some(LineStyle::new(1.0, white(128))),
+                rect_outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
                 corner_radius: 4.0,
             },
             disabled: WidgetStyle {
                 bg_fill: None,
                 fill: srgba(50, 50, 50, 255),
-                stroke_color: gray(128, 255), // Should look grayed out
+                stroke_color: Srgba::gray(128), // Should look grayed out
                 stroke_width: 0.5,
-                rect_outline: Some(LineStyle::new(0.5, white(128))),
+                rect_outline: Some(LineStyle::new(0.5, Srgba::gray(128))),
                 corner_radius: 4.0,
             },
         }
@@ -169,14 +169,14 @@ impl Interact {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetStyle {
     /// Background color of widget
-    pub bg_fill: Option<Color>,
+    pub bg_fill: Option<Srgba>,
 
     /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
     /// When you need a fill.
-    pub fill: Color,
+    pub fill: Srgba,
 
     /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
-    pub stroke_color: Color,
+    pub stroke_color: Srgba,
 
     /// For lines etc
     pub stroke_width: f32,

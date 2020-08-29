@@ -8,7 +8,7 @@ pub struct Frame {
     // On each side
     pub margin: Vec2,
     pub corner_radius: f32,
-    pub fill: Option<Color>,
+    pub fill: Option<Srgba>,
     pub outline: Option<LineStyle>,
 }
 
@@ -27,7 +27,7 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 0.0,
             fill: None,
-            outline: Some(LineStyle::new(0.5, color::white(128))),
+            outline: Some(LineStyle::new(0.5, Srgba::gray(128))),
         }
     }
 
@@ -36,7 +36,7 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
             fill: Some(style.background_fill),
-            outline: Some(LineStyle::new(1.0, color::white(128))),
+            outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
         }
     }
 
@@ -45,11 +45,11 @@ impl Frame {
             margin: style.window_padding,
             corner_radius: 5.0,
             fill: Some(style.background_fill),
-            outline: Some(LineStyle::new(1.0, color::white(128))),
+            outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
         }
     }
 
-    pub fn fill(mut self, fill: Option<Color>) -> Self {
+    pub fn fill(mut self, fill: Option<Srgba>) -> Self {
         self.fill = fill;
         self
     }

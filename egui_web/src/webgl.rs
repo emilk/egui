@@ -6,7 +6,7 @@ use {
 
 use egui::{
     math::clamp,
-    paint::{Color, PaintJobs, Texture, Triangles},
+    paint::{PaintJobs, Srgba, Texture, Triangles},
     vec2,
 };
 
@@ -179,7 +179,7 @@ impl Painter {
 
     pub fn paint_jobs(
         &mut self,
-        bg_color: Color,
+        bg_color: Srgba,
         jobs: PaintJobs,
         texture: &Texture,
         pixels_per_point: f32,

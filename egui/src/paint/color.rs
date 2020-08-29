@@ -1,61 +1,155 @@
-// TODO: rename `Color` to `sRGBA` for clarity.
-/// 0-255 `sRGBA`. Uses premultiplied alpha.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+use crate::math::clamp;
+
+/// 0-255 gamma space `sRGBA` color with premultiplied alpha.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Color {
+pub struct Srgba {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+    /// Linear space (not subject to sRGBA gamma conversion)
     pub a: u8,
 }
-
-pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color {
-    Color { r, g, b, a }
+/// 0-1 linear space `RGBA` color with premultiplied alpha.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Rgba {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
 }
 
-pub const fn gray(l: u8, a: u8) -> Color {
-    Color {
-        r: l,
-        g: l,
-        b: l,
-        a,
+// ----------------------------------------------------------------------------
+// Color conversion:
+
+impl From<Srgba> for Rgba {
+    fn from(srgba: Srgba) -> Rgba {
+        Rgba {
+            r: linear_from_srgb_byte(srgba.r),
+            g: linear_from_srgb_byte(srgba.g),
+            b: linear_from_srgb_byte(srgba.b),
+            a: srgba.a as f32 / 255.0,
+        }
     }
 }
 
-pub const fn black(a: u8) -> Color {
-    Color {
-        r: 0,
-        g: 0,
-        b: 0,
-        a,
+impl From<Rgba> for Srgba {
+    fn from(rgba: Rgba) -> Srgba {
+        Srgba {
+            r: srgb_byte_from_linear(rgba.r),
+            g: srgb_byte_from_linear(rgba.g),
+            b: srgb_byte_from_linear(rgba.b),
+            a: clamp(rgba.a * 255.0, 0.0..=255.0).round() as u8,
+        }
     }
 }
 
-pub const fn white(a: u8) -> Color {
-    Color {
-        r: a,
-        g: a,
-        b: a,
-        a,
+fn linear_from_srgb_byte(s: u8) -> f32 {
+    if s <= 10 {
+        s as f32 / 3294.6
+    } else {
+        ((s as f32 + 14.025) / 269.025).powf(2.4)
     }
 }
 
-pub const fn additive_gray(l: u8) -> Color {
-    Color {
-        r: l,
-        g: l,
-        b: l,
-        a: 0,
+fn srgb_byte_from_linear(l: f32) -> u8 {
+    if l <= 0.0 {
+        0
+    } else if l <= 0.0031308 {
+        (3294.6 * l).round() as u8
+    } else if l <= 1.0 {
+        (269.025 * l.powf(1.0 / 2.4) - 14.025).round() as u8
+    } else {
+        255
     }
 }
 
-pub const TRANSPARENT: Color = srgba(0, 0, 0, 0);
-pub const BLACK: Color = srgba(0, 0, 0, 255);
-pub const LIGHT_GRAY: Color = srgba(220, 220, 220, 255);
-pub const GRAY: Color = srgba(160, 160, 160, 255);
-pub const WHITE: Color = srgba(255, 255, 255, 255);
-pub const RED: Color = srgba(255, 0, 0, 255);
-pub const GREEN: Color = srgba(0, 255, 0, 255);
-pub const BLUE: Color = srgba(0, 0, 255, 255);
-pub const YELLOW: Color = srgba(255, 255, 0, 255);
-pub const LIGHT_BLUE: Color = srgba(140, 160, 255, 255);
+#[test]
+fn test_srgba_conversion() {
+    #![allow(clippy::float_cmp)]
+    for b in 0..=255 {
+        let l = linear_from_srgb_byte(b);
+        assert!(0.0 <= l && l <= 1.0);
+        assert_eq!(srgb_byte_from_linear(l), b);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Srgba {
+    Srgba { r, g, b, a }
+}
+
+impl Srgba {
+    pub const fn gray(l: u8) -> Self {
+        Self {
+            r: l,
+            g: l,
+            b: l,
+            a: 255,
+        }
+    }
+
+    pub const fn black_alpha(a: u8) -> Self {
+        Self {
+            r: 0,
+            g: 0,
+            b: 0,
+            a,
+        }
+    }
+
+    pub const fn additive_luminance(l: u8) -> Self {
+        Self {
+            r: l,
+            g: l,
+            b: l,
+            a: 0,
+        }
+    }
+}
+
+impl Rgba {
+    pub fn luminance_alpha(l: f32, a: f32) -> Self {
+        debug_assert!(0.0 <= l && l <= 1.0);
+        debug_assert!(0.0 <= a && a <= 1.0);
+        Self {
+            r: l * a,
+            g: l * a,
+            b: l * a,
+            a,
+        }
+    }
+
+    pub fn white_alpha(l: f32) -> Self {
+        debug_assert!(0.0 <= l && l <= 1.0);
+        Self {
+            r: l,
+            g: l,
+            b: l,
+            a: l,
+        }
+    }
+
+    /// Multiply with e.g. 0.5 to make us half transparent
+    pub fn multiply(self, alpha: f32) -> Self {
+        Self {
+            r: alpha * self.r,
+            g: alpha * self.g,
+            b: alpha * self.b,
+            a: alpha * self.a,
+        }
+    }
+}
+
+pub const TRANSPARENT: Srgba = srgba(0, 0, 0, 0);
+pub const BLACK: Srgba = srgba(0, 0, 0, 255);
+pub const LIGHT_GRAY: Srgba = srgba(220, 220, 220, 255);
+pub const GRAY: Srgba = srgba(160, 160, 160, 255);
+pub const WHITE: Srgba = srgba(255, 255, 255, 255);
+pub const RED: Srgba = srgba(255, 0, 0, 255);
+pub const GREEN: Srgba = srgba(0, 255, 0, 255);
+pub const BLUE: Srgba = srgba(0, 0, 255, 255);
+pub const YELLOW: Srgba = srgba(255, 255, 0, 255);
+pub const LIGHT_BLUE: Srgba = srgba(140, 160, 255, 255);

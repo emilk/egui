@@ -208,7 +208,6 @@ impl Context {
     fn paint(&self) -> PaintJobs {
         let mut paint_options = *self.paint_options.lock();
         paint_options.aa_size = 1.0 / self.pixels_per_point();
-        paint_options.aa_size *= 1.5; // Looks better, but TODO: should not be needed
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
         let paint_jobs =

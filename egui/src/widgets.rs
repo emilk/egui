@@ -31,7 +31,7 @@ pub struct Label {
     pub(crate) multiline: bool,
     auto_shrink: bool,
     pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the ui"
-    pub(crate) text_color: Option<Color>,
+    pub(crate) text_color: Option<Srgba>,
 }
 
 impl Label {
@@ -71,7 +71,7 @@ impl Label {
         self.text_style(TextStyle::Heading)
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -219,10 +219,10 @@ impl Widget for Hyperlink {
 /// Clickable button with text
 pub struct Button {
     text: String,
-    text_color: Option<Color>,
+    text_color: Option<Srgba>,
     text_style: TextStyle,
     /// None means default for interact
-    fill: Option<Color>,
+    fill: Option<Srgba>,
     sense: Sense,
 }
 
@@ -237,7 +237,7 @@ impl Button {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -247,7 +247,7 @@ impl Button {
         self
     }
 
-    pub fn fill(mut self, fill: Option<Color>) -> Self {
+    pub fn fill(mut self, fill: Option<Srgba>) -> Self {
         self.fill = fill;
         self
     }
@@ -311,7 +311,7 @@ impl Widget for Button {
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
-    text_color: Option<Color>,
+    text_color: Option<Srgba>,
 }
 
 impl<'a> Checkbox<'a> {
@@ -323,7 +323,7 @@ impl<'a> Checkbox<'a> {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -389,7 +389,7 @@ impl<'a> Widget for Checkbox<'a> {
 pub struct RadioButton {
     checked: bool,
     text: String,
-    text_color: Option<Color>,
+    text_color: Option<Srgba>,
 }
 
 impl RadioButton {
@@ -401,7 +401,7 @@ impl RadioButton {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -463,7 +463,7 @@ pub struct Separator {
     line_width: Option<f32>,
     spacing: f32,
     extra: f32,
-    color: Color,
+    color: Srgba,
 }
 
 impl Separator {
@@ -472,7 +472,7 @@ impl Separator {
             line_width: None,
             spacing: 6.0,
             extra: 0.0,
-            color: color::WHITE,
+            color: Srgba::gray(128), // TODO: from style
         }
     }
 
@@ -493,7 +493,7 @@ impl Separator {
         self
     }
 
-    pub fn color(mut self, color: Color) -> Self {
+    pub fn color(mut self, color: Srgba) -> Self {
         self.color = color;
         self
     }

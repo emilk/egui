@@ -37,7 +37,7 @@ impl FractalClock {
             .default_rect(ctx.rect().expand(-42.0))
             .scroll(false)
             // Dark background frame to make it pop:
-            .frame(Frame::window(&ctx.style()).fill(Some(color::black(250))))
+            .frame(Frame::window(&ctx.style()).fill(Some(Srgba::black_alpha(250))))
             .show(ctx, |ui| self.ui(ui));
     }
 
@@ -54,7 +54,7 @@ impl FractalClock {
         self.fractal_ui(&painter);
 
         Frame::popup(ui.style())
-            .fill(Some(color::gray(34, 160)))
+            .fill(Some(Rgba::luminance_alpha(0.02, 0.5).into()))
             .outline(None)
             .show(&mut ui.left_column(320.0), |ui| {
                 CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
@@ -128,7 +128,7 @@ impl FractalClock {
         ];
 
         let scale = self.zoom * rect.width().min(rect.height());
-        let paint_line = |points: [Pos2; 2], color: Color, width: f32| {
+        let paint_line = |points: [Pos2; 2], color: Srgba, width: f32| {
             let line = [
                 rect.center() + scale * points[0].to_vec2(),
                 rect.center() + scale * points[1].to_vec2(),
@@ -160,7 +160,7 @@ impl FractalClock {
         for (i, hand) in hands.iter().enumerate() {
             let center = pos2(0.0, 0.0);
             let end = center + hand.vec;
-            paint_line([center, end], color::additive_gray(255), width);
+            paint_line([center, end], Srgba::additive_luminance(255), width);
             if i < 2 {
                 nodes.push(Node {
                     pos: end,
@@ -188,7 +188,11 @@ impl FractalClock {
                         pos: a.pos + new_dir,
                         dir: new_dir,
                     };
-                    paint_line([a.pos, b.pos], color::additive_gray(luminance_u8), width);
+                    paint_line(
+                        [a.pos, b.pos],
+                        Srgba::additive_luminance(luminance_u8),
+                        width,
+                    );
                     new_nodes.push(b);
                 }
             }

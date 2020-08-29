@@ -7,7 +7,7 @@
 
 use {
     super::{
-        color::{self, srgba, Color},
+        color::{self, srgba, Rgba, Srgba},
         fonts::Fonts,
         LineStyle, PaintCmd,
     },
@@ -29,7 +29,7 @@ pub struct Vertex {
     /// Texel coordinates in the texture
     pub uv: (u16, u16), // 32 bit
     /// sRGBA with premultiplied alpha
-    pub color: Color, // 32 bit
+    pub color: Srgba, // 32 bit
 }
 
 /// Textured triangles.
@@ -182,7 +182,7 @@ pub struct PathPoint {
     normal: Vec2,
 }
 
-/// A connected line (without thickness or gaps) which can be tesselated
+/// A connected line (without thickness or gaps) which can be tessellated
 /// to either to an outline (with thickness) or a filled convex area.
 #[derive(Clone, Debug, Default)]
 pub struct Path(Vec<PathPoint>);
@@ -376,7 +376,7 @@ impl Default for PaintOptions {
 /// Tesselate the given convex area into a polygon.
 pub fn fill_closed_path(
     path: &[PathPoint],
-    color: Color,
+    color: Srgba,
     options: PaintOptions,
     out: &mut Triangles,
 ) {
@@ -568,15 +568,10 @@ pub fn paint_path_outline(
     }
 }
 
-fn mul_color(color: Color, factor: f32) -> Color {
-    // TODO: sRGBA correct fading
+fn mul_color(color: Srgba, factor: f32) -> Srgba {
     debug_assert!(0.0 <= factor && factor <= 1.0);
-    Color {
-        r: (f32::from(color.r) * factor).round() as u8,
-        g: (f32::from(color.g) * factor).round() as u8,
-        b: (f32::from(color.b) * factor).round() as u8,
-        a: (f32::from(color.a) * factor).round() as u8,
-    }
+    // sRGBA correct fading requires conversion to linear space and back again because of premultiplied alpha
+    Rgba::from(color).multiply(factor).into()
 }
 
 // ----------------------------------------------------------------------------
@@ -585,7 +580,7 @@ fn mul_color(color: Color, factor: f32) -> Color {
 ///
 /// * `command`: the command to tesselate
 /// * `options`: tesselation quality
-/// * `fonts`: font source when tesselating text
+/// * `fonts`: font source when tessellating text
 /// * `out`: where the triangles are put
 /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
 ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
@@ -651,7 +646,7 @@ pub fn tessellate_paint_command(
             outline,
         } => {
             if !rect.is_empty() {
-                // It is common to (sometimes accidentally) create an infinitely sized ractangle.
+                // It is common to (sometimes accidentally) create an infinitely sized rectangle.
                 // Make sure we can handle that:
                 rect.min = rect.min.max(pos2(-1e7, -1e7));
                 rect.max = rect.max.min(pos2(1e7, 1e7));
@@ -713,7 +708,7 @@ pub fn tessellate_paint_command(
 ///
 /// * `commands`: the command to tesselate
 /// * `options`: tesselation quality
-/// * `fonts`: font source when tesselating text
+/// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
 /// A list of clip rectangles with matching `Triangles`.

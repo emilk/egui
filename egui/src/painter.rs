@@ -5,7 +5,7 @@ use crate::{
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{font, Fonts, LineStyle, PaintCmd, TextStyle},
-    Align, Color, Context, Layer,
+    Align, Context, Layer, Srgba,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -114,7 +114,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&mut self, rect: Rect, color: Color, text: impl Into<String>) {
+    pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: impl Into<String>) {
         self.add(PaintCmd::Rect {
             corner_radius: 0.0,
             fill: None,
@@ -135,7 +135,7 @@ impl Painter {
         let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
         self.add(PaintCmd::Rect {
             corner_radius: 0.0,
-            fill: Some(color::gray(0, 240)),
+            fill: Some(Srgba::black_alpha(240)),
             outline: Some(LineStyle::new(1.0, color::RED)),
             rect: rect.expand(2.0),
         });
@@ -156,7 +156,7 @@ impl Painter {
         anchor: (Align, Align),
         text: impl Into<String>,
         text_style: TextStyle,
-        text_color: Color,
+        text_color: Srgba,
     ) -> Rect {
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
@@ -166,7 +166,7 @@ impl Painter {
     }
 
     /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Color) {
+    pub fn galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Srgba) {
         self.add(PaintCmd::Text {
             pos,
             galley,

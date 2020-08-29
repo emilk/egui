@@ -10,7 +10,7 @@ pub mod tessellator;
 mod texture_atlas;
 
 pub use {
-    color::Color,
+    color::{Rgba, Srgba},
     command::{LineStyle, PaintCmd},
     fonts::{FontDefinitions, Fonts, TextStyle},
     tessellator::{PaintJobs, PaintOptions, Path, Triangles, Vertex},

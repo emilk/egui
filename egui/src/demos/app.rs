@@ -274,7 +274,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             } = windows;
             ui.add(Checkbox::new(demo, "Demo"));
             ui.add(Checkbox::new(fractal_clock, "Fractal Clock"));
-            ui.add(Separator::new());
+            ui.separator();
             ui.add(Checkbox::new(settings, "Settings"));
             ui.add(Checkbox::new(inspection, "Inspection"));
             ui.add(Checkbox::new(memory, "Memory"));
@@ -560,12 +560,12 @@ impl BoxPainting {
         for i in 0..self.num_boxes {
             cmds.push(PaintCmd::Rect {
                 corner_radius: self.corner_radius,
-                fill: Some(gray(136, 255)),
+                fill: Some(Srgba::gray(64)),
                 rect: Rect::from_min_size(
                     pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                     self.size,
                 ),
-                outline: Some(LineStyle::new(self.stroke_width, gray(255, 255))),
+                outline: Some(LineStyle::new(self.stroke_width, WHITE)),
             });
         }
         ui.painter().extend(cmds);
@@ -574,19 +574,32 @@ impl BoxPainting {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 struct Painting {
     lines: Vec<Vec<Vec2>>,
+    line_width: f32,
+}
+
+impl Default for Painting {
+    fn default() -> Self {
+        Self {
+            lines: Default::default(),
+            line_width: 1.0,
+        }
+    }
 }
 
 impl Painting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.label("Draw with your mouse to paint");
-        if ui.add(Button::new("Clear")).clicked {
-            self.lines.clear();
-        }
+
+        ui.horizontal(|ui| {
+            ui.add(Slider::f32(&mut self.line_width, 0.0..=3.0).text("Line width"));
+            if ui.add(Button::new("Clear")).clicked {
+                self.lines.clear();
+            }
+        });
 
         Resize::default()
             .default_size([200.0, 200.0])
@@ -623,7 +636,7 @@ impl Painting {
                 painter.add(PaintCmd::Path {
                     path: Path::from_open_points(&points),
                     closed: false,
-                    outline: Some(LineStyle::new(2.0, LIGHT_GRAY)),
+                    outline: Some(LineStyle::new(self.line_width, LIGHT_GRAY)),
                     fill: None,
                 });
             }
@@ -672,7 +685,7 @@ impl LayoutDemo {
         if ui.add(Button::new("Reset")).clicked {
             *self = Default::default();
         }
-        ui.add(Separator::new());
+        ui.separator();
         ui.add(label!("Direction:"));
 
         // TODO: enum iter
@@ -688,7 +701,7 @@ impl LayoutDemo {
 
         ui.add(Checkbox::new(&mut self.reversed, "Reversed"));
 
-        ui.add(Separator::new());
+        ui.separator();
 
         ui.add(label!("Align:"));
 

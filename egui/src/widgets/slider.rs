@@ -13,7 +13,7 @@ pub struct Slider<'a> {
     // TODO: label: Option<Label>
     text: Option<String>,
     precision: Option<usize>,
-    text_color: Option<Color>,
+    text_color: Option<Srgba>,
     id: Option<Id>,
 }
 
@@ -74,7 +74,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -165,7 +165,7 @@ impl<'a> Slider<'a> {
                 rect: rail_rect,
                 corner_radius: rail_radius,
                 fill: Some(ui.style().background_fill),
-                outline: Some(LineStyle::new(1.0, color::gray(200, 255))), // TODO
+                outline: Some(LineStyle::new(1.0, Srgba::gray(200))), // TODO
             });
 
             ui.painter().add(PaintCmd::Circle {

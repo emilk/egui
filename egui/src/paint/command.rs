@@ -1,5 +1,5 @@
 use {
-    super::{font::Galley, fonts::TextStyle, Color, Path, Triangles},
+    super::{font::Galley, fonts::TextStyle, Path, Srgba, Triangles},
     crate::math::{Pos2, Rect},
 };
 
@@ -11,7 +11,7 @@ pub enum PaintCmd {
     Circle {
         center: Pos2,
         radius: f32,
-        fill: Option<Color>,
+        fill: Option<Srgba>,
         outline: Option<LineStyle>,
     },
     LineSegment {
@@ -21,13 +21,13 @@ pub enum PaintCmd {
     Path {
         path: Path,
         closed: bool,
-        fill: Option<Color>,
+        fill: Option<Srgba>,
         outline: Option<LineStyle>,
     },
     Rect {
         rect: Rect,
         corner_radius: f32,
-        fill: Option<Color>,
+        fill: Option<Srgba>,
         outline: Option<LineStyle>,
     },
     Text {
@@ -36,24 +36,24 @@ pub enum PaintCmd {
         /// The layed out text
         galley: Galley,
         text_style: TextStyle, // TODO: Font?
-        color: Color,
+        color: Srgba,
     },
     Triangles(Triangles),
 }
 
 impl PaintCmd {
-    pub fn line_segment(points: [Pos2; 2], width: f32, color: Color) -> Self {
+    pub fn line_segment(points: [Pos2; 2], width: f32, color: impl Into<Srgba>) -> Self {
         Self::LineSegment {
             points,
             style: LineStyle::new(width, color),
         }
     }
 
-    pub fn circle_filled(center: Pos2, radius: f32, fill_color: Color) -> Self {
+    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Srgba>) -> Self {
         Self::Circle {
             center,
             radius,
-            fill: Some(fill_color),
+            fill: Some(fill_color.into()),
             outline: None,
         }
     }
@@ -72,11 +72,11 @@ impl PaintCmd {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LineStyle {
     pub width: f32,
-    pub color: Color,
+    pub color: Srgba,
 }
 
 impl LineStyle {
-    pub fn new(width: impl Into<f32>, color: impl Into<Color>) -> Self {
+    pub fn new(width: impl Into<f32>, color: impl Into<Srgba>) -> Self {
         Self {
             width: width.into(),
             color: color.into(),

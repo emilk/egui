@@ -15,7 +15,7 @@ pub struct TextEdit<'t> {
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the current Ui"
-    text_color: Option<Color>,
+    text_color: Option<Srgba>,
     multiline: bool,
     enabled: bool,
     desired_width: f32,
@@ -50,7 +50,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Color) -> Self {
+    pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
