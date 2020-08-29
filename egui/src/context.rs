@@ -426,7 +426,7 @@ impl Context {
                 }
             }
         } else if self.input.mouse.released {
-            let clicked = hovered && active;
+            let clicked = hovered && active && self.input.mouse.could_be_click;
             InteractInfo {
                 sense,
                 rect,
