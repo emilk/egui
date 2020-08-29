@@ -24,17 +24,30 @@ impl Painter {
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         in vec2 a_pos;
-                        in vec4 a_color;
+                        in vec4 a_srgba;
                         in vec2 a_tc;
-                        out vec4 v_color;
+                        out vec4 v_rgba;
                         out vec2 v_tc;
+
+                        // 0-1 linear  from  0-255 sRGB
+                        vec3 linear_from_srgb(vec3 srgb) {
+                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+                            vec3 lower = srgb / vec3(3294.6);
+                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+                            return mix(higher, lower, cutoff);
+                        }
+
+                        vec4 linear_from_srgba(vec4 srgba) {
+                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+                        }
+
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_color = a_color / 255.0;
+                            v_rgba = linear_from_srgba(a_srgba);
                             v_tc = a_tc / u_tex_size;
                         }
                     ",
@@ -42,22 +55,13 @@ impl Painter {
                     fragment: "
                         #version 140
                         uniform sampler2D u_sampler;
-                        in vec4 v_color;
+                        in vec4 v_rgba;
                         in vec2 v_tc;
                         out vec4 f_color;
 
-                        // glium expects linear output.
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(0.04045));
-                            vec3 higher = pow((srgb + vec3(0.055)) / vec3(1.055), vec3(2.4));
-                            vec3 lower = srgb / vec3(12.92);
-                            return mix(higher, lower, cutoff);
-                        }
-
                         void main() {
-                            f_color = v_color;
-                            f_color.rgb = linear_from_srgb(f_color.rgb);
-                            f_color *= texture(u_sampler, v_tc).r;
+                            // glium expects linear rgba
+                            f_color = v_rgba * texture(u_sampler, v_tc).r;
                         }
                     "
             },
@@ -68,17 +72,30 @@ impl Painter {
                         uniform vec2 u_screen_size;
                         uniform vec2 u_tex_size;
                         attribute vec2 a_pos;
-                        attribute vec4 a_color;
+                        attribute vec4 a_srgba;
                         attribute vec2 a_tc;
-                        varying vec4 v_color;
+                        varying vec4 v_rgba;
                         varying vec2 v_tc;
+
+                        // 0-1 linear  from  0-255 sRGB
+                        vec3 linear_from_srgb(vec3 srgb) {
+                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+                            vec3 lower = srgb / vec3(3294.6);
+                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+                            return mix(higher, lower, cutoff);
+                        }
+
+                        vec4 linear_from_srgba(vec4 srgba) {
+                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+                        }
+
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_color = a_color / 255.0;
+                            v_rgba = linear_from_srgba(a_srgba);
                             v_tc = a_tc / u_tex_size;
                         }
                     ",
@@ -86,21 +103,12 @@ impl Painter {
                     fragment: "
                         #version 110
                         uniform sampler2D u_sampler;
-                        varying vec4 v_color;
+                        varying vec4 v_rgba;
                         varying vec2 v_tc;
 
-                        // glium expects linear output.
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(0.04045));
-                            vec3 higher = pow((srgb + vec3(0.055)) / vec3(1.055), vec3(2.4));
-                            vec3 lower = srgb / vec3(12.92);
-                            return mix(higher, lower, cutoff);
-                        }
-
                         void main() {
-                            gl_FragColor = v_color;
-                            gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
-                            gl_FragColor *= texture2D(u_sampler, v_tc).r;
+                            // glium expects linear rgba
+                            gl_FragColor = v_rgba * texture2D`(u_sampler, v_tc).r;
                         }
                     ",
             },
@@ -111,17 +119,30 @@ impl Painter {
                         uniform mediump vec2 u_screen_size;
                         uniform mediump vec2 u_tex_size;
                         attribute mediump vec2 a_pos;
-                        attribute mediump vec4 a_color;
+                        attribute mediump vec4 a_srgba;
                         attribute mediump vec2 a_tc;
-                        varying mediump vec4 v_color;
+                        varying mediump vec4 v_rgba;
                         varying mediump vec2 v_tc;
+
+                        // 0-1 linear  from  0-255 sRGB
+                        vec3 linear_from_srgb(vec3 srgb) {
+                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+                            vec3 lower = srgb / vec3(3294.6);
+                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+                            return mix(higher, lower, cutoff);
+                        }
+
+                        vec4 linear_from_srgba(vec4 srgba) {
+                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+                        }
+
                         void main() {
                             gl_Position = vec4(
                                 2.0 * a_pos.x / u_screen_size.x - 1.0,
                                 1.0 - 2.0 * a_pos.y / u_screen_size.y,
                                 0.0,
                                 1.0);
-                            v_color = a_color / 255.0;
+                            v_rgba = linear_from_srgba(a_srgba);
                             v_tc = a_tc / u_tex_size;
                         }
                     ",
@@ -129,21 +150,12 @@ impl Painter {
                     fragment: "
                         #version 100
                         uniform sampler2D u_sampler;
-                        varying mediump vec4 v_color;
+                        varying mediump vec4 v_rgba;
                         varying mediump vec2 v_tc;
 
-                        // glium expects linear output.
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(0.04045));
-                            vec3 higher = pow((srgb + vec3(0.055)) / vec3(1.055), vec3(2.4));
-                            vec3 lower = srgb / vec3(12.92);
-                            return mix(higher, lower, cutoff);
-                        }
-
                         void main() {
-                            gl_FragColor = v_color;
-                            gl_FragColor.rgb = linear_from_srgb(gl_FragColor.rgb);
-                            gl_FragColor *= texture2D(u_sampler, v_tc).r;
+                            // glium expects linear rgba
+                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc).r;
                         }
                     ",
             },
@@ -212,17 +224,17 @@ impl Painter {
             #[derive(Copy, Clone)]
             struct Vertex {
                 a_pos: [f32; 2],
-                a_color: [u8; 4],
+                a_srgba: [u8; 4],
                 a_tc: [u16; 2],
             }
-            implement_vertex!(Vertex, a_pos, a_color, a_tc);
+            implement_vertex!(Vertex, a_pos, a_srgba, a_tc);
 
             let vertices: Vec<Vertex> = triangles
                 .vertices
                 .iter()
                 .map(|v| Vertex {
                     a_pos: [v.pos.x, v.pos.y],
-                    a_color: [v.color.r, v.color.g, v.color.b, v.color.a],
+                    a_srgba: [v.color.r, v.color.g, v.color.b, v.color.a],
                     a_tc: [v.uv.0, v.uv.1],
                 })
                 .collect();
