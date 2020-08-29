@@ -142,11 +142,7 @@ impl<'open> Window<'open> {
     pub fn scroll(mut self, scroll: bool) -> Self {
         if scroll {
             if self.scroll.is_none() {
-                self.scroll = Some(
-                    ScrollArea::default()
-                        .always_show_scroll(false)
-                        .max_height(f32::INFINITY), // As large as we can be
-                );
+                self.scroll = Some(ScrollArea::auto_sized());
             }
             debug_assert!(
                 self.scroll.is_some(),

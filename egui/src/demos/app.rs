@@ -360,7 +360,7 @@ impl DemoWindow {
         CollapsingHeader::new("Scroll area")
             .default_open(false)
             .show(ui, |ui| {
-                ScrollArea::default().show(ui, |ui| {
+                ScrollArea::from_max_height(200.0).show(ui, |ui| {
                     ui.label(LOREM_IPSUM_LONG);
                 });
             });

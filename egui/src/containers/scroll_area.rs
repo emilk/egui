@@ -33,22 +33,21 @@ pub struct ScrollArea {
     always_show_scroll: bool,
 }
 
-impl Default for ScrollArea {
-    fn default() -> Self {
+impl ScrollArea {
+    /// Will make the area be as high as it is allowed to be (i.e. fill the ui it is in)
+    pub fn auto_sized() -> Self {
+        Self::from_max_height(f32::INFINITY)
+    }
+
+    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding Ui
+    pub fn from_max_height(max_height: f32) -> Self {
         Self {
-            max_height: 200.0,
+            max_height,
             always_show_scroll: false,
         }
     }
-}
 
-impl ScrollArea {
-    pub fn max_height(mut self, max_height: f32) -> Self {
-        self.max_height = max_height;
-        self
-    }
-
-    /// If `false` (defualt), the scroll bar will be hidden when not needed/
+    /// If `false` (default), the scroll bar will be hidden when not needed/
     /// If `true`, the scroll bar will always be displayed even if not needed.
     pub fn always_show_scroll(mut self, always_show_scroll: bool) -> Self {
         self.always_show_scroll = always_show_scroll;
