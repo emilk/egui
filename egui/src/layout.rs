@@ -61,12 +61,13 @@ pub(crate) fn anchor_rect(rect: Rect, anchor: (Align, Align)) -> Rect {
 #[derive(Clone, Copy, Debug, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
-    /// Lay out things horizontally or vertically?
+    /// Lay out things horizontally or vertically? Main axis.
     dir: Direction,
 
+    /// How to align things on the cross axis.
     /// For vertical layouts: put things to left, center or right?
     /// For horizontal layouts: put things to top, center or bottom?
-    /// None means justified, which means full width (vertical layout) or height (horizontal layouts).
+    /// `None` means justified, which means full width (vertical layout) or height (horizontal layouts).
     align: Option<Align>,
 
     /// Lay out things in reversed order, i.e. from the right or bottom-up.

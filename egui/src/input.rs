@@ -1,3 +1,5 @@
+//! The input needed by Egui.
+
 use crate::math::*;
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
@@ -5,9 +7,9 @@ const MAX_CLICK_DIST: f32 = 6.0;
 /// The new mouse press must come within this many seconds from previous mouse release
 const MAX_CLICK_DELAY: f64 = 0.3;
 
-/// What the integration gives to the gui.
-/// All coordinates in egui is in point/logical coordinates
-/// with origin (0, 0) in the top left corner.
+/// What the backend provides to Egui at the start of each frame.
+///
+/// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
 #[derive(Clone, Debug, Default)]
 pub struct RawInput {
     /// Is the button currently down?
@@ -24,6 +26,7 @@ pub struct RawInput {
     pub screen_size: Vec2,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
+    /// If text looks blurry on high resolution screens, you probably forgot to set this.
     pub pixels_per_point: Option<f32>,
 
     /// Time in seconds. Relative to whatever. Used for animations.
@@ -332,7 +335,7 @@ impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         use crate::label;
         // TODO: simpler way to show values, e.g. `ui.value("Mouse Pos:", self.mouse_pos);
-        // TODO: easily change default font!
+        // TODO: `ui.style_mut().text_style = TextStyle::Monospace`;
         ui.add(label!("mouse_down: {}", self.mouse_down));
         ui.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
         ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
@@ -366,7 +369,7 @@ impl InputState {
         ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
         ui.add(label!("screen_size: {:?} points", self.screen_size));
         ui.add(label!(
-            "{} points for each physical pixel (hdpi factor)",
+            "{} points for each physical pixel (HDPI factor)",
             self.pixels_per_point
         ));
         ui.add(label!("time: {:.3} s", self.time));

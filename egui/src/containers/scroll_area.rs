@@ -191,7 +191,7 @@ impl Prepared {
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
         if show_scroll_this_frame && current_scroll_bar_width <= 0.0 {
-            // Avoid frame delay; start shwoing scroll bar right away:
+            // Avoid frame delay; start showing scroll bar right away:
             current_scroll_bar_width = remap_clamp(
                 ui.input().predicted_dt,
                 0.0..=ui.style().animation_time,

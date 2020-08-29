@@ -1,4 +1,4 @@
-//! Menu bar functionality.
+//! Menu bar functionality (very basic so far).
 //!
 //! Usage:
 //! ``` rust
@@ -79,7 +79,7 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
 
             let clicked_outside = !ui.hovered(ui.rect()) && ui.input().mouse.released;
             if clicked_outside || ui.input().key_pressed(Key::Escape) {
-                // TODO: this prevent sub-menus in menus. We should fix that.
+                // TODO: this prevents sub-menus in menus. We should fix that.
                 let bar_id = ui.id();
                 BarState::close_menus(ui.ctx(), bar_id);
             }

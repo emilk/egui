@@ -1,5 +1,7 @@
 //! Traits and helper for writing Egui apps.
 //!
+//! This module is very experimental, and you don't need to use it.
+//!
 //! Egui can be used as a library, but you can also use it as a framework to write apps in.
 //! This module defined the `App` trait that can be implemented and used with the `egui_web` and `egui_glium` crates.
 
@@ -19,7 +21,7 @@ pub trait App {
 /// How the backend runs the app
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RunMode {
-    /// Repint the UI all the time (at the display refresh rate of e.g. 60 Hz).
+    /// Repaint the UI all the time (at the display refresh rate of e.g. 60 Hz).
     /// This is good for games where things are constantly moving.
     /// This can also be achieved with `RunMode::Reactive` combined with calling `egui::Context::request_repaint()` each frame.
     Continuous,
@@ -50,7 +52,7 @@ pub trait Backend {
     fn fps(&self) -> f32;
 
     /// Signal the backend that we'd like to exit the app now.
-    /// This does nothing for web apps.s
+    /// This does nothing for web apps.
     fn quit(&mut self) {}
 }
 

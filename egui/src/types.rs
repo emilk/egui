@@ -63,7 +63,7 @@ pub struct InteractInfo {
     /// The mouse is hovering above this thing
     pub hovered: bool,
 
-    /// The mouse pressed this thing ealier, and now released on this thing too.
+    /// The mouse pressed this thing earlier, and now released on this thing too.
     pub clicked: bool,
 
     pub double_clicked: bool,

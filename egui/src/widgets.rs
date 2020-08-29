@@ -514,7 +514,7 @@ impl Widget for Separator {
 
         // TODO: only allocate `spacing`, but not our full width/height
         // as that would make the false impression that we *need* all that space,
-        // wich would prevent regions from autoshrinking
+        // which would prevent regions from auto-shrinking
 
         let (points, rect) = match ui.layout().dir() {
             Direction::Horizontal => {

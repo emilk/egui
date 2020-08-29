@@ -67,7 +67,7 @@ impl PaintList {
     }
 }
 
-// TODO: improve this
+// TODO: improve GraphicLayers
 #[derive(Clone, Default)]
 pub struct GraphicLayers(AHashMap<Layer, PaintList>);
 
