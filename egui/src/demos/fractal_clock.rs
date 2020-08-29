@@ -134,7 +134,7 @@ impl FractalClock {
                 rect.center() + scale * points[1].to_vec2(),
             ];
 
-            painter.add(PaintCmd::line_segment([line[0], line[1]], color, width));
+            painter.add(PaintCmd::line_segment([line[0], line[1]], width, color));
         };
 
         let hand_rotations = [

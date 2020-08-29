@@ -201,8 +201,8 @@ impl Widget for Hyperlink {
                 let max_x = pos.x + line.max_x();
                 ui.painter().add(PaintCmd::line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
-                    color,
                     ui.style().line_width,
+                    color,
                 ));
             }
         }

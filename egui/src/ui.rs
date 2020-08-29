@@ -403,7 +403,7 @@ impl Ui {
 
             let paint_line_seg = |a, b| {
                 self.painter
-                    .add(PaintCmd::line_segment([a, b], color, width))
+                    .add(PaintCmd::line_segment([a, b], width, color))
             };
 
             if too_wide {
@@ -567,8 +567,8 @@ impl Ui {
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.painter.add(PaintCmd::line_segment(
             [line_start, line_end],
-            gray(150, 255),
             self.style.line_width,
+            gray(150, 255),
         ));
 
         (ret, self.allocate_space(indent + size))

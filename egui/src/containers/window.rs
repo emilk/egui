@@ -715,13 +715,13 @@ fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
     let stroke_width = ui.style().interact(&interact).stroke_width;
     ui.painter().add(PaintCmd::line_segment(
         [rect.left_top(), rect.right_bottom()],
-        stroke_color,
         stroke_width,
+        stroke_color,
     ));
     ui.painter().add(PaintCmd::line_segment(
         [rect.right_top(), rect.left_bottom()],
-        stroke_color,
         stroke_width,
+        stroke_color,
     ));
     interact
 }

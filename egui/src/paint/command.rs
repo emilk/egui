@@ -42,7 +42,7 @@ pub enum PaintCmd {
 }
 
 impl PaintCmd {
-    pub fn line_segment(points: [Pos2; 2], color: Color, width: f32) -> Self {
+    pub fn line_segment(points: [Pos2; 2], width: f32, color: Color) -> Self {
         Self::LineSegment {
             points,
             style: LineStyle::new(width, color),

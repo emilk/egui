@@ -202,8 +202,8 @@ impl<'t> Widget for TextEdit<'t> {
                     let cursor_pos = interact.rect.min + galley.char_start_pos(cursor);
                     painter.add(PaintCmd::line_segment(
                         [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
-                        color::WHITE,
                         ui.style().text_cursor_width,
+                        color::WHITE,
                     ));
                 }
             }
