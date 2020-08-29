@@ -271,7 +271,7 @@ impl<'a> Widget for Slider<'a> {
                 // Place the text in line with the slider on the left:
                 let text_ui = &mut columns[1];
                 text_ui.set_desired_height(slider_interact.rect.height());
-                text_ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+                text_ui.horizontal_centered(|ui| {
                     self.text_ui(ui, x_range);
                 });
 

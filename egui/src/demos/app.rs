@@ -452,7 +452,7 @@ impl Widgets {
 
         ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));
 
-        ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+        ui.horizontal_centered(|ui| {
             if ui
                 .add(Button::new("Click me").enabled(self.button_enabled))
                 .tooltip_text("This will just increase a counter.")

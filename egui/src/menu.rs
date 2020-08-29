@@ -58,7 +58,7 @@ impl BarState {
 }
 
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-    ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+    ui.horizontal_centered(|ui| {
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();
             style.button_padding = vec2(2.0, 0.0);

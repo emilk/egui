@@ -596,7 +596,7 @@ fn show_title_bar(
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
-    let title_bar_and_rect = ui.inner_layout(Layout::horizontal(Align::Center), |ui| {
+    let title_bar_and_rect = ui.horizontal_centered(|ui| {
         ui.set_desired_height(title_label.font_height(ui.fonts()));
 
         let item_spacing = ui.style().item_spacing;

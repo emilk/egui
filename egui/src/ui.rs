@@ -604,6 +604,11 @@ impl Ui {
         self.inner_layout(Layout::horizontal(Align::Min), add_contents)
     }
 
+    /// Start a ui with horizontal layout where elements are centered on the Y axis.
+    pub fn horizontal_centered<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+        self.inner_layout(Layout::horizontal(Align::Center), add_contents)
+    }
+
     /// Start a ui with vertical layout
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         self.inner_layout(Layout::vertical(Align::Min), add_contents)
