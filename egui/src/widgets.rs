@@ -199,11 +199,10 @@ impl Widget for Hyperlink {
                 let y = ui.painter().round_to_pixel(y);
                 let min_x = pos.x + line.min_x();
                 let max_x = pos.x + line.max_x();
-                ui.painter().add(PaintCmd::line_segment(
+                ui.painter().line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
-                    ui.style().line_width,
-                    color,
-                ));
+                    (ui.style().line_width, color),
+                );
             }
         }
 
@@ -290,10 +289,10 @@ impl Widget for Button {
         let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
         let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
         ui.painter().add(PaintCmd::Rect {
+            rect: interact.rect,
             corner_radius: ui.style().interact(&interact).corner_radius,
             fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
-            rect: interact.rect,
         });
         let stroke_color = ui.style().interact(&interact).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
@@ -354,10 +353,10 @@ impl<'a> Widget for Checkbox<'a> {
         }
         let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
         ui.painter().add(PaintCmd::Rect {
+            rect: big_icon_rect,
             corner_radius: ui.style().interact(&interact).corner_radius,
             fill: ui.style().interact(&interact).bg_fill,
             outline: ui.style().interact(&interact).rect_outline,
-            rect: big_icon_rect,
         });
 
         let stroke_color = ui.style().interact(&interact).stroke_color;
@@ -436,17 +435,17 @@ impl Widget for RadioButton {
 
         painter.add(PaintCmd::Circle {
             center: big_icon_rect.center(),
+            radius: big_icon_rect.width() / 2.0,
             fill: bg_fill,
             outline: ui.style().interact(&interact).rect_outline, // TODO
-            radius: big_icon_rect.width() / 2.0,
         });
 
         if checked {
             painter.add(PaintCmd::Circle {
                 center: small_icon_rect.center(),
+                radius: small_icon_rect.width() / 3.0,
                 fill: Some(stroke_color),
                 outline: None,
-                radius: small_icon_rect.width() / 3.0,
             });
         }
 
@@ -538,10 +537,7 @@ impl Widget for Separator {
                 )
             }
         };
-        ui.painter().add(PaintCmd::LineSegment {
-            points,
-            style: LineStyle::new(line_width, color),
-        });
+        ui.painter().line_segment(points, (line_width, color));
         ui.interact_hover(rect)
     }
 }

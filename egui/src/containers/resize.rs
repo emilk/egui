@@ -279,10 +279,10 @@ pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle
     let mut w = 2.0;
 
     while w < 12.0 {
-        painter.add(paint::PaintCmd::LineSegment {
-            points: [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
+        painter.line_segment(
+            [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
             style,
-        });
+        );
         w += 4.0;
     }
 }

@@ -672,10 +672,10 @@ impl TitleBar {
             let left = outer_rect.left();
             let right = outer_rect.right();
             let y = content_rect.top() + ui.style().item_spacing.y * 0.5;
-            ui.painter().add(PaintCmd::LineSegment {
-                points: [pos2(left, y), pos2(right, y)],
-                style: ui.style().interact.inactive.rect_outline.unwrap(),
-            });
+            ui.painter().line_segment(
+                [pos2(left, y), pos2(right, y)],
+                ui.style().interact.inactive.rect_outline.unwrap(),
+            );
         }
 
         let title_bar_id = ui.make_child_id("title_bar");
@@ -709,15 +709,13 @@ fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
 
     let stroke_color = ui.style().interact(&interact).stroke_color;
     let stroke_width = ui.style().interact(&interact).stroke_width;
-    ui.painter().add(PaintCmd::line_segment(
+    ui.painter().line_segment(
         [rect.left_top(), rect.right_bottom()],
-        stroke_width,
-        stroke_color,
-    ));
-    ui.painter().add(PaintCmd::line_segment(
+        (stroke_width, stroke_color),
+    );
+    ui.painter().line_segment(
         [rect.right_top(), rect.left_bottom()],
-        stroke_width,
-        stroke_color,
-    ));
+        (stroke_width, stroke_color),
+    );
     interact
 }

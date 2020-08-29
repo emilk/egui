@@ -200,11 +200,10 @@ impl<'t> Widget for TextEdit<'t> {
             if show_cursor {
                 if let Some(cursor) = state.cursor {
                     let cursor_pos = interact.rect.min + galley.char_start_pos(cursor);
-                    painter.add(PaintCmd::line_segment(
+                    painter.line_segment(
                         [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
-                        ui.style().text_cursor_width,
-                        color::WHITE,
-                    ));
+                        (ui.style().text_cursor_width, color::WHITE),
+                    );
                 }
             }
         }

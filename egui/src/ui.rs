@@ -391,20 +391,12 @@ impl Ui {
         let rect = self.reserve_space_impl(desired_size);
 
         if self.style().debug_widget_rects {
-            self.painter.add(PaintCmd::Rect {
-                rect,
-                corner_radius: 0.0,
-                outline: Some(LineStyle::new(1.0, LIGHT_BLUE)),
-                fill: None,
-            });
+            self.painter.rect_outline(rect, 0.0, (1.0, LIGHT_BLUE));
 
             let color = color::srgba(200, 0, 0, 255);
             let width = 2.5;
 
-            let paint_line_seg = |a, b| {
-                self.painter
-                    .add(PaintCmd::line_segment([a, b], width, color))
-            };
+            let paint_line_seg = |a, b| self.painter().line_segment([a, b], (width, color));
 
             if too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -432,15 +424,6 @@ impl Ui {
         self.child_bounds = self.child_bounds.union(child_rect);
         self.child_count += 1;
         child_rect
-    }
-
-    /// Ask to allocate a certain amount of space and return a Painter for that region.
-    ///
-    /// You may get back a `Painter` with a smaller or larger size than what you desired,
-    /// depending on the available space and the current layout.
-    pub fn allocate_canvas(&mut self, desired_size: Vec2) -> Painter {
-        let rect = self.allocate_space(desired_size);
-        self.painter_at(rect)
     }
 }
 
@@ -522,6 +505,15 @@ impl Ui {
 
         response
     }
+
+    /// Ask to allocate a certain amount of space and return a Painter for that region.
+    ///
+    /// You may get back a `Painter` with a smaller or larger size than what you desired,
+    /// depending on the available space and the current layout.
+    pub fn canvas(&mut self, desired_size: Vec2) -> Painter {
+        let rect = self.allocate_space(desired_size);
+        self.painter_at(rect)
+    }
 }
 
 /// # Adding Containers / Sub-uis:
@@ -581,11 +573,10 @@ impl Ui {
         let line_start = child_rect.min - indent * 0.5;
         let line_start = self.painter().round_pos_to_pixels(line_start);
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
-        self.painter.add(PaintCmd::line_segment(
+        self.painter.line_segment(
             [line_start, line_end],
-            self.style.line_width,
-            Srgba::gray(150),
-        ));
+            (self.style.line_width, Srgba::gray(150)),
+        );
 
         (ret, self.allocate_space(indent + size))
     }

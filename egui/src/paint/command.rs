@@ -41,33 +41,6 @@ pub enum PaintCmd {
     Triangles(Triangles),
 }
 
-impl PaintCmd {
-    pub fn line_segment(points: [Pos2; 2], width: f32, color: impl Into<Srgba>) -> Self {
-        Self::LineSegment {
-            points,
-            style: LineStyle::new(width, color),
-        }
-    }
-
-    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Srgba>) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: Some(fill_color.into()),
-            outline: None,
-        }
-    }
-
-    pub fn circle_outline(center: Pos2, radius: f32, outline: LineStyle) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: None,
-            outline: Some(outline),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LineStyle {
@@ -81,5 +54,14 @@ impl LineStyle {
             width: width.into(),
             color: color.into(),
         }
+    }
+}
+
+impl<Color> From<(f32, Color)> for LineStyle
+where
+    Color: Into<Srgba>,
+{
+    fn from((width, color): (f32, Color)) -> LineStyle {
+        LineStyle::new(width, color)
     }
 }

@@ -115,12 +115,7 @@ impl Painter {
 /// ## Debug painting
 impl Painter {
     pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: impl Into<String>) {
-        self.add(PaintCmd::Rect {
-            corner_radius: 0.0,
-            fill: None,
-            outline: Some(LineStyle::new(1.0, color)),
-            rect,
-        });
+        self.rect_outline(rect, 0.0, (1.0, color));
         let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
         self.text(rect.min, anchor, text.into(), text_style, color);
@@ -134,12 +129,58 @@ impl Painter {
         let galley = font.layout_multiline(text, f32::INFINITY);
         let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
         self.add(PaintCmd::Rect {
+            rect: rect.expand(2.0),
             corner_radius: 0.0,
             fill: Some(Srgba::black_alpha(240)),
             outline: Some(LineStyle::new(1.0, color::RED)),
-            rect: rect.expand(2.0),
         });
         self.galley(rect.min, galley, text_style, color::RED);
+    }
+}
+
+/// # Paint different primitives
+impl Painter {
+    pub fn line_segment(&self, points: [Pos2; 2], style: impl Into<LineStyle>) {
+        self.add(PaintCmd::LineSegment {
+            points,
+            style: style.into(),
+        });
+    }
+
+    pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Srgba>) {
+        self.add(PaintCmd::Circle {
+            center,
+            radius,
+            fill: Some(fill_color.into()),
+            outline: None,
+        });
+    }
+
+    pub fn circle_outline(&self, center: Pos2, radius: f32, outline: impl Into<LineStyle>) {
+        self.add(PaintCmd::Circle {
+            center,
+            radius,
+            fill: None,
+            outline: Some(outline.into()),
+        });
+    }
+
+    pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Srgba>) {
+        self.add(PaintCmd::Rect {
+            rect,
+            corner_radius,
+            fill: Some(fill_color.into()),
+            outline: None,
+        });
+    }
+
+    pub fn rect_outline(&self, rect: Rect, corner_radius: f32, outline: impl Into<LineStyle>) {
+        self.add(PaintCmd::Rect {
+            rect,
+            corner_radius,
+            fill: None,
+            outline: Some(outline.into()),
+        });
     }
 }
 

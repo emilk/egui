@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{containers::*, paint::PaintCmd, widgets::*, *};
+use crate::{containers::*, widgets::*, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -134,7 +134,7 @@ impl FractalClock {
                 rect.center() + scale * points[1].to_vec2(),
             ];
 
-            painter.add(PaintCmd::line_segment([line[0], line[1]], width, color));
+            painter.line_segment([line[0], line[1]], (width, color));
         };
 
         let hand_rotations = [

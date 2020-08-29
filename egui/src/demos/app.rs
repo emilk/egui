@@ -394,6 +394,23 @@ impl DemoWindow {
                 });
             });
 
+        CollapsingHeader::new("Misc")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("You can pretty easily paint your own small icons:");
+                    let painter = ui.canvas(Vec2::splat(16.0));
+                    let c = painter.clip_rect().center();
+                    let r = painter.clip_rect().width() / 2.0 - 1.0;
+                    let color = Srgba::gray(128);
+                    let line_style = LineStyle::new(1.0, color);
+                    painter.circle_outline(c, r, line_style);
+                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], line_style);
+                    painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], line_style);
+                    painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], line_style);
+                });
+            });
+
         if false {
             // TODO: either show actual name clash, or remove this example
             ui.collapsing("Name clash demo", |ui| {
@@ -490,7 +507,7 @@ impl Widgets {
             );
             ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
             ui.horizontal(|ui| {
-                ui.label("drag this number:");
+                ui.label("More compact as a value you drag:");
                 ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
             });
             if ui.add(Button::new("Assign PI")).clicked {
