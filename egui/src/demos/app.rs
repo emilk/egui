@@ -84,7 +84,7 @@ impl DemoApp {
     fn resize_windows(&mut self, ctx: &Arc<Context>) {
         let open = &mut self.open_windows.resize;
 
-        Window::new("Resizable window")
+        Window::new("resizable")
             .open(open)
             .scroll(false)
             .resizable(true)
@@ -94,7 +94,23 @@ impl DemoApp {
                 ui.label(LOREM_IPSUM);
             });
 
-        Window::new("Resizable window with scroll")
+        Window::new("resizable + embedded scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label("scroll:    NO");
+                ui.label("resizable: YES");
+                ui.heading("We have a sub-region with scroll bar:");
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.label(LOREM_IPSUM_LONG);
+                    ui.label(LOREM_IPSUM_LONG);
+                });
+                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+            });
+
+        Window::new("resizable + scroll")
             .open(open)
             .scroll(true)
             .resizable(true)
@@ -105,7 +121,7 @@ impl DemoApp {
                 ui.label(LOREM_IPSUM_LONG);
             });
 
-        Window::new("Auto sized window")
+        Window::new("auto_sized")
             .open(open)
             .auto_sized()
             .show(ctx, |ui| {
