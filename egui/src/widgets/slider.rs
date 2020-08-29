@@ -182,15 +182,16 @@ impl<'a> Slider<'a> {
 
     /// Just the text label
     fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let label_text = self.text.as_deref().unwrap_or_default();
-        let label_text = format!("{}: ", label_text);
         let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
-        ui.style_mut().item_spacing.x = 0.0;
-        ui.add(
-            Label::new(label_text)
-                .multiline(false)
-                .text_color(text_color),
-        );
+
+        if let Some(label_text) = self.text.as_deref() {
+            ui.style_mut().item_spacing.x = 0.0;
+            ui.add(
+                Label::new(format!("{}: ", label_text))
+                    .multiline(false)
+                    .text_color(text_color),
+            );
+        }
 
         let kb_edit_id = self.id.expect("We should have an id by now").with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
