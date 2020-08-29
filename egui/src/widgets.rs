@@ -589,6 +589,7 @@ impl<'a> Widget for DragValue<'a> {
                 TextEdit::new(&mut value_text)
                     .id(kb_edit_id)
                     .multiline(false)
+                    .desired_width(0.0)
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {

@@ -18,6 +18,7 @@ pub struct TextEdit<'t> {
     text_color: Option<Color>,
     multiline: bool,
     enabled: bool,
+    desired_width: f32,
 }
 
 impl<'t> TextEdit<'t> {
@@ -30,6 +31,7 @@ impl<'t> TextEdit<'t> {
             text_color: None,
             multiline: true,
             enabled: true,
+            desired_width: f32::INFINITY,
         }
     }
 
@@ -63,6 +65,12 @@ impl<'t> TextEdit<'t> {
         self.enabled = enabled;
         self
     }
+
+    /// Set to 0.0 to keep as small as possible
+    pub fn desired_width(mut self, desired_width: f32) -> Self {
+        self.desired_width = desired_width;
+        self
+    }
 }
 
 impl<'t> Widget for TextEdit<'t> {
@@ -75,6 +83,7 @@ impl<'t> Widget for TextEdit<'t> {
             text_color,
             multiline,
             enabled,
+            desired_width,
         } = self;
 
         let id = id.unwrap_or_else(|| ui.make_child_id(id_source));
@@ -89,7 +98,10 @@ impl<'t> Widget for TextEdit<'t> {
         } else {
             font.layout_single_line(text.clone())
         };
-        let desired_size = galley.size.max(vec2(available_width, line_spacing));
+        let desired_size = vec2(
+            galley.size.x.max(desired_width.min(available_width)),
+            galley.size.y.max(line_spacing),
+        );
         let rect = ui.allocate_space(desired_size);
         let sense = if enabled {
             Sense::click_and_drag()

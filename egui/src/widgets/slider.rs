@@ -208,6 +208,7 @@ impl<'a> Slider<'a> {
                 TextEdit::new(&mut value_text)
                     .id(kb_edit_id)
                     .multiline(false)
+                    .desired_width(0.0)
                     .text_color(text_color)
                     .text_style(TextStyle::Monospace),
             );
