@@ -290,7 +290,7 @@ impl MouseInput {
             could_be_click = false;
         }
 
-        if self.pressed {
+        if pressed {
             // Start of a drag: we want to track the velocity for during the drag
             // and ignore any incoming movement
             self.pos_tracker.clear();
