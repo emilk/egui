@@ -211,6 +211,7 @@ impl Font {
             font.add_char(c);
         }
         font.add_char(REPLACEMENT_CHAR);
+        font.add_char('°');
 
         font
     }

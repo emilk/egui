@@ -552,11 +552,18 @@ impl Widget for Separator {
 pub struct DragValue<'a> {
     value: &'a mut f32,
     speed: f32,
+    prefix: String,
+    suffix: String,
 }
 
 impl<'a> DragValue<'a> {
     pub fn f32(value: &'a mut f32) -> Self {
-        DragValue { value, speed: 1.0 }
+        DragValue {
+            value,
+            speed: 1.0,
+            prefix: Default::default(),
+            suffix: Default::default(),
+        }
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -564,16 +571,30 @@ impl<'a> DragValue<'a> {
         self.speed = speed;
         self
     }
+
+    /// Show a prefix before the number, e.g. "x: "
+    pub fn prefix(mut self, prefix: impl ToString) -> Self {
+        self.prefix = prefix.to_string();
+        self
+    }
+
+    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    pub fn suffix(mut self, suffix: impl ToString) -> Self {
+        self.suffix = suffix.to_string();
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
     fn ui(self, ui: &mut Ui) -> InteractInfo {
-        let Self { value, speed } = self;
-        let speed_in_physical_pixels = speed / ui.input().pixels_per_point;
-        let precision = (1.0 / speed_in_physical_pixels.abs())
-            .log10()
-            .ceil()
-            .max(0.0) as usize;
+        let Self {
+            value,
+            speed,
+            prefix,
+            suffix,
+        } = self;
+        let aim_rad = ui.input().physical_pixel_size(); // ui.input().aim_radius(); // TODO
+        let precision = (aim_rad / speed.abs()).log10().ceil().max(0.0) as usize;
         let value_text = format_with_minimum_precision(*value, precision);
 
         let kb_edit_id = ui.make_position_id().with("edit");
@@ -602,7 +623,7 @@ impl<'a> Widget for DragValue<'a> {
             }
             response.into()
         } else {
-            let button = Button::new(value_text)
+            let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace);
             let response = ui.add(button);

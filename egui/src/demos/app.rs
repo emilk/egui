@@ -416,6 +416,7 @@ struct Widgets {
     count: usize,
     radio: usize,
     slider_value: f32,
+    angle: f32,
     single_line_text_input: String,
     multiline_text_input: String,
 }
@@ -427,6 +428,7 @@ impl Default for Widgets {
             radio: 0,
             count: 0,
             slider_value: 3.4,
+            angle: TAU / 8.0,
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }
@@ -478,6 +480,15 @@ impl Widgets {
             if ui.add(Button::new("Assign PI")).clicked {
                 self.slider_value = std::f32::consts::PI;
             }
+        }
+        ui.separator();
+        {
+            ui.label("An angle stored as radians, but edited in degrees:");
+            ui.horizontal_centered(|ui| {
+                ui.style_mut().item_spacing.x = 0.0;
+                ui.drag_angle(&mut self.angle);
+                ui.label(format!(" = {} radians", self.angle));
+            });
         }
         ui.separator();
 

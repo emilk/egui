@@ -506,6 +506,22 @@ impl Ui {
     pub fn separator(&mut self) -> GuiResponse {
         self.add(Separator::new())
     }
+
+    /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
+    /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
+    pub fn drag_angle(&mut self, radians: &mut f32) -> GuiResponse {
+        #![allow(clippy::float_cmp)]
+
+        let mut degrees = radians.to_degrees();
+        let response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
+
+        // only touch `*radians` if we actually changed the degree value
+        if degrees != radians.to_degrees() {
+            *radians = degrees.to_radians();
+        }
+
+        response
+    }
 }
 
 /// # Adding Containers / Sub-uis:
