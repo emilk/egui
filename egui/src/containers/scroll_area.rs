@@ -175,8 +175,8 @@ impl Prepared {
 
         if content_is_too_small {
             // Drag contents to scroll (for touch screens mostly):
-            let content_interact = ui.interact(inner_rect, id.with("area"), Sense::drag());
-            if content_interact.active {
+            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            if content_response.active {
                 state.offset.y -= ui.input().mouse.delta.y;
             }
         }
@@ -225,26 +225,26 @@ impl Prepared {
 
             // intentionally use same id for inside and outside of handle
             let interact_id = id.with("vertical");
-            let mut interact = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
+            let mut response = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
 
             if let Some(mouse_pos) = ui.input().mouse.pos {
-                if interact.active {
+                if response.active {
                     if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
                         state.offset.y +=
                             ui.input().mouse.delta.y * content_size.y / inner_rect.height();
                     }
                 } else {
                     // Check for mouse down outside handle:
-                    let scroll_bg_interact =
+                    let scroll_bg_response =
                         ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
 
-                    if scroll_bg_interact.active {
+                    if scroll_bg_response.active {
                         // Center scroll at mouse pos:
                         let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
                         state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
                     }
 
-                    interact = interact.union(scroll_bg_interact);
+                    response = response.union(scroll_bg_response);
                 }
             }
 
@@ -265,8 +265,8 @@ impl Prepared {
             }
 
             let style = ui.style();
-            let handle_fill = style.interact(&interact).fill;
-            let handle_outline = style.interact(&interact).rect_outline;
+            let handle_fill = style.interact(&response).fill;
+            let handle_outline = style.interact(&response).rect_outline;
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,

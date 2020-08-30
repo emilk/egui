@@ -156,11 +156,7 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    pub fn show(
-        self,
-        ctx: &Arc<Context>,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Option<InteractInfo> {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
         self.show_impl(ctx, Box::new(add_contents))
     }
 
@@ -168,7 +164,7 @@ impl<'open> Window<'open> {
         self,
         ctx: &Arc<Context>,
         add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
-    ) -> Option<InteractInfo> {
+    ) -> Option<Response> {
         let Window {
             title_label,
             open,
@@ -309,9 +305,9 @@ impl<'open> Window<'open> {
                 );
             }
         }
-        let full_interact = area.end(ctx, area_content_ui);
+        let full_response = area.end(ctx, area_content_ui);
 
-        Some(full_interact)
+        Some(full_response)
     }
 }
 
@@ -603,11 +599,11 @@ fn show_title_bar(
             ui.allocate_space(vec2(0.0, 0.0)); // HACK: will add left spacing
 
             let rect = ui.allocate_space(Vec2::splat(button_size));
-            let collapse_button_interact = ui.interact(rect, collapsing_id, Sense::click());
-            if collapse_button_interact.clicked {
+            let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
+            if collapse_button_response.clicked {
                 collapsing.toggle(ui);
             }
-            collapsing.paint_icon(ui, &collapse_button_interact);
+            collapsing.paint_icon(ui, &collapse_button_response);
         }
 
         let title_galley = title_label.layout(ui);
@@ -688,7 +684,7 @@ impl TitleBar {
         }
     }
 
-    fn close_button_ui(&self, ui: &mut Ui) -> InteractInfo {
+    fn close_button_ui(&self, ui: &mut Ui) -> Response {
         let button_size = ui.style().start_icon_width;
         let button_rect = Rect::from_min_size(
             pos2(
@@ -702,13 +698,13 @@ impl TitleBar {
     }
 }
 
-fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
+fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.make_child_id("window_close_button");
-    let interact = ui.interact(rect, close_id, Sense::click());
-    ui.expand_to_include_child(interact.rect);
+    let response = ui.interact(rect, close_id, Sense::click());
+    ui.expand_to_include_child(response.rect);
 
-    let stroke_color = ui.style().interact(&interact).stroke_color;
-    let stroke_width = ui.style().interact(&interact).stroke_width;
+    let stroke_color = ui.style().interact(&response).stroke_color;
+    let stroke_width = ui.style().interact(&response).stroke_width;
     ui.painter().line_segment(
         [rect.left_top(), rect.right_bottom()],
         (stroke_width, stroke_color),
@@ -717,5 +713,5 @@ fn close_button(ui: &mut Ui, rect: Rect) -> InteractInfo {
         [rect.right_top(), rect.left_bottom()],
         (stroke_width, stroke_color),
     );
-    interact
+    response
 }

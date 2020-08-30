@@ -46,75 +46,16 @@ impl Default for CursorIcon {
 
 // ----------------------------------------------------------------------------
 
-/// The result of an interaction.
-///
-/// For instance, this lets you know whether or not a widget has been clicked this frame.
-#[derive(Clone, Copy, Debug)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct InteractInfo {
-    // IN:
-    /// The region of the screen we are talking about
-    pub rect: Rect,
-
-    /// The senses (click or drag) that the widget is interested in (if any).
-    pub sense: Sense,
-
-    // OUT:
-    /// The mouse is hovering above this thing
-    pub hovered: bool,
-
-    /// The mouse pressed this thing earlier, and now released on this thing too.
-    pub clicked: bool,
-
-    pub double_clicked: bool,
-
-    /// The mouse is interacting with this thing (e.g. dragging it or holding it)
-    pub active: bool,
-
-    /// This widget has the keyboard focus (i.e. is receiving key pressed)
-    pub has_kb_focus: bool,
-}
-
-impl InteractInfo {
-    pub fn nothing() -> Self {
-        Self {
-            rect: Rect::nothing(),
-            sense: Sense::nothing(),
-            hovered: false,
-            clicked: false,
-            double_clicked: false,
-            active: false,
-            has_kb_focus: false,
-        }
-    }
-
-    pub fn from_rect(rect: Rect) -> Self {
-        Self {
-            rect,
-            ..Self::nothing()
-        }
-    }
-
-    pub fn union(self, other: Self) -> Self {
-        Self {
-            rect: self.rect.union(other.rect),
-            sense: self.sense.union(other.sense),
-            hovered: self.hovered || other.hovered,
-            clicked: self.clicked || other.clicked,
-            double_clicked: self.double_clicked || other.double_clicked,
-            active: self.active || other.active,
-            has_kb_focus: self.has_kb_focus || other.has_kb_focus,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// The result of adding a widget to an `Ui`.
 ///
 /// This lets you know whether or not a widget has been clicked this frame.
 /// It also lets you easily show a tooltip on hover.
-pub struct GuiResponse {
+#[derive(Clone)]
+pub struct Response {
+    // CONTEXT:
+    /// Used for optionally showing a tooltip
+    pub ctx: Arc<Context>,
+
     // IN:
     /// The area of the screen we are talking about
     pub rect: Rect,
@@ -129,6 +70,7 @@ pub struct GuiResponse {
     /// The mouse clicked this thing this frame
     pub clicked: bool,
 
+    /// The thing was double-clicked
     pub double_clicked: bool,
 
     /// The mouse is interacting with this thing (e.g. dragging it)
@@ -136,13 +78,9 @@ pub struct GuiResponse {
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed)
     pub has_kb_focus: bool,
-
-    // CONTEXT:
-    /// Used for optionally showing a tooltip
-    pub ctx: Arc<Context>,
 }
 
-impl GuiResponse {
+impl Response {
     /// Show some stuff if the item was hovered
     pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> &mut Self {
         if self.hovered {
@@ -159,16 +97,18 @@ impl GuiResponse {
     }
 }
 
-impl Into<InteractInfo> for GuiResponse {
-    fn into(self) -> InteractInfo {
-        InteractInfo {
-            rect: self.rect,
-            sense: self.sense,
-            hovered: self.hovered,
-            clicked: self.clicked,
-            double_clicked: self.double_clicked,
-            active: self.active,
-            has_kb_focus: self.has_kb_focus,
+impl Response {
+    pub fn union(self, other: Self) -> Self {
+        assert!(Arc::ptr_eq(&self.ctx, &other.ctx));
+        Self {
+            ctx: self.ctx,
+            rect: self.rect.union(other.rect),
+            sense: self.sense.union(other.sense),
+            hovered: self.hovered || other.hovered,
+            clicked: self.clicked || other.clicked,
+            double_clicked: self.double_clicked || other.double_clicked,
+            active: self.active || other.active,
+            has_kb_focus: self.has_kb_focus || other.has_kb_focus,
         }
     }
 }

@@ -74,7 +74,7 @@ impl<'t> TextEdit<'t> {
 }
 
 impl<'t> Widget for TextEdit<'t> {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
             id,
@@ -108,14 +108,14 @@ impl<'t> Widget for TextEdit<'t> {
         } else {
             Sense::nothing()
         };
-        let interact = ui.interact(rect, id, sense); // TODO: implement drag-select
+        let response = ui.interact(rect, id, sense); // TODO: implement drag-select
 
-        if interact.clicked && enabled {
+        if response.clicked && enabled {
             ui.memory().request_kb_focus(id);
             if let Some(mouse_pos) = ui.input().mouse.pos {
-                state.cursor = Some(galley.char_at(mouse_pos - interact.rect.min).char_idx);
+                state.cursor = Some(galley.char_at(mouse_pos - response.rect.min).char_idx);
             }
-        } else if ui.input().mouse.click || (ui.input().mouse.pressed && !interact.hovered) {
+        } else if ui.input().mouse.click || (ui.input().mouse.pressed && !response.hovered) {
             // User clicked somewhere else
             ui.memory().surrender_kb_focus(id);
         }
@@ -123,7 +123,7 @@ impl<'t> Widget for TextEdit<'t> {
             ui.memory().surrender_kb_focus(id);
         }
 
-        if interact.hovered && enabled {
+        if response.hovered && enabled {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
@@ -179,12 +179,12 @@ impl<'t> Widget for TextEdit<'t> {
         let painter = ui.painter();
 
         {
-            let bg_rect = interact.rect.expand(2.0); // breathing room for content
+            let bg_rect = response.rect.expand(2.0); // breathing room for content
             painter.add(PaintCmd::Rect {
                 rect: bg_rect,
-                corner_radius: ui.style().interact.style(&interact).corner_radius,
+                corner_radius: ui.style().interact(&response).corner_radius,
                 fill: Some(ui.style().dark_bg_color),
-                outline: ui.style().interact.style(&interact).rect_outline,
+                outline: ui.style().interact(&response).rect_outline,
             });
         }
 
@@ -199,7 +199,7 @@ impl<'t> Widget for TextEdit<'t> {
 
             if show_cursor {
                 if let Some(cursor) = state.cursor {
-                    let cursor_pos = interact.rect.min + galley.char_start_pos(cursor);
+                    let cursor_pos = response.rect.min + galley.char_start_pos(cursor);
                     painter.line_segment(
                         [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
                         (ui.style().text_cursor_width, color::WHITE),
@@ -208,11 +208,10 @@ impl<'t> Widget for TextEdit<'t> {
             }
         }
 
-        let text_color =
-            text_color.unwrap_or_else(|| ui.style().interact.style(&interact).stroke_color);
-        painter.galley(interact.rect.min, galley, text_style, text_color);
+        let text_color = text_color.unwrap_or_else(|| ui.style().interact(&response).stroke_color);
+        painter.galley(response.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
-        interact
+        response
     }
 }
 

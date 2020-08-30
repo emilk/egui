@@ -119,7 +119,7 @@ impl Resize {
 struct Prepared {
     id: Id,
     state: State,
-    corner_interact: Option<InteractInfo>,
+    corner_response: Option<Response>,
     content_ui: Ui,
 }
 
@@ -143,19 +143,19 @@ impl Resize {
 
         let position = ui.available().min;
 
-        let corner_interact = if self.resizable {
+        let corner_response = if self.resizable {
             // Resize-corner:
             let corner_size = Vec2::splat(ui.style().resize_corner_size);
             let corner_rect =
                 Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
-            let corner_interact = ui.interact(corner_rect, id.with("corner"), Sense::drag());
+            let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
-            if corner_interact.active {
+            if corner_response.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    state.desired_size = mouse_pos - position + 0.5 * corner_interact.rect.size();
+                    state.desired_size = mouse_pos - position + 0.5 * corner_response.rect.size();
                 }
             }
-            Some(corner_interact)
+            Some(corner_response)
         } else {
             None
         };
@@ -188,7 +188,7 @@ impl Resize {
         Prepared {
             id,
             state,
-            corner_interact,
+            corner_response,
             content_ui,
         }
     }
@@ -204,7 +204,7 @@ impl Resize {
         let Prepared {
             id,
             mut state,
-            corner_interact,
+            corner_response,
             content_ui,
         } = prepared;
 
@@ -229,7 +229,7 @@ impl Resize {
 
         // ------------------------------
 
-        if self.outline && corner_interact.is_some() {
+        if self.outline && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.top_left(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.painter().add(paint::PaintCmd::Rect {
@@ -240,10 +240,10 @@ impl Resize {
             });
         }
 
-        if let Some(corner_interact) = corner_interact {
-            paint_resize_corner(ui, &corner_interact);
+        if let Some(corner_response) = corner_response {
+            paint_resize_corner(ui, &corner_response);
 
-            if corner_interact.hovered || corner_interact.active {
+            if corner_response.hovered || corner_response.active {
                 ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }
@@ -267,10 +267,10 @@ impl Resize {
 
 use crate::paint::LineStyle;
 
-pub fn paint_resize_corner(ui: &mut Ui, interact: &InteractInfo) {
-    let color = ui.style().interact(interact).stroke_color;
-    let width = ui.style().interact(interact).stroke_width;
-    paint_resize_corner_with_style(ui, &interact.rect, LineStyle::new(width, color));
+pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
+    let color = ui.style().interact(response).stroke_color;
+    let width = ui.style().interact(response).stroke_width;
+    paint_resize_corner_with_style(ui, &response.rect, LineStyle::new(width, color));
 }
 
 pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle) {

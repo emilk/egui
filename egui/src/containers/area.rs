@@ -140,7 +140,7 @@ impl Area {
         }
     }
 
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> InteractInfo {
+    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> Response {
         let prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         add_contents(&mut content_ui);
@@ -166,7 +166,7 @@ impl Prepared {
         )
     }
 
-    pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> InteractInfo {
+    pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> Response {
         let Prepared {
             layer,
             mut state,
@@ -183,11 +183,11 @@ impl Prepared {
         } else {
             None
         };
-        let move_interact =
+        let move_response =
             ctx.interact(layer, clip_rect, rect, interact_id, Sense::click_and_drag());
 
         let input = ctx.input();
-        if move_interact.active {
+        if move_response.active {
             state.pos += input.mouse.delta;
             state.vel = input.mouse.velocity;
         } else {
@@ -219,7 +219,7 @@ impl Prepared {
         //     &format!("Area size: {:?}", state.size),
         // );
 
-        if move_interact.active
+        if move_response.active
             || mouse_pressed_on_area(ctx, layer)
             || !ctx.memory().areas.visible_last_frame(&layer)
         {
@@ -228,7 +228,7 @@ impl Prepared {
         }
         ctx.memory().areas.set_state(layer, state);
 
-        move_interact
+        move_response
     }
 }
 

@@ -347,14 +347,15 @@ impl Context {
         }
     }
 
-    pub fn interact(
-        &self,
+    /// Use `ui.interact` instead
+    pub(crate) fn interact(
+        self: &Arc<Self>,
         layer: Layer,
         clip_rect: Rect,
         rect: Rect,
         interaction_id: Option<Id>,
         sense: Sense,
-    ) -> InteractInfo {
+    ) -> Response {
         let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
         let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
         let has_kb_focus = interaction_id
@@ -363,7 +364,8 @@ impl Context {
 
         if interaction_id.is_none() || sense == Sense::nothing() {
             // Not interested in input:
-            return InteractInfo {
+            return Response {
+                ctx: self.clone(),
                 sense,
                 rect,
                 hovered,
@@ -385,7 +387,8 @@ impl Context {
 
         if self.input.mouse.pressed {
             if hovered {
-                let mut info = InteractInfo {
+                let mut response = Response {
+                    ctx: self.clone(),
                     sense,
                     rect,
                     hovered: true,
@@ -398,7 +401,7 @@ impl Context {
                 if sense.click && memory.interaction.click_id.is_none() {
                     // start of a click
                     memory.interaction.click_id = Some(interaction_id);
-                    info.active = true;
+                    response.active = true;
                 }
 
                 if sense.drag
@@ -408,13 +411,14 @@ impl Context {
                     memory.interaction.drag_id = Some(interaction_id);
                     memory.interaction.drag_is_window = false;
                     memory.window_interaction = None; // HACK: stop moving windows (if any)
-                    info.active = true;
+                    response.active = true;
                 }
 
-                info
+                response
             } else {
                 // miss
-                InteractInfo {
+                Response {
+                    ctx: self.clone(),
                     sense,
                     rect,
                     hovered,
@@ -426,7 +430,8 @@ impl Context {
             }
         } else if self.input.mouse.released {
             let clicked = hovered && active && self.input.mouse.could_be_click;
-            InteractInfo {
+            Response {
+                ctx: self.clone(),
                 sense,
                 rect,
                 hovered,
@@ -436,7 +441,8 @@ impl Context {
                 has_kb_focus,
             }
         } else if self.input.mouse.down {
-            InteractInfo {
+            Response {
+                ctx: self.clone(),
                 sense,
                 rect,
                 hovered: hovered && active,
@@ -446,7 +452,8 @@ impl Context {
                 has_kb_focus,
             }
         } else {
-            InteractInfo {
+            Response {
+                ctx: self.clone(),
                 sense,
                 rect,
                 hovered,

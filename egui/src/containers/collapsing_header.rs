@@ -69,11 +69,11 @@ impl State {
     }
 
     /// Paint the arrow icon that indicated if the region is open or not
-    pub fn paint_icon(&self, ui: &mut Ui, interact: &InteractInfo) {
-        let stroke_color = ui.style().interact(interact).stroke_color;
-        let stroke_width = ui.style().interact(interact).stroke_width;
+    pub fn paint_icon(&self, ui: &mut Ui, response: &Response) {
+        let stroke_color = ui.style().interact(response).stroke_color;
+        let stroke_width = ui.style().interact(response).stroke_width;
 
-        let rect = interact.rect;
+        let rect = response.rect;
 
         let openness = self.openness(ui);
 
@@ -135,10 +135,10 @@ impl State {
                 r
             }))
         } else if self.open {
-            let r_interact = ui.add_custom(add_contents);
-            let full_size = r_interact.1.size();
+            let ret_rect = ui.add_custom(add_contents);
+            let full_size = ret_rect.1.size();
             self.open_height = Some(full_size.y);
-            Some(r_interact)
+            Some(ret_rect)
         } else {
             None
         }
@@ -211,27 +211,27 @@ impl CollapsingHeader {
         );
 
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
-        let text_pos = pos2(text_pos.x, interact.rect.center().y - galley.size.y / 2.0);
+        let response = ui.interact(rect, id, Sense::click());
+        let text_pos = pos2(text_pos.x, response.rect.center().y - galley.size.y / 2.0);
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
-        if interact.clicked {
+        if response.clicked {
             state.toggle(ui);
         }
 
         let bg_index = ui.painter().add(PaintCmd::Noop);
 
         {
-            let (mut icon_rect, _) = ui.style().icon_rectangles(interact.rect);
+            let (mut icon_rect, _) = ui.style().icon_rectangles(response.rect);
             icon_rect.set_center(pos2(
-                interact.rect.left() + ui.style().indent / 2.0,
-                interact.rect.center().y,
+                response.rect.left() + ui.style().indent / 2.0,
+                response.rect.center().y,
             ));
-            let icon_interact = InteractInfo {
+            let icon_response = Response {
                 rect: icon_rect,
-                ..interact
+                ..response.clone()
             };
-            state.paint_icon(ui, &icon_interact);
+            state.paint_icon(ui, &icon_response);
         }
 
         let painter = ui.painter();
@@ -239,16 +239,16 @@ impl CollapsingHeader {
             text_pos,
             galley,
             label.text_style,
-            ui.style().interact(&interact).stroke_color,
+            ui.style().interact(&response).stroke_color,
         );
 
         painter.set(
             bg_index,
             PaintCmd::Rect {
-                corner_radius: ui.style().interact(&interact).corner_radius,
-                fill: ui.style().interact(&interact).bg_fill,
+                corner_radius: ui.style().interact(&response).corner_radius,
+                fill: ui.style().interact(&response).bg_fill,
                 outline: None,
-                rect: interact.rect,
+                rect: response.rect,
             },
         );
 
@@ -257,8 +257,8 @@ impl CollapsingHeader {
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         let Prepared { id, mut state } = self.begin(ui);
-        let r_interact = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
-        let ret = r_interact.map(|ri| ri.0);
+        let ret_response = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
+        let ret = ret_response.map(|ri| ri.0);
         ui.memory().collapsing_headers.insert(id, state);
         ret
     }

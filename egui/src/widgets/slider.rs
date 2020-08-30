@@ -124,7 +124,7 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> InteractInfo {
+    fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
         let id = self.id.unwrap_or_else(|| ui.make_position_id());
         let desired_size = vec2(ui.available().width(), height);
         let rect = ui.allocate_space(desired_size);
@@ -132,15 +132,15 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, interact: InteractInfo) {
-        let rect = &interact.rect;
+    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
+        let rect = &response.rect;
         let x_range = x_range(rect);
 
         let range = self.range.clone();
         debug_assert!(range.start() <= range.end());
 
         if let Some(mouse_pos) = ui.input().mouse.pos {
-            if interact.active {
+            if response.active {
                 let aim_radius = ui.input().aim_radius();
                 let new_value = crate::math::smart_aim::best_in_range_f32(
                     self.value_from_x_clamped(mouse_pos.x - aim_radius, x_range.clone()),
@@ -171,10 +171,10 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
-                fill: Some(ui.style().interact(&interact).fill),
+                fill: Some(ui.style().interact(response).fill),
                 outline: Some(LineStyle::new(
-                    ui.style().interact(&interact).stroke_width,
-                    ui.style().interact(&interact).stroke_color,
+                    ui.style().interact(response).stroke_width,
+                    ui.style().interact(response).stroke_color,
                 )),
             });
         }
@@ -255,7 +255,7 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn ui(mut self, ui: &mut Ui) -> InteractInfo {
+    fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let height = font.line_spacing().max(ui.style().clickable_diameter);
@@ -265,13 +265,13 @@ impl<'a> Widget for Slider<'a> {
 
             ui.columns(2, |columns| {
                 let slider_ui = &mut columns[0];
-                let slider_interact = self.allocate_slide_space(slider_ui, height);
-                self.slider_ui(slider_ui, slider_interact);
-                let x_range = x_range(&slider_interact.rect);
+                let slider_response = self.allocate_slide_space(slider_ui, height);
+                self.slider_ui(slider_ui, &slider_response);
+                let x_range = x_range(&slider_response.rect);
 
                 // Place the text in line with the slider on the left:
                 let text_ui = &mut columns[1];
-                text_ui.set_desired_height(slider_interact.rect.height());
+                text_ui.set_desired_height(slider_response.rect.height());
                 text_ui.inner_layout(
                     Layout::horizontal(Align::Center),
                     text_ui.available().size(),
@@ -280,12 +280,12 @@ impl<'a> Widget for Slider<'a> {
                     },
                 );
 
-                slider_interact
+                slider_response
             })
         } else {
-            let interact = self.allocate_slide_space(ui, height);
-            self.slider_ui(ui, interact);
-            interact
+            let response = self.allocate_slide_space(ui, height);
+            self.slider_ui(ui, &response);
+            response
         }
     }
 }

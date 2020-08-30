@@ -625,8 +625,8 @@ impl Painting {
 
     fn content(&mut self, ui: &mut Ui) {
         let rect = ui.allocate_space(ui.available_finite().size());
-        let interact = ui.interact(rect, ui.id(), Sense::drag());
-        let rect = interact.rect;
+        let response = ui.interact(rect, ui.id(), Sense::drag());
+        let rect = response.rect;
         let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
         let painter = Painter::new(ui.ctx().clone(), ui.layer(), clip_rect);
 
@@ -636,7 +636,7 @@ impl Painting {
 
         let current_line = self.lines.last_mut().unwrap();
 
-        if interact.active {
+        if response.active {
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 let canvas_pos = mouse_pos - rect.min;
                 if current_line.last() != Some(&canvas_pos) {
@@ -669,7 +669,7 @@ use crate::layout::*;
 #[cfg_attr(feature = "serde", serde(default))]
 struct LayoutDemo {
     dir: Direction,
-    align: Option<Align>, // None == jusitifed
+    align: Option<Align>, // None == justified
     reversed: bool,
 }
 
@@ -735,7 +735,7 @@ impl LayoutDemo {
         }
         if ui
             .add(RadioButton::new(self.align == None, "Justified"))
-            .tooltip_text("Try to fill full width/heigth (e.g. buttons)")
+            .tooltip_text("Try to fill full width/height (e.g. buttons)")
             .clicked
         {
             self.align = None;

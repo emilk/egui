@@ -327,42 +327,18 @@ impl Ui {
 
 /// # Interaction
 impl Ui {
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> InteractInfo {
+    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx()
             .interact(self.layer(), self.clip_rect(), rect, Some(id), sense)
     }
 
-    pub fn interact_hover(&self, rect: Rect) -> InteractInfo {
+    pub fn interact_hover(&self, rect: Rect) -> Response {
         self.ctx()
             .interact(self.layer(), self.clip_rect(), rect, None, Sense::nothing())
     }
 
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact_hover(rect).hovered
-    }
-
-    #[must_use]
-    pub fn response(&mut self, interact: InteractInfo) -> GuiResponse {
-        // TODO: unify GuiResponse and InteractInfo. They are the same thing!
-        let InteractInfo {
-            sense,
-            hovered,
-            clicked,
-            double_clicked,
-            active,
-            has_kb_focus,
-            rect,
-        } = interact;
-        GuiResponse {
-            sense,
-            hovered,
-            clicked,
-            double_clicked,
-            active,
-            has_kb_focus,
-            rect,
-            ctx: self.ctx().clone(),
-        }
     }
 
     // ------------------------------------------------------------------------
@@ -429,44 +405,43 @@ impl Ui {
 
 /// # Adding widgets
 impl Ui {
-    pub fn add(&mut self, widget: impl Widget) -> GuiResponse {
-        let interact = widget.ui(self);
-        self.response(interact)
+    pub fn add(&mut self, widget: impl Widget) -> Response {
+        widget.ui(self)
     }
 
     /// Shortcut for `add(Label::new(text))`
-    pub fn label(&mut self, label: impl Into<Label>) -> GuiResponse {
+    pub fn label(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into())
     }
 
     /// Shortcut for `add(Label::new(text).heading())`
-    pub fn heading(&mut self, label: impl Into<Label>) -> GuiResponse {
+    pub fn heading(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into().heading())
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
-    pub fn hyperlink(&mut self, url: impl Into<String>) -> GuiResponse {
+    pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
     }
 
     /// Shortcut for `add(Button::new(text))`
-    pub fn button(&mut self, text: impl Into<String>) -> GuiResponse {
+    pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }
 
     // Argument order matching that of Dear ImGui
     /// Show a checkbox.
-    pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> GuiResponse {
+    pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> Response {
         self.add(Checkbox::new(checked, text))
     }
 
     // Argument order matching that of Dear ImGui
     /// Show a radio button.
-    pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> GuiResponse {
+    pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> Response {
         self.add(RadioButton::new(checked, text))
     }
 
-    pub fn text_edit(&mut self, text: &mut String) -> GuiResponse {
+    pub fn text_edit(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::new(text))
     }
 
@@ -477,7 +452,7 @@ impl Ui {
         text: impl Into<String>,
         current_value: &mut Value,
         radio_value: Value,
-    ) -> GuiResponse {
+    ) -> Response {
         let response = self.radio(text, *current_value == radio_value);
         if response.clicked {
             *current_value = radio_value;
@@ -486,13 +461,13 @@ impl Ui {
     }
 
     /// Shortcut for `add(Separator::new())`
-    pub fn separator(&mut self) -> GuiResponse {
+    pub fn separator(&mut self) -> Response {
         self.add(Separator::new())
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
-    pub fn drag_angle(&mut self, radians: &mut f32) -> GuiResponse {
+    pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
         #![allow(clippy::float_cmp)]
 
         let mut degrees = radians.to_degrees();

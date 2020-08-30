@@ -152,12 +152,12 @@ impl Default for Interact {
 }
 
 impl Interact {
-    pub fn style(&self, interact: &InteractInfo) -> &WidgetStyle {
-        if interact.active || interact.has_kb_focus {
+    pub fn style(&self, response: &Response) -> &WidgetStyle {
+        if response.active || response.has_kb_focus {
             &self.active
-        } else if interact.sense == Sense::nothing() {
+        } else if response.sense == Sense::nothing() {
             &self.disabled
-        } else if interact.hovered {
+        } else if response.hovered {
             &self.hovered
         } else {
             &self.inactive
@@ -216,9 +216,10 @@ impl Default for MenuBar {
 }
 
 impl Style {
+    // TODO: rename style.interact() to something better
     /// Use this style for interactive things
-    pub fn interact(&self, interact: &InteractInfo) -> &WidgetStyle {
-        self.interact.style(interact)
+    pub fn interact(&self, response: &Response) -> &WidgetStyle {
+        self.interact.style(response)
     }
 
     /// Returns small icon rectangle and big icon rectangle

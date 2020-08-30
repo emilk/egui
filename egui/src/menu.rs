@@ -111,19 +111,19 @@ fn menu_impl<'c>(
         button = button.fill(Some(ui.style().interact.active.fill));
     }
 
-    let button_interact = ui.add(button);
+    let button_response = ui.add(button);
 
-    interact_with_menu_button(&mut bar_state, ui.input(), menu_id, &button_interact);
+    interact_with_menu_button(&mut bar_state, ui.input(), menu_id, &button_response);
 
     if bar_state.open_menu == Some(menu_id) {
         let area = Area::new(menu_id)
             .order(Order::Foreground)
-            .fixed_pos(button_interact.rect.left_bottom());
+            .fixed_pos(button_response.rect.left_bottom());
         let frame = Frame::menu(ui.style());
 
         let resize = Resize::default().auto_sized().outline(false);
 
-        let menu_interact = area.show(ui.ctx(), |ui| {
+        let menu_response = area.show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
                 resize.show(ui, |ui| {
                     let mut style = ui.style().clone();
@@ -141,7 +141,7 @@ fn menu_impl<'c>(
             })
         });
 
-        if menu_interact.hovered && ui.input().mouse.released {
+        if menu_response.hovered && ui.input().mouse.released {
             bar_state.open_menu = None;
         }
     }
@@ -153,9 +153,9 @@ fn interact_with_menu_button(
     bar_state: &mut BarState,
     input: &InputState,
     menu_id: Id,
-    button_interact: &GuiResponse,
+    button_response: &Response,
 ) {
-    if button_interact.hovered && input.mouse.pressed {
+    if button_response.hovered && input.mouse.pressed {
         if bar_state.open_menu.is_some() {
             bar_state.open_menu = None;
         } else {
@@ -164,7 +164,7 @@ fn interact_with_menu_button(
         }
     }
 
-    if button_interact.hovered && input.mouse.released && bar_state.open_menu.is_some() {
+    if button_response.hovered && input.mouse.released && bar_state.open_menu.is_some() {
         let time_since_open = input.time - bar_state.open_time;
         if time_since_open < 0.4 {
             // A quick click
@@ -176,7 +176,7 @@ fn interact_with_menu_button(
         }
     }
 
-    if button_interact.hovered && bar_state.open_menu.is_some() {
+    if button_response.hovered && bar_state.open_menu.is_some() {
         bar_state.open_menu = Some(menu_id);
     }
 }

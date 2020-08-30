@@ -18,7 +18,7 @@ pub fn show_popup(
     id: Id,
     window_pos: Pos2,
     add_contents: impl FnOnce(&mut Ui),
-) -> InteractInfo {
+) -> Response {
     use containers::*;
     Area::new(id)
         .order(Order::Foreground)

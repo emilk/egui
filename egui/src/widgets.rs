@@ -19,7 +19,7 @@ use paint::*;
 
 /// Anything implementing Widget can be added to a Ui with `Ui::add`
 pub trait Widget {
-    fn ui(self, ui: &mut Ui) -> InteractInfo;
+    fn ui(self, ui: &mut Ui) -> Response;
 }
 
 // ----------------------------------------------------------------------------
@@ -123,7 +123,7 @@ macro_rules! label {
 }
 
 impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let galley = self.layout(ui);
         let rect = ui.allocate_space(galley.size);
         self.paint_galley(ui, rect.min, galley);
@@ -174,7 +174,7 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Hyperlink { url, text } = self;
 
         let color = color::LIGHT_BLUE;
@@ -183,18 +183,18 @@ impl Widget for Hyperlink {
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
         let rect = ui.allocate_space(galley.size);
-        let interact = ui.interact(rect, id, Sense::click());
-        if interact.hovered {
+        let response = ui.interact(rect, id, Sense::click());
+        if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
-        if interact.clicked {
+        if response.clicked {
             ui.ctx().output().open_url = Some(url);
         }
 
-        if interact.hovered {
+        if response.hovered {
             // Underline:
             for line in &galley.lines {
-                let pos = interact.rect.min;
+                let pos = response.rect.min;
                 let y = pos.y + line.y_max;
                 let y = ui.painter().round_to_pixel(y);
                 let min_x = pos.x + line.min_x();
@@ -207,9 +207,9 @@ impl Widget for Hyperlink {
         }
 
         ui.painter()
-            .galley(interact.rect.min, galley, text_style, color);
+            .galley(response.rect.min, galley, text_style, color);
 
-        interact
+        response
     }
 }
 
@@ -269,7 +269,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
             text_color,
@@ -285,20 +285,20 @@ impl Widget for Button {
         let mut size = galley.size + 2.0 * padding;
         size.y = size.y.max(ui.style().clickable_diameter);
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, sense);
-        let text_cursor = interact.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
-        let bg_fill = fill.or(ui.style().interact(&interact).bg_fill);
+        let response = ui.interact(rect, id, sense);
+        let text_cursor = response.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
+        let bg_fill = fill.or(ui.style().interact(&response).bg_fill);
         ui.painter().add(PaintCmd::Rect {
-            rect: interact.rect,
-            corner_radius: ui.style().interact(&interact).corner_radius,
+            rect: response.rect,
+            corner_radius: ui.style().interact(&response).corner_radius,
             fill: bg_fill,
-            outline: ui.style().interact(&interact).rect_outline,
+            outline: ui.style().interact(&response).rect_outline,
         });
-        let stroke_color = ui.style().interact(&interact).stroke_color;
+        let stroke_color = ui.style().interact(&response).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
-        interact
+        response
     }
 }
 
@@ -329,7 +329,7 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,
             text,
@@ -345,21 +345,21 @@ impl<'a> Widget for Checkbox<'a> {
             + galley.size
             + ui.style().button_padding;
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let response = ui.interact(rect, id, Sense::click());
         let text_cursor =
-            interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
-        if interact.clicked {
+            response.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
+        if response.clicked {
             *checked = !*checked;
         }
-        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
+        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(response.rect);
         ui.painter().add(PaintCmd::Rect {
             rect: big_icon_rect,
-            corner_radius: ui.style().interact(&interact).corner_radius,
-            fill: ui.style().interact(&interact).bg_fill,
-            outline: ui.style().interact(&interact).rect_outline,
+            corner_radius: ui.style().interact(&response).corner_radius,
+            fill: ui.style().interact(&response).bg_fill,
+            outline: ui.style().interact(&response).rect_outline,
         });
 
-        let stroke_color = ui.style().interact(&interact).stroke_color;
+        let stroke_color = ui.style().interact(&response).stroke_color;
 
         if *checked {
             ui.painter().add(PaintCmd::Path {
@@ -377,7 +377,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color.unwrap_or(stroke_color);
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
-        interact
+        response
     }
 }
 
@@ -407,7 +407,7 @@ impl RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let RadioButton {
             checked,
             text,
@@ -422,14 +422,14 @@ impl Widget for RadioButton {
             + galley.size
             + ui.style().button_padding;
         let rect = ui.allocate_space(size);
-        let interact = ui.interact(rect, id, Sense::click());
+        let response = ui.interact(rect, id, Sense::click());
         let text_cursor =
-            interact.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
+            response.rect.min + ui.style().button_padding + vec2(ui.style().start_icon_width, 0.0);
 
-        let bg_fill = ui.style().interact(&interact).bg_fill;
-        let stroke_color = ui.style().interact(&interact).stroke_color;
+        let bg_fill = ui.style().interact(&response).bg_fill;
+        let stroke_color = ui.style().interact(&response).stroke_color;
 
-        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(interact.rect);
+        let (small_icon_rect, big_icon_rect) = ui.style().icon_rectangles(response.rect);
 
         let painter = ui.painter();
 
@@ -437,7 +437,7 @@ impl Widget for RadioButton {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0,
             fill: bg_fill,
-            outline: ui.style().interact(&interact).rect_outline, // TODO
+            outline: ui.style().interact(&response).rect_outline, // TODO
         });
 
         if checked {
@@ -451,7 +451,7 @@ impl Widget for RadioButton {
 
         let text_color = text_color.unwrap_or(stroke_color);
         painter.galley(text_cursor, galley, text_style, text_color);
-        interact
+        response
     }
 }
 
@@ -499,7 +499,7 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Separator {
             line_width,
             spacing,
@@ -582,7 +582,7 @@ impl<'a> DragValue<'a> {
 }
 
 impl<'a> Widget for DragValue<'a> {
-    fn ui(self, ui: &mut Ui) -> InteractInfo {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             value,
             speed,
@@ -617,7 +617,7 @@ impl<'a> Widget for DragValue<'a> {
             } else {
                 ui.memory().temp_edit_string = Some(value_text);
             }
-            response.into()
+            response
         } else {
             let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
                 .sense(Sense::click_and_drag())
@@ -638,7 +638,7 @@ impl<'a> Widget for DragValue<'a> {
                     // otherwise we will just keep rounding to the same value while moving the mouse.
                 }
             }
-            response.into()
+            response
         }
     }
 }
