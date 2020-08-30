@@ -44,6 +44,7 @@
     rust_2018_idioms,
 )]
 
+mod animation_manager;
 pub mod app;
 pub mod containers;
 mod context;

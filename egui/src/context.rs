@@ -8,7 +8,7 @@ use {
     parking_lot::{Mutex, MutexGuard},
 };
 
-use crate::{paint::*, *};
+use crate::{animation_manager::AnimationManager, paint::*, *};
 
 #[derive(Clone, Copy, Default)]
 struct PaintStats {
@@ -18,6 +18,7 @@ struct PaintStats {
     num_triangles: usize,
 }
 
+// TODO: too many mutexes. Maybe put it all behind one Mutex instead.
 /// Contains the input, style and output of all GUI commands.
 /// `Ui`:s keep an Arc pointer to this.
 /// This allows us to create several child `Ui`:s at once,
@@ -31,6 +32,7 @@ pub struct Context {
     fonts: Option<Arc<Fonts>>,
     font_definitions: Mutex<FontDefinitions>,
     memory: Arc<Mutex<Memory>>,
+    animation_manager: Arc<Mutex<AnimationManager>>,
 
     input: InputState,
 
@@ -54,6 +56,7 @@ impl Clone for Context {
             fonts: self.fonts.clone(),
             font_definitions: Mutex::new(self.font_definitions.lock().clone()),
             memory: self.memory.clone(),
+            animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
             graphics: Mutex::new(self.graphics.lock().clone()),
             output: Mutex::new(self.output.lock().clone()),
@@ -463,6 +466,29 @@ impl Context {
                 has_kb_focus,
             }
         }
+    }
+}
+
+/// ## Animation
+impl Context {
+    /// Returns a value in the range [0, 1], to indicate "how on" this thing is.
+    ///
+    /// The first time called it will return `if value { 1.0 } else { 0.0 }`
+    /// Calling this with `value = true` will always yield a number larger than zero, quickly going towards one.
+    /// Calling this with `value = false` will always yield a number less than one, quickly going towards zero.
+    ///
+    /// The function will call `request_repaint()` when appropriate.
+    pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
+        let animation_time = self.style().animation_time;
+        let animated_value =
+            self.animation_manager
+                .lock()
+                .animate_bool(&self.input, animation_time, id, value);
+        let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
+        if animation_in_progress {
+            self.request_repaint();
+        }
+        animated_value
     }
 }
 

@@ -13,10 +13,6 @@ use crate::{
 pub(crate) struct State {
     open: bool,
 
-    // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
-    #[cfg_attr(feature = "serde", serde(skip))]
-    toggle_time: f64,
-
     /// Height of the region when open. Used for animations
     open_height: Option<f32>,
 }
@@ -25,7 +21,6 @@ impl Default for State {
     fn default() -> Self {
         Self {
             open: false,
-            toggle_time: -f64::INFINITY,
             open_height: None,
         }
     }
@@ -49,59 +44,22 @@ impl State {
 
     pub fn toggle(&mut self, ui: &Ui) {
         self.open = !self.open;
-        self.toggle_time = ui.input().time;
         ui.ctx().request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening
-    pub fn openness(&self, ui: &Ui) -> f32 {
-        let animation_time = ui.style().animation_time;
-        let time_since_toggle = (ui.input().time - self.toggle_time) as f32;
-        let time_since_toggle = time_since_toggle + ui.input().predicted_dt; // Instant feedback
-        if time_since_toggle <= animation_time {
-            ui.ctx().request_repaint();
-        }
-        if self.open {
-            remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
-        } else {
-            remap_clamp(time_since_toggle, 0.0..=animation_time, 1.0..=0.0)
-        }
-    }
-
-    /// Paint the arrow icon that indicated if the region is open or not
-    pub fn paint_icon(&self, ui: &mut Ui, response: &Response) {
-        let stroke_color = ui.style().interact(response).stroke_color;
-        let stroke_width = ui.style().interact(response).stroke_width;
-
-        let rect = response.rect;
-
-        let openness = self.openness(ui);
-
-        // Draw a pointy triangle arrow:
-        let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
-        let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
-        let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
-        for p in &mut points {
-            let v = *p - rect.center();
-            let v = rotation.rotate_other(v);
-            *p = rect.center() + v;
-        }
-
-        ui.painter().add(PaintCmd::Path {
-            path: Path::from_point_loop(&points),
-            closed: true,
-            fill: None,
-            outline: Some(LineStyle::new(stroke_width, stroke_color)),
-        });
+    pub fn openness(&self, ctx: &Context, id: Id) -> f32 {
+        ctx.animate_bool(id, self.open)
     }
 
     /// Show contents if we are open, with a nice animation between closed and open
     pub fn add_contents<R>(
         &mut self,
         ui: &mut Ui,
+        id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<(R, Rect)> {
-        let openness = self.openness(ui);
+        let openness = self.openness(ui.ctx(), id);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
             Some(ui.add_custom(|child_ui| {
@@ -143,6 +101,31 @@ impl State {
             None
         }
     }
+}
+
+/// Paint the arrow icon that indicated if the region is open or not
+pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
+    let stroke_color = ui.style().interact(response).stroke_color;
+    let stroke_width = ui.style().interact(response).stroke_width;
+
+    let rect = response.rect;
+
+    // Draw a pointy triangle arrow:
+    let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
+    let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
+    let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
+    for p in &mut points {
+        let v = *p - rect.center();
+        let v = rotation.rotate_other(v);
+        *p = rect.center() + v;
+    }
+
+    ui.painter().add(PaintCmd::Path {
+        path: Path::from_point_loop(&points),
+        closed: true,
+        fill: None,
+        outline: Some(LineStyle::new(stroke_width, stroke_color)),
+    });
 }
 
 /// A header which can be collapsed/expanded, revealing a contained `Ui` region.
@@ -231,7 +214,8 @@ impl CollapsingHeader {
                 rect: icon_rect,
                 ..response.clone()
             };
-            state.paint_icon(ui, &icon_response);
+            let openness = state.openness(ui.ctx(), id);
+            paint_icon(ui, openness, &icon_response);
         }
 
         let painter = ui.painter();
@@ -257,7 +241,7 @@ impl CollapsingHeader {
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         let Prepared { id, mut state } = self.begin(ui);
-        let ret_response = state.add_contents(ui, |ui| ui.indent(id, add_contents).0);
+        let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
         let ret = ret_response.map(|ri| ri.0);
         ui.memory().collapsing_headers.insert(id, state);
         ret

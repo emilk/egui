@@ -8,11 +8,6 @@ pub(crate) struct State {
     offset: Vec2,
 
     show_scroll: bool,
-
-    // Times are relative, and we don't want to continue animations anyway, hence `serde(skip)`
-    /// Used to animate the showing of the scroll bar
-    #[cfg_attr(feature = "serde", serde(skip))]
-    toggle_time: f64,
 }
 
 impl Default for State {
@@ -20,7 +15,6 @@ impl Default for State {
         Self {
             offset: Vec2::zero(),
             show_scroll: false,
-            toggle_time: f64::NEG_INFINITY,
         }
     }
 }
@@ -90,24 +84,7 @@ impl ScrollArea {
         let current_scroll_bar_width = if always_show_scroll {
             max_scroll_bar_width
         } else {
-            let time_since_toggle = (ui.input().time - state.toggle_time) as f32;
-            let animation_time = ui.style().animation_time;
-            if time_since_toggle <= animation_time {
-                ui.ctx().request_repaint();
-            }
-            if state.show_scroll {
-                remap_clamp(
-                    time_since_toggle,
-                    0.0..=animation_time,
-                    0.0..=max_scroll_bar_width,
-                )
-            } else {
-                remap_clamp(
-                    time_since_toggle,
-                    0.0..=animation_time,
-                    max_scroll_bar_width..=0.0,
-                )
-            }
+            max_scroll_bar_width * ui.ctx().animate_bool(id, state.show_scroll)
         };
 
         let outer_size = vec2(
@@ -192,12 +169,7 @@ impl Prepared {
 
         if show_scroll_this_frame && current_scroll_bar_width <= 0.0 {
             // Avoid frame delay; start showing scroll bar right away:
-            current_scroll_bar_width = remap_clamp(
-                ui.input().predicted_dt,
-                0.0..=ui.style().animation_time,
-                0.0..=max_scroll_bar_width,
-            );
-            ui.ctx().request_repaint();
+            current_scroll_bar_width = max_scroll_bar_width * ui.ctx().animate_bool(id, true);
         }
 
         if current_scroll_bar_width > 0.0 {
@@ -290,7 +262,6 @@ impl Prepared {
         ui.allocate_space(size);
 
         if show_scroll_this_frame != state.show_scroll {
-            state.toggle_time = ui.input().time;
             ui.ctx().request_repaint();
         }
 

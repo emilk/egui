@@ -79,7 +79,8 @@ pub struct InputState {
     /// This can be very unstable in reactive mode (when we don't paint each frame).
     pub unstable_dt: f32,
 
-    /// Can be used to fast-forward to next frame for instance feedback. hacky.
+    /// Used for animations to get instant feedback (avoid frame delay).
+    /// Should be set to the expected time between frames when painting at vsync speeds.
     pub predicted_dt: f32,
 
     /// Local time. Only used for the clock in the demo app.

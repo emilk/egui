@@ -252,7 +252,7 @@ impl<'open> Window<'open> {
             resize.min_size.x = resize.min_size.x.max(title_bar.rect.width()); // Prevent making window smaller than title bar width
 
             let content_rect = collapsing
-                .add_contents(&mut frame.content_ui, |ui| {
+                .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         // Add some spacing between title and content:
                         ui.allocate_space(ui.style().item_spacing);
@@ -603,7 +603,8 @@ fn show_title_bar(
             if collapse_button_response.clicked {
                 collapsing.toggle(ui);
             }
-            collapsing.paint_icon(ui, &collapse_button_response);
+            let openness = collapsing.openness(ui.ctx(), collapsing_id);
+            collapsing_header::paint_icon(ui, openness, &collapse_button_response);
         }
 
         let title_galley = title_label.layout(ui);
