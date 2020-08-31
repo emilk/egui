@@ -99,7 +99,7 @@ impl ScrollArea {
             inner_rect.min - state.offset,
             vec2(inner_size.x, f32::INFINITY),
         ));
-        let mut content_clip_rect = inner_rect.expand(ui.style().clip_rect_margin);
+        let mut content_clip_rect = inner_rect.expand(ui.style().visuals.clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
         content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
         content_ui.set_clip_rect(content_clip_rect);
@@ -175,7 +175,7 @@ impl Prepared {
         if current_scroll_bar_width > 0.0 {
             let animation_t = current_scroll_bar_width / max_scroll_bar_width;
             // margin between contents and scroll bar
-            let margin = animation_t * ui.style().item_spacing.x;
+            let margin = animation_t * ui.style().spacing.item_spacing.x;
             let left = inner_rect.right() + margin;
             let right = outer_rect.right();
             let corner_radius = (right - left) / 2.0;
@@ -243,7 +243,7 @@ impl Prepared {
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill: Some(ui.style().dark_bg_color),
+                fill: Some(ui.style().visuals.dark_bg_color),
                 outline: None,
             });
 
@@ -274,5 +274,5 @@ impl Prepared {
 }
 
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.style().item_spacing.x + 16.0
+    ui.style().spacing.item_spacing.x + 16.0
 }

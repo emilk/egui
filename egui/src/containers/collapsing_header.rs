@@ -182,15 +182,15 @@ impl CollapsingHeader {
         let id = ui.make_unique_child_id_full(id_source, Some(title));
 
         let available = ui.available_finite();
-        let text_pos = available.min + vec2(ui.style().indent, 0.0);
-        let galley = label.layout_width(ui, available.width() - ui.style().indent);
+        let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);
+        let galley = label.layout_width(ui, available.width() - ui.style().spacing.indent);
         let text_max_x = text_pos.x + galley.size.x;
         let desired_width = text_max_x - available.left();
         let desired_width = desired_width.max(available.width());
 
         let size = vec2(
             desired_width,
-            galley.size.y + 2.0 * ui.style().button_padding.y,
+            galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
         );
 
         let rect = ui.allocate_space(size);
@@ -205,9 +205,9 @@ impl CollapsingHeader {
         let bg_index = ui.painter().add(PaintCmd::Noop);
 
         {
-            let (mut icon_rect, _) = ui.style().icon_rectangles(response.rect);
+            let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(response.rect);
             icon_rect.set_center(pos2(
-                response.rect.left() + ui.style().indent / 2.0,
+                response.rect.left() + ui.style().spacing.indent / 2.0,
                 response.rect.center().y,
             ));
             let icon_response = Response {

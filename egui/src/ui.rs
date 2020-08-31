@@ -38,8 +38,8 @@ pub struct Ui {
     /// Where the next widget will be put.
     /// Progresses along self.dir.
     /// Initially set to rect.min
-    /// If something has already been added, this will point ot style.item_spacing beyond the latest child.
-    /// The cursor can thus be style.item_spacing pixels outside of the child_bounds.
+    /// If something has already been added, this will point ot style.spacing.item_spacing beyond the latest child.
+    /// The cursor can thus be style.spacing.item_spacing pixels outside of the child_bounds.
     cursor: Pos2, // TODO: move into Layout?
 
     /// How many children has been added to us?
@@ -54,7 +54,7 @@ impl Ui {
 
     pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, rect: Rect) -> Self {
         let style = ctx.style();
-        let clip_rect = rect.expand(style.clip_rect_margin);
+        let clip_rect = rect.expand(style.visuals.clip_rect_margin);
         Ui {
             id,
             painter: Painter::new(ctx, layer, clip_rect),
@@ -75,7 +75,7 @@ impl Ui {
             painter: self.painter.clone(),
             desired_rect: child_rect,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
-            style: self.style.clone(),
+            style: self.style().clone(),
             layout: self.layout,
             cursor: child_rect.min,
             child_count: 0,
@@ -366,7 +366,7 @@ impl Ui {
 
         let rect = self.reserve_space_impl(desired_size);
 
-        if self.style().debug_widget_rects {
+        if self.style().visuals.debug_widget_rects {
             self.painter.rect_outline(rect, 0.0, (1.0, LIGHT_BLUE));
 
             let color = color::srgba(200, 0, 0, 255);
@@ -535,7 +535,7 @@ impl Ui {
             self.layout().dir() == Direction::Vertical,
             "You can only indent vertical layouts"
         );
-        let indent = vec2(self.style.indent, 0.0);
+        let indent = vec2(self.style().spacing.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
         let mut child_ui = Ui {
             id: self.id.with(id_source),
@@ -550,7 +550,7 @@ impl Ui {
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.painter.line_segment(
             [line_start, line_end],
-            (self.style.line_width, Srgba::gray(150)),
+            (self.style().visuals.line_width, Srgba::gray(150)),
         );
 
         (ret, self.allocate_space(indent + size))
@@ -631,7 +631,7 @@ impl Ui {
         F: FnOnce(&mut [Self]) -> R,
     {
         // TODO: ensure there is space
-        let spacing = self.style.item_spacing.x;
+        let spacing = self.style().spacing.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available().width() - total_spacing) / (num_columns as f32);
 

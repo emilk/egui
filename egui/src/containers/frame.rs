@@ -15,10 +15,10 @@ pub struct Frame {
 impl Frame {
     pub fn window(style: &Style) -> Self {
         Self {
-            margin: style.window_padding,
-            corner_radius: style.window.corner_radius,
-            fill: Some(style.background_fill),
-            outline: style.interact.inactive.bg_outline, // because we can resize windows
+            margin: style.spacing.window_padding,
+            corner_radius: style.visuals.window_corner_radius,
+            fill: Some(style.visuals.background_fill),
+            outline: style.visuals.interacted.inactive.bg_outline, // because we can resize windows
         }
     }
 
@@ -35,16 +35,16 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
-            fill: Some(style.background_fill),
+            fill: Some(style.visuals.background_fill),
             outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
         }
     }
 
     pub fn popup(style: &Style) -> Self {
         Self {
-            margin: style.window_padding,
+            margin: style.spacing.window_padding,
             corner_radius: 5.0,
-            fill: Some(style.background_fill),
+            fill: Some(style.visuals.background_fill),
             outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
         }
     }

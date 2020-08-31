@@ -184,7 +184,7 @@ impl Layout {
             }
 
             cursor_change.x += child_size.x;
-            cursor_change.x += style.item_spacing.x; // Where to put next thing, if there is a next thing
+            cursor_change.x += style.spacing.item_spacing.x; // Where to put next thing, if there is a next thing
         } else {
             if let Some(align) = self.align {
                 child_move.x += match align {
@@ -197,7 +197,7 @@ impl Layout {
                 child_size.x = child_size.x.max(available_size.x);
             };
             cursor_change.y += child_size.y;
-            cursor_change.y += style.item_spacing.y; // Where to put next thing, if there is a next thing
+            cursor_change.y += style.spacing.item_spacing.y; // Where to put next thing, if there is a next thing
         }
 
         if self.is_reversed() {

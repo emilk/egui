@@ -473,7 +473,7 @@ impl Default for Widgets {
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.style_mut().item_spacing.x = 0.0;
+            ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(label!("Text can have ").text_color(srgba(110, 255, 110, 255)));
             ui.add(label!("color ").text_color(srgba(128, 140, 255, 255)));
             ui.add(label!("and tooltips")).tooltip_text(
@@ -520,7 +520,7 @@ impl Widgets {
         {
             ui.label("An angle stored as radians, but edited in degrees:");
             ui.horizontal_centered(|ui| {
-                ui.style_mut().item_spacing.x = 0.0;
+                ui.style_mut().spacing.item_spacing.x = 0.0;
                 ui.drag_angle(&mut self.angle);
                 ui.label(format!(" = {} radians", self.angle));
             });

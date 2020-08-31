@@ -4,7 +4,7 @@ use crate::{paint::PaintCmd, *};
 // iOS style toggle switch
 pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // First we must reserve some space to use:
-    let desired_size = vec2(2.0, 1.0) * ui.style().clickable_diameter;
+    let desired_size = vec2(2.0, 1.0) * ui.style().spacing.clickable_diameter;
     let rect = ui.allocate_space(desired_size);
 
     // Now that we have an area, we want to check for clicks.

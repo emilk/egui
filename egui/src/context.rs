@@ -337,8 +337,8 @@ impl Context {
     // ---------------------------------------------------------------------
 
     pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
-        let resize_interact_radius_side = self.style().resize_interact_radius_side;
-        self.memory().layer_at(pos, resize_interact_radius_side)
+        let resize_grab_radius_side = self.style().interaction.resize_grab_radius_side;
+        self.memory().layer_at(pos, resize_grab_radius_side)
     }
 
     pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
@@ -359,7 +359,7 @@ impl Context {
         interaction_id: Option<Id>,
         sense: Sense,
     ) -> Response {
-        let interact_rect = rect.expand2(0.5 * self.style().item_spacing); // make it easier to click. TODO: nice way to do this
+        let interact_rect = rect.expand2(0.5 * self.style().spacing.item_spacing); // make it easier to click. TODO: nice way to do this
         let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
         let has_kb_focus = interaction_id
             .map(|id| self.memory().has_kb_focus(id))

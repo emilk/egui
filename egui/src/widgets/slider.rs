@@ -126,7 +126,7 @@ impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
         let id = self.id.unwrap_or_else(|| ui.make_position_id());
-        let desired_size = vec2(ui.available().width(), height);
+        let desired_size = vec2(ui.style().spacing.slider_width, height);
         let rect = ui.allocate_space(desired_size);
         ui.interact(rect, id, Sense::click_and_drag())
     }
@@ -164,7 +164,7 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
-                fill: Some(ui.style().background_fill),
+                fill: Some(ui.style().visuals.background_fill),
                 outline: Some(LineStyle::new(1.0, Srgba::gray(200))), // TODO
             });
 
@@ -182,10 +182,12 @@ impl<'a> Slider<'a> {
 
     /// Just the text label
     fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let text_color = self.text_color.unwrap_or_else(|| ui.style().text_color);
+        let text_color = self
+            .text_color
+            .unwrap_or_else(|| ui.style().visuals.text_color);
 
         if let Some(label_text) = self.text.as_deref() {
-            ui.style_mut().item_spacing.x = 0.0;
+            ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(
                 Label::new(format!("{}: ", label_text))
                     .multiline(false)
@@ -258,30 +260,21 @@ impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let height = font.line_spacing().max(ui.style().clickable_diameter);
+        let height = font
+            .line_spacing()
+            .max(ui.style().spacing.clickable_diameter);
 
         if let Some(text) = &self.text {
             self.id = self.id.or_else(|| Some(ui.make_unique_child_id(text)));
 
-            ui.columns(2, |columns| {
-                let slider_ui = &mut columns[0];
-                let slider_response = self.allocate_slide_space(slider_ui, height);
-                self.slider_ui(slider_ui, &slider_response);
+            ui.horizontal_centered(|ui| {
+                let slider_response = self.allocate_slide_space(ui, height);
+                self.slider_ui(ui, &slider_response);
                 let x_range = x_range(&slider_response.rect);
-
-                // Place the text in line with the slider on the left:
-                let text_ui = &mut columns[1];
-                text_ui.set_desired_height(slider_response.rect.height());
-                text_ui.inner_layout(
-                    Layout::horizontal(Align::Center),
-                    text_ui.available().size(),
-                    |ui| {
-                        self.text_ui(ui, x_range);
-                    },
-                );
-
+                self.text_ui(ui, x_range);
                 slider_response
             })
+            .0
         } else {
             let response = self.allocate_slide_space(ui, height);
             self.slider_ui(ui, &response);

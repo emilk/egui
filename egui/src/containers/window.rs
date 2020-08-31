@@ -202,7 +202,7 @@ impl<'open> Window<'open> {
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
             let title_bar_height =
-                title_label.font_height(ctx.fonts()) + 1.0 * ctx.style().item_spacing.y; // this could be better
+                title_label.font_height(ctx.fonts()) + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
             let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
 
             window_interaction(
@@ -255,7 +255,7 @@ impl<'open> Window<'open> {
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         // Add some spacing between title and content:
-                        ui.allocate_space(ui.style().item_spacing);
+                        ui.allocate_space(ui.style().spacing.item_spacing);
 
                         if let Some(scroll) = scroll {
                             scroll.show(ui, add_contents)
@@ -294,14 +294,14 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     interaction,
-                    ctx.style().interact.active,
+                    ctx.style().visuals.interacted.active,
                 );
             } else if let Some(hover_interaction) = hover_interaction {
                 paint_frame_interaction(
                     &mut area_content_ui,
                     outer_rect,
                     hover_interaction,
-                    ctx.style().interact.hovered,
+                    ctx.style().visuals.interacted.hovered,
                 );
             }
         }
@@ -312,7 +312,7 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, frame_outline: Option<LineStyle>) {
-    let corner_size = Vec2::splat(ui.style().resize_corner_size);
+    let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
     let handle_offset = -Vec2::splat(2.0);
     let corner_rect =
         Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
@@ -468,32 +468,32 @@ fn resize_hover(
             return None;
         }
 
-        let side_interact_radius = ctx.style().resize_interact_radius_side;
-        let corner_interact_radius = ctx.style().resize_interact_radius_corner;
-        if rect.expand(side_interact_radius).contains(mouse_pos) {
+        let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
+        let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
+        if rect.expand(side_grab_radius).contains(mouse_pos) {
             let (mut left, mut right, mut top, mut bottom) = Default::default();
             if possible.resizable {
-                right = (rect.right() - mouse_pos.x).abs() <= side_interact_radius;
-                bottom = (rect.bottom() - mouse_pos.y).abs() <= side_interact_radius;
+                right = (rect.right() - mouse_pos.x).abs() <= side_grab_radius;
+                bottom = (rect.bottom() - mouse_pos.y).abs() <= side_grab_radius;
 
-                if rect.right_bottom().distance(mouse_pos) < corner_interact_radius {
+                if rect.right_bottom().distance(mouse_pos) < corner_grab_radius {
                     right = true;
                     bottom = true;
                 }
 
                 if possible.movable {
-                    left = (rect.left() - mouse_pos.x).abs() <= side_interact_radius;
-                    top = (rect.top() - mouse_pos.y).abs() <= side_interact_radius;
+                    left = (rect.left() - mouse_pos.x).abs() <= side_grab_radius;
+                    top = (rect.top() - mouse_pos.y).abs() <= side_grab_radius;
 
-                    if rect.right_top().distance(mouse_pos) < corner_interact_radius {
+                    if rect.right_top().distance(mouse_pos) < corner_grab_radius {
                         right = true;
                         top = true;
                     }
-                    if rect.left_top().distance(mouse_pos) < corner_interact_radius {
+                    if rect.left_top().distance(mouse_pos) < corner_grab_radius {
                         left = true;
                         top = true;
                     }
-                    if rect.left_bottom().distance(mouse_pos) < corner_interact_radius {
+                    if rect.left_bottom().distance(mouse_pos) < corner_grab_radius {
                         left = true;
                         bottom = true;
                     }
@@ -530,9 +530,9 @@ fn paint_frame_interaction(
     ui: &mut Ui,
     rect: Rect,
     interaction: WindowInteraction,
-    style: style::WidgetStyle,
+    visuals: style::WidgetVisuals,
 ) {
-    let cr = ui.style().window.corner_radius;
+    let cr = ui.style().visuals.window_corner_radius;
     let Rect { min, max } = rect;
 
     let mut path = Path::default();
@@ -567,7 +567,7 @@ fn paint_frame_interaction(
         path,
         closed: false,
         fill: None,
-        outline: style.bg_outline,
+        outline: visuals.bg_outline,
     });
 }
 
@@ -591,8 +591,8 @@ fn show_title_bar(
     let title_bar_and_rect = ui.horizontal_centered(|ui| {
         ui.set_desired_height(title_label.font_height(ui.fonts()));
 
-        let item_spacing = ui.style().item_spacing;
-        let button_size = ui.style().start_icon_width;
+        let item_spacing = ui.style().spacing.item_spacing;
+        let button_size = ui.style().spacing.icon_width;
 
         if collapsible {
             // TODO: make clickable radius larger
@@ -668,10 +668,10 @@ impl TitleBar {
             // paint separator between title and content:
             let left = outer_rect.left();
             let right = outer_rect.right();
-            let y = content_rect.top() + ui.style().item_spacing.y * 0.5;
+            let y = content_rect.top() + ui.style().spacing.item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().interact.inactive.bg_outline.unwrap(),
+                ui.style().visuals.interacted.inactive.bg_outline.unwrap(),
             );
         }
 
@@ -686,10 +686,10 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let button_size = ui.style().start_icon_width;
+        let button_size = ui.style().spacing.icon_width;
         let button_rect = Rect::from_min_size(
             pos2(
-                self.rect.right() - ui.style().item_spacing.x - button_size,
+                self.rect.right() - ui.style().spacing.item_spacing.x - button_size,
                 self.rect.center().y - 0.5 * button_size,
             ),
             Vec2::splat(button_size),

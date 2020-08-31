@@ -145,7 +145,7 @@ impl Resize {
 
         let corner_response = if self.resizable {
             // Resize-corner:
-            let corner_size = Vec2::splat(ui.style().resize_corner_size);
+            let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
             let corner_rect =
                 Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
             let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
@@ -169,7 +169,7 @@ impl Resize {
 
         let inner_rect = Rect::from_min_size(position, state.desired_size);
 
-        let mut content_clip_rect = inner_rect.expand(ui.style().clip_rect_margin);
+        let mut content_clip_rect = inner_rect.expand(ui.style().visuals.clip_rect_margin);
 
         // If we pull the resize handle to shrink, we want to TRY to shrink it.
         // After laying out the contents, we might be much bigger.
@@ -177,7 +177,9 @@ impl Resize {
         // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
         // So we use the memory of last_content_size to make the clip rect large enough.
         content_clip_rect.max = content_clip_rect.max.max(
-            inner_rect.min + state.last_content_size + Vec2::splat(ui.style().clip_rect_margin),
+            inner_rect.min
+                + state.last_content_size
+                + Vec2::splat(ui.style().visuals.clip_rect_margin),
         );
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
@@ -236,7 +238,7 @@ impl Resize {
                 rect,
                 corner_radius: 3.0,
                 fill: None,
-                outline: Some(ui.style().thin_outline),
+                outline: Some(ui.style().visuals.thin_outline),
             });
         }
 
@@ -250,7 +252,7 @@ impl Resize {
 
         ui.memory().resize.insert(id, state);
 
-        if ui.ctx().style().debug_resize {
+        if ui.ctx().style().visuals.debug_resize {
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.top_left(), state.desired_size),
                 color::GREEN,

@@ -183,13 +183,13 @@ impl<'t> Widget for TextEdit<'t> {
             painter.add(PaintCmd::Rect {
                 rect: bg_rect,
                 corner_radius: ui.style().interact(&response).corner_radius,
-                fill: Some(ui.style().dark_bg_color),
+                fill: Some(ui.style().visuals.dark_bg_color),
                 outline: ui.style().interact(&response).bg_outline,
             });
         }
 
         if ui.memory().has_kb_focus(id) {
-            let cursor_blink_hz = ui.style().cursor_blink_hz;
+            let cursor_blink_hz = ui.style().visuals.cursor_blink_hz;
             let show_cursor = if let Some(cursor_blink_hz) = cursor_blink_hz {
                 ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
                 (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0
@@ -202,7 +202,7 @@ impl<'t> Widget for TextEdit<'t> {
                     let cursor_pos = response.rect.min + galley.char_start_pos(cursor);
                     painter.line_segment(
                         [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
-                        (ui.style().text_cursor_width, color::WHITE),
+                        (ui.style().visuals.text_cursor_width, color::WHITE),
                     );
                 }
             }
