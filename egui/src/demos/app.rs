@@ -397,6 +397,8 @@ impl DemoWindow {
         CollapsingHeader::new("Misc")
             .default_open(false)
             .show(ui, |ui| {
+                super::toggle_switch::demo(ui, &mut self.widgets.button_enabled);
+
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
                     let painter = ui.canvas(Vec2::splat(16.0));
