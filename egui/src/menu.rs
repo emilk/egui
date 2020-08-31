@@ -15,7 +15,7 @@
 //! }
 //! ```
 
-use crate::{widgets::*, *};
+use crate::{color::TRANSPARENT, paint::LineStyle, widgets::*, *};
 
 /// What is saved between frames.
 #[derive(Clone, Copy, Debug)]
@@ -62,12 +62,12 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();
             style.spacing.button_padding = vec2(2.0, 0.0);
-            // style.visuals.interacted.active.bg_fill = None;
-            style.visuals.interacted.active.bg_outline = None;
-            // style.visuals.interacted.hovered.bg_fill = None;
-            style.visuals.interacted.hovered.bg_outline = None;
-            style.visuals.interacted.inactive.bg_fill = None;
-            style.visuals.interacted.inactive.bg_outline = None;
+            // style.visuals.interacted.active.bg_fill = TRANSPARENT;
+            style.visuals.interacted.active.bg_outline = LineStyle::none();
+            // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
+            style.visuals.interacted.hovered.bg_outline = LineStyle::none();
+            style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
+            style.visuals.interacted.inactive.bg_outline = LineStyle::none();
             ui.set_style(style);
 
             // Take full width and fixed height:
@@ -128,12 +128,12 @@ fn menu_impl<'c>(
                 resize.show(ui, |ui| {
                     let mut style = ui.style().clone();
                     style.spacing.button_padding = vec2(2.0, 0.0);
-                    // style.visuals.interacted.active.bg_fill = None;
-                    style.visuals.interacted.active.bg_outline = None;
-                    // style.visuals.interacted.hovered.bg_fill = None;
-                    style.visuals.interacted.hovered.bg_outline = None;
-                    style.visuals.interacted.inactive.bg_fill = None;
-                    style.visuals.interacted.inactive.bg_outline = None;
+                    // style.visuals.interacted.active.bg_fill = TRANSPARENT;
+                    style.visuals.interacted.active.bg_outline = LineStyle::none();
+                    // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
+                    style.visuals.interacted.hovered.bg_outline = LineStyle::none();
+                    style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
+                    style.visuals.interacted.inactive.bg_outline = LineStyle::none();
                     ui.set_style(style);
                     ui.set_layout(Layout::justified(Direction::Vertical));
                     add_contents(ui)

@@ -311,12 +311,11 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, frame_outline: Option<LineStyle>) {
+fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, outline: LineStyle) {
     let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
     let handle_offset = -Vec2::splat(2.0);
     let corner_rect =
         Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
-    let outline = frame_outline.unwrap_or_else(|| LineStyle::new(1.0, color::GRAY));
     crate::resize::paint_resize_corner_with_style(ui, &corner_rect, outline);
 }
 
@@ -566,7 +565,7 @@ fn paint_frame_interaction(
     ui.painter().add(PaintCmd::Path {
         path,
         closed: false,
-        fill: None,
+        fill: Default::default(),
         outline: visuals.bg_outline,
     });
 }
@@ -671,7 +670,7 @@ impl TitleBar {
             let y = content_rect.top() + ui.style().spacing.item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.interacted.inactive.bg_outline.unwrap(),
+                ui.style().visuals.interacted.inactive.bg_outline,
             );
         }
 

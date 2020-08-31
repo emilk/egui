@@ -243,14 +243,14 @@ impl Prepared {
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill: Some(ui.style().visuals.dark_bg_color),
-                outline: None,
+                fill: ui.style().visuals.dark_bg_color,
+                outline: Default::default(),
             });
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
-                fill: Some(handle_fill),
+                fill: handle_fill,
                 outline: handle_outline,
             });
         }

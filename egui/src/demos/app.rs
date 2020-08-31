@@ -579,12 +579,12 @@ impl BoxPainting {
         for i in 0..self.num_boxes {
             cmds.push(PaintCmd::Rect {
                 corner_radius: self.corner_radius,
-                fill: Some(Srgba::gray(64)),
+                fill: Srgba::gray(64),
                 rect: Rect::from_min_size(
                     pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                     self.size,
                 ),
-                outline: Some(LineStyle::new(self.stroke_width, WHITE)),
+                outline: LineStyle::new(self.stroke_width, WHITE),
             });
         }
         ui.painter().extend(cmds);
@@ -655,8 +655,8 @@ impl Painting {
                 painter.add(PaintCmd::Path {
                     path: Path::from_open_points(&points),
                     closed: false,
-                    outline: Some(LineStyle::new(self.line_width, LIGHT_GRAY)),
-                    fill: None,
+                    outline: LineStyle::new(self.line_width, LIGHT_GRAY),
+                    fill: Default::default(),
                 });
             }
         }

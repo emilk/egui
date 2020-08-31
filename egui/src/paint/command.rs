@@ -11,8 +11,8 @@ pub enum PaintCmd {
     Circle {
         center: Pos2,
         radius: f32,
-        fill: Option<Srgba>,
-        outline: Option<LineStyle>,
+        fill: Srgba,
+        outline: LineStyle,
     },
     LineSegment {
         points: [Pos2; 2],
@@ -21,14 +21,14 @@ pub enum PaintCmd {
     Path {
         path: Path,
         closed: bool,
-        fill: Option<Srgba>,
-        outline: Option<LineStyle>,
+        fill: Srgba,
+        outline: LineStyle,
     },
     Rect {
         rect: Rect,
         corner_radius: f32,
-        fill: Option<Srgba>,
-        outline: Option<LineStyle>,
+        fill: Srgba,
+        outline: LineStyle,
     },
     Text {
         /// Top left corner of the first character.
@@ -41,7 +41,7 @@ pub enum PaintCmd {
     Triangles(Triangles),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LineStyle {
     pub width: f32,
@@ -49,6 +49,10 @@ pub struct LineStyle {
 }
 
 impl LineStyle {
+    pub fn none() -> Self {
+        Self::new(0.0, crate::color::TRANSPARENT)
+    }
+
     pub fn new(width: impl Into<f32>, color: impl Into<Srgba>) -> Self {
         Self {
             width: width.into(),

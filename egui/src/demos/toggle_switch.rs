@@ -36,16 +36,16 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     ui.painter().add(PaintCmd::Rect {
         rect,
         corner_radius: radius,
+        fill: lerp(off_color..=on_color, how_on).into(),
         outline: style.bg_outline,
-        fill: Some(lerp(off_color..=on_color, how_on).into()),
     });
     // Animate the circle from left to right:
     let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
     ui.painter().add(PaintCmd::Circle {
         center: pos2(circle_x, rect.center().y),
         radius: 0.75 * radius,
-        outline: Some(style.line_style()),
-        fill: Some(style.main_fill),
+        fill: style.main_fill,
+        outline: style.line_style(),
     });
 
     // All done! Return the response so the user can check what happened

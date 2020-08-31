@@ -123,8 +123,8 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
     ui.painter().add(PaintCmd::Path {
         path: Path::from_point_loop(&points),
         closed: true,
-        fill: None,
-        outline: Some(LineStyle::new(stroke_width, stroke_color)),
+        fill: Default::default(),
+        outline: LineStyle::new(stroke_width, stroke_color),
     });
 }
 
@@ -229,10 +229,10 @@ impl CollapsingHeader {
         painter.set(
             bg_index,
             PaintCmd::Rect {
+                rect: response.rect,
                 corner_radius: ui.style().interact(&response).corner_radius,
                 fill: ui.style().interact(&response).bg_fill,
-                outline: None,
-                rect: response.rect,
+                outline: Default::default(),
             },
         );
 

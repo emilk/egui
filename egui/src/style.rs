@@ -139,11 +139,11 @@ impl Interacted {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget
-    pub bg_fill: Option<Srgba>,
+    pub bg_fill: Srgba,
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
-    pub bg_outline: Option<LineStyle>,
+    pub bg_outline: LineStyle,
 
     /// Button frames etc
     pub corner_radius: f32,
@@ -226,32 +226,32 @@ impl Default for Interacted {
     fn default() -> Self {
         Self {
             active: WidgetVisuals {
-                bg_fill: Some(Srgba::black_alpha(128)),
-                bg_outline: Some(LineStyle::new(2.0, WHITE)),
+                bg_fill: Srgba::black_alpha(128),
+                bg_outline: LineStyle::new(2.0, WHITE),
                 corner_radius: 0.0,
                 main_fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: None,
-                bg_outline: Some(LineStyle::new(1.0, WHITE)),
+                bg_fill: TRANSPARENT,
+                bg_outline: LineStyle::new(1.0, WHITE),
                 corner_radius: 2.0,
                 main_fill: srgba(100, 100, 150, 255),
                 stroke_color: Srgba::gray(240),
                 stroke_width: 1.5,
             },
             inactive: WidgetVisuals {
-                bg_fill: None,
-                bg_outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
+                bg_fill: TRANSPARENT,
+                bg_outline: LineStyle::new(1.0, Srgba::gray(128)),
                 corner_radius: 4.0,
                 main_fill: srgba(60, 60, 80, 255),
                 stroke_color: Srgba::gray(200), // Mustn't look grayed out!
                 stroke_width: 1.0,
             },
             disabled: WidgetVisuals {
-                bg_fill: None,
-                bg_outline: Some(LineStyle::new(0.5, Srgba::gray(128))),
+                bg_fill: TRANSPARENT,
+                bg_outline: LineStyle::new(0.5, Srgba::gray(128)),
                 corner_radius: 4.0,
                 main_fill: srgba(50, 50, 50, 255),
                 stroke_color: Srgba::gray(128), // Should look grayed out
@@ -361,8 +361,8 @@ impl WidgetVisuals {
             stroke_width,
         } = self;
 
-        let _ = bg_fill; // ui_color(ui, bg_fill, "bg_fill"); // TODO
-        let _ = bg_outline; // bg_outline.ui(ui, "bg_outline");// TODO
+        ui_color(ui, bg_fill, "bg_fill");
+        bg_outline.ui(ui, "bg_outline");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, main_fill, "main_fill");
         ui_color(ui, stroke_color, "stroke_color");
@@ -417,7 +417,7 @@ impl LineStyle {
         let Self { width, color } = self;
         ui.horizontal_centered(|ui| {
             ui.label(format!("{}: ", text));
-            ui.add(Slider::f32(width, 0.0..=10.0));
+            ui.add(Slider::f32(width, 0.0..=10.0).text("width"));
             ui_color(ui, color, "color");
         });
     }

@@ -7,7 +7,7 @@
 
 use {
     super::{
-        color::{self, srgba, Rgba, Srgba},
+        color::{self, srgba, Rgba, Srgba, TRANSPARENT},
         fonts::Fonts,
         LineStyle, PaintCmd,
     },
@@ -427,7 +427,7 @@ pub fn paint_path_outline(
     options: PaintOptions,
     out: &mut Triangles,
 ) {
-    if style.color == color::TRANSPARENT {
+    if style.width <= 0.0 || style.color == color::TRANSPARENT {
         return;
     }
 
@@ -604,12 +604,8 @@ pub fn tessellate_paint_command(
         } => {
             if radius > 0.0 {
                 path.add_circle(center, radius);
-                if let Some(fill) = fill {
-                    fill_closed_path(&path.0, fill, options, out);
-                }
-                if let Some(line_style) = outline {
-                    paint_path_outline(&path.0, Closed, line_style, options, out);
-                }
+                fill_closed_path(&path.0, fill, options, out);
+                paint_path_outline(&path.0, Closed, outline, options, out);
             }
         }
         PaintCmd::Triangles(triangles) => {
@@ -626,17 +622,15 @@ pub fn tessellate_paint_command(
             outline,
         } => {
             if path.len() >= 2 {
-                if let Some(fill) = fill {
+                if fill != TRANSPARENT {
                     debug_assert!(
                         closed,
                         "You asked to fill a path that is not closed. That makes no sense."
                     );
                     fill_closed_path(&path.0, fill, options, out);
                 }
-                if let Some(line_style) = outline {
-                    let typ = if closed { Closed } else { Open };
-                    paint_path_outline(&path.0, typ, line_style, options, out);
-                }
+                let typ = if closed { Closed } else { Open };
+                paint_path_outline(&path.0, typ, outline, options, out);
             }
         }
         PaintCmd::Rect {
@@ -652,12 +646,8 @@ pub fn tessellate_paint_command(
                 rect.max = rect.max.min(pos2(1e7, 1e7));
 
                 path.add_rounded_rectangle(rect, corner_radius);
-                if let Some(fill) = fill {
-                    fill_closed_path(&path.0, fill, options, out);
-                }
-                if let Some(line_style) = outline {
-                    paint_path_outline(&path.0, Closed, line_style, options, out);
-                }
+                fill_closed_path(&path.0, fill, options, out);
+                paint_path_outline(&path.0, Closed, outline, options, out);
             }
         }
         PaintCmd::Text {
@@ -666,6 +656,9 @@ pub fn tessellate_paint_command(
             text_style,
             color,
         } => {
+            if color == TRANSPARENT {
+                return;
+            }
             galley.sanity_check();
 
             let num_chars = galley.text.chars().count();
@@ -737,8 +730,8 @@ pub fn tessellate_paint_commands(
                 PaintCmd::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,
-                    fill: None,
-                    outline: Some(LineStyle::new(2.0, srgba(150, 255, 150, 255))),
+                    fill: Default::default(),
+                    outline: LineStyle::new(2.0, srgba(150, 255, 150, 255)),
                 },
                 options,
                 fonts,

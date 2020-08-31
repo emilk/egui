@@ -237,8 +237,8 @@ impl Resize {
             ui.painter().add(paint::PaintCmd::Rect {
                 rect,
                 corner_radius: 3.0,
-                fill: None,
-                outline: Some(ui.style().visuals.thin_outline),
+                fill: Default::default(),
+                outline: ui.style().visuals.thin_outline,
             });
         }
 

@@ -131,8 +131,8 @@ impl Painter {
         self.add(PaintCmd::Rect {
             rect: rect.expand(2.0),
             corner_radius: 0.0,
-            fill: Some(Srgba::black_alpha(240)),
-            outline: Some(LineStyle::new(1.0, color::RED)),
+            fill: Srgba::black_alpha(240),
+            outline: LineStyle::new(1.0, color::RED),
         });
         self.galley(rect.min, galley, text_style, color::RED);
     }
@@ -151,8 +151,8 @@ impl Painter {
         self.add(PaintCmd::Circle {
             center,
             radius,
-            fill: Some(fill_color.into()),
-            outline: None,
+            fill: fill_color.into(),
+            outline: Default::default(),
         });
     }
 
@@ -160,8 +160,8 @@ impl Painter {
         self.add(PaintCmd::Circle {
             center,
             radius,
-            fill: None,
-            outline: Some(outline.into()),
+            fill: Default::default(),
+            outline: outline.into(),
         });
     }
 
@@ -169,8 +169,8 @@ impl Painter {
         self.add(PaintCmd::Rect {
             rect,
             corner_radius,
-            fill: Some(fill_color.into()),
-            outline: None,
+            fill: fill_color.into(),
+            outline: Default::default(),
         });
     }
 
@@ -178,8 +178,8 @@ impl Painter {
         self.add(PaintCmd::Rect {
             rect,
             corner_radius,
-            fill: None,
-            outline: Some(outline.into()),
+            fill: Default::default(),
+            outline: outline.into(),
         });
     }
 }

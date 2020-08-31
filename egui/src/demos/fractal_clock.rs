@@ -37,7 +37,7 @@ impl FractalClock {
             .default_rect(ctx.rect().expand(-42.0))
             .scroll(false)
             // Dark background frame to make it pop:
-            .frame(Frame::window(&ctx.style()).fill(Some(Srgba::black_alpha(250))))
+            .frame(Frame::window(&ctx.style()).fill(Srgba::black_alpha(250)))
             .show(ctx, |ui| self.ui(ui));
     }
 
@@ -54,8 +54,8 @@ impl FractalClock {
         self.fractal_ui(&painter);
 
         Frame::popup(ui.style())
-            .fill(Some(Rgba::luminance_alpha(0.02, 0.5).into()))
-            .outline(None)
+            .fill(Rgba::luminance_alpha(0.02, 0.5).into())
+            .outline(LineStyle::none())
             .show(&mut ui.left_column(320.0), |ui| {
                 CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
             });

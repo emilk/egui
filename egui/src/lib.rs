@@ -74,7 +74,7 @@ pub use {
     layout::*,
     math::*,
     memory::Memory,
-    paint::{color, PaintJobs, Rgba, Srgba, TextStyle, Texture},
+    paint::{color, LineStyle, PaintJobs, Rgba, Srgba, TextStyle, Texture},
     painter::Painter,
     style::Style,
     types::*,

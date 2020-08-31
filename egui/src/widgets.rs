@@ -233,7 +233,7 @@ impl Button {
             text: text.into(),
             text_color: None,
             text_style: TextStyle::Button,
-            fill: None,
+            fill: Default::default(),
             sense: Sense::click(),
         }
     }
@@ -289,11 +289,11 @@ impl Widget for Button {
         let rect = ui.allocate_space(size);
         let response = ui.interact(rect, id, sense);
         let text_cursor = response.rect.left_center() + vec2(padding.x, -0.5 * galley.size.y);
-        let bg_fill = fill.or(ui.style().interact(&response).bg_fill);
+        let fill = fill.unwrap_or(ui.style().interact(&response).bg_fill);
         ui.painter().add(PaintCmd::Rect {
             rect: response.rect,
             corner_radius: ui.style().interact(&response).corner_radius,
-            fill: bg_fill,
+            fill,
             outline: ui.style().interact(&response).bg_outline,
         });
         let stroke_color = ui.style().interact(&response).stroke_color;
@@ -372,8 +372,8 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ]),
                 closed: false,
-                outline: Some(LineStyle::new(ui.style().visuals.line_width, stroke_color)),
-                fill: None,
+                outline: LineStyle::new(ui.style().visuals.line_width, stroke_color),
+                fill: Default::default(),
             });
         }
 
@@ -448,8 +448,8 @@ impl Widget for RadioButton {
             painter.add(PaintCmd::Circle {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
-                fill: Some(stroke_color),
-                outline: None,
+                fill: stroke_color,
+                outline: Default::default(),
             });
         }
 
@@ -514,10 +514,6 @@ impl Widget for Separator {
         let line_width = line_width.unwrap_or_else(|| ui.style().visuals.line_width);
 
         let available_space = ui.available_finite().size();
-
-        // TODO: only allocate `spacing`, but not our full width/height
-        // as that would make the false impression that we *need* all that space,
-        // which would prevent regions from auto-shrinking
 
         let (points, rect) = match ui.layout().dir() {
             Direction::Horizontal => {

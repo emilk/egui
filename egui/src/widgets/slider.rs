@@ -164,18 +164,18 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
-                fill: Some(ui.style().visuals.background_fill),
-                outline: Some(LineStyle::new(1.0, Srgba::gray(200))), // TODO
+                fill: ui.style().visuals.background_fill,
+                outline: LineStyle::new(1.0, Srgba::gray(200)), // TODO
             });
 
             ui.painter().add(PaintCmd::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
-                fill: Some(ui.style().interact(response).main_fill),
-                outline: Some(LineStyle::new(
+                fill: ui.style().interact(response).main_fill,
+                outline: LineStyle::new(
                     ui.style().interact(response).stroke_width,
                     ui.style().interact(response).stroke_color,
-                )),
+                ),
             });
         }
     }
