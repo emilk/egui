@@ -7,7 +7,7 @@ pub struct Srgba {
     pub r: u8,
     pub g: u8,
     pub b: u8,
-    /// Linear space (not subject to sRGBA gamma conversion)
+    /// Alpha is in linear space (not subject to sRGBA gamma conversion)
     pub a: u8,
 }
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
@@ -110,7 +110,42 @@ impl Srgba {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+pub const TRANSPARENT: Srgba = srgba(0, 0, 0, 0);
+pub const BLACK: Srgba = srgba(0, 0, 0, 255);
+pub const LIGHT_GRAY: Srgba = srgba(220, 220, 220, 255);
+pub const GRAY: Srgba = srgba(160, 160, 160, 255);
+pub const WHITE: Srgba = srgba(255, 255, 255, 255);
+pub const RED: Srgba = srgba(255, 0, 0, 255);
+pub const GREEN: Srgba = srgba(0, 255, 0, 255);
+pub const BLUE: Srgba = srgba(0, 0, 255, 255);
+pub const YELLOW: Srgba = srgba(255, 255, 0, 255);
+pub const LIGHT_BLUE: Srgba = srgba(140, 160, 255, 255);
+
+// ----------------------------------------------------------------------------
+
 impl Rgba {
+    pub const TRANSPARENT: Rgba = Rgba::new(0.0, 0.0, 0.0, 0.0);
+    pub const BLACK: Rgba = Rgba::new(0.0, 0.0, 0.0, 1.0);
+    pub const WHITE: Rgba = Rgba::new(1.0, 1.0, 1.0, 1.0);
+    pub const RED: Rgba = Rgba::new(1.0, 0.0, 0.0, 1.0);
+    pub const GREEN: Rgba = Rgba::new(0.0, 1.0, 0.0, 1.0);
+    pub const BLUE: Rgba = Rgba::new(0.0, 0.0, 1.0, 1.0);
+
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
+
+    pub const fn gray(l: f32) -> Self {
+        Self {
+            r: l,
+            g: l,
+            b: l,
+            a: 1.0,
+        }
+    }
+
     pub fn luminance_alpha(l: f32, a: f32) -> Self {
         debug_assert!(0.0 <= l && l <= 1.0);
         debug_assert!(0.0 <= a && a <= 1.0);
@@ -122,13 +157,14 @@ impl Rgba {
         }
     }
 
-    pub fn white_alpha(l: f32) -> Self {
-        debug_assert!(0.0 <= l && l <= 1.0);
+    /// Transparent white
+    pub fn white_alpha(a: f32) -> Self {
+        debug_assert!(0.0 <= a && a <= 1.0);
         Self {
-            r: l,
-            g: l,
-            b: l,
-            a: l,
+            r: a,
+            g: a,
+            b: a,
+            a,
         }
     }
 
@@ -143,13 +179,38 @@ impl Rgba {
     }
 }
 
-pub const TRANSPARENT: Srgba = srgba(0, 0, 0, 0);
-pub const BLACK: Srgba = srgba(0, 0, 0, 255);
-pub const LIGHT_GRAY: Srgba = srgba(220, 220, 220, 255);
-pub const GRAY: Srgba = srgba(160, 160, 160, 255);
-pub const WHITE: Srgba = srgba(255, 255, 255, 255);
-pub const RED: Srgba = srgba(255, 0, 0, 255);
-pub const GREEN: Srgba = srgba(0, 255, 0, 255);
-pub const BLUE: Srgba = srgba(0, 0, 255, 255);
-pub const YELLOW: Srgba = srgba(255, 255, 0, 255);
-pub const LIGHT_BLUE: Srgba = srgba(140, 160, 255, 255);
+impl std::ops::Add for Rgba {
+    type Output = Rgba;
+    fn add(self, rhs: Rgba) -> Rgba {
+        Rgba {
+            r: self.r + rhs.r,
+            g: self.g + rhs.g,
+            b: self.b + rhs.b,
+            a: self.a + rhs.a,
+        }
+    }
+}
+
+impl std::ops::Mul<f32> for Rgba {
+    type Output = Rgba;
+    fn mul(self, factor: f32) -> Rgba {
+        Rgba {
+            r: self.r * factor,
+            g: self.g * factor,
+            b: self.b * factor,
+            a: self.a * factor,
+        }
+    }
+}
+
+impl std::ops::Mul<Rgba> for f32 {
+    type Output = Rgba;
+    fn mul(self, rgba: Rgba) -> Rgba {
+        Rgba {
+            r: self * rgba.r,
+            g: self * rgba.g,
+            b: self * rgba.b,
+            a: self * rgba.a,
+        }
+    }
+}

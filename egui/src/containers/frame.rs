@@ -18,7 +18,7 @@ impl Frame {
             margin: style.window_padding,
             corner_radius: style.window.corner_radius,
             fill: Some(style.background_fill),
-            outline: style.interact.inactive.rect_outline, // because we can resize windows
+            outline: style.interact.inactive.bg_outline, // because we can resize windows
         }
     }
 

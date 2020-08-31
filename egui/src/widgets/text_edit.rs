@@ -184,7 +184,7 @@ impl<'t> Widget for TextEdit<'t> {
                 rect: bg_rect,
                 corner_radius: ui.style().interact(&response).corner_radius,
                 fill: Some(ui.style().dark_bg_color),
-                outline: ui.style().interact(&response).rect_outline,
+                outline: ui.style().interact(&response).bg_outline,
             });
         }
 

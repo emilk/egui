@@ -567,7 +567,7 @@ fn paint_frame_interaction(
         path,
         closed: false,
         fill: None,
-        outline: style.rect_outline,
+        outline: style.bg_outline,
     });
 }
 
@@ -671,7 +671,7 @@ impl TitleBar {
             let y = content_rect.top() + ui.style().item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().interact.inactive.rect_outline.unwrap(),
+                ui.style().interact.inactive.bg_outline.unwrap(),
             );
         }
 

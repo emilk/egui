@@ -237,8 +237,8 @@ impl Prepared {
             }
 
             let style = ui.style();
-            let handle_fill = style.interact(&response).fill;
-            let handle_outline = style.interact(&response).rect_outline;
+            let handle_fill = style.interact(&response).main_fill;
+            let handle_outline = style.interact(&response).bg_outline;
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,

@@ -117,35 +117,35 @@ impl Default for Interact {
         Self {
             active: WidgetStyle {
                 bg_fill: Some(Srgba::black_alpha(128)),
-                fill: srgba(120, 120, 200, 255),
+                bg_outline: Some(LineStyle::new(2.0, WHITE)),
+                corner_radius: 0.0,
+                main_fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
-                rect_outline: Some(LineStyle::new(2.0, WHITE)),
-                corner_radius: 0.0,
             },
             hovered: WidgetStyle {
                 bg_fill: None,
-                fill: srgba(100, 100, 150, 255),
+                bg_outline: Some(LineStyle::new(1.0, WHITE)),
+                corner_radius: 2.0,
+                main_fill: srgba(100, 100, 150, 255),
                 stroke_color: Srgba::gray(240),
                 stroke_width: 1.5,
-                rect_outline: Some(LineStyle::new(1.0, WHITE)),
-                corner_radius: 2.0,
             },
             inactive: WidgetStyle {
                 bg_fill: None,
-                fill: srgba(60, 60, 80, 255),
+                bg_outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
+                corner_radius: 4.0,
+                main_fill: srgba(60, 60, 80, 255),
                 stroke_color: Srgba::gray(200), // Mustn't look grayed out!
                 stroke_width: 1.0,
-                rect_outline: Some(LineStyle::new(1.0, Srgba::gray(128))),
-                corner_radius: 4.0,
             },
             disabled: WidgetStyle {
                 bg_fill: None,
-                fill: srgba(50, 50, 50, 255),
+                bg_outline: Some(LineStyle::new(0.5, Srgba::gray(128))),
+                corner_radius: 4.0,
+                main_fill: srgba(50, 50, 50, 255),
                 stroke_color: Srgba::gray(128), // Should look grayed out
                 stroke_width: 0.5,
-                rect_outline: Some(LineStyle::new(0.5, Srgba::gray(128))),
-                corner_radius: 4.0,
             },
         }
     }
@@ -171,22 +171,28 @@ pub struct WidgetStyle {
     /// Background color of widget
     pub bg_fill: Option<Srgba>,
 
+    /// For surrounding rectangle of things that need it,
+    /// like buttons, the box of the checkbox, etc.
+    pub bg_outline: Option<LineStyle>,
+
+    /// Button frames etc
+    pub corner_radius: f32,
+
     /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
     /// When you need a fill.
-    pub fill: Srgba,
+    pub main_fill: Srgba,
 
     /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
     pub stroke_color: Srgba,
 
     /// For lines etc
     pub stroke_width: f32,
+}
 
-    /// For surrounding rectangle of things that need it,
-    /// like buttons, the box of the checkbox, etc.
-    pub rect_outline: Option<LineStyle>,
-
-    /// Button frames etc
-    pub corner_radius: f32,
+impl WidgetStyle {
+    pub fn line_style(&self) -> LineStyle {
+        LineStyle::new(self.stroke_width, self.stroke_color)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

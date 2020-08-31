@@ -63,11 +63,11 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
             let mut style = ui.style().clone();
             style.button_padding = vec2(2.0, 0.0);
             // style.interact.active.bg_fill = None;
-            style.interact.active.rect_outline = None;
+            style.interact.active.bg_outline = None;
             // style.interact.hovered.bg_fill = None;
-            style.interact.hovered.rect_outline = None;
+            style.interact.hovered.bg_outline = None;
             style.interact.inactive.bg_fill = None;
-            style.interact.inactive.rect_outline = None;
+            style.interact.inactive.bg_outline = None;
             ui.set_style(style);
 
             // Take full width and fixed height:
@@ -108,7 +108,7 @@ fn menu_impl<'c>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill(Some(ui.style().interact.active.fill));
+        button = button.fill(Some(ui.style().interact.active.main_fill));
     }
 
     let button_response = ui.add(button);
@@ -129,11 +129,11 @@ fn menu_impl<'c>(
                     let mut style = ui.style().clone();
                     style.button_padding = vec2(2.0, 0.0);
                     // style.interact.active.bg_fill = None;
-                    style.interact.active.rect_outline = None;
+                    style.interact.active.bg_outline = None;
                     // style.interact.hovered.bg_fill = None;
-                    style.interact.hovered.rect_outline = None;
+                    style.interact.hovered.bg_outline = None;
                     style.interact.inactive.bg_fill = None;
-                    style.interact.inactive.rect_outline = None;
+                    style.interact.inactive.bg_outline = None;
                     ui.set_style(style);
                     ui.set_layout(Layout::justified(Direction::Vertical));
                     add_contents(ui)
