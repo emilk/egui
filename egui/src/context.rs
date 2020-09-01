@@ -504,9 +504,8 @@ impl Context {
         use crate::containers::*;
 
         CollapsingHeader::new("Style")
-            .default_open(false)
+            .default_open(true)
             .show(ui, |ui| {
-                self.paint_options.lock().ui(ui);
                 self.style_ui(ui);
             });
 
@@ -517,6 +516,12 @@ impl Context {
                 font_definitions.ui(ui);
                 self.fonts().texture().ui(ui);
                 self.set_fonts(font_definitions);
+            });
+
+        CollapsingHeader::new("Painting")
+            .default_open(true)
+            .show(ui, |ui| {
+                self.paint_options.lock().ui(ui);
             });
     }
 

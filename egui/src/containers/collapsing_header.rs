@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     layout::Direction,
-    paint::{LineStyle, PaintCmd, TextStyle},
+    paint::{PaintCmd, TextStyle},
     widgets::Label,
     *,
 };
@@ -105,8 +105,7 @@ impl State {
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
-    let stroke_color = ui.style().interact(response).stroke_color;
-    let stroke_width = ui.style().interact(response).stroke_width;
+    let line_style = ui.style().interact(response).line_style();
 
     let rect = response.rect;
 
@@ -124,7 +123,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
         points,
         closed: true,
         fill: Default::default(),
-        outline: LineStyle::new(stroke_width, stroke_color),
+        outline: line_style,
     });
 }
 
@@ -183,17 +182,19 @@ impl CollapsingHeader {
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);
-        let galley = label.layout_width(ui, available.width() - ui.style().spacing.indent);
+        let galley = label.layout_width(ui, available.right() - text_pos.x);
         let text_max_x = text_pos.x + galley.size.x;
         let desired_width = text_max_x - available.left();
         let desired_width = desired_width.max(available.width());
 
-        let size = vec2(
+        let mut desired_size = vec2(
             desired_width,
             galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
         );
+        desired_size.y = desired_size.y.max(ui.style().spacing.clickable_diameter);
+        let rect = ui.allocate_space(desired_size);
+        let rect = rect.expand2(ui.style().spacing.button_expand);
 
-        let rect = ui.allocate_space(size);
         let response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(text_pos.x, response.rect.center().y - galley.size.y / 2.0);
 

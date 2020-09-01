@@ -45,11 +45,11 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [x] Pixel-perfect painting (round positions to nearest pixel).
     * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
     * [x] Fix thin rounded corners rendering bug (too bright)
+    * [x] Smoother animation (e.g. ease-out)? NO: animation are too brief for subtelty
     * [ ] Veriy alpha and sRGB correctness
         * [x] sRGBA decode in fragment shader
     * [ ] Thin circles look bad
     * [ ] Color picker
-    * [ ] Smoother animation (e.g. ease-out)?
 * Math
     * [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
 

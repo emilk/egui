@@ -34,6 +34,11 @@ pub struct Spacing {
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
 
+    /// Expand buttons by this much *after* allocating them.
+    /// This is then mostly a visual change (but also makes them easier to hit with the mouse).
+    /// This allows for compact layout where buttons actually eat into item_spacing a bit
+    pub button_expand: Vec2,
+
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
@@ -99,8 +104,8 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    /// Blink text cursor by this frequency. If None, always show the cursor.
-    pub cursor_blink_hz: Option<f32>,
+    /// Blink text cursor by this frequency. If 0, always show the cursor.
+    pub cursor_blink_hz: f32,
     pub text_cursor_width: f32,
 
     /// Allow child widgets to be just on the border and still have an outline with some thickness
@@ -152,7 +157,7 @@ pub struct WidgetVisuals {
     /// When you need a fill.
     pub main_fill: Srgba,
 
-    /// Stroke and text color of the interactive part of a component (button, slider grab, checkbox, ...)
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
     pub stroke_color: Srgba,
 
     /// For lines etc
@@ -181,11 +186,12 @@ impl Default for Style {
 impl Default for Spacing {
     fn default() -> Self {
         Self {
-            item_spacing: vec2(8.0, 4.0),
+            item_spacing: vec2(8.0, 6.0),
             window_padding: vec2(6.0, 6.0),
-            button_padding: vec2(4.0, 1.0),
+            button_padding: vec2(2.0, 0.0),
+            button_expand: vec2(1.0, 1.0),
             indent: 21.0,
-            clickable_diameter: 22.0,
+            clickable_diameter: 14.0, // TODO: automatically higher on touch screens
             slider_width: 140.0,
             icon_width: 14.0,
             menu_bar_height: 16.0,
@@ -207,13 +213,13 @@ impl Default for Visuals {
         Self {
             interacted: Default::default(),
             text_color: Srgba::gray(160),
-            line_width: 1.0,
+            line_width: 0.5,
             thin_outline: LineStyle::new(0.5, GRAY),
             background_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
-            resize_corner_size: 16.0,
-            cursor_blink_hz: None, // Some(1.0)
+            resize_corner_size: 12.0,
+            cursor_blink_hz: 0.0, // 1.0 looks good
             text_cursor_width: 2.0,
             clip_rect_margin: 3.0,
             debug_widget_rects: false,
@@ -228,30 +234,30 @@ impl Default for Interacted {
             active: WidgetVisuals {
                 bg_fill: Srgba::black_alpha(128),
                 bg_outline: LineStyle::new(2.0, WHITE),
-                corner_radius: 0.0,
+                corner_radius: 4.0,
                 main_fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
                 stroke_width: 2.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: TRANSPARENT,
-                bg_outline: LineStyle::new(1.0, WHITE),
-                corner_radius: 2.0,
+                bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),
+                bg_outline: LineStyle::new(1.0, Rgba::white_alpha(0.5)),
+                corner_radius: 4.0,
                 main_fill: srgba(100, 100, 150, 255),
                 stroke_color: Srgba::gray(240),
                 stroke_width: 1.5,
             },
             inactive: WidgetVisuals {
-                bg_fill: TRANSPARENT,
-                bg_outline: LineStyle::new(1.0, Srgba::gray(128)),
+                bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
+                bg_outline: LineStyle::new(1.0, Rgba::white_alpha(0.04)),
                 corner_radius: 4.0,
                 main_fill: srgba(60, 60, 80, 255),
-                stroke_color: Srgba::gray(200), // Mustn't look grayed out!
-                stroke_width: 1.0,
+                stroke_color: Srgba::gray(200), // Should NOT look grayed out!
+                stroke_width: 0.5,
             },
             disabled: WidgetVisuals {
                 bg_fill: TRANSPARENT,
-                bg_outline: LineStyle::new(0.5, Srgba::gray(128)),
+                bg_outline: LineStyle::new(0.5, Srgba::gray(70)),
                 corner_radius: 4.0,
                 main_fill: srgba(50, 50, 50, 255),
                 stroke_color: Srgba::gray(128), // Should look grayed out
@@ -294,6 +300,7 @@ impl Spacing {
             item_spacing,
             window_padding,
             button_padding,
+            button_expand,
             indent,
             clickable_diameter,
             slider_width,
@@ -301,9 +308,10 @@ impl Spacing {
             menu_bar_height,
         } = self;
 
-        ui_slider_vec2(ui, item_spacing, 0.0..=20.0, "item_spacing");
-        ui_slider_vec2(ui, window_padding, 0.0..=20.0, "window_padding");
-        ui_slider_vec2(ui, button_padding, 0.0..=20.0, "button_padding");
+        ui_slider_vec2(ui, item_spacing, 0.0..=10.0, "item_spacing");
+        ui_slider_vec2(ui, window_padding, 0.0..=10.0, "window_padding");
+        ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
+        ui_slider_vec2(ui, button_expand, 0.0..=10.0, "button_expand");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(clickable_diameter, 0.0..=40.0).text("clickable_diameter"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
@@ -400,7 +408,7 @@ impl Visuals {
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        let _ = cursor_blink_hz; // TODO
+        ui.add(Slider::f32(cursor_blink_hz, 0.0..=4.0).text("cursor_blink_hz"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
@@ -416,8 +424,9 @@ impl LineStyle {
     pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
         let Self { width, color } = self;
         ui.horizontal_centered(|ui| {
+            ui.style_mut().spacing.slider_width /= 2.0;
             ui.label(format!("{}: ", text));
-            ui.add(Slider::f32(width, 0.0..=10.0).text("width"));
+            ui.add(Slider::f32(width, 0.0..=5.0).text("width"));
             ui_color(ui, color, "color");
         });
     }
@@ -427,9 +436,8 @@ impl LineStyle {
 fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive<f32>, text: &str) {
     ui.horizontal_centered(|ui| {
         ui.label(format!("{}: ", text));
-        ui.add(Slider::f32(&mut value.x, range.clone()))
-            .tooltip_text("x");
-        ui.add(Slider::f32(&mut value.y, range)).tooltip_text("y");
+        ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
+        ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
     });
 }
 

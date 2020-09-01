@@ -280,7 +280,7 @@ pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle
     let corner = painter.round_pos_to_pixels(rect.right_bottom());
     let mut w = 2.0;
 
-    while w < 12.0 {
+    while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
             [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
             style,

@@ -164,8 +164,8 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
-                fill: ui.style().visuals.background_fill,
-                outline: LineStyle::new(1.0, Srgba::gray(200)), // TODO
+                fill: ui.style().visuals.interacted.inactive.bg_fill,
+                outline: ui.style().visuals.interacted.inactive.bg_outline,
             });
 
             ui.painter().add(PaintCmd::Circle {
