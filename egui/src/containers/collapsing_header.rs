@@ -105,7 +105,7 @@ impl State {
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
-    let stroke = ui.style().interact(response).stroke();
+    let stroke = ui.style().interact(response).stroke;
 
     let rect = response.rect;
 
@@ -224,7 +224,7 @@ impl CollapsingHeader {
             text_pos,
             galley,
             label.text_style,
-            ui.style().interact(&response).stroke_color,
+            ui.style().interact(&response).stroke.color,
         );
 
         painter.set(

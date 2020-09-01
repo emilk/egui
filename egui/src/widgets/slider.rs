@@ -172,10 +172,7 @@ impl<'a> Slider<'a> {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
                 fill: ui.style().interact(response).main_fill,
-                stroke: Stroke::new(
-                    ui.style().interact(response).stroke_width,
-                    ui.style().interact(response).stroke_color,
-                ),
+                stroke: ui.style().interact(response).stroke,
             });
         }
     }

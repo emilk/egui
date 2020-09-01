@@ -155,19 +155,10 @@ pub struct WidgetVisuals {
 
     /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
     /// When you need a fill.
-    pub main_fill: Srgba,
+    pub main_fill: Srgba, // TODO: just fill?
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
-    pub stroke_color: Srgba,
-
-    /// For lines etc
-    pub stroke_width: f32,
-}
-
-impl WidgetVisuals {
-    pub fn stroke(&self) -> Stroke {
-        Stroke::new(self.stroke_width, self.stroke_color)
-    }
+    pub stroke: Stroke,
 }
 
 // ----------------------------------------------------------------------------
@@ -236,32 +227,28 @@ impl Default for Interacted {
                 bg_stroke: Stroke::new(2.0, WHITE),
                 corner_radius: 4.0,
                 main_fill: srgba(120, 120, 200, 255),
-                stroke_color: WHITE,
-                stroke_width: 2.0,
+                stroke: Stroke::new(2.0, WHITE),
             },
             hovered: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.5)),
                 corner_radius: 4.0,
                 main_fill: srgba(100, 100, 150, 255),
-                stroke_color: Srgba::gray(240),
-                stroke_width: 1.5,
+                stroke: Stroke::new(1.5, Srgba::gray(240)),
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.04)),
                 corner_radius: 4.0,
                 main_fill: srgba(60, 60, 80, 255),
-                stroke_color: Srgba::gray(200), // Should NOT look grayed out!
-                stroke_width: 0.5,
+                stroke: Stroke::new(0.5, Srgba::gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
                 bg_fill: TRANSPARENT,
                 bg_stroke: Stroke::new(0.5, Srgba::gray(70)),
                 corner_radius: 4.0,
                 main_fill: srgba(50, 50, 50, 255),
-                stroke_color: Srgba::gray(128), // Should look grayed out
-                stroke_width: 0.5,
+                stroke: Stroke::new(0.5, Srgba::gray(128)), // Should look grayed out
             },
         }
     }
@@ -365,16 +352,14 @@ impl WidgetVisuals {
             bg_stroke,
             corner_radius,
             main_fill,
-            stroke_color,
-            stroke_width,
+            stroke,
         } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
         bg_stroke.ui(ui, "bg_stroke");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, main_fill, "main_fill");
-        ui_color(ui, stroke_color, "stroke_color");
-        ui.add(Slider::f32(stroke_width, 0.0..=10.0).text("stroke_width"));
+        stroke.ui(ui, "stroke");
     }
 }
 

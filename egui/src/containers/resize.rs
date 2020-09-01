@@ -270,9 +270,8 @@ impl Resize {
 use crate::paint::Stroke;
 
 pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
-    let color = ui.style().interact(response).stroke_color;
-    let width = ui.style().interact(response).stroke_width;
-    paint_resize_corner_with_style(ui, &response.rect, Stroke::new(width, color));
+    let stroke = ui.style().interact(response).stroke;
+    paint_resize_corner_with_style(ui, &response.rect, stroke);
 }
 
 pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, stroke: Stroke) {

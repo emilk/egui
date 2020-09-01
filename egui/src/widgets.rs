@@ -297,7 +297,7 @@ impl Widget for Button {
             fill,
             stroke: ui.style().interact(&response).bg_stroke,
         });
-        let stroke_color = ui.style().interact(&response).stroke_color;
+        let stroke_color = ui.style().interact(&response).stroke.color;
         let text_color = text_color.unwrap_or(stroke_color);
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
@@ -368,7 +368,7 @@ impl<'a> Widget for Checkbox<'a> {
             stroke: ui.style().interact(&response).bg_stroke,
         });
 
-        let stroke = ui.style().interact(&response).stroke();
+        let stroke = ui.style().interact(&response).stroke;
 
         if *checked {
             ui.painter().add(PaintCmd::Path {
@@ -442,7 +442,7 @@ impl Widget for RadioButton {
         );
 
         let bg_fill = ui.style().interact(&response).bg_fill;
-        let stroke_color = ui.style().interact(&response).stroke_color;
+        let stroke_color = ui.style().interact(&response).stroke.color;
 
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
 

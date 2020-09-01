@@ -45,7 +45,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
         center: pos2(circle_x, rect.center().y),
         radius: 0.75 * radius,
         fill: style.main_fill,
-        stroke: style.stroke(),
+        stroke: style.stroke,
     });
 
     // All done! Return the response so the user can check what happened
