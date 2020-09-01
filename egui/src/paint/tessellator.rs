@@ -232,8 +232,16 @@ impl Path {
             self.reserve(n);
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
             for i in 1..n - 1 {
-                let n0 = (points[i] - points[i - 1]).normalized().rot90();
-                let n1 = (points[i + 1] - points[i]).normalized().rot90();
+                let mut n0 = (points[i] - points[i - 1]).normalized().rot90();
+                let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
+
+                // Handle duplicated points (but not triplicated...):
+                if n0 == Vec2::zero() {
+                    n0 = n1;
+                } else if n1 == Vec2::zero() {
+                    n1 = n0;
+                }
+
                 let v = (n0 + n1) / 2.0;
                 let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
                 self.add_point(points[i], normal);
@@ -252,8 +260,19 @@ impl Path {
 
         // TODO: optimize
         for i in 0..n {
-            let n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
-            let n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
+            let mut n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
+            let mut n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
+
+            // Handle duplicated points (but not triplicated...):
+            if n0 == Vec2::zero() {
+                n0 = n1;
+            } else if n1 == Vec2::zero() {
+                n1 = n0;
+            }
+
+            // if n1 == Vec2::zero() {
+            //     continue
+            // }
             let v = (n0 + n1) / 2.0;
             let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
             self.add_point(points[i], normal);
