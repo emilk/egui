@@ -9,7 +9,7 @@ use {
     super::{
         color::{self, srgba, Rgba, Srgba, TRANSPARENT},
         fonts::Fonts,
-        LineStyle, PaintCmd,
+        PaintCmd, Stroke,
     },
     crate::math::*,
 };
@@ -170,9 +170,9 @@ impl Triangles {
 pub struct PathPoint {
     pos: Pos2,
 
-    /// For filled paths the normal is used for anti-aliasing (both outlines and filled areas).
+    /// For filled paths the normal is used for anti-aliasing (both strokes and filled areas).
     ///
-    /// For outlines the normal is also used for giving thickness to the path
+    /// For strokes the normal is also used for giving thickness to the path
     /// (i.e. in what direction to expand).
     ///
     /// The normal could be estimated by differences between successive points,
@@ -183,7 +183,7 @@ pub struct PathPoint {
 }
 
 /// A connected line (without thickness or gaps) which can be tessellated
-/// to either to an outline (with thickness) or a filled convex area.
+/// to either to a stroke (with thickness) or a filled convex area.
 /// Used as a scratch-pad during tesselation.
 #[derive(Clone, Debug, Default)]
 struct Path(Vec<PathPoint>);
@@ -418,15 +418,15 @@ fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out
     }
 }
 
-/// Tesselate the given path as an outline with thickness.
-fn paint_path_outline(
+/// Tesselate the given path as a stroke with thickness.
+fn stroke_path(
     path: &[PathPoint],
     path_type: PathType,
-    style: LineStyle,
+    stroke: Stroke,
     options: PaintOptions,
     out: &mut Triangles,
 ) {
-    if style.width <= 0.0 || style.color == color::TRANSPARENT {
+    if stroke.width <= 0.0 || stroke.color == color::TRANSPARENT {
         return;
     }
 
@@ -440,10 +440,10 @@ fn paint_path_outline(
     };
 
     if options.anti_alias {
-        let color_inner = style.color;
+        let color_inner = stroke.color;
         let color_outer = color::TRANSPARENT;
 
-        let thin_line = style.width <= options.aa_size;
+        let thin_line = stroke.width <= options.aa_size;
         if thin_line {
             /*
             We paint the line using three edges: outer, inner, outer.
@@ -453,7 +453,7 @@ fn paint_path_outline(
             */
 
             // Fade out as it gets thinner:
-            let color_inner = mul_color(color_inner, style.width / options.aa_size);
+            let color_inner = mul_color(color_inner, stroke.width / options.aa_size);
             if color_inner == color::TRANSPARENT {
                 return;
             }
@@ -502,8 +502,8 @@ fn paint_path_outline(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let inner_rad = 0.5 * (style.width - options.aa_size);
-                let outer_rad = 0.5 * (style.width + options.aa_size);
+                let inner_rad = 0.5 * (stroke.width - options.aa_size);
+                let outer_rad = 0.5 * (stroke.width + options.aa_size);
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
@@ -543,11 +543,11 @@ fn paint_path_outline(
             );
         }
 
-        let thin_line = style.width <= options.aa_size;
+        let thin_line = stroke.width <= options.aa_size;
         if thin_line {
             // Fade out thin lines rather than making them thinner
             let radius = options.aa_size / 2.0;
-            let color = mul_color(style.color, style.width / options.aa_size);
+            let color = mul_color(stroke.color, stroke.width / options.aa_size);
             if color == color::TRANSPARENT {
                 return;
             }
@@ -556,12 +556,12 @@ fn paint_path_outline(
                 out.vertices.push(vert(p.pos - radius * p.normal, color));
             }
         } else {
-            let radius = style.width / 2.0;
+            let radius = stroke.width / 2.0;
             for p in path {
                 out.vertices
-                    .push(vert(p.pos + radius * p.normal, style.color));
+                    .push(vert(p.pos + radius * p.normal, stroke.color));
                 out.vertices
-                    .push(vert(p.pos - radius * p.normal, style.color));
+                    .push(vert(p.pos - radius * p.normal, stroke.color));
             }
         }
     }
@@ -600,26 +600,26 @@ fn tessellate_paint_command(
             center,
             radius,
             fill,
-            outline,
+            stroke,
         } => {
             if radius > 0.0 {
                 path.add_circle(center, radius);
                 fill_closed_path(&path.0, fill, options, out);
-                paint_path_outline(&path.0, Closed, outline, options, out);
+                stroke_path(&path.0, Closed, stroke, options, out);
             }
         }
         PaintCmd::Triangles(triangles) => {
             out.append(&triangles);
         }
-        PaintCmd::LineSegment { points, style } => {
+        PaintCmd::LineSegment { points, stroke } => {
             path.add_line_segment(points);
-            paint_path_outline(&path.0, Open, style, options, out);
+            stroke_path(&path.0, Open, stroke, options, out);
         }
         PaintCmd::Path {
             points,
             closed,
             fill,
-            outline,
+            stroke,
         } => {
             if points.len() >= 2 {
                 if closed {
@@ -636,14 +636,14 @@ fn tessellate_paint_command(
                     fill_closed_path(&path.0, fill, options, out);
                 }
                 let typ = if closed { Closed } else { Open };
-                paint_path_outline(&path.0, typ, outline, options, out);
+                stroke_path(&path.0, typ, stroke, options, out);
             }
         }
         PaintCmd::Rect {
             mut rect,
             corner_radius,
             fill,
-            outline,
+            stroke,
         } => {
             if !rect.is_empty() {
                 // It is common to (sometimes accidentally) create an infinitely sized rectangle.
@@ -654,7 +654,7 @@ fn tessellate_paint_command(
                 path::rounded_rectangle(scratchpad_points, rect, corner_radius);
                 path.add_line_loop(scratchpad_points);
                 fill_closed_path(&path.0, fill, options, out);
-                paint_path_outline(&path.0, Closed, outline, options, out);
+                stroke_path(&path.0, Closed, stroke, options, out);
             }
         }
         PaintCmd::Text {
@@ -746,7 +746,7 @@ pub fn tessellate_paint_commands(
                     rect: *clip_rect,
                     corner_radius: 0.0,
                     fill: Default::default(),
-                    outline: LineStyle::new(2.0, srgba(150, 255, 150, 255)),
+                    stroke: Stroke::new(2.0, srgba(150, 255, 150, 255)),
                 },
                 options,
                 fonts,

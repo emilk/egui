@@ -38,7 +38,7 @@ impl<'open> Window<'open> {
             area,
             frame: None,
             resize: Resize::default()
-                .outline(false)
+                .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([420.0, 420.0]),
             scroll: None,
@@ -231,7 +231,7 @@ impl<'open> Window<'open> {
 
         {
             // BEGIN FRAME --------------------------------
-            let frame_outline = frame.outline;
+            let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
 
             let default_expanded = true;
@@ -270,7 +270,7 @@ impl<'open> Window<'open> {
 
             if possible.resizable {
                 // TODO: draw BEHIND contents ?
-                paint_resize_corner(&mut area_content_ui, outer_rect, frame_outline);
+                paint_resize_corner(&mut area_content_ui, outer_rect, frame_stroke);
             }
 
             // END FRAME --------------------------------
@@ -311,12 +311,12 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, outline: LineStyle) {
+fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, stroke: Stroke) {
     let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
     let handle_offset = -Vec2::splat(2.0);
     let corner_rect =
         Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
-    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, outline);
+    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke);
 }
 
 // ----------------------------------------------------------------------------
@@ -574,7 +574,7 @@ fn paint_frame_interaction(
         points,
         closed: false,
         fill: Default::default(),
-        outline: visuals.bg_outline,
+        stroke: visuals.bg_stroke,
     });
 }
 
@@ -678,7 +678,7 @@ impl TitleBar {
             let y = content_rect.top() + ui.style().spacing.item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.interacted.inactive.bg_outline,
+                ui.style().visuals.interacted.inactive.bg_stroke,
             );
         }
 

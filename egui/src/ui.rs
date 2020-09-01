@@ -367,7 +367,7 @@ impl Ui {
         let rect = self.reserve_space_impl(desired_size);
 
         if self.style().visuals.debug_widget_rects {
-            self.painter.rect_outline(rect, 0.0, (1.0, LIGHT_BLUE));
+            self.painter.rect_stroke(rect, 0.0, (1.0, LIGHT_BLUE));
 
             let color = color::srgba(200, 0, 0, 255);
             let width = 2.5;

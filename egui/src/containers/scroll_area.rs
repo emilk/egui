@@ -238,20 +238,20 @@ impl Prepared {
 
             let style = ui.style();
             let handle_fill = style.interact(&response).main_fill;
-            let handle_outline = style.interact(&response).bg_outline;
+            let handle_stroke = style.interact(&response).bg_stroke;
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill: ui.style().visuals.dark_bg_color,
-                outline: Default::default(),
+                stroke: Default::default(),
             });
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill: handle_fill,
-                outline: handle_outline,
+                stroke: handle_stroke,
             });
         }
 

@@ -11,7 +11,7 @@ mod texture_atlas;
 
 pub use {
     color::{Rgba, Srgba},
-    command::{LineStyle, PaintCmd},
+    command::{PaintCmd, Stroke},
     fonts::{FontDefinitions, Fonts, TextStyle},
     tessellator::{PaintJobs, PaintOptions, Triangles, Vertex},
     texture_atlas::Texture,

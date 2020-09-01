@@ -165,14 +165,14 @@ impl<'a> Slider<'a> {
                 rect: rail_rect,
                 corner_radius: rail_radius,
                 fill: ui.style().visuals.interacted.inactive.bg_fill,
-                outline: ui.style().visuals.interacted.inactive.bg_outline,
+                stroke: ui.style().visuals.interacted.inactive.bg_stroke,
             });
 
             ui.painter().add(PaintCmd::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
                 fill: ui.style().interact(response).main_fill,
-                outline: LineStyle::new(
+                stroke: Stroke::new(
                     ui.style().interact(response).stroke_width,
                     ui.style().interact(response).stroke_color,
                 ),

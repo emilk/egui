@@ -295,7 +295,7 @@ impl Widget for Button {
             rect: response.rect,
             corner_radius: ui.style().interact(&response).corner_radius,
             fill,
-            outline: ui.style().interact(&response).bg_outline,
+            stroke: ui.style().interact(&response).bg_stroke,
         });
         let stroke_color = ui.style().interact(&response).stroke_color;
         let text_color = text_color.unwrap_or(stroke_color);
@@ -365,10 +365,10 @@ impl<'a> Widget for Checkbox<'a> {
             rect: big_icon_rect,
             corner_radius: ui.style().interact(&response).corner_radius,
             fill: ui.style().interact(&response).bg_fill,
-            outline: ui.style().interact(&response).bg_outline,
+            stroke: ui.style().interact(&response).bg_stroke,
         });
 
-        let line_style = ui.style().interact(&response).line_style();
+        let stroke = ui.style().interact(&response).stroke();
 
         if *checked {
             ui.painter().add(PaintCmd::Path {
@@ -378,12 +378,12 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 closed: false,
-                outline: line_style,
+                stroke,
                 fill: Default::default(),
             });
         }
 
-        let text_color = text_color.unwrap_or(line_style.color);
+        let text_color = text_color.unwrap_or(stroke.color);
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -452,7 +452,7 @@ impl Widget for RadioButton {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0,
             fill: bg_fill,
-            outline: ui.style().interact(&response).bg_outline,
+            stroke: ui.style().interact(&response).bg_stroke,
         });
 
         if checked {
@@ -460,7 +460,7 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: stroke_color,
-                outline: Default::default(),
+                stroke: Default::default(),
             });
         }
 

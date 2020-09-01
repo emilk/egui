@@ -105,7 +105,7 @@ impl State {
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
-    let line_style = ui.style().interact(response).line_style();
+    let stroke = ui.style().interact(response).stroke();
 
     let rect = response.rect;
 
@@ -123,7 +123,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
         points,
         closed: true,
         fill: Default::default(),
-        outline: line_style,
+        stroke,
     });
 }
 
@@ -233,7 +233,7 @@ impl CollapsingHeader {
                 rect: response.rect,
                 corner_radius: ui.style().interact(&response).corner_radius,
                 fill: ui.style().interact(&response).bg_fill,
-                outline: Default::default(),
+                stroke: Default::default(),
             },
         );
 

@@ -55,7 +55,7 @@ impl FractalClock {
 
         Frame::popup(ui.style())
             .fill(Rgba::luminance_alpha(0.02, 0.5).into())
-            .outline(LineStyle::none())
+            .stroke(Stroke::none())
             .show(&mut ui.left_column(320.0), |ui| {
                 CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
             });

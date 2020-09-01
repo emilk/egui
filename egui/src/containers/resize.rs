@@ -28,7 +28,7 @@ pub struct Resize {
 
     default_size: Vec2,
 
-    outline: bool,
+    with_stroke: bool,
 }
 
 impl Default for Resize {
@@ -38,7 +38,7 @@ impl Default for Resize {
             resizable: true,
             min_size: Vec2::splat(16.0),
             default_size: vec2(320.0, 128.0), // TODO: preferred size of `Resize` area.
-            outline: true,
+            with_stroke: true,
         }
     }
 }
@@ -110,8 +110,8 @@ impl Resize {
         self
     }
 
-    pub fn outline(mut self, outline: bool) -> Self {
-        self.outline = outline;
+    pub fn with_stroke(mut self, with_stroke: bool) -> Self {
+        self.with_stroke = with_stroke;
         self
     }
 }
@@ -215,7 +215,7 @@ impl Resize {
 
         // ------------------------------
 
-        if self.outline || self.resizable {
+        if self.with_stroke || self.resizable {
             // We show how large we are,
             // so we must follow the contents:
 
@@ -231,14 +231,14 @@ impl Resize {
 
         // ------------------------------
 
-        if self.outline && corner_response.is_some() {
+        if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.top_left(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.painter().add(paint::PaintCmd::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),
-                outline: ui.style().visuals.thin_outline,
+                stroke: ui.style().visuals.thin_stroke,
             });
         }
 
@@ -267,15 +267,15 @@ impl Resize {
     }
 }
 
-use crate::paint::LineStyle;
+use crate::paint::Stroke;
 
 pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
     let color = ui.style().interact(response).stroke_color;
     let width = ui.style().interact(response).stroke_width;
-    paint_resize_corner_with_style(ui, &response.rect, LineStyle::new(width, color));
+    paint_resize_corner_with_style(ui, &response.rect, Stroke::new(width, color));
 }
 
-pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle) {
+pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, stroke: Stroke) {
     let painter = ui.painter();
     let corner = painter.round_pos_to_pixels(rect.right_bottom());
     let mut w = 2.0;
@@ -283,7 +283,7 @@ pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, style: LineStyle
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
             [pos2(corner.x - w, corner.y), pos2(corner.x, corner.y - w)],
-            style,
+            stroke,
         );
         w += 4.0;
     }

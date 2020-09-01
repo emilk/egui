@@ -405,11 +405,11 @@ impl DemoWindow {
                     let c = painter.clip_rect().center();
                     let r = painter.clip_rect().width() / 2.0 - 1.0;
                     let color = Srgba::gray(128);
-                    let line_style = LineStyle::new(1.0, color);
-                    painter.circle_outline(c, r, line_style);
-                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], line_style);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], line_style);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], line_style);
+                    let stroke = Stroke::new(1.0, color);
+                    painter.circle_stroke(c, r, stroke);
+                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+                    painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+                    painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
                 });
             });
 
@@ -584,7 +584,7 @@ impl BoxPainting {
                     pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
                     self.size,
                 ),
-                outline: LineStyle::new(self.stroke_width, WHITE),
+                stroke: Stroke::new(self.stroke_width, WHITE),
             });
         }
         ui.painter().extend(cmds);
@@ -655,7 +655,7 @@ impl Painting {
                 painter.add(PaintCmd::Path {
                     points,
                     closed: false,
-                    outline: LineStyle::new(self.line_width, LIGHT_GRAY),
+                    stroke: Stroke::new(self.line_width, LIGHT_GRAY),
                     fill: Default::default(),
                 });
             }

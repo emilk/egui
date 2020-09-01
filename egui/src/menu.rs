@@ -15,7 +15,7 @@
 //! }
 //! ```
 
-use crate::{color::TRANSPARENT, paint::LineStyle, widgets::*, *};
+use crate::{color::TRANSPARENT, paint::Stroke, widgets::*, *};
 
 /// What is saved between frames.
 #[derive(Clone, Copy, Debug)]
@@ -63,11 +63,11 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
             let mut style = ui.style().clone();
             style.spacing.button_padding = vec2(2.0, 0.0);
             // style.visuals.interacted.active.bg_fill = TRANSPARENT;
-            style.visuals.interacted.active.bg_outline = LineStyle::none();
+            style.visuals.interacted.active.bg_stroke = Stroke::none();
             // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
-            style.visuals.interacted.hovered.bg_outline = LineStyle::none();
+            style.visuals.interacted.hovered.bg_stroke = Stroke::none();
             style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
-            style.visuals.interacted.inactive.bg_outline = LineStyle::none();
+            style.visuals.interacted.inactive.bg_stroke = Stroke::none();
             ui.set_style(style);
 
             // Take full width and fixed height:
@@ -121,7 +121,7 @@ fn menu_impl<'c>(
             .fixed_pos(button_response.rect.left_bottom());
         let frame = Frame::menu(ui.style());
 
-        let resize = Resize::default().auto_sized().outline(false);
+        let resize = Resize::default().auto_sized().with_stroke(false);
 
         let menu_response = area.show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
@@ -129,11 +129,11 @@ fn menu_impl<'c>(
                     let mut style = ui.style().clone();
                     style.spacing.button_padding = vec2(2.0, 0.0);
                     // style.visuals.interacted.active.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.active.bg_outline = LineStyle::none();
+                    style.visuals.interacted.active.bg_stroke = Stroke::none();
                     // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.hovered.bg_outline = LineStyle::none();
+                    style.visuals.interacted.hovered.bg_stroke = Stroke::none();
                     style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.inactive.bg_outline = LineStyle::none();
+                    style.visuals.interacted.inactive.bg_stroke = Stroke::none();
                     ui.set_style(style);
                     ui.set_layout(Layout::justified(Direction::Vertical));
                     add_contents(ui)

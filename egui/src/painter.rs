@@ -4,7 +4,7 @@ use crate::{
     anchor_rect, color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
-    paint::{font, Fonts, LineStyle, PaintCmd, TextStyle},
+    paint::{font, Fonts, PaintCmd, Stroke, TextStyle},
     Align, Context, Layer, Srgba,
 };
 
@@ -115,7 +115,7 @@ impl Painter {
 /// ## Debug painting
 impl Painter {
     pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: impl Into<String>) {
-        self.rect_outline(rect, 0.0, (1.0, color));
+        self.rect_stroke(rect, 0.0, (1.0, color));
         let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
         self.text(rect.min, anchor, text.into(), text_style, color);
@@ -132,7 +132,7 @@ impl Painter {
             rect: rect.expand(2.0),
             corner_radius: 0.0,
             fill: Srgba::black_alpha(240),
-            outline: LineStyle::new(1.0, color::RED),
+            stroke: Stroke::new(1.0, color::RED),
         });
         self.galley(rect.min, galley, text_style, color::RED);
     }
@@ -140,10 +140,10 @@ impl Painter {
 
 /// # Paint different primitives
 impl Painter {
-    pub fn line_segment(&self, points: [Pos2; 2], style: impl Into<LineStyle>) {
+    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
         self.add(PaintCmd::LineSegment {
             points,
-            style: style.into(),
+            stroke: stroke.into(),
         });
     }
 
@@ -152,16 +152,16 @@ impl Painter {
             center,
             radius,
             fill: fill_color.into(),
-            outline: Default::default(),
+            stroke: Default::default(),
         });
     }
 
-    pub fn circle_outline(&self, center: Pos2, radius: f32, outline: impl Into<LineStyle>) {
+    pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
         self.add(PaintCmd::Circle {
             center,
             radius,
             fill: Default::default(),
-            outline: outline.into(),
+            stroke: stroke.into(),
         });
     }
 
@@ -170,16 +170,16 @@ impl Painter {
             rect,
             corner_radius,
             fill: fill_color.into(),
-            outline: Default::default(),
+            stroke: Default::default(),
         });
     }
 
-    pub fn rect_outline(&self, rect: Rect, corner_radius: f32, outline: impl Into<LineStyle>) {
+    pub fn rect_stroke(&self, rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) {
         self.add(PaintCmd::Rect {
             rect,
             corner_radius,
             fill: Default::default(),
-            outline: outline.into(),
+            stroke: stroke.into(),
         });
     }
 }

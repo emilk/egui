@@ -1,6 +1,6 @@
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, math::*, paint::LineStyle, types::*};
+use crate::{color::*, math::*, paint::Stroke, types::*};
 
 /// Specifies the look and feel of a `Ui`.
 #[derive(Clone, Debug)]
@@ -92,7 +92,7 @@ pub struct Visuals {
     /// For stuff like check marks in check boxes.
     pub line_width: f32,
 
-    pub thin_outline: LineStyle,
+    pub thin_stroke: Stroke,
 
     /// e.g. the background of windows
     pub background_fill: Srgba,
@@ -108,7 +108,7 @@ pub struct Visuals {
     pub cursor_blink_hz: f32,
     pub text_cursor_width: f32,
 
-    /// Allow child widgets to be just on the border and still have an outline with some thickness
+    /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
 
     // -----------------------------------------------
@@ -148,7 +148,7 @@ pub struct WidgetVisuals {
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
-    pub bg_outline: LineStyle,
+    pub bg_stroke: Stroke,
 
     /// Button frames etc
     pub corner_radius: f32,
@@ -165,8 +165,8 @@ pub struct WidgetVisuals {
 }
 
 impl WidgetVisuals {
-    pub fn line_style(&self) -> LineStyle {
-        LineStyle::new(self.stroke_width, self.stroke_color)
+    pub fn stroke(&self) -> Stroke {
+        Stroke::new(self.stroke_width, self.stroke_color)
     }
 }
 
@@ -214,7 +214,7 @@ impl Default for Visuals {
             interacted: Default::default(),
             text_color: Srgba::gray(160),
             line_width: 0.5,
-            thin_outline: LineStyle::new(0.5, GRAY),
+            thin_stroke: Stroke::new(0.5, GRAY),
             background_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
@@ -233,7 +233,7 @@ impl Default for Interacted {
         Self {
             active: WidgetVisuals {
                 bg_fill: Srgba::black_alpha(128),
-                bg_outline: LineStyle::new(2.0, WHITE),
+                bg_stroke: Stroke::new(2.0, WHITE),
                 corner_radius: 4.0,
                 main_fill: srgba(120, 120, 200, 255),
                 stroke_color: WHITE,
@@ -241,7 +241,7 @@ impl Default for Interacted {
             },
             hovered: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),
-                bg_outline: LineStyle::new(1.0, Rgba::white_alpha(0.5)),
+                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.5)),
                 corner_radius: 4.0,
                 main_fill: srgba(100, 100, 150, 255),
                 stroke_color: Srgba::gray(240),
@@ -249,7 +249,7 @@ impl Default for Interacted {
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
-                bg_outline: LineStyle::new(1.0, Rgba::white_alpha(0.04)),
+                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.04)),
                 corner_radius: 4.0,
                 main_fill: srgba(60, 60, 80, 255),
                 stroke_color: Srgba::gray(200), // Should NOT look grayed out!
@@ -257,7 +257,7 @@ impl Default for Interacted {
             },
             disabled: WidgetVisuals {
                 bg_fill: TRANSPARENT,
-                bg_outline: LineStyle::new(0.5, Srgba::gray(70)),
+                bg_stroke: Stroke::new(0.5, Srgba::gray(70)),
                 corner_radius: 4.0,
                 main_fill: srgba(50, 50, 50, 255),
                 stroke_color: Srgba::gray(128), // Should look grayed out
@@ -362,7 +362,7 @@ impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             bg_fill,
-            bg_outline,
+            bg_stroke,
             corner_radius,
             main_fill,
             stroke_color,
@@ -370,7 +370,7 @@ impl WidgetVisuals {
         } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
-        bg_outline.ui(ui, "bg_outline");
+        bg_stroke.ui(ui, "bg_stroke");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, main_fill, "main_fill");
         ui_color(ui, stroke_color, "stroke_color");
@@ -388,7 +388,7 @@ impl Visuals {
             interacted,
             text_color,
             line_width,
-            thin_outline,
+            thin_stroke,
             background_fill,
             dark_bg_color,
             window_corner_radius,
@@ -403,7 +403,7 @@ impl Visuals {
         ui.collapsing("interacted", |ui| interacted.ui(ui));
         ui_color(ui, text_color, "text_color");
         ui.add(Slider::f32(line_width, 0.0..=10.0).text("line_width"));
-        thin_outline.ui(ui, "thin_outline");
+        thin_stroke.ui(ui, "thin_stroke");
         ui_color(ui, background_fill, "background_fill");
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
@@ -420,7 +420,7 @@ impl Visuals {
     }
 }
 
-impl LineStyle {
+impl Stroke {
     pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
         let Self { width, color } = self;
         ui.horizontal_centered(|ui| {

@@ -9,7 +9,7 @@ pub struct Frame {
     pub margin: Vec2,
     pub corner_radius: f32,
     pub fill: Srgba,
-    pub outline: LineStyle,
+    pub stroke: Stroke,
 }
 
 impl Frame {
@@ -18,7 +18,7 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.window_corner_radius,
             fill: style.visuals.background_fill,
-            outline: style.visuals.interacted.inactive.bg_outline, // because we can resize windows
+            stroke: style.visuals.interacted.inactive.bg_stroke, // because we can resize windows
         }
     }
 
@@ -27,7 +27,7 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 0.0,
             fill: Default::default(),
-            outline: LineStyle::new(0.5, Srgba::gray(128)),
+            stroke: Stroke::new(0.5, Srgba::gray(128)),
         }
     }
 
@@ -36,7 +36,7 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
             fill: style.visuals.background_fill,
-            outline: LineStyle::new(1.0, Srgba::gray(128)),
+            stroke: Stroke::new(1.0, Srgba::gray(128)),
         }
     }
 
@@ -45,7 +45,7 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: 5.0,
             fill: style.visuals.background_fill,
-            outline: LineStyle::new(1.0, Srgba::gray(128)),
+            stroke: Stroke::new(1.0, Srgba::gray(128)),
         }
     }
 
@@ -54,8 +54,8 @@ impl Frame {
         self
     }
 
-    pub fn outline(mut self, outline: LineStyle) -> Self {
-        self.outline = outline;
+    pub fn stroke(mut self, stroke: Stroke) -> Self {
+        self.stroke = stroke;
         self
     }
 }
@@ -111,7 +111,7 @@ impl Prepared {
             PaintCmd::Rect {
                 corner_radius: frame.corner_radius,
                 fill: frame.fill,
-                outline: frame.outline,
+                stroke: frame.stroke,
                 rect: outer_rect,
             },
         );

@@ -12,11 +12,11 @@ pub enum PaintCmd {
         center: Pos2,
         radius: f32,
         fill: Srgba,
-        outline: LineStyle,
+        stroke: Stroke,
     },
     LineSegment {
         points: [Pos2; 2],
-        style: LineStyle,
+        stroke: Stroke,
     },
     Path {
         points: Vec<Pos2>,
@@ -24,13 +24,13 @@ pub enum PaintCmd {
         /// This is required if `fill != TRANSPARENT`.
         closed: bool,
         fill: Srgba,
-        outline: LineStyle,
+        stroke: Stroke,
     },
     Rect {
         rect: Rect,
         corner_radius: f32,
         fill: Srgba,
-        outline: LineStyle,
+        stroke: Stroke,
     },
     Text {
         /// Top left corner of the first character.
@@ -45,12 +45,12 @@ pub enum PaintCmd {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct LineStyle {
+pub struct Stroke {
     pub width: f32,
     pub color: Srgba,
 }
 
-impl LineStyle {
+impl Stroke {
     pub fn none() -> Self {
         Self::new(0.0, crate::color::TRANSPARENT)
     }
@@ -63,11 +63,11 @@ impl LineStyle {
     }
 }
 
-impl<Color> From<(f32, Color)> for LineStyle
+impl<Color> From<(f32, Color)> for Stroke
 where
     Color: Into<Srgba>,
 {
-    fn from((width, color): (f32, Color)) -> LineStyle {
-        LineStyle::new(width, color)
+    fn from((width, color): (f32, Color)) -> Stroke {
+        Stroke::new(width, color)
     }
 }
