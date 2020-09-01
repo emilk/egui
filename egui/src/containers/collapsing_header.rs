@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     layout::Direction,
-    paint::{LineStyle, PaintCmd, Path, TextStyle},
+    paint::{LineStyle, PaintCmd, TextStyle},
     widgets::Label,
     *,
 };
@@ -112,7 +112,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
-    let mut points = [rect.left_top(), rect.right_top(), rect.center_bottom()];
+    let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     let rotation = Vec2::angled(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
     for p in &mut points {
         let v = *p - rect.center();
@@ -121,7 +121,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
     }
 
     ui.painter().add(PaintCmd::Path {
-        path: Path::from_point_loop(&points),
+        points,
         closed: true,
         fill: Default::default(),
         outline: LineStyle::new(stroke_width, stroke_color),

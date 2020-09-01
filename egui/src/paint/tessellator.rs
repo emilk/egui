@@ -184,32 +184,13 @@ pub struct PathPoint {
 
 /// A connected line (without thickness or gaps) which can be tessellated
 /// to either to an outline (with thickness) or a filled convex area.
+/// Used as a scratch-pad during tesselation.
 #[derive(Clone, Debug, Default)]
-pub struct Path(Vec<PathPoint>);
+struct Path(Vec<PathPoint>);
 
 impl Path {
-    pub fn from_point_loop(points: &[Pos2]) -> Self {
-        let mut path = Self::default();
-        path.add_line_loop(points);
-        path
-    }
-
-    pub fn from_open_points(points: &[Pos2]) -> Self {
-        let mut path = Self::default();
-        path.add_open_points(points);
-        path
-    }
-
     pub fn clear(&mut self) {
         self.0.clear();
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
     }
 
     pub fn reserve(&mut self, additional: usize) {
@@ -247,14 +228,15 @@ impl Path {
             // Common case optimization:
             self.add_line_segment([points[0], points[1]]);
         } else {
+            // TODO: optimize
             self.reserve(n);
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
             for i in 1..n - 1 {
-                let n0 = (points[i] - points[i - 1]).normalized().rot90(); // TODO: don't calculate each normal twice!
-                let n1 = (points[i + 1] - points[i]).normalized().rot90(); // TODO: don't calculate each normal twice!
+                let n0 = (points[i] - points[i - 1]).normalized().rot90();
+                let n1 = (points[i + 1] - points[i]).normalized().rot90();
                 let v = (n0 + n1) / 2.0;
-                let normal = v / v.length_sq();
-                self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
+                let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
+                self.add_point(points[i], normal);
             }
             self.add_point(
                 points[n - 1],
@@ -273,22 +255,20 @@ impl Path {
             let n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
             let n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
             let v = (n0 + n1) / 2.0;
-            let normal = v / v.length_sq();
-            self.add_point(points[i], normal); // TODO: handle VERY sharp turns better
+            let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
+            self.add_point(points[i], normal);
         }
     }
+}
 
-    pub fn add_rectangle(&mut self, rect: Rect) {
-        let min = rect.min;
-        let max = rect.max;
-        self.reserve(4);
-        self.add_point(pos2(min.x, min.y), vec2(-1.0, -1.0));
-        self.add_point(pos2(max.x, min.y), vec2(1.0, -1.0));
-        self.add_point(pos2(max.x, max.y), vec2(1.0, 1.0));
-        self.add_point(pos2(min.x, max.y), vec2(-1.0, 1.0));
-    }
+pub(crate) mod path {
+    //! Helpers for constructing paths
+    use super::*;
 
-    pub fn add_rounded_rectangle(&mut self, rect: Rect, corner_radius: f32) {
+    /// overwrites existing points
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, corner_radius: f32) {
+        path.clear();
+
         let min = rect.min;
         let max = rect.max;
 
@@ -297,12 +277,18 @@ impl Path {
             .min(rect.height() * 0.5);
 
         if cr <= 0.0 {
-            self.add_rectangle(rect);
+            let min = rect.min;
+            let max = rect.max;
+            path.reserve(4);
+            path.push(pos2(min.x, min.y));
+            path.push(pos2(max.x, min.y));
+            path.push(pos2(max.x, max.y));
+            path.push(pos2(min.x, max.y));
         } else {
-            self.add_circle_quadrant(pos2(max.x - cr, max.y - cr), cr, 0.0);
-            self.add_circle_quadrant(pos2(min.x + cr, max.y - cr), cr, 1.0);
-            self.add_circle_quadrant(pos2(min.x + cr, min.y + cr), cr, 2.0);
-            self.add_circle_quadrant(pos2(max.x - cr, min.y + cr), cr, 3.0);
+            add_circle_quadrant(path, pos2(max.x - cr, max.y - cr), cr, 0.0);
+            add_circle_quadrant(path, pos2(min.x + cr, max.y - cr), cr, 1.0);
+            add_circle_quadrant(path, pos2(min.x + cr, min.y + cr), cr, 2.0);
+            add_circle_quadrant(path, pos2(max.x - cr, min.y + cr), cr, 3.0);
         }
     }
 
@@ -324,21 +310,20 @@ impl Path {
     // * angle 3 * TAU / 4 = top
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
-    pub fn add_circle_quadrant(&mut self, center: Pos2, radius: f32, quadrant: f32) {
+    pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
         // TODO: optimize with precalculated vertices for some radii ranges
 
         let n = (radius * 0.75).round() as i32; // TODO: tweak a bit more
         let n = clamp(n, 2..=32);
-        self.reserve(n as usize + 1);
         const RIGHT_ANGLE: f32 = TAU / 4.0;
+        path.reserve(n as usize + 1);
         for i in 0..=n {
             let angle = remap(
                 i as f32,
                 0.0..=n as f32,
                 quadrant * RIGHT_ANGLE..=(quadrant + 1.0) * RIGHT_ANGLE,
             );
-            let normal = vec2(angle.cos(), angle.sin());
-            self.add_point(center + radius * normal, normal);
+            path.push(center + radius * Vec2::angled(angle));
         }
     }
 }
@@ -374,12 +359,7 @@ impl Default for PaintOptions {
 }
 
 /// Tesselate the given convex area into a polygon.
-pub fn fill_closed_path(
-    path: &[PathPoint],
-    color: Srgba,
-    options: PaintOptions,
-    out: &mut Triangles,
-) {
+fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out: &mut Triangles) {
     if color == color::TRANSPARENT {
         return;
     }
@@ -420,7 +400,7 @@ pub fn fill_closed_path(
 }
 
 /// Tesselate the given path as an outline with thickness.
-pub fn paint_path_outline(
+fn paint_path_outline(
     path: &[PathPoint],
     path_type: PathType,
     style: LineStyle,
@@ -584,11 +564,12 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 /// * `out`: where the triangles are put
 /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
 ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-pub fn tessellate_paint_command(
+fn tessellate_paint_command(
     command: PaintCmd,
     options: PaintOptions,
     fonts: &Fonts,
     out: &mut Triangles,
+    scratchpad_points: &mut Vec<Pos2>,
     scratchpad_path: &mut Path,
 ) {
     let path = scratchpad_path;
@@ -616,12 +597,18 @@ pub fn tessellate_paint_command(
             paint_path_outline(&path.0, Open, style, options, out);
         }
         PaintCmd::Path {
-            path,
+            points,
             closed,
             fill,
             outline,
         } => {
-            if path.len() >= 2 {
+            if points.len() >= 2 {
+                if closed {
+                    path.add_line_loop(&points);
+                } else {
+                    path.add_open_points(&points);
+                }
+
                 if fill != TRANSPARENT {
                     debug_assert!(
                         closed,
@@ -645,7 +632,8 @@ pub fn tessellate_paint_command(
                 rect.min = rect.min.max(pos2(-1e7, -1e7));
                 rect.max = rect.max.min(pos2(1e7, 1e7));
 
-                path.add_rounded_rectangle(rect, corner_radius);
+                path::rounded_rectangle(scratchpad_points, rect, corner_radius);
+                path.add_line_loop(scratchpad_points);
                 fill_closed_path(&path.0, fill, options, out);
                 paint_path_outline(&path.0, Closed, outline, options, out);
             }
@@ -710,6 +698,7 @@ pub fn tessellate_paint_commands(
     options: PaintOptions,
     fonts: &Fonts,
 ) -> Vec<(Rect, Triangles)> {
+    let mut scratchpad_points = Vec::new();
     let mut scratchpad_path = Path::default();
 
     let mut jobs = PaintJobs::default();
@@ -721,7 +710,14 @@ pub fn tessellate_paint_commands(
         }
 
         let out = &mut jobs.last_mut().unwrap().1;
-        tessellate_paint_command(cmd, options, fonts, out, &mut scratchpad_path);
+        tessellate_paint_command(
+            cmd,
+            options,
+            fonts,
+            out,
+            &mut scratchpad_points,
+            &mut scratchpad_path,
+        );
     }
 
     if options.debug_paint_clip_rects {
@@ -736,6 +732,7 @@ pub fn tessellate_paint_commands(
                 options,
                 fonts,
                 triangles,
+                &mut scratchpad_points,
                 &mut scratchpad_path,
             )
         }

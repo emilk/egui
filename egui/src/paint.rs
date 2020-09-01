@@ -13,6 +13,6 @@ pub use {
     color::{Rgba, Srgba},
     command::{LineStyle, PaintCmd},
     fonts::{FontDefinitions, Fonts, TextStyle},
-    tessellator::{PaintJobs, PaintOptions, Path, Triangles, Vertex},
+    tessellator::{PaintJobs, PaintOptions, Triangles, Vertex},
     texture_atlas::Texture,
 };

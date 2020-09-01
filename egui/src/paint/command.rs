@@ -1,5 +1,5 @@
 use {
-    super::{font::Galley, fonts::TextStyle, Path, Srgba, Triangles},
+    super::{font::Galley, fonts::TextStyle, Srgba, Triangles},
     crate::math::{Pos2, Rect},
 };
 
@@ -19,7 +19,9 @@ pub enum PaintCmd {
         style: LineStyle,
     },
     Path {
-        path: Path,
+        points: Vec<Pos2>,
+        /// If true, connect the first and last of the points together.
+        /// This is required if `fill != TRANSPARENT`.
         closed: bool,
         fill: Srgba,
         outline: LineStyle,

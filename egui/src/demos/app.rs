@@ -653,7 +653,7 @@ impl Painting {
             if line.len() >= 2 {
                 let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
                 painter.add(PaintCmd::Path {
-                    path: Path::from_open_points(&points),
+                    points,
                     closed: false,
                     outline: LineStyle::new(self.line_width, LIGHT_GRAY),
                     fill: Default::default(),

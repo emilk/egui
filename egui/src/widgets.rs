@@ -366,11 +366,11 @@ impl<'a> Widget for Checkbox<'a> {
 
         if *checked {
             ui.painter().add(PaintCmd::Path {
-                path: Path::from_open_points(&[
+                points: vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
-                ]),
+                ],
                 closed: false,
                 outline: LineStyle::new(ui.style().visuals.line_width, stroke_color),
                 fill: Default::default(),
