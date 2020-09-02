@@ -77,7 +77,15 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
 /// Round a value to the given number of decimal places.
-pub fn round_to_precision(value: f32, decimal_places: usize) -> f32 {
+pub fn round_to_precision_f32(value: f32, decimal_places: usize) -> f32 {
+    // This is a stupid way of doing this, but stupid works.
+    format!("{:.*}", decimal_places, value)
+        .parse()
+        .unwrap_or_else(|_| value)
+}
+
+/// Round a value to the given number of decimal places.
+pub fn round_to_precision(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
     format!("{:.*}", decimal_places, value)
         .parse()
@@ -111,6 +119,17 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
         let abs_max = a.abs().max(b.abs());
         abs_max <= epsilon || ((a - b).abs() / abs_max) <= epsilon
     }
+}
+
+#[test]
+fn test_format() {
+    assert_eq!(format_with_minimum_precision(1_234_567.0, 0), "1234567");
+    assert_eq!(format_with_minimum_precision(1_234_567.0, 1), "1234567.0");
+    assert_eq!(format_with_minimum_precision(3.14, 2), "3.14");
+    assert_eq!(
+        format_with_minimum_precision(std::f32::consts::PI, 2),
+        "3.1415927"
+    );
 }
 
 #[test]

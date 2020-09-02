@@ -2,6 +2,7 @@ use std::ops::RangeInclusive;
 
 use crate::{paint::*, widgets::Label, *};
 
+// TODO: switch to f64 internally so we can handle integers larger than 2^24.
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
@@ -22,7 +23,7 @@ impl<'a> Slider<'a> {
         range: RangeInclusive<f32>,
         get_set_value: impl 'a + FnMut(Option<f32>) -> f32,
     ) -> Self {
-        Slider {
+        Self {
             get_set_value: Box::new(get_set_value),
             range,
             text: None,
@@ -33,7 +34,7 @@ impl<'a> Slider<'a> {
     }
 
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
-        Slider {
+        Self {
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
                     *value = v
@@ -43,9 +44,22 @@ impl<'a> Slider<'a> {
         }
     }
 
+    pub fn u8(value: &'a mut u8, range: RangeInclusive<u8>) -> Self {
+        let range = (*range.start() as f32)..=(*range.end() as f32);
+        Self {
+            precision: Some(0),
+            ..Self::from_get_set(range, move |v: Option<f32>| {
+                if let Some(v) = v {
+                    *value = v.round() as u8
+                }
+                *value as f32
+            })
+        }
+    }
+
     pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
         let range = (*range.start() as f32)..=(*range.end() as f32);
-        Slider {
+        Self {
             precision: Some(0),
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
@@ -58,7 +72,7 @@ impl<'a> Slider<'a> {
 
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
         let range = (*range.start() as f32)..=(*range.end() as f32);
-        Slider {
+        Self {
             precision: Some(0),
             ..Self::from_get_set(range, move |v: Option<f32>| {
                 if let Some(v) = v {
@@ -94,7 +108,7 @@ impl<'a> Slider<'a> {
 
     fn set_value_f32(&mut self, mut value: f32) {
         if let Some(precision) = self.precision {
-            value = round_to_precision(value, precision);
+            value = round_to_precision_f32(value, precision);
         }
         (self.get_set_value)(Some(value));
     }

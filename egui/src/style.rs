@@ -429,29 +429,10 @@ fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive
 // TODO: improve color picker
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
     ui.horizontal_centered(|ui| {
-        // TODO: DragValue::u8
-        // ui.label(format!("{} sRGBA: ", text));
-        // ui.add(DragValue::u8(&mut srgba.r).speed(1))
-        //     .tooltip_text("r");
-        // ui.add(DragValue::u8(&mut srgba.g).speed(1))
-        //     .tooltip_text("g");
-        // ui.add(DragValue::u8(&mut srgba.b).speed(1))
-        //     .tooltip_text("b");
-        // ui.add(DragValue::u8(&mut srgba.a).speed(1))
-        //     .tooltip_text("a");
-
-        ui.label(format!("{} RGBA: ", text));
-        let mut rgba = Rgba::from(*srgba);
-        ui.add(DragValue::f32(&mut rgba.r).speed(0.003))
-            .tooltip_text("r");
-        ui.add(DragValue::f32(&mut rgba.g).speed(0.003))
-            .tooltip_text("g");
-        ui.add(DragValue::f32(&mut rgba.b).speed(0.003))
-            .tooltip_text("b");
-        ui.add(DragValue::f32(&mut rgba.a).speed(0.003))
-            .tooltip_text("a");
-        if rgba != Rgba::from(*srgba) {
-            *srgba = Srgba::from(rgba);
-        }
+        ui.label(format!("{} sRGBA: ", text));
+        ui.add(DragValue::u8(&mut srgba.r)).tooltip_text("r");
+        ui.add(DragValue::u8(&mut srgba.g)).tooltip_text("g");
+        ui.add(DragValue::u8(&mut srgba.b)).tooltip_text("b");
+        ui.add(DragValue::u8(&mut srgba.a)).tooltip_text("a");
     });
 }
