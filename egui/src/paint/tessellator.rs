@@ -15,7 +15,7 @@ use {
 };
 
 /// The UV coordinate of a white region of the texture mesh.
-const WHITE_UV: (u16, u16) = (1, 1);
+pub const WHITE_UV: (u16, u16) = (1, 1);
 
 /// The vertex type.
 ///
@@ -64,6 +64,14 @@ impl Triangles {
             self.indices.push(index_offset + index);
         }
         self.vertices.extend(other.vertices.iter());
+    }
+
+    pub fn colored_vertex(&mut self, pos: Pos2, color: Srgba) {
+        self.vertices.push(Vertex {
+            pos,
+            uv: WHITE_UV,
+            color,
+        });
     }
 
     /// Add a triangle.
@@ -384,11 +392,6 @@ fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out
     }
 
     let n = path.len() as u32;
-    let vert = |pos, color| Vertex {
-        pos,
-        uv: WHITE_UV,
-        color,
-    };
     if options.anti_alias {
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
@@ -402,8 +405,8 @@ fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
             let dm = p1.normal * options.aa_size * 0.5;
-            out.vertices.push(vert(p1.pos - dm, color));
-            out.vertices.push(vert(p1.pos + dm, color_outer));
+            out.colored_vertex(p1.pos - dm, color);
+            out.colored_vertex(p1.pos + dm, color_outer);
             out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
             out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
@@ -411,7 +414,11 @@ fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out
     } else {
         out.reserve_triangles(n as usize);
         let idx = out.vertices.len() as u32;
-        out.vertices.extend(path.iter().map(|p| vert(p.pos, color)));
+        out.vertices.extend(path.iter().map(|p| Vertex {
+            pos: p.pos,
+            uv: WHITE_UV,
+            color,
+        }));
         for i in 2..n {
             out.add_triangle(idx, idx + i - 1, idx + i);
         }
@@ -432,12 +439,6 @@ fn stroke_path(
 
     let n = path.len() as u32;
     let idx = out.vertices.len() as u32;
-
-    let vert = |pos, color| Vertex {
-        pos,
-        uv: WHITE_UV,
-        color,
-    };
 
     if options.anti_alias {
         let color_inner = stroke.color;
@@ -467,11 +468,9 @@ fn stroke_path(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                out.vertices
-                    .push(vert(p + n * options.aa_size, color_outer));
-                out.vertices.push(vert(p, color_inner));
-                out.vertices
-                    .push(vert(p - n * options.aa_size, color_outer));
+                out.colored_vertex(p + n * options.aa_size, color_outer);
+                out.colored_vertex(p, color_inner);
+                out.colored_vertex(p - n * options.aa_size, color_outer);
 
                 if connect_with_previous {
                     out.add_triangle(idx + 3 * i0 + 0, idx + 3 * i0 + 1, idx + 3 * i1 + 0);
@@ -507,10 +506,10 @@ fn stroke_path(
                 let p1 = &path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
-                out.vertices.push(vert(p + n * outer_rad, color_outer));
-                out.vertices.push(vert(p + n * inner_rad, color_inner));
-                out.vertices.push(vert(p - n * inner_rad, color_inner));
-                out.vertices.push(vert(p - n * outer_rad, color_outer));
+                out.colored_vertex(p + n * outer_rad, color_outer);
+                out.colored_vertex(p + n * inner_rad, color_inner);
+                out.colored_vertex(p - n * inner_rad, color_inner);
+                out.colored_vertex(p - n * outer_rad, color_outer);
 
                 if connect_with_previous {
                     out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -552,16 +551,14 @@ fn stroke_path(
                 return;
             }
             for p in path {
-                out.vertices.push(vert(p.pos + radius * p.normal, color));
-                out.vertices.push(vert(p.pos - radius * p.normal, color));
+                out.colored_vertex(p.pos + radius * p.normal, color);
+                out.colored_vertex(p.pos - radius * p.normal, color);
             }
         } else {
             let radius = stroke.width / 2.0;
             for p in path {
-                out.vertices
-                    .push(vert(p.pos + radius * p.normal, stroke.color));
-                out.vertices
-                    .push(vert(p.pos - radius * p.normal, stroke.color));
+                out.colored_vertex(p.pos + radius * p.normal, stroke.color);
+                out.colored_vertex(p.pos - radius * p.normal, stroke.color);
             }
         }
     }
