@@ -234,7 +234,7 @@ impl Painter {
                 .iter()
                 .map(|v| Vertex {
                     a_pos: [v.pos.x, v.pos.y],
-                    a_srgba: [v.color.r, v.color.g, v.color.b, v.color.a],
+                    a_srgba: v.color.0,
                     a_tc: [v.uv.0, v.uv.1],
                 })
                 .collect();

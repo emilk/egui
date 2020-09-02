@@ -430,9 +430,9 @@ fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
     ui.horizontal_centered(|ui| {
         ui.label(format!("{} sRGBA: ", text));
-        ui.add(DragValue::u8(&mut srgba.r)).tooltip_text("r");
-        ui.add(DragValue::u8(&mut srgba.g)).tooltip_text("g");
-        ui.add(DragValue::u8(&mut srgba.b)).tooltip_text("b");
-        ui.add(DragValue::u8(&mut srgba.a)).tooltip_text("a");
+        ui.add(DragValue::u8(&mut srgba[0])).tooltip_text("r");
+        ui.add(DragValue::u8(&mut srgba[1])).tooltip_text("g");
+        ui.add(DragValue::u8(&mut srgba[2])).tooltip_text("b");
+        ui.add(DragValue::u8(&mut srgba[3])).tooltip_text("a");
     });
 }

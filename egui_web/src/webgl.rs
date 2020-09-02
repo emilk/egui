@@ -226,10 +226,10 @@ impl Painter {
         );
         // TODO: sRGBA ?
         gl.clear_color(
-            bg_color.r as f32 / 255.0,
-            bg_color.g as f32 / 255.0,
-            bg_color.b as f32 / 255.0,
-            bg_color.a as f32 / 255.0,
+            bg_color[0] as f32 / 255.0,
+            bg_color[1] as f32 / 255.0,
+            bg_color[2] as f32 / 255.0,
+            bg_color[3] as f32 / 255.0,
         );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
@@ -277,10 +277,10 @@ impl Painter {
 
         let mut colors: Vec<u8> = Vec::with_capacity(4 * triangles.vertices.len());
         for v in &triangles.vertices {
-            colors.push(v.color.r);
-            colors.push(v.color.g);
-            colors.push(v.color.b);
-            colors.push(v.color.a);
+            colors.push(v.color[0]);
+            colors.push(v.color[1]);
+            colors.push(v.color[2]);
+            colors.push(v.color[3]);
         }
 
         // --------------------------------------------------------------------
