@@ -32,7 +32,7 @@ impl State {
     }
 }
 
-/// An area on the screen that can be move by dragging.
+/// An area on the screen that can be moved by dragging.
 ///
 /// This forms the base of the `Window` container.
 #[derive(Clone, Copy, Debug)]
