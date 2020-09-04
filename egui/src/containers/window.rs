@@ -201,8 +201,8 @@ impl<'open> Window<'open> {
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
-            let title_bar_height =
-                title_label.font_height(ctx.fonts()) + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
+            let title_bar_height = title_label.font_height(ctx.fonts(), &ctx.style())
+                + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
             let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
 
             window_interaction(
@@ -596,7 +596,7 @@ fn show_title_bar(
     collapsible: bool,
 ) -> TitleBar {
     let title_bar_and_rect = ui.horizontal_centered(|ui| {
-        ui.set_desired_height(title_label.font_height(ui.fonts()));
+        ui.set_desired_height(title_label.font_height(ui.fonts(), ui.style()));
 
         let item_spacing = ui.style().spacing.item_spacing;
         let button_size = ui.style().spacing.icon_width;

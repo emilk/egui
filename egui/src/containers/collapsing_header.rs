@@ -223,7 +223,7 @@ impl CollapsingHeader {
         painter.galley(
             text_pos,
             galley,
-            label.text_style,
+            label.text_style_or_default(ui.style()),
             ui.style().interact(&response).stroke.color,
         );
 

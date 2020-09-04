@@ -527,6 +527,7 @@ impl Context {
 
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
+        ui.style_mut().body_text_style = TextStyle::Monospace;
 
         CollapsingHeader::new("Input")
             .default_open(true)

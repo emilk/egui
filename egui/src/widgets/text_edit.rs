@@ -14,7 +14,7 @@ pub struct TextEdit<'t> {
     text: &'t mut String,
     id: Option<Id>,
     id_source: Option<Id>,
-    text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the current Ui"
+    text_style: Option<TextStyle>,
     text_color: Option<Srgba>,
     multiline: bool,
     enabled: bool,
@@ -27,7 +27,7 @@ impl<'t> TextEdit<'t> {
             text,
             id: None,
             id_source: None,
-            text_style: TextStyle::Body,
+            text_style: None,
             text_color: None,
             multiline: true,
             enabled: true,
@@ -46,7 +46,7 @@ impl<'t> TextEdit<'t> {
     }
 
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = text_style;
+        self.text_style = Some(text_style);
         self
     }
 
@@ -90,6 +90,7 @@ impl<'t> Widget for TextEdit<'t> {
 
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
 
+        let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let line_spacing = font.line_spacing();
         let available_width = ui.available().width();

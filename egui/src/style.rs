@@ -1,11 +1,19 @@
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, math::*, paint::Stroke, types::*};
+use crate::{
+    color::*,
+    math::*,
+    paint::{Stroke, TextStyle},
+    types::*,
+};
 
 /// Specifies the look and feel of a `Ui`.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Style {
+    /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
+    pub body_text_style: TextStyle,
+
     pub spacing: Spacing,
     pub interaction: Interaction,
     pub visuals: Visuals,
@@ -166,6 +174,7 @@ pub struct WidgetVisuals {
 impl Default for Style {
     fn default() -> Self {
         Self {
+            body_text_style: TextStyle::Body,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
@@ -265,11 +274,18 @@ impl Style {
         }
 
         let Self {
+            body_text_style,
             spacing,
             interaction,
             visuals,
             animation_time,
         } = self;
+        ui.horizontal_centered(|ui| {
+            ui.label("Default text style:");
+            for &value in &[TextStyle::Body, TextStyle::Monospace] {
+                ui.radio_value(format!("{:?}", value), body_text_style, value);
+            }
+        });
         ui.collapsing("Spacing", |ui| spacing.ui(ui));
         ui.collapsing("Interaction", |ui| interaction.ui(ui));
         ui.collapsing("Visuals", |ui| visuals.ui(ui));

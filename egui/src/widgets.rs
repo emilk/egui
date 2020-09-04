@@ -30,7 +30,7 @@ pub struct Label {
     pub(crate) text: String,
     pub(crate) multiline: bool,
     auto_shrink: bool,
-    pub(crate) text_style: TextStyle, // TODO: Option<TextStyle>, where None means "use the default for the ui"
+    pub(crate) text_style: Option<TextStyle>,
     pub(crate) text_color: Option<Srgba>,
 }
 
@@ -40,7 +40,7 @@ impl Label {
             text: text.into(),
             multiline: true,
             auto_shrink: false,
-            text_style: TextStyle::Body,
+            text_style: None,
             text_color: None,
         }
     }
@@ -62,8 +62,9 @@ impl Label {
         self
     }
 
+    /// If you do not set a `TextStyle`, the default `style.text_style`.
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = text_style;
+        self.text_style = Some(text_style);
         self
     }
 
@@ -86,7 +87,8 @@ impl Label {
     }
 
     pub fn layout_width(&self, ui: &Ui, max_width: f32) -> font::Galley {
-        let font = &ui.fonts()[self.text_style];
+        let text_style = self.text_style_or_default(ui.style());
+        let font = &ui.fonts()[text_style];
         if self.multiline {
             font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
         } else {
@@ -94,8 +96,9 @@ impl Label {
         }
     }
 
-    pub fn font_height(&self, fonts: &Fonts) -> f32 {
-        fonts[self.text_style].height()
+    pub fn font_height(&self, fonts: &Fonts, style: &Style) -> f32 {
+        let text_style = self.text_style_or_default(style);
+        fonts[text_style].height()
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -107,11 +110,16 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
+        let text_style = self.text_style_or_default(ui.style());
         let text_color = self
             .text_color
             .unwrap_or_else(|| ui.style().visuals.text_color);
-        ui.painter()
-            .galley(pos, galley, self.text_style, text_color);
+        ui.painter().galley(pos, galley, text_style, text_color);
+    }
+
+    /// Read the text style, or get the default for the current style
+    pub fn text_style_or_default(&self, style: &Style) -> TextStyle {
+        self.text_style.unwrap_or_else(|| style.body_text_style)
     }
 }
 
@@ -180,7 +188,7 @@ impl Widget for Hyperlink {
         let Hyperlink { url, text } = self;
 
         let color = color::LIGHT_BLUE;
-        let text_style = TextStyle::Body;
+        let text_style = ui.style().body_text_style;
         let id = ui.make_child_id(&url);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
