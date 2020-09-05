@@ -185,8 +185,8 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
-                fill: ui.style().interact(response).main_fill,
-                stroke: ui.style().interact(response).stroke,
+                fill: ui.style().interact(response).fg_fill,
+                stroke: ui.style().interact(response).fg_stroke,
             });
         }
     }

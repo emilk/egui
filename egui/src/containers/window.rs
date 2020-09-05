@@ -711,7 +711,7 @@ fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_child(response.rect);
 
-    let stroke = ui.style().interact(&response).stroke;
+    let stroke = ui.style().interact(&response).fg_stroke;
     ui.painter()
         .line_segment([rect.left_top(), rect.right_bottom()], stroke);
     ui.painter()

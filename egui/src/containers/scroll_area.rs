@@ -237,7 +237,7 @@ impl Prepared {
             }
 
             let style = ui.style();
-            let handle_fill = style.interact(&response).main_fill;
+            let handle_fill = style.interact(&response).fg_fill;
             let handle_stroke = style.interact(&response).bg_stroke;
 
             ui.painter().add(paint::PaintCmd::Rect {

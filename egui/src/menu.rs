@@ -108,7 +108,7 @@ fn menu_impl<'c>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill(Some(ui.style().visuals.interacted.active.main_fill));
+        button = button.fill(Some(ui.style().visuals.interacted.active.fg_fill));
     }
 
     let button_response = ui.add(button);

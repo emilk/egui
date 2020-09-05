@@ -27,7 +27,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // We can follow the standard style theme by asking
     // "how should something that is being interacted with be painted?".
     // This gives us visual style change when the user hovers and clicks on the widget.
-    let style = ui.style().interact(&response);
+    let visuals = ui.style().interact(&response);
     let off_color = Rgba::new(0.0, 0.0, 0.0, 0.0);
     let on_color = Rgba::new(0.0, 0.5, 0.0, 0.5);
     // All coordinates are in screen coordinates (not relative)
@@ -37,15 +37,15 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
         rect,
         corner_radius: radius,
         fill: lerp(off_color..=on_color, how_on).into(),
-        stroke: style.bg_stroke,
+        stroke: visuals.bg_stroke,
     });
     // Animate the circle from left to right:
     let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
     ui.painter().add(PaintCmd::Circle {
         center: pos2(circle_x, rect.center().y),
         radius: 0.75 * radius,
-        fill: style.main_fill,
-        stroke: style.stroke,
+        fill: visuals.fg_fill,
+        stroke: visuals.fg_stroke,
     });
 
     // All done! Return the response so the user can check what happened

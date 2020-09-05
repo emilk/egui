@@ -305,8 +305,7 @@ impl Widget for Button {
             fill,
             stroke: ui.style().interact(&response).bg_stroke,
         });
-        let stroke_color = ui.style().interact(&response).stroke.color;
-        let text_color = text_color.unwrap_or(stroke_color);
+        let text_color = text_color.unwrap_or_else(|| ui.style().interact(&response).text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -364,6 +363,7 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
         }
 
+        let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
             response.rect.min.x + button_padding.x + icon_width,
             response.rect.center().y - 0.5 * galley.size.y,
@@ -371,12 +371,10 @@ impl<'a> Widget for Checkbox<'a> {
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
         ui.painter().add(PaintCmd::Rect {
             rect: big_icon_rect,
-            corner_radius: ui.style().interact(&response).corner_radius,
-            fill: ui.style().interact(&response).bg_fill,
-            stroke: ui.style().interact(&response).bg_stroke,
+            corner_radius: visuals.corner_radius,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
         });
-
-        let stroke = ui.style().interact(&response).stroke;
 
         if *checked {
             ui.painter().add(PaintCmd::Path {
@@ -386,12 +384,12 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 closed: false,
-                stroke,
                 fill: Default::default(),
+                stroke: visuals.fg_stroke,
             });
         }
 
-        let text_color = text_color.unwrap_or(stroke.color);
+        let text_color = text_color.unwrap_or(visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -449,8 +447,7 @@ impl Widget for RadioButton {
             response.rect.center().y - 0.5 * galley.size.y,
         );
 
-        let bg_fill = ui.style().interact(&response).bg_fill;
-        let stroke_color = ui.style().interact(&response).stroke.color;
+        let visuals = ui.style().interact(&response);
 
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
 
@@ -459,20 +456,22 @@ impl Widget for RadioButton {
         painter.add(PaintCmd::Circle {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0,
-            fill: bg_fill,
-            stroke: ui.style().interact(&response).bg_stroke,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
         });
 
         if checked {
             painter.add(PaintCmd::Circle {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
-                fill: stroke_color,
+                fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
                 stroke: Default::default(),
+                // fill: visuals.fg_fill,
+                // stroke: visuals.fg_stroke,
             });
         }
 
-        let text_color = text_color.unwrap_or(stroke_color);
+        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
         painter.galley(text_cursor, galley, text_style, text_color);
         response
     }
