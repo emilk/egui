@@ -27,6 +27,7 @@ where
 /// so that when `x == from.start()` returns `to.start()`
 /// and when `x == from.end()` returns `to.end()`.
 pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    #![allow(clippy::float_cmp)]
     debug_assert!(from.start() != from.end());
     let t = (x - from.start()) / (from.end() - from.start());
     lerp(to, t)
@@ -34,6 +35,7 @@ pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 
 
 /// Like `remap`, but also clamps the value so that the returned value is always in the `to` range.
 pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    #![allow(clippy::float_cmp)]
     if from.end() < from.start() {
         return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
     }
