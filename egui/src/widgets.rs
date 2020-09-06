@@ -389,7 +389,7 @@ impl<'a> Widget for Checkbox<'a> {
             });
         }
 
-        let text_color = text_color.unwrap_or(visuals.text_color());
+        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
