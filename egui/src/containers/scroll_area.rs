@@ -8,6 +8,10 @@ pub(crate) struct State {
     offset: Vec2,
 
     show_scroll: bool,
+
+    /// Momentum, used for kinetic scrolling
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub vel: Vec2,
 }
 
 impl Default for State {
@@ -15,6 +19,7 @@ impl Default for State {
         Self {
             offset: Vec2::zero(),
             show_scroll: false,
+            vel: Vec2::zero(),
         }
     }
 }
@@ -153,8 +158,26 @@ impl Prepared {
         if content_is_too_small {
             // Drag contents to scroll (for touch screens mostly):
             let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+
+            let input = ui.input();
             if content_response.active {
-                state.offset.y -= ui.input().mouse.delta.y;
+                state.offset.y -= input.mouse.delta.y;
+                state.vel = input.mouse.velocity;
+            } else {
+                let stop_speed = 20.0; // Pixels per second.
+                let friction_coeff = 1000.0; // Pixels per second squared.
+                let dt = input.unstable_dt;
+
+                let friction = friction_coeff * dt;
+                if friction > state.vel.length() || state.vel.length() < stop_speed {
+                    state.vel = Vec2::zero();
+                } else {
+                    state.vel -= friction * state.vel.normalized();
+                    // Offset has an inverted coordinate system compared to
+                    // the velocity, so we subtract it instead of adding it
+                    state.offset.y -= state.vel.y * dt;
+                    ui.ctx().request_repaint();
+                }
             }
         }
 

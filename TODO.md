@@ -18,7 +18,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
         * [x] Scroll-wheel input
         * [x] Drag background to scroll
         * [ ] Horizontal scrolling
-        * [ ] Kinetic scrolling
+        * [X] Kinetic scrolling
 * [ ] Text
     * [ ] Unicode
         * [ ] Shared mutable expanding texture map?
