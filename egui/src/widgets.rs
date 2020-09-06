@@ -15,6 +15,8 @@ pub use {slider::*, text_edit::*};
 
 use paint::*;
 
+use std::ops::RangeInclusive;
+
 // ----------------------------------------------------------------------------
 
 /// Anything implementing Widget can be added to a Ui with `Ui::add`
@@ -580,6 +582,7 @@ pub struct DragValue<'a> {
     speed: f32,
     prefix: String,
     suffix: String,
+    range: RangeInclusive<f64>,
 }
 
 impl<'a> DragValue<'a> {
@@ -589,6 +592,7 @@ impl<'a> DragValue<'a> {
             speed: 1.0,
             prefix: Default::default(),
             suffix: Default::default(),
+            range: f64::NEG_INFINITY..=f64::INFINITY,
         }
     }
 
@@ -631,6 +635,12 @@ impl<'a> DragValue<'a> {
         self
     }
 
+    /// Clamp the value to this range
+    pub fn range(mut self, range: RangeInclusive<f64>) -> Self {
+        self.range = range;
+        self
+    }
+
     /// Show a prefix before the number, e.g. "x: "
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
         self.prefix = prefix.to_string();
@@ -649,6 +659,7 @@ impl<'a> Widget for DragValue<'a> {
         let Self {
             mut value_function,
             speed,
+            range,
             prefix,
             suffix,
         } = self;
@@ -674,6 +685,7 @@ impl<'a> Widget for DragValue<'a> {
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {
+                let parsed_value = clamp(parsed_value, range);
                 set(&mut value_function, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
@@ -698,6 +710,7 @@ impl<'a> Widget for DragValue<'a> {
                 if delta_value != 0.0 {
                     let new_value = value + delta_value as f64;
                     let new_value = round_to_precision(new_value, precision);
+                    let new_value = clamp(new_value, range);
                     set(&mut value_function, new_value);
                     // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
                     // otherwise we will just keep rounding to the same value while moving the mouse.

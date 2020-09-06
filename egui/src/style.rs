@@ -432,10 +432,10 @@ impl Stroke {
     pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
         let Self { width, color } = self;
         ui.horizontal_centered(|ui| {
-            ui.style_mut().spacing.slider_width /= 2.0;
             ui.label(format!("{}: ", text));
-            ui.add(Slider::f32(width, 0.0..=5.0).text("width"));
-            ui_color(ui, color, "color");
+            ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
+                .tooltip_text("Width");
+            ui_color(ui, color, "Color");
         });
     }
 }
