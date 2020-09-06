@@ -27,17 +27,22 @@ where
 /// so that when `x == from.start()` returns `to.start()`
 /// and when `x == from.end()` returns `to.end()`.
 pub fn remap(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    debug_assert!(from.start() != from.end());
     let t = (x - from.start()) / (from.end() - from.start());
     lerp(to, t)
 }
 
 /// Like `remap`, but also clamps the value so that the returned value is always in the `to` range.
 pub fn remap_clamp(x: f32, from: RangeInclusive<f32>, to: RangeInclusive<f32>) -> f32 {
+    if from.end() < from.start() {
+        return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
+    }
     if x <= *from.start() {
         *to.start()
     } else if *from.end() <= x {
         *to.end()
     } else {
+        debug_assert!(from.start() != from.end());
         let t = (x - from.start()) / (from.end() - from.start());
         // Ensure no numerical inaccuracies sneak in:
         if 1.0 <= t {
@@ -55,6 +60,7 @@ pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
 where
     T: Copy + PartialOrd,
 {
+    debug_assert!(range.start() <= range.end());
     if x <= *range.start() {
         *range.start()
     } else if *range.end() <= x {
@@ -164,4 +170,11 @@ fn test_almost_equal() {
             }
         }
     }
+}
+
+#[test]
+fn test_remap() {
+    assert_eq!(remap_clamp(1.0, 0.0..=1.0, 0.0..=16.0), 16.0);
+    assert_eq!(remap_clamp(1.0, 1.0..=0.0, 16.0..=0.0), 16.0);
+    assert_eq!(remap_clamp(0.5, 1.0..=0.0, 16.0..=0.0), 8.0);
 }
