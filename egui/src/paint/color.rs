@@ -200,3 +200,115 @@ fn test_srgba_conversion() {
         assert_eq!(srgb_byte_from_linear(l), b);
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Hue, saturation, value, alpha. All in the range [0, 1].
+/// No premultiplied alpha.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Hsva {
+    /// hue 0-1
+    pub h: f32,
+    /// saturation 0-1
+    pub s: f32,
+    /// value 0-1
+    pub v: f32,
+    /// alpha 0-1
+    pub a: f32,
+}
+
+impl Hsva {
+    pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
+        Self { h, s, v, a }
+    }
+}
+
+impl From<Hsva> for Rgba {
+    fn from(hsva: Hsva) -> Rgba {
+        let Hsva { h, s, v, a } = hsva;
+        let (r, g, b) = rgb_from_hsv((h, s, v));
+        Rgba::new(a * r, a * g, a * b, a)
+    }
+}
+impl From<Rgba> for Hsva {
+    fn from(rgba: Rgba) -> Hsva {
+        #![allow(clippy::many_single_char_names)]
+        let Rgba([r, g, b, a]) = rgba;
+        if a == 0.0 {
+            Hsva::default()
+        } else {
+            let (h, s, v) = hsv_from_rgb((r / a, g / a, b / a));
+            Hsva { h, s, v, a }
+        }
+    }
+}
+
+impl From<Hsva> for Srgba {
+    fn from(hsva: Hsva) -> Srgba {
+        Srgba::from(Rgba::from(hsva))
+    }
+}
+impl From<Srgba> for Hsva {
+    fn from(srgba: Srgba) -> Hsva {
+        Hsva::from(Rgba::from(srgba))
+    }
+}
+
+/// All ranges in 0-1, rgb is linear.
+pub fn hsv_from_rgb((r, g, b): (f32, f32, f32)) -> (f32, f32, f32) {
+    #![allow(clippy::float_cmp)]
+    #![allow(clippy::many_single_char_names)]
+    let min = r.min(g.min(b));
+    let max = r.max(g.max(b)); // value
+
+    let range = max - min;
+
+    let h = if max == min {
+        0.0 // hue is undefined
+    } else if max == r {
+        (g - b) / (6.0 * range)
+    } else if max == g {
+        (b - r) / (6.0 * range) + 1.0 / 3.0
+    } else {
+        // max == b
+        (r - g) / (6.0 * range) + 2.0 / 3.0
+    };
+    let h = (h + 1.0).fract(); // wrap
+    let s = if max == 0.0 { 0.0 } else { 1.0 - min / max };
+    (h, s, max)
+}
+
+/// All ranges in 0-1, rgb is linear.
+pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> (f32, f32, f32) {
+    #![allow(clippy::many_single_char_names)]
+    let h = (h.fract() + 1.0).fract(); // wrap
+    let s = clamp(s, 0.0..=1.0);
+
+    let f = h * 6.0 - (h * 6.0).floor();
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - f * s);
+    let t = v * (1.0 - (1.0 - f) * s);
+
+    match (h * 6.0).floor() as i32 % 6 {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        5 => (v, p, q),
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn test_hsv_roundtrip() {
+    for r in 0..=255 {
+        for g in 0..=255 {
+            for b in 0..=255 {
+                let srgba = Srgba::new(r, g, b, 255);
+                let hsva = Hsva::from(srgba);
+                assert_eq!(srgba, Srgba::from(hsva));
+            }
+        }
+    }
+}
