@@ -435,7 +435,7 @@ impl Stroke {
             ui.label(format!("{}: ", text));
             ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
                 .tooltip_text("Width");
-            ui_color(ui, color, "Color");
+            ui.color_edit_button(color);
         });
     }
 }
@@ -449,13 +449,9 @@ fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive
     });
 }
 
-// TODO: improve color picker
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
     ui.horizontal_centered(|ui| {
-        ui.label(format!("{} sRGBA: ", text));
-        ui.add(DragValue::u8(&mut srgba[0])).tooltip_text("r");
-        ui.add(DragValue::u8(&mut srgba[1])).tooltip_text("g");
-        ui.add(DragValue::u8(&mut srgba[2])).tooltip_text("b");
-        ui.add(DragValue::u8(&mut srgba[3])).tooltip_text("a");
+        ui.label(format!("{}: ", text));
+        ui.color_edit_button(srgba);
     });
 }

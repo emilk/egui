@@ -235,13 +235,13 @@ impl<'a> Slider<'a> {
                 ui.memory().temp_edit_string = Some(value_text);
             }
         } else {
-            let mut response = ui.add(
+            let response = ui.add(
                 Label::new(value_text)
                     .multiline(false)
                     .text_color(text_color)
                     .text_style(TextStyle::Monospace),
             );
-            response.tooltip_text("Click to enter a value");
+            let response = response.tooltip_text("Click to enter a value");
             let response = ui.interact(response.rect, kb_edit_id, Sense::click());
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);

@@ -8,6 +8,7 @@
 
 use crate::{layout::Direction, *};
 
+pub mod color_picker;
 mod slider;
 pub(crate) mod text_edit;
 

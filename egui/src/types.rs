@@ -80,9 +80,22 @@ pub struct Response {
     pub has_kb_focus: bool,
 }
 
+impl std::fmt::Debug for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Response")
+            .field("rect", &self.rect)
+            .field("sense", &self.sense)
+            .field("hovered", &self.hovered)
+            .field("clicked", &self.clicked)
+            .field("double_clicked", &self.double_clicked)
+            .field("active", &self.active)
+            .field("has_kb_focus", &self.has_kb_focus)
+            .finish()
+    }
+}
+
 impl Response {
-    /// Show some stuff if the item was hovered
-    pub fn tooltip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> &mut Self {
+    pub fn tooltip(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.hovered {
             crate::containers::show_tooltip(&self.ctx, add_contents);
         }
@@ -90,9 +103,9 @@ impl Response {
     }
 
     /// Show this text if the item was hovered
-    pub fn tooltip_text(&mut self, text: impl Into<String>) -> &mut Self {
-        self.tooltip(|popup| {
-            popup.add(crate::widgets::Label::new(text));
+    pub fn tooltip_text(self, text: impl Into<String>) -> Self {
+        self.tooltip(|ui| {
+            ui.add(crate::widgets::Label::new(text));
         })
     }
 }

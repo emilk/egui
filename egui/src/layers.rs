@@ -12,6 +12,8 @@ pub enum Order {
     Middle,
     /// Popups, menus etc that should always be painted on top of windows
     Foreground,
+    /// Foreground objects can also have tooltips
+    Tooltip,
     /// Debug layer, always painted last / on top
     Debug,
 }

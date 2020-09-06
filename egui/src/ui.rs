@@ -481,6 +481,12 @@ impl Ui {
         response
     }
 
+    /// Shows a button with the given color.
+    /// If the user clicks the button, a full color picker is shown.
+    pub fn color_edit_button(&mut self, srgba: &mut Srgba) {
+        widgets::color_picker::color_edit_button(self, srgba)
+    }
+
     /// Ask to allocate a certain amount of space and return a Painter for that region.
     ///
     /// You may get back a `Painter` with a smaller or larger size than what you desired,
@@ -601,6 +607,11 @@ impl Ui {
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let initial_size = vec2(0.0, self.available().height());
         self.inner_layout(Layout::vertical(Align::Min), initial_size, add_contents)
+    }
+
+    pub fn vertical_centered<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+        let initial_size = vec2(0.0, self.available().height());
+        self.inner_layout(Layout::vertical(Align::Center), initial_size, add_contents)
     }
 
     pub fn inner_layout<R>(

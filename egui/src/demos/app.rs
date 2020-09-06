@@ -452,6 +452,7 @@ struct Widgets {
     radio: usize,
     slider_value: f32,
     angle: f32,
+    color: Srgba,
     single_line_text_input: String,
     multiline_text_input: String,
 }
@@ -464,6 +465,7 @@ impl Default for Widgets {
             count: 0,
             slider_value: 3.4,
             angle: TAU / 8.0,
+            color: (Rgba::new(0.0, 1.0, 0.5, 1.0) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
         }
@@ -525,6 +527,13 @@ impl Widgets {
                 ui.label(format!(" = {} radians", self.angle));
             });
         }
+        ui.separator();
+
+        ui.horizontal_centered(|ui| {
+            ui.add(Label::new("Click to select a different text color: ").text_color(self.color));
+            ui.color_edit_button(&mut self.color);
+        });
+
         ui.separator();
 
         ui.horizontal(|ui| {

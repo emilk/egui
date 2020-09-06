@@ -10,9 +10,12 @@ TODO-list for the Egui project. If you looking for something to do, look here.
         * [ ] Clipboard copy/paste
         * [ ] Move focus with tab
     * [ ] Horizontal slider
-    * [ ] Color picker
+    * [/] Color picker
         * [x] linear rgb <-> sRGB
-* Containers:
+        * [x] HSV
+        * [x] Color edit button with popup color picker
+        * [ ] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
+* Containers
     * [ ] Scroll areas
         * [x] Vertical scrolling
         * [x] Scroll-wheel input

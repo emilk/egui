@@ -46,6 +46,7 @@
 
 mod animation_manager;
 pub mod app;
+pub(crate) mod cache;
 pub mod containers;
 mod context;
 pub mod demos;

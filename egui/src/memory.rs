@@ -1,8 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    area, collapsing_header, menu, resize, scroll_area, widgets::text_edit, window, Id, Layer,
-    Pos2, Rect,
+    area,
+    cache::Cache,
+    collapsing_header, menu,
+    paint::color::{Hsva, Srgba},
+    resize, scroll_area,
+    widgets::text_edit,
+    window, Id, Layer, Pos2, Rect,
 };
 
 /// The data that Egui persists between frames.
@@ -34,6 +39,14 @@ pub struct Memory {
     pub(crate) temp_edit_string: Option<String>,
 
     pub(crate) areas: Areas,
+
+    /// Used by color picker
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) color_cache: Cache<Srgba, Hsva>,
+
+    /// Which popup-window is open (if any)?
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) popup: Option<Id>,
 }
 
 /// Say there is a button in a scroll area.

@@ -12,8 +12,15 @@ pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
     }
 }
 
+/// Show a tooltip at the current mouse position (if any).
+pub fn show_tooltip_text(ctx: &Arc<Context>, text: impl Into<String>) {
+    show_tooltip(ctx, |ui| {
+        ui.add(crate::widgets::Label::new(text));
+    })
+}
+
 /// Show a pop-over window.
-pub fn show_popup(
+fn show_popup(
     ctx: &Arc<Context>,
     id: Id,
     window_pos: Pos2,
@@ -21,7 +28,7 @@ pub fn show_popup(
 ) -> Response {
     use containers::*;
     Area::new(id)
-        .order(Order::Foreground)
+        .order(Order::Tooltip)
         .fixed_pos(window_pos)
         .interactable(false)
         .show(ctx, |ui| Frame::popup(&ctx.style()).show(ui, add_contents))

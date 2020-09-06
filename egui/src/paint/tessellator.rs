@@ -117,6 +117,22 @@ impl Triangles {
         self.vertices.push(bottom_right);
     }
 
+    /// Uniformly colored rectangle.
+    pub fn add_colored_rect(&mut self, rect: Rect, color: Srgba) {
+        self.add_rect(
+            Vertex {
+                pos: rect.min,
+                uv: WHITE_UV,
+                color,
+            },
+            Vertex {
+                pos: rect.max,
+                uv: WHITE_UV,
+                color,
+            },
+        )
+    }
+
     /// This is for platforms that only support 16-bit index buffers.
     ///
     /// Splits this mesh into many smaller meshes (if needed).

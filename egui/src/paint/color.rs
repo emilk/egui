@@ -1,9 +1,13 @@
 use crate::math::clamp;
 
+/// This format is used for space-efficient color representation.
+///
+/// Instead of manipulating this directly it is often better
+/// to first convert it to either `Rgba` or `Hsva`.
+///
 /// 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
-/// This format is used for space-efficient color representation.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Srgba(pub [u8; 4]);
 
@@ -21,10 +25,14 @@ impl std::ops::IndexMut<usize> for Srgba {
 }
 
 pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Srgba {
-    Srgba([r, g, b, a])
+    Srgba::new(r, g, b, a)
 }
 
 impl Srgba {
+    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self([r, g, b, a])
+    }
+
     pub const fn gray(l: u8) -> Self {
         Self([l, l, l, 255])
     }
@@ -35,6 +43,11 @@ impl Srgba {
 
     pub const fn additive_luminance(l: u8) -> Self {
         Self([l, l, l, 0])
+    }
+
+    /// Returns an opaque version of self
+    pub fn to_opaque(self) -> Self {
+        Rgba::from(self).to_opaque().into()
     }
 }
 
@@ -93,6 +106,12 @@ impl Rgba {
         Self([l * a, l * a, l * a, a])
     }
 
+    /// Transparent black
+    pub fn black_alpha(a: f32) -> Self {
+        debug_assert!(0.0 <= a && a <= 1.0);
+        Self([0.0, 0.0, 0.0, a])
+    }
+
     /// Transparent white
     pub fn white_alpha(a: f32) -> Self {
         debug_assert!(0.0 <= a && a <= 1.0);
@@ -107,6 +126,40 @@ impl Rgba {
             alpha * self[2],
             alpha * self[3],
         ])
+    }
+
+    pub fn r(&self) -> f32 {
+        self.0[0]
+    }
+    pub fn g(&self) -> f32 {
+        self.0[1]
+    }
+    pub fn b(&self) -> f32 {
+        self.0[2]
+    }
+    pub fn a(&self) -> f32 {
+        self.0[3]
+    }
+
+    /// How perceptually intense (bright) is the color?
+    pub fn intensity(&self) -> f32 {
+        0.3 * self.r() + 0.59 * self.g() + 0.11 * self.b()
+    }
+
+    /// Returns an opaque version of self
+    pub fn to_opaque(&self) -> Self {
+        if self.a() == 0.0 {
+            // additive or fully transparent
+            Self::new(self.r(), self.g(), self.b(), 1.0)
+        } else {
+            // un-multiply alpha
+            Self::new(
+                self.r() / self.a(),
+                self.g() / self.a(),
+                self.b() / self.a(),
+                1.0,
+            )
+        }
     }
 }
 
