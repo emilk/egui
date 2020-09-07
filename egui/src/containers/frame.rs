@@ -22,11 +22,11 @@ impl Frame {
         }
     }
 
-    pub fn menu_bar(_style: &Style) -> Self {
+    pub fn menu_bar(style: &Style) -> Self {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 0.0,
-            fill: Default::default(),
+            fill: style.visuals.background_fill,
             stroke: Stroke::new(0.5, Srgba::gray(128)),
         }
     }
