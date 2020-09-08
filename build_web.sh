@@ -16,6 +16,7 @@ BUILD=release
 rm -rf docs/*.wasm
 
 echo "Build rust:"
+# cargo build -p demo_web --target wasm32-unknown-unknown
 cargo build --release -p demo_web --target wasm32-unknown-unknown
 
 echo "Generate JS bindings for wasm:"

@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-const SIZE: usize = 8 * 1024;
+const SIZE: usize = 1024; // must be small for web/WASM build (for unknown reason)
 
 /// Very stupid/simple key-value cache. TODO: improve
 #[derive(Clone)]
