@@ -259,22 +259,22 @@ impl Prepared {
                 );
             }
 
-            let style = ui.style();
-            let handle_fill = style.interact(&response).fg_fill;
-            let handle_stroke = style.interact(&response).bg_stroke;
+            let visuals = ui.style().interact(&response);
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill: ui.style().visuals.dark_bg_color,
                 stroke: Default::default(),
+                // fill: visuals.bg_fill,
+                // stroke: visuals.bg_stroke,
             });
 
             ui.painter().add(paint::PaintCmd::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
-                fill: handle_fill,
-                stroke: handle_stroke,
+                fill: visuals.fg_fill,
+                stroke: visuals.fg_stroke,
             });
         }
 

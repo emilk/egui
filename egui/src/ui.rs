@@ -556,7 +556,7 @@ impl Ui {
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.painter.line_segment(
             [line_start, line_end],
-            (self.style().visuals.line_width, Srgba::gray(150)),
+            self.style().visuals.widgets.noninteractive.bg_stroke,
         );
 
         (ret, self.allocate_space(indent + size))

@@ -26,7 +26,7 @@ impl Style {
     // TODO: rename style.interact() to maybe... `style.response_visuals` ?
     /// Use this style for interactive things
     pub fn interact(&self, response: &Response) -> &WidgetVisuals {
-        self.visuals.interacted.style(response)
+        self.visuals.widgets.style(response)
     }
 }
 
@@ -51,6 +51,7 @@ pub struct Spacing {
     pub indent: f32,
 
     /// Anything clickable is (at least) this wide.
+    /// TODO: rename `button_height` or something?
     pub clickable_diameter: f32,
 
     /// Total width of a slider
@@ -93,20 +94,11 @@ pub struct Interaction {
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Visuals {
-    pub interacted: Interacted,
+    pub widgets: Widgets,
 
-    pub text_color: Srgba,
-
-    /// For stuff like check marks in check boxes.
-    pub line_width: f32,
-
-    pub thin_stroke: Stroke,
-
-    /// e.g. the background of windows
-    pub background_fill: Srgba,
-
-    /// e.g. the background of the slider or text edit
-    pub dark_bg_color: Srgba,
+    /// e.g. the background of the slider or text edit,
+    /// needs to look different from other interactive stuff.
+    pub dark_bg_color: Srgba, // TODO: remove, rename, or clarify what it is for
 
     pub window_corner_radius: f32,
 
@@ -125,16 +117,28 @@ pub struct Visuals {
     pub debug_resize: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Interacted {
-    pub active: WidgetVisuals,
-    pub hovered: WidgetVisuals,
-    pub inactive: WidgetVisuals,
-    pub disabled: WidgetVisuals,
+impl Visuals {
+    pub fn text_color(&self) -> Srgba {
+        self.widgets.noninteractive.text_color()
+    }
 }
 
-impl Interacted {
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Widgets {
+    /// For an interactive widget that is being interacted with
+    pub active: WidgetVisuals,
+    /// For an interactive widget that is being hovered
+    pub hovered: WidgetVisuals,
+    /// For an interactive widget that is "resting"
+    pub inactive: WidgetVisuals,
+    /// For an otherwise interactive widget that has been disabled
+    pub disabled: WidgetVisuals,
+    /// For a non-interactive widget
+    pub noninteractive: WidgetVisuals,
+}
+
+impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if response.active || response.has_kb_focus {
             &self.active
@@ -218,11 +222,7 @@ impl Default for Interaction {
 impl Default for Visuals {
     fn default() -> Self {
         Self {
-            interacted: Default::default(),
-            text_color: Srgba::gray(160),
-            line_width: 0.5,
-            thin_stroke: Stroke::new(0.5, GRAY),
-            background_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
+            widgets: Default::default(),
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
             resize_corner_size: 12.0,
@@ -235,7 +235,7 @@ impl Default for Visuals {
     }
 }
 
-impl Default for Interacted {
+impl Default for Widgets {
     fn default() -> Self {
         Self {
             active: WidgetVisuals {
@@ -257,14 +257,21 @@ impl Default for Interacted {
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.04)),
                 corner_radius: 4.0,
                 fg_fill: srgba(60, 60, 80, 255),
-                fg_stroke: Stroke::new(0.5, Srgba::gray(200)), // Should NOT look grayed out!
+                fg_stroke: Stroke::new(1.0, Srgba::gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
                 bg_fill: TRANSPARENT,
                 bg_stroke: Stroke::new(0.5, Srgba::gray(70)),
                 corner_radius: 4.0,
                 fg_fill: srgba(50, 50, 50, 255),
-                fg_stroke: Stroke::new(0.5, Srgba::gray(128)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Srgba::gray(128)), // Should look grayed out
+            },
+            noninteractive: WidgetVisuals {
+                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.03)),
+                bg_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
+                corner_radius: 4.0,
+                fg_fill: Default::default(),
+                fg_stroke: Stroke::new(1.0, Srgba::gray(160)), // text color
             },
         }
     }
@@ -348,7 +355,7 @@ impl Interaction {
     }
 }
 
-impl Interacted {
+impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         if ui.add(Button::new("Reset")).clicked {
             *self = Default::default();
@@ -359,8 +366,11 @@ impl Interacted {
             hovered,
             inactive,
             disabled,
+            noninteractive,
         } = self;
 
+        ui.collapsing("noninteractive", |ui| noninteractive.ui(ui));
+        ui.heading("Interactive:");
         ui.collapsing("active", |ui| active.ui(ui));
         ui.collapsing("hovered", |ui| hovered.ui(ui));
         ui.collapsing("inactive", |ui| inactive.ui(ui));
@@ -382,7 +392,7 @@ impl WidgetVisuals {
         bg_stroke.ui(ui, "bg_stroke");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, fg_fill, "fg_fill");
-        fg_stroke.ui(ui, "fg_stroke");
+        fg_stroke.ui(ui, "fg_stroke (text)");
     }
 }
 
@@ -393,11 +403,7 @@ impl Visuals {
         }
 
         let Self {
-            interacted,
-            text_color,
-            line_width,
-            thin_stroke,
-            background_fill,
+            widgets,
             dark_bg_color,
             window_corner_radius,
             resize_corner_size,
@@ -408,11 +414,7 @@ impl Visuals {
             debug_resize,
         } = self;
 
-        ui.collapsing("interacted", |ui| interacted.ui(ui));
-        ui_color(ui, text_color, "text_color");
-        ui.add(Slider::f32(line_width, 0.0..=10.0).text("line_width"));
-        thin_stroke.ui(ui, "thin_stroke");
-        ui_color(ui, background_fill, "background_fill");
+        ui.collapsing("widgets", |ui| widgets.ui(ui));
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));

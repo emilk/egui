@@ -238,7 +238,7 @@ impl Resize {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),
-                stroke: ui.style().visuals.thin_stroke,
+                stroke: ui.style().visuals.widgets.noninteractive.bg_stroke,
             });
         }
 

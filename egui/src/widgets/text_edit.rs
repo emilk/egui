@@ -55,6 +55,11 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    pub fn text_color_opt(mut self, text_color: Option<Srgba>) -> Self {
+        self.text_color = text_color;
+        self
+    }
+
     pub fn multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
         self
@@ -178,14 +183,16 @@ impl<'t> Widget for TextEdit<'t> {
         }
 
         let painter = ui.painter();
+        let visuals = ui.style().interact(&response);
 
         {
             let bg_rect = response.rect.expand(2.0); // breathing room for content
             painter.add(PaintCmd::Rect {
                 rect: bg_rect,
-                corner_radius: ui.style().interact(&response).corner_radius,
+                corner_radius: visuals.corner_radius,
                 fill: ui.style().visuals.dark_bg_color,
-                stroke: ui.style().interact(&response).bg_stroke,
+                // fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
             });
         }
 
@@ -209,7 +216,7 @@ impl<'t> Widget for TextEdit<'t> {
             }
         }
 
-        let text_color = text_color.unwrap_or_else(|| ui.style().interact(&response).text_color());
+        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
         painter.galley(response.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
         response

@@ -294,14 +294,14 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     interaction,
-                    ctx.style().visuals.interacted.active,
+                    ctx.style().visuals.widgets.active,
                 );
             } else if let Some(hover_interaction) = hover_interaction {
                 paint_frame_interaction(
                     &mut area_content_ui,
                     outer_rect,
                     hover_interaction,
-                    ctx.style().visuals.interacted.hovered,
+                    ctx.style().visuals.widgets.hovered,
                 );
             }
         }
@@ -678,7 +678,7 @@ impl TitleBar {
             let y = content_rect.top() + ui.style().spacing.item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.interacted.inactive.bg_stroke,
+                ui.style().visuals.widgets.inactive.bg_stroke,
             );
         }
 

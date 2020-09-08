@@ -3,7 +3,7 @@
 use crate::{layers::PaintCmdIdx, paint::*, *};
 
 /// Adds a rectangular frame and background to some `Ui`.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Frame {
     // On each side
     pub margin: Vec2,
@@ -13,12 +13,21 @@ pub struct Frame {
 }
 
 impl Frame {
+    pub fn none() -> Self {
+        Self {
+            margin: Vec2::zero(),
+            corner_radius: 0.0,
+            fill: Default::default(),
+            stroke: Stroke::none(),
+        }
+    }
+
     pub fn window(style: &Style) -> Self {
         Self {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.window_corner_radius,
-            fill: style.visuals.background_fill,
-            stroke: style.visuals.interacted.inactive.bg_stroke, // because we can resize windows
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.inactive.bg_stroke, // because we can resize windows
         }
     }
 
@@ -26,8 +35,8 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 0.0,
-            fill: style.visuals.background_fill,
-            stroke: Stroke::new(0.5, Srgba::gray(128)),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 
@@ -35,8 +44,8 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
-            fill: style.visuals.background_fill,
-            stroke: Stroke::new(1.0, Srgba::gray(128)),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 
@@ -44,8 +53,8 @@ impl Frame {
         Self {
             margin: style.spacing.window_padding,
             corner_radius: 5.0,
-            fill: style.visuals.background_fill,
-            stroke: Stroke::new(1.0, Srgba::gray(128)),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 

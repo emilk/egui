@@ -62,12 +62,12 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();
             style.spacing.button_padding = vec2(2.0, 0.0);
-            // style.visuals.interacted.active.bg_fill = TRANSPARENT;
-            style.visuals.interacted.active.bg_stroke = Stroke::none();
-            // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
-            style.visuals.interacted.hovered.bg_stroke = Stroke::none();
-            style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
-            style.visuals.interacted.inactive.bg_stroke = Stroke::none();
+            // style.visuals.widgets.active.bg_fill = TRANSPARENT;
+            style.visuals.widgets.active.bg_stroke = Stroke::none();
+            // style.visuals.widgets.hovered.bg_fill = TRANSPARENT;
+            style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+            style.visuals.widgets.inactive.bg_fill = TRANSPARENT;
+            style.visuals.widgets.inactive.bg_stroke = Stroke::none();
             ui.set_style(style);
 
             // Take full width and fixed height:
@@ -77,7 +77,7 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
 
             let ret = add_contents(ui);
 
-            let clicked_outside = !ui.hovered(ui.rect()) && ui.input().mouse.released;
+            let clicked_outside = !ui.hovered(ui.rect()) && ui.input().mouse.click;
             if clicked_outside || ui.input().key_pressed(Key::Escape) {
                 // TODO: this prevents sub-menus in menus. We should fix that.
                 let bar_id = ui.id();
@@ -108,7 +108,7 @@ fn menu_impl<'c>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill(Some(ui.style().visuals.interacted.active.fg_fill));
+        button = button.fill(Some(ui.style().visuals.widgets.active.fg_fill));
     }
 
     let button_response = ui.add(button);
@@ -121,23 +121,19 @@ fn menu_impl<'c>(
             .fixed_pos(button_response.rect.left_bottom());
         let frame = Frame::menu(ui.style());
 
-        let resize = Resize::default().auto_sized().with_stroke(false);
-
         let menu_response = area.show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
-                resize.show(ui, |ui| {
-                    let mut style = ui.style().clone();
-                    style.spacing.button_padding = vec2(2.0, 0.0);
-                    // style.visuals.interacted.active.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.active.bg_stroke = Stroke::none();
-                    // style.visuals.interacted.hovered.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.hovered.bg_stroke = Stroke::none();
-                    style.visuals.interacted.inactive.bg_fill = TRANSPARENT;
-                    style.visuals.interacted.inactive.bg_stroke = Stroke::none();
-                    ui.set_style(style);
-                    ui.set_layout(Layout::justified(Direction::Vertical));
-                    add_contents(ui)
-                })
+                let mut style = ui.style().clone();
+                style.spacing.button_padding = vec2(2.0, 0.0);
+                // style.visuals.widgets.active.bg_fill = TRANSPARENT;
+                style.visuals.widgets.active.bg_stroke = Stroke::none();
+                // style.visuals.widgets.hovered.bg_fill = TRANSPARENT;
+                style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+                style.visuals.widgets.inactive.bg_fill = TRANSPARENT;
+                style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+                ui.set_style(style);
+                ui.set_layout(Layout::justified(Direction::Vertical));
+                add_contents(ui)
             })
         });
 

@@ -178,8 +178,8 @@ impl<'a> Slider<'a> {
             ui.painter().add(PaintCmd::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
-                fill: ui.style().visuals.interacted.inactive.bg_fill,
-                stroke: ui.style().visuals.interacted.inactive.bg_stroke,
+                fill: ui.style().visuals.widgets.inactive.bg_fill,
+                stroke: ui.style().visuals.widgets.inactive.bg_stroke,
             });
 
             ui.painter().add(PaintCmd::Circle {
@@ -193,11 +193,11 @@ impl<'a> Slider<'a> {
 
     /// Just the text label
     fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let text_color = self
-            .text_color
-            .unwrap_or_else(|| ui.style().visuals.text_color);
-
         if let Some(label_text) = self.text.as_deref() {
+            let text_color = self
+                .text_color
+                .unwrap_or_else(|| ui.style().visuals.text_color());
+
             ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(
                 Label::new(format!("{}: ", label_text))
@@ -223,7 +223,7 @@ impl<'a> Slider<'a> {
                     .id(kb_edit_id)
                     .multiline(false)
                     .desired_width(0.0)
-                    .text_color(text_color)
+                    .text_color_opt(self.text_color)
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(value) = value_text.parse() {
@@ -236,13 +236,12 @@ impl<'a> Slider<'a> {
             }
         } else {
             let response = ui.add(
-                Label::new(value_text)
-                    .multiline(false)
-                    .text_color(text_color)
-                    .text_style(TextStyle::Monospace),
+                Button::new(value_text)
+                    .text_style(TextStyle::Monospace)
+                    .text_color_opt(self.text_color),
             );
             let response = response.tooltip_text("Click to enter a value");
-            let response = ui.interact(response.rect, kb_edit_id, Sense::click());
+            // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame

@@ -116,7 +116,7 @@ impl Label {
         let text_style = self.text_style_or_default(ui.style());
         let text_color = self
             .text_color
-            .unwrap_or_else(|| ui.style().visuals.text_color);
+            .unwrap_or_else(|| ui.style().visuals.text_color());
         ui.painter().galley(pos, galley, text_style, text_color);
     }
 
@@ -201,8 +201,10 @@ impl Widget for Hyperlink {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if response.clicked {
-            ui.ctx().output().open_url = Some(url);
+            ui.ctx().output().open_url = Some(url.clone());
         }
+
+        let style = ui.style().interact(&response);
 
         if response.hovered {
             // Underline:
@@ -214,7 +216,7 @@ impl Widget for Hyperlink {
                 let max_x = pos.x + line.max_x();
                 ui.painter().line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
-                    (ui.style().visuals.line_width, color),
+                    (style.fg_stroke.width, color),
                 );
             }
         }
@@ -222,7 +224,7 @@ impl Widget for Hyperlink {
         ui.painter()
             .galley(response.rect.min, galley, text_style, color);
 
-        response
+        response.tooltip_text(url)
     }
 }
 
@@ -251,6 +253,11 @@ impl Button {
 
     pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_color_opt(mut self, text_color: Option<Srgba>) -> Self {
+        self.text_color = text_color;
         self
     }
 
@@ -484,25 +491,12 @@ impl Widget for RadioButton {
 
 /// A visual separator. A horizontal or vertical line (depending on `Layout`).
 pub struct Separator {
-    line_width: Option<f32>,
     spacing: f32,
-    extra: f32,
-    color: Srgba,
 }
 
 impl Separator {
     pub fn new() -> Self {
-        Self {
-            line_width: None,
-            spacing: 6.0,
-            extra: 0.0,
-            color: Srgba::gray(128), // TODO: from style
-        }
-    }
-
-    pub fn line_width(mut self, line_width: f32) -> Self {
-        self.line_width = Some(line_width);
-        self
+        Self { spacing: 6.0 }
     }
 
     /// How much space we take up. The line is painted in the middle of this.
@@ -510,29 +504,11 @@ impl Separator {
         self.spacing = spacing;
         self
     }
-
-    /// Draw this much longer on each side
-    pub fn extra(mut self, extra: f32) -> Self {
-        self.extra = extra;
-        self
-    }
-
-    pub fn color(mut self, color: Srgba) -> Self {
-        self.color = color;
-        self
-    }
 }
 
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Separator {
-            line_width,
-            spacing,
-            extra,
-            color,
-        } = self;
-
-        let line_width = line_width.unwrap_or_else(|| ui.style().visuals.line_width);
+        let Separator { spacing } = self;
 
         let available_space = ui.available_finite().size();
 
@@ -541,8 +517,8 @@ impl Widget for Separator {
                 let rect = ui.allocate_space(vec2(spacing, available_space.y));
                 (
                     [
-                        pos2(rect.center().x, rect.top() - extra),
-                        pos2(rect.center().x, rect.bottom() + extra),
+                        pos2(rect.center().x, rect.top()),
+                        pos2(rect.center().x, rect.bottom()),
                     ],
                     rect,
                 )
@@ -551,14 +527,15 @@ impl Widget for Separator {
                 let rect = ui.allocate_space(vec2(available_space.x, spacing));
                 (
                     [
-                        pos2(rect.left() - extra, rect.center().y),
-                        pos2(rect.right() + extra, rect.center().y),
+                        pos2(rect.left(), rect.center().y),
+                        pos2(rect.right(), rect.center().y),
                     ],
                     rect,
                 )
             }
         };
-        ui.painter().line_segment(points, (line_width, color));
+        let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
+        ui.painter().line_segment(points, stroke);
         ui.interact_hover(rect)
     }
 }
