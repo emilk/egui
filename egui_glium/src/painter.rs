@@ -6,7 +6,10 @@ use {
         paint::{PaintJobs, Triangles},
         Rect,
     },
-    glium::{implement_vertex, index::PrimitiveType, program, texture, uniform, Frame, Surface},
+    glium::{
+        implement_vertex, index::PrimitiveType, program, texture, uniform,
+        uniforms::SamplerWrapFunction, Frame, Surface,
+    },
 };
 
 pub struct Painter {
@@ -108,7 +111,7 @@ impl Painter {
 
                         void main() {
                             // glium expects linear rgba
-                            gl_FragColor = v_rgba * texture2D`(u_sampler, v_tc).r;
+                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc).r;
                         }
                     ",
             },
@@ -255,7 +258,7 @@ impl Painter {
         let uniforms = uniform! {
             u_screen_size: [width_points, height_points],
             u_tex_size: [texture.width as f32, texture.height as f32],
-            u_sampler: &self.texture,
+            u_sampler: self.texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
         };
 
         // Egui outputs colors with premultiplied alpha:

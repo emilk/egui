@@ -15,7 +15,10 @@ use {
 };
 
 /// The UV coordinate of a white region of the texture mesh.
-pub const WHITE_UV: (u16, u16) = (1, 1);
+/// The default Egui texture has the top-left corner pixel fully white.
+/// You need need use a clamping texture sampler for this to work
+/// (so it doesn't do bilinear blending with bottom right corner).
+pub const WHITE_UV: (u16, u16) = (0, 0);
 
 /// The vertex type.
 ///
@@ -26,8 +29,11 @@ pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
     pub pos: Pos2, // 64 bit
-    /// Texel coordinates in the texture
+
+    /// Texel coordinates in the texture.
+    /// (0, 0) is the top left corner of the texture.
     pub uv: (u16, u16), // 32 bit
+
     /// sRGBA with premultiplied alpha
     pub color: Srgba, // 32 bit
 }

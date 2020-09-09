@@ -87,20 +87,16 @@ impl Fonts {
 
         let mut atlas = TextureAtlas::new(512, 16); // TODO: better default?
 
-        // Make the top left four pixels fully white:
         {
-            let pos = atlas.allocate((2, 2));
+            // Make the top left pixel fully white:
+            let pos = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            let tex = atlas.texture_mut();
-            tex[(0, 0)] = 255;
-            tex[(0, 1)] = 255;
-            tex[(1, 0)] = 255;
-            tex[(1, 1)] = 255;
+            atlas.texture_mut()[pos] = 255;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
+        // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
         let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
 
         // let monospace_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
