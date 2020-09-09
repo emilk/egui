@@ -70,7 +70,7 @@ pub struct InputState {
     pub screen_size: Vec2,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
-    pub pixels_per_point: f32,
+    pub pixels_per_point: Option<f32>,
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
@@ -205,7 +205,7 @@ impl InputState {
             mouse,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
             time: new.time,
             unstable_dt,
             predicted_dt: 1.0 / 60.0, // TODO: remove this hack
@@ -249,9 +249,14 @@ impl InputState {
         })
     }
 
+    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point.unwrap_or(1.0)
+    }
+
     /// Size of a physical pixel in logical gui coordinates (points).
     pub fn physical_pixel_size(&self) -> f32 {
-        1.0 / self.pixels_per_point
+        1.0 / self.pixels_per_point()
     }
 
     /// How imprecise do we expect the mouse/touch input to be?
@@ -370,7 +375,7 @@ impl InputState {
         ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
         ui.add(label!("screen_size: {:?} points", self.screen_size));
         ui.add(label!(
-            "{} points for each physical pixel (HDPI factor)",
+            "{:?} points for each physical pixel (HDPI factor)",
             self.pixels_per_point
         ));
         ui.add(label!("time: {:.3} s", self.time));

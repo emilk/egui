@@ -132,12 +132,13 @@ impl Context {
     }
 
     pub fn pixels_per_point(&self) -> f32 {
-        self.input.pixels_per_point
+        self.input.pixels_per_point()
     }
 
     /// Useful for pixel-perfect rendering
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.input.pixels_per_point).round() / self.input.pixels_per_point
+        let pixels_per_point = self.pixels_per_point();
+        (point * pixels_per_point).round() / pixels_per_point
     }
 
     /// Useful for pixel-perfect rendering
@@ -176,7 +177,7 @@ impl Context {
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         let mut font_definitions = self.font_definitions.lock();
-        font_definitions.pixels_per_point = self.input.pixels_per_point;
+        font_definitions.pixels_per_point = self.input.pixels_per_point();
         if self.fonts.is_none() || *self.fonts.as_ref().unwrap().definitions() != *font_definitions
         {
             self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions.clone())));
@@ -535,7 +536,7 @@ impl Context {
 
         ui.collapsing("Stats", |ui| {
             ui.add(label!(
-                "Screen size: {} x {} points, pixels_per_point: {}",
+                "Screen size: {} x {} points, pixels_per_point: {:?}",
                 ui.input().screen_size.x,
                 ui.input().screen_size.y,
                 ui.input().pixels_per_point,
