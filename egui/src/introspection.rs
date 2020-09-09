@@ -13,6 +13,9 @@ impl Texture {
             self.width,
             self.height
         ));
+        if self.width <= 1 || self.height <= 1 {
+            return;
+        }
         let mut size = vec2(self.width as f32, self.height as f32);
         if size.x > ui.available().width() {
             size *= ui.available().width() / size.x;
@@ -40,8 +43,8 @@ impl Texture {
                 let v = remap_clamp(pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0).round();
 
                 let texel_radius = 32.0;
-                let u = clamp(u, texel_radius..=self.width as f32 - 1.0 - texel_radius);
-                let v = clamp(v, texel_radius..=self.height as f32 - 1.0 - texel_radius);
+                let u = u.max(texel_radius);
+                let v = v.max(texel_radius);
 
                 let top_left = Vertex {
                     pos: zoom_rect.min,

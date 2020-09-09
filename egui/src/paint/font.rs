@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use {
     ahash::AHashMap,
-    parking_lot::Mutex,
+    parking_lot::{Mutex, RwLock},
     rusttype::{point, Scale},
 };
 
@@ -176,13 +176,13 @@ pub struct GlyphInfo {
 }
 
 /// The interface uses points as the unit for everything.
-#[derive(Clone)]
 pub struct Font {
     font: rusttype::Font<'static>,
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    glyph_infos: AHashMap<char, GlyphInfo>, // TODO: see if we can optimize if we switch to a binary search
+    replacement_glyph_info: GlyphInfo,
+    glyph_infos: RwLock<AHashMap<char, GlyphInfo>>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -199,22 +199,40 @@ impl Font {
         let font = rusttype::Font::try_from_bytes(font_data).expect("Error constructing Font");
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let mut font = Font {
+        let replacement_glyph_info = allocate_glyph(
+            &mut atlas.lock(),
+            REPLACEMENT_CHAR,
+            &font,
+            scale_in_pixels,
+            pixels_per_point,
+        )
+        .unwrap_or_else(|| {
+            panic!(
+                "Failed to find replacement character {:?}",
+                REPLACEMENT_CHAR
+            )
+        });
+
+        let font = Font {
             font,
             scale_in_pixels,
             pixels_per_point,
+            replacement_glyph_info,
             glyph_infos: Default::default(),
             atlas,
         };
 
-        /// Printable ASCII characters [32, 126], which excludes control codes.
+        font.glyph_infos
+            .write()
+            .insert(REPLACEMENT_CHAR, font.replacement_glyph_info);
+
+        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
         const FIRST_ASCII: usize = 32; // 32 == space
         const LAST_ASCII: usize = 126;
         for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
-            font.add_char(c);
+            font.glyph_info(c);
         }
-        font.add_char(REPLACEMENT_CHAR);
-        font.add_char('°');
+        font.glyph_info('°');
 
         font
     }
@@ -233,86 +251,38 @@ impl Font {
     }
 
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        self.glyph_infos.get(&c).and_then(|gi| gi.uv_rect)
+        self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
     }
 
-    fn glyph_info_or_none(&self, c: char) -> Option<&GlyphInfo> {
-        self.glyph_infos.get(&c)
-    }
-
-    fn glyph_info_or_replacemnet(&self, c: char) -> &GlyphInfo {
-        self.glyph_info_or_none(c)
-            .unwrap_or_else(|| self.glyph_info_or_none(REPLACEMENT_CHAR).unwrap())
-    }
-
-    fn add_char(&mut self, c: char) {
-        if self.glyph_infos.contains_key(&c) {
-            return;
+    fn glyph_info(&self, c: char) -> GlyphInfo {
+        if c == '\n' {
+            // Hack: else we show '\n' as '?' (REPLACEMENT_CHAR)
+            return self.glyph_info(' ');
         }
 
-        let glyph = self.font.glyph(c);
-        assert_ne!(
-            glyph.id().0,
-            0,
-            "Failed to find a glyph for the character '{}'",
-            c
-        );
-        let glyph = glyph.scaled(Scale::uniform(self.scale_in_pixels));
-        let glyph = glyph.positioned(point(0.0, 0.0));
+        {
+            if let Some(glyph_info) = self.glyph_infos.read().get(&c) {
+                return *glyph_info;
+            }
+        }
 
-        let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
-            let glyph_width = bb.width() as usize;
-            let glyph_height = bb.height() as usize;
-            assert!(glyph_width >= 1);
-            assert!(glyph_height >= 1);
-
-            let mut atlas_lock = self.atlas.lock();
-            let glyph_pos = atlas_lock.allocate((glyph_width, glyph_height));
-
-            let texture = atlas_lock.texture_mut();
-            glyph.draw(|x, y, v| {
-                if v > 0.0 {
-                    let px = glyph_pos.0 + x as usize;
-                    let py = glyph_pos.1 + y as usize;
-                    texture[(px, py)] = (v * 255.0).round() as u8;
-                }
-            });
-
-            let offset_y_in_pixels =
-                self.scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * self.pixels_per_point; // TODO: use font.v_metrics
-            Some(UvRect {
-                offset: vec2(
-                    bb.min.x as f32 / self.pixels_per_point,
-                    offset_y_in_pixels / self.pixels_per_point,
-                ),
-                size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
-                min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-                max: (
-                    (glyph_pos.0 + glyph_width) as u16,
-                    (glyph_pos.1 + glyph_height) as u16,
-                ),
-            })
-        } else {
-            // No bounding box. Maybe a space?
-            None
-        };
-
-        let advance_width_in_points =
-            glyph.unpositioned().h_metrics().advance_width / self.pixels_per_point;
-
-        self.glyph_infos.insert(
+        // Add new character:
+        let glyph_info = allocate_glyph(
+            &mut self.atlas.lock(),
             c,
-            GlyphInfo {
-                id: glyph.id(),
-                advance_width: advance_width_in_points,
-                uv_rect,
-            },
+            &self.font,
+            self.scale_in_pixels,
+            self.pixels_per_point,
         );
+        // debug_assert!(glyph_info.is_some(), "Failed to find {:?}", c);
+        let glyph_info = glyph_info.unwrap_or(self.replacement_glyph_info);
+        self.glyph_infos.write().insert(c, glyph_info);
+        glyph_info
     }
 
     /// Typeset the given text onto one line.
     /// Assumes there are no \n in the text.
-    /// Always returns exactly one frament.
+    /// Always returns exactly one fragment.
     pub fn layout_single_line(&self, text: String) -> Galley {
         let x_offsets = self.layout_single_line_fragment(&text);
         let line = Line {
@@ -397,7 +367,7 @@ impl Font {
         let mut last_glyph_id = None;
 
         for c in text.chars() {
-            let glyph = self.glyph_info_or_replacemnet(c);
+            let glyph = self.glyph_info(c);
 
             if let Some(last_glyph_id) = last_glyph_id {
                 cursor_x_in_points +=
@@ -499,4 +469,63 @@ impl Font {
 
         out_lines
     }
+}
+
+fn allocate_glyph(
+    atlas: &mut TextureAtlas,
+    c: char,
+    font: &rusttype::Font<'static>,
+    scale_in_pixels: f32,
+    pixels_per_point: f32,
+) -> Option<GlyphInfo> {
+    let glyph = font.glyph(c);
+    if glyph.id().0 == 0 {
+        return None; // Failed to find a glyph for the character
+    }
+
+    let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
+    let glyph = glyph.positioned(point(0.0, 0.0));
+
+    let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
+        let glyph_width = bb.width() as usize;
+        let glyph_height = bb.height() as usize;
+        assert!(glyph_width >= 1);
+        assert!(glyph_height >= 1);
+
+        let glyph_pos = atlas.allocate((glyph_width, glyph_height));
+
+        let texture = atlas.texture_mut();
+        glyph.draw(|x, y, v| {
+            if v > 0.0 {
+                let px = glyph_pos.0 + x as usize;
+                let py = glyph_pos.1 + y as usize;
+                texture[(px, py)] = (v * 255.0).round() as u8;
+            }
+        });
+
+        let offset_y_in_pixels = scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
+        Some(UvRect {
+            offset: vec2(
+                bb.min.x as f32 / pixels_per_point,
+                offset_y_in_pixels / pixels_per_point,
+            ),
+            size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+            min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
+            max: (
+                (glyph_pos.0 + glyph_width) as u16,
+                (glyph_pos.1 + glyph_height) as u16,
+            ),
+        })
+    } else {
+        // No bounding box. Maybe a space?
+        None
+    };
+
+    let advance_width_in_points = glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
+
+    Some(GlyphInfo {
+        id: glyph.id(),
+        advance_width: advance_width_in_points,
+        uv_rect,
+    })
 }

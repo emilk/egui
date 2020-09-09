@@ -491,6 +491,9 @@ impl Widgets {
             );
         });
 
+        ui.add(label!("Some non-latin characters: Ευρηκα τ = 2×π"))
+            .tooltip_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
+
         ui.horizontal(|ui| {
             ui.radio_value("First", &mut self.radio, 0);
             ui.radio_value("Second", &mut self.radio, 1);

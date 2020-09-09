@@ -110,9 +110,10 @@ impl Context {
             .expect("No fonts available until first call to Context::begin_frame()`")
     }
 
+    /// The Egui texture, containing font characters etc..
     /// Not valid until first call to `begin_frame()`
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn texture(&self) -> &paint::Texture {
+    pub fn texture(&self) -> Arc<paint::Texture> {
         self.fonts().texture()
     }
 

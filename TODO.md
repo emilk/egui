@@ -34,9 +34,11 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Distinguish between touch input and mouse input
     * [ ] Get modifier keys
     * [ ] Keyboard shortcuts
+        * [ ] Copy, paste, undo, ...
 * [ ] Text
-    * [ ] Unicode
-        * [ ] Shared mutable expanding texture map?
+    * [/] Unicode
+        * [x] Shared mutable expanding texture map
+        * [ ] Text editing of unicode
     * [ ] Change text style/color and continue in same layout
 * [ ] Menu bar (File, Edit, etc)
     * [ ] Sub-menus

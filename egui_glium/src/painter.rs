@@ -258,7 +258,7 @@ impl Painter {
             u_sampler: &self.texture,
         };
 
-        // Emilib outputs colors with premultiplied alpha:
+        // Egui outputs colors with premultiplied alpha:
         let blend_func = glium::BlendingFunction::Addition {
             source: glium::LinearBlendingFactor::One,
             destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,

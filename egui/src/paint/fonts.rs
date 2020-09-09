@@ -63,7 +63,10 @@ impl FontDefinitions {
 pub struct Fonts {
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
-    texture: Texture,
+    atlas: Arc<Mutex<TextureAtlas>>,
+    /// Copy of the texture in the texture atlas.
+    /// This is so we can return a reference to it (the texture atlas is behind a lock).
+    buffered_texture: Mutex<Arc<Texture>>,
 }
 
 impl Fonts {
@@ -82,22 +85,25 @@ impl Fonts {
             return;
         }
 
-        let mut atlas = TextureAtlas::new(512, 8); // TODO: better default?
+        let mut atlas = TextureAtlas::new(512, 16); // TODO: better default?
 
         // Make the top left four pixels fully white:
-        let pos = atlas.allocate((2, 2));
-        assert_eq!(pos, (0, 0));
-        atlas.texture_mut()[(0, 0)] = 255;
-        atlas.texture_mut()[(0, 1)] = 255;
-        atlas.texture_mut()[(1, 0)] = 255;
-        atlas.texture_mut()[(1, 1)] = 255;
+        {
+            let pos = atlas.allocate((2, 2));
+            assert_eq!(pos, (0, 0));
+            let tex = atlas.texture_mut();
+            tex[(0, 0)] = 255;
+            tex[(0, 1)] = 255;
+            tex[(1, 0)] = 255;
+            tex[(1, 1)] = 255;
+        }
 
         let atlas = Arc::new(Mutex::new(atlas));
 
         // TODO: figure out a way to make the wasm smaller despite including a font. Zip it?
-        let monospae_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
 
-        // let monospae_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
+        // let monospace_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
 
         let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
 
@@ -112,7 +118,7 @@ impl Fonts {
             .into_iter()
             .map(|(text_style, (family, size))| {
                 let typeface_data: &[u8] = match family {
-                    FontFamily::Monospace => monospae_typeface_data,
+                    FontFamily::Monospace => monospace_typeface_data,
                     FontFamily::VariableWidth => variable_typeface_data,
                 };
 
@@ -122,15 +128,28 @@ impl Fonts {
                 )
             })
             .collect();
-        self.texture = atlas.lock().texture().clone();
 
-        let mut hasher = ahash::AHasher::default();
-        self.texture.pixels.hash(&mut hasher);
-        self.texture.version = hasher.finish();
+        {
+            let mut atlas = atlas.lock();
+            let texture = atlas.texture_mut();
+            // Make sure we seed the texture version with something unique based on the default characters:
+            let mut hasher = ahash::AHasher::default();
+            texture.pixels.hash(&mut hasher);
+            texture.version = hasher.finish();
+        }
+
+        self.buffered_texture = Default::default(); //atlas.lock().texture().clone();
+        self.atlas = atlas;
     }
 
-    pub fn texture(&self) -> &Texture {
-        &self.texture
+    pub fn texture(&self) -> Arc<Texture> {
+        let atlas = self.atlas.lock();
+        let mut buffered_texture = self.buffered_texture.lock();
+        if buffered_texture.version != atlas.texture().version {
+            *buffered_texture = Arc::new(atlas.texture().clone());
+        }
+
+        buffered_texture.clone()
     }
 }
 

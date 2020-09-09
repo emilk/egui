@@ -105,7 +105,7 @@ pub fn run(
                 let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
                 runner.frame_times.add(raw_input.time, frame_time);
 
-                painter.paint_jobs(&display, paint_jobs, ctx.texture());
+                painter.paint_jobs(&display, paint_jobs, &ctx.texture());
 
                 if runner.quit {
                     *control_flow = glutin::event_loop::ControlFlow::Exit

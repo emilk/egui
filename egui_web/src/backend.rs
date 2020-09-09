@@ -59,7 +59,7 @@ impl WebBackend {
         self.painter.paint_jobs(
             bg_color,
             paint_jobs,
-            self.ctx.texture(),
+            &self.ctx.texture(),
             self.ctx.pixels_per_point(),
         )
     }
