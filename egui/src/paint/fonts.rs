@@ -126,7 +126,7 @@ impl Fonts {
 
         let mut hasher = ahash::AHasher::default();
         self.texture.pixels.hash(&mut hasher);
-        self.texture.id = hasher.finish();
+        self.texture.version = hasher.finish();
     }
 
     pub fn texture(&self) -> &Texture {

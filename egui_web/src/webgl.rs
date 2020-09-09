@@ -23,7 +23,7 @@ pub struct Painter {
     tc_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
     tex_size: (u16, u16),
-    current_texture_id: Option<u64>,
+    current_texture_version: Option<u64>,
 }
 
 impl Painter {
@@ -138,7 +138,7 @@ impl Painter {
             tc_buffer,
             color_buffer,
             tex_size: (0, 0),
-            current_texture_id: None,
+            current_texture_version: None,
         })
     }
 
@@ -148,7 +148,7 @@ impl Painter {
     }
 
     fn upload_texture(&mut self, texture: &Texture) {
-        if self.current_texture_id == Some(texture.id) {
+        if self.current_texture_version == Some(texture.version) {
             return; // No change
         }
 
@@ -174,7 +174,7 @@ impl Painter {
         .unwrap();
 
         self.tex_size = (texture.width as u16, texture.height as u16);
-        self.current_texture_id = Some(texture.id);
+        self.current_texture_version = Some(texture.version);
     }
 
     pub fn paint_jobs(

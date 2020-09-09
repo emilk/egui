@@ -12,7 +12,7 @@ use {
 pub struct Painter {
     program: glium::Program,
     texture: texture::texture2d::Texture2d,
-    current_texture_id: Option<u64>,
+    current_texture_version: Option<u64>,
 }
 
 impl Painter {
@@ -171,12 +171,12 @@ impl Painter {
         Painter {
             program,
             texture,
-            current_texture_id: None,
+            current_texture_version: None,
         }
     }
 
     fn upload_texture(&mut self, facade: &dyn glium::backend::Facade, texture: &egui::Texture) {
-        if self.current_texture_id == Some(texture.id) {
+        if self.current_texture_version == Some(texture.version) {
             return; // No change
         }
 
@@ -190,7 +190,7 @@ impl Painter {
         let mipmaps = texture::MipmapsOption::NoMipmap;
         self.texture =
             texture::texture2d::Texture2d::with_format(facade, pixels, format, mipmaps).unwrap();
-        self.current_texture_id = Some(texture.id);
+        self.current_texture_version = Some(texture.version);
     }
 
     pub fn paint_jobs(

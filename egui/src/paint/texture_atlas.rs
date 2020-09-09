@@ -2,7 +2,8 @@
 #[derive(Clone, Default)]
 pub struct Texture {
     /// e.g. a hash of the data. Use this to detect changes!
-    pub id: u64,
+    /// If the texture changes, this too will change.
+    pub version: u64,
     pub width: usize,
     pub height: usize,
     pub pixels: Vec<u8>,
@@ -42,7 +43,7 @@ impl TextureAtlas {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             texture: Texture {
-                id: 0,
+                version: 0,
                 width,
                 height,
                 pixels: vec![0; width * height],
@@ -56,7 +57,7 @@ impl TextureAtlas {
     }
 
     pub fn texture_mut(&mut self) -> &mut Texture {
-        self.texture.id += 1;
+        self.texture.version += 1;
         &mut self.texture
     }
 
@@ -88,7 +89,7 @@ impl TextureAtlas {
 
         let pos = self.cursor;
         self.cursor.0 += w;
-        self.texture.id += 1;
+        self.texture.version += 1;
         (pos.0 as usize, pos.1 as usize)
     }
 }
