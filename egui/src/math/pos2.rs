@@ -14,7 +14,7 @@ pub struct Pos2 {
     // implicit w = 1
 }
 
-pub fn pos2(x: f32, y: f32) -> Pos2 {
+pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
 }
 
@@ -31,7 +31,7 @@ impl From<&[f32; 2]> for Pos2 {
 }
 
 impl Pos2 {
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 

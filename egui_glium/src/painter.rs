@@ -25,7 +25,6 @@ impl Painter {
                     vertex: "
                         #version 140
                         uniform vec2 u_screen_size;
-                        uniform vec2 u_tex_size;
                         in vec2 a_pos;
                         in vec4 a_srgba;
                         in vec2 a_tc;
@@ -51,7 +50,7 @@ impl Painter {
                                 0.0,
                                 1.0);
                             v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc / u_tex_size;
+                            v_tc = a_tc;
                         }
                     ",
 
@@ -73,7 +72,6 @@ impl Painter {
                     vertex: "
                         #version 110
                         uniform vec2 u_screen_size;
-                        uniform vec2 u_tex_size;
                         attribute vec2 a_pos;
                         attribute vec4 a_srgba;
                         attribute vec2 a_tc;
@@ -99,7 +97,7 @@ impl Painter {
                                 0.0,
                                 1.0);
                             v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc / u_tex_size;
+                            v_tc = a_tc;
                         }
                     ",
 
@@ -120,7 +118,6 @@ impl Painter {
                     vertex: "
                         #version 100
                         uniform mediump vec2 u_screen_size;
-                        uniform mediump vec2 u_tex_size;
                         attribute mediump vec2 a_pos;
                         attribute mediump vec4 a_srgba;
                         attribute mediump vec2 a_tc;
@@ -146,7 +143,7 @@ impl Painter {
                                 0.0,
                                 1.0);
                             v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc / u_tex_size;
+                            v_tc = a_tc;
                         }
                     ",
 
@@ -207,7 +204,7 @@ impl Painter {
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
         for (clip_rect, triangles) in jobs {
-            self.paint_job(&mut target, display, clip_rect, &triangles, texture)
+            self.paint_job(&mut target, display, clip_rect, &triangles)
         }
         target.finish().unwrap();
     }
@@ -219,7 +216,6 @@ impl Painter {
         display: &glium::Display,
         clip_rect: Rect,
         triangles: &Triangles,
-        texture: &egui::Texture,
     ) {
         debug_assert!(triangles.is_valid());
 
@@ -227,18 +223,18 @@ impl Painter {
             #[derive(Copy, Clone)]
             struct Vertex {
                 a_pos: [f32; 2],
+                a_tc: [f32; 2],
                 a_srgba: [u8; 4],
-                a_tc: [u16; 2],
             }
-            implement_vertex!(Vertex, a_pos, a_srgba, a_tc);
+            implement_vertex!(Vertex, a_pos, a_tc, a_srgba);
 
             let vertices: Vec<Vertex> = triangles
                 .vertices
                 .iter()
                 .map(|v| Vertex {
                     a_pos: [v.pos.x, v.pos.y],
+                    a_tc: [v.uv.x, v.uv.y],
                     a_srgba: v.color.0,
-                    a_tc: [v.uv.0, v.uv.1],
                 })
                 .collect();
 
@@ -257,7 +253,6 @@ impl Painter {
 
         let uniforms = uniform! {
             u_screen_size: [width_points, height_points],
-            u_tex_size: [texture.width as f32, texture.height as f32],
             u_sampler: self.texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
         };
 

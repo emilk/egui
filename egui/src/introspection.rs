@@ -23,37 +23,40 @@ impl Texture {
         let rect = ui.allocate_space(size);
         let top_left = Vertex {
             pos: rect.min,
-            uv: (0, 0),
+            uv: pos2(0.0, 0.0),
             color: WHITE,
         };
         let bottom_right = Vertex {
             pos: rect.max,
-            uv: (self.width as u16 - 1, self.height as u16 - 1),
+            uv: pos2(1.0, 1.0),
             color: WHITE,
         };
         let mut triangles = Triangles::default();
         triangles.add_rect(top_left, bottom_right);
         ui.painter().add(PaintCmd::Triangles(triangles));
 
+        let tex_w = self.width as f32;
+        let tex_h = self.height as f32;
+
         if ui.hovered(rect) {
             show_tooltip(ui.ctx(), |ui| {
-                let pos = ui.top_left();
+                let pos = ui.input().mouse.pos.unwrap_or_else(|| ui.top_left());
                 let zoom_rect = ui.allocate_space(vec2(128.0, 128.0));
-                let u = remap_clamp(pos.x, rect.range_x(), 0.0..=self.width as f32 - 1.0).round();
-                let v = remap_clamp(pos.y, rect.range_y(), 0.0..=self.height as f32 - 1.0).round();
+                let u = remap_clamp(pos.x, rect.range_x(), 0.0..=tex_w);
+                let v = remap_clamp(pos.y, rect.range_y(), 0.0..=tex_h);
 
                 let texel_radius = 32.0;
-                let u = u.max(texel_radius);
-                let v = v.max(texel_radius);
+                let u = u.max(texel_radius).min(tex_w - texel_radius);
+                let v = v.max(texel_radius).min(tex_h - texel_radius);
 
                 let top_left = Vertex {
                     pos: zoom_rect.min,
-                    uv: ((u - texel_radius) as u16, (v - texel_radius) as u16),
+                    uv: pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
                     color: WHITE,
                 };
                 let bottom_right = Vertex {
                     pos: zoom_rect.max,
-                    uv: ((u + texel_radius) as u16, (v + texel_radius) as u16),
+                    uv: pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
                     color: WHITE,
                 };
                 let mut triangles = Triangles::default();

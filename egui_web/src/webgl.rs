@@ -63,7 +63,6 @@ impl Painter {
             r#"
             precision mediump float;
             uniform vec2 u_screen_size;
-            uniform vec2 u_tex_size;
             attribute vec2 a_pos;
             attribute vec2 a_tc;
             attribute vec4 a_srgba;
@@ -89,7 +88,7 @@ impl Painter {
                     0.0,
                     1.0);
                 v_rgba = linear_from_srgba(a_srgba);
-                v_tc = a_tc / u_tex_size;
+                v_tc = a_tc;
             }
         "#,
         )?;
@@ -206,15 +205,6 @@ impl Painter {
             screen_size_points.y,
         );
 
-        let u_tex_size_loc = gl
-            .get_uniform_location(&self.program, "u_tex_size")
-            .unwrap();
-        gl.uniform2f(
-            Some(&u_tex_size_loc),
-            f32::from(self.tex_size.0),
-            f32::from(self.tex_size.1),
-        );
-
         let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
         gl.uniform1i(Some(&u_sampler_loc), 0);
 
@@ -267,12 +257,12 @@ impl Painter {
         let indices: Vec<u16> = triangles.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * triangles.vertices.len());
-        let mut tex_coords: Vec<u16> = Vec::with_capacity(2 * triangles.vertices.len());
+        let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * triangles.vertices.len());
         for v in &triangles.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
-            tex_coords.push(v.uv.0);
-            tex_coords.push(v.uv.1);
+            tex_coords.push(v.uv.x);
+            tex_coords.push(v.uv.y);
         }
 
         let mut colors: Vec<u8> = Vec::with_capacity(4 * triangles.vertices.len());
@@ -328,8 +318,8 @@ impl Painter {
         let tc_memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
             .buffer();
-        let tc_ptr = tex_coords.as_ptr() as u32 / 2;
-        let tc_array = js_sys::Uint16Array::new(&tc_memory_buffer)
+        let tc_ptr = tex_coords.as_ptr() as u32 / 4;
+        let tc_array = js_sys::Float32Array::new(&tc_memory_buffer)
             .subarray(tc_ptr, tc_ptr + tex_coords.len() as u32);
 
         gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&self.tc_buffer));
@@ -342,14 +332,7 @@ impl Painter {
         let normalize = false;
         let stride = 0;
         let offset = 0;
-        gl.vertex_attrib_pointer_with_i32(
-            a_tc_loc,
-            2,
-            Gl::UNSIGNED_SHORT,
-            normalize,
-            stride,
-            offset,
-        );
+        gl.vertex_attrib_pointer_with_i32(a_tc_loc, 2, Gl::FLOAT, normalize, stride, offset);
         gl.enable_vertex_attrib_array(a_tc_loc);
 
         // --------------------------------------------------------------------

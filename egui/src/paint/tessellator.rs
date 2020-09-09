@@ -18,7 +18,7 @@ use {
 /// The default Egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
-pub const WHITE_UV: (u16, u16) = (0, 0);
+pub const WHITE_UV: Pos2 = pos2(0.0, 0.0);
 
 /// The vertex type.
 ///
@@ -30,9 +30,10 @@ pub struct Vertex {
     /// (0,0) is the top left corner of the screen.
     pub pos: Pos2, // 64 bit
 
-    /// Texel coordinates in the texture.
+    /// Normalized texture coordinates.
     /// (0, 0) is the top left corner of the texture.
-    pub uv: (u16, u16), // 32 bit
+    /// (1, 1) is the bottom right corner of the texture.
+    pub uv: Pos2, // 64 bit
 
     /// sRGBA with premultiplied alpha
     pub color: Srgba, // 32 bit
@@ -109,12 +110,12 @@ impl Triangles {
 
         let top_right = Vertex {
             pos: pos2(bottom_right.pos.x, top_left.pos.y),
-            uv: (bottom_right.uv.0, top_left.uv.1),
+            uv: pos2(bottom_right.uv.x, top_left.uv.y),
             color: top_left.color,
         };
         let botom_left = Vertex {
             pos: pos2(top_left.pos.x, bottom_right.pos.y),
-            uv: (top_left.uv.0, bottom_right.uv.1),
+            uv: pos2(top_left.uv.x, bottom_right.uv.y),
             color: top_left.color,
         };
         self.vertices.push(top_left);
@@ -691,6 +692,9 @@ fn tessellate_paint_command(
             out.reserve_triangles(num_chars * 2);
             out.reserve_vertices(num_chars * 4);
 
+            let tex_w = fonts.texture().width as f32;
+            let tex_h = fonts.texture().height as f32;
+
             let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
 
             let font = &fonts[text_style];
@@ -701,14 +705,14 @@ fn tessellate_paint_command(
                     if let Some(glyph) = font.uv_rect(c) {
                         let mut top_left = Vertex {
                             pos: pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset,
-                            uv: glyph.min,
+                            uv: pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
                             color,
                         };
                         top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
                         top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
                         let bottom_right = Vertex {
                             pos: top_left.pos + glyph.size,
-                            uv: glyph.max,
+                            uv: pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
                             color,
                         };
                         out.add_rect(top_left, bottom_right);
