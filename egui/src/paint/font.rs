@@ -193,6 +193,9 @@ impl Font {
         scale_in_points: f32,
         pixels_per_point: f32,
     ) -> Font {
+        assert!(scale_in_points > 0.0);
+        assert!(pixels_per_point > 0.0);
+
         let font = rusttype::Font::try_from_bytes(font_data).expect("Error constructing Font");
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
