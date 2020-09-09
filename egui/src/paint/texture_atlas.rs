@@ -61,18 +61,18 @@ impl TextureAtlas {
         &mut self.texture
     }
 
-    pub fn clear(&mut self) {
-        self.cursor = (0, 0);
-        self.row_height = 0;
-    }
-
     /// Returns the coordinates of where the rect ended up.
     pub fn allocate(&mut self, (w, h): (usize, usize)) -> (usize, usize) {
+        /// On some low-precision GPUs (my old iPad) characters get muddled up
+        /// if we don't add some empty pixels between the characters.
+        /// On modern high-precision GPUs this is not be needed.
+        const PADDING: usize = 1;
+
         assert!(w <= self.texture.width);
         if self.cursor.0 + w > self.texture.width {
             // New row:
             self.cursor.0 = 0;
-            self.cursor.1 += self.row_height;
+            self.cursor.1 += self.row_height + PADDING;
             self.row_height = 0;
         }
 
@@ -88,7 +88,7 @@ impl TextureAtlas {
         }
 
         let pos = self.cursor;
-        self.cursor.0 += w;
+        self.cursor.0 += w + PADDING;
         self.texture.version += 1;
         (pos.0 as usize, pos.1 as usize)
     }
