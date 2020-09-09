@@ -14,7 +14,11 @@ TODO-list for the Egui project. If you looking for something to do, look here.
         * [x] linear rgb <-> sRGB
         * [x] HSV
         * [x] Color edit button with popup color picker
-        * [ ] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
+        * [x] Gamma for value (brightness) slider
+        * [x] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
+        * [ ] RGB editing without alpha
+        * [ ] Additive blending aware color picker
+        * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
 * Containers
     * [ ] Scroll areas
         * [x] Vertical scrolling

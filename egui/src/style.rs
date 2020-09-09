@@ -437,7 +437,7 @@ impl Stroke {
             ui.label(format!("{}: ", text));
             ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
                 .tooltip_text("Width");
-            ui.color_edit_button(color);
+            ui.color_edit_button_srgba(color);
         });
     }
 }
@@ -454,6 +454,6 @@ fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
     ui.horizontal_centered(|ui| {
         ui.label(format!("{}: ", text));
-        ui.color_edit_button(srgba);
+        ui.color_edit_button_srgba(srgba);
     });
 }

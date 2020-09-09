@@ -38,7 +38,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     painter.add(PaintCmd::Triangles(triangles));
 }
 
-fn show_color(ui: &mut Ui, color: Srgba, desired_size: Vec2) -> Rect {
+fn show_color(ui: &mut Ui, color: Srgba, desired_size: Vec2) -> Response {
     let rect = ui.allocate_space(desired_size);
     background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
@@ -47,7 +47,7 @@ fn show_color(ui: &mut Ui, color: Srgba, desired_size: Vec2) -> Rect {
         fill: color,
         stroke: Stroke::new(3.0, color.to_opaque()),
     });
-    rect
+    ui.interact_hover(rect)
 }
 
 fn color_button(ui: &mut Ui, color: Srgba) -> Response {
@@ -184,29 +184,38 @@ fn color_slider_2d(
     response
 }
 
-fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva) {
+fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma) {
     ui.vertical_centered(|ui| {
         let current_color_size = vec2(
             ui.style().spacing.slider_width,
             ui.style().spacing.clickable_diameter * 2.0,
         );
-        let current_color_rect = show_color(ui, (*hsva).into(), current_color_size);
-        if ui.hovered(current_color_rect) {
-            show_tooltip_text(ui.ctx(), "Current color");
-        }
 
-        let opaque = Hsva { a: 1.0, ..*hsva };
-        let Hsva { h, s, v, a } = hsva;
-        color_slider_2d(ui, h, s, |h, s| Hsva::new(h, s, 1.0, 1.0).into())
+        show_color(ui, (*hsva).into(), current_color_size).tooltip_text("Current color");
+
+        show_color(ui, HsvaGamma { a: 1.0, ..*hsva }.into(), current_color_size)
+            .tooltip_text("Current color (opaque)");
+
+        let opaque = HsvaGamma { a: 1.0, ..*hsva };
+        let HsvaGamma { h, s, v, a } = hsva;
+        color_slider_2d(ui, h, s, |h, s| HsvaGamma::new(h, s, 1.0, 1.0).into())
             .tooltip_text("Hue - Saturation");
-        color_slider_2d(ui, v, s, |v, s| Hsva { v, s, ..opaque }.into())
+        color_slider_2d(ui, v, s, |v, s| HsvaGamma { v, s, ..opaque }.into())
             .tooltip_text("Value - Saturation");
-        ui.label("Alpha:");
-        color_slider_1d(ui, a, |a| Hsva { a, ..opaque }.into()).tooltip_text("Alpha");
+        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into()).tooltip_text("Hue");
+        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).tooltip_text("Saturation");
+        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).tooltip_text("Value");
+        color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).tooltip_text("Alpha");
     });
 }
 
-fn color_picker_hsva(ui: &mut Ui, hsva: &mut Hsva) {
+fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva) {
+    let mut hsvag = HsvaGamma::from(*hsva);
+    color_picker_hsvag_2d(ui, &mut hsvag);
+    *hsva = Hsva::from(hsvag);
+}
+
+pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
     let id = ui.make_position_id().with("foo");
     let button_response = color_button(ui, (*hsva).into()).tooltip_text("Click to edit color");
 
@@ -231,12 +240,13 @@ fn color_picker_hsva(ui: &mut Ui, hsva: &mut Hsva) {
             }
         }
     }
+
+    button_response
 }
 
-// TODO: return Response so user can show a tooltip
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button(ui: &mut Ui, srgba: &mut Srgba) {
+pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Srgba) -> Response {
     // To ensure we keep hue slider when `srgba` is grey we store the
     // full `Hsva` in a cache:
 
@@ -248,9 +258,93 @@ pub fn color_edit_button(ui: &mut Ui, srgba: &mut Srgba) {
         .cloned()
         .unwrap_or_else(|| Hsva::from(*srgba));
 
-    color_picker_hsva(ui, &mut hsva);
+    let response = color_edit_button_hsva(ui, &mut hsva);
 
     *srgba = Srgba::from(hsva);
 
     ui.ctx().memory().color_cache.set(*srgba, hsva);
+
+    response
+}
+
+// ----------------------------------------------------------------------------
+
+/// Like Hsva but with the `v` (value/brightness) being gamma corrected
+/// so that it is perceptually even in sliders.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct HsvaGamma {
+    /// hue 0-1
+    pub h: f32,
+    /// saturation 0-1
+    pub s: f32,
+    /// value 0-1, in gamma-space (perceptually even)
+    pub v: f32,
+    /// alpha 0-1
+    pub a: f32,
+}
+
+impl HsvaGamma {
+    pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
+        Self { h, s, v, a }
+    }
+}
+
+// const GAMMA: f32 = 2.2;
+
+impl From<HsvaGamma> for Rgba {
+    fn from(hsvag: HsvaGamma) -> Rgba {
+        Hsva::from(hsvag).into()
+    }
+}
+
+impl From<HsvaGamma> for Srgba {
+    fn from(hsvag: HsvaGamma) -> Srgba {
+        Rgba::from(hsvag).into()
+    }
+}
+
+impl From<HsvaGamma> for Hsva {
+    fn from(hsvag: HsvaGamma) -> Hsva {
+        let HsvaGamma { h, s, v, a } = hsvag;
+        Hsva {
+            h,
+            s,
+            v: linear_from_srgb(v),
+            a,
+        }
+    }
+}
+
+impl From<Hsva> for HsvaGamma {
+    fn from(hsva: Hsva) -> HsvaGamma {
+        let Hsva { h, s, v, a } = hsva;
+        HsvaGamma {
+            h,
+            s,
+            v: srgb_from_linear(v),
+            a,
+        }
+    }
+}
+
+/// [0, 1] -> [0, 1]
+fn linear_from_srgb(s: f32) -> f32 {
+    if s < 0.0 {
+        -linear_from_srgb(-s)
+    } else if s <= 0.04045 {
+        s / 12.92
+    } else {
+        ((s + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// [0, 1] -> [0, 1]
+fn srgb_from_linear(l: f32) -> f32 {
+    if l < 0.0 {
+        -srgb_from_linear(-l)
+    } else if l <= 0.0031308 {
+        12.92 * l
+    } else {
+        1.055 * l.powf(1.0 / 2.4) - 0.055
+    }
 }

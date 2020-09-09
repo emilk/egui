@@ -208,7 +208,7 @@ impl From<Srgba> for Rgba {
             linear_from_srgb_byte(srgba[0]),
             linear_from_srgb_byte(srgba[1]),
             linear_from_srgb_byte(srgba[2]),
-            srgba[3] as f32 / 255.0,
+            linear_from_alpha_byte(srgba[3]),
         ])
     }
 }
@@ -219,11 +219,12 @@ impl From<Rgba> for Srgba {
             srgb_byte_from_linear(rgba[0]),
             srgb_byte_from_linear(rgba[1]),
             srgb_byte_from_linear(rgba[2]),
-            clamp(rgba[3] * 255.0, 0.0..=255.0).round() as u8,
+            alpha_byte_from_linear(rgba[3]),
         ])
     }
 }
 
+/// [0, 255] -> [0, 1]
 fn linear_from_srgb_byte(s: u8) -> f32 {
     if s <= 10 {
         s as f32 / 3294.6
@@ -232,6 +233,11 @@ fn linear_from_srgb_byte(s: u8) -> f32 {
     }
 }
 
+fn linear_from_alpha_byte(a: u8) -> f32 {
+    a as f32 / 255.0
+}
+
+/// [0, 1] -> [0, 255]
 fn srgb_byte_from_linear(l: f32) -> u8 {
     if l <= 0.0 {
         0
@@ -242,6 +248,10 @@ fn srgb_byte_from_linear(l: f32) -> u8 {
     } else {
         255
     }
+}
+
+fn alpha_byte_from_linear(a: f32) -> u8 {
+    clamp(a * 255.0, 0.0..=255.0).round() as u8
 }
 
 #[test]
@@ -274,25 +284,87 @@ impl Hsva {
     pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
         Self { h, s, v, a }
     }
-}
 
-impl From<Hsva> for Rgba {
-    fn from(hsva: Hsva) -> Rgba {
-        let Hsva { h, s, v, a } = hsva;
-        let (r, g, b) = rgb_from_hsv((h, s, v));
-        Rgba::new(a * r, a * g, a * b, a)
+    /// From `sRGBA` with premultiplied alpha
+    pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
+        Self::from_rgba_premultiplied([
+            linear_from_srgb_byte(srgba[0]),
+            linear_from_srgb_byte(srgba[1]),
+            linear_from_srgb_byte(srgba[2]),
+            linear_from_alpha_byte(srgba[3]),
+        ])
     }
-}
-impl From<Rgba> for Hsva {
-    fn from(rgba: Rgba) -> Hsva {
+
+    /// From `sRGBA` without premultiplied alpha
+    pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
+        Self::from_rgba_unmultiplied([
+            linear_from_srgb_byte(srgba[0]),
+            linear_from_srgb_byte(srgba[1]),
+            linear_from_srgb_byte(srgba[2]),
+            linear_from_alpha_byte(srgba[3]),
+        ])
+    }
+
+    /// From linear RGBA with premultiplied alpha
+    pub fn from_rgba_premultiplied(rgba: [f32; 4]) -> Self {
         #![allow(clippy::many_single_char_names)]
-        let Rgba([r, g, b, a]) = rgba;
+        let [r, g, b, a] = rgba;
         if a == 0.0 {
             Hsva::default()
         } else {
             let (h, s, v) = hsv_from_rgb((r / a, g / a, b / a));
             Hsva { h, s, v, a }
         }
+    }
+
+    /// From linear RGBA without premultiplied alpha
+    pub fn from_rgba_unmultiplied(rgba: [f32; 4]) -> Self {
+        #![allow(clippy::many_single_char_names)]
+        let [r, g, b, a] = rgba;
+        let (h, s, v) = hsv_from_rgb((r, g, b));
+        Hsva { h, s, v, a }
+    }
+
+    pub fn to_rgba_premultiplied(&self) -> [f32; 4] {
+        let [r, g, b, a] = self.to_rgba_unmultiplied();
+        [a * r, a * g, a * b, a]
+    }
+
+    pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
+        let Hsva { h, s, v, a } = *self;
+        let (r, g, b) = rgb_from_hsv((h, s, v));
+        [r, g, b, a]
+    }
+
+    pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
+        let [r, g, b, a] = self.to_rgba_premultiplied();
+        [
+            srgb_byte_from_linear(r),
+            srgb_byte_from_linear(g),
+            srgb_byte_from_linear(b),
+            alpha_byte_from_linear(a),
+        ]
+    }
+
+    pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
+        let [r, g, b, a] = self.to_rgba_unmultiplied();
+        [
+            srgb_byte_from_linear(r),
+            srgb_byte_from_linear(g),
+            srgb_byte_from_linear(b),
+            alpha_byte_from_linear(a),
+        ]
+    }
+}
+
+impl From<Hsva> for Rgba {
+    fn from(hsva: Hsva) -> Rgba {
+        Rgba(hsva.to_rgba_premultiplied())
+    }
+}
+impl From<Rgba> for Hsva {
+    fn from(rgba: Rgba) -> Hsva {
+        Self::from_rgba_premultiplied(rgba.0)
     }
 }
 

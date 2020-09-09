@@ -312,6 +312,7 @@ pub struct DemoWindow {
     num_columns: usize,
 
     widgets: Widgets,
+    colors: ColorWidgets,
     layout: LayoutDemo,
     tree: Tree,
     box_painting: BoxPainting,
@@ -324,6 +325,7 @@ impl Default for DemoWindow {
             num_columns: 2,
 
             widgets: Default::default(),
+            colors: Default::default(),
             layout: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
@@ -349,6 +351,12 @@ impl DemoWindow {
             .default_open(true)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
+            });
+
+        CollapsingHeader::new("Colors")
+            .default_open(true)
+            .show(ui, |ui| {
+                self.colors.ui(ui);
             });
 
         CollapsingHeader::new("Layout")
@@ -531,7 +539,7 @@ impl Widgets {
 
         ui.horizontal_centered(|ui| {
             ui.add(Label::new("Click to select a different text color: ").text_color(self.color));
-            ui.color_edit_button(&mut self.color);
+            ui.color_edit_button_srgba(&mut self.color);
         });
 
         ui.separator();
@@ -547,6 +555,78 @@ impl Widgets {
 
         ui.add(label!("Multiline text input:"));
         ui.add(TextEdit::new(&mut self.multiline_text_input).id_source("multiline"));
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct ColorWidgets {
+    srgba_unmul: [u8; 4],
+    srgba_premul: [u8; 4],
+    rgba_unmul: [f32; 4],
+    rgba_premul: [f32; 4],
+}
+
+impl Default for ColorWidgets {
+    fn default() -> Self {
+        // Approximately the same color.
+        ColorWidgets {
+            srgba_unmul: [0, 255, 183, 127],
+            srgba_premul: [0, 187, 140, 127],
+            rgba_unmul: [0.0, 1.0, 0.5, 0.5],
+            rgba_premul: [0.0, 0.5, 0.25, 0.5],
+        }
+    }
+}
+
+impl ColorWidgets {
+    fn ui(&mut self, ui: &mut Ui) {
+        if ui.button("Reset").clicked {
+            *self = Default::default();
+        }
+
+        ui.label("Egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
+
+        let Self {
+            srgba_unmul,
+            srgba_premul,
+            rgba_unmul,
+            rgba_premul,
+        } = self;
+
+        ui.horizontal_centered(|ui| {
+            ui.color_edit_button_srgba_unmultiplied(srgba_unmul);
+            ui.label(format!(
+                "sRGBA: {} {} {} {}",
+                srgba_unmul[0], srgba_unmul[1], srgba_unmul[2], srgba_unmul[3],
+            ));
+        });
+
+        ui.horizontal_centered(|ui| {
+            ui.color_edit_button_srgba_premultiplied(srgba_premul);
+            ui.label(format!(
+                "sRGBA with premultiplied alpha: {} {} {} {}",
+                srgba_premul[0], srgba_premul[1], srgba_premul[2], srgba_premul[3],
+            ));
+        });
+
+        ui.horizontal_centered(|ui| {
+            ui.color_edit_button_rgba_unmultiplied(rgba_unmul);
+            ui.label(format!(
+                "Linear RGBA: {:.02} {:.02} {:.02} {:.02}",
+                rgba_unmul[0], rgba_unmul[1], rgba_unmul[2], rgba_unmul[3],
+            ));
+        });
+
+        ui.horizontal_centered(|ui| {
+            ui.color_edit_button_rgba_premultiplied(rgba_premul);
+            ui.label(format!(
+                "Linear RGBA with premultiplied alpha: {:.02} {:.02} {:.02} {:.02}",
+                rgba_premul[0], rgba_premul[1], rgba_premul[2], rgba_premul[3],
+            ));
+        });
     }
 }
 
