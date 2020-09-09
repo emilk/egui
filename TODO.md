@@ -1,154 +1,160 @@
 # TODO
+
 TODO-list for the Egui project. If you looking for something to do, look here.
 
 * Widgets
-    * [ ] Text input
-        * [x] Input
-        * [x] Text focus
-        * [x] Cursor movement
-        * [ ] Text selection
-        * [ ] Clipboard copy/paste
-        * [ ] Move focus with tab
-    * [ ] Horizontal slider
-    * [/] Color picker
-        * [x] linear rgb <-> sRGB
-        * [x] HSV
-        * [x] Color edit button with popup color picker
-        * [x] Gamma for value (brightness) slider
-        * [x] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
-        * [ ] RGB editing without alpha
-        * [ ] Additive blending aware color picker
-        * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
+  * [ ] Text input
+    * [x] Input
+    * [x] Text focus
+    * [x] Cursor movement
+    * [ ] Text selection
+    * [ ] Clipboard copy/paste
+    * [ ] Move focus with tab
+  * [ ] Horizontal slider
+  * [/] Color picker
+    * [x] linear rgb <-> sRGB
+    * [x] HSV
+    * [x] Color edit button with popup color picker
+    * [x] Gamma for value (brightness) slider
+    * [x] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
+    * [ ] RGB editing without alpha
+    * [ ] Additive blending aware color picker
+    * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
 * Containers
-    * [ ] Scroll areas
-        * [x] Vertical scrolling
-        * [x] Scroll-wheel input
-        * [x] Drag background to scroll
-        * [x] Kinetic scrolling
-        * [ ] Horizontal scrolling
+  * [ ] Scroll areas
+    * [x] Vertical scrolling
+    * [x] Scroll-wheel input
+    * [x] Drag background to scroll
+    * [x] Kinetic scrolling
+    * [ ] Horizontal scrolling
 * Input
-    * [x] Distinguish between clicks and drags
-    * [x] Double-click
-    * [x] Text
-    * [ ] Support all mouse buttons
-    * [ ] Distinguish between touch input and mouse input
-    * [ ] Get modifier keys
-    * [ ] Keyboard shortcuts
-        * [ ] Copy, paste, undo, ...
+  * [x] Distinguish between clicks and drags
+  * [x] Double-click
+  * [x] Text
+  * [ ] Support all mouse buttons
+  * [ ] Distinguish between touch input and mouse input
+  * [ ] Get modifier keys
+  * [ ] Keyboard shortcuts
+    * [ ] Copy, paste, undo, ...
 * [ ] Text
-    * [/] Unicode
-        * [x] Shared mutable expanding texture map
-        * [ ] Text editing of unicode
-    * [ ] Change text style/color and continue in same layout
+  * [/] Unicode
+    * [x] Shared mutable expanding texture map
+    * [ ] Text editing of unicode
+  * [ ] Change text style/color and continue in same layout
 * [ ] Menu bar (File, Edit, etc)
-    * [ ] Sub-menus
-    * [ ] Keyboard shortcuts
+  * [ ] Sub-menus
+  * [ ] Keyboard shortcuts
 * [ ] Layout
-    * [x] Generalize Layout (separate from Ui)
-    * [ ] Table with resizable columns
-    * [ ] Grid layout
-    * [ ] Point list
+  * [x] Generalize Layout (separate from Ui)
+  * [ ] Table with resizable columns
+  * [ ] Grid layout
+  * [ ] Point list
 * Windows
-    * [ ] Positioning preference: `window.preference(Top, Right)`
-        * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
-    * [ ] Make auto-positioning of windows respect permanent side-bars.
+  * [ ] Positioning preference: `window.preference(Top, Right)`
+    * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
+  * [ ] Make auto-positioning of windows respect permanent side-bars.
 * [ ] Image support
-    * [ ] user-chosen texture ids (so people can show thing with mipmaps and whatnot)
-        * [ ] `enum TextureId { Egui, User(u64) }` added to `Triangles`
-    * [ ] API for creating a texture managed by Egui
-        * Backend-agnostic. Good for people doing Egui-apps (games etc).
-        * [ ] Convert font texture to RGBA, or communicate format in initialization?
-        * [ ] Generalized font atlas
+  * [ ] user-chosen texture ids (so people can show thing with mipmaps and whatnot)
+    * [ ] `enum TextureId { Egui, User(u64) }` added to `Triangles`
+  * [ ] API for creating a texture managed by Egui
+    * Backend-agnostic. Good for people doing Egui-apps (games etc).
+    * [ ] Convert font texture to RGBA, or communicate format in initialization?
+    * [ ] Generalized font atlas
 * Visuals
-    * [x] Pixel-perfect painting (round positions to nearest pixel).
-    * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
-    * [x] Fix thin rounded corners rendering bug (too bright)
-    * [x] Smoother animation (e.g. ease-out)? NO: animation are too brief for subtelty
-    * [ ] Veriy alpha and sRGB correctness
-        * [x] sRGBA decode in fragment shader
-    * [ ] Thin circles look bad
-    * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
+  * [x] Pixel-perfect painting (round positions to nearest pixel).
+  * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
+  * [x] Fix thin rounded corners rendering bug (too bright)
+  * [x] Smoother animation (e.g. ease-out)? NO: animation are too brief for subtelty
+  * [ ] Veriy alpha and sRGB correctness
+    * [x] sRGBA decode in fragment shader
+  * [ ] Thin circles look bad
+  * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
 * Math
-    * [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
+  * [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
 * Id
-    * struct TempId(u64); struct StateId(u64);
-        * `TempId` is count-based. Only good for interaction. Can't be used for storing state.
-        * `StateId` must be generated from e.g. label (window title, ...), and is required for storing state (window position, ...).
-        * Both can be conveted to `Id` which is used for temporary stuff like interactions and animations.
-        * An `Ui`:s has two seed ids: one state, one temp. State is ONLY generated by `StateId`, no polution. A new `Ui` region is either created with e.g. a label to generate a new child `StateId`, or the region inherits the same id as the parent (but different `TempId` seed).
+  * struct TempId(u64); struct StateId(u64);
+    * `TempId` is count-based. Only good for interaction. Can't be used for storing state.
+    * `StateId` must be generated from e.g. label (window title, ...), and is required for storing state (window position, ...).
+    * Both can be conveted to `Id` which is used for temporary stuff like interactions and animations.
+    * An `Ui`:s has two seed ids: one state, one temp. State is ONLY generated by `StateId`, no polution. A new `Ui` region is either created with e.g. a label to generate a new child `StateId`, or the region inherits the same id as the parent (but different `TempId` seed).
 * Demo
-    * Manual layout example:
-        * ui.child_ui_pos(pos).label("Label at specific position");
-        * ui.child_ui_rect(rect).label("Label in a rectangle");
-
+  * Manual layout example:
+    * ui.child_ui_pos(pos).label("Label at specific position");
+    * ui.child_ui_rect(rect).label("Label in a rectangle");
 
 ## egui_web
-    * [x] Scroll input
-    * [x] Change to resize cursor on hover
-    * [x] Port most code to Rust
-    * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)
-    * [ ] Embeddability
-        * [ ] Support canvas that does NOT cover entire screen.
-        * [ ] Support multiple eguis in one web page.
-        * [ ] Filtering events to avoid too frequent repaints
-        * [ ] Multiple canvases from the same rust code
-            * Different Egui instances, same app
-            * Allows very nice web integration
+
+* [x] Scroll input
+* [x] Change to resize cursor on hover
+* [x] Port most code to Rust
+* [x] Read url fragment and redirect to a subpage (e.g. different examples apps)
+* [ ] Embeddability
+  * [ ] Support canvas that does NOT cover entire screen.
+  * [ ] Support multiple eguis in one web page.
+  * [ ] Filtering events to avoid too frequent repaints
+  * [ ] Multiple canvases from the same rust code
+    * Different Egui instances, same app
+    * Allows very nice web integration
 
 ## Modularity
+
 * [x] `trait Widget` (`Label`, `Slider`, `Checkbox`, ...)
 * [ ] `trait Container` (`Frame`, `Resize`, `ScrollArea`, ...)
 * [ ] `widget::TextButton` implemented as a `container::Button` which contains a `widget::Label`.
 * [ ] Easily chain `Container`s without nested closures.
-    * e.g. `ui.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
+  * e.g. `ui.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
 * [ ] Attach labels to checkboxes, radio buttons and sliders with a separate wrapper-widget ?
 
 ### Refactor space allocation
+
 When painting a widget, you want to allocate space. On that space you sometimes want to paint, sometimes create a sub-Ui to layout child widgets. So sometimes you want a `Painter` for the region, sometimes a new `Ui`. However, what you are doing is essentially the same thing, and so we should make that clearer somehow, maybe via naming.
 
 * `ui.allocate(size) -> Rect`
 * `ui.canvas(size) -> Paint`
 * `ui.child_ui(size) -> Ui`
 
-
 ## Other
+
 * [x] Persist UI state in external storage
 * [x] Persist Example App state
 * [ ] Create an Egui icon (or use an emoji)
 * [ ] Build in a profiler which tracks which `Ui` in which window takes up CPU.
-    * [ ] Draw as flame graph
-    * [ ] Draw as hotmap
+  * [ ] Draw as flame graph
+  * [ ] Draw as hotmap
 * [ ] Windows should open from `UI`s and be boxed by parent ui.
-    * Then we could open the example app inside a window in the example app, recursively.
+  * Then we could open the example app inside a window in the example app, recursively.
 * [ ] Implement a minimal markdown viewer
 
 ## Names and structure
+
 * [ ] Rename things to be more consistent with Dear ImGui ?
 * [ ] Put everything in `Context` behind the same Mutex? `struct Context(Arc<Mutex<ContextImpl>>);`, with e.g. `context.lock().memory.foo`?
 
 ## Global widget search
+
 Ability to do a search for any widget. The search works even for collapsed regions and closed windows and menus. This is implemented like this: while searching, all region are layed out and their add_content functions are run. If none of the contents matches the search, the layout is reverted and nothing is shown. So windows will get temporarily opened and run, but if the search is not a match in the window it is closed again. This means then when searching your whole GUI is being run, which may be a bit slower, but it would be a really awesome feature.
 
-# Done
+## Done
+
 * Widgets
-    * [x] Label
-    * [x] Button
-    * [x] Checkbox
-    * [x] Radiobutton
-    * [x] Collapsing header region
-    * [x] Tooltip
-    * [x] Movable/resizable windows
-        * [x] Kinetic windows
-    * [x] Add support for clicking hyperlinks
+  * [x] Label
+  * [x] Button
+  * [x] Checkbox
+  * [x] Radiobutton
+  * [x] Collapsing header region
+  * [x] Tooltip
+  * [x] Movable/resizable windows
+    * [x] Kinetic windows
+  * [x] Add support for clicking hyperlinks
 * Containers
-    * [x] Vertical slider
-        * [x] Resize any side and corner on windows
-        * [x] Fix autoshrink
-        * [x] Automatic positioning of new windows
+  * [x] Vertical slider
+    * [x] Resize any side and corner on windows
+    * [x] Fix autoshrink
+    * [x] Automatic positioning of new windows
 * Simple animations
 * Clip rects
-    * [x] Separate Ui::clip_rect from Ui::rect
-    * [x] Use clip rectangles when painting
-    * [x] Use clip rectangles when interacting
-    * [x] Adjust clip rects so edges of child widgets aren't clipped
-    * [x] Use HW clip rects
+  * [x] Separate Ui::clip_rect from Ui::rect
+  * [x] Use clip rectangles when painting
+  * [x] Use clip rectangles when interacting
+  * [x] Adjust clip rects so edges of child widgets aren't clipped
+  * [x] Use HW clip rects
