@@ -9,10 +9,11 @@
 use crate::{layout::Direction, *};
 
 pub mod color_picker;
+mod image;
 mod slider;
 pub(crate) mod text_edit;
 
-pub use {slider::*, text_edit::*};
+pub use {image::Image, slider::*, text_edit::*};
 
 use paint::*;
 

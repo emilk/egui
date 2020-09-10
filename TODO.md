@@ -53,9 +53,8 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Positioning preference: `window.preference(Top, Right)`
     * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
   * [ ] Make auto-positioning of windows respect permanent side-bars.
-* [ ] Image support
-  * [ ] user-chosen texture ids (so people can show thing with mipmaps and whatnot)
-    * [ ] `enum TextureId { Egui, User(u64) }` added to `Triangles`
+* [/] Image support
+  * [x] Show user textures
   * [ ] API for creating a texture managed by Egui
     * Backend-agnostic. Good for people doing Egui-apps (games etc).
     * [ ] Convert font texture to RGBA, or communicate format in initialization?

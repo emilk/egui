@@ -41,6 +41,10 @@ impl Srgba {
         Self([0, 0, 0, a])
     }
 
+    pub fn white_alpha(a: u8) -> Self {
+        Rgba::white_alpha(linear_from_alpha_byte(a)).into()
+    }
+
     pub const fn additive_luminance(l: u8) -> Self {
         Self([l, l, l, 0])
     }
@@ -48,6 +52,27 @@ impl Srgba {
     /// Returns an opaque version of self
     pub fn to_opaque(self) -> Self {
         Rgba::from(self).to_opaque().into()
+    }
+
+    pub fn r(&self) -> u8 {
+        self.0[0]
+    }
+    pub fn g(&self) -> u8 {
+        self.0[1]
+    }
+    pub fn b(&self) -> u8 {
+        self.0[2]
+    }
+    pub fn a(&self) -> u8 {
+        self.0[3]
+    }
+
+    pub fn to_array(&self) -> [u8; 4] {
+        [self.r(), self.g(), self.b(), self.a()]
+    }
+
+    pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
+        (self.r(), self.g(), self.b(), self.a())
     }
 }
 

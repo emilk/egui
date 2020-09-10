@@ -2,7 +2,7 @@
 use crate::{
     containers::show_tooltip,
     math::*,
-    paint::{self, color::WHITE, PaintCmd, Texture, Triangles, Vertex},
+    paint::{self, color::WHITE, PaintCmd, Texture, Triangles},
     *,
 };
 
@@ -21,18 +21,8 @@ impl Texture {
             size *= ui.available().width() / size.x;
         }
         let rect = ui.allocate_space(size);
-        let top_left = Vertex {
-            pos: rect.min,
-            uv: pos2(0.0, 0.0),
-            color: WHITE,
-        };
-        let bottom_right = Vertex {
-            pos: rect.max,
-            uv: pos2(1.0, 1.0),
-            color: WHITE,
-        };
         let mut triangles = Triangles::default();
-        triangles.add_rect(top_left, bottom_right);
+        triangles.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), WHITE);
         ui.painter().add(PaintCmd::Triangles(triangles));
 
         let tex_w = self.width as f32;
@@ -49,18 +39,12 @@ impl Texture {
                 let u = u.max(texel_radius).min(tex_w - texel_radius);
                 let v = v.max(texel_radius).min(tex_h - texel_radius);
 
-                let top_left = Vertex {
-                    pos: zoom_rect.min,
-                    uv: pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
-                    color: WHITE,
-                };
-                let bottom_right = Vertex {
-                    pos: zoom_rect.max,
-                    uv: pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
-                    color: WHITE,
-                };
+                let uv_rect = Rect::from_min_max(
+                    pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
+                    pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
+                );
                 let mut triangles = Triangles::default();
-                triangles.add_rect(top_left, bottom_right);
+                triangles.add_rect_with_uv(zoom_rect, uv_rect, WHITE);
                 ui.painter().add(PaintCmd::Triangles(triangles));
             });
         }
@@ -70,7 +54,7 @@ impl Texture {
 impl paint::FontDefinitions {
     pub fn ui(&mut self, ui: &mut Ui) {
         for (text_style, (_family, size)) in self.fonts.iter_mut() {
-            // TODO: radiobutton for family
+            // TODO: radio button for family
             ui.add(
                 Slider::f32(size, 4.0..=40.0)
                     .precision(0)

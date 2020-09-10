@@ -199,3 +199,10 @@ impl std::fmt::Debug for Rect {
         write!(f, "[{:?} - {:?}]", self.min, self.max)
     }
 }
+
+/// from (min, max) or (left top, right bottom)
+impl From<[Pos2; 2]> for Rect {
+    fn from([min, max]: [Pos2; 2]) -> Self {
+        Self { min, max }
+    }
+}

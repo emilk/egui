@@ -14,6 +14,24 @@ use {
     crate::math::*,
 };
 
+/// What texture to use in a `Triangles` mesh.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TextureId {
+    /// The Egui font texture.
+    /// If you don't want to use a texture, pick this and the `WHITE_UV` for uv-coord.
+    Egui,
+
+    /// Your own texture, defined in any which way you want.
+    /// Egui won't care. The backend renderer will presumably use this to look up what texture to use.
+    User(u64),
+}
+
+impl Default for TextureId {
+    fn default() -> Self {
+        Self::Egui
+    }
+}
+
 /// The UV coordinate of a white region of the texture mesh.
 /// The default Egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
@@ -44,8 +62,12 @@ pub struct Vertex {
 pub struct Triangles {
     /// Draw as triangles (i.e. the length is always multiple of three).
     pub indices: Vec<u32>,
+
     /// The vertex data indexed by `indices`.
     pub vertices: Vec<Vertex>,
+
+    /// The texture to use when drawing these triangles
+    pub texture_id: TextureId,
 }
 
 /// A clip triangle and some textured triangles.
@@ -58,14 +80,34 @@ pub type PaintJobs = Vec<PaintJob>;
 
 /// ## Helpers for adding
 impl Triangles {
+    pub fn with_texture(texture_id: TextureId) -> Self {
+        Self {
+            texture_id,
+            ..Default::default()
+        }
+    }
+
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
         let n = self.vertices.len() as u32;
         self.indices.iter().all(|&i| i < n)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.indices.is_empty() && self.vertices.is_empty()
+    }
+
     /// Append all the indices and vertices of `other` to `self`.
     pub fn append(&mut self, other: &Triangles) {
+        if self.is_empty() {
+            self.texture_id = other.texture_id;
+        } else {
+            assert_eq!(
+                self.texture_id, other.texture_id,
+                "Can't merge Triangles using different textures"
+            );
+        }
+
         let index_offset = self.vertices.len() as u32;
         for index in &other.indices {
             self.indices.push(index_offset + index);
@@ -74,6 +116,7 @@ impl Triangles {
     }
 
     pub fn colored_vertex(&mut self, pos: Pos2, color: Srgba) {
+        debug_assert!(self.texture_id == TextureId::Egui);
         self.vertices.push(Vertex {
             pos,
             uv: WHITE_UV,
@@ -100,44 +143,42 @@ impl Triangles {
         self.vertices.reserve(additional);
     }
 
-    /// Uniformly colored rectangle.
-    pub fn add_rect(&mut self, top_left: Vertex, bottom_right: Vertex) {
-        debug_assert_eq!(top_left.color, bottom_right.color);
-
+    /// Rectangle with a texture and color.
+    pub fn add_rect_with_uv(&mut self, pos: Rect, uv: Rect, color: Srgba) {
         let idx = self.vertices.len() as u32;
         self.add_triangle(idx + 0, idx + 1, idx + 2);
         self.add_triangle(idx + 2, idx + 1, idx + 3);
 
-        let top_right = Vertex {
-            pos: pos2(bottom_right.pos.x, top_left.pos.y),
-            uv: pos2(bottom_right.uv.x, top_left.uv.y),
-            color: top_left.color,
+        let right_top = Vertex {
+            pos: pos.right_top(),
+            uv: uv.right_top(),
+            color,
         };
-        let botom_left = Vertex {
-            pos: pos2(top_left.pos.x, bottom_right.pos.y),
-            uv: pos2(top_left.uv.x, bottom_right.uv.y),
-            color: top_left.color,
+        let left_top = Vertex {
+            pos: pos.left_top(),
+            uv: uv.left_top(),
+            color,
         };
-        self.vertices.push(top_left);
-        self.vertices.push(top_right);
-        self.vertices.push(botom_left);
-        self.vertices.push(bottom_right);
+        let left_bottom = Vertex {
+            pos: pos.left_bottom(),
+            uv: uv.left_bottom(),
+            color,
+        };
+        let right_bottom = Vertex {
+            pos: pos.right_bottom(),
+            uv: uv.right_bottom(),
+            color,
+        };
+        self.vertices.push(left_top);
+        self.vertices.push(right_top);
+        self.vertices.push(left_bottom);
+        self.vertices.push(right_bottom);
     }
 
     /// Uniformly colored rectangle.
     pub fn add_colored_rect(&mut self, rect: Rect, color: Srgba) {
-        self.add_rect(
-            Vertex {
-                pos: rect.min,
-                uv: WHITE_UV,
-                color,
-            },
-            Vertex {
-                pos: rect.max,
-                uv: WHITE_UV,
-                color,
-            },
-        )
+        debug_assert!(self.texture_id == TextureId::Egui);
+        self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
     }
 
     /// This is for platforms that only support 16-bit index buffers.
@@ -189,6 +230,7 @@ impl Triangles {
                     .map(|vi| vi - min_vindex)
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
+                texture_id: self.texture_id,
             });
         }
         output
@@ -703,19 +745,17 @@ fn tessellate_paint_command(
                 for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
                     let c = chars.next().unwrap();
                     if let Some(glyph) = font.uv_rect(c) {
-                        let mut top_left = Vertex {
-                            pos: pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset,
-                            uv: pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
-                            color,
-                        };
-                        top_left.pos.x = font.round_to_pixel(top_left.pos.x); // Pixel-perfection.
-                        top_left.pos.y = font.round_to_pixel(top_left.pos.y); // Pixel-perfection.
-                        let bottom_right = Vertex {
-                            pos: top_left.pos + glyph.size,
-                            uv: pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
-                            color,
-                        };
-                        out.add_rect(top_left, bottom_right);
+                        let mut left_top =
+                            pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset;
+                        left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
+                        left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
+
+                        let pos = Rect::from_min_max(left_top, left_top + glyph.size);
+                        let uv = Rect::from_min_max(
+                            pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
+                            pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
+                        );
+                        out.add_rect_with_uv(pos, uv, color);
                     }
                 }
             }
@@ -747,7 +787,16 @@ pub fn tessellate_paint_commands(
     for (clip_rect, cmd) in commands {
         // TODO: cull(clip_rect, cmd)
 
-        if jobs.is_empty() || jobs.last().unwrap().0 != clip_rect {
+        if let PaintCmd::Triangles(triangles) = cmd {
+            // Assume non-Egui texture, which means own paint job:
+            jobs.push((clip_rect, triangles));
+            continue;
+        }
+
+        if jobs.is_empty()
+            || jobs.last().unwrap().0 != clip_rect
+            || jobs.last().unwrap().1.texture_id != TextureId::Egui
+        {
             jobs.push((clip_rect, Triangles::default()));
         }
 

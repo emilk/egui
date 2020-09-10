@@ -489,6 +489,11 @@ impl Ui {
         let rect = self.allocate_space(desired_size);
         self.painter_at(rect)
     }
+
+    /// Show an image here with the given size
+    pub fn image(&mut self, texture_id: TextureId, desired_size: Vec2) -> Response {
+        self.add(Image::new(texture_id, desired_size))
+    }
 }
 
 /// # Colors
