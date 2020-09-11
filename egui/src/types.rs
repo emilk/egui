@@ -111,10 +111,12 @@ impl Response {
 }
 
 impl Response {
-    pub fn union(self, other: Self) -> Self {
+    /// A logical "or" operation.
+    /// For instance `a.union(b).hovered` means "was either a or b hovered?".
+    pub fn union(&self, other: Self) -> Self {
         assert!(Arc::ptr_eq(&self.ctx, &other.ctx));
         Self {
-            ctx: self.ctx,
+            ctx: other.ctx,
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
@@ -123,6 +125,37 @@ impl Response {
             active: self.active || other.active,
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
         }
+    }
+}
+
+/// To summarize the response from many widgets you can use this pattern:
+///
+/// ```
+/// use egui::*;
+/// fn draw_vec2(ui: &mut Ui, v: &mut Vec2) -> Response {
+///     ui.add(DragValue::f32(&mut v.x)) | ui.add(DragValue::f32(&mut v.y))
+/// }
+/// ```
+///
+/// Now `draw_vec2(ui, foo).hovered` is true if either `DragValue` were hovered.
+impl std::ops::BitOr for Response {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        self.union(rhs)
+    }
+}
+
+/// To summarize the response from many widgets you can use this pattern:
+///
+/// ``` ignore
+/// let mut response = ui.add(some_widget);
+/// response |= ui.add(some_other_widget);
+/// response |= ui.add(some_widget);
+/// if response.active { ui.label("You are interacting with one of the widgets"); }
+/// ```
+impl std::ops::BitOrAssign for Response {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = self.union(rhs);
     }
 }
 
