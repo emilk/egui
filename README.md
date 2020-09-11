@@ -49,13 +49,42 @@ Window::new("Debug").show(ui.ctx(), |ui| {
 * Responsive: target 60 Hz in debug build
 * Portable: the same code works on the web and as a native app
 * Friendly: difficult to make mistakes
-* Easy to integrate into a any environment
+* Easy to integrate into any environment
 * A simple 2D graphics API for custom painting
 * Simple: no callbacks, minimal dependencies, avoid unnecessary monomorphization
+* Extensible: [easy to write your own widgets for Egui](https://github.com/emilk/egui/blob/master/egui/src/demos/toggle_switch.rs)
+* Modular: You should be able to use small parts of Egui and combine them in new ways
 
 Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
 
+**NOTE**: Egui does not claim to have reached all these goals yet! Egui is still work in progress.
+
+### Why Egui?
+
+Egui is written for Rust game engines. If you are not using Rust, Egui is not for you. If you want a GUI that looks native, Egui is not for you. If you want something stable that doesn't break when you upgrade it, Egui isn't for you (yet).
+
+But if you are writing something interactive in Rust that needs a simple GUI, Egui may be for you.
+
+The obvious alternative to Egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library, which a lot more features and polish compared to Egui. However, Egui provides some benefits for Rust users:
+
+* Egui is pure Rust
+* Egui is easily compiled to WASM
+* Egui lets you use native Rust String types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
+* [Writing your own widgets in Egui is simple](https://github.com/emilk/egui/blob/master/egui/src/demos/toggle_switch.rs)
+
+Egui also tries to improve your experience in other small ways:
+
+* Windows are automatically sized based on their contents
+* Windows are automatically positioned to not overlap with each other
+* Some subtle animations make Egui come alive
+
+So in summary:
+
+* Egui: pure Rust, new, exciting, work in progress
+* Dear ImGui: feature rich, well tested, cumbersome Rust integration
+
 ## State
+
 Alpha state. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
 
 ### Features
