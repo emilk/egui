@@ -5,6 +5,8 @@
 //! Egui can be used as a library, but you can also use it as a framework to write apps in.
 //! This module defined the `App` trait that can be implemented and used with the `egui_web` and `egui_glium` crates.
 
+// TODO: move egui/src/app.rs to own crate, e.g. egui_framework ?
+
 use crate::Ui;
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
@@ -54,6 +56,13 @@ pub trait Backend {
     /// Signal the backend that we'd like to exit the app now.
     /// This does nothing for web apps.
     fn quit(&mut self) {}
+
+    /// Allocate a user texture (EXPERIMENTAL!)
+    fn new_texture_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        pixels: &[crate::Srgba],
+    ) -> crate::TextureId;
 }
 
 /// A place where you can store custom data in a way that persists when you restart the app.

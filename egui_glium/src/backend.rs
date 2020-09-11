@@ -5,7 +5,10 @@ use crate::{
     *,
 };
 
-pub use egui::app::{App, Backend, RunMode, Storage};
+pub use egui::{
+    app::{App, Backend, RunMode, Storage},
+    Srgba,
+};
 
 const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
@@ -14,14 +17,16 @@ pub struct GliumBackend {
     frame_times: egui::MovementTracker<f32>,
     quit: bool,
     run_mode: RunMode,
+    painter: Painter,
 }
 
 impl GliumBackend {
-    pub fn new(run_mode: RunMode) -> Self {
+    pub fn new(run_mode: RunMode, painter: Painter) -> Self {
         Self {
             frame_times: egui::MovementTracker::new(1000, 1.0),
             quit: false,
             run_mode,
+            painter,
         }
     }
 }
@@ -45,6 +50,14 @@ impl Backend for GliumBackend {
 
     fn quit(&mut self) {
         self.quit = true;
+    }
+
+    fn new_texture_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        pixels: &[Srgba],
+    ) -> egui::TextureId {
+        self.painter.new_user_texture(size, pixels)
     }
 }
 
@@ -81,12 +94,11 @@ pub fn run(
     let mut ctx = egui::Context::new();
     *ctx.memory() = egui::app::get_value(&storage, EGUI_MEMORY_KEY).unwrap_or_default();
 
-    let mut painter = Painter::new(&display);
     let mut raw_input = make_raw_input(&display);
 
     // used to keep track of time for animations
     let start_time = Instant::now();
-    let mut runner = GliumBackend::new(run_mode);
+    let mut runner = GliumBackend::new(run_mode, Painter::new(&display));
     let mut clipboard = init_clipboard();
 
     event_loop.run(move |event, _, control_flow| {
@@ -105,7 +117,9 @@ pub fn run(
                 let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
                 runner.frame_times.add(raw_input.time, frame_time);
 
-                painter.paint_jobs(&display, paint_jobs, &ctx.texture());
+                runner
+                    .painter
+                    .paint_jobs(&display, paint_jobs, &ctx.texture());
 
                 if runner.quit {
                     *control_flow = glutin::event_loop::ControlFlow::Exit

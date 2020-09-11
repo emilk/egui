@@ -12,18 +12,99 @@ use egui::{
 
 type Gl = WebGlRenderingContext;
 
+const VERTEX_SHADER_SOURCE: &str = r#"
+    precision mediump float;
+    uniform vec2 u_screen_size;
+    attribute vec2 a_pos;
+    attribute vec2 a_tc;
+    attribute vec4 a_srgba;
+    varying vec4 v_rgba;
+    varying vec2 v_tc;
+
+    // 0-1 linear  from  0-255 sRGB
+    vec3 linear_from_srgb(vec3 srgb) {
+        bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+        vec3 lower = srgb / vec3(3294.6);
+        vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+        return mix(higher, lower, vec3(cutoff));
+    }
+
+    vec4 linear_from_srgba(vec4 srgba) {
+        return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+    }
+
+    void main() {
+        gl_Position = vec4(
+            2.0 * a_pos.x / u_screen_size.x - 1.0,
+            1.0 - 2.0 * a_pos.y / u_screen_size.y,
+            0.0,
+            1.0);
+        v_rgba = linear_from_srgba(a_srgba);
+        v_tc = a_tc;
+    }
+"#;
+
+const FRAGMENT_SHADER_SOURCE: &str = r#"
+    precision mediump float;
+    uniform sampler2D u_sampler;
+    varying vec4 v_rgba;
+    varying vec2 v_tc;
+
+    // 0-255 sRGB  from  0-1 linear
+    vec3 srgb_from_linear(vec3 rgb) {
+        bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
+        vec3 lower = rgb * vec3(3294.6);
+        vec3 higher = vec3(269.025) * pow(rgb, vec3(1.0 / 2.4)) - vec3(14.025);
+        return mix(higher, lower, vec3(cutoff));
+    }
+
+    vec4 srgba_from_linear(vec4 rgba) {
+        return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
+    }
+
+    // 0-1 linear  from  0-255 sRGB
+    vec3 linear_from_srgb(vec3 srgb) {
+        bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+        vec3 lower = srgb / vec3(3294.6);
+        vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+        return mix(higher, lower, vec3(cutoff));
+    }
+
+    vec4 linear_from_srgba(vec4 srgba) {
+        return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+    }
+
+    void main() {
+        vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
+        gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
+    }
+"#;
+
 pub struct Painter {
     canvas_id: String,
     canvas: web_sys::HtmlCanvasElement,
     gl: WebGlRenderingContext,
-    texture: WebGlTexture,
     program: WebGlProgram,
     index_buffer: WebGlBuffer,
     pos_buffer: WebGlBuffer,
     tc_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
-    tex_size: (u16, u16),
-    current_texture_version: Option<u64>,
+
+    egui_texture: WebGlTexture,
+    egui_texture_version: Option<u64>,
+
+    user_textures: Vec<UserTexture>,
+}
+
+#[derive(Default)]
+struct UserTexture {
+    size: (usize, usize),
+
+    /// Pending upload (will be emptied later).
+    pixels: Vec<u8>,
+
+    /// Lazily uploaded
+    texture: Option<WebGlTexture>,
 }
 
 impl Painter {
@@ -48,77 +129,15 @@ impl Painter {
 
         // --------------------------------------------------------------------
 
-        let gl_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+        let egui_texture = gl.create_texture().unwrap();
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&egui_texture));
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
-        // --------------------------------------------------------------------
-
-        let vert_shader = compile_shader(
-            &gl,
-            Gl::VERTEX_SHADER,
-            r#"
-            precision mediump float;
-            uniform vec2 u_screen_size;
-            attribute vec2 a_pos;
-            attribute vec2 a_tc;
-            attribute vec4 a_srgba;
-            varying vec4 v_rgba;
-            varying vec2 v_tc;
-
-            // 0-1 linear  from  0-255 sRGB
-            vec3 linear_from_srgb(vec3 srgb) {
-                bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-                vec3 lower = srgb / vec3(3294.6);
-                vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-                return mix(higher, lower, vec3(cutoff));
-            }
-
-            vec4 linear_from_srgba(vec4 srgba) {
-                return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-            }
-
-            void main() {
-                gl_Position = vec4(
-                    2.0 * a_pos.x / u_screen_size.x - 1.0,
-                    1.0 - 2.0 * a_pos.y / u_screen_size.y,
-                    0.0,
-                    1.0);
-                v_rgba = linear_from_srgba(a_srgba);
-                v_tc = a_tc;
-            }
-        "#,
-        )?;
-
-        let frag_shader = compile_shader(
-            &gl,
-            Gl::FRAGMENT_SHADER,
-            r#"
-            precision mediump float;
-            uniform sampler2D u_sampler;
-            varying vec4 v_rgba;
-            varying vec2 v_tc;
-
-            // 0-255 sRGB  from  0-1 linear
-            vec3 srgb_from_linear(vec3 rgb) {
-                bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
-                vec3 lower = rgb * vec3(3294.6);
-                vec3 higher = vec3(269.025) * pow(rgb, vec3(1.0 / 2.4)) - vec3(14.025);
-                return mix(higher, lower, vec3(cutoff));
-            }
-
-            vec4 srgba_from_linear(vec4 rgba) {
-                return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
-            }
-
-            void main() {
-                gl_FragColor = srgba_from_linear(v_rgba * texture2D(u_sampler, v_tc).a) / 255.0;
-            }
-        "#,
-        )?;
+        let vert_shader = compile_shader(&gl, Gl::VERTEX_SHADER, VERTEX_SHADER_SOURCE)?;
+        let frag_shader = compile_shader(&gl, Gl::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE)?;
 
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
         let index_buffer = gl.create_buffer().ok_or("failed to create index_buffer")?;
@@ -130,14 +149,14 @@ impl Painter {
             canvas_id: canvas_id.to_owned(),
             canvas,
             gl,
-            texture: gl_texture,
             program,
             index_buffer,
             pos_buffer,
             tc_buffer,
             color_buffer,
-            tex_size: (0, 0),
-            current_texture_version: None,
+            egui_texture,
+            egui_texture_version: None,
+            user_textures: Default::default(),
         })
     }
 
@@ -146,18 +165,52 @@ impl Painter {
         &self.canvas_id
     }
 
-    fn upload_texture(&mut self, texture: &Texture) {
-        if self.current_texture_version == Some(texture.version) {
+    pub fn new_user_texture(
+        &mut self,
+        size: (usize, usize),
+        srgba_pixels: &[Srgba],
+    ) -> egui::TextureId {
+        assert_eq!(size.0 * size.1, srgba_pixels.len());
+
+        let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
+        for srgba in srgba_pixels {
+            pixels.push(srgba.r());
+            pixels.push(srgba.g());
+            pixels.push(srgba.b());
+            pixels.push(srgba.a());
+        }
+
+        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        self.user_textures.push(UserTexture {
+            size,
+            pixels,
+            texture: None,
+        });
+        id
+    }
+
+    fn upload_egui_texture(&mut self, texture: &Texture) {
+        if self.egui_texture_version == Some(texture.version) {
             return; // No change
         }
 
-        let gl = &self.gl;
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
+        let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
+        for &alpha in &texture.pixels {
+            let srgba = Srgba::white_alpha(alpha);
+            pixels.push(srgba.r());
+            pixels.push(srgba.g());
+            pixels.push(srgba.b());
+            pixels.push(srgba.a());
+        }
 
+        let gl = &self.gl;
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
+
+        // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
         let level = 0;
-        let internal_format = Gl::ALPHA;
+        let internal_format = Gl::RGBA;
         let border = 0;
-        let src_format = Gl::ALPHA;
+        let src_format = Gl::RGBA;
         let src_type = Gl::UNSIGNED_BYTE;
         gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
             Gl::TEXTURE_2D,
@@ -168,22 +221,74 @@ impl Painter {
             border,
             src_format,
             src_type,
-            Some(&texture.pixels),
+            Some(&pixels),
         )
         .unwrap();
 
-        self.tex_size = (texture.width as u16, texture.height as u16);
-        self.current_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(texture.version);
+    }
+
+    fn upload_user_textures(&mut self) {
+        let gl = &self.gl;
+
+        for user_texture in &mut self.user_textures {
+            if user_texture.texture.is_none() {
+                let pixels = std::mem::take(&mut user_texture.pixels);
+
+                let gl_texture = gl.create_texture().unwrap();
+                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
+
+                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+
+                // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+                let level = 0;
+                let internal_format = Gl::RGBA;
+                let border = 0;
+                let src_format = Gl::RGBA;
+                let src_type = Gl::UNSIGNED_BYTE;
+                gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                    Gl::TEXTURE_2D,
+                    level,
+                    internal_format as i32,
+                    user_texture.size.0 as i32,
+                    user_texture.size.1 as i32,
+                    border,
+                    src_format,
+                    src_type,
+                    Some(&pixels),
+                )
+                .unwrap();
+
+                user_texture.texture = Some(gl_texture);
+            }
+        }
+    }
+
+    fn get_texture(&self, texture_id: egui::TextureId) -> &WebGlTexture {
+        match texture_id {
+            egui::TextureId::Egui => &self.egui_texture,
+            egui::TextureId::User(id) => {
+                let id = id as usize;
+                assert!(id < self.user_textures.len());
+                let texture = self.user_textures[id].texture.as_ref();
+                texture.expect("Should have been uploaded")
+            }
+        }
     }
 
     pub fn paint_jobs(
         &mut self,
         bg_color: Srgba,
         jobs: PaintJobs,
-        texture: &Texture,
+        egui_texture: &Texture,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
-        self.upload_texture(texture);
+        self.upload_egui_texture(egui_texture);
+        self.upload_user_textures();
 
         let gl = &self.gl;
 
@@ -192,7 +297,6 @@ impl Painter {
         gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
         gl.use_program(Some(&self.program));
         gl.active_texture(Gl::TEXTURE0);
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
 
         let u_screen_size_loc = gl
             .get_uniform_location(&self.program, "u_screen_size")
@@ -224,6 +328,8 @@ impl Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, triangles) in jobs {
+            gl.bind_texture(Gl::TEXTURE_2D, Some(self.get_texture(triangles.texture_id)));
+
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
             let clip_max_x = pixels_per_point * clip_rect.max.x;

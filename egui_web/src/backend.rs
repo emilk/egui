@@ -1,6 +1,9 @@
 use crate::*;
 
-pub use egui::app::{App, Backend, RunMode, WebInfo};
+pub use egui::{
+    app::{App, Backend, RunMode, WebInfo},
+    Srgba,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -101,6 +104,14 @@ impl Backend for WebBackend {
 
     fn fps(&self) -> f32 {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
+    }
+
+    fn new_texture_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        pixels: &[Srgba],
+    ) -> egui::TextureId {
+        self.painter.new_user_texture(size, pixels)
     }
 }
 

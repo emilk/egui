@@ -4,18 +4,35 @@ use {
     egui::{
         math::clamp,
         paint::{PaintJobs, Triangles},
-        Rect,
+        Rect, Srgba,
     },
     glium::{
-        implement_vertex, index::PrimitiveType, program, texture, uniform,
-        uniforms::SamplerWrapFunction, Frame, Surface,
+        implement_vertex,
+        index::PrimitiveType,
+        program,
+        texture::{self, srgb_texture2d::SrgbTexture2d},
+        uniform,
+        uniforms::SamplerWrapFunction,
+        Frame, Surface,
     },
 };
 
 pub struct Painter {
     program: glium::Program,
-    texture: texture::texture2d::Texture2d,
-    current_texture_version: Option<u64>,
+    egui_texture: SrgbTexture2d,
+    egui_texture_version: Option<u64>,
+
+    user_textures: Vec<UserTexture>,
+}
+
+#[derive(Default)]
+struct UserTexture {
+    /// Pending upload (will be emptied later).
+    /// This is the format glium likes.
+    pixels: Vec<Vec<(u8, u8, u8, u8)>>,
+
+    /// Lazily uploaded
+    texture: Option<SrgbTexture2d>,
 }
 
 impl Painter {
@@ -63,7 +80,7 @@ impl Painter {
 
                         void main() {
                             // glium expects linear rgba
-                            f_color = v_rgba * texture(u_sampler, v_tc).r;
+                            f_color = v_rgba * texture(u_sampler, v_tc);
                         }
                     "
             },
@@ -109,7 +126,7 @@ impl Painter {
 
                         void main() {
                             // glium expects linear rgba
-                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc).r;
+                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
                         }
                     ",
             },
@@ -155,7 +172,7 @@ impl Painter {
 
                         void main() {
                             // glium expects linear rgba
-                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc).r;
+                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
                         }
                     ",
             },
@@ -163,34 +180,69 @@ impl Painter {
         .unwrap();
 
         let pixels = vec![vec![255u8, 0u8], vec![0u8, 255u8]];
-        let format = texture::UncompressedFloatFormat::U8;
+        let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
-        let texture =
-            texture::texture2d::Texture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+        let egui_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
 
         Painter {
             program,
-            texture,
-            current_texture_version: None,
+            egui_texture,
+            egui_texture_version: None,
+            user_textures: Default::default(),
         }
     }
 
-    fn upload_texture(&mut self, facade: &dyn glium::backend::Facade, texture: &egui::Texture) {
-        if self.current_texture_version == Some(texture.version) {
+    pub fn new_user_texture(&mut self, size: (usize, usize), pixels: &[Srgba]) -> egui::TextureId {
+        assert_eq!(size.0 * size.1, pixels.len());
+
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
+            .chunks(size.0 as usize)
+            .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+            .collect();
+
+        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        self.user_textures.push(UserTexture {
+            pixels,
+            texture: None,
+        });
+        id
+    }
+
+    fn upload_egui_texture(
+        &mut self,
+        facade: &dyn glium::backend::Facade,
+        texture: &egui::Texture,
+    ) {
+        if self.egui_texture_version == Some(texture.version) {
             return; // No change
         }
 
-        let pixels: Vec<Vec<u8>> = texture
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = texture
             .pixels
             .chunks(texture.width as usize)
-            .map(|row| row.to_vec())
+            .map(|row| {
+                row.iter()
+                    .map(|&a| Srgba::white_alpha(a).to_tuple())
+                    .collect()
+            })
             .collect();
 
-        let format = texture::UncompressedFloatFormat::U8;
+        let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
-        self.texture =
-            texture::texture2d::Texture2d::with_format(facade, pixels, format, mipmaps).unwrap();
-        self.current_texture_version = Some(texture.version);
+        self.egui_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+        self.egui_texture_version = Some(texture.version);
+    }
+
+    fn upload_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
+        for user_texture in &mut self.user_textures {
+            if user_texture.texture.is_none() {
+                let pixels = std::mem::take(&mut user_texture.pixels);
+                let format = texture::SrgbFormat::U8U8U8U8;
+                let mipmaps = texture::MipmapsOption::NoMipmap;
+                user_texture.texture =
+                    Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+            }
+        }
     }
 
     pub fn paint_jobs(
@@ -199,7 +251,8 @@ impl Painter {
         jobs: PaintJobs,
         texture: &egui::Texture,
     ) {
-        self.upload_texture(display, texture);
+        self.upload_egui_texture(display, texture);
+        self.upload_user_textures(display);
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
@@ -207,6 +260,18 @@ impl Painter {
             self.paint_job(&mut target, display, clip_rect, &triangles)
         }
         target.finish().unwrap();
+    }
+
+    fn get_texture(&self, texture_id: egui::TextureId) -> &SrgbTexture2d {
+        match texture_id {
+            egui::TextureId::Egui => &self.egui_texture,
+            egui::TextureId::User(id) => {
+                let id = id as usize;
+                assert!(id < self.user_textures.len());
+                let texture = self.user_textures[id].texture.as_ref();
+                texture.expect("Should have been uploaded")
+            }
+        }
     }
 
     #[inline(never)] // Easier profiling
@@ -234,7 +299,7 @@ impl Painter {
                 .map(|v| Vertex {
                     a_pos: [v.pos.x, v.pos.y],
                     a_tc: [v.uv.x, v.uv.y],
-                    a_srgba: v.color.0,
+                    a_srgba: v.color.to_array(),
                 })
                 .collect();
 
@@ -251,9 +316,11 @@ impl Painter {
         let width_points = width_pixels as f32 / pixels_per_point;
         let height_points = height_pixels as f32 / pixels_per_point;
 
+        let texture = self.get_texture(triangles.texture_id);
+
         let uniforms = uniform! {
             u_screen_size: [width_points, height_points],
-            u_sampler: self.texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
+            u_sampler: texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
         };
 
         // Egui outputs colors with premultiplied alpha:
