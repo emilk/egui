@@ -1,4 +1,5 @@
-Copyright 2011 The Comfortaa Project Authors (https://github.com/alexeiva/comfortaa), with Reserved Font Name "Comfortaa".
+Copyright (c) 2009-2012, Vernon Adams (vern@newtypography.co.uk)
+https://github.com/KDE/oxygen-fonts
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

@@ -46,10 +46,10 @@ impl Default for FontDefinitions {
 impl FontDefinitions {
     pub fn with_pixels_per_point(pixels_per_point: f32) -> Self {
         let mut fonts = BTreeMap::new();
-        fonts.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
+        fonts.insert(TextStyle::Body, (FontFamily::VariableWidth, 15.0));
         fonts.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
         fonts.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
-        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
+        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 14.0));
 
         Self {
             pixels_per_point,
@@ -97,13 +97,8 @@ impl Fonts {
         let atlas = Arc::new(Mutex::new(atlas));
 
         // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
-        let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-
-        // let monospace_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
-
-        let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
-
-        // let variable_typeface_data = include_bytes!("../../fonts/DejaVuSans.ttf"); // Basic, boring, takes up more space
+        let monospace_typeface_data = include_bytes!("../../fonts/OxygenMono-Regular.ttf");
+        let variable_typeface_data = include_bytes!("../../fonts/Oxygen-Regular.ttf");
 
         self.definitions = definitions.clone();
         let FontDefinitions {
