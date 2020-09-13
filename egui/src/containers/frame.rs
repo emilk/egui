@@ -125,8 +125,7 @@ impl Prepared {
             },
         );
 
-        ui.expand_to_include_child(outer_rect);
-        // TODO: move cursor in parent ui
+        ui.allocate_space(outer_rect.size());
 
         outer_rect
     }
