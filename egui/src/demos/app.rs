@@ -17,7 +17,7 @@ pub struct DemoApp {
     demo_window: DemoWindow,
     fractal_clock: FractalClock,
     num_frames_painted: u64,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     color_test: ColorTest,
     show_color_test: bool,
 }
