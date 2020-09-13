@@ -25,6 +25,7 @@ pub struct Resize {
     resizable: bool,
 
     pub(crate) min_size: Vec2,
+    pub(crate) max_size: Vec2,
 
     default_size: Vec2,
 
@@ -37,6 +38,7 @@ impl Default for Resize {
             id: None,
             resizable: true,
             min_size: Vec2::splat(16.0),
+            max_size: Vec2::splat(f32::INFINITY),
             default_size: vec2(320.0, 128.0), // TODO: preferred size of `Resize` area.
             with_stroke: true,
         }
@@ -84,6 +86,12 @@ impl Resize {
         self
     }
 
+    /// Won't expand to larger than this
+    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
+        self.max_size = max_size.into();
+        self
+    }
+
     /// Can you resize it with the mouse?
     /// Note that a window can still auto-resize
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -96,6 +104,7 @@ impl Resize {
     }
 
     /// Not manually resizable, just takes the size of its contents.
+    /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(self) -> Self {
         self.min_size(Vec2::zero())
             .default_size(Vec2::splat(f32::INFINITY))
@@ -106,6 +115,7 @@ impl Resize {
         let size = size.into();
         self.default_size = size;
         self.min_size = size;
+        self.max_size = size;
         self.resizable = false;
         self
     }
@@ -140,6 +150,7 @@ impl Resize {
         });
 
         state.desired_size = state.desired_size.max(self.min_size);
+        state.desired_size = state.desired_size.min(self.max_size);
 
         let position = ui.available().min;
 
@@ -164,6 +175,7 @@ impl Resize {
             state.desired_size = requested_size;
         }
         state.desired_size = state.desired_size.max(self.min_size);
+        state.desired_size = state.desired_size.min(self.max_size);
 
         // ------------------------------
 

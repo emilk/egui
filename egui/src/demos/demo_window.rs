@@ -49,7 +49,7 @@ impl DemoWindow {
             });
 
         CollapsingHeader::new("Colors")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 self.colors.ui(ui);
             });

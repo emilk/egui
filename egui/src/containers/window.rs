@@ -117,6 +117,11 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Sets the window pos and size and prevents it from being moved and resized by dragging its edges.
+    pub fn fixed_rect(self, rect: Rect) -> Self {
+        self.fixed_pos(rect.min).fixed_size(rect.size())
+    }
+
     /// Can the user resize the window by dragging its edges?
     /// Note that even if you set this to `false` the window may still auto-resize.
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -132,6 +137,7 @@ impl<'open> Window<'open> {
 
     /// Not resizable, just takes the size of its contents.
     /// Also disabled scrolling.
+    /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = None;

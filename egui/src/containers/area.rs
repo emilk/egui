@@ -64,7 +64,7 @@ impl Area {
         }
     }
 
-    /// moveable by draggin the area?
+    /// moveable by dragging the area?
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
         self.interactable |= movable;
@@ -75,7 +75,7 @@ impl Area {
         self.movable
     }
 
-    /// If false, clicks goes stright throught to what is behind us.
+    /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;
