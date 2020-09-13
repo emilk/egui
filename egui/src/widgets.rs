@@ -33,7 +33,6 @@ pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
     pub(crate) multiline: bool,
-    auto_shrink: bool,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) text_color: Option<Srgba>,
 }
@@ -43,7 +42,6 @@ impl Label {
         Self {
             text: text.into(),
             multiline: true,
-            auto_shrink: false,
             text_style: None,
             text_color: None,
         }
@@ -55,14 +53,6 @@ impl Label {
 
     pub fn multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
-        self
-    }
-
-    /// If true, will word wrap to `ui.available_finite().width()`.
-    /// If false (default), will word wrap to `ui.available().width()`.
-    /// This only makes a difference for auto-sized parents.
-    pub fn auto_shrink(mut self) -> Self {
-        self.auto_shrink = true;
         self
     }
 
@@ -82,11 +72,10 @@ impl Label {
     }
 
     pub fn layout(&self, ui: &Ui) -> font::Galley {
-        let max_width = if self.auto_shrink {
-            ui.available_finite().width()
-        } else {
-            ui.available().width()
-        };
+        let max_width = ui.available().width();
+        // Prevent word-wrapping after a single letter, and other silly shit:
+        // TODO: general "don't force labels and similar to wrap so early"
+        // TODO: max_width = max_width.at_least(ui.spacing.first_wrap_width);
         self.layout_width(ui, max_width)
     }
 

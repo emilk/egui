@@ -209,6 +209,19 @@ impl Ui {
         self.desired_rect.max.y = self.top_left().y + height;
     }
 
+    /// Helper: shrinks the max/desired width to the current width,
+    /// so further widgets will try not to be wider than previous widgets.
+    /// Useful for normal vertical layouts.
+    pub fn shrink_width_to_current(&mut self) {
+        self.set_desired_width(self.child_bounds().width())
+    }
+
+    /// Helper: shrinks the max/desired height to the current height,
+    /// so further widgets will try not to be wider than previous widgets.
+    pub fn shrink_height_to_current(&mut self) {
+        self.set_desired_height(self.child_bounds().height())
+    }
+
     /// Size of content
     pub fn bounding_size(&self) -> Vec2 {
         self.child_bounds.size()

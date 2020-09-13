@@ -600,9 +600,9 @@ impl Context {
             }
         });
 
+        ui.shrink_width_to_current(); // don't let the text below grow this window wider
         ui.add(
-            label!("NOTE: the position of this window cannot be reset from within itself.")
-                .auto_shrink(),
+            label!("NOTE: the position of this window cannot be reset from within itself."), // .auto_shrink(),
         );
     }
 }
