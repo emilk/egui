@@ -38,14 +38,18 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     painter.add(PaintCmd::Triangles(triangles));
 }
 
-fn show_color(ui: &mut Ui, color: Srgba, desired_size: Vec2) -> Response {
+pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> Response {
+    show_srgba(ui, color.into(), desired_size)
+}
+
+fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
     let rect = ui.allocate_space(desired_size);
     background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
         rect,
         corner_radius: 2.0,
-        fill: color,
-        stroke: Stroke::new(3.0, color.to_opaque()),
+        fill: srgba,
+        stroke: Stroke::new(3.0, srgba.to_opaque()),
     });
     ui.interact_hover(rect)
 }
@@ -191,9 +195,9 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma) {
             ui.style().spacing.clickable_diameter * 2.0,
         );
 
-        show_color(ui, (*hsva).into(), current_color_size).tooltip_text("Current color");
+        show_color(ui, *hsva, current_color_size).tooltip_text("Current color");
 
-        show_color(ui, HsvaGamma { a: 1.0, ..*hsva }.into(), current_color_size)
+        show_color(ui, HsvaGamma { a: 1.0, ..*hsva }, current_color_size)
             .tooltip_text("Current color (opaque)");
 
         let opaque = HsvaGamma { a: 1.0, ..*hsva };

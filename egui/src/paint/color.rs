@@ -9,7 +9,7 @@ use crate::math::clamp;
 /// Alpha channel is in linear space.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Srgba(pub [u8; 4]);
+pub struct Srgba(pub(crate) [u8; 4]);
 
 impl std::ops::Index<usize> for Srgba {
     type Output = u8;
@@ -49,9 +49,8 @@ impl Srgba {
         Self([l, l, l, 0])
     }
 
-    /// Returns an opaque version of self
-    pub fn to_opaque(self) -> Self {
-        Rgba::from(self).to_opaque().into()
+    pub fn is_opaque(&self) -> bool {
+        self.a() == 255
     }
 
     pub fn r(&self) -> u8 {
@@ -65,6 +64,11 @@ impl Srgba {
     }
     pub fn a(&self) -> u8 {
         self.0[3]
+    }
+
+    /// Returns an opaque version of self
+    pub fn to_opaque(self) -> Self {
+        Rgba::from(self).to_opaque().into()
     }
 
     pub fn to_array(&self) -> [u8; 4] {
@@ -94,7 +98,7 @@ pub const LIGHT_BLUE: Srgba = srgba(140, 160, 255, 255);
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Rgba(pub [f32; 4]);
+pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
     type Output = f32;
@@ -196,6 +200,18 @@ impl std::ops::Add for Rgba {
             self[1] + rhs[1],
             self[2] + rhs[2],
             self[3] + rhs[3],
+        ])
+    }
+}
+
+impl std::ops::Mul<Rgba> for Rgba {
+    type Output = Rgba;
+    fn mul(self, other: Rgba) -> Rgba {
+        Rgba([
+            self[0] * other[0],
+            self[1] * other[1],
+            self[2] * other[2],
+            self[3] * other[3],
         ])
     }
 }

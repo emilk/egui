@@ -578,7 +578,7 @@ impl Ui {
         self.allocate_space(child_ui.bounding_size())
     }
 
-    /// Create a child ui
+    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
     pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let child_rect = self.available();
         let mut child_ui = self.child_ui(child_rect);

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{app, color::*, containers::*, demos::FractalClock, paint::*, widgets::*, *};
+use crate::{app, color::*, containers::*, demos::*, paint::*, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
@@ -17,6 +17,9 @@ pub struct DemoApp {
     demo_window: DemoWindow,
     fractal_clock: FractalClock,
     num_frames_painted: u64,
+    #[serde(skip)]
+    color_test: ColorTest,
+    show_color_test: bool,
 }
 
 impl DemoApp {
@@ -189,6 +192,12 @@ impl DemoApp {
 
         self.num_frames_painted += 1;
         ui.label(format!("Total frames painted: {}", self.num_frames_painted));
+
+        ui.separator();
+        ui.checkbox(
+            "Show color blend test (debug backend painter)",
+            &mut self.show_color_test,
+        );
     }
 }
 
@@ -197,6 +206,25 @@ impl app::App for DemoApp {
         Window::new("Backend").scroll(false).show(ui.ctx(), |ui| {
             self.backend_ui(ui, backend);
         });
+
+        let Self {
+            show_color_test,
+            color_test,
+            ..
+        } = self;
+
+        if *show_color_test {
+            let mut tex_loader = |size: (usize, usize), pixels: &[Srgba]| {
+                backend.new_texture_srgba_premultiplied(size, pixels)
+            };
+            Window::new("Color Test")
+                .default_size(vec2(1024.0, 1024.0))
+                .scroll(true)
+                .open(show_color_test)
+                .show(ui.ctx(), |ui| {
+                    color_test.ui(ui, &mut tex_loader);
+                });
+        }
 
         let web_info = backend.web_info();
         let web_location_hash = web_info

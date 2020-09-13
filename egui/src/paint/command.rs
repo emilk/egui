@@ -43,6 +43,51 @@ pub enum PaintCmd {
     Triangles(Triangles),
 }
 
+impl PaintCmd {
+    pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
+        Self::LineSegment {
+            points,
+            stroke: stroke.into(),
+        }
+    }
+
+    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Srgba>) -> Self {
+        Self::Circle {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    pub fn circle_stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self::Circle {
+            center,
+            radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Srgba>) -> Self {
+        Self::Rect {
+            rect,
+            corner_radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self::Rect {
+            rect,
+            corner_radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {

@@ -207,6 +207,7 @@ impl Painter {
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
 
         // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+        // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
         let level = 0;
         let internal_format = Gl::RGBA;
         let border = 0;

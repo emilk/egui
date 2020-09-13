@@ -17,9 +17,10 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [x] Color edit button with popup color picker
     * [x] Gamma for value (brightness) slider
     * [x] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
-    * [ ] RGB editing without alpha
+    * [x] RGB editing without alpha
     * [ ] Additive blending aware color picker
     * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
+    * [ ] Hue wheel
 * Containers
   * [ ] Scroll areas
     * [x] Vertical scrolling
@@ -53,19 +54,17 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Positioning preference: `window.preference(Top, Right)`
     * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
   * [ ] Make auto-positioning of windows respect permanent side-bars.
-* [/] Image support
+* [x] Image support
   * [x] Show user textures
-  * [ ] API for creating a texture managed by Egui
-    * Backend-agnostic. Good for people doing Egui-apps (games etc).
-    * [ ] Convert font texture to RGBA, or communicate format in initialization?
-    * [ ] Generalized font atlas
+  * [x] API for creating a texture managed by `egui::app::Backend`
 * Visuals
   * [x] Pixel-perfect painting (round positions to nearest pixel).
   * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
   * [x] Fix thin rounded corners rendering bug (too bright)
   * [x] Smoother animation (e.g. ease-out)? NO: animation are too brief for subtelty
-  * [ ] Veriy alpha and sRGB correctness
+  * [x] Veriy alpha and sRGB correctness
     * [x] sRGBA decode in fragment shader
+    * [ ] Fix alpha blending / sRGB weirdness in WebGL (EXT_sRGB)
   * [ ] Thin circles look bad
   * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
 * Math
@@ -86,7 +85,8 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [x] Port most code to Rust
-* [x] Read url fragment and redirect to a subpage (e.g. different examples apps)
+* [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
+* [ ] Fix WebGL colors/beldning (try EXT_sRGB)
 * [ ] Embeddability
   * [ ] Support canvas that does NOT cover entire screen.
   * [ ] Support multiple eguis in one web page.

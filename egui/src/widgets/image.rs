@@ -3,6 +3,7 @@ use crate::*;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Image {
     texture_id: TextureId,
+    uv: Rect,
     desired_size: Vec2,
     bg_fill: Srgba,
     tint: Srgba,
@@ -12,21 +13,28 @@ impl Image {
     pub fn new(texture_id: TextureId, desired_size: Vec2) -> Self {
         Self {
             texture_id,
+            uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             desired_size,
             tint: color::WHITE,
             ..Default::default()
         }
     }
 
+    /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
+    pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
+        self.uv = uv.into();
+        self
+    }
+
     /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: Srgba) -> Self {
-        self.bg_fill = bg_fill;
+    pub fn bg_fill(mut self, bg_fill: impl Into<Srgba>) -> Self {
+        self.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: Srgba) -> Self {
-        self.tint = tint;
+    pub fn tint(mut self, tint: impl Into<Srgba>) -> Self {
+        self.tint = tint.into();
         self
     }
 }
@@ -36,6 +44,7 @@ impl Widget for Image {
         use paint::*;
         let Self {
             texture_id,
+            uv,
             desired_size,
             bg_fill,
             tint,
@@ -48,9 +57,8 @@ impl Widget for Image {
         }
         {
             // TODO: builder pattern for Triangles
-            let uv = [pos2(0.0, 0.0), pos2(1.0, 1.0)];
             let mut triangles = Triangles::with_texture(texture_id);
-            triangles.add_rect_with_uv(rect, uv.into(), tint);
+            triangles.add_rect_with_uv(rect, uv, tint);
             ui.painter().add(PaintCmd::Triangles(triangles));
         }
 
