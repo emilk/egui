@@ -102,33 +102,44 @@ pub fn run(
     let mut clipboard = init_clipboard();
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = glutin::event_loop::ControlFlow::Wait;
+        let mut redraw = || {
+            let egui_start = Instant::now();
+            raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            raw_input.seconds_since_midnight = Some(local_time_of_day());
 
-        match event {
-            glutin::event::Event::RedrawRequested(_) => {
-                let egui_start = Instant::now();
-                raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
-                raw_input.seconds_since_midnight = Some(local_time_of_day());
+            let mut ui = ctx.begin_frame(raw_input.take());
+            app.ui(&mut ui, &mut runner);
+            let (output, paint_jobs) = ctx.end_frame();
 
-                let mut ui = ctx.begin_frame(raw_input.take());
-                app.ui(&mut ui, &mut runner);
-                let (output, paint_jobs) = ctx.end_frame();
+            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+            runner.frame_times.add(raw_input.time, frame_time);
 
-                let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-                runner.frame_times.add(raw_input.time, frame_time);
+            runner
+                .painter
+                .paint_jobs(&display, paint_jobs, &ctx.texture());
 
-                runner
-                    .painter
-                    .paint_jobs(&display, paint_jobs, &ctx.texture());
-
-                if runner.quit {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit
-                } else if runner.run_mode() == RunMode::Continuous || output.needs_repaint {
+            *control_flow = if runner.quit {
+                glutin::event_loop::ControlFlow::Exit
+            } else if runner.run_mode() == RunMode::Continuous {
+                display.gl_window().window().request_redraw();
+                glutin::event_loop::ControlFlow::Poll
+            } else {
+                if output.needs_repaint {
                     display.gl_window().window().request_redraw();
                 }
+                glutin::event_loop::ControlFlow::Wait
+            };
 
-                handle_output(output, &display, clipboard.as_mut());
-            }
+            handle_output(output, &display, clipboard.as_mut());
+        };
+
+        match event {
+            // Platform-dependent event handlers to workaround a winit bug
+            // See: https://github.com/rust-windowing/winit/issues/987
+            // See: https://github.com/rust-windowing/winit/issues/1619
+            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
+            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+
             glutin::event::Event::WindowEvent { event, .. } => {
                 input_to_egui(event, clipboard.as_mut(), &mut raw_input, control_flow);
                 display.gl_window().window().request_redraw(); // TODO: maybe only on some events?
