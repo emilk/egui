@@ -19,29 +19,12 @@ pub trait App {
     fn on_exit(&mut self, _storage: &mut dyn Storage) {}
 }
 
-// TODO: replace with manually calling `egui::Context::request_repaint()` each frame.
-/// How the backend runs the app
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RunMode {
-    /// Repaint the UI all the time (at the display refresh rate of e.g. 60 Hz).
-    /// This is good for games where things are constantly moving.
-    /// This can also be achieved with `RunMode::Reactive` combined with calling `egui::Context::request_repaint()` each frame.
-    Continuous,
-
-    /// Only repaint when there are animations or input (mouse movement, keyboard input etc).
-    /// This saves CPU.
-    Reactive,
-}
-
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment"
     pub web_location_hash: String,
 }
 
 pub trait Backend {
-    fn run_mode(&self) -> RunMode;
-    fn set_run_mode(&mut self, run_mode: RunMode);
-
     /// If the app is running in a Web context, this returns information about the environment.
     fn web_info(&self) -> Option<WebInfo> {
         None

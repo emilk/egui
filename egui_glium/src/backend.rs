@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub use egui::{
-    app::{App, Backend, RunMode, Storage},
+    app::{App, Backend, Storage},
     Srgba,
 };
 
@@ -16,30 +16,20 @@ const WINDOW_KEY: &str = "window";
 pub struct GliumBackend {
     frame_times: egui::MovementTracker<f32>,
     quit: bool,
-    run_mode: RunMode,
     painter: Painter,
 }
 
 impl GliumBackend {
-    pub fn new(run_mode: RunMode, painter: Painter) -> Self {
+    pub fn new(painter: Painter) -> Self {
         Self {
             frame_times: egui::MovementTracker::new(1000, 1.0),
             quit: false,
-            run_mode,
             painter,
         }
     }
 }
 
 impl Backend for GliumBackend {
-    fn run_mode(&self) -> RunMode {
-        self.run_mode
-    }
-
-    fn set_run_mode(&mut self, run_mode: RunMode) {
-        self.run_mode = run_mode;
-    }
-
     fn cpu_time(&self) -> f32 {
         self.frame_times.average().unwrap_or_default()
     }
@@ -62,12 +52,7 @@ impl Backend for GliumBackend {
 }
 
 /// Run an egui app
-pub fn run(
-    title: &str,
-    run_mode: RunMode,
-    mut storage: FileStorage,
-    mut app: impl App + 'static,
-) -> ! {
+pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -> ! {
     let event_loop = glutin::event_loop::EventLoop::new();
     let mut window = glutin::window::WindowBuilder::new()
         .with_decorations(true)
@@ -98,7 +83,7 @@ pub fn run(
 
     // used to keep track of time for animations
     let start_time = Instant::now();
-    let mut runner = GliumBackend::new(run_mode, Painter::new(&display));
+    let mut runner = GliumBackend::new(Painter::new(&display));
     let mut clipboard = init_clipboard();
 
     event_loop.run(move |event, _, control_flow| {
@@ -120,13 +105,10 @@ pub fn run(
 
             *control_flow = if runner.quit {
                 glutin::event_loop::ControlFlow::Exit
-            } else if runner.run_mode() == RunMode::Continuous {
+            } else if output.needs_repaint {
                 display.gl_window().window().request_redraw();
                 glutin::event_loop::ControlFlow::Poll
             } else {
-                if output.needs_repaint {
-                    display.gl_window().window().request_redraw();
-                }
                 glutin::event_loop::ControlFlow::Wait
             };
 
