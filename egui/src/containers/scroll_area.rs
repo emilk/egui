@@ -94,7 +94,7 @@ impl ScrollArea {
 
         let outer_size = vec2(
             ui.available().width(),
-            ui.available().height().min(max_height),
+            ui.available().height().at_most(max_height),
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);

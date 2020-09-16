@@ -197,7 +197,7 @@ impl Ui {
     /// You won't be able to shrink it beyond its current child bounds.
     pub fn set_desired_width(&mut self, width: f32) {
         let min_width = self.child_bounds.max.x - self.top_left().x;
-        let width = width.max(min_width);
+        let width = width.at_least(min_width);
         self.desired_rect.max.x = self.top_left().x + width;
     }
 
@@ -205,7 +205,7 @@ impl Ui {
     /// You won't be able to shrink it beyond its current child bounds.
     pub fn set_desired_height(&mut self, height: f32) {
         let min_height = self.child_bounds.max.y - self.top_left().y;
-        let height = height.max(min_height);
+        let height = height.at_least(min_height);
         self.desired_rect.max.y = self.top_left().y + height;
     }
 
@@ -584,7 +584,7 @@ impl Ui {
     /// After `add_contents` is called the contents of `bounding_size`
     /// will decide how much space will be used in the parent ui.
     pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let size = size.min(self.available().size());
+        let size = size.at_most(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
         let mut child_ui = self.child_ui(child_rect);
         add_contents(&mut child_ui);

@@ -180,3 +180,49 @@ fn test_remap() {
     assert_eq!(remap_clamp(1.0, 1.0..=0.0, 16.0..=0.0), 16.0);
     assert_eq!(remap_clamp(0.5, 1.0..=0.0, 16.0..=0.0), 8.0);
 }
+
+// ----------------------------------------------------------------------------
+
+pub trait NumExt {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self;
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self;
+}
+
+impl NumExt for f32 {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self {
+        self.max(lower_limit)
+    }
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self {
+        self.min(upper_limit)
+    }
+}
+
+impl NumExt for Vec2 {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self {
+        self.max(lower_limit)
+    }
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self {
+        self.min(upper_limit)
+    }
+}
+
+impl NumExt for Pos2 {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self {
+        self.max(lower_limit)
+    }
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self {
+        self.min(upper_limit)
+    }
+}

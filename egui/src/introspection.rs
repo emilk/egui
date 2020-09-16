@@ -36,8 +36,8 @@ impl Texture {
                 let v = remap_clamp(pos.y, rect.range_y(), 0.0..=tex_h);
 
                 let texel_radius = 32.0;
-                let u = u.max(texel_radius).min(tex_w - texel_radius);
-                let v = v.max(texel_radius).min(tex_h - texel_radius);
+                let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
+                let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
 
                 let uv_rect = Rect::from_min_max(
                     pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),

@@ -292,7 +292,9 @@ impl Widget for Button {
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
         let mut desired_size = galley.size + 2.0 * ui.style().spacing.button_padding;
-        desired_size.y = desired_size.y.max(ui.style().spacing.clickable_diameter);
+        desired_size.y = desired_size
+            .y
+            .at_least(ui.style().spacing.clickable_diameter);
         let rect = ui.allocate_space(desired_size);
         let rect = rect.expand2(ui.style().spacing.button_expand);
 
@@ -355,7 +357,9 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = ui.style().spacing.button_padding;
         let mut desired_size =
             button_padding + vec2(icon_width, 0.0) + galley.size + button_padding;
-        desired_size.y = desired_size.y.max(ui.style().spacing.clickable_diameter);
+        desired_size.y = desired_size
+            .y
+            .at_least(ui.style().spacing.clickable_diameter);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());
@@ -437,7 +441,9 @@ impl Widget for RadioButton {
         let button_padding = ui.style().spacing.button_padding;
         let mut desired_size =
             button_padding + vec2(icon_width, 0.0) + galley.size + button_padding;
-        desired_size.y = desired_size.y.max(ui.style().spacing.clickable_diameter);
+        desired_size.y = desired_size
+            .y
+            .at_least(ui.style().spacing.clickable_diameter);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());
@@ -633,7 +639,7 @@ impl<'a> Widget for DragValue<'a> {
         } = self;
         let value = get(&mut value_function);
         let aim_rad = ui.input().physical_pixel_size(); // ui.input().aim_radius(); // TODO
-        let precision = (aim_rad / speed.abs()).log10().ceil().max(0.0) as usize;
+        let precision = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
         let value_text = format_with_minimum_precision(value as f32, precision); //  TODO: full precision
 
         let kb_edit_id = ui.make_position_id().with("edit");

@@ -255,7 +255,7 @@ impl<'open> Window<'open> {
                 &mut collapsing,
                 collapsible,
             );
-            resize.min_size.x = resize.min_size.x.max(title_bar.rect.width()); // Prevent making window smaller than title bar width
+            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
 
             let content_rect = collapsing
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {

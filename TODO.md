@@ -68,7 +68,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Thin circles look bad
   * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
 * Math
-  * [ ] Change `width.min(max_width)` to `width.at_most(max_width)`
+  * [x] Change `width.min(max_width)` to `width.at_most(max_width)`
 * Id
   * struct TempId(u64); struct StateId(u64);
     * `TempId` is count-based. Only good for interaction. Can't be used for storing state.

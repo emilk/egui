@@ -710,8 +710,8 @@ fn tessellate_paint_command(
             if !rect.is_empty() {
                 // It is common to (sometimes accidentally) create an infinitely sized rectangle.
                 // Make sure we can handle that:
-                rect.min = rect.min.max(pos2(-1e7, -1e7));
-                rect.max = rect.max.min(pos2(1e7, 1e7));
+                rect.min = rect.min.at_least(pos2(-1e7, -1e7));
+                rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
                 path::rounded_rectangle(scratchpad_points, rect, corner_radius);
                 path.add_line_loop(scratchpad_points);

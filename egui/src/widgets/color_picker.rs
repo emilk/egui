@@ -64,7 +64,7 @@ fn color_button(ui: &mut Ui, color: Srgba) -> Response {
     background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
         rect,
-        corner_radius: visuals.corner_radius.min(2.0),
+        corner_radius: visuals.corner_radius.at_most(2.0),
         fill: color,
         stroke: visuals.fg_stroke,
     });

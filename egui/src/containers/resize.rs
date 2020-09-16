@@ -140,7 +140,10 @@ impl Resize {
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
-            let default_size = self.default_size.max(self.min_size);
+            let default_size = self
+                .default_size
+                .at_least(self.min_size)
+                .at_most(self.max_size);
 
             State {
                 desired_size: default_size,
@@ -149,8 +152,10 @@ impl Resize {
             }
         });
 
-        state.desired_size = state.desired_size.max(self.min_size);
-        state.desired_size = state.desired_size.min(self.max_size);
+        state.desired_size = state
+            .desired_size
+            .at_least(self.min_size)
+            .at_most(self.max_size);
 
         let position = ui.available().min;
 
@@ -174,8 +179,10 @@ impl Resize {
         if let Some(requested_size) = state.requested_size.take() {
             state.desired_size = requested_size;
         }
-        state.desired_size = state.desired_size.max(self.min_size);
-        state.desired_size = state.desired_size.min(self.max_size);
+        state.desired_size = state
+            .desired_size
+            .at_least(self.min_size)
+            .at_most(self.max_size);
 
         // ------------------------------
 
