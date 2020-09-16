@@ -1,7 +1,7 @@
 use crate::*;
 
 pub use egui::{
-    app::{App, Backend, RunMode, WebInfo},
+    app::{App, Backend, WebInfo},
     Srgba,
 };
 
@@ -12,12 +12,11 @@ pub struct WebBackend {
     painter: webgl::Painter,
     frame_times: egui::MovementTracker<f32>,
     frame_start: Option<f64>,
-    run_mode: RunMode,
     last_save_time: Option<f64>,
 }
 
 impl WebBackend {
-    pub fn new(canvas_id: &str, run_mode: RunMode) -> Result<Self, JsValue> {
+    pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::Context::new();
         load_memory(&ctx);
         Ok(Self {
@@ -25,7 +24,6 @@ impl WebBackend {
             painter: webgl::Painter::new(canvas_id)?,
             frame_times: egui::MovementTracker::new(1000, 1.0),
             frame_start: None,
-            run_mode,
             last_save_time: None,
         })
     }
@@ -83,14 +81,6 @@ impl WebBackend {
 }
 
 impl Backend for WebBackend {
-    fn run_mode(&self) -> RunMode {
-        self.run_mode
-    }
-
-    fn set_run_mode(&mut self, run_mode: RunMode) {
-        self.run_mode = run_mode;
-    }
-
     fn web_info(&self) -> Option<WebInfo> {
         Some(WebInfo {
             web_location_hash: location_hash().unwrap_or_default(),

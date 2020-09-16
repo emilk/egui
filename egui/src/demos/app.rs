@@ -4,6 +4,49 @@ use crate::{app, color::*, containers::*, demos::*, paint::*, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
+/// How often we repaint the demo app by default
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RunMode {
+    /// This is the default for the demo.
+    ///
+    /// If this is selected, Egui is only updated if are input events
+    /// (like mouse movements) or there are some animations in the GUI.
+    ///
+    /// Reactive mode saves CPU.
+    ///
+    /// The downside is that the UI can become out-of-date if something it is supposed to monitor changes.
+    /// For instance, a GUI for a thermostat need to repaint each time the temperature changes.
+    /// To ensure the UI is up to date you need to call `egui::Context::request_repaint()` each
+    /// time such an event happens. You can also chose to call `request_repaint()` once every second
+    /// or after every single frame - this is called `Continuous` mode,
+    /// and for games and interactive tools that need repainting every frame anyway, this should be the default.
+    Reactive,
+
+    /// This will call `egui::Context::request_repaint()` at the end of each frame
+    /// to request the backend to repaint as soon as possible.
+    ///
+    /// On most platforms this will mean that Egui will run at the display refresh rate of e.g. 60 Hz.
+    ///
+    /// For this demo it is not any reason to do so except to
+    /// demonstrate how quickly Egui runs.
+    ///
+    /// For games or other interactive apps, this is probably what you want to do.
+    /// It will guarantee that Egui is always up-to-date.
+    Continuous,
+}
+
+/// Default for demo is Reactive since
+/// 1) We want to use minimal CPU
+/// 2) There are no external events that could invalidate the UI
+///    so there are no events to miss.
+impl Default for RunMode {
+    fn default() -> Self {
+        RunMode::Reactive
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Demonstrates how to make an app using Egui.
 ///
 /// Implements `egui::app::App` so it can be used with
@@ -12,6 +55,8 @@ use crate::{app, color::*, containers::*, demos::*, paint::*, widgets::*, *};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoApp {
+    #[cfg_attr(feature = "serde", serde(skip))] // go back to `Reactive` mode each time we start
+    run_mode: RunMode,
     previous_web_location_hash: String,
     open_windows: OpenWindows,
     demo_window: DemoWindow,
@@ -172,16 +217,15 @@ impl DemoApp {
         ui.separator();
 
         ui.horizontal(|ui| {
-            let mut run_mode = backend.run_mode();
+            let run_mode = &mut self.run_mode;
             ui.label("Run mode:");
-            ui.radio_value("Continuous", &mut run_mode, app::RunMode::Continuous)
+            ui.radio_value("Continuous", run_mode, RunMode::Continuous)
                 .tooltip_text("Repaint everything each frame");
-            ui.radio_value("Reactive", &mut run_mode, app::RunMode::Reactive)
+            ui.radio_value("Reactive", run_mode, RunMode::Reactive)
                 .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
-            backend.set_run_mode(run_mode);
         });
 
-        if backend.run_mode() == app::RunMode::Continuous {
+        if self.run_mode == RunMode::Continuous {
             ui.add(
                 label!("Repainting the UI each frame. FPS: {:.1}", backend.fps())
                     .text_style(TextStyle::Monospace),
@@ -232,6 +276,11 @@ impl app::App for DemoApp {
             .map(|info| info.web_location_hash.as_str())
             .unwrap_or_default();
         self.ui(ui, web_location_hash);
+
+        if self.run_mode == RunMode::Continuous {
+            // Tell the backend to repaint as soon as possible
+            ui.ctx().request_repaint();
+        }
     }
 
     #[cfg(feature = "serde_json")]

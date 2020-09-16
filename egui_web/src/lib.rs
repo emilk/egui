@@ -229,7 +229,7 @@ pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
 fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
-        if runner_lock.web_backend.run_mode() == RunMode::Continuous || runner_lock.needs_repaint {
+        if runner_lock.needs_repaint {
             runner_lock.needs_repaint = false;
             let (output, paint_jobs) = runner_lock.logic()?;
             runner_lock.paint(paint_jobs)?;
