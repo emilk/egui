@@ -350,11 +350,16 @@ impl<'a> Widget for Checkbox<'a> {
         let font = &ui.fonts()[text_style];
         let galley = font.layout_single_line(text);
 
-        let icon_width = ui.style().spacing.icon_width;
-        let button_padding = ui.style().spacing.button_padding;
-        let mut desired_size =
-            button_padding + vec2(icon_width, 0.0) + galley.size + button_padding;
-        desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        let spacing = &ui.style().spacing;
+        let icon_width = spacing.icon_width;
+        let horizontal_spacing = 0.0; //spacing.item_spacing.x
+        let button_padding = spacing.button_padding;
+        let mut desired_size = button_padding
+            + vec2(icon_width, 0.0)
+            + vec2(horizontal_spacing, 0.0)
+            + galley.size
+            + button_padding;
+        desired_size = desired_size.at_least(spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());

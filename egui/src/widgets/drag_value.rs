@@ -24,7 +24,7 @@ pub struct DragValue<'a> {
 }
 
 impl<'a> DragValue<'a> {
-    fn from_get_set(value_function: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
+    pub(crate) fn from_get_set(value_function: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {
             value_function: Box::new(value_function),
             speed: 1.0,
@@ -74,8 +74,8 @@ impl<'a> DragValue<'a> {
     }
 
     /// Clamp the value to this range
-    pub fn range(mut self, range: RangeInclusive<f64>) -> Self {
-        self.range = range;
+    pub fn range(mut self, range: RangeInclusive<f32>) -> Self {
+        self.range = *range.start() as f64..=*range.end() as f64;
         self
     }
 
@@ -110,6 +110,7 @@ impl<'a> Widget for DragValue<'a> {
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         if is_kb_editing {
+            let button_width = ui.style().spacing.interact_size.x;
             let mut value_text = ui
                 .memory()
                 .temp_edit_string
@@ -119,7 +120,7 @@ impl<'a> Widget for DragValue<'a> {
                 TextEdit::new(&mut value_text)
                     .id(kb_edit_id)
                     .multiline(false)
-                    .desired_width(0.0)
+                    .desired_width(button_width)
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {

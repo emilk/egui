@@ -19,7 +19,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 
     // 1. Deciding widget size:
     // You can query the `ui` how much space is available,
-    // but in this example we have a fixed size component:
+    // but in this example we have a fixed size widget of the default size for a button:
     let desired_size = ui.style().spacing.interact_size;
 
     // 2. Allocating space:

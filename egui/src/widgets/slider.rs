@@ -191,21 +191,37 @@ impl<'a> Slider<'a> {
         }
     }
 
-    /// Just the text label
-    fn text_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
+    fn label_ui(&mut self, ui: &mut Ui) {
         if let Some(label_text) = self.text.as_deref() {
             let text_color = self
                 .text_color
                 .unwrap_or_else(|| ui.style().visuals.text_color());
 
-            ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(
-                Label::new(format!("{}: ", label_text))
+                Label::new(label_text)
                     .multiline(false)
                     .text_color(text_color),
             );
         }
+    }
 
+    // fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
+    //     TODO: make it a drag value somehow
+    //     fn range_width(range: &RangeInclusive<f32>) -> f32 {
+    //         range.end() - range.start()
+    //     }
+    //     let range = self.range.clone();
+    //     let get_set_f64 = |value: Option<f64>| (self.get_set_value)(value.map(|x| x as f32)) as f64;
+    //     let speed = range_width(&range) / range_width(&x_range);
+    //     // TODO: precision
+    //     ui.add(
+    //         DragValue::from_get_set(get_set_f64)
+    //             .range(range)
+    //             .speed(speed),
+    //     );
+    // }
+
+    fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
         let kb_edit_id = self.id.expect("We should have an id by now").with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
@@ -213,6 +229,7 @@ impl<'a> Slider<'a> {
         let value_text = self.format_value(aim_radius, x_range);
 
         if is_kb_editing {
+            let button_width = ui.style().spacing.interact_size.x;
             let mut value_text = ui
                 .memory()
                 .temp_edit_string
@@ -222,7 +239,7 @@ impl<'a> Slider<'a> {
                 TextEdit::new(&mut value_text)
                     .id(kb_edit_id)
                     .multiline(false)
-                    .desired_width(0.0)
+                    .desired_width(button_width)
                     .text_color_opt(self.text_color)
                     .text_style(TextStyle::Monospace),
             );
@@ -281,7 +298,8 @@ impl<'a> Widget for Slider<'a> {
                 let slider_response = self.allocate_slide_space(ui, height);
                 self.slider_ui(ui, &slider_response);
                 let x_range = x_range(&slider_response.rect);
-                self.text_ui(ui, x_range);
+                self.value_ui(ui, x_range);
+                self.label_ui(ui);
                 slider_response
             })
             .0

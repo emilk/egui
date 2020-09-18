@@ -198,15 +198,15 @@ impl Default for Style {
 impl Default for Spacing {
     fn default() -> Self {
         Self {
-            item_spacing: vec2(8.0, 6.0),
+            item_spacing: vec2(8.0, 5.0),
             window_padding: vec2(6.0, 6.0),
-            button_padding: vec2(2.0, 0.0),
-            button_expand: vec2(1.0, 1.0),
+            button_padding: vec2(4.0, 1.0),
+            button_expand: vec2(0.0, 0.0), // TODO: remove
             indent: 21.0,
-            interact_size: vec2(28.0, 14.0), // TODO: larger interact_size.y
+            interact_size: vec2(40.0, 20.0), // TODO: larger interact_size.y
             slider_width: 140.0,
-            icon_width: 14.0,
-            menu_bar_height: 16.0,
+            icon_width: 20.0,      // TODO: replace with interact_size.y ?
+            menu_bar_height: 20.0, // TODO: replace with interact_size.y ?
         }
     }
 }
@@ -330,12 +330,12 @@ impl Spacing {
         ui_slider_vec2(ui, window_padding, 0.0..=10.0, "window_padding");
         ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
         ui_slider_vec2(ui, button_expand, 0.0..=10.0, "button_expand");
-        ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
-        ui_slider_vec2(ui, interact_size, 0.0..=40.0, "interact_size")
+        ui_slider_vec2(ui, interact_size, 0.0..=60.0, "interact_size")
             .tooltip_text("Minimum size of an interactive widget");
+        ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
-        ui.add(Slider::f32(icon_width, 0.0..=40.0).text("icon_width"));
-        ui.add(Slider::f32(menu_bar_height, 0.0..=40.0).text("menu_bar_height"));
+        ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
+        ui.add(Slider::f32(menu_bar_height, 0.0..=60.0).text("menu_bar_height"));
     }
 }
 
@@ -436,10 +436,16 @@ impl Stroke {
     pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
         let Self { width, color } = self;
         ui.horizontal(|ui| {
-            ui.label(format!("{}: ", text));
             ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
                 .tooltip_text("Width");
             ui.color_edit_button_srgba(color);
+            ui.label(text);
+
+            // stroke preview:
+            let stroke_rect = ui.allocate_space(ui.style().spacing.interact_size);
+            let left = stroke_rect.left_center();
+            let right = stroke_rect.right_center();
+            ui.painter().line_segment([left, right], (*width, *color));
         });
     }
 }
@@ -452,16 +458,35 @@ fn ui_slider_vec2(
     text: &str,
 ) -> Response {
     let (_, rect) = ui.horizontal(|ui| {
-        ui.label(format!("{}: ", text));
+        /*
+        let fsw = full slider_width
+        let ssw = small slider_width
+        let space = item_spacing.x
+        let value = interact_size.x;
+
+        fsw + space + value = ssw + space + value + space + ssw + space + value
+        fsw + space + value = 2 * ssw + 3 * space + 2 * value
+        fsw + space - value = 2 * ssw + 3 * space
+        fsw - 2 * space - value = 2 * ssw
+        ssw = fsw / 2 - space - value / 2
+        */
+        // let spacing = &ui.style().spacing;
+        // let space = spacing.item_spacing.x;
+        // let value_w = spacing.interact_size.x;
+        // let full_slider_width = spacing.slider_width;
+        // let small_slider_width = full_slider_width / 2.0 - space - value_w / 2.0;
+        // ui.style_mut().spacing.slider_width = small_slider_width;
+
         ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
+        ui.label(text);
     });
     ui.interact_hover(rect)
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
     ui.horizontal(|ui| {
-        ui.label(format!("{}: ", text));
         ui.color_edit_button_srgba(srgba);
+        ui.label(text);
     });
 }
