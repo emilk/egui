@@ -360,20 +360,24 @@ impl Default for LayoutDemo {
 }
 
 impl LayoutDemo {
+    fn layout(&self) -> Layout {
+        let layout = Layout::from_dir_align(self.dir, self.align);
+        if self.reversed {
+            layout.reverse()
+        } else {
+            layout
+        }
+    }
+
     pub fn ui(&mut self, ui: &mut Ui) {
         Resize::default()
             .default_size([200.0, 100.0])
-            .show(ui, |ui| self.content_ui(ui));
+            .show(ui, |ui| {
+                ui.with_layout(self.layout(), |ui| self.content_ui(ui))
+            });
     }
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
-        let layout = Layout::from_dir_align(self.dir, self.align);
-        if self.reversed {
-            ui.set_layout(layout.reverse());
-        } else {
-            ui.set_layout(layout);
-        }
-
         // ui.add(label!("Available space: {:?}", ui.available().size()));
         if ui.add(Button::new("Reset")).clicked {
             *self = Default::default();

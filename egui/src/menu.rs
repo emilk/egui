@@ -111,8 +111,7 @@ fn menu_impl<'c>(
                 style.visuals.widgets.inactive.bg_fill = TRANSPARENT;
                 style.visuals.widgets.inactive.bg_stroke = Stroke::none();
                 ui.set_style(style);
-                ui.set_layout(Layout::justified(Direction::Vertical));
-                add_contents(ui)
+                ui.with_layout(Layout::justified(Direction::Vertical), add_contents);
             })
         });
 

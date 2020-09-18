@@ -58,8 +58,7 @@ pub fn combo_box(
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
                     ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                    ui.set_layout(Layout::justified(Direction::Vertical));
-                    menu_contents(ui);
+                    ui.with_layout(Layout::justified(Direction::Vertical), menu_contents);
                 })
             });
 
@@ -83,7 +82,7 @@ fn button_frame(
     let outer_rect_bounds = ui.available();
     let inner_rect = outer_rect_bounds.shrink2(margin);
     let where_to_put_background = ui.painter().add(PaintCmd::Noop);
-    let mut content_ui = ui.child_ui(inner_rect);
+    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     add_contents(&mut content_ui);
 
     let outer_rect = Rect::from_min_max(

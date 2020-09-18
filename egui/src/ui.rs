@@ -67,17 +67,24 @@ impl Ui {
         }
     }
 
-    pub fn child_ui(&mut self, child_rect: Rect) -> Self {
+    pub fn child_ui(&mut self, child_rect: Rect, layout: Layout) -> Self {
         let id = self.make_position_id(); // TODO: is this a good idea?
         self.child_count += 1;
+
+        let cursor = if layout.is_reversed() {
+            child_rect.max
+        } else {
+            child_rect.min
+        };
+
         Ui {
             id,
             painter: self.painter.clone(),
             desired_rect: child_rect,
             child_bounds: Rect::from_min_size(child_rect.min, Vec2::zero()), // TODO: Rect::nothing() ?
             style: self.style().clone(),
-            layout: self.layout,
-            cursor: child_rect.min,
+            layout,
+            cursor,
             child_count: 0,
         }
     }
@@ -273,16 +280,6 @@ impl Ui {
 
     pub fn layout(&self) -> &Layout {
         &self.layout
-    }
-
-    // TODO: remove
-    pub fn set_layout(&mut self, layout: Layout) {
-        self.layout = layout;
-
-        // TODO: remove this HACK:
-        if layout.is_reversed() {
-            self.cursor = self.rect_finite().max;
-        }
     }
 
     // ------------------------------------------------------------------------
@@ -613,7 +610,7 @@ impl Ui {
     pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
         let size = size.at_most(self.available().size());
         let child_rect = Rect::from_min_size(self.cursor, size);
-        let mut child_ui = self.child_ui(child_rect);
+        let mut child_ui = self.child_ui(child_rect, self.layout);
         add_contents(&mut child_ui);
         self.allocate_space(child_ui.bounding_size())
     }
@@ -621,7 +618,7 @@ impl Ui {
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
     pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let child_rect = self.available();
-        let mut child_ui = self.child_ui(child_rect);
+        let mut child_ui = self.child_ui(child_rect, self.layout);
         let r = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
         (r, self.allocate_space(size))
@@ -641,7 +638,7 @@ impl Ui {
         let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
         let mut child_ui = Ui {
             id: self.id.with(id_source),
-            ..self.child_ui(child_rect)
+            ..self.child_ui(child_rect, self.layout)
         };
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
@@ -677,10 +674,13 @@ impl Ui {
             Align::Center => self.available().width() / 2.0 - width / 2.0,
             Align::Max => self.available().width() - width,
         };
-        self.child_ui(Rect::from_min_size(
-            self.cursor + vec2(x, 0.0),
-            vec2(width, self.available().height()),
-        ))
+        self.child_ui(
+            Rect::from_min_size(
+                self.cursor + vec2(x, 0.0),
+                vec2(width, self.available().height()),
+            ),
+            self.layout,
+        )
     }
 
     /// Start a ui with horizontal layout.
@@ -716,8 +716,19 @@ impl Ui {
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
         let child_rect = Rect::from_min_size(self.cursor, initial_size);
-        let mut child_ui = self.child_ui(child_rect);
-        child_ui.set_layout(layout); // HACK: need a separate call right now
+        let mut child_ui = self.child_ui(child_rect, layout);
+        let ret = add_contents(&mut child_ui);
+        let size = child_ui.bounding_size();
+        let rect = self.allocate_space(size);
+        (ret, rect)
+    }
+
+    pub fn with_layout<R>(
+        &mut self,
+        layout: Layout,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Rect) {
+        let mut child_ui = self.child_ui(self.rect(), layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
         let rect = self.allocate_space(size);
@@ -749,7 +760,7 @@ impl Ui {
 
                 Self {
                     id: self.make_child_id(&("column", col_idx)),
-                    ..self.child_ui(child_rect)
+                    ..self.child_ui(child_rect, self.layout)
                 }
             })
             .collect();

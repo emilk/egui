@@ -203,7 +203,7 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.child_ui(inner_rect);
+        let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {

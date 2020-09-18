@@ -100,10 +100,13 @@ impl ScrollArea {
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
         let inner_rect = Rect::from_min_size(ui.available().min, inner_size);
 
-        let mut content_ui = ui.child_ui(Rect::from_min_size(
-            inner_rect.min - state.offset,
-            vec2(inner_size.x, f32::INFINITY),
-        ));
+        let mut content_ui = ui.child_ui(
+            Rect::from_min_size(
+                inner_rect.min - state.offset,
+                vec2(inner_size.x, f32::INFINITY),
+            ),
+            *ui.layout(),
+        );
         let mut content_clip_rect = inner_rect.expand(ui.style().visuals.clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
         content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible

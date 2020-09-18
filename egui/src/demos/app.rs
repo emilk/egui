@@ -389,13 +389,15 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) 
                 (time.rem_euclid(60.0)).floor(),
                 (time.rem_euclid(1.0) * 100.0).floor()
             );
-            ui.set_layout(Layout::horizontal(Align::Max).reverse());
-            if ui
-                .add(Button::new(time).text_style(TextStyle::Monospace))
-                .clicked
-            {
-                windows.fractal_clock = !windows.fractal_clock;
-            }
+
+            ui.with_layout(Layout::horizontal(Align::Max).reverse(), |ui| {
+                if ui
+                    .add(Button::new(time).text_style(TextStyle::Monospace))
+                    .clicked
+                {
+                    windows.fractal_clock = !windows.fractal_clock;
+                }
+            });
         }
     });
 }

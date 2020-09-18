@@ -81,7 +81,7 @@ impl Frame {
         let outer_rect_bounds = ui.available();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
         let where_to_put_background = ui.painter().add(PaintCmd::Noop);
-        let content_ui = ui.child_ui(inner_rect);
+        let content_ui = ui.child_ui(inner_rect, *ui.layout());
         Prepared {
             frame: self,
             outer_rect_bounds,
