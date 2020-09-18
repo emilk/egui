@@ -166,53 +166,55 @@ impl Layout {
         available_size: Vec2,
         mut child_size: Vec2,
     ) -> Rect {
-        let available_size = available_size.max(child_size);
+        let available_size = available_size.at_least(child_size);
 
         let mut child_move = Vec2::default();
         let mut cursor_change = Vec2::default();
 
-        if self.dir == Direction::Horizontal {
-            if let Some(align) = self.align {
-                child_move.y += match align {
-                    Align::Min => 0.0,
-                    Align::Center => 0.5 * (available_size.y - child_size.y),
-                    Align::Max => available_size.y - child_size.y,
-                };
-            } else {
-                // justified: fill full height
-                child_size.y = child_size.y.max(available_size.y);
-            }
+        match self.dir {
+            Direction::Horizontal => {
+                if let Some(align) = self.align {
+                    child_move.y += match align {
+                        Align::Min => 0.0,
+                        Align::Center => 0.5 * (available_size.y - child_size.y),
+                        Align::Max => available_size.y - child_size.y,
+                    };
+                } else {
+                    // justified: fill full height
+                    child_size.y = child_size.y.max(available_size.y);
+                }
 
-            cursor_change.x += child_size.x;
-            cursor_change.x += style.spacing.item_spacing.x; // Where to put next thing, if there is a next thing
-        } else {
-            if let Some(align) = self.align {
-                child_move.x += match align {
-                    Align::Min => 0.0,
-                    Align::Center => 0.5 * (available_size.x - child_size.x),
-                    Align::Max => available_size.x - child_size.x,
+                cursor_change.x += child_size.x;
+                cursor_change.x += style.spacing.item_spacing.x; // Where to put next thing, if there is a next thing
+            }
+            Direction::Vertical => {
+                if let Some(align) = self.align {
+                    child_move.x += match align {
+                        Align::Min => 0.0,
+                        Align::Center => 0.5 * (available_size.x - child_size.x),
+                        Align::Max => available_size.x - child_size.x,
+                    };
+                } else {
+                    // justified: fill full width
+                    child_size.x = child_size.x.max(available_size.x);
                 };
-            } else {
-                // justified: fill full width
-                child_size.x = child_size.x.max(available_size.x);
-            };
-            cursor_change.y += child_size.y;
-            cursor_change.y += style.spacing.item_spacing.y; // Where to put next thing, if there is a next thing
+                cursor_change.y += child_size.y;
+                cursor_change.y += style.spacing.item_spacing.y; // Where to put next thing, if there is a next thing
+            }
         }
 
         if self.is_reversed() {
             // reverse: cursor starts at bottom right corner of new widget.
 
-            let child_pos = if self.dir == Direction::Horizontal {
-                pos2(
+            let child_pos = match self.dir {
+                Direction::Horizontal => pos2(
                     cursor.x - child_size.x,
                     cursor.y - available_size.y + child_move.y,
-                )
-            } else {
-                pos2(
+                ),
+                Direction::Vertical => pos2(
                     cursor.x - available_size.x + child_move.x,
                     cursor.y - child_size.y,
-                )
+                ),
             };
             // let child_pos = *cursor - child_move - child_size;
             *cursor -= cursor_change;
