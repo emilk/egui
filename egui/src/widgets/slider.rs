@@ -277,7 +277,7 @@ impl<'a> Widget for Slider<'a> {
         if let Some(text) = &self.text {
             self.id = self.id.or_else(|| Some(ui.make_unique_child_id(text)));
 
-            ui.horizontal_centered(|ui| {
+            ui.horizontal(|ui| {
                 let slider_response = self.allocate_slide_space(ui, height);
                 self.slider_ui(ui, &slider_response);
                 let x_range = x_range(&slider_response.rect);

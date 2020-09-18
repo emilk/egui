@@ -59,7 +59,7 @@ impl ColorTest {
             let tex_color = Rgba::new(1.0, 0.25, 0.25, 1.0);
             let vertex_color = Rgba::new(0.5, 0.75, 0.75, 1.0);
 
-            ui.horizontal_centered(|ui| {
+            ui.horizontal(|ui| {
                 let color_size = ui.style().spacing.interact_size;
                 ui.label("texture");
                 show_color(ui, tex_color, color_size);
@@ -72,7 +72,7 @@ impl ColorTest {
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
                 self.tex_gradient(ui, tex_loader, "Ground truth (texture)", WHITE, &g);
             }
-            ui.horizontal_centered(|ui| {
+            ui.horizontal(|ui| {
                 let g = Gradient::one_color(Srgba::from(tex_color));
                 let tex = self.tex_mngr.get(tex_loader, &g);
                 let texel_offset = 0.5 / (g.0.len() as f32);
@@ -132,7 +132,7 @@ impl ColorTest {
     ) {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             let color_size = ui.style().spacing.interact_size;
             if !is_opaque {
                 ui.label("Background:");
@@ -228,7 +228,7 @@ impl ColorTest {
         if !self.texture_gradients {
             return;
         }
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             let tex = self.tex_mngr.get(tex_loader, gradient);
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
@@ -245,7 +245,7 @@ impl ColorTest {
         if !self.vertex_gradients {
             return;
         }
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             vertex_gradient(ui, bg_fill, gradient).tooltip_text(format!(
                 "A triangle mesh that is {} vertices wide",
                 gradient.0.len()

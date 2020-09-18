@@ -73,7 +73,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 pub fn demo(ui: &mut Ui, on: &mut bool) {
     ui.label("It's easy to create your own widgets!");
     let url = format!("https://github.com/emilk/egui/blob/master/{}", file!());
-    ui.horizontal_centered(|ui| {
+    ui.horizontal(|ui| {
         ui.label("Like this toggle switch:");
         toggle(ui, on).tooltip_text("Click to toggle");
         ui.add(Hyperlink::new(url).text("(source code)"));

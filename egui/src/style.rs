@@ -295,7 +295,7 @@ impl Style {
             visuals,
             animation_time,
         } = self;
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.label("Default text style:");
             for &value in &[TextStyle::Body, TextStyle::Monospace] {
                 ui.radio_value(format!("{:?}", value), body_text_style, value);
@@ -435,7 +435,7 @@ impl Visuals {
 impl Stroke {
     pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
         let Self { width, color } = self;
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.label(format!("{}: ", text));
             ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
                 .tooltip_text("Width");
@@ -451,7 +451,7 @@ fn ui_slider_vec2(
     range: std::ops::RangeInclusive<f32>,
     text: &str,
 ) -> Response {
-    let (_, rect) = ui.horizontal_centered(|ui| {
+    let (_, rect) = ui.horizontal(|ui| {
         ui.label(format!("{}: ", text));
         ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
@@ -460,7 +460,7 @@ fn ui_slider_vec2(
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
-    ui.horizontal_centered(|ui| {
+    ui.horizontal(|ui| {
         ui.label(format!("{}: ", text));
         ui.color_edit_button_srgba(srgba);
     });

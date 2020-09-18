@@ -55,7 +55,7 @@ impl Widgets {
 
         ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             if ui
                 .add(Button::new("Click me").enabled(self.button_enabled))
                 .tooltip_text("This will just increase a counter.")
@@ -85,7 +85,7 @@ impl Widgets {
         ui.separator();
         {
             ui.label("An angle stored as radians, but edited in degrees:");
-            ui.horizontal_centered(|ui| {
+            ui.horizontal(|ui| {
                 ui.style_mut().spacing.item_spacing.x = 0.0;
                 ui.drag_angle(&mut self.angle);
                 ui.label(format!(" = {} radians", self.angle));
@@ -93,7 +93,7 @@ impl Widgets {
         }
         ui.separator();
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.add(Label::new("Click to select a different text color: ").text_color(self.color));
             ui.color_edit_button_srgba(&mut self.color);
         });

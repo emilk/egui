@@ -181,7 +181,7 @@ impl ColorWidgets {
             rgba_premul,
         } = self;
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.color_edit_button_srgba_unmultiplied(srgba_unmul);
             ui.label(format!(
                 "sRGBA: {} {} {} {}",
@@ -189,7 +189,7 @@ impl ColorWidgets {
             ));
         });
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.color_edit_button_srgba_premultiplied(srgba_premul);
             ui.label(format!(
                 "sRGBA with premultiplied alpha: {} {} {} {}",
@@ -197,7 +197,7 @@ impl ColorWidgets {
             ));
         });
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.color_edit_button_rgba_unmultiplied(rgba_unmul);
             ui.label(format!(
                 "Linear RGBA: {:.02} {:.02} {:.02} {:.02}",
@@ -205,7 +205,7 @@ impl ColorWidgets {
             ));
         });
 
-        ui.horizontal_centered(|ui| {
+        ui.horizontal(|ui| {
             ui.color_edit_button_rgba_premultiplied(rgba_premul);
             ui.label(format!(
                 "Linear RGBA with premultiplied alpha: {:.02} {:.02} {:.02} {:.02}",
