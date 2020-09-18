@@ -191,9 +191,7 @@ impl CollapsingHeader {
             desired_width,
             galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
         );
-        desired_size.y = desired_size
-            .y
-            .at_least(ui.style().spacing.clickable_diameter);
+        desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
         let rect = rect.expand2(ui.style().spacing.button_expand);
 

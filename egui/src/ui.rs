@@ -658,13 +658,19 @@ impl Ui {
 
     /// Start a ui with horizontal layout
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        let initial_size = vec2(self.available().width(), 0.0);
+        let initial_size = vec2(
+            self.available().width(),
+            self.style().spacing.interact_size.y,
+        );
         self.inner_layout(Layout::horizontal(Align::Min), initial_size, add_contents)
     }
 
     /// Start a ui with horizontal layout where elements are centered on the Y axis.
     pub fn horizontal_centered<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        let initial_size = vec2(self.available().width(), 0.0);
+        let initial_size = vec2(
+            self.available().width(),
+            self.style().spacing.interact_size.y,
+        );
         self.inner_layout(
             Layout::horizontal(Align::Center),
             initial_size,

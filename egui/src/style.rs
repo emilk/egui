@@ -45,17 +45,18 @@ pub struct Spacing {
     /// Expand buttons by this much *after* allocating them.
     /// This is then mostly a visual change (but also makes them easier to hit with the mouse).
     /// This allows for compact layout where buttons actually eat into item_spacing a bit
-    pub button_expand: Vec2,
+    pub button_expand: Vec2, // TODO: remove
 
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Anything clickable is (at least) this wide.
-    /// TODO: rename `button_height` or something?
-    pub clickable_diameter: f32,
+    /// Minimum size of e.g. a button.
+    /// `interact_size.y` is the default height of button, slider, etc.
+    /// Anything clickable should be (at least) this size.
+    pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Total width of a slider
-    pub slider_width: f32,
+    /// Total width of a slider.
+    pub slider_width: f32, // TODO: rename big_interact_size ?
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// The text starts after this many pixels.
@@ -202,7 +203,7 @@ impl Default for Spacing {
             button_padding: vec2(2.0, 0.0),
             button_expand: vec2(1.0, 1.0),
             indent: 21.0,
-            clickable_diameter: 14.0, // TODO: automatically higher on touch screens
+            interact_size: vec2(28.0, 14.0), // TODO: larger interact_size.y
             slider_width: 140.0,
             icon_width: 14.0,
             menu_bar_height: 16.0,
@@ -319,7 +320,7 @@ impl Spacing {
             button_padding,
             button_expand,
             indent,
-            clickable_diameter,
+            interact_size,
             slider_width,
             icon_width,
             menu_bar_height,
@@ -330,7 +331,8 @@ impl Spacing {
         ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
         ui_slider_vec2(ui, button_expand, 0.0..=10.0, "button_expand");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
-        ui.add(Slider::f32(clickable_diameter, 0.0..=40.0).text("clickable_diameter"));
+        ui_slider_vec2(ui, interact_size, 0.0..=40.0, "interact_size")
+            .tooltip_text("Minimum size of an interactive widget");
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
         ui.add(Slider::f32(icon_width, 0.0..=40.0).text("icon_width"));
         ui.add(Slider::f32(menu_bar_height, 0.0..=40.0).text("menu_bar_height"));
@@ -443,12 +445,18 @@ impl Stroke {
 }
 
 // TODO: improve and standardize ui_slider_vec2
-fn ui_slider_vec2(ui: &mut Ui, value: &mut Vec2, range: std::ops::RangeInclusive<f32>, text: &str) {
-    ui.horizontal_centered(|ui| {
+fn ui_slider_vec2(
+    ui: &mut Ui,
+    value: &mut Vec2,
+    range: std::ops::RangeInclusive<f32>,
+    text: &str,
+) -> Response {
+    let (_, rect) = ui.horizontal_centered(|ui| {
         ui.label(format!("{}: ", text));
         ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
     });
+    ui.interact_hover(rect)
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {

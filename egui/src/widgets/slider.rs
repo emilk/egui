@@ -272,7 +272,7 @@ impl<'a> Widget for Slider<'a> {
         let font = &ui.fonts()[text_style];
         let height = font
             .line_spacing()
-            .at_least(ui.style().spacing.clickable_diameter);
+            .at_least(ui.style().spacing.interact_size.y);
 
         if let Some(text) = &self.text {
             self.id = self.id.or_else(|| Some(ui.make_unique_child_id(text)));

@@ -55,7 +55,7 @@ fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
 }
 
 fn color_button(ui: &mut Ui, color: Srgba) -> Response {
-    let desired_size = Vec2::splat(ui.style().spacing.clickable_diameter);
+    let desired_size = ui.style().spacing.interact_size;
     let rect = ui.allocate_space(desired_size);
     let rect = rect.expand2(ui.style().spacing.button_expand);
     let id = ui.make_position_id();
@@ -76,7 +76,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba
 
     let desired_size = vec2(
         ui.style().spacing.slider_width,
-        ui.style().spacing.clickable_diameter * 2.0,
+        ui.style().spacing.interact_size.y * 2.0,
     );
     let rect = ui.allocate_space(desired_size);
 
@@ -192,7 +192,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma) {
     ui.vertical_centered(|ui| {
         let current_color_size = vec2(
             ui.style().spacing.slider_width,
-            ui.style().spacing.clickable_diameter * 2.0,
+            ui.style().spacing.interact_size.y * 2.0,
         );
 
         show_color(ui, *hsva, current_color_size).tooltip_text("Current color");

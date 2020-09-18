@@ -20,7 +20,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // 1. Deciding widget size:
     // You can query the `ui` how much space is available,
     // but in this example we have a fixed size component:
-    let desired_size = vec2(2.0, 1.0) * ui.style().spacing.clickable_diameter;
+    let desired_size = ui.style().spacing.interact_size;
 
     // 2. Allocating space:
     // This is where we get a region (`Rect`) of the screen assigned.

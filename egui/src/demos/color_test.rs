@@ -60,7 +60,7 @@ impl ColorTest {
             let vertex_color = Rgba::new(0.5, 0.75, 0.75, 1.0);
 
             ui.horizontal_centered(|ui| {
-                let color_size = vec2(2.0, 1.0) * ui.style().spacing.clickable_diameter;
+                let color_size = ui.style().spacing.interact_size;
                 ui.label("texture");
                 show_color(ui, tex_color, color_size);
                 ui.label(" * ");
@@ -133,7 +133,7 @@ impl ColorTest {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
         ui.horizontal_centered(|ui| {
-            let color_size = vec2(2.0, 1.0) * ui.style().spacing.clickable_diameter;
+            let color_size = ui.style().spacing.interact_size;
             if !is_opaque {
                 ui.label("Background:");
                 show_color(ui, bg_fill, color_size);
