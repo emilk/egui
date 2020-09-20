@@ -188,7 +188,7 @@ fn color_slider_2d(
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma) {
-    ui.vertical_centered(|ui| {
+    ui.vertical(|ui| {
         let current_color_size = vec2(
             ui.style().spacing.slider_width,
             ui.style().spacing.interact_size.y * 2.0,

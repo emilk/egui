@@ -704,11 +704,6 @@ impl Ui {
         self.inner_layout(Layout::vertical(Align::Min), initial_size, add_contents)
     }
 
-    pub fn vertical_centered<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        let initial_size = vec2(0.0, self.available().height());
-        self.inner_layout(Layout::vertical(Align::Center), initial_size, add_contents)
-    }
-
     pub fn inner_layout<R>(
         &mut self,
         layout: Layout,
