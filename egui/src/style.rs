@@ -255,7 +255,7 @@ impl Default for Widgets {
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
-                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.04)),
+                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)), // default window outline. Should be pretty readable
                 corner_radius: 4.0,
                 fg_fill: srgba(60, 60, 80, 255),
                 fg_stroke: Stroke::new(1.0, Srgba::gray(200)), // Should NOT look grayed out!
@@ -268,8 +268,8 @@ impl Default for Widgets {
                 fg_stroke: Stroke::new(1.0, Srgba::gray(128)), // Should look grayed out
             },
             noninteractive: WidgetVisuals {
-                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.03)),
-                bg_fill: Rgba::luminance_alpha(0.013, 0.95).into(),
+                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)),
+                bg_fill: Rgba::luminance_alpha(0.010, 0.975).into(), // window background
                 corner_radius: 4.0,
                 fg_fill: Default::default(),
                 fg_stroke: Stroke::new(1.0, Srgba::gray(160)), // text color
@@ -372,11 +372,10 @@ impl Widgets {
         } = self;
 
         ui.collapsing("noninteractive", |ui| noninteractive.ui(ui));
-        ui.heading("Interactive:");
-        ui.collapsing("active", |ui| active.ui(ui));
-        ui.collapsing("hovered", |ui| hovered.ui(ui));
-        ui.collapsing("inactive", |ui| inactive.ui(ui));
-        ui.collapsing("disabled", |ui| disabled.ui(ui));
+        ui.collapsing("interactive & disabled", |ui| disabled.ui(ui));
+        ui.collapsing("interactive & inactive", |ui| inactive.ui(ui));
+        ui.collapsing("interactive & hovered", |ui| hovered.ui(ui));
+        ui.collapsing("interactive & active", |ui| active.ui(ui));
     }
 }
 
