@@ -9,7 +9,6 @@ use {
     glium::{
         implement_vertex,
         index::PrimitiveType,
-        program,
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
         uniforms::SamplerWrapFunction,
@@ -17,9 +16,55 @@ use {
     },
 };
 
+const VERTEX_SHADER_SOURCE: &str = r#"
+    #version 140
+    uniform vec2 u_screen_size;
+    in vec2 a_pos;
+    in vec4 a_srgba; // 0-255 sRGB
+    in vec2 a_tc;
+    out vec4 v_rgba;
+    out vec2 v_tc;
+
+    // 0-1 linear  from  0-255 sRGB
+    vec3 linear_from_srgb(vec3 srgb) {
+        bvec3 cutoff = lessThan(srgb, vec3(10.31475));
+        vec3 lower = srgb / vec3(3294.6);
+        vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
+        return mix(higher, lower, cutoff);
+    }
+
+    vec4 linear_from_srgba(vec4 srgba) {
+        return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+    }
+
+    void main() {
+        gl_Position = vec4(
+            2.0 * a_pos.x / u_screen_size.x - 1.0,
+            1.0 - 2.0 * a_pos.y / u_screen_size.y,
+            0.0,
+            1.0);
+        v_rgba = linear_from_srgba(a_srgba);
+        v_tc = a_tc;
+    }
+"#;
+
+const FRAGMENT_SHADER_SOURCE: &str = r#"
+    #version 140
+    uniform sampler2D u_sampler;
+    in vec4 v_rgba;
+    in vec2 v_tc;
+    out vec4 f_color;
+
+    void main() {
+        // The texture sampler is sRGB aware, and glium already expects linear rgba output
+        // so no need for any sRGB conversions here:
+        f_color = v_rgba * texture(u_sampler, v_tc);
+    }
+"#;
+
 pub struct Painter {
     program: glium::Program,
-    egui_texture: SrgbTexture2d,
+    egui_texture: Option<SrgbTexture2d>,
     egui_texture_version: Option<u64>,
 
     user_textures: Vec<UserTexture>,
@@ -37,156 +82,13 @@ struct UserTexture {
 
 impl Painter {
     pub fn new(facade: &dyn glium::backend::Facade) -> Painter {
-        let program = program!(facade,
-            140 => {
-                    vertex: "
-                        #version 140
-                        uniform vec2 u_screen_size;
-                        in vec2 a_pos;
-                        in vec4 a_srgba;
-                        in vec2 a_tc;
-                        out vec4 v_rgba;
-                        out vec2 v_tc;
-
-                        // 0-1 linear  from  0-255 sRGB
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-                            vec3 lower = srgb / vec3(3294.6);
-                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-                            return mix(higher, lower, cutoff);
-                        }
-
-                        vec4 linear_from_srgba(vec4 srgba) {
-                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-                        }
-
-                        void main() {
-                            gl_Position = vec4(
-                                2.0 * a_pos.x / u_screen_size.x - 1.0,
-                                1.0 - 2.0 * a_pos.y / u_screen_size.y,
-                                0.0,
-                                1.0);
-                            v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc;
-                        }
-                    ",
-
-                    fragment: "
-                        #version 140
-                        uniform sampler2D u_sampler;
-                        in vec4 v_rgba;
-                        in vec2 v_tc;
-                        out vec4 f_color;
-
-                        void main() {
-                            // glium expects linear rgba
-                            f_color = v_rgba * texture(u_sampler, v_tc);
-                        }
-                    "
-            },
-
-            110 => {
-                    vertex: "
-                        #version 110
-                        uniform vec2 u_screen_size;
-                        attribute vec2 a_pos;
-                        attribute vec4 a_srgba;
-                        attribute vec2 a_tc;
-                        varying vec4 v_rgba;
-                        varying vec2 v_tc;
-
-                        // 0-1 linear  from  0-255 sRGB
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-                            vec3 lower = srgb / vec3(3294.6);
-                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-                            return mix(higher, lower, cutoff);
-                        }
-
-                        vec4 linear_from_srgba(vec4 srgba) {
-                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-                        }
-
-                        void main() {
-                            gl_Position = vec4(
-                                2.0 * a_pos.x / u_screen_size.x - 1.0,
-                                1.0 - 2.0 * a_pos.y / u_screen_size.y,
-                                0.0,
-                                1.0);
-                            v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc;
-                        }
-                    ",
-
-                    fragment: "
-                        #version 110
-                        uniform sampler2D u_sampler;
-                        varying vec4 v_rgba;
-                        varying vec2 v_tc;
-
-                        void main() {
-                            // glium expects linear rgba
-                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
-                        }
-                    ",
-            },
-
-            100 => {
-                    vertex: "
-                        #version 100
-                        uniform mediump vec2 u_screen_size;
-                        attribute mediump vec2 a_pos;
-                        attribute mediump vec4 a_srgba;
-                        attribute mediump vec2 a_tc;
-                        varying mediump vec4 v_rgba;
-                        varying mediump vec2 v_tc;
-
-                        // 0-1 linear  from  0-255 sRGB
-                        vec3 linear_from_srgb(vec3 srgb) {
-                            bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-                            vec3 lower = srgb / vec3(3294.6);
-                            vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-                            return mix(higher, lower, cutoff);
-                        }
-
-                        vec4 linear_from_srgba(vec4 srgba) {
-                            return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-                        }
-
-                        void main() {
-                            gl_Position = vec4(
-                                2.0 * a_pos.x / u_screen_size.x - 1.0,
-                                1.0 - 2.0 * a_pos.y / u_screen_size.y,
-                                0.0,
-                                1.0);
-                            v_rgba = linear_from_srgba(a_srgba);
-                            v_tc = a_tc;
-                        }
-                    ",
-
-                    fragment: "
-                        #version 100
-                        uniform sampler2D u_sampler;
-                        varying mediump vec4 v_rgba;
-                        varying mediump vec2 v_tc;
-
-                        void main() {
-                            // glium expects linear rgba
-                            gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
-                        }
-                    ",
-            },
-        )
-        .unwrap();
-
-        let pixels = vec![vec![255u8, 0u8], vec![0u8, 255u8]];
-        let format = texture::SrgbFormat::U8U8U8U8;
-        let mipmaps = texture::MipmapsOption::NoMipmap;
-        let egui_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+        let program =
+            glium::Program::from_source(facade, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE, None)
+                .expect("Failed to compile shader");
 
         Painter {
             program,
-            egui_texture,
+            egui_texture: None,
             egui_texture_version: None,
             user_textures: Default::default(),
         }
@@ -229,11 +131,12 @@ impl Painter {
 
         let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
-        self.egui_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+        self.egui_texture =
+            Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
         self.egui_texture_version = Some(texture.version);
     }
 
-    fn upload_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
+    fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
         for user_texture in &mut self.user_textures {
             if user_texture.texture.is_none() {
                 let pixels = std::mem::take(&mut user_texture.pixels);
@@ -245,6 +148,7 @@ impl Painter {
         }
     }
 
+    /// Main entry-point for painting a frame
     pub fn paint_jobs(
         &mut self,
         display: &glium::Display,
@@ -252,7 +156,7 @@ impl Painter {
         texture: &egui::Texture,
     ) {
         self.upload_egui_texture(display, texture);
-        self.upload_user_textures(display);
+        self.upload_pending_user_textures(display);
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
@@ -264,7 +168,7 @@ impl Painter {
 
     fn get_texture(&self, texture_id: egui::TextureId) -> &SrgbTexture2d {
         match texture_id {
-            egui::TextureId::Egui => &self.egui_texture,
+            egui::TextureId::Egui => self.egui_texture.as_ref().unwrap(),
             egui::TextureId::User(id) => {
                 let id = id as usize;
                 assert!(id < self.user_textures.len());
@@ -303,11 +207,13 @@ impl Painter {
                 })
                 .collect();
 
+            // TODO: we should probably reuse the `VertexBuffer` instead of allocating a new one each frame.
             glium::VertexBuffer::new(display, &vertices).unwrap()
         };
 
         let indices: Vec<u32> = triangles.indices.iter().map(|idx| *idx as u32).collect();
 
+        // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
 
@@ -324,24 +230,36 @@ impl Painter {
         };
 
         // Egui outputs colors with premultiplied alpha:
-        let blend_func = glium::BlendingFunction::Addition {
+        let color_blend_func = glium::BlendingFunction::Addition {
             source: glium::LinearBlendingFactor::One,
             destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
         };
+
+        // Less important, but this is technically the correct alpha blend function
+        // when you want to make use of the framebuffer alpha (for screenshots, compositing, etc).
+        let alpha_blend_func = glium::BlendingFunction::Addition {
+            source: glium::LinearBlendingFactor::OneMinusDestinationAlpha,
+            destination: glium::LinearBlendingFactor::One,
+        };
+
         let blend = glium::Blend {
-            color: blend_func,
-            alpha: blend_func,
+            color: color_blend_func,
+            alpha: alpha_blend_func,
             ..Default::default()
         };
 
+        // Transform clip rect to physical pixels:
         let clip_min_x = pixels_per_point * clip_rect.min.x;
         let clip_min_y = pixels_per_point * clip_rect.min.y;
         let clip_max_x = pixels_per_point * clip_rect.max.x;
         let clip_max_y = pixels_per_point * clip_rect.max.y;
+
+        // Make sure clip rect can fit withing an `u32`:
         let clip_min_x = clamp(clip_min_x, 0.0..=width_pixels as f32);
         let clip_min_y = clamp(clip_min_y, 0.0..=height_pixels as f32);
         let clip_max_x = clamp(clip_max_x, clip_min_x..=width_pixels as f32);
         let clip_max_y = clamp(clip_max_y, clip_min_y..=height_pixels as f32);
+
         let clip_min_x = clip_min_x.round() as u32;
         let clip_min_y = clip_min_y.round() as u32;
         let clip_max_x = clip_max_x.round() as u32;
