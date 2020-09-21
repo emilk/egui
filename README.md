@@ -125,7 +125,7 @@ The same code can be compiled to a native app or a web app.
 
 ### Writing your own Egui backend
 
-You need to collect `egui::RawInput`, paint `egui::PaintJobs` and handle `egui::Output`. The basic structure is this:
+You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::PaintJobs`](https://docs.rs/egui/latest/egui/paint/tessellator/type.PaintJobs.html) and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
 
 ``` rust
 let mut egui_ctx = egui::Context::new();
@@ -141,6 +141,8 @@ loop {
     // Also see `egui::Output` for more
 }
 ```
+
+For a reference OpenGL backend, [see the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs).
 
 #### Debugging your backend
 
