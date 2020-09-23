@@ -13,12 +13,13 @@ const MAX_CLICK_DELAY: f64 = 0.3;
 #[derive(Clone, Debug, Default)]
 pub struct RawInput {
     /// Is the button currently down?
+    /// NOTE: Egui currently only supports the primary mouse button.
     pub mouse_down: bool,
 
     /// Current position of the mouse in points.
     pub mouse_pos: Option<Pos2>,
 
-    /// How many pixels the user scrolled
+    /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
 
     /// Size of the screen in points.
@@ -31,9 +32,6 @@ pub struct RawInput {
 
     /// Time in seconds. Relative to whatever. Used for animations.
     pub time: f64,
-
-    /// Local time. Only used for the clock in the demo app.
-    pub seconds_since_midnight: Option<f64>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -49,7 +47,6 @@ impl RawInput {
             screen_size: self.screen_size,
             pixels_per_point: self.pixels_per_point,
             time: self.time,
-            seconds_since_midnight: self.seconds_since_midnight,
             events: std::mem::take(&mut self.events),
         }
     }
@@ -82,9 +79,6 @@ pub struct InputState {
     /// Used for animations to get instant feedback (avoid frame delay).
     /// Should be set to the expected time between frames when painting at vsync speeds.
     pub predicted_dt: f32,
-
-    /// Local time. Only used for the clock in the demo app.
-    pub seconds_since_midnight: Option<f64>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -208,8 +202,7 @@ impl InputState {
             pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
             time: new.time,
             unstable_dt,
-            predicted_dt: 1.0 / 60.0, // TODO: remove this hack
-            seconds_since_midnight: new.seconds_since_midnight,
+            predicted_dt: 1.0 / 60.0,   // TODO: remove this hack
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
         }
@@ -351,10 +344,6 @@ impl RawInput {
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!(
-            "seconds_since_midnight: {:?} s",
-            self.seconds_since_midnight
-        ));
         ui.add(label!("events: {:?}", self.events))
             .tooltip_text("key presses etc");
     }
@@ -380,10 +369,6 @@ impl InputState {
         ));
         ui.add(label!("time: {:.3} s", self.time));
         ui.add(label!("dt: {:.1} ms", 1e3 * self.unstable_dt));
-        ui.add(label!(
-            "seconds_since_midnight: {:?} s",
-            self.seconds_since_midnight
-        ));
         ui.add(label!("events: {:?}", self.events))
             .tooltip_text("key presses etc");
     }

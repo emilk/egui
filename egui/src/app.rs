@@ -36,6 +36,11 @@ pub trait Backend {
     /// Smoothed frames per second
     fn fps(&self) -> f32;
 
+    /// Local time. Used for the clock in the demo app.
+    fn seconds_since_midnight(&self) -> Option<f64> {
+        None
+    }
+
     /// Signal the backend that we'd like to exit the app now.
     /// This does nothing for web apps.
     fn quit(&mut self) {}

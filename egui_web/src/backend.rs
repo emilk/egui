@@ -96,6 +96,10 @@ impl Backend for WebBackend {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
 
+    fn seconds_since_midnight(&self) -> Option<f64> {
+        Some(seconds_since_midnight())
+    }
+
     fn new_texture_srgba_premultiplied(
         &mut self,
         size: (usize, usize),
@@ -128,7 +132,6 @@ impl WebInput {
             screen_size: screen_size().unwrap(),
             pixels_per_point: Some(pixels_per_point()),
             time: now_sec(),
-            seconds_since_midnight: Some(seconds_since_midnight()),
             events: std::mem::take(&mut self.events),
         }
     }

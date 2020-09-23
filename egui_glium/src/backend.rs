@@ -38,6 +38,10 @@ impl Backend for GliumBackend {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
 
+    fn seconds_since_midnight(&self) -> Option<f64> {
+        Some(seconds_since_midnight())
+    }
+
     fn quit(&mut self) {
         self.quit = true;
     }
@@ -90,7 +94,6 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
         let mut redraw = || {
             let egui_start = Instant::now();
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
-            raw_input.seconds_since_midnight = Some(local_time_of_day());
 
             let mut ui = ctx.begin_frame(raw_input.take());
             app.ui(&mut ui, &mut runner);

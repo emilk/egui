@@ -47,6 +47,17 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+/// Special input to the demo-app.
+#[derive(Default)]
+pub struct DemoEnvironment {
+    /// For web demo only. e.g. "#fragment".
+    /// Used to link to specific part of the demo app.
+    pub web_location_hash: String,
+
+    /// Local time. Used for the clock in the demo app.
+    pub seconds_since_midnight: Option<f64>,
+}
+
 /// Demonstrates how to make an app using Egui.
 ///
 /// Implements `egui::app::App` so it can be used with
@@ -69,27 +80,25 @@ pub struct DemoApp {
 
 impl DemoApp {
     /// Show the app ui (menu bar and windows).
-    ///
-    /// * `web_location_hash`: for web demo only. e.g. "#fragment". Set to "".
-    pub fn ui(&mut self, ui: &mut Ui, web_location_hash: &str) {
-        if self.previous_web_location_hash != web_location_hash {
+    pub fn ui(&mut self, ui: &mut Ui, env: &DemoEnvironment) {
+        if self.previous_web_location_hash != env.web_location_hash {
             // #fragment end of URL:
-            if web_location_hash == "#clock" {
+            if env.web_location_hash == "#clock" {
                 self.open_windows = OpenWindows {
                     fractal_clock: true,
                     ..OpenWindows::none()
                 };
             }
 
-            self.previous_web_location_hash = web_location_hash.to_owned();
+            self.previous_web_location_hash = env.web_location_hash.clone();
         }
 
-        show_menu_bar(ui, &mut self.open_windows);
-        self.windows(ui.ctx());
+        show_menu_bar(ui, &mut self.open_windows, env);
+        self.windows(ui.ctx(), env);
     }
 
     /// Show the open windows.
-    pub fn windows(&mut self, ctx: &Arc<Context>) {
+    pub fn windows(&mut self, ctx: &Arc<Context>, env: &DemoEnvironment) {
         let DemoApp {
             open_windows,
             demo_window,
@@ -124,7 +133,11 @@ impl DemoApp {
                 ctx.memory_ui(ui);
             });
 
-        fractal_clock.window(ctx, &mut open_windows.fractal_clock);
+        fractal_clock.window(
+            ctx,
+            &mut open_windows.fractal_clock,
+            env.seconds_since_midnight,
+        );
 
         self.resize_windows(ctx);
     }
@@ -273,9 +286,15 @@ impl app::App for DemoApp {
         let web_info = backend.web_info();
         let web_location_hash = web_info
             .as_ref()
-            .map(|info| info.web_location_hash.as_str())
+            .map(|info| info.web_location_hash.clone())
             .unwrap_or_default();
-        self.ui(ui, web_location_hash);
+
+        let environment = DemoEnvironment {
+            web_location_hash,
+            seconds_since_midnight: backend.seconds_since_midnight(),
+        };
+
+        self.ui(ui, &environment);
 
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible
@@ -326,7 +345,7 @@ impl OpenWindows {
     }
 }
 
-fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
+fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) {
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
             if ui.add(Button::new("Reorganize windows")).clicked {
@@ -362,7 +381,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows) {
             ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
         });
 
-        if let Some(time) = ui.input().seconds_since_midnight {
+        if let Some(time) = env.seconds_since_midnight {
             let time = format!(
                 "{:02}:{:02}:{:02}.{:02}",
                 (time.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),

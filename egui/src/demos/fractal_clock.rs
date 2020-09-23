@@ -31,22 +31,24 @@ impl Default for FractalClock {
 }
 
 impl FractalClock {
-    pub fn window(&mut self, ctx: &Arc<Context>, open: &mut bool) {
+    pub fn window(
+        &mut self,
+        ctx: &Arc<Context>,
+        open: &mut bool,
+        seconds_since_midnight: Option<f64>,
+    ) {
         Window::new("FractalClock")
             .open(open)
             .default_rect(ctx.rect().expand(-42.0))
             .scroll(false)
             // Dark background frame to make it pop:
             .frame(Frame::window(&ctx.style()).fill(Srgba::black_alpha(250)))
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui, seconds_since_midnight));
     }
 
-    pub fn ui(&mut self, ui: &mut Ui) {
+    pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if !self.paused {
-            self.time = ui
-                .input()
-                .seconds_since_midnight
-                .unwrap_or_else(|| ui.input().time);
+            self.time = seconds_since_midnight.unwrap_or_else(|| ui.input().time);
             ui.ctx().request_repaint();
         }
 
@@ -57,15 +59,16 @@ impl FractalClock {
             .fill(Rgba::luminance_alpha(0.02, 0.5).into())
             .stroke(Stroke::none())
             .show(&mut ui.left_column(320.0), |ui| {
-                CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
+                CollapsingHeader::new("Settings")
+                    .show(ui, |ui| self.options_ui(ui, seconds_since_midnight));
             });
 
         // Make sure we allocate what we used (everything)
         ui.allocate_space(painter.clip_rect().size());
     }
 
-    fn options_ui(&mut self, ui: &mut Ui) {
-        if ui.input().seconds_since_midnight.is_some() {
+    fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
+        if seconds_since_midnight.is_some() {
             ui.add(label!(
                 "Local time: {:02}:{:02}:{:02}.{:03}",
                 (self.time.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),
