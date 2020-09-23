@@ -332,65 +332,101 @@ impl MouseInput {
 
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        use crate::label;
+        let Self {
+            mouse_down,
+            mouse_pos,
+            scroll_delta,
+            screen_size,
+            pixels_per_point,
+            time,
+            events,
+        } = self;
+
         // TODO: simpler way to show values, e.g. `ui.value("Mouse Pos:", self.mouse_pos);
         // TODO: `ui.style_mut().text_style = TextStyle::Monospace`;
-        ui.add(label!("mouse_down: {}", self.mouse_down));
-        ui.add(label!("mouse_pos: {:.1?}", self.mouse_pos));
-        ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
-        ui.add(label!("screen_size: {:?} points", self.screen_size));
-        ui.add(label!("pixels_per_point: {:?}", self.pixels_per_point))
+        ui.label(format!("mouse_down: {}", mouse_down));
+        ui.label(format!("mouse_pos: {:.1?}", mouse_pos));
+        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
+        ui.label(format!("screen_size: {:?} points", screen_size));
+        ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .tooltip_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!("events: {:?}", self.events))
+        ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("events: {:?}", events))
             .tooltip_text("key presses etc");
     }
 }
 
 impl InputState {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        use crate::label;
+        let Self {
+            raw,
+            mouse,
+            scroll_delta,
+            screen_size,
+            pixels_per_point,
+            time,
+            unstable_dt,
+            predicted_dt,
+            events,
+        } = self;
 
-        ui.collapsing("Raw Input", |ui| self.raw.ui(ui));
+        ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("mouse")
             .default_open(true)
             .show(ui, |ui| {
-                self.mouse.ui(ui);
+                mouse.ui(ui);
             });
 
-        ui.add(label!("scroll_delta: {:?} points", self.scroll_delta));
-        ui.add(label!("screen_size: {:?} points", self.screen_size));
-        ui.add(label!(
+        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
+        ui.label(format!("screen_size: {:?} points", screen_size));
+        ui.label(format!(
             "{:?} points for each physical pixel (HDPI factor)",
-            self.pixels_per_point
+            pixels_per_point
         ));
-        ui.add(label!("time: {:.3} s", self.time));
-        ui.add(label!("dt: {:.1} ms", 1e3 * self.unstable_dt));
-        ui.add(label!("events: {:?}", self.events))
+        ui.label(format!("time: {:.3} s", time));
+        ui.label(format!(
+            "time since previous frame: {:.1} ms",
+            1e3 * unstable_dt
+        ));
+        ui.label(format!("expected dt: {:.1} ms", 1e3 * predicted_dt));
+        ui.label(format!("events: {:?}", events))
             .tooltip_text("key presses etc");
     }
 }
 
 impl MouseInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        use crate::label;
-        ui.add(label!("down: {}", self.down));
-        ui.add(label!("pressed: {}", self.pressed));
-        ui.add(label!("released: {}", self.released));
-        ui.add(label!("could_be_click: {}", self.could_be_click));
-        ui.add(label!("click: {}", self.click));
-        ui.add(label!("double_click: {}", self.double_click));
-        ui.add(label!("last_click_time: {:.3}", self.last_click_time));
-        ui.add(label!("pos: {:?}", self.pos));
-        ui.add(label!("press_origin: {:?}", self.press_origin));
-        ui.add(label!("delta: {:?}", self.delta));
-        ui.add(label!(
+        let Self {
+            down,
+            pressed,
+            released,
+            could_be_click,
+            click,
+            double_click,
+            last_click_time,
+            pos,
+            press_origin,
+            delta,
+            velocity,
+            pos_tracker: _,
+        } = self;
+
+        ui.label(format!("down: {}", down));
+        ui.label(format!("pressed: {}", pressed));
+        ui.label(format!("released: {}", released));
+        ui.label(format!("could_be_click: {}", could_be_click));
+        ui.label(format!("click: {}", click));
+        ui.label(format!("double_click: {}", double_click));
+        ui.label(format!("last_click_time: {:.3}", last_click_time));
+        ui.label(format!("pos: {:?}", pos));
+        ui.label(format!("press_origin: {:?}", press_origin));
+        ui.label(format!("delta: {:?}", delta));
+        ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
-            self.velocity.x,
-            self.velocity.y
+            velocity.x, velocity.y
         ));
     }
 }
