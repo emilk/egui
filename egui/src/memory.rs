@@ -25,6 +25,7 @@ pub struct Memory {
 
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) menu_bar: HashMap<Id, menu::BarState>,
     pub(crate) resize: HashMap<Id, resize::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
