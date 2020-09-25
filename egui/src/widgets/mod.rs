@@ -293,18 +293,18 @@ impl Widget for Button {
         let mut desired_size = galley.size + 2.0 * ui.style().spacing.button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
-        let rect = rect.expand2(ui.style().spacing.button_expand);
 
         let response = ui.interact(rect, id, sense);
+        let style = ui.style().interact(&response);
         let text_cursor = response.rect.center() - 0.5 * galley.size;
-        let fill = fill.unwrap_or(ui.style().interact(&response).bg_fill);
+        let fill = fill.unwrap_or(style.bg_fill);
         ui.painter().add(PaintCmd::Rect {
             rect: response.rect,
-            corner_radius: ui.style().interact(&response).corner_radius,
+            corner_radius: style.corner_radius,
             fill,
-            stroke: ui.style().interact(&response).bg_stroke,
+            stroke: style.bg_stroke,
         });
-        let text_color = text_color.unwrap_or_else(|| ui.style().interact(&response).text_color());
+        let text_color = text_color.unwrap_or_else(|| style.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -352,13 +352,10 @@ impl<'a> Widget for Checkbox<'a> {
 
         let spacing = &ui.style().spacing;
         let icon_width = spacing.icon_width;
-        let horizontal_spacing = 0.0; //spacing.item_spacing.x
+        let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = spacing.button_padding;
-        let mut desired_size = button_padding
-            + vec2(icon_width, 0.0)
-            + vec2(horizontal_spacing, 0.0)
-            + galley.size
-            + button_padding;
+        let mut desired_size =
+            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
@@ -369,7 +366,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
-            response.rect.min.x + button_padding.x + icon_width,
+            response.rect.min.x + button_padding.x + icon_width + icon_spacing,
             response.rect.center().y - 0.5 * galley.size.y,
         );
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
@@ -438,16 +435,17 @@ impl Widget for RadioButton {
         let galley = font.layout_multiline(text, ui.available().width());
 
         let icon_width = ui.style().spacing.icon_width;
+        let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = ui.style().spacing.button_padding;
         let mut desired_size =
-            button_padding + vec2(icon_width, 0.0) + galley.size + button_padding;
+            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());
 
         let text_cursor = pos2(
-            response.rect.min.x + button_padding.x + icon_width,
+            response.rect.min.x + button_padding.x + icon_width + icon_spacing,
             response.rect.center().y - 0.5 * galley.size.y,
         );
 

@@ -193,7 +193,6 @@ impl CollapsingHeader {
         );
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
-        let rect = rect.expand2(ui.style().spacing.button_expand);
 
         let response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(text_pos.x, response.rect.center().y - galley.size.y / 2.0);

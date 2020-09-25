@@ -57,7 +57,6 @@ fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
 fn color_button(ui: &mut Ui, color: Srgba) -> Response {
     let desired_size = ui.style().spacing.interact_size;
     let rect = ui.allocate_space(desired_size);
-    let rect = rect.expand2(ui.style().spacing.button_expand);
     let id = ui.make_position_id();
     let response = ui.interact(rect, id, Sense::click());
     let visuals = ui.style().interact(&response);

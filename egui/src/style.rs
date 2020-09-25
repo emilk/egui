@@ -42,11 +42,6 @@ pub struct Spacing {
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
 
-    /// Expand buttons by this much *after* allocating them.
-    /// This is then mostly a visual change (but also makes them easier to hit with the mouse).
-    /// This allows for compact layout where buttons actually eat into item_spacing a bit
-    pub button_expand: Vec2, // TODO: remove
-
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
@@ -59,10 +54,12 @@ pub struct Spacing {
     pub slider_width: f32, // TODO: rename big_interact_size ?
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
-    /// The text starts after this many pixels.
+    /// This is the width/height of this icon.
     pub icon_width: f32,
 
-    pub menu_bar_height: f32,
+    /// Checkboxes, radio button and collapsing headers have an icon at the start.
+    /// This is the spacing between the icon and the text
+    pub icon_spacing: f32,
 }
 
 impl Spacing {
@@ -198,15 +195,14 @@ impl Default for Style {
 impl Default for Spacing {
     fn default() -> Self {
         Self {
-            item_spacing: vec2(8.0, 5.0),
+            item_spacing: vec2(8.0, 3.0),
             window_padding: vec2(6.0, 6.0),
-            button_padding: vec2(4.0, 1.0),
-            button_expand: vec2(0.0, 0.0), // TODO: remove
-            indent: 21.0,
-            interact_size: vec2(40.0, 20.0), // TODO: larger interact_size.y
+            button_padding: vec2(3.0, 1.0),
+            indent: 25.0,
+            interact_size: vec2(40.0, 20.0),
             slider_width: 140.0,
-            icon_width: 20.0,      // TODO: replace with interact_size.y ?
-            menu_bar_height: 20.0, // TODO: replace with interact_size.y ?
+            icon_width: 16.0,
+            icon_spacing: 1.0,
         }
     }
 }
@@ -318,24 +314,22 @@ impl Spacing {
             item_spacing,
             window_padding,
             button_padding,
-            button_expand,
             indent,
             interact_size,
             slider_width,
             icon_width,
-            menu_bar_height,
+            icon_spacing,
         } = self;
 
         ui_slider_vec2(ui, item_spacing, 0.0..=10.0, "item_spacing");
         ui_slider_vec2(ui, window_padding, 0.0..=10.0, "window_padding");
         ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
-        ui_slider_vec2(ui, button_expand, 0.0..=10.0, "button_expand");
         ui_slider_vec2(ui, interact_size, 0.0..=60.0, "interact_size")
             .tooltip_text("Minimum size of an interactive widget");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
-        ui.add(Slider::f32(menu_bar_height, 0.0..=60.0).text("menu_bar_height"));
+        ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
     }
 }
 
