@@ -193,6 +193,11 @@ impl Ui {
         Rect::from_min_max(self.top_left(), bottom_right)
     }
 
+    pub fn set_min_width(&mut self, width: f32) {
+        self.child_bounds.max.x = self.child_bounds.max.x.max(self.child_bounds.min.x + width);
+        self.desired_rect.max.x = self.desired_rect.max.x.max(self.desired_rect.min.x + width);
+    }
+
     /// Set the width of the ui.
     /// You won't be able to shrink it beyond its current child bounds.
     pub fn set_desired_width(&mut self, width: f32) {
@@ -356,6 +361,28 @@ impl Ui {
 
     // ------------------------------------------------------------------------
     // Stuff that moves the cursor, i.e. allocates space in this ui!
+
+    /// Advance the cursor (where the next widget is put) by this many points.
+    /// The direction is dependent on the layout.
+    /// This is useful for creating some extra space between widgets.
+    pub fn advance_cursor(&mut self, amount: f32) {
+        match self.layout.dir() {
+            Direction::Horizontal => {
+                if self.layout.is_reversed() {
+                    self.cursor.x -= amount;
+                } else {
+                    self.cursor.x += amount;
+                }
+            }
+            Direction::Vertical => {
+                if self.layout.is_reversed() {
+                    self.cursor.y -= amount;
+                } else {
+                    self.cursor.y += amount;
+                }
+            }
+        }
+    }
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.

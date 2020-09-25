@@ -608,8 +608,7 @@ fn show_title_bar(
         let button_size = ui.style().spacing.icon_width;
 
         if collapsible {
-            // TODO: make clickable radius larger
-            ui.allocate_space(vec2(0.0, 0.0)); // HACK: will add left spacing
+            ui.advance_cursor(ui.style().spacing.item_spacing.x);
 
             let rect = ui.allocate_space(Vec2::splat(button_size));
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());

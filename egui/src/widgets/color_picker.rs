@@ -219,15 +219,15 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva) {
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
-    let id = ui.make_position_id().with("foo");
+    let pupup_id = ui.make_position_id().with("popup");
     let button_response = color_button(ui, (*hsva).into()).tooltip_text("Click to edit color");
 
     if button_response.clicked {
-        ui.memory().popup = Some(id);
+        ui.memory().toggle_popup(pupup_id);
     }
     // TODO: make it easier to show a temporary popup that closes when you click outside it
-    if ui.memory().popup == Some(id) {
-        let area_response = Area::new(id)
+    if ui.memory().is_popup_open(pupup_id) {
+        let area_response = Area::new(pupup_id)
             .order(Order::Foreground)
             .default_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {
@@ -239,7 +239,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
         if !button_response.clicked {
             let clicked_outside = ui.input().mouse.click && !area_response.hovered;
             if clicked_outside || ui.input().key_pressed(Key::Escape) {
-                ui.memory().popup = None;
+                ui.memory().close_popup();
             }
         }
     }

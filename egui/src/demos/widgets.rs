@@ -1,11 +1,25 @@
 use crate::{color::*, *};
 
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum Enum {
+    First,
+    Second,
+    Third,
+}
+
+impl Default for Enum {
+    fn default() -> Self {
+        Enum::First
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     button_enabled: bool,
     count: usize,
-    radio: usize,
+    radio: Enum,
     slider_value: f32,
     angle: f32,
     color: Srgba,
@@ -18,7 +32,7 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             button_enabled: true,
-            radio: 0,
+            radio: Enum::First,
             count: 0,
             slider_value: 3.4,
             angle: TAU / 8.0,
@@ -48,9 +62,15 @@ impl Widgets {
             .tooltip_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
 
         ui.horizontal(|ui| {
-            ui.radio_value("First", &mut self.radio, 0);
-            ui.radio_value("Second", &mut self.radio, 1);
-            ui.radio_value("Final", &mut self.radio, 2);
+            ui.radio_value("First", &mut self.radio, Enum::First);
+            ui.radio_value("Second", &mut self.radio, Enum::Second);
+            ui.radio_value("Third", &mut self.radio, Enum::Third);
+        });
+
+        combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
+            ui.radio_value("First", &mut self.radio, Enum::First);
+            ui.radio_value("Second", &mut self.radio, Enum::Second);
+            ui.radio_value("Third", &mut self.radio, Enum::Third);
         });
 
         ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));

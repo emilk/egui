@@ -45,8 +45,9 @@ pub struct Memory {
     pub(crate) color_cache: Cache<Srgba, Hsva>,
 
     /// Which popup-window is open (if any)?
+    /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) popup: Option<Id>,
+    popup: Option<Id>,
 }
 
 /// Say there is a button in a scroll area.
@@ -170,6 +171,31 @@ impl Memory {
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
         self.areas = Default::default();
+    }
+}
+
+/// ## Popups
+/// Popups are things like combo-boxes, color pickers, menus etc.
+/// Only one can be be open at a time.
+impl Memory {
+    pub fn is_popup_open(&mut self, popup_id: Id) -> bool {
+        self.popup == Some(popup_id)
+    }
+
+    pub fn open_popup(&mut self, popup_id: Id) {
+        self.popup = Some(popup_id);
+    }
+
+    pub fn close_popup(&mut self) {
+        self.popup = None;
+    }
+
+    pub fn toggle_popup(&mut self, popup_id: Id) {
+        if self.is_popup_open(popup_id) {
+            self.close_popup();
+        } else {
+            self.open_popup(popup_id);
+        }
     }
 }
 
