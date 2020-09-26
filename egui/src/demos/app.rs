@@ -390,7 +390,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) 
                 (time.rem_euclid(1.0) * 100.0).floor()
             );
 
-            ui.with_layout(Layout::horizontal(Align::Max).reverse(), |ui| {
+            ui.with_layout(Layout::horizontal(Align::Center).reverse(), |ui| {
                 if ui
                     .add(Button::new(time).text_style(TextStyle::Monospace))
                     .clicked

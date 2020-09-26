@@ -129,22 +129,110 @@ impl Layout {
         }
     }
 
+    #[must_use]
+    pub fn with_reversed(self, reversed: bool) -> Self {
+        if reversed {
+            self.reverse()
+        } else {
+            self
+        }
+    }
+
     pub fn dir(self) -> Direction {
         self.dir
+    }
+
+    pub fn align(self) -> Option<Align> {
+        self.align
     }
 
     pub fn is_reversed(self) -> bool {
         self.reversed
     }
 
+    pub fn initial_cursor(self, max_rect: Rect) -> Pos2 {
+        match self.dir {
+            Direction::Horizontal => {
+                if self.reversed {
+                    max_rect.right_top()
+                } else {
+                    max_rect.left_top()
+                }
+            }
+            Direction::Vertical => {
+                if self.reversed {
+                    max_rect.left_bottom()
+                } else {
+                    max_rect.left_top()
+                }
+            }
+        }
+    }
+
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    pub fn available(self, cursor: Pos2, rect: Rect) -> Rect {
-        if self.reversed {
-            Rect::from_min_max(rect.min, cursor)
-        } else {
-            Rect::from_min_max(cursor, rect.max)
+    pub fn available(self, cursor: Pos2, max_rect: Rect) -> Rect {
+        let mut rect = max_rect;
+        match self.dir {
+            Direction::Horizontal => {
+                rect.min.y = cursor.y;
+                if self.reversed {
+                    rect.max.x = cursor.x;
+                } else {
+                    rect.min.x = cursor.x;
+                }
+            }
+            Direction::Vertical => {
+                rect.min.x = cursor.x;
+                if self.reversed {
+                    rect.max.y = cursor.y;
+                } else {
+                    rect.min.y = cursor.y;
+                }
+            }
         }
+        rect
+    }
+
+    /// Advance the cursor by this many points.
+    pub fn advance_cursor(self, cursor: &mut Pos2, amount: f32) {
+        match self.dir() {
+            Direction::Horizontal => {
+                if self.is_reversed() {
+                    cursor.x -= amount;
+                } else {
+                    cursor.x += amount;
+                }
+            }
+            Direction::Vertical => {
+                if self.is_reversed() {
+                    cursor.y -= amount;
+                } else {
+                    cursor.y += amount;
+                }
+            }
+        }
+    }
+
+    pub fn rect_from_cursor_size(self, cursor: Pos2, size: Vec2) -> Rect {
+        let mut rect = Rect::from_min_size(cursor, size);
+
+        match self.dir {
+            Direction::Horizontal => {
+                if self.reversed {
+                    rect.min.x = cursor.x - size.x;
+                    rect.max.x = rect.min.x - size.x
+                }
+            }
+            Direction::Vertical => {
+                if self.reversed {
+                    rect.min.y = cursor.y - size.y;
+                    rect.max.y = rect.min.y - size.y
+                }
+            }
+        }
+
+        rect
     }
 
     /// Reserve this much space and move the cursor.
@@ -204,19 +292,11 @@ impl Layout {
         }
 
         if self.is_reversed() {
-            // reverse: cursor starts at bottom right corner of new widget.
-
+            let child_pos = *cursor + child_move;
             let child_pos = match self.dir {
-                Direction::Horizontal => pos2(
-                    cursor.x - child_size.x,
-                    cursor.y - available_size.y + child_move.y,
-                ),
-                Direction::Vertical => pos2(
-                    cursor.x - available_size.x + child_move.x,
-                    cursor.y - child_size.y,
-                ),
+                Direction::Horizontal => child_pos + vec2(-child_size.x, 0.0),
+                Direction::Vertical => child_pos + vec2(0.0, -child_size.y),
             };
-            // let child_pos = *cursor - child_move - child_size;
             *cursor -= cursor_change;
             Rect::from_min_size(child_pos, child_size)
         } else {
@@ -224,5 +304,42 @@ impl Layout {
             *cursor += cursor_change;
             Rect::from_min_size(child_pos, child_size)
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// ## Debug stuff
+impl Layout {
+    /// Shows where the next widget is going to be placed
+    pub fn debug_paint_cursor(&self, cursor: Pos2, painter: &crate::Painter) {
+        use crate::paint::*;
+        let color = color::GREEN;
+        let stroke = Stroke::new(2.0, color);
+
+        let align;
+
+        match self.dir {
+            Direction::Horizontal => {
+                if self.reversed {
+                    painter.debug_arrow(cursor, vec2(-1.0, 0.0), stroke);
+                    align = (Align::Max, Align::Min);
+                } else {
+                    painter.debug_arrow(cursor, vec2(1.0, 0.0), stroke);
+                    align = (Align::Min, Align::Min);
+                }
+            }
+            Direction::Vertical => {
+                if self.reversed {
+                    painter.debug_arrow(cursor, vec2(0.0, -1.0), stroke);
+                    align = (Align::Min, Align::Max);
+                } else {
+                    painter.debug_arrow(cursor, vec2(0.0, 1.0), stroke);
+                    align = (Align::Min, Align::Min);
+                }
+            }
+        }
+
+        painter.text(cursor, align, "cursor", TextStyle::Monospace, color);
     }
 }

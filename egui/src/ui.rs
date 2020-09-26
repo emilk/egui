@@ -71,11 +71,7 @@ impl Ui {
         let id = self.make_position_id(); // TODO: is this a good idea?
         self.child_count += 1;
 
-        let cursor = if layout.is_reversed() {
-            child_rect.max
-        } else {
-            child_rect.min
-        };
+        let cursor = layout.initial_cursor(child_rect);
 
         Ui {
             id,
@@ -363,22 +359,7 @@ impl Ui {
     /// The direction is dependent on the layout.
     /// This is useful for creating some extra space between widgets.
     pub fn advance_cursor(&mut self, amount: f32) {
-        match self.layout.dir() {
-            Direction::Horizontal => {
-                if self.layout.is_reversed() {
-                    self.cursor.x -= amount;
-                } else {
-                    self.cursor.x += amount;
-                }
-            }
-            Direction::Vertical => {
-                if self.layout.is_reversed() {
-                    self.cursor.y -= amount;
-                } else {
-                    self.cursor.y += amount;
-                }
-            }
-        }
+        self.layout.advance_cursor(&mut self.cursor, amount);
     }
 
     /// Reserve this much space and move the cursor.
@@ -609,7 +590,7 @@ impl Ui {
     /// will decide how much space will be used in the parent ui.
     pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
         let size = size.at_most(self.available().size());
-        let child_rect = Rect::from_min_size(self.cursor, size);
+        let child_rect = self.layout.rect_from_cursor_size(self.cursor, size);
         let mut child_ui = self.child_ui(child_rect, self.layout);
         add_contents(&mut child_ui);
         self.allocate_space(child_ui.bounding_size())
@@ -635,7 +616,7 @@ impl Ui {
             "You can only indent vertical layouts"
         );
         let indent = vec2(self.style().spacing.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right());
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.bottom_right()); // TODO: wrong for reversed layouts
         let mut child_ui = Ui {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, self.layout)
@@ -689,19 +670,23 @@ impl Ui {
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let initial_size = vec2(
             self.available().width(),
-            self.style().spacing.interact_size.y,
+            self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
+
+        let right_to_left =
+            (self.layout.dir(), self.layout.align()) == (Direction::Vertical, Some(Align::Max));
+
         self.inner_layout(
-            Layout::horizontal(Align::Center),
+            Layout::horizontal(Align::Center).with_reversed(right_to_left),
             initial_size,
             add_contents,
         )
     }
 
-    /// Start a ui with vertical layout
+    /// Start a ui with vertical layout.
+    /// Widgets will be left-justified.
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
-        let initial_size = vec2(0.0, self.available().height());
-        self.inner_layout(Layout::vertical(Align::Min), initial_size, add_contents)
+        self.with_layout(Layout::vertical(Align::Min), add_contents)
     }
 
     pub fn inner_layout<R>(
@@ -710,7 +695,7 @@ impl Ui {
         initial_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
-        let child_rect = Rect::from_min_size(self.cursor, initial_size);
+        let child_rect = self.layout.rect_from_cursor_size(self.cursor, initial_size);
         let mut child_ui = self.child_ui(child_rect, layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
@@ -723,7 +708,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Rect) {
-        let mut child_ui = self.child_ui(self.rect(), layout);
+        let mut child_ui = self.child_ui(self.available(), layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.bounding_size();
         let rect = self.allocate_space(size);
@@ -776,5 +761,15 @@ impl Ui {
         let size = vec2(self.available().width().max(sum_width), max_height);
         self.allocate_space(size);
         result
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// ## Debug stuff
+impl Ui {
+    /// Shows where the next widget is going to be placed
+    pub fn debug_paint_cursor(&self) {
+        self.layout.debug_paint_cursor(self.cursor, &self.painter);
     }
 }

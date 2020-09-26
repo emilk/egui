@@ -287,16 +287,22 @@ impl Widget for Button {
             sense,
         } = self;
 
+        let button_padding = ui.style().spacing.button_padding;
+
         let id = ui.make_position_id();
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
-        let mut desired_size = galley.size + 2.0 * ui.style().spacing.button_padding;
+        let mut desired_size = galley.size + 2.0 * button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, sense);
         let style = ui.style().interact(&response);
-        let text_cursor = response.rect.center() - 0.5 * galley.size;
+        // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
+        let text_cursor = pos2(
+            response.rect.left() + button_padding.x,
+            response.rect.center().y - 0.5 * galley.size.y,
+        ); // left-centered
         let fill = fill.unwrap_or(style.bg_fill);
         ui.painter().add(PaintCmd::Rect {
             rect: response.rect,
