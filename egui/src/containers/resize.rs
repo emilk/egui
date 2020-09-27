@@ -229,7 +229,7 @@ impl Resize {
             content_ui,
         } = prepared;
 
-        state.last_content_size = content_ui.bounding_size();
+        state.last_content_size = content_ui.min_size();
         state.last_content_size = state.last_content_size.ceil(); // Avoid rounding errors in math
 
         // ------------------------------
@@ -251,7 +251,7 @@ impl Resize {
         // ------------------------------
 
         if self.with_stroke && corner_response.is_some() {
-            let rect = Rect::from_min_size(content_ui.top_left(), state.desired_size);
+            let rect = Rect::from_min_size(content_ui.left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.painter().add(paint::PaintCmd::Rect {
                 rect,
@@ -273,12 +273,12 @@ impl Resize {
 
         if ui.ctx().style().visuals.debug_resize {
             ui.ctx().debug_painter().debug_rect(
-                Rect::from_min_size(content_ui.top_left(), state.desired_size),
+                Rect::from_min_size(content_ui.left_top(), state.desired_size),
                 color::GREEN,
                 "desired_size",
             );
             ui.ctx().debug_painter().debug_rect(
-                Rect::from_min_size(content_ui.top_left(), state.last_content_size),
+                Rect::from_min_size(content_ui.left_top(), state.last_content_size),
                 color::LIGHT_BLUE,
                 "last_content_size",
             );

@@ -141,7 +141,7 @@ impl Prepared {
             content_ui,
         } = self;
 
-        let content_size = content_ui.bounding_size();
+        let content_size = content_ui.min_size();
 
         let inner_rect = Rect::from_min_size(
             inner_rect.min,

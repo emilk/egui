@@ -602,7 +602,7 @@ fn show_title_bar(
     collapsible: bool,
 ) -> TitleBar {
     let title_bar_and_rect = ui.horizontal(|ui| {
-        ui.set_desired_height(title_label.font_height(ui.fonts(), ui.style()));
+        ui.set_min_height(title_label.font_height(ui.fonts(), ui.style()));
 
         let item_spacing = ui.style().spacing.item_spacing;
         let button_size = ui.style().spacing.icon_width;
@@ -625,7 +625,7 @@ fn show_title_bar(
         if show_close_button {
             // Reserve space for close button which will be added later (once we know our full width):
             let close_max_x = title_rect.right() + item_spacing.x + button_size + item_spacing.x;
-            let close_max_x = close_max_x.max(ui.rect_finite().right());
+            let close_max_x = close_max_x.max(ui.max_rect_finite().right());
             let close_rect = Rect::from_min_size(
                 pos2(
                     close_max_x - button_size,

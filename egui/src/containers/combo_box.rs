@@ -35,11 +35,11 @@ pub fn combo_box(
 
             selected.ui(ui);
 
-            let advance = full_minimum_width - icon_width - ui.child_bounds().width();
+            let advance = full_minimum_width - icon_width - ui.min_rect().width();
             ui.advance_cursor(advance.at_least(0.0));
 
             let icon_rect = ui.allocate_space(Vec2::splat(icon_width));
-            let button_rect = ui.rect().expand2(ui.style().spacing.button_padding);
+            let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
             let mut response = ui.interact(button_rect, button_id, Sense::click());
             response.active |= button_active;
             paint_icon(ui.painter(), icon_rect, ui.style().interact(&response));
@@ -57,8 +57,10 @@ pub fn combo_box(
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
-                    ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                    ui.with_layout(Layout::justified(Direction::Vertical), menu_contents);
+                    ui.with_layout(Layout::justified(Direction::Vertical), |ui| {
+                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
+                        menu_contents(ui);
+                    });
                 })
             });
 
@@ -85,10 +87,7 @@ fn button_frame(
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     add_contents(&mut content_ui);
 
-    let outer_rect = Rect::from_min_max(
-        outer_rect_bounds.min,
-        content_ui.child_bounds().max + margin,
-    );
+    let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
 
     let mut response = ui.interact(outer_rect, id, sense);
     response.active |= button_active;

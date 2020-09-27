@@ -52,8 +52,7 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect)
 
             // Take full width and fixed height:
             let height = ui.style().spacing.interact_size.y;
-            ui.set_desired_height(height);
-            ui.expand_to_size(vec2(ui.available().width(), height));
+            ui.set_min_size(vec2(ui.available().width(), height));
 
             add_contents(ui)
         })

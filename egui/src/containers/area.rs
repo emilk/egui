@@ -173,7 +173,7 @@ impl Prepared {
             movable,
         } = self;
 
-        state.size = (content_ui.child_bounds().max - state.pos).ceil();
+        state.size = (content_ui.min_rect().max - state.pos).ceil();
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything(); // TODO: get from context
@@ -213,11 +213,6 @@ impl Prepared {
             ctx.input().screen_size.y - margin,
         ));
         state.pos = ctx.round_pos_to_pixels(state.pos);
-
-        // ctx.debug_rect(
-        //     Rect::from_min_size(state.pos, state.size),
-        //     &format!("Area size: {:?}", state.size),
-        // );
 
         if move_response.active
             || mouse_pressed_on_area(ctx, layer)

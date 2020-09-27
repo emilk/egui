@@ -102,7 +102,7 @@ impl Prepared {
     pub fn outer_rect(&self) -> Rect {
         Rect::from_min_max(
             self.outer_rect_bounds.min,
-            self.content_ui.child_bounds().max + self.frame.margin,
+            self.content_ui.min_rect().max + self.frame.margin,
         )
     }
 

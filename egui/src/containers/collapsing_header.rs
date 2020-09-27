@@ -78,18 +78,18 @@ impl State {
                 };
 
                 let mut clip_rect = child_ui.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(child_ui.rect().top() + max_height);
+                clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
                 child_ui.set_clip_rect(clip_rect);
 
-                let top_left = child_ui.top_left();
+                let left_top = child_ui.left_top();
                 let r = add_contents(child_ui);
 
-                self.open_height = Some(child_ui.bounding_size().y);
+                self.open_height = Some(child_ui.min_size().y);
 
                 // Pretend children took up less space:
-                let mut child_bounds = child_ui.child_bounds();
-                child_bounds.max.y = child_bounds.max.y.min(top_left.y + max_height);
-                child_ui.force_set_child_bounds(child_bounds);
+                let mut min_rect = child_ui.min_rect();
+                min_rect.max.y = min_rect.max.y.min(left_top.y + max_height);
+                child_ui.force_set_min_rect(min_rect);
                 r
             }))
         } else if self.open {
