@@ -3,7 +3,7 @@ set -eu
 
 # Pre-requisites:
 rustup target add wasm32-unknown-unknown
-if ! [[ $(wasm-bindgen --version) ]]; then
+if ! wasm-bindgen --version; then
 	cargo clean
 	cargo install -f wasm-bindgen-cli
 	cargo update
