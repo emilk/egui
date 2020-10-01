@@ -30,11 +30,9 @@ pub trait Backend {
         None
     }
 
-    /// excludes painting
-    fn cpu_time(&self) -> f32;
-
-    /// Smoothed frames per second
-    fn fps(&self) -> f32;
+    /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
+    /// Zero if this is the first frame.
+    fn cpu_usage(&self) -> Option<f32>;
 
     /// Local time. Used for the clock in the demo app.
     fn seconds_since_midnight(&self) -> Option<f64> {

@@ -10,7 +10,7 @@ pub use egui::{
 pub struct WebBackend {
     ctx: Arc<egui::Context>,
     painter: webgl::Painter,
-    frame_times: egui::MovementTracker<f32>,
+    previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
     last_save_time: Option<f64>,
 }
@@ -22,7 +22,7 @@ impl WebBackend {
         Ok(Self {
             ctx,
             painter: webgl::Painter::new(canvas_id)?,
-            frame_times: egui::MovementTracker::new(1000, 1.0),
+            previous_frame_time: None,
             frame_start: None,
             last_save_time: None,
         })
@@ -50,7 +50,7 @@ impl WebBackend {
         self.auto_save();
 
         let now = now_sec();
-        self.frame_times.add(now, (now - frame_start) as f32);
+        self.previous_frame_time = Some((now - frame_start) as f32);
 
         Ok((output, paint_jobs))
     }
@@ -87,13 +87,8 @@ impl Backend for WebBackend {
         })
     }
 
-    /// excludes painting
-    fn cpu_time(&self) -> f32 {
-        self.frame_times.average().unwrap_or_default()
-    }
-
-    fn fps(&self) -> f32 {
-        1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
+    fn cpu_usage(&self) -> Option<f32> {
+        self.previous_frame_time
     }
 
     fn seconds_since_midnight(&self) -> Option<f64> {

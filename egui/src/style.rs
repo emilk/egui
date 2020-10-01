@@ -23,10 +23,17 @@ pub struct Style {
 }
 
 impl Style {
-    // TODO: rename style.interact() to maybe... `style.response_visuals` ?
-    /// Use this style for interactive things
+    // TODO: rename style.interact() to maybe... `style.interactive` ?
+    /// Use this style for interactive things.
+    /// Note that you must already have a response,
+    /// i.e. you must allocate space and interact BEFORE painting the widget!
     pub fn interact(&self, response: &Response) -> &WidgetVisuals {
         self.visuals.widgets.style(response)
+    }
+
+    /// Style to use for non-interactive widgets.
+    pub fn noninteractive(&self) -> &WidgetVisuals {
+        &self.visuals.widgets.noninteractive
     }
 }
 
@@ -116,6 +123,10 @@ pub struct Visuals {
 }
 
 impl Visuals {
+    pub fn noninteractive(&self) -> &WidgetVisuals {
+        &self.widgets.noninteractive
+    }
+
     pub fn text_color(&self) -> Srgba {
         self.widgets.noninteractive.text_color()
     }

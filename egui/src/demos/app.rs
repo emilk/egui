@@ -47,6 +47,120 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+struct FrameHistory {
+    frame_times: History<f32>,
+}
+
+impl Default for FrameHistory {
+    fn default() -> Self {
+        let max_age: f64 = 1.0;
+        Self {
+            frame_times: History::from_max_len_age((max_age * 300.0).round() as usize, max_age),
+        }
+    }
+}
+
+impl FrameHistory {
+    pub fn on_new_frame(&mut self, now: f64, previus_frame_time: Option<f32>) {
+        let previus_frame_time = previus_frame_time.unwrap_or_default();
+        if let Some(latest) = self.frame_times.latest_mut() {
+            *latest = previus_frame_time; // rewrite history now that we know
+        }
+        self.frame_times.add(now, previus_frame_time); // projected
+    }
+
+    fn fps(&self) -> f32 {
+        1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
+    }
+
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.label(format!(
+            "Total frames painted: {}",
+            self.frame_times.total_count()
+        ));
+
+        ui.label(format!(
+            "Mean CPU usage per frame: {:.2} ms / frame",
+            1e3 * self.frame_times.average().unwrap_or_default()
+        ))
+        .tooltip_text(
+            "Includes Egui layout and tesselation time.\n\
+            Does not include GPU usage, nor overhead for sending data to GPU.",
+        );
+
+        CollapsingHeader::new("CPU usage history")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.graph(ui);
+            });
+    }
+
+    fn graph(&mut self, ui: &mut Ui) {
+        let graph_top_cpu_usage = 0.010;
+        ui.label("Egui CPU usage history");
+
+        let history = &self.frame_times;
+
+        // TODO: we should not use `slider_width` as default graph width.
+        let height = ui.style().spacing.slider_width;
+        let rect = ui.allocate_space(vec2(ui.available_finite().width(), height));
+        let style = ui.style().noninteractive();
+
+        let mut cmds = vec![PaintCmd::Rect {
+            rect,
+            corner_radius: style.corner_radius,
+            fill: ui.style().visuals.dark_bg_color,
+            stroke: ui.style().noninteractive().bg_stroke,
+        }];
+
+        let rect = rect.shrink(4.0);
+        let line_stroke = Stroke::new(1.0, Srgba::additive_luminance(128));
+
+        if let Some(mouse_pos) = ui.input().mouse.pos {
+            if rect.contains(mouse_pos) {
+                let y = mouse_pos.y;
+                cmds.push(PaintCmd::line_segment(
+                    [pos2(rect.left(), y), pos2(rect.right(), y)],
+                    line_stroke,
+                ));
+                let cpu_usage = remap(y, rect.bottom_up_range(), 0.0..=graph_top_cpu_usage);
+                let text = format!("{:.1} ms", 1e3 * cpu_usage);
+                cmds.push(PaintCmd::text(
+                    ui.fonts(),
+                    pos2(rect.left(), y),
+                    align::LEFT_BOTTOM,
+                    text,
+                    TextStyle::Monospace,
+                    color::WHITE,
+                ));
+            }
+        }
+
+        let circle_color = Srgba::additive_luminance(196);
+        let radius = 2.0;
+        let right_side_time = ui.input().time; // Time at right side of screen
+
+        for (time, cpu_usage) in history.iter() {
+            let age = (right_side_time - time) as f32;
+            let x = remap(age, history.max_age()..=0.0, rect.range_x());
+            let y = remap_clamp(cpu_usage, 0.0..=graph_top_cpu_usage, rect.bottom_up_range());
+
+            cmds.push(PaintCmd::line_segment(
+                [pos2(x, rect.bottom()), pos2(x, y)],
+                line_stroke,
+            ));
+
+            if cpu_usage < graph_top_cpu_usage {
+                cmds.push(PaintCmd::circle_filled(pos2(x, y), radius, circle_color));
+            }
+        }
+
+        ui.painter().extend(cmds);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Special input to the demo-app.
 #[derive(Default)]
 pub struct DemoEnvironment {
@@ -62,6 +176,7 @@ pub struct DemoEnvironment {
 ///
 /// Implements `egui::app::App` so it can be used with
 /// [`egui_glium`](https://crates.io/crates/egui_glium) and [`egui_web`](https://crates.io/crates/egui_web).
+// TODO: split into `DemoWindows` and `app::DemoApp`
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -72,7 +187,10 @@ pub struct DemoApp {
     open_windows: OpenWindows,
     demo_window: DemoWindow,
     fractal_clock: FractalClock,
-    num_frames_painted: u64,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    frame_history: FrameHistory,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     color_test: ColorTest,
     show_color_test: bool,
@@ -195,15 +313,18 @@ impl DemoApp {
             });
     }
 
+    // TODO: give cpu_usage and web_info via `struct BackendInfo`
     fn backend_ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
+        self.frame_history
+            .on_new_frame(ui.input().time, backend.cpu_usage());
+
         let is_web = backend.web_info().is_some();
 
         if is_web {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
-                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements."
-            );
-            ui.label("This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
+                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
+                This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
             ui.label("This is also work in progress, and not ready for production... yet :)");
             ui.horizontal(|ui| {
                 ui.label("Project home page:");
@@ -219,16 +340,28 @@ impl DemoApp {
 
         ui.separator();
 
-        ui.add(
-            label!(
-                "CPU usage: {:.2} ms / frame (excludes painting)",
-                1e3 * backend.cpu_time()
-            )
-            .text_style(TextStyle::Monospace),
-        );
+        self.run_mode_ui(ui);
+
+        if self.run_mode == RunMode::Continuous {
+            ui.label(format!(
+                "Repainting the UI each frame. FPS: {:.1}",
+                self.frame_history.fps()
+            ));
+        } else {
+            ui.label("Only running UI code when there are animations or input");
+        }
 
         ui.separator();
+        self.frame_history.ui(ui);
 
+        ui.separator();
+        ui.checkbox(
+            "Show color blend test (debug backend painter)",
+            &mut self.show_color_test,
+        );
+    }
+
+    fn run_mode_ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             let run_mode = &mut self.run_mode;
             ui.label("Run mode:");
@@ -237,32 +370,17 @@ impl DemoApp {
             ui.radio_value("Reactive", run_mode, RunMode::Reactive)
                 .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
         });
-
-        if self.run_mode == RunMode::Continuous {
-            ui.add(
-                label!("Repainting the UI each frame. FPS: {:.1}", backend.fps())
-                    .text_style(TextStyle::Monospace),
-            );
-        } else {
-            ui.label("Only running UI code when there are animations or input");
-        }
-
-        self.num_frames_painted += 1;
-        ui.label(format!("Total frames painted: {}", self.num_frames_painted));
-
-        ui.separator();
-        ui.checkbox(
-            "Show color blend test (debug backend painter)",
-            &mut self.show_color_test,
-        );
     }
 }
 
 impl app::App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
-        Window::new("Backend").scroll(false).show(ui.ctx(), |ui| {
-            self.backend_ui(ui, backend);
-        });
+        Window::new("Backend")
+            .min_width(360.0)
+            .scroll(false)
+            .show(ui.ctx(), |ui| {
+                self.backend_ui(ui, backend);
+            });
 
         let Self {
             show_color_test,

@@ -478,6 +478,11 @@ impl Ui {
         self.add(label.into().heading())
     }
 
+    /// Shortcut for `add(Label::new(text).monospace())`
+    pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
+        self.add(label.into().monospace())
+    }
+
     /// Shortcut for `add(Hyperlink::new(url))`
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
@@ -616,10 +621,10 @@ impl Ui {
 impl Ui {
     pub fn collapsing<R>(
         &mut self,
-        text: impl Into<String>,
+        heading: impl Into<String>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
-        CollapsingHeader::new(text).show(self, add_contents)
+        CollapsingHeader::new(heading).show(self, add_contents)
     }
 
     /// Create a child ui at the current cursor.

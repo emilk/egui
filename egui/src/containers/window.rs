@@ -77,6 +77,17 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set minimum width of the window.
+    pub fn min_width(mut self, min_width: f32) -> Self {
+        self.resize = self.resize.min_width(min_width);
+        self
+    }
+    /// Set minimum height of the window.
+    pub fn min_height(mut self, min_height: f32) -> Self {
+        self.resize = self.resize.min_height(min_height);
+        self
+    }
+
     /// Set initial position of the window.
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);

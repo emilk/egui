@@ -44,12 +44,14 @@
     rust_2018_idioms,
 )]
 
+pub mod align;
 mod animation_manager;
 pub mod app;
 pub(crate) mod cache;
 pub mod containers;
 mod context;
 pub mod demos;
+mod history;
 mod id;
 mod input;
 mod introspection;
@@ -66,9 +68,11 @@ mod ui;
 pub mod widgets;
 
 pub use {
+    align::Align,
     containers::*,
     context::Context,
     demos::DemoApp,
+    history::History,
     id::Id,
     input::*,
     layers::*,

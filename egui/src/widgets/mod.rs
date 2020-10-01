@@ -65,6 +65,10 @@ impl Label {
         self.text_style(TextStyle::Heading)
     }
 
+    pub fn monospace(self) -> Self {
+        self.text_style(TextStyle::Monospace)
+    }
+
     pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self

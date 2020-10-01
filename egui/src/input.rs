@@ -1,6 +1,6 @@
 //! The input needed by Egui.
 
-use crate::math::*;
+use crate::{math::*, History};
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0;
@@ -128,7 +128,7 @@ pub struct MouseInput {
 
     /// Recent movement of the mouse.
     /// Used for calculating velocity of mouse pointer.
-    pub pos_tracker: MovementTracker<Pos2>,
+    pos_history: History<Pos2>,
 }
 
 impl Default for MouseInput {
@@ -145,7 +145,7 @@ impl Default for MouseInput {
             press_origin: None,
             delta: Vec2::zero(),
             velocity: Vec2::zero(),
-            pos_tracker: MovementTracker::new(1000, 0.1),
+            pos_history: History::new(1000, 0.1),
         }
     }
 }
@@ -295,20 +295,20 @@ impl MouseInput {
         if pressed {
             // Start of a drag: we want to track the velocity for during the drag
             // and ignore any incoming movement
-            self.pos_tracker.clear();
+            self.pos_history.clear();
         }
 
         if let Some(mouse_pos) = new.mouse_pos {
-            self.pos_tracker.add(new.time, mouse_pos);
+            self.pos_history.add(new.time, mouse_pos);
         } else {
             // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
             // the user tried to throw
         }
 
-        self.pos_tracker.flush(new.time);
-        let velocity = if self.pos_tracker.len() >= 3 && self.pos_tracker.dt() > 0.01 {
-            self.pos_tracker.velocity().unwrap_or_default()
+        self.pos_history.flush(new.time);
+        let velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
+            self.pos_history.velocity().unwrap_or_default()
         } else {
             Vec2::default()
         };
@@ -325,7 +325,7 @@ impl MouseInput {
             press_origin,
             delta,
             velocity,
-            pos_tracker: self.pos_tracker,
+            pos_history: self.pos_history,
         }
     }
 }
@@ -411,7 +411,7 @@ impl MouseInput {
             press_origin,
             delta,
             velocity,
-            pos_tracker: _,
+            pos_history: _,
         } = self;
 
         ui.label(format!("down: {}", down));

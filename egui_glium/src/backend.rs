@@ -14,7 +14,7 @@ const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
 
 pub struct GliumBackend {
-    frame_times: egui::MovementTracker<f32>,
+    previous_frame_time: Option<f32>,
     quit: bool,
     painter: Painter,
 }
@@ -22,7 +22,7 @@ pub struct GliumBackend {
 impl GliumBackend {
     pub fn new(painter: Painter) -> Self {
         Self {
-            frame_times: egui::MovementTracker::new(1000, 1.0),
+            previous_frame_time: None,
             quit: false,
             painter,
         }
@@ -30,12 +30,8 @@ impl GliumBackend {
 }
 
 impl Backend for GliumBackend {
-    fn cpu_time(&self) -> f32 {
-        self.frame_times.average().unwrap_or_default()
-    }
-
-    fn fps(&self) -> f32 {
-        1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
+    fn cpu_usage(&self) -> Option<f32> {
+        self.previous_frame_time
     }
 
     fn seconds_since_midnight(&self) -> Option<f64> {
@@ -100,7 +96,7 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
             let (output, paint_jobs) = ctx.end_frame();
 
             let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-            runner.frame_times.add(raw_input.time, frame_time);
+            runner.previous_frame_time = Some(frame_time);
 
             runner
                 .painter
@@ -127,7 +123,7 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
 
             glutin::event::Event::WindowEvent { event, .. } => {
                 input_to_egui(event, clipboard.as_mut(), &mut raw_input, control_flow);
-                display.gl_window().window().request_redraw(); // TODO: maybe only on some events?
+                display.gl_window().window().request_redraw(); // TODO: ask Egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
                 egui::app::set_value(

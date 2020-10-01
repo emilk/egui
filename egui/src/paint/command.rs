@@ -1,6 +1,9 @@
 use {
-    super::{font::Galley, fonts::TextStyle, Srgba, Triangles},
-    crate::math::{Pos2, Rect},
+    super::{font::Galley, fonts::TextStyle, Fonts, Srgba, Triangles},
+    crate::{
+        align::{anchor_rect, Align},
+        math::{Pos2, Rect},
+    },
 };
 
 // TODO: rename, e.g. `paint::Cmd`?
@@ -84,6 +87,25 @@ impl PaintCmd {
             corner_radius,
             fill: Default::default(),
             stroke: stroke.into(),
+        }
+    }
+
+    pub fn text(
+        fonts: &Fonts,
+        pos: Pos2,
+        anchor: (Align, Align),
+        text: impl Into<String>,
+        text_style: TextStyle,
+        color: Srgba,
+    ) -> Self {
+        let font = &fonts[text_style];
+        let galley = font.layout_multiline(text.into(), f32::INFINITY);
+        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        Self::Text {
+            pos: rect.min,
+            galley,
+            text_style,
+            color,
         }
     }
 }

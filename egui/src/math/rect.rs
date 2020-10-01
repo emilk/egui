@@ -147,6 +147,10 @@ impl Rect {
         self.min.y..=self.max.y
     }
 
+    pub fn bottom_up_range(&self) -> RangeInclusive<f32> {
+        self.max.y..=self.min.y
+    }
+
     pub fn is_empty(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
     }

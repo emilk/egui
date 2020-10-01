@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    anchor_rect, color,
+    align::{anchor_rect, Align, LEFT_TOP},
+    color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{font, Fonts, PaintCmd, Stroke, TextStyle},
-    Align, Context, Layer, Srgba,
+    Context, Layer, Srgba,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -116,18 +117,16 @@ impl Painter {
 impl Painter {
     pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: impl Into<String>) {
         self.rect_stroke(rect, 0.0, (1.0, color));
-        let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
-        self.text(rect.min, anchor, text.into(), text_style, color);
+        self.text(rect.min, LEFT_TOP, text.into(), text_style, color);
     }
 
     pub fn error(&self, pos: Pos2, text: impl Into<String>) {
         let text = text.into();
-        let anchor = (Align::Min, Align::Min);
         let text_style = TextStyle::Monospace;
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text, f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), LEFT_TOP);
         self.add(PaintCmd::Rect {
             rect: rect.expand(2.0),
             corner_radius: 0.0,
