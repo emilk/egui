@@ -95,7 +95,7 @@ pub fn text_egui_e2e() {
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         let mut ui = ctx.begin_frame(raw_input.clone());
-        demo_app.ui(&mut ui, "");
+        demo_app.ui(&mut ui, &Default::default());
         let (_output, paint_jobs) = ctx.end_frame();
         assert!(!paint_jobs.is_empty());
     }

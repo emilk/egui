@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_app", |b| {
             b.iter(|| {
                 let mut ui = ctx.begin_frame(raw_input.clone());
-                demo_app.ui(&mut ui, "");
+                demo_app.ui(&mut ui, &Default::default());
                 ctx.end_frame()
             })
         });
