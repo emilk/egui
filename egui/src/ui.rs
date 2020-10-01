@@ -1,3 +1,5 @@
+#![allow(clippy::float_cmp)]
+
 use std::{hash::Hash, sync::Arc};
 
 use crate::{color::*, containers::*, layout::*, paint::*, widgets::*, *};
@@ -210,7 +212,7 @@ impl Ui {
 
     /// This is like `max_rect()`, but will never be infinite.
     /// If the desired rect is infinite ("be as big as you want")
-    /// this will be bounded by min_rect instead.
+    /// this will be bounded by `min_rect` instead.
     pub fn max_rect_finite(&self) -> Rect {
         let mut right_bottom = self.min_rect.max;
         if self.max_rect.max.x.is_finite() {
