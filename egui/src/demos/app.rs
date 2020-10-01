@@ -142,7 +142,7 @@ impl FrameHistory {
 
         for (time, cpu_usage) in history.iter() {
             let age = (right_side_time - time) as f32;
-            let x = remap(age, history.max_age()..=0.0, rect.range_x());
+            let x = remap(age, history.max_age()..=0.0, rect.x_range());
             let y = remap_clamp(cpu_usage, 0.0..=graph_top_cpu_usage, rect.bottom_up_range());
 
             cmds.push(PaintCmd::line_segment(

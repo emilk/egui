@@ -3,6 +3,10 @@
 TODO-list for the Egui project. If you looking for something to do, look here.
 
 * Widgets
+  * [ ] Tooltips:
+    * [ ] Tooltip widget: Something that looks like this:  (?)  :that shows text on hover.
+      * [ ] ui.info_button().tooltip_text("More info here");
+    * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
   * [ ] Text input
     * [x] Input
     * [x] Text focus
@@ -37,16 +41,17 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Get modifier keys
   * [ ] Keyboard shortcuts
     * [ ] Copy, paste, undo, ...
-* [ ] Text
+* Text
   * [/] Unicode
     * [x] Shared mutable expanding texture map
     * [ ] Text editing of unicode
   * [ ] Change text style/color and continue in same layout
-* [ ] Menu bar (File, Edit, etc)
+* Menu bar (File, Edit, etc)
   * [ ] Sub-menus
   * [ ] Keyboard shortcuts
-* [ ] Layout
+* Layout
   * [x] Generalize Layout (separate from Ui)
+  * [ ] Break out `Region` with min_size + max_size + cursor + layout
   * [ ] Table with resizable columns
   * [ ] Grid layout
   * [ ] Point list
@@ -54,9 +59,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Positioning preference: `window.preference(Top, Right)`
     * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
   * [ ] Make auto-positioning of windows respect permanent side-bars.
-* [x] Image support
-  * [x] Show user textures
-  * [x] API for creating a texture managed by `egui::app::Backend`
 * Visuals
   * [x] Pixel-perfect painting (round positions to nearest pixel).
   * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
@@ -66,9 +68,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [x] sRGBA decode in fragment shader
     * [ ] Fix alpha blending / sRGB weirdness in WebGL (EXT_sRGB)
   * [ ] Thin circles look bad
-  * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
-* Math
-  * [x] Change `width.min(max_width)` to `width.at_most(max_width)`
+  * [ ] Optimize small filled circles with the global texture.
 * Id
   * struct TempId(u64); struct StateId(u64);
     * `TempId` is count-based. Only good for interaction. Can't be used for storing state.
@@ -79,14 +79,32 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * Manual layout example:
     * ui.child_ui_pos(pos).label("Label at specific position");
     * ui.child_ui_rect(rect).label("Label in a rectangle");
+* Reactive mode
+  * [ ] Ask Egui if an event requires repainting
+  * [ ] Only repaint when mouse is over a Egui window (or is pressed and there is an active widget)
 
-## egui_web
+## Backends
+
+* [ ] Extract egui_app as egui_backend
+
+* egui_glium
+* egui_web
+  * [ ] async HTTP requests
+* [ ] egui_bitmap: slow reference rasterizer for tests
+  * Port https://github.com/emilk/imgui_software_renderer
+  * Less important: fast rasterizer for embedded 🤷‍♀️
+* [ ] egui_terminal (think ncurses)
+  * [ ] replace `round_to_pixel` with `round_to_X` where user can select X to be e.g. width of a letter
+* [ ] egui_svg: No idea what this would be for :)
+
+### egui_web
 
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [x] Port most code to Rust
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
-* [ ] Fix WebGL colors/beldning (try EXT_sRGB)
+* [ ] Async HTTP requests
+* [ ] Fix WebGL colors/blending (try EXT_sRGB)
 * [ ] Embeddability
   * [ ] Support canvas that does NOT cover entire screen.
   * [ ] Support multiple eguis in one web page.
@@ -101,7 +119,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 * [ ] `trait Container` (`Frame`, `Resize`, `ScrollArea`, ...)
 * [ ] `widget::TextButton` implemented as a `container::Button` which contains a `widget::Label`.
 * [ ] Easily chain `Container`s without nested closures.
-  * e.g. `ui.containers((Frame::new(), Resize::new(), ScrollArea::new()), |ui| ...)`
+  * e.g. `ui.wrap(Frame::new()).wrap(Resize::new()).wrap(ScrollArea::new()).show(|ui| ...)`
 * [ ] Attach labels to checkboxes, radio buttons and sliders with a separate wrapper-widget ?
 
 ### Refactor space allocation
@@ -112,6 +130,8 @@ When painting a widget, you want to allocate space. On that space you sometimes 
 * `ui.canvas(size) -> Paint`
 * `ui.child_ui(size) -> Ui`
 
+This is a good place to support whole-widget culling. If a swidget is not visible, the above functions should maybe return `None` so that the widget code can early-out.
+
 ## Other
 
 * [x] Persist UI state in external storage
@@ -120,6 +140,7 @@ When painting a widget, you want to allocate space. On that space you sometimes 
 * [ ] Build in a profiler which tracks which `Ui` in which window takes up CPU.
   * [ ] Draw as flame graph
   * [ ] Draw as hotmap
+  * [ ] Integrate puffin?
 * [ ] Windows should open from `UI`s and be boxed by parent ui.
   * Then we could open the example app inside a window in the example app, recursively.
 * [ ] Implement a minimal markdown viewer
@@ -157,3 +178,6 @@ Ability to do a search for any widget. The search works even for collapsed regio
   * [x] Use clip rectangles when interacting
   * [x] Adjust clip rects so edges of child widgets aren't clipped
   * [x] Use HW clip rects
+* [x] Image support
+  * [x] Show user textures
+  * [x] API for creating a texture managed by `egui::app::Backend`

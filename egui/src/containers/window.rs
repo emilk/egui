@@ -286,7 +286,6 @@ impl<'open> Window<'open> {
             let outer_rect = frame.end(&mut area_content_ui);
 
             if possible.resizable {
-                // TODO: draw BEHIND contents ?
                 paint_resize_corner(&mut area_content_ui, outer_rect, frame_stroke);
             }
 

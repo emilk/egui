@@ -269,7 +269,7 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response
         let mut triangles = Triangles::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
-            let x = lerp(rect.range_x(), t);
+            let x = lerp(rect.x_range(), t);
             triangles.colored_vertex(pos2(x, rect.top()), color);
             triangles.colored_vertex(pos2(x, rect.bottom()), color);
             if i < n - 1 {

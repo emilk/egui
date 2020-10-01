@@ -711,8 +711,13 @@ impl Ui {
     }
 
     /// Start a ui with horizontal layout.
-    /// Elements will be centered on the Y axis.
-    /// Initial height is `style.spacing.interact_size.y`.
+    /// After you have called this, the registers the contents as any other widget.
+    ///
+    /// Elements will be centered on the Y axis, i.e.
+    /// adjusted up and down to lie in the center of the horizontal layout.
+    /// The initial height is `style.spacing.interact_size.y`.
+    /// Centering is almost always what you want if you are
+    /// planning to to mix widgets or just different types of text.
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
         let initial_size = vec2(
             self.available().width(),

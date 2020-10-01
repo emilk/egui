@@ -63,8 +63,10 @@ pub fn input_to_egui(
         }
         KeyboardInput { input, .. } => {
             if let Some(virtual_keycode) = input.virtual_keycode {
-                // TODO: If mac
-                if input.modifiers.logo() && virtual_keycode == VirtualKeyCode::Q {
+                if cfg!(target_os = "macos")
+                    && input.modifiers.logo()
+                    && virtual_keycode == VirtualKeyCode::Q
+                {
                     *control_flow = ControlFlow::Exit;
                 }
 
@@ -174,7 +176,7 @@ pub fn handle_output(
 ) {
     if let Some(url) = output.open_url {
         if let Err(err) = webbrowser::open(&url) {
-            eprintln!("Failed to open url: {}", err); // TODO show error in imgui
+            eprintln!("Failed to open url: {}", err);
         }
     }
 

@@ -32,8 +32,8 @@ impl Texture {
             show_tooltip(ui.ctx(), |ui| {
                 let pos = ui.input().mouse.pos.unwrap_or_else(|| ui.left_top());
                 let zoom_rect = ui.allocate_space(vec2(128.0, 128.0));
-                let u = remap_clamp(pos.x, rect.range_x(), 0.0..=tex_w);
-                let v = remap_clamp(pos.y, rect.range_y(), 0.0..=tex_h);
+                let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
+                let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
 
                 let texel_radius = 32.0;
                 let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);

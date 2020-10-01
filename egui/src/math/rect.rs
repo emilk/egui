@@ -139,14 +139,12 @@ impl Rect {
         self.width() * self.height()
     }
 
-    pub fn range_x(&self) -> RangeInclusive<f32> {
+    pub fn x_range(&self) -> RangeInclusive<f32> {
         self.min.x..=self.max.x
     }
-
-    pub fn range_y(&self) -> RangeInclusive<f32> {
+    pub fn y_range(&self) -> RangeInclusive<f32> {
         self.min.y..=self.max.y
     }
-
     pub fn bottom_up_range(&self) -> RangeInclusive<f32> {
         self.max.y..=self.min.y
     }

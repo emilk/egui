@@ -367,6 +367,7 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size =
             button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(spacing.interact_size);
+        desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());
@@ -450,6 +451,7 @@ impl Widget for RadioButton {
         let mut desired_size =
             button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, Sense::click());
