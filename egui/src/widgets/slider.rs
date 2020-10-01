@@ -257,7 +257,7 @@ impl<'a> Slider<'a> {
                     .text_style(TextStyle::Monospace)
                     .text_color_opt(self.text_color),
             );
-            let response = response.tooltip_text("Click to enter a value");
+            let response = response.on_hover_text("Click to enter a value");
             // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);

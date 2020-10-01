@@ -489,6 +489,7 @@ impl Ui {
     }
 
     /// Shortcut for `add(Button::new(text))`
+    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }

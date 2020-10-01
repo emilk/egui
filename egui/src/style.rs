@@ -336,7 +336,7 @@ impl Spacing {
         ui_slider_vec2(ui, window_padding, 0.0..=10.0, "window_padding");
         ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
         ui_slider_vec2(ui, interact_size, 0.0..=60.0, "interact_size")
-            .tooltip_text("Minimum size of an interactive widget");
+            .on_hover_text("Minimum size of an interactive widget");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
@@ -441,7 +441,7 @@ impl Stroke {
         let Self { width, color } = self;
         ui.horizontal(|ui| {
             ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
-                .tooltip_text("Width");
+                .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
             ui.label(text);
 

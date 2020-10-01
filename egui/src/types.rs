@@ -95,18 +95,24 @@ impl std::fmt::Debug for Response {
 }
 
 impl Response {
-    pub fn tooltip(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+    /// Show this UI if the item was hovered (i.e. a tooltip)
+    pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.hovered {
             crate::containers::show_tooltip(&self.ctx, add_contents);
         }
         self
     }
 
-    /// Show this text if the item was hovered
-    pub fn tooltip_text(self, text: impl Into<String>) -> Self {
-        self.tooltip(|ui| {
+    /// Show this text if the item was hovered (i.e. a tooltip)
+    pub fn on_hover_text(self, text: impl Into<String>) -> Self {
+        self.on_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
+    }
+
+    #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
+    pub fn tooltip_text(self, text: impl Into<String>) -> Self {
+        self.on_hover_text(text)
     }
 }
 

@@ -217,7 +217,7 @@ impl Widget for Hyperlink {
         ui.painter()
             .galley(response.rect.min, galley, text_style, color);
 
-        response.tooltip_text(url)
+        response.on_hover_text(url)
     }
 }
 

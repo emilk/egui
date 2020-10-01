@@ -78,7 +78,7 @@ impl ColorTest {
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
                 ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
-                    .tooltip_text(format!("A texture that is {} texels wide", g.0.len()));
+                    .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
                 ui.label("GPU result");
             });
         });
@@ -233,7 +233,7 @@ impl ColorTest {
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
             ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
-                .tooltip_text(format!(
+                .on_hover_text(format!(
                     "A texture that is {} texels wide",
                     gradient.0.len()
                 ));
@@ -246,7 +246,7 @@ impl ColorTest {
             return;
         }
         ui.horizontal(|ui| {
-            vertex_gradient(ui, bg_fill, gradient).tooltip_text(format!(
+            vertex_gradient(ui, bg_fill, gradient).on_hover_text(format!(
                 "A triangle mesh that is {} vertices wide",
                 gradient.0.len()
             ));

@@ -53,13 +53,22 @@ impl Widgets {
             ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(label!("Text can have ").text_color(srgba(110, 255, 110, 255)));
             ui.add(label!("color ").text_color(srgba(128, 140, 255, 255)));
-            ui.add(label!("and tooltips")).tooltip_text(
+            ui.add(label!("and tooltips.")).on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
         });
+        ui.add(label!("Tooltips can be more than just simple text."))
+            .on_hover_ui(|ui| {
+                ui.heading("The name of the tooltip");
+                ui.horizontal(|ui| {
+                    ui.label("This tooltip was created with");
+                    ui.monospace(".on_hover_ui(...)");
+                });
+                let _ = ui.button("A button you can never press");
+            });
 
-        ui.add(label!("Some non-latin characters: Ευρηκα τ = 2×π"))
-            .tooltip_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
+        ui.add(label!("Ευρηκα! τ = 2×π"))
+            .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
 
         ui.horizontal(|ui| {
             ui.radio_value("First", &mut self.radio, Enum::First);
@@ -78,7 +87,7 @@ impl Widgets {
         ui.horizontal(|ui| {
             if ui
                 .add(Button::new("Click me").enabled(self.button_enabled))
-                .tooltip_text("This will just increase a counter.")
+                .on_hover_text("This will just increase a counter.")
                 .clicked
             {
                 self.count += 1;
@@ -127,7 +136,7 @@ impl Widgets {
                     .multiline(false)
                     .id_source("single line"),
             );
-        }); // TODO: .tooltip_text("Enter text to edit me")
+        }); // TODO: .on_hover_text("Enter text to edit me")
 
         ui.add(label!("Multiline text input:"));
         ui.add(TextEdit::new(&mut self.multiline_text_input).id_source("multiline"));

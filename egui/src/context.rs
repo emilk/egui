@@ -553,7 +553,7 @@ impl Context {
 
         if ui
             .add(Button::new("Reset all"))
-            .tooltip_text("Reset all Egui state")
+            .on_hover_text("Reset all Egui state")
             .clicked
         {
             *self.memory() = Default::default();
@@ -629,9 +629,9 @@ impl paint::PaintOptions {
 impl PaintStats {
     pub fn ui(&self, ui: &mut Ui) {
         ui.add(label!("Jobs: {}", self.num_jobs))
-            .tooltip_text("Number of separate clip rectangles");
+            .on_hover_text("Number of separate clip rectangles");
         ui.add(label!("Primitives: {}", self.num_primitives))
-            .tooltip_text("Boxes, circles, text areas etc");
+            .on_hover_text("Boxes, circles, text areas etc");
         ui.add(label!("Vertices: {}", self.num_vertices));
         ui.add(label!("Triangles: {}", self.num_triangles));
     }

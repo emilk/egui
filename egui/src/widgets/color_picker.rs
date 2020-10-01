@@ -194,21 +194,21 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma) {
             ui.style().spacing.interact_size.y * 2.0,
         );
 
-        show_color(ui, *hsva, current_color_size).tooltip_text("Current color");
+        show_color(ui, *hsva, current_color_size).on_hover_text("Current color");
 
         show_color(ui, HsvaGamma { a: 1.0, ..*hsva }, current_color_size)
-            .tooltip_text("Current color (opaque)");
+            .on_hover_text("Current color (opaque)");
 
         let opaque = HsvaGamma { a: 1.0, ..*hsva };
         let HsvaGamma { h, s, v, a } = hsva;
         color_slider_2d(ui, h, s, |h, s| HsvaGamma::new(h, s, 1.0, 1.0).into())
-            .tooltip_text("Hue - Saturation");
+            .on_hover_text("Hue - Saturation");
         color_slider_2d(ui, v, s, |v, s| HsvaGamma { v, s, ..opaque }.into())
-            .tooltip_text("Value - Saturation");
-        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into()).tooltip_text("Hue");
-        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).tooltip_text("Saturation");
-        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).tooltip_text("Value");
-        color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).tooltip_text("Alpha");
+            .on_hover_text("Value - Saturation");
+        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into()).on_hover_text("Hue");
+        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
+        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
+        color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
     });
 }
 
@@ -220,7 +220,7 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva) {
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
     let pupup_id = ui.make_position_id().with("popup");
-    let button_response = color_button(ui, (*hsva).into()).tooltip_text("Click to edit color");
+    let button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
 
     if button_response.clicked {
         ui.memory().toggle_popup(pupup_id);

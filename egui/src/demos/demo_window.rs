@@ -415,7 +415,7 @@ impl LayoutDemo {
         }
         if ui
             .add(RadioButton::new(self.align == None, "Justified"))
-            .tooltip_text("Try to fill full width/height (e.g. buttons)")
+            .on_hover_text("Try to fill full width/height (e.g. buttons)")
             .clicked
         {
             self.align = None;

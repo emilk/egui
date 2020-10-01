@@ -75,7 +75,7 @@ pub fn demo(ui: &mut Ui, on: &mut bool) {
     let url = format!("https://github.com/emilk/egui/blob/master/{}", file!());
     ui.horizontal(|ui| {
         ui.label("Like this toggle switch:");
-        toggle(ui, on).tooltip_text("Click to toggle");
+        toggle(ui, on).on_hover_text("Click to toggle");
         ui.add(Hyperlink::new(url).text("(source code)"));
     });
 }

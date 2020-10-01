@@ -349,12 +349,12 @@ impl RawInput {
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_size: {:?} points", screen_size));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
-            .tooltip_text(
+            .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.label(format!("time: {:.3} s", time));
         ui.label(format!("events: {:?}", events))
-            .tooltip_text("key presses etc");
+            .on_hover_text("key presses etc");
     }
 }
 
@@ -393,7 +393,7 @@ impl InputState {
         ));
         ui.label(format!("expected dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("events: {:?}", events))
-            .tooltip_text("key presses etc");
+            .on_hover_text("key presses etc");
     }
 }
 

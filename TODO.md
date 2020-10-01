@@ -5,7 +5,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 * Widgets
   * [ ] Tooltips:
     * [ ] Tooltip widget: Something that looks like this:  (?)  :that shows text on hover.
-      * [ ] ui.info_button().tooltip_text("More info here");
+      * [ ] ui.info_button().on_hover_text("More info here");
     * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
   * [ ] Text input
     * [x] Input

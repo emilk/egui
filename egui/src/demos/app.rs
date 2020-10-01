@@ -83,7 +83,7 @@ impl FrameHistory {
             "Mean CPU usage per frame: {:.2} ms / frame",
             1e3 * self.frame_times.average().unwrap_or_default()
         ))
-        .tooltip_text(
+        .on_hover_text(
             "Includes Egui layout and tesselation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
@@ -366,9 +366,9 @@ impl DemoApp {
             let run_mode = &mut self.run_mode;
             ui.label("Run mode:");
             ui.radio_value("Continuous", run_mode, RunMode::Continuous)
-                .tooltip_text("Repaint everything each frame");
+                .on_hover_text("Repaint everything each frame");
             ui.radio_value("Reactive", run_mode, RunMode::Reactive)
-                .tooltip_text("Repaint when there are animations or input (e.g. mouse movement)");
+                .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
         });
     }
 }
@@ -471,7 +471,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) 
             }
             if ui
                 .add(Button::new("Clear entire Egui memory"))
-                .tooltip_text("Forget scroll, collapsibles etc")
+                .on_hover_text("Forget scroll, collapsibles etc")
                 .clicked
             {
                 *ui.ctx().memory() = Default::default();
