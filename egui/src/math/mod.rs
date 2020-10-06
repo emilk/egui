@@ -121,14 +121,6 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
 /// Round a value to the given number of decimal places.
-pub fn round_to_precision_f32(value: f32, decimal_places: usize) -> f32 {
-    // This is a stupid way of doing this, but stupid works.
-    format!("{:.*}", decimal_places, value)
-        .parse()
-        .unwrap_or_else(|_| value)
-}
-
-/// Round a value to the given number of decimal places.
 pub fn round_to_precision(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
     format!("{:.*}", decimal_places, value)

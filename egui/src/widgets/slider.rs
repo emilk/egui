@@ -2,15 +2,29 @@ use std::ops::RangeInclusive;
 
 use crate::{paint::*, widgets::Label, *};
 
-// TODO: switch to f64 internally so we can handle integers larger than 2^24.
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
-type SliderGetSet<'a> = Box<dyn 'a + FnMut(Option<f32>) -> f32>;
+type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
+
+fn get(value_function: &mut GetSetValue<'_>) -> f64 {
+    (value_function)(None)
+}
+
+fn set(value_function: &mut GetSetValue<'_>, value: f64) {
+    (value_function)(Some(value));
+}
+
+fn to_f64_range<T: Copy>(r: RangeInclusive<T>) -> RangeInclusive<f64>
+where
+    f64: From<T>,
+{
+    f64::from(*r.start())..=f64::from(*r.end())
+}
 
 /// Control a number by a horizontal slider.
 pub struct Slider<'a> {
-    get_set_value: SliderGetSet<'a>,
-    range: RangeInclusive<f32>,
+    get_set_value: GetSetValue<'a>,
+    range: RangeInclusive<f64>,
     // TODO: label: Option<Label>
     text: Option<String>,
     precision: Option<usize>,
@@ -20,8 +34,8 @@ pub struct Slider<'a> {
 
 impl<'a> Slider<'a> {
     fn from_get_set(
-        range: RangeInclusive<f32>,
-        get_set_value: impl 'a + FnMut(Option<f32>) -> f32,
+        range: RangeInclusive<f64>,
+        get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
     ) -> Self {
         Self {
             get_set_value: Box::new(get_set_value),
@@ -35,7 +49,18 @@ impl<'a> Slider<'a> {
 
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         Self {
-            ..Self::from_get_set(range, move |v: Option<f32>| {
+            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+                if let Some(v) = v {
+                    *value = v as f32
+                }
+                *value as f64
+            })
+        }
+    }
+
+    pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
+        Self {
+            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v
                 }
@@ -45,40 +70,38 @@ impl<'a> Slider<'a> {
     }
 
     pub fn u8(value: &'a mut u8, range: RangeInclusive<u8>) -> Self {
-        let range = (*range.start() as f32)..=(*range.end() as f32);
         Self {
             precision: Some(0),
-            ..Self::from_get_set(range, move |v: Option<f32>| {
+            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as u8
                 }
-                *value as f32
+                *value as f64
             })
         }
     }
 
     pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
-        let range = (*range.start() as f32)..=(*range.end() as f32);
         Self {
             precision: Some(0),
-            ..Self::from_get_set(range, move |v: Option<f32>| {
+            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as i32
                 }
-                *value as f32
+                *value as f64
             })
         }
     }
 
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
-        let range = (*range.start() as f32)..=(*range.end() as f32);
+        let range = (*range.start() as f64)..=(*range.end() as f64);
         Self {
             precision: Some(0),
-            ..Self::from_get_set(range, move |v: Option<f32>| {
+            ..Self::from_get_set(range, move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as usize
                 }
-                *value as f32
+                *value as f64
             })
         }
     }
@@ -102,28 +125,28 @@ impl<'a> Slider<'a> {
         self
     }
 
-    fn get_value_f32(&mut self) -> f32 {
-        (self.get_set_value)(None)
+    fn get_value(&mut self) -> f64 {
+        get(&mut self.get_set_value)
     }
 
-    fn set_value_f32(&mut self, mut value: f32) {
+    fn set_value(&mut self, mut value: f64) {
         if let Some(precision) = self.precision {
-            value = round_to_precision_f32(value, precision);
+            value = round_to_precision(value, precision);
         }
-        (self.get_set_value)(Some(value));
+        set(&mut self.get_set_value, value);
     }
 
     /// For instance, `x` is the mouse position and `x_range` is the physical location of the slider on the screen.
-    fn value_from_x_clamped(&self, x: f32, x_range: RangeInclusive<f32>) -> f32 {
-        remap_clamp(x, x_range, self.range.clone())
+    fn value_from_x_clamped(&self, x: f32, x_range: RangeInclusive<f32>) -> f64 {
+        remap_clamp(x as f64, to_f64_range(x_range), self.range.clone())
     }
 
-    fn value_from_x(&self, x: f32, x_range: RangeInclusive<f32>) -> f32 {
-        remap(x, x_range, self.range.clone())
+    fn value_from_x(&self, x: f32, x_range: RangeInclusive<f32>) -> f64 {
+        remap(x as f64, to_f64_range(x_range), self.range.clone())
     }
 
-    fn x_from_value(&self, value: f32, x_range: RangeInclusive<f32>) -> f32 {
-        remap(value, self.range.clone(), x_range)
+    fn x_from_value(&self, value: f64, x_range: RangeInclusive<f32>) -> f32 {
+        remap(value, self.range.clone(), to_f64_range(x_range)) as f32
     }
 }
 
@@ -156,24 +179,24 @@ impl<'a> Slider<'a> {
         if let Some(mouse_pos) = ui.input().mouse.pos {
             if response.active {
                 let aim_radius = ui.input().aim_radius();
-                let new_value = crate::math::smart_aim::best_in_range_f32(
+                let new_value = crate::math::smart_aim::best_in_range_f64(
                     self.value_from_x_clamped(mouse_pos.x - aim_radius, x_range.clone()),
                     self.value_from_x_clamped(mouse_pos.x + aim_radius, x_range.clone()),
                 );
-                self.set_value_f32(new_value);
+                self.set_value(new_value);
             }
         }
 
         // Paint it:
         {
-            let value = self.get_value_f32();
+            let value = self.get_value();
 
             let rail_radius = ui.painter().round_to_pixel((rect.height() / 8.0).max(2.0));
             let rail_rect = Rect::from_min_max(
                 pos2(rect.left(), rect.center().y - rail_radius),
                 pos2(rect.right(), rect.center().y + rail_radius),
             );
-            let marker_center_x = remap_clamp(value, range, x_range);
+            let marker_center_x = self.x_from_value(value, x_range);
 
             ui.painter().add(PaintCmd::Rect {
                 rect: rail_rect,
@@ -205,22 +228,6 @@ impl<'a> Slider<'a> {
         }
     }
 
-    // fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-    //     TODO: make it a drag value somehow
-    //     fn range_width(range: &RangeInclusive<f32>) -> f32 {
-    //         range.end() - range.start()
-    //     }
-    //     let range = self.range.clone();
-    //     let get_set_f64 = |value: Option<f64>| (self.get_set_value)(value.map(|x| x as f32)) as f64;
-    //     let speed = range_width(&range) / range_width(&x_range);
-    //     // TODO: precision
-    //     ui.add(
-    //         DragValue::from_get_set(get_set_f64)
-    //             .range(range)
-    //             .speed(speed),
-    //     );
-    // }
-
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
         let kb_edit_id = self.id.expect("We should have an id by now").with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
@@ -244,7 +251,7 @@ impl<'a> Slider<'a> {
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(value) = value_text.parse() {
-                self.set_value_f32(value);
+                self.set_value(value);
             }
             if ui.input().key_pressed(Key::Enter) {
                 ui.memory().surrender_kb_focus(kb_edit_id);
@@ -267,19 +274,19 @@ impl<'a> Slider<'a> {
     }
 
     fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
-        let value = (self.get_set_value)(None);
+        let value = self.get_value();
 
         let precision = self.precision.unwrap_or_else(|| {
             // pick precision based upon how much moving the slider would change the value:
-            let value_from_x = |x| self.value_from_x(x, x_range.clone());
-            let x_from_value = |value| self.x_from_value(value, x_range.clone());
+            let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
+            let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
             let left_value = value_from_x(x_from_value(value) - aim_radius);
             let right_value = value_from_x(x_from_value(value) + aim_radius);
             let range = (left_value - right_value).abs();
             (-range.log10()).ceil().max(0.0) as usize
         });
 
-        format_with_minimum_precision(value, precision)
+        format_with_minimum_precision(value as f32, precision)
     }
 }
 

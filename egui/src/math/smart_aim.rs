@@ -2,10 +2,6 @@
 
 const NUM_DECIMALS: usize = 15;
 
-pub fn best_in_range_f32(min: f32, max: f32) -> f32 {
-    best_in_range_f64(min as f64, max as f64) as f32
-}
-
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.
 ///
 /// So in the range `[0.83, 1.354]` you will get `1.0`, and for `[0.37, 0.48]` you will get `0.4`.
