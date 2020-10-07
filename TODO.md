@@ -14,7 +14,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Text selection
     * [ ] Clipboard copy/paste
     * [ ] Move focus with tab
-  * [ ] Horizontal slider
+  * [ ] Vertical slider
   * [/] Color picker
     * [x] linear rgb <-> sRGB
     * [x] HSV

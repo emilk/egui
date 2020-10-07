@@ -89,7 +89,7 @@ Alpha state. It works well for what it does, but it lacks many features and the 
 
 ### Features
 
-* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing
+* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker
 * Layouts: horizontal, vertical, columns
 * Text input: very basic, multiline, copy/paste
 * Windows: move, resize, name, minimize and close. Automatically sized and positioned.

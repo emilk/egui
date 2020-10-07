@@ -1,4 +1,4 @@
-use crate::{color::*, *};
+use crate::{color::*, demos::Sliders, *};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -20,7 +20,7 @@ pub struct Widgets {
     button_enabled: bool,
     count: usize,
     radio: Enum,
-    slider_value: f32,
+    sliders: Sliders,
     angle: f32,
     color: Srgba,
     single_line_text_input: String,
@@ -34,7 +34,7 @@ impl Default for Widgets {
             button_enabled: true,
             radio: Enum::First,
             count: 0,
-            slider_value: 3.4,
+            sliders: Default::default(),
             angle: TAU / 8.0,
             color: (Rgba::new(0.0, 1.0, 0.5, 1.0) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
@@ -97,19 +97,22 @@ impl Widgets {
 
         ui.separator();
         {
-            ui.label(
-                "The slider will show as many decimals as needed, \
-                and will intelligently help you select a round number when you interact with it.\n\
-                You can click a slider value to edit it with the keyboard.",
-            );
-            ui.add(Slider::f32(&mut self.slider_value, -10.0..=10.0).text("value"));
             ui.horizontal(|ui| {
-                ui.label("More compact as a value you drag:");
-                ui.add(DragValue::f32(&mut self.slider_value).speed(0.01));
+                ui.label("Drag this value to change it:");
+                ui.add(DragValue::f64(&mut self.sliders.value).speed(0.01));
             });
-            if ui.add(Button::new("Assign PI")).clicked {
-                self.slider_value = std::f32::consts::PI;
-            }
+
+            ui.add(
+                Slider::f64(&mut self.sliders.value, 1.0..=100.0)
+                    .logarithmic(true)
+                    .text("A slider"),
+            );
+
+            CollapsingHeader::new("More sliders")
+                .default_open(false)
+                .show(ui, |ui| {
+                    self.sliders.ui(ui);
+                });
         }
         ui.separator();
         {

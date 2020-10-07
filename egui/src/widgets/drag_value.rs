@@ -45,6 +45,17 @@ impl<'a> DragValue<'a> {
         }
     }
 
+    pub fn f64(value: &'a mut f64) -> Self {
+        Self {
+            ..Self::from_get_set(move |v: Option<f64>| {
+                if let Some(v) = v {
+                    *value = v
+                }
+                *value
+            })
+        }
+    }
+
     pub fn u8(value: &'a mut u8) -> Self {
         Self {
             ..Self::from_get_set(move |v: Option<f64>| {

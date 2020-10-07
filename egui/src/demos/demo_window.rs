@@ -74,7 +74,9 @@ impl DemoWindow {
             });
         });
 
-        ui.collapsing("Test box rendering", |ui| self.box_painting.ui(ui));
+        CollapsingHeader::new("Test box rendering")
+            .default_open(false)
+            .show(ui, |ui| self.box_painting.ui(ui));
 
         CollapsingHeader::new("Scroll area")
             .default_open(false)

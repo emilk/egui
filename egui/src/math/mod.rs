@@ -129,6 +129,8 @@ pub fn round_to_precision(value: f64, decimal_places: usize) -> f64 {
 }
 
 pub fn format_with_minimum_precision(value: f32, precision: usize) -> String {
+    debug_assert!(precision < 100);
+    let precision = precision.min(16);
     let text = format!("{:.*}", precision, value);
     let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
     if almost_equal(text.parse::<f32>().unwrap(), value, epsilon) {
@@ -220,6 +222,30 @@ pub trait NumExt {
 }
 
 impl NumExt for f32 {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self {
+        self.max(lower_limit)
+    }
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self {
+        self.min(upper_limit)
+    }
+}
+
+impl NumExt for f64 {
+    /// More readable version of `self.max(lower_limit)`
+    fn at_least(self, lower_limit: Self) -> Self {
+        self.max(lower_limit)
+    }
+
+    /// More readable version of `self.min(upper_limit)`
+    fn at_most(self, upper_limit: Self) -> Self {
+        self.min(upper_limit)
+    }
+}
+
+impl NumExt for usize {
     /// More readable version of `self.max(lower_limit)`
     fn at_least(self, lower_limit: Self) -> Self {
         self.max(lower_limit)

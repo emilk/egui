@@ -1,6 +1,10 @@
+#![allow(clippy::float_cmp)]
+
 use std::ops::RangeInclusive;
 
-use crate::{paint::*, widgets::Label, *};
+use crate::{math::NumExt, paint::*, widgets::Label, *};
+
+// ----------------------------------------------------------------------------
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
@@ -21,10 +25,23 @@ where
     f64::from(*r.start())..=f64::from(*r.end())
 }
 
+// ----------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct SliderSpec {
+    logarithmic: bool,
+    /// For logarithmic sliders, the smallest positive value we are interested in.
+    /// 1 for integer sliders, maybe 1e-6 for others.
+    smallest_positive: f64,
+}
+
 /// Control a number by a horizontal slider.
+/// The range can include any numbers, and go from low-to-high or from high-to-low.
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,
+    spec: SliderSpec,
+    smart_aim: bool,
     // TODO: label: Option<Label>
     text: Option<String>,
     precision: Option<usize>,
@@ -40,6 +57,11 @@ impl<'a> Slider<'a> {
         Self {
             get_set_value: Box::new(get_set_value),
             range,
+            spec: SliderSpec {
+                logarithmic: false,
+                smallest_positive: 1e-6,
+            },
+            smart_aim: true,
             text: None,
             precision: None,
             text_color: None,
@@ -71,7 +93,6 @@ impl<'a> Slider<'a> {
 
     pub fn u8(value: &'a mut u8, range: RangeInclusive<u8>) -> Self {
         Self {
-            precision: Some(0),
             ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as u8
@@ -79,11 +100,11 @@ impl<'a> Slider<'a> {
                 *value as f64
             })
         }
+        .integer()
     }
 
     pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
         Self {
-            precision: Some(0),
             ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as i32
@@ -91,12 +112,12 @@ impl<'a> Slider<'a> {
                 *value as f64
             })
         }
+        .integer()
     }
 
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
         let range = (*range.start() as f64)..=(*range.end() as f64);
         Self {
-            precision: Some(0),
             ..Self::from_get_set(range, move |v: Option<f64>| {
                 if let Some(v) = v {
                     *value = v.round() as usize
@@ -104,6 +125,7 @@ impl<'a> Slider<'a> {
                 *value as f64
             })
         }
+        .integer()
     }
 
     pub fn text(mut self, text: impl Into<String>) -> Self {
@@ -116,6 +138,30 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Make this a logarithmic slider.
+    /// This is great for when the slider spans a huge range,
+    /// e.g. from one to a million.
+    /// The default is OFF.
+    pub fn logarithmic(mut self, logarithmic: bool) -> Self {
+        self.spec.logarithmic = logarithmic;
+        self
+    }
+
+    /// For logarithmic sliders that includes zero:
+    /// what is the smallest positive value you want to be able to select?
+    /// The default is `1` for integer sliders and `1e-6` for real sliders.
+    pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
+        self.spec.smallest_positive = smallest_positive;
+        self
+    }
+
+    /// Turn smart aim on/off. Default is ON.
+    /// There is almost no point in turning this off.
+    pub fn smart_aim(mut self, smart_aim: bool) -> Self {
+        self.smart_aim = smart_aim;
+        self
+    }
+
     /// Precision (number of decimals) used when displaying the value.
     /// Values will also be rounded to this precision.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -123,6 +169,13 @@ impl<'a> Slider<'a> {
     pub fn precision(mut self, precision: usize) -> Self {
         self.precision = Some(precision);
         self
+    }
+
+    /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
+    /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
+    /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
+    pub fn integer(self) -> Self {
+        self.precision(0).smallest_positive(1.0)
     }
 
     fn get_value(&mut self) -> f64 {
@@ -136,17 +189,19 @@ impl<'a> Slider<'a> {
         set(&mut self.get_set_value, value);
     }
 
-    /// For instance, `x` is the mouse position and `x_range` is the physical location of the slider on the screen.
-    fn value_from_x_clamped(&self, x: f32, x_range: RangeInclusive<f32>) -> f64 {
-        remap_clamp(x as f64, to_f64_range(x_range), self.range.clone())
+    fn range(&self) -> RangeInclusive<f64> {
+        self.range.clone()
     }
 
+    /// For instance, `x` is the mouse position and `x_range` is the physical location of the slider on the screen.
     fn value_from_x(&self, x: f32, x_range: RangeInclusive<f32>) -> f64 {
-        remap(x as f64, to_f64_range(x_range), self.range.clone())
+        let normalized = remap_clamp(x, x_range, 0.0..=1.0) as f64;
+        value_from_normalized(normalized, self.range(), &self.spec)
     }
 
     fn x_from_value(&self, value: f64, x_range: RangeInclusive<f32>) -> f32 {
-        remap(value, self.range.clone(), to_f64_range(x_range)) as f32
+        let normalized = normalized_from_value(value, self.range(), &self.spec);
+        lerp(x_range, normalized as f32)
     }
 }
 
@@ -173,16 +228,17 @@ impl<'a> Slider<'a> {
         let rect = &response.rect;
         let x_range = x_range(rect);
 
-        let range = self.range.clone();
-        debug_assert!(range.start() <= range.end());
-
         if let Some(mouse_pos) = ui.input().mouse.pos {
             if response.active {
-                let aim_radius = ui.input().aim_radius();
-                let new_value = crate::math::smart_aim::best_in_range_f64(
-                    self.value_from_x_clamped(mouse_pos.x - aim_radius, x_range.clone()),
-                    self.value_from_x_clamped(mouse_pos.x + aim_radius, x_range.clone()),
-                );
+                let new_value = if self.smart_aim {
+                    let aim_radius = ui.input().aim_radius();
+                    crate::math::smart_aim::best_in_range_f64(
+                        self.value_from_x(mouse_pos.x - aim_radius, x_range.clone()),
+                        self.value_from_x(mouse_pos.x + aim_radius, x_range.clone()),
+                    )
+                } else {
+                    self.value_from_x(mouse_pos.x, x_range.clone())
+                };
                 self.set_value(new_value);
             }
         }
@@ -276,17 +332,24 @@ impl<'a> Slider<'a> {
     fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
         let value = self.get_value();
 
-        let precision = self.precision.unwrap_or_else(|| {
+        if let Some(precision) = self.precision {
+            format_with_minimum_precision(value as f32, precision)
+        } else if value == 0.0 {
+            "0".to_owned()
+        } else {
             // pick precision based upon how much moving the slider would change the value:
             let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
             let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
             let left_value = value_from_x(x_from_value(value) - aim_radius);
             let right_value = value_from_x(x_from_value(value) + aim_radius);
             let range = (left_value - right_value).abs();
-            (-range.log10()).ceil().max(0.0) as usize
-        });
-
-        format_with_minimum_precision(value as f32, precision)
+            if range == 0.0 {
+                value.to_string()
+            } else {
+                let precision = ((-range.log10()).ceil().at_least(0.0) as usize).at_most(16);
+                format_with_minimum_precision(value as f32, precision)
+            }
+        }
     }
 }
 
@@ -316,4 +379,154 @@ impl<'a> Widget for Slider<'a> {
             response
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+// Helpers for converting slider range to/from normalized [0-1] range.
+// Always clamps.
+// Logarithmic sliders are allowed to include zero and infinity,
+// even though mathematically it doesn't make sense.
+
+use std::f64::INFINITY;
+
+/// When the user asks for an infinitely large range (e.g. logarithmic from zero),
+/// give a scale that this many orders of magnitude in size.
+const INF_RANGE_MAGNITUDE: f64 = 10.0;
+
+fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &SliderSpec) -> f64 {
+    let (min, max) = (*range.start(), *range.end());
+
+    if min.is_nan() || max.is_nan() {
+        f64::NAN
+    } else if min == max {
+        min
+    } else if min > max {
+        value_from_normalized(1.0 - normalized, max..=min, spec)
+    } else if normalized <= 0.0 {
+        min
+    } else if normalized >= 1.0 {
+        max
+    } else if spec.logarithmic {
+        if max <= 0.0 {
+            // non-positive range
+            -value_from_normalized(normalized, -min..=-max, spec)
+        } else if 0.0 <= min {
+            let (min_log, max_log) = range_log10(min, max, spec);
+            let log = lerp(min_log..=max_log, normalized);
+            10.0_f64.powf(log)
+        } else {
+            assert!(min < 0.0 && 0.0 < max);
+            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            if normalized < zero_cutoff {
+                // negative
+                value_from_normalized(
+                    remap(normalized, 0.0..=zero_cutoff, 0.0..=1.0),
+                    min..=0.0,
+                    spec,
+                )
+            } else {
+                // positive
+                value_from_normalized(
+                    remap(normalized, zero_cutoff..=1.0, 0.0..=1.0),
+                    0.0..=max,
+                    spec,
+                )
+            }
+        }
+    } else {
+        debug_assert!(
+            min.is_finite() && max.is_finite(),
+            "You should use a logarithmic range"
+        );
+        lerp(range, clamp(normalized, 0.0..=1.0))
+    }
+}
+
+fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSpec) -> f64 {
+    let (min, max) = (*range.start(), *range.end());
+
+    if min.is_nan() || max.is_nan() {
+        f64::NAN
+    } else if min == max {
+        0.5 // empty range, show center of slider
+    } else if min > max {
+        1.0 - normalized_from_value(value, max..=min, spec)
+    } else if value <= min {
+        0.0
+    } else if value >= max {
+        1.0
+    } else if spec.logarithmic {
+        if max <= 0.0 {
+            // non-positive range
+            normalized_from_value(-value, -min..=-max, spec)
+        } else if 0.0 <= min {
+            let (min_log, max_log) = range_log10(min, max, spec);
+            let value_log = value.log10();
+            remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
+        } else {
+            assert!(min < 0.0 && 0.0 < max);
+            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            if value < 0.0 {
+                // negative
+                remap(
+                    normalized_from_value(value, min..=0.0, spec),
+                    0.0..=1.0,
+                    0.0..=zero_cutoff,
+                )
+            } else {
+                // positive side
+                remap(
+                    normalized_from_value(value, 0.0..=max, spec),
+                    0.0..=1.0,
+                    zero_cutoff..=1.0,
+                )
+            }
+        }
+    } else {
+        debug_assert!(
+            min.is_finite() && max.is_finite(),
+            "You should use a logarithmic range"
+        );
+        remap_clamp(value, range, 0.0..=1.0)
+    }
+}
+
+fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
+    assert!(spec.logarithmic);
+    assert!(min <= max);
+
+    if min == 0.0 && max == INFINITY {
+        (spec.smallest_positive.log10(), INF_RANGE_MAGNITUDE)
+    } else if min == 0.0 {
+        if spec.smallest_positive < max {
+            (spec.smallest_positive.log10(), max.log10())
+        } else {
+            (max.log10() - INF_RANGE_MAGNITUDE, max.log10())
+        }
+    } else if max == INFINITY {
+        (min.log10(), min.log10() + INF_RANGE_MAGNITUDE)
+    } else {
+        (min.log10(), max.log10())
+    }
+}
+
+/// where to put the zero cutoff for logarithmic sliders
+/// that crosses zero ?
+fn logaritmic_zero_cutoff(min: f64, max: f64) -> f64 {
+    assert!(min < 0.0 && 0.0 < max);
+
+    let min_magnitude = if min == -INFINITY {
+        INF_RANGE_MAGNITUDE
+    } else {
+        min.abs().log10().abs()
+    };
+    let max_magnitude = if max == INFINITY {
+        INF_RANGE_MAGNITUDE
+    } else {
+        max.log10().abs()
+    };
+
+    let cutoff = min_magnitude / (min_magnitude + max_magnitude);
+    debug_assert!(0.0 <= cutoff && cutoff <= 1.0);
+    cutoff
 }
