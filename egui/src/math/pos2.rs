@@ -42,11 +42,11 @@ impl Pos2 {
         }
     }
 
-    pub fn distance(self: Self, other: Self) -> f32 {
+    pub fn distance(self, other: Self) -> f32 {
         (self - other).length()
     }
 
-    pub fn distance_sq(self: Self, other: Self) -> f32 {
+    pub fn distance_sq(self, other: Self) -> f32 {
         (self - other).length_sq()
     }
 
