@@ -179,28 +179,24 @@ impl Ui {
 
 /// ## Sizes etc
 impl Ui {
-    /// Screen-space position of this Ui.
-    /// This may have moved from its original if a child overflowed to the left or up (rare).
-    pub fn left_top(&self) -> Pos2 {
-        // If a child doesn't fit in max_rect, we have effectively expanded:
-        self.max_rect.min
-    }
-
-    /// Screen-space position of the current bottom right corner of this Ui.
-    /// This may move when we add children that overflow our desired rectangle bounds.
-    /// This position may be at infinity if the desired rect is infinite,
-    /// which happens when a parent widget says "be as big as you want to be".
-    pub fn right_bottom(&self) -> Pos2 {
-        // If a child doesn't fit in max_rect, we have effectively expanded:
-        self.max_rect.max
-    }
-
-    /// Bounding box of all contained children
+    /// The current size of this Ui.
+    /// Bounding box of all contained child widgets.
+    /// No matter what, the final Ui will be at least this large.
+    /// This will grow as new widgets are added, but never shrink.
     pub fn min_rect(&self) -> Rect {
         self.min_rect
     }
 
+    /// Size of content; same as `min_rect().size()`
+    pub fn min_size(&self) -> Vec2 {
+        self.min_rect.size()
+    }
+
     /// This is the soft max size of the Ui.
+    /// New widgets will *try* to fit within this rectangle.
+    /// For instance, text will wrap to fit within it.
+    /// If a widget doesn't fit within the `max_rect` then it will expand.
+    /// `max_rect()` is always at least as large as `min_rect()`.
     pub fn max_rect(&self) -> Rect {
         self.max_rect
     }
@@ -214,89 +210,109 @@ impl Ui {
     /// If the desired rect is infinite ("be as big as you want")
     /// this will be bounded by `min_rect` instead.
     pub fn max_rect_finite(&self) -> Rect {
-        let mut right_bottom = self.min_rect.max;
-        if self.max_rect.max.x.is_finite() {
-            right_bottom.x = right_bottom.x.max(self.max_rect.max.x);
+        let mut result = self.max_rect;
+        if !result.min.x.is_finite() {
+            result.min.x = self.min_rect.min.x;
         }
-        if self.max_rect.max.y.is_finite() {
-            right_bottom.y = right_bottom.y.max(self.max_rect.max.y);
+        if !result.min.y.is_finite() {
+            result.min.y = self.min_rect.min.y;
         }
-
-        Rect::from_min_max(self.left_top(), right_bottom)
+        if !result.max.x.is_finite() {
+            result.max.x = self.min_rect.max.x;
+        }
+        if !result.max.y.is_finite() {
+            result.max.y = self.min_rect.max.y;
+        }
+        result
     }
 
-    /// Set the width of the ui.
-    /// You won't be able to shrink it beyond its current child bounds.
+    // ------------------------------------------------------------------------
+
+    /// Set the maximum size of the ui.
+    /// You won't be able to shrink it below the current minimum size.
+    pub fn set_max_size(&mut self, size: Vec2) {
+        self.set_max_width(size.x);
+        self.set_max_height(size.y);
+    }
+
+    /// Set the maximum width of the ui.
+    /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_width(&mut self, width: f32) {
-        let min_width = self.min_rect.max.x - self.left_top().x;
-        let width = width.at_least(min_width);
-        self.max_rect.max.x = self.left_top().x + width;
+        if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
+            debug_assert_eq!(self.min_rect.max.x, self.max_rect.max.x);
+            self.max_rect.min.x = self.max_rect.max.x - width.at_least(self.min_rect.width());
+        } else {
+            debug_assert_eq!(self.min_rect.min.x, self.max_rect.min.x);
+            self.max_rect.max.x = self.max_rect.min.x + width.at_least(self.min_rect.width());
+        }
     }
 
-    /// Set the height of the ui.
-    /// You won't be able to shrink it beyond its current child bounds.
+    /// Set the maximum height of the ui.
+    /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_height(&mut self, height: f32) {
-        let min_height = self.min_rect.max.y - self.left_top().y;
-        let height = height.at_least(min_height);
-        self.max_rect.max.y = self.left_top().y + height;
+        if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
+            debug_assert_eq!(self.min_rect.max.y, self.max_rect.max.y);
+            self.max_rect.min.y = self.max_rect.max.y - height.at_least(self.min_rect.height());
+        } else {
+            debug_assert_eq!(self.min_rect.min.y, self.max_rect.min.y);
+            self.max_rect.max.y = self.max_rect.min.y + height.at_least(self.min_rect.height());
+        }
     }
 
+    // ------------------------------------------------------------------------
+
+    /// Set the minimum size of the ui.
+    /// This can't shrink the ui, only make it larger.
     pub fn set_min_size(&mut self, size: Vec2) {
         self.set_min_width(size.x);
         self.set_min_height(size.y);
     }
 
+    /// Set the minimum width of the ui.
+    /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
         if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
             debug_assert_eq!(self.min_rect.max.x, self.max_rect.max.x);
             self.min_rect.min.x = self.min_rect.min.x.min(self.min_rect.max.x - width);
-            self.max_rect.min.x = self.max_rect.min.x.min(self.max_rect.max.x - width);
         } else {
             debug_assert_eq!(self.min_rect.min.x, self.max_rect.min.x);
             self.min_rect.max.x = self.min_rect.max.x.max(self.min_rect.min.x + width);
-            self.max_rect.max.x = self.max_rect.max.x.max(self.max_rect.min.x + width);
         }
+        self.max_rect = self.max_rect.union(self.min_rect);
     }
 
+    /// Set the minimum height of the ui.
+    /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
         if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
             debug_assert_eq!(self.min_rect.max.y, self.max_rect.max.y);
             self.min_rect.min.y = self.min_rect.min.y.min(self.min_rect.max.y - height);
-            self.max_rect.min.y = self.max_rect.min.y.min(self.max_rect.max.y - height);
         } else {
             debug_assert_eq!(self.min_rect.min.y, self.max_rect.min.y);
             self.min_rect.max.y = self.min_rect.max.y.max(self.min_rect.min.y + height);
-            self.max_rect.max.y = self.max_rect.max.y.max(self.max_rect.min.y + height);
         }
+        self.max_rect = self.max_rect.union(self.min_rect);
     }
 
-    /// Helper: shrinks the max/desired width to the current width,
+    // ------------------------------------------------------------------------
+
+    /// Helper: shrinks the max width to the current width,
     /// so further widgets will try not to be wider than previous widgets.
     /// Useful for normal vertical layouts.
     pub fn shrink_width_to_current(&mut self) {
         self.set_max_width(self.min_rect().width())
     }
 
-    /// Helper: shrinks the max/desired height to the current height,
+    /// Helper: shrinks the max height to the current height,
     /// so further widgets will try not to be wider than previous widgets.
     pub fn shrink_height_to_current(&mut self) {
-        self.set_min_height(self.min_rect().height())
+        self.set_max_height(self.min_rect().height())
     }
 
-    /// Size of content
-    pub fn min_size(&self) -> Vec2 {
-        self.min_rect.size()
-    }
-
-    /// Expand the bounding rect of this ui to include a child at the given rect.
-    pub fn expand_to_include_child(&mut self, rect: Rect) {
+    /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
+    pub fn expand_to_include_rect(&mut self, rect: Rect) {
         self.min_rect = self.min_rect.union(rect);
         self.max_rect = self.max_rect.union(rect);
-    }
-
-    pub fn expand_to_size(&mut self, size: Vec2) {
-        self.min_rect.extend_with(self.left_top() + size);
-        self.max_rect.extend_with(self.left_top() + size);
     }
 
     // ------------------------------------------------------------------------
@@ -317,13 +333,6 @@ impl Ui {
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available_finite(&self) -> Rect {
         self.layout.available(self.cursor, self.max_rect_finite())
-    }
-
-    // ------------------------------------------------------------------------
-
-    pub fn contains_mouse(&self, rect: Rect) -> bool {
-        self.ctx()
-            .contains_mouse(self.layer(), self.clip_rect(), rect)
     }
 }
 
@@ -391,6 +400,11 @@ impl Ui {
 
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact_hover(rect).hovered
+    }
+
+    pub fn contains_mouse(&self, rect: Rect) -> bool {
+        self.ctx()
+            .contains_mouse(self.layer(), self.clip_rect(), rect)
     }
 
     // ------------------------------------------------------------------------
@@ -664,7 +678,7 @@ impl Ui {
             "You can only indent vertical layouts"
         );
         let indent = vec2(self.style().spacing.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.right_bottom()); // TODO: wrong for reversed layouts
+        let child_rect = Rect::from_min_max(self.cursor + indent, self.max_rect.right_bottom()); // TODO: wrong for reversed layouts
         let mut child_ui = Ui {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, self.layout)
@@ -788,8 +802,10 @@ impl Ui {
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
                 let pos = self.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
-                let child_rect =
-                    Rect::from_min_max(pos, pos2(pos.x + column_width, self.right_bottom().y));
+                let child_rect = Rect::from_min_max(
+                    pos,
+                    pos2(pos.x + column_width, self.max_rect.right_bottom().y),
+                );
 
                 Self {
                     id: self.make_child_id(&("column", col_idx)),

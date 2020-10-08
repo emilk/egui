@@ -30,7 +30,11 @@ impl Texture {
 
         if ui.hovered(rect) {
             show_tooltip(ui.ctx(), |ui| {
-                let pos = ui.input().mouse.pos.unwrap_or_else(|| ui.left_top());
+                let pos = ui
+                    .input()
+                    .mouse
+                    .pos
+                    .unwrap_or_else(|| ui.min_rect().left_top());
                 let zoom_rect = ui.allocate_space(vec2(128.0, 128.0));
                 let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
                 let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);

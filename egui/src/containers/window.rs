@@ -643,7 +643,7 @@ fn show_title_bar(
                 ),
                 Vec2::splat(button_size),
             );
-            ui.expand_to_include_child(close_rect);
+            ui.expand_to_include_rect(close_rect);
         }
 
         TitleBar {
@@ -724,7 +724,7 @@ impl TitleBar {
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.make_child_id("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
-    ui.expand_to_include_child(response.rect);
+    ui.expand_to_include_rect(response.rect);
 
     let stroke = ui.style().interact(&response).fg_stroke;
     ui.painter()

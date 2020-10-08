@@ -81,14 +81,13 @@ impl State {
                 clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
                 child_ui.set_clip_rect(clip_rect);
 
-                let left_top = child_ui.left_top();
                 let r = add_contents(child_ui);
 
                 self.open_height = Some(child_ui.min_size().y);
 
                 // Pretend children took up less space:
                 let mut min_rect = child_ui.min_rect();
-                min_rect.max.y = min_rect.max.y.min(left_top.y + max_height);
+                min_rect.max.y = min_rect.max.y.min(min_rect.top() + max_height);
                 child_ui.force_set_min_rect(min_rect);
                 r
             }))
