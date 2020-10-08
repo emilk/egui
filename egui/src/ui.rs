@@ -290,12 +290,13 @@ impl Ui {
 
     /// Expand the bounding rect of this ui to include a child at the given rect.
     pub fn expand_to_include_child(&mut self, rect: Rect) {
-        self.min_rect.extend_with(rect.min);
-        self.min_rect.extend_with(rect.max);
+        self.min_rect = self.min_rect.union(rect);
+        self.max_rect = self.max_rect.union(rect);
     }
 
     pub fn expand_to_size(&mut self, size: Vec2) {
         self.min_rect.extend_with(self.left_top() + size);
+        self.max_rect.extend_with(self.left_top() + size);
     }
 
     // ------------------------------------------------------------------------
