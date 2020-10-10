@@ -617,11 +617,21 @@ impl Context {
 
 impl paint::PaintOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            anti_alias,
+            aa_size: _,
+            debug_paint_clip_rects,
+            debug_ignore_clip_rects,
+        } = self;
         use crate::widgets::*;
-        ui.add(Checkbox::new(&mut self.anti_alias, "Antialias"));
+        ui.add(Checkbox::new(anti_alias, "Antialias"));
         ui.add(Checkbox::new(
-            &mut self.debug_paint_clip_rects,
-            "Paint Clip Rects (debug)",
+            debug_paint_clip_rects,
+            "Paint clip rectangles (debug)",
+        ));
+        ui.add(Checkbox::new(
+            debug_ignore_clip_rects,
+            "Ignore clip rectangles (debug)",
         ));
     }
 }

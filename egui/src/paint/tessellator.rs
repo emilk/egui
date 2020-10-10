@@ -438,6 +438,8 @@ pub struct PaintOptions {
     pub aa_size: f32,
     /// Output the clip rectangles to be painted?
     pub debug_paint_clip_rects: bool,
+    /// If true, no clipping will be done
+    pub debug_ignore_clip_rects: bool,
 }
 
 impl Default for PaintOptions {
@@ -446,6 +448,7 @@ impl Default for PaintOptions {
             anti_alias: true,
             aa_size: 1.0,
             debug_paint_clip_rects: false,
+            debug_ignore_clip_rects: false,
         }
     }
 }
@@ -826,6 +829,12 @@ pub fn tessellate_paint_commands(
                 &mut scratchpad_points,
                 &mut scratchpad_path,
             )
+        }
+    }
+
+    if options.debug_ignore_clip_rects {
+        for (clip_rect, _) in &mut jobs {
+            *clip_rect = Rect::everything();
         }
     }
 
