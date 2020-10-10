@@ -1,6 +1,6 @@
 //! Source code example of how to create your own widget.
 //! This is meant to be read as a tutorial, hence the plethora of comments.
-use crate::{paint::PaintCmd, *};
+use crate::*;
 
 /// iOS-style toggle switch:
 ///
@@ -47,23 +47,16 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // This will, for instance, give us different colors when the widget is hovered or clicked.
     let visuals = ui.style().interact(&response);
     let off_bg_fill = Rgba::new(0.0, 0.0, 0.0, 0.0);
-    let on_bg_fill = Rgba::new(0.0, 0.5, 0.0, 0.5);
+    let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
     let radius = 0.5 * rect.height();
-    ui.painter().add(PaintCmd::Rect {
-        rect,
-        corner_radius: radius,
-        fill: lerp(off_bg_fill..=on_bg_fill, how_on).into(),
-        stroke: visuals.bg_stroke,
-    });
+    ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
     let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-    ui.painter().add(PaintCmd::Circle {
-        center: pos2(circle_x, rect.center().y),
-        radius: 0.75 * radius,
-        fill: visuals.fg_fill,
-        stroke: visuals.fg_stroke,
-    });
+    let center = pos2(circle_x, rect.center().y);
+    ui.painter()
+        .circle(center, 0.75 * radius, visuals.fg_fill, visuals.fg_stroke);
 
     // All done! Return the interaction response so the user can check what happened
     // (hovered, clicked, ...) and maybe show a tooltip:

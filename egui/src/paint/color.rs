@@ -125,6 +125,10 @@ impl Rgba {
         Self([r, g, b, a])
     }
 
+    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
+        Self([r, g, b, 1.0])
+    }
+
     pub const fn gray(l: f32) -> Self {
         Self([l, l, l, 1.0])
     }

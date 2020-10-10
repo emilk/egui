@@ -170,6 +170,21 @@ impl Painter {
         });
     }
 
+    pub fn circle(
+        &self,
+        center: Pos2,
+        radius: f32,
+        fill_color: impl Into<Srgba>,
+        stroke: impl Into<Stroke>,
+    ) {
+        self.add(PaintCmd::Circle {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: stroke.into(),
+        });
+    }
+
     pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Srgba>) {
         self.add(PaintCmd::Circle {
             center,
@@ -184,6 +199,21 @@ impl Painter {
             center,
             radius,
             fill: Default::default(),
+            stroke: stroke.into(),
+        });
+    }
+
+    pub fn rect(
+        &self,
+        rect: Rect,
+        corner_radius: f32,
+        fill_color: impl Into<Srgba>,
+        stroke: impl Into<Stroke>,
+    ) {
+        self.add(PaintCmd::Rect {
+            rect,
+            corner_radius,
+            fill: fill_color.into(),
             stroke: stroke.into(),
         });
     }

@@ -79,7 +79,7 @@ pub use {
     layout::*,
     math::*,
     memory::Memory,
-    paint::{color, PaintJobs, Rgba, Srgba, Stroke, TextStyle, Texture, TextureId},
+    paint::{color, PaintCmd, PaintJobs, Rgba, Srgba, Stroke, TextStyle, Texture, TextureId},
     painter::Painter,
     style::Style,
     types::*,

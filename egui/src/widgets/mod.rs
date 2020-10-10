@@ -308,12 +308,8 @@ impl Widget for Button {
             response.rect.center().y - 0.5 * galley.size.y,
         ); // left-centered
         let fill = fill.unwrap_or(style.bg_fill);
-        ui.painter().add(PaintCmd::Rect {
-            rect: response.rect,
-            corner_radius: style.corner_radius,
-            fill,
-            stroke: style.bg_stroke,
-        });
+        ui.painter()
+            .rect(response.rect, style.corner_radius, fill, style.bg_stroke);
         let text_color = text_color.unwrap_or_else(|| style.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
