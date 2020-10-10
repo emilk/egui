@@ -49,6 +49,13 @@ pub struct Memory {
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "serde", serde(skip))]
     popup: Option<Id>,
+
+    /// Useful for debugging, benchmarking etc.
+    pub all_collpasing_are_open: bool,
+    /// Useful for debugging, benchmarking etc.
+    pub all_menues_are_open: bool,
+    /// Useful for debugging, benchmarking etc.
+    pub all_windows_are_open: bool,
 }
 
 /// Say there is a button in a scroll area.

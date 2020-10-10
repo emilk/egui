@@ -36,10 +36,14 @@ impl State {
 
     // Helper
     pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
-        ctx.memory()
-            .collapsing_headers
-            .get(&id)
-            .map(|state| state.open)
+        if ctx.memory().all_collpasing_are_open {
+            Some(true)
+        } else {
+            ctx.memory()
+                .collapsing_headers
+                .get(&id)
+                .map(|state| state.open)
+        }
     }
 
     pub fn toggle(&mut self, ui: &Ui) {
@@ -49,7 +53,7 @@ impl State {
 
     /// 0 for closed, 1 for open, with tweening
     pub fn openness(&self, ctx: &Context, id: Id) -> f32 {
-        ctx.animate_bool(id, self.open)
+        ctx.animate_bool(id, self.open || ctx.memory().all_collpasing_are_open)
     }
 
     /// Show contents if we are open, with a nice animation between closed and open
@@ -91,7 +95,7 @@ impl State {
                 child_ui.force_set_min_rect(min_rect);
                 r
             }))
-        } else if self.open {
+        } else if self.open || ui.memory().all_collpasing_are_open {
             let ret_rect = ui.add_custom(add_contents);
             let full_size = ret_rect.1.size();
             self.open_height = Some(full_size.y);

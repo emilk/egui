@@ -192,7 +192,7 @@ impl<'open> Window<'open> {
             collapsible,
         } = self;
 
-        if matches!(open, Some(false)) {
+        if matches!(open, Some(false)) && !ctx.memory().all_windows_are_open {
             return None;
         }
 
@@ -201,10 +201,11 @@ impl<'open> Window<'open> {
         let resize_id = window_id.with("resize");
         let collapsing_id = window_id.with("collapsing");
 
+        let is_maximized =
+            collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions {
             movable: area.is_movable(),
-            resizable: resize.is_resizable()
-                && collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default(),
+            resizable: resize.is_resizable() && is_maximized,
         };
 
         let area = area.movable(false); // We move it manually

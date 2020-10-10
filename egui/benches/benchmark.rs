@@ -10,7 +10,21 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut ctx = egui::Context::new();
         let mut demo_app = egui::demos::DemoApp::default();
 
-        c.bench_function("demo_app", |b| {
+        c.bench_function("demo_app_minimal", |b| {
+            b.iter(|| {
+                let mut ui = ctx.begin_frame(raw_input.clone());
+                demo_app.ui(&mut ui, &Default::default());
+                ctx.end_frame()
+            })
+        });
+    }
+
+    {
+        let mut ctx = egui::Context::new();
+        ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
+        let mut demo_app = egui::demos::DemoApp::default();
+
+        c.bench_function("demo_app_full", |b| {
             b.iter(|| {
                 let mut ui = ctx.begin_frame(raw_input.clone());
                 demo_app.ui(&mut ui, &Default::default());
