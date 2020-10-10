@@ -6,6 +6,7 @@
 * Unicode characters in labels (limited by [what the default font supports](https://fonts.google.com/specimen/Comfortaa#glyphs))
 * Simple drop-down combo box menu
 * Logarithmic sliders
+* Optimization: coarse culling in the tesselator
 
 ## 0.1.4 - 2020-09-08
 

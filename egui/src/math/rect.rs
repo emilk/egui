@@ -93,6 +93,14 @@ impl Rect {
         }
     }
 
+    #[must_use]
+    pub fn intersects(self, other: Rect) -> bool {
+        self.min.x <= other.max.x
+            && other.min.x <= self.max.x
+            && self.min.y <= other.max.y
+            && other.min.y <= self.max.y
+    }
+
     /// keep min
     pub fn set_width(&mut self, w: f32) {
         self.max.x = self.min.x + w;

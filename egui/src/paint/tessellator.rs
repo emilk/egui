@@ -432,10 +432,12 @@ use self::PathType::{Closed, Open};
 /// Tesselation quality options
 #[derive(Clone, Copy)]
 pub struct PaintOptions {
-    /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
-    pub anti_alias: bool,
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
+    /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
+    pub anti_alias: bool,
+    /// If `true` (default) cull certain primitives before tessellating them
+    pub coarse_tessellation_culling: bool,
     /// Output the clip rectangles to be painted?
     pub debug_paint_clip_rects: bool,
     /// If true, no clipping will be done
@@ -445,10 +447,11 @@ pub struct PaintOptions {
 impl Default for PaintOptions {
     fn default() -> Self {
         Self {
-            anti_alias: true,
             aa_size: 1.0,
+            anti_alias: true,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
+            coarse_tessellation_culling: true,
         }
     }
 }
@@ -649,6 +652,7 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
 ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
 fn tessellate_paint_command(
+    clip_rect: Rect,
     command: PaintCmd,
     options: PaintOptions,
     fonts: &Fonts,
@@ -667,11 +671,19 @@ fn tessellate_paint_command(
             fill,
             stroke,
         } => {
-            if radius > 0.0 {
-                path.add_circle(center, radius);
-                fill_closed_path(&path.0, fill, options, out);
-                stroke_path(&path.0, Closed, stroke, options, out);
+            if radius <= 0.0 {
+                return;
             }
+
+            if options.coarse_tessellation_culling
+                && !clip_rect.expand(radius + stroke.width).contains(center)
+            {
+                return;
+            }
+
+            path.add_circle(center, radius);
+            fill_closed_path(&path.0, fill, options, out);
+            stroke_path(&path.0, Closed, stroke, options, out);
         }
         PaintCmd::Triangles(triangles) => {
             out.append(&triangles);
@@ -710,17 +722,25 @@ fn tessellate_paint_command(
             fill,
             stroke,
         } => {
-            if !rect.is_empty() {
-                // It is common to (sometimes accidentally) create an infinitely sized rectangle.
-                // Make sure we can handle that:
-                rect.min = rect.min.at_least(pos2(-1e7, -1e7));
-                rect.max = rect.max.at_most(pos2(1e7, 1e7));
-
-                path::rounded_rectangle(scratchpad_points, rect, corner_radius);
-                path.add_line_loop(scratchpad_points);
-                fill_closed_path(&path.0, fill, options, out);
-                stroke_path(&path.0, Closed, stroke, options, out);
+            if rect.is_empty() {
+                return;
             }
+
+            if options.coarse_tessellation_culling
+                && !rect.expand(stroke.width).intersects(clip_rect)
+            {
+                return;
+            }
+
+            // It is common to (sometimes accidentally) create an infinitely sized rectangle.
+            // Make sure we can handle that:
+            rect.min = rect.min.at_least(pos2(-1e7, -1e7));
+            rect.max = rect.max.at_most(pos2(1e7, 1e7));
+
+            path::rounded_rectangle(scratchpad_points, rect, corner_radius);
+            path.add_line_loop(scratchpad_points);
+            fill_closed_path(&path.0, fill, options, out);
+            stroke_path(&path.0, Closed, stroke, options, out);
         }
         PaintCmd::Text {
             pos,
@@ -742,11 +762,25 @@ fn tessellate_paint_command(
 
             let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
 
+            let clip_rect = clip_rect.expand(2.0); // Some fudge to handle letter slightly larger than expected.
+
             let font = &fonts[text_style];
             let mut chars = galley.text.chars();
             for line in &galley.lines {
+                let line_min_y = pos.y + line.y_min + text_offset.x;
+                let line_max_y = line_min_y + font.height();
+                let is_line_visible =
+                    line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
+
                 for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
                     let c = chars.next().unwrap();
+
+                    if options.coarse_tessellation_culling && !is_line_visible {
+                        // culling individual lines of text is important, since a single `PaintCmd::Text`
+                        // can span hundreds of lines.
+                        continue;
+                    }
+
                     if let Some(glyph) = font.uv_rect(c) {
                         let mut left_top =
                             pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset;
@@ -805,6 +839,7 @@ pub fn tessellate_paint_commands(
 
         let out = &mut jobs.last_mut().unwrap().1;
         tessellate_paint_command(
+            clip_rect,
             cmd,
             options,
             fonts,
@@ -817,6 +852,7 @@ pub fn tessellate_paint_commands(
     if options.debug_paint_clip_rects {
         for (clip_rect, triangles) in &mut jobs {
             tessellate_paint_command(
+                Rect::everything(),
                 PaintCmd::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,

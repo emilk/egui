@@ -618,13 +618,18 @@ impl Context {
 impl paint::PaintOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
-            anti_alias,
             aa_size: _,
+            anti_alias,
+            coarse_tessellation_culling,
             debug_paint_clip_rects,
             debug_ignore_clip_rects,
         } = self;
         use crate::widgets::*;
         ui.add(Checkbox::new(anti_alias, "Antialias"));
+        ui.add(Checkbox::new(
+            coarse_tessellation_culling,
+            "Do coarse culling in the tessellator",
+        ));
         ui.add(Checkbox::new(
             debug_paint_clip_rects,
             "Paint clip rectangles (debug)",
