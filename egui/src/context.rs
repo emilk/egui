@@ -436,7 +436,7 @@ impl Context {
         if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return Response {
-                ctx: self.clone(),
+                ctx: Some(self.clone()),
                 sense,
                 rect,
                 hovered,
@@ -461,7 +461,7 @@ impl Context {
         if self.input.mouse.pressed {
             if hovered {
                 let mut response = Response {
-                    ctx: self.clone(),
+                    ctx: Some(self.clone()),
                     sense,
                     rect,
                     hovered: true,
@@ -491,7 +491,7 @@ impl Context {
             } else {
                 // miss
                 Response {
-                    ctx: self.clone(),
+                    ctx: Some(self.clone()),
                     sense,
                     rect,
                     hovered,
@@ -504,7 +504,7 @@ impl Context {
         } else if self.input.mouse.released {
             let clicked = hovered && active && self.input.mouse.could_be_click;
             Response {
-                ctx: self.clone(),
+                ctx: Some(self.clone()),
                 sense,
                 rect,
                 hovered,
@@ -515,7 +515,7 @@ impl Context {
             }
         } else if self.input.mouse.down {
             Response {
-                ctx: self.clone(),
+                ctx: Some(self.clone()),
                 sense,
                 rect,
                 hovered: hovered && active,
@@ -526,7 +526,7 @@ impl Context {
             }
         } else {
             Response {
-                ctx: self.clone(),
+                ctx: Some(self.clone()),
                 sense,
                 rect,
                 hovered,

@@ -122,7 +122,7 @@ impl<'t> Widget for TextEdit<'t> {
             galley.size.x.max(desired_width.min(available_width)),
             galley.size.y.max(line_spacing),
         );
-        let rect = ui.allocate_space(desired_size);
+        let rect = unwrap_or_return_default!(ui.request_space(desired_size));
         let sense = if enabled {
             Sense::click_and_drag()
         } else {

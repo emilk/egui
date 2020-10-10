@@ -93,16 +93,17 @@ impl DemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    let rect = ui.allocate_space(Vec2::splat(16.0));
-                    let painter = ui.painter();
-                    let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
-                    let color = Srgba::gray(128);
-                    let stroke = Stroke::new(1.0, color);
-                    painter.circle_stroke(c, r, stroke);
-                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+                    if let Some(rect) = ui.request_space(Vec2::splat(16.0)) {
+                        let painter = ui.painter();
+                        let c = rect.center();
+                        let r = rect.width() / 2.0 - 1.0;
+                        let color = Srgba::gray(128);
+                        let stroke = Stroke::new(1.0, color);
+                        painter.circle_stroke(c, r, stroke);
+                        painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+                        painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+                        painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+                    }
                 });
             });
     }
@@ -210,9 +211,9 @@ impl BoxPainting {
         ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
 
-        let pos = ui
-            .allocate_space(vec2(self.size.x * (self.num_boxes as f32), self.size.y))
-            .min;
+        let rect = ui.request_space(vec2(self.size.x * (self.num_boxes as f32), self.size.y));
+        let rect = unwrap_or_return_default!(rect);
+        let pos = rect.min;
 
         let mut cmds = vec![];
         for i in 0..self.num_boxes {
@@ -265,7 +266,7 @@ impl Painting {
     }
 
     fn content(&mut self, ui: &mut Ui) {
-        let rect = ui.allocate_space(ui.available_finite().size());
+        let rect = unwrap_or_return_default!(ui.request_space(ui.available_finite().size()));
         let response = ui.interact(rect, ui.id(), Sense::drag());
         let rect = response.rect;
         let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds

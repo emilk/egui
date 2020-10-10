@@ -43,7 +43,7 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> R
 }
 
 fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
-    let rect = ui.allocate_space(desired_size);
+    let rect = unwrap_or_return_default!(ui.request_space(desired_size));
     background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
         rect,
@@ -56,7 +56,7 @@ fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
 
 fn color_button(ui: &mut Ui, color: Srgba) -> Response {
     let desired_size = ui.style().spacing.interact_size;
-    let rect = ui.allocate_space(desired_size);
+    let rect = unwrap_or_return_default!(ui.request_space(desired_size));
     let id = ui.make_position_id();
     let response = ui.interact(rect, id, Sense::click());
     let visuals = ui.style().interact(&response);
@@ -77,7 +77,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba
         ui.style().spacing.slider_width,
         ui.style().spacing.interact_size.y * 2.0,
     );
-    let rect = ui.allocate_space(desired_size);
+    let rect = unwrap_or_return_default!(ui.request_space(desired_size));
 
     let id = ui.make_position_id();
     let response = ui.interact(rect, id, Sense::click_and_drag());
@@ -136,7 +136,7 @@ fn color_slider_2d(
     color_at: impl Fn(f32, f32) -> Srgba,
 ) -> Response {
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
-    let rect = ui.allocate_space(desired_size);
+    let rect = unwrap_or_return_default!(ui.request_space(desired_size));
 
     let id = ui.make_position_id();
     let response = ui.interact(rect, id, Sense::click_and_drag());

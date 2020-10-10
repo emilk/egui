@@ -135,7 +135,7 @@ macro_rules! label {
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let galley = self.layout(ui);
-        let rect = ui.allocate_space(galley.size);
+        let rect = unwrap_or_return_default!(ui.request_space(galley.size));
         self.paint_galley(ui, rect.min, galley);
         ui.interact_hover(rect)
     }
@@ -207,7 +207,7 @@ impl Widget for Hyperlink {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
-        let rect = ui.allocate_space(galley.size);
+        let rect = unwrap_or_return_default!(ui.request_space(galley.size));
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -318,7 +318,7 @@ impl Widget for Button {
         let galley = font.layout_multiline(text, ui.available().width());
         let mut desired_size = galley.size + 2.0 * button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
-        let rect = ui.allocate_space(desired_size);
+        let rect = unwrap_or_return_default!(ui.request_space(desired_size));
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
@@ -390,7 +390,7 @@ impl<'a> Widget for Checkbox<'a> {
             button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let rect = ui.allocate_space(desired_size);
+        let rect = unwrap_or_return_default!(ui.request_space(desired_size));
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -475,7 +475,7 @@ impl Widget for RadioButton {
             button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let rect = ui.allocate_space(desired_size);
+        let rect = unwrap_or_return_default!(ui.request_space(desired_size));
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -544,7 +544,8 @@ impl Widget for Separator {
 
         let (points, rect) = match ui.layout().dir() {
             Direction::Horizontal => {
-                let rect = ui.allocate_space(vec2(spacing, available_space.y));
+                let rect =
+                    unwrap_or_return_default!(ui.request_space(vec2(spacing, available_space.y)));
                 (
                     [
                         pos2(rect.center().x, rect.top()),
@@ -554,7 +555,8 @@ impl Widget for Separator {
                 )
             }
             Direction::Vertical => {
-                let rect = ui.allocate_space(vec2(available_space.x, spacing));
+                let rect =
+                    unwrap_or_return_default!(ui.request_space(vec2(available_space.x, spacing)));
                 (
                     [
                         pos2(rect.left(), rect.center().y),

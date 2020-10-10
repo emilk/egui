@@ -1,11 +1,6 @@
 #![allow(clippy::if_same_then_else)]
 
-use crate::{
-    color::*,
-    math::*,
-    paint::{Stroke, TextStyle},
-    types::*,
-};
+use crate::{color::*, *};
 
 /// Specifies the look and feel of a `Ui`.
 #[derive(Clone, Debug, PartialEq)]
@@ -474,7 +469,8 @@ impl Stroke {
             ui.label(text);
 
             // stroke preview:
-            let stroke_rect = ui.allocate_space(ui.style().spacing.interact_size);
+            let stroke_rect =
+                unwrap_or_return_default!(ui.request_space(ui.style().spacing.interact_size));
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));

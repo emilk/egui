@@ -120,3 +120,15 @@ pub fn text_egui_e2e() {
         assert!(!paint_jobs.is_empty());
     }
 }
+
+#[macro_export]
+macro_rules! unwrap_or_return_default {
+    ($option:expr) => {
+        match $option {
+            Some(value) => value,
+            None => {
+                return Default::default();
+            }
+        }
+    };
+}

@@ -13,7 +13,7 @@ use crate::*;
 pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // Widget code can be broken up in four steps:
     //  1. Decide a size for the widget
-    //  2. Allocate space for it
+    //  2. Request space for it
     //  3. Handle interactions with the widget (if any)
     //  4. Paint the widget
 
@@ -22,9 +22,14 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // but in this example we have a fixed size widget of the default size for a button:
     let desired_size = ui.style().spacing.interact_size;
 
-    // 2. Allocating space:
+    // 2. Requesting space:
     // This is where we get a region (`Rect`) of the screen assigned.
-    let rect = ui.allocate_space(desired_size);
+    let rect = ui.request_space(desired_size);
+
+    // If we get `None` back from `request_space`, it means this widgets isn't visible.
+    // In this case we shouldn't do anything else and just return early.
+    // Egui has a helper macro for this:
+    let rect = unwrap_or_return_default!(rect);
 
     // 3. Interact: Time to check for clicks!
     // To do that we need an `Id` for the button.

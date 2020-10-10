@@ -462,6 +462,26 @@ impl Ui {
         rect
     }
 
+    /// Potential future of `allocate_space`.
+    /// Returns `None` if the allocated rectangle is outside the clip rect and is thus invisible.
+    /// Works well together with the `unwrap_or_return_default!` macro:
+    /// ```
+    ///     # use egui::*;
+    ///     # let mut ui = Ui::test();
+    ///     let desired_size = vec2(100.0, 200.0);
+    ///     let rect = unwrap_or_return_default!(ui.request_space(desired_size));
+    ///     assert_eq!(rect, Rect::from_min_size(pos2(0.0, 0.0), desired_size));
+    /// ```
+    ///
+    pub fn request_space(&mut self, desired_size: Vec2) -> Option<Rect> {
+        let rect = self.allocate_space(desired_size);
+        if self.clip_rect().intersects(rect) {
+            Some(rect)
+        } else {
+            None
+        }
+    }
+
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     fn reserve_space_impl(&mut self, child_size: Vec2) -> Rect {

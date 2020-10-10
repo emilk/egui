@@ -49,7 +49,7 @@ impl Widget for Image {
             bg_fill,
             tint,
         } = self;
-        let rect = ui.allocate_space(desired_size);
+        let rect = unwrap_or_return_default!(ui.request_space(desired_size));
         if bg_fill != Default::default() {
             let mut triangles = Triangles::default();
             triangles.add_colored_rect(rect, bg_fill);

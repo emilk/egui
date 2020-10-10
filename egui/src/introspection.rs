@@ -19,7 +19,7 @@ impl Texture {
         if size.x > ui.available().width() {
             size *= ui.available().width() / size.x;
         }
-        let rect = ui.allocate_space(size);
+        let rect = unwrap_or_return_default!(ui.request_space(size));
         let mut triangles = Triangles::default();
         triangles.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), WHITE);
         ui.painter().add(PaintCmd::triangles(triangles));
@@ -34,7 +34,7 @@ impl Texture {
                     .mouse
                     .pos
                     .unwrap_or_else(|| ui.min_rect().left_top());
-                let zoom_rect = ui.allocate_space(vec2(128.0, 128.0));
+                let zoom_rect = unwrap_or_return_default!(ui.request_space(vec2(128.0, 128.0)));
                 let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
                 let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
 

@@ -38,7 +38,7 @@ pub fn combo_box(
             let advance = full_minimum_width - icon_width - ui.min_rect().width();
             ui.advance_cursor(advance.at_least(0.0));
 
-            let icon_rect = ui.allocate_space(Vec2::splat(icon_width));
+            let icon_rect = unwrap_or_return_default!(ui.request_space(Vec2::splat(icon_width)));
             let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
             let mut response = ui.interact(button_rect, button_id, Sense::click());
             response.active |= button_active;
@@ -91,6 +91,7 @@ fn button_frame(
     add_contents(&mut content_ui);
 
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
+    ui.allocate_space(outer_rect.size());
 
     let mut response = ui.interact(outer_rect, id, sense);
     response.active |= button_active;
@@ -105,8 +106,6 @@ fn button_frame(
             stroke: visuals.bg_stroke,
         },
     );
-
-    ui.allocate_space(outer_rect.size());
 
     response
 }

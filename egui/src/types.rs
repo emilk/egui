@@ -56,8 +56,10 @@ impl Default for CursorIcon {
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
-    /// Used for optionally showing a tooltip
-    pub ctx: Arc<Context>,
+    /// Used for optionally showing a tooltip.
+    /// If `None`, we likely come from a cull widgets and shouldn't show any
+    /// tooltip.
+    pub ctx: Option<Arc<Context>>,
 
     // IN:
     /// The area of the screen we are talking about
@@ -83,17 +85,18 @@ pub struct Response {
     pub has_kb_focus: bool,
 }
 
-impl std::fmt::Debug for Response {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Response")
-            .field("rect", &self.rect)
-            .field("sense", &self.sense)
-            .field("hovered", &self.hovered)
-            .field("clicked", &self.clicked)
-            .field("double_clicked", &self.double_clicked)
-            .field("active", &self.active)
-            .field("has_kb_focus", &self.has_kb_focus)
-            .finish()
+impl Default for Response {
+    fn default() -> Self {
+        Self {
+            ctx: None,
+            rect: Rect::nothing(),
+            sense: Sense::nothing(),
+            hovered: false,
+            clicked: false,
+            double_clicked: false,
+            active: false,
+            has_kb_focus: false,
+        }
     }
 }
 
@@ -101,7 +104,11 @@ impl Response {
     /// Show this UI if the item was hovered (i.e. a tooltip)
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.hovered {
-            crate::containers::show_tooltip(&self.ctx, add_contents);
+            if let Some(ctx) = &self.ctx {
+                crate::containers::show_tooltip(ctx, add_contents);
+            } else {
+                panic!("We shouldn't be able to hover something without a Context");
+            }
         }
         self
     }
@@ -123,9 +130,12 @@ impl Response {
     /// A logical "or" operation.
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     pub fn union(&self, other: Self) -> Self {
-        assert!(Arc::ptr_eq(&self.ctx, &other.ctx));
+        if let (Some(lc), Some(rc)) = (&self.ctx, &other.ctx) {
+            debug_assert!(Arc::ptr_eq(lc, rc));
+        }
+
         Self {
-            ctx: other.ctx,
+            ctx: other.ctx.or_else(|| self.ctx.clone()),
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
@@ -136,6 +146,23 @@ impl Response {
         }
     }
 }
+
+impl std::fmt::Debug for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Response")
+            .field("ctx", &self.ctx.is_some())
+            .field("rect", &self.rect)
+            .field("sense", &self.sense)
+            .field("hovered", &self.hovered)
+            .field("clicked", &self.clicked)
+            .field("double_clicked", &self.double_clicked)
+            .field("active", &self.active)
+            .field("has_kb_focus", &self.has_kb_focus)
+            .finish()
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// To summarize the response from many widgets you can use this pattern:
 ///
