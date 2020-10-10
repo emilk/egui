@@ -305,7 +305,7 @@ impl Style {
         ui.horizontal(|ui| {
             ui.label("Default text style:");
             for &value in &[TextStyle::Body, TextStyle::Monospace] {
-                ui.radio_value(format!("{:?}", value), body_text_style, value);
+                ui.radio_value(body_text_style, value, format!("{:?}", value));
             }
         });
         ui.collapsing("Spacing", |ui| spacing.ui(ui));

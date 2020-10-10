@@ -31,9 +31,9 @@ impl ColorTest {
         ui.label("It is meant to ensure you do proper sRGBA decoding of both texture and vertex colors, and blend using premultiplied alpha.");
         ui.label("If everything is set up correctly, all groups of gradients will look uniform");
 
-        ui.checkbox("Vertex gradients", &mut self.vertex_gradients);
-        ui.checkbox("Texture gradients", &mut self.texture_gradients);
-        ui.checkbox("Show naive sRGBA horror", &mut self.srgb);
+        ui.checkbox(&mut self.vertex_gradients, "Vertex gradients");
+        ui.checkbox(&mut self.texture_gradients, "Texture gradients");
+        ui.checkbox(&mut self.srgb, "Show naive sRGBA horror");
 
         ui.heading("sRGB color test");
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");

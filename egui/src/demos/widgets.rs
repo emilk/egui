@@ -71,15 +71,15 @@ impl Widgets {
             .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
 
         ui.horizontal(|ui| {
-            ui.radio_value("First", &mut self.radio, Enum::First);
-            ui.radio_value("Second", &mut self.radio, Enum::Second);
-            ui.radio_value("Third", &mut self.radio, Enum::Third);
+            ui.radio_value(&mut self.radio, Enum::First, "First");
+            ui.radio_value(&mut self.radio, Enum::Second, "Second");
+            ui.radio_value(&mut self.radio, Enum::Third, "Third");
         });
 
         combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
-            ui.radio_value("First", &mut self.radio, Enum::First);
-            ui.radio_value("Second", &mut self.radio, Enum::Second);
-            ui.radio_value("Third", &mut self.radio, Enum::Third);
+            ui.radio_value(&mut self.radio, Enum::First, "First");
+            ui.radio_value(&mut self.radio, Enum::Second, "Second");
+            ui.radio_value(&mut self.radio, Enum::Third, "Third");
         });
 
         ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));

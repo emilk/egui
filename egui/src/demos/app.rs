@@ -356,8 +356,8 @@ impl DemoApp {
 
         ui.separator();
         ui.checkbox(
-            "Show color blend test (debug backend painter)",
             &mut self.show_color_test,
+            "Show color blend test (debug backend painter)",
         );
     }
 
@@ -365,9 +365,9 @@ impl DemoApp {
         ui.horizontal(|ui| {
             let run_mode = &mut self.run_mode;
             ui.label("Run mode:");
-            ui.radio_value("Continuous", run_mode, RunMode::Continuous)
+            ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
                 .on_hover_text("Repaint everything each frame");
-            ui.radio_value("Reactive", run_mode, RunMode::Reactive)
+            ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
                 .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
         });
     }

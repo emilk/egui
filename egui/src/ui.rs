@@ -503,37 +503,35 @@ impl Ui {
         self.add(Hyperlink::new(url))
     }
 
+    pub fn text_edit(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::new(text))
+    }
+
     /// Shortcut for `add(Button::new(text))`
     #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }
 
-    // Argument order matching that of Dear ImGui
     /// Show a checkbox.
-    pub fn checkbox(&mut self, text: impl Into<String>, checked: &mut bool) -> Response {
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<String>) -> Response {
         self.add(Checkbox::new(checked, text))
     }
 
-    // Argument order matching that of Dear ImGui
     /// Show a radio button.
-    pub fn radio(&mut self, text: impl Into<String>, checked: bool) -> Response {
+    pub fn radio(&mut self, checked: bool, text: impl Into<String>) -> Response {
         self.add(RadioButton::new(checked, text))
-    }
-
-    pub fn text_edit(&mut self, text: &mut String) -> Response {
-        self.add(TextEdit::new(text))
     }
 
     /// Show a radio button. It is selected if `*current_value == radio_value`.
     /// If clicked, `radio_value` is assigned to `*current_value`;
     pub fn radio_value<Value: PartialEq>(
         &mut self,
-        text: impl Into<String>,
         current_value: &mut Value,
         radio_value: Value,
+        text: impl Into<String>,
     ) -> Response {
-        let response = self.radio(text, *current_value == radio_value);
+        let response = self.radio(*current_value == radio_value, text);
         if response.clicked {
             *current_value = radio_value;
         }

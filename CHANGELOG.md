@@ -7,6 +7,7 @@
 * Simple drop-down combo box menu
 * Logarithmic sliders
 * Optimization: coarse culling in the tesselator
+* CHANGED: switch argument order of `ui.checkbox` and `ui.radio`
 
 ## 0.1.4 - 2020-09-08
 

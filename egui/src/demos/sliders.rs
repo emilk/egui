@@ -93,16 +93,16 @@ impl Sliders {
 
         ui.horizontal(|ui| {
             ui.label("Slider type:");
-            ui.radio_value("i32", integer, true);
-            ui.radio_value("f64", integer, false);
+            ui.radio_value(integer, true, "i32");
+            ui.radio_value(integer, false, "f64");
         });
         ui.label("(f32, usize etc are also possible)");
 
-        ui.checkbox("Logarithmic", logarithmic);
+        ui.checkbox(logarithmic, "Logarithmic");
         ui.label("Logarithmic sliders are great for when you want to span a huge range, i.e. from zero to a million.");
         ui.label("Logarithmic sliders can include infinity and zero.");
 
-        ui.checkbox("Smart Aim", smart_aim);
+        ui.checkbox(smart_aim, "Smart Aim");
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
 
         if ui.button("Reset slider demo").clicked {
