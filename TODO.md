@@ -122,16 +122,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * e.g. `ui.wrap(Frame::new()).wrap(Resize::new()).wrap(ScrollArea::new()).show(|ui| ...)`
 * [ ] Attach labels to checkboxes, radio buttons and sliders with a separate wrapper-widget ?
 
-### Refactor space allocation
-
-When painting a widget, you want to allocate space. On that space you sometimes want to paint, sometimes create a sub-Ui to layout child widgets. So sometimes you want a `Painter` for the region, sometimes a new `Ui`. However, what you are doing is essentially the same thing, and so we should make that clearer somehow, maybe via naming.
-
-* `ui.allocate(size) -> Rect`
-* `ui.canvas(size) -> Paint`
-* `ui.child_ui(size) -> Ui`
-
-This is a good place to support whole-widget culling. If a swidget is not visible, the above functions should maybe return `None` so that the widget code can early-out.
-
 ## Other
 
 * [x] Persist UI state in external storage

@@ -104,9 +104,10 @@ impl DemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    let painter = ui.canvas(Vec2::splat(16.0));
-                    let c = painter.clip_rect().center();
-                    let r = painter.clip_rect().width() / 2.0 - 1.0;
+                    let rect = ui.allocate_space(Vec2::splat(16.0));
+                    let painter = ui.painter();
+                    let c = rect.center();
+                    let r = rect.width() / 2.0 - 1.0;
                     let color = Srgba::gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);

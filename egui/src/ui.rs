@@ -561,15 +561,6 @@ impl Ui {
         response
     }
 
-    /// Ask to allocate a certain amount of space and return a Painter for that region.
-    ///
-    /// You may get back a `Painter` with a smaller or larger size than what you desired,
-    /// depending on the available space and the current layout.
-    pub fn canvas(&mut self, desired_size: Vec2) -> Painter {
-        let rect = self.allocate_space(desired_size);
-        self.painter_at(rect)
-    }
-
     /// Show an image here with the given size
     pub fn image(&mut self, texture_id: TextureId, desired_size: Vec2) -> Response {
         self.add(Image::new(texture_id, desired_size))
