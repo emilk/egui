@@ -63,6 +63,31 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     response
 }
 
+/// Here is the same code again, but a bit more compact:
+#[allow(dead_code)]
+fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
+    let desired_size = ui.style().spacing.interact_size;
+    let rect = ui.allocate_space(desired_size);
+
+    let id = ui.make_position_id();
+    let response = ui.interact(rect, id, Sense::click());
+    *on ^= response.clicked; // toggle if clicked
+
+    let how_on = ui.ctx().animate_bool(id, *on);
+    let visuals = ui.style().interact(&response);
+    let off_bg_fill = Rgba::new(0.0, 0.0, 0.0, 0.0);
+    let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
+    let radius = 0.5 * rect.height();
+    ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
+    let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+    let center = pos2(circle_x, rect.center().y);
+    ui.painter()
+        .circle(center, 0.75 * radius, visuals.fg_fill, visuals.fg_stroke);
+
+    response
+}
+
 pub fn demo(ui: &mut Ui, on: &mut bool) {
     ui.label("It's easy to create your own widgets!");
     let url = format!("https://github.com/emilk/egui/blob/master/{}", file!());
