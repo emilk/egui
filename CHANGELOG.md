@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2020-10-10
+
 * Color picker
 * Unicode characters in labels (limited by [what the default font supports](https://fonts.google.com/specimen/Comfortaa#glyphs))
 * Simple drop-down combo box menu

@@ -517,7 +517,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "egui"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "ahash",
  "criterion",
@@ -529,7 +529,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glium"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "clipboard",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "egui_web"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "egui",
  "js-sys",
