@@ -8,10 +8,9 @@ use crate::{
 
 impl Texture {
     pub fn ui(&self, ui: &mut Ui) {
-        ui.add(label!(
+        ui.label(format!(
             "Texture size: {} x {} (hover to zoom)",
-            self.width,
-            self.height
+            self.width, self.height
         ));
         if self.width <= 1 || self.height <= 1 {
             return;
@@ -65,7 +64,7 @@ impl paint::FontDefinitions {
                     .text(format!("{:?}", text_style)),
             );
         }
-        if ui.add(Button::new("Reset fonts")).clicked {
+        if ui.button("Reset fonts").clicked {
             *self = paint::FontDefinitions::with_pixels_per_point(self.pixels_per_point);
         }
     }

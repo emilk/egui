@@ -536,23 +536,21 @@ impl Context {
             .show(ui, |ui| ui.input().clone().ui(ui));
 
         ui.collapsing("Stats", |ui| {
-            ui.add(label!(
+            ui.label(format!(
                 "Screen size: {} x {} points, pixels_per_point: {:?}",
                 ui.input().screen_size.x,
                 ui.input().screen_size.y,
                 ui.input().pixels_per_point,
             ));
 
-            ui.add(label!("Painting:").text_style(TextStyle::Heading));
+            ui.heading("Painting:");
             self.paint_stats.lock().ui(ui);
         });
     }
 
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
-        use crate::widgets::*;
-
         if ui
-            .add(Button::new("Reset all"))
+            .button("Reset all")
             .on_hover_text("Reset all Egui state")
             .clicked
         {
@@ -560,50 +558,48 @@ impl Context {
         }
 
         ui.horizontal(|ui| {
-            ui.add(label!(
+            ui.label(format!(
                 "{} areas (window positions)",
                 self.memory().areas.count()
             ));
-            if ui.add(Button::new("Reset")).clicked {
+            if ui.button("Reset").clicked {
                 self.memory().areas = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.add(label!(
+            ui.label(format!(
                 "{} collapsing headers",
                 self.memory().collapsing_headers.len()
             ));
-            if ui.add(Button::new("Reset")).clicked {
+            if ui.button("Reset").clicked {
                 self.memory().collapsing_headers = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.add(label!("{} menu bars", self.memory().menu_bar.len()));
-            if ui.add(Button::new("Reset")).clicked {
+            ui.label(format!("{} menu bars", self.memory().menu_bar.len()));
+            if ui.button("Reset").clicked {
                 self.memory().menu_bar = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.add(label!("{} scroll areas", self.memory().scroll_areas.len()));
-            if ui.add(Button::new("Reset")).clicked {
+            ui.label(format!("{} scroll areas", self.memory().scroll_areas.len()));
+            if ui.button("Reset").clicked {
                 self.memory().scroll_areas = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.add(label!("{} resize areas", self.memory().resize.len()));
-            if ui.add(Button::new("Reset")).clicked {
+            ui.label(format!("{} resize areas", self.memory().resize.len()));
+            if ui.button("Reset").clicked {
                 self.memory().resize = Default::default();
             }
         });
 
         ui.shrink_width_to_current(); // don't let the text below grow this window wider
-        ui.add(
-            label!("NOTE: the position of this window cannot be reset from within itself."), // .auto_shrink(),
-        );
+        ui.label("NOTE: the position of this window cannot be reset from within itself.");
     }
 }
 
@@ -624,31 +620,24 @@ impl paint::PaintOptions {
             debug_paint_clip_rects,
             debug_ignore_clip_rects,
         } = self;
-        use crate::widgets::*;
-        ui.add(Checkbox::new(anti_alias, "Antialias"));
-        ui.add(Checkbox::new(
+        ui.checkbox(anti_alias, "Antialias");
+        ui.checkbox(
             coarse_tessellation_culling,
             "Do coarse culling in the tessellator",
-        ));
-        ui.add(Checkbox::new(
-            debug_paint_clip_rects,
-            "Paint clip rectangles (debug)",
-        ));
-        ui.add(Checkbox::new(
-            debug_ignore_clip_rects,
-            "Ignore clip rectangles (debug)",
-        ));
+        );
+        ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
+        ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
     }
 }
 
 impl PaintStats {
     pub fn ui(&self, ui: &mut Ui) {
-        ui.add(label!("Jobs: {}", self.num_jobs))
+        ui.label(format!("Jobs: {}", self.num_jobs))
             .on_hover_text("Number of separate clip rectangles");
-        ui.add(label!("Primitives: {}", self.num_primitives))
+        ui.label(format!("Primitives: {}", self.num_primitives))
             .on_hover_text("Boxes, circles, text areas etc");
-        ui.add(label!("Vertices: {}", self.num_vertices));
-        ui.add(label!("Triangles: {}", self.num_triangles));
+        ui.label(format!("Vertices: {}", self.num_vertices));
+        ui.label(format!("Triangles: {}", self.num_triangles));
     }
 }
 

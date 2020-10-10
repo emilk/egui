@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Specifies the look and feel of a `Ui`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
@@ -37,7 +37,7 @@ impl Style {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Spacing {
     /// Horizontal and vertical spacing between widgets
@@ -86,7 +86,7 @@ impl Spacing {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Interaction {
     /// Mouse must be the close to the side of a window to resize
@@ -96,7 +96,7 @@ pub struct Interaction {
     pub resize_grab_radius_corner: f32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Visuals {
     pub widgets: Widgets,
@@ -132,7 +132,7 @@ impl Visuals {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Widgets {
     /// For an interactive widget that is being interacted with
@@ -162,7 +162,7 @@ impl Widgets {
 }
 
 /// bg = background, fg = foreground.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget
@@ -291,7 +291,7 @@ use crate::{widgets::*, Ui};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 
@@ -317,7 +317,7 @@ impl Style {
 
 impl Spacing {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 
@@ -346,7 +346,7 @@ impl Spacing {
 
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 
@@ -364,7 +364,7 @@ impl Interaction {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 
@@ -404,7 +404,7 @@ impl WidgetVisuals {
 
 impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 
@@ -428,11 +428,8 @@ impl Visuals {
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.add(Checkbox::new(
-            debug_widget_rects,
-            "Paint debug rectangles around widgets",
-        ));
-        ui.add(Checkbox::new(debug_resize, "Debug Resize"));
+        ui.checkbox(debug_widget_rects, "Paint debug rectangles around widgets");
+        ui.checkbox(debug_resize, "Debug Resize");
     }
 }
 

@@ -331,8 +331,8 @@ impl DemoApp {
                 ui.hyperlink("https://github.com/emilk/egui");
             });
         } else {
-            ui.add(label!("Egui").text_style(TextStyle::Heading));
-            if ui.add(Button::new("Quit")).clicked {
+            ui.heading("Egui");
+            if ui.button("Quit").clicked {
                 backend.quit();
                 return;
             }
@@ -466,11 +466,11 @@ impl OpenWindows {
 fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) {
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            if ui.add(Button::new("Reorganize windows")).clicked {
+            if ui.button("Reorganize windows").clicked {
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .add(Button::new("Clear entire Egui memory"))
+                .button("Clear entire Egui memory")
                 .on_hover_text("Forget scroll, collapsibles etc")
                 .clicked
             {
@@ -486,16 +486,16 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, env: &DemoEnvironment) 
                 memory,
                 resize,
             } = windows;
-            ui.add(Checkbox::new(demo, "Demo"));
-            ui.add(Checkbox::new(fractal_clock, "Fractal Clock"));
+            ui.checkbox(demo, "Demo");
+            ui.checkbox(fractal_clock, "Fractal Clock");
             ui.separator();
-            ui.add(Checkbox::new(settings, "Settings"));
-            ui.add(Checkbox::new(inspection, "Inspection"));
-            ui.add(Checkbox::new(memory, "Memory"));
-            ui.add(Checkbox::new(resize, "Resize examples"));
+            ui.checkbox(settings, "Settings");
+            ui.checkbox(inspection, "Inspection");
+            ui.checkbox(memory, "Memory");
+            ui.checkbox(resize, "Resize examples");
         });
         menu::menu(ui, "About", |ui| {
-            ui.add(label!("This is Egui"));
+            ui.label("This is Egui");
             ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
         });
 

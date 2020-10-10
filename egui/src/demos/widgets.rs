@@ -51,13 +51,13 @@ impl Widgets {
 
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 0.0;
-            ui.add(label!("Text can have ").text_color(srgba(110, 255, 110, 255)));
-            ui.add(label!("color ").text_color(srgba(128, 140, 255, 255)));
-            ui.add(label!("and tooltips.")).on_hover_text(
+            ui.add(Label::new("Text can have ").text_color(srgba(110, 255, 110, 255)));
+            ui.add(Label::new("color ").text_color(srgba(128, 140, 255, 255)));
+            ui.add(Label::new("and tooltips.")).on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
         });
-        ui.add(label!("Tooltips can be more than just simple text."))
+        ui.label("Tooltips can be more than just simple text.")
             .on_hover_ui(|ui| {
                 ui.heading("The name of the tooltip");
                 ui.horizontal(|ui| {
@@ -67,7 +67,7 @@ impl Widgets {
                 let _ = ui.button("A button you can never press");
             });
 
-        ui.add(label!("Ευρηκα! τ = 2×π"))
+        ui.label("Ευρηκα! τ = 2×π")
             .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
 
         ui.horizontal(|ui| {
@@ -82,7 +82,7 @@ impl Widgets {
             ui.radio_value(&mut self.radio, Enum::Third, "Third");
         });
 
-        ui.add(Checkbox::new(&mut self.button_enabled, "Button enabled"));
+        ui.checkbox(&mut self.button_enabled, "Button enabled");
 
         ui.horizontal(|ui| {
             if ui
@@ -133,7 +133,7 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.add(label!("Single line text input:"));
+            ui.label("Single line text input:");
             ui.add(
                 TextEdit::new(&mut self.single_line_text_input)
                     .multiline(false)
@@ -141,7 +141,7 @@ impl Widgets {
             );
         }); // TODO: .on_hover_text("Enter text to edit me")
 
-        ui.add(label!("Multiline text input:"));
+        ui.label("Multiline text input:");
         ui.add(TextEdit::new(&mut self.multiline_text_input).id_source("multiline"));
 
         ui.separator();

@@ -82,14 +82,14 @@ impl FractalClock {
             ));
         };
 
-        ui.add(Checkbox::new(&mut self.paused, "Paused"));
+        ui.checkbox(&mut self.paused, "Paused");
         ui.add(Slider::f32(&mut self.zoom, 0.0..=1.0).text("zoom"));
         ui.add(Slider::f32(&mut self.start_line_width, 0.0..=5.0).text("Start line width"));
         ui.add(Slider::usize(&mut self.depth, 0..=14).text("depth"));
         ui.add(Slider::f32(&mut self.length_factor, 0.0..=1.0).text("length factor"));
         ui.add(Slider::f32(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
         ui.add(Slider::f32(&mut self.width_factor, 0.0..=1.0).text("width factor"));
-        if ui.add(Button::new("Reset")).clicked {
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
 

@@ -146,18 +146,26 @@ impl Ui {
         self.painter().layer()
     }
 
+    /// The `Input` of the `Context` associated with the `Ui`.
+    /// Equivalent to `.ctx().input()`.
     pub fn input(&self) -> &InputState {
         self.ctx().input()
     }
 
+    /// The `Memory` of the `Context` associated with the `Ui`.
+    /// Equivalent to `.ctx().memory()`.
     pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
         self.ctx().memory()
     }
 
+    /// The `Output` of the `Context` associated with the `Ui`.
+    /// Equivalent to `.ctx().output()`.
     pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
         self.ctx().output()
     }
 
+    /// The `Fonts` of the `Context` associated with the `Ui`.
+    /// Equivalent to `.ctx().fonts()`.
     pub fn fonts(&self) -> &Fonts {
         self.ctx().fonts()
     }

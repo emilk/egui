@@ -32,9 +32,7 @@ impl Default for DemoWindow {
 impl DemoWindow {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.collapsing("About Egui", |ui| {
-            ui.add(label!(
-                "Egui is an experimental immediate mode GUI written in Rust."
-            ));
+            ui.label("Egui is an experimental immediate mode GUI written in Rust.");
 
             ui.horizontal(|ui| {
                 ui.label("Project home page:");
@@ -67,7 +65,7 @@ impl DemoWindow {
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.add(label!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns && col.add(Button::new("Delete this")).clicked {
+                    if i + 1 == self.num_columns && col.button("Delete this").clicked {
                         self.num_columns -= 1;
                     }
                 }
@@ -94,8 +92,8 @@ impl DemoWindow {
             .default_open(false)
             .show(ui, |ui| {
                 Resize::default().default_height(100.0).show(ui, |ui| {
-                    ui.add(label!("This ui can be resized!"));
-                    ui.add(label!("Just pull the handle on the bottom right"));
+                    ui.label("This ui can be resized!");
+                    ui.label("Just pull the handle on the bottom right");
                 });
             });
 
@@ -139,8 +137,8 @@ impl DemoWindow {
                 ui.label("\
                     Most widgets don't need unique names, but are tracked \
                     based on their position on screen. For instance, buttons:");
-                ui.add(Button::new("Button"));
-                ui.add(Button::new("Button"));
+                let _ = ui.button("Button");
+                let _ = ui.button("Button");
             });
         }
     }
@@ -292,7 +290,7 @@ impl Painting {
 
         ui.horizontal(|ui| {
             self.stroke.ui(ui, "Stroke");
-            if ui.add(Button::new("Clear")).clicked {
+            if ui.button("Clear").clicked {
                 self.lines.clear();
             }
         });
@@ -381,12 +379,12 @@ impl LayoutDemo {
     }
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
-        // ui.add(label!("Available space: {:?}", ui.available().size()));
-        if ui.add(Button::new("Reset")).clicked {
+        // ui.label(format!("Available space: {:?}", ui.available().size()));
+        if ui.button("Reset").clicked {
             *self = Default::default();
         }
         ui.separator();
-        ui.add(label!("Direction:"));
+        ui.label("Direction:");
 
         // TODO: enum iter
 
@@ -399,11 +397,11 @@ impl LayoutDemo {
             }
         }
 
-        ui.add(Checkbox::new(&mut self.reversed, "Reversed"));
+        ui.checkbox(&mut self.reversed, "Reversed");
 
         ui.separator();
 
-        ui.add(label!("Align:"));
+        ui.label("Align:");
 
         for &align in &[Align::Min, Align::Center, Align::Max] {
             if ui

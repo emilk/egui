@@ -69,7 +69,7 @@ impl Sliders {
 
             ui.label("Sliders  will automatically figure out how many decimals to show.");
 
-            if ui.add(Button::new("Assign PI")).clicked {
+            if ui.button("Assign PI").clicked {
                 self.value = std::f64::consts::PI;
             }
         }
