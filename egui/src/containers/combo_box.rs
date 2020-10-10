@@ -50,10 +50,13 @@ pub fn combo_box(
     }
 
     if ui.memory().is_popup_open(popup_id) {
+        let parent_clip_rect = ui.clip_rect();
+
         Area::new(popup_id)
             .order(Order::Foreground)
             .fixed_pos(button_response.rect.left_bottom())
             .show(ui.ctx(), |ui| {
+                ui.set_clip_rect(parent_clip_rect); // for when the combo-box is in a scroll area.
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
