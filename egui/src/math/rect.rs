@@ -5,7 +5,7 @@ use crate::math::*;
 /// A rectangular region of space.
 ///
 /// Normally given in points, e.g. logical pixels.
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Rect {
     pub min: Pos2,
@@ -27,6 +27,14 @@ impl Rect {
         Self {
             min: pos2(inf, inf),
             max: pos2(-inf, -inf),
+        }
+    }
+
+    /// invalid, NAN filled Rect.
+    pub fn invalid() -> Self {
+        Self {
+            min: pos2(f32::NAN, f32::NAN),
+            max: pos2(f32::NAN, f32::NAN),
         }
     }
 

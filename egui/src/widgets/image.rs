@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct Image {
     texture_id: TextureId,
     uv: Rect,
@@ -15,8 +15,8 @@ impl Image {
             texture_id,
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             desired_size,
+            bg_fill: Default::default(),
             tint: color::WHITE,
-            ..Default::default()
         }
     }
 

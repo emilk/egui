@@ -650,7 +650,7 @@ fn show_title_bar(
             title_label,
             title_galley,
             title_rect,
-            rect: Default::default(), // Will be filled in later
+            rect: Rect::invalid(), // Will be filled in later
         }
     });
 
