@@ -1,4 +1,4 @@
-use crate::{math::*, style::Style, Align};
+use crate::{math::*, Align};
 
 // ----------------------------------------------------------------------------
 
@@ -176,6 +176,14 @@ impl Layout {
         }
     }
 
+    /// Advance the cursor by this spacing
+    pub fn advance_cursor2(self, cursor: &mut Pos2, amount: Vec2) {
+        match self.dir() {
+            Direction::Horizontal => self.advance_cursor(cursor, amount.x),
+            Direction::Vertical => self.advance_cursor(cursor, amount.y),
+        }
+    }
+
     pub fn rect_from_cursor_size(self, cursor: Pos2, size: Vec2) -> Rect {
         let mut rect = Rect::from_min_size(cursor, size);
 
@@ -212,12 +220,12 @@ impl Layout {
     pub fn allocate_space(
         self,
         cursor: &mut Pos2,
-        style: &Style,
         available_size: Vec2,
-        mut child_size: Vec2,
+        minimum_child_size: Vec2,
     ) -> Rect {
-        let available_size = available_size.at_least(child_size);
+        let available_size = available_size.at_least(minimum_child_size);
 
+        let mut child_size = minimum_child_size;
         let mut child_move = Vec2::default();
         let mut cursor_change = Vec2::default();
 
@@ -235,7 +243,6 @@ impl Layout {
                 }
 
                 cursor_change.x += child_size.x;
-                cursor_change.x += style.spacing.item_spacing.x; // Where to put next thing, if there is a next thing
             }
             Direction::Vertical => {
                 if let Some(align) = self.align {
@@ -249,7 +256,6 @@ impl Layout {
                     child_size.x = child_size.x.max(available_size.x);
                 };
                 cursor_change.y += child_size.y;
-                cursor_change.y += style.spacing.item_spacing.y; // Where to put next thing, if there is a next thing
             }
         }
 

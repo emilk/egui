@@ -475,11 +475,12 @@ impl Ui {
     /// Returns where to put the widget.
     fn reserve_space_impl(&mut self, child_size: Vec2) -> Rect {
         let available_size = self.available_finite().size();
-        let child_rect =
-            self.layout
-                .allocate_space(&mut self.cursor, &self.style, available_size, child_size);
-        self.min_rect = self.min_rect.union(child_rect);
-        self.max_rect = self.max_rect.union(child_rect);
+        let child_rect = self
+            .layout
+            .allocate_space(&mut self.cursor, available_size, child_size);
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout.advance_cursor2(&mut self.cursor, item_spacing);
+        self.expand_to_include_rect(child_rect);
         self.child_count += 1;
         child_rect
     }
