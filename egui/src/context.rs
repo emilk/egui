@@ -26,7 +26,7 @@ struct PaintStats {
 #[derive(Default)]
 pub struct Context {
     /// The default style for new `Ui`:s
-    style: Mutex<Style>,
+    style: Mutex<Arc<Style>>,
     paint_options: Mutex<paint::PaintOptions>,
     /// None until first call to `begin_frame`.
     fonts: Option<Arc<Fonts>>,
@@ -123,13 +123,12 @@ impl Context {
         *self.font_definitions.lock() = font_definitions;
     }
 
-    // TODO: return MutexGuard
-    pub fn style(&self) -> Style {
+    pub fn style(&self) -> Arc<Style> {
         lock(&self.style, "style").clone()
     }
 
-    pub fn set_style(&self, style: Style) {
-        *lock(&self.style, "style") = style;
+    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
+        *lock(&self.style, "style") = style.into();
     }
 
     pub fn pixels_per_point(&self) -> f32 {
@@ -605,7 +604,7 @@ impl Context {
 
 impl Context {
     pub fn style_ui(&self, ui: &mut Ui) {
-        let mut style = self.style();
+        let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
     }

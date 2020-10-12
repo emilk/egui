@@ -39,7 +39,7 @@ pub struct Ui {
     max_rect: Rect,
 
     /// Override default style in this ui
-    style: Style,
+    style: Arc<Style>,
 
     layout: Layout,
 
@@ -92,7 +92,7 @@ impl Ui {
             painter: self.painter.clone(),
             min_rect,
             max_rect,
-            style: self.style().clone(),
+            style: self.style.clone(),
             layout,
             cursor,
             child_count: 0,
@@ -113,11 +113,11 @@ impl Ui {
     /// Mutably borrow internal `Style`.
     /// Changes apply to this `Ui` and its subsequent children.
     pub fn style_mut(&mut self) -> &mut Style {
-        &mut self.style
+        Arc::make_mut(&mut self.style) // clone-on-write
     }
 
-    pub fn set_style(&mut self, style: Style) {
-        self.style = style
+    pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
+        self.style = style.into();
     }
 
     pub fn ctx(&self) -> &Arc<Context> {
