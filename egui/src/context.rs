@@ -18,19 +18,28 @@ struct PaintStats {
     num_triangles: usize,
 }
 
-// TODO: too many mutexes. Maybe put it all behind one Mutex instead.
-/// Contains the input, style and output of all GUI commands.
-/// `Ui`:s keep an Arc pointer to this.
+#[derive(Clone, Debug, Default)]
+struct Options {
+    /// The default style for new `Ui`:s.
+    style: Arc<Style>,
+    /// Controls the tessellator.
+    paint_options: paint::PaintOptions,
+    /// Font sizes etc.
+    font_definitions: FontDefinitions,
+}
+
+/// Thi is the first thing you need when working with Egui.
+///
+/// Contains the input state, memory, options and output.
+/// `Ui`:s keep an `Arc` pointer to this.
 /// This allows us to create several child `Ui`:s at once,
 /// all working against the same shared Context.
+// TODO: too many mutexes. Maybe put it all behind one Mutex instead.
 #[derive(Default)]
 pub struct Context {
-    /// The default style for new `Ui`:s
-    style: Mutex<Arc<Style>>,
-    paint_options: Mutex<paint::PaintOptions>,
+    options: Mutex<Options>,
     /// None until first call to `begin_frame`.
     fonts: Option<Arc<Fonts>>,
-    font_definitions: Mutex<FontDefinitions>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
 
@@ -51,10 +60,8 @@ pub struct Context {
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
-            style: Mutex::new(self.style()),
-            paint_options: Mutex::new(*self.paint_options.lock()),
+            options: Mutex::new(lock(&self.options, "options").clone()),
             fonts: self.fonts.clone(),
-            font_definitions: Mutex::new(self.font_definitions.lock().clone()),
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
@@ -120,15 +127,15 @@ impl Context {
     /// Will become active at the start of the next frame.
     /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        *self.font_definitions.lock() = font_definitions;
+        lock(&self.options, "options").font_definitions = font_definitions;
     }
 
     pub fn style(&self) -> Arc<Style> {
-        lock(&self.style, "style").clone()
+        lock(&self.options, "options").style.clone()
     }
 
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        *lock(&self.style, "style") = style.into();
+        lock(&self.options, "options").style = style.into();
     }
 
     pub fn pixels_per_point(&self) -> f32 {
@@ -176,11 +183,14 @@ impl Context {
         self.used_ids.lock().clear();
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
-        let mut font_definitions = self.font_definitions.lock();
+        let mut font_definitions = lock(&self.options, "options").font_definitions.clone();
         font_definitions.pixels_per_point = self.input.pixels_per_point();
-        if self.fonts.is_none() || *self.fonts.as_ref().unwrap().definitions() != *font_definitions
-        {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions.clone())));
+        let same_as_current = match &self.fonts {
+            None => false,
+            Some(fonts) => *fonts.definitions() == font_definitions,
+        };
+        if !same_as_current {
+            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions)));
         }
     }
 
@@ -210,7 +220,7 @@ impl Context {
     }
 
     fn paint(&self) -> PaintJobs {
-        let mut paint_options = *self.paint_options.lock();
+        let mut paint_options = lock(&self.options, "options").paint_options;
         paint_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
@@ -522,7 +532,9 @@ impl Context {
         CollapsingHeader::new("Painting")
             .default_open(true)
             .show(ui, |ui| {
-                self.paint_options.lock().ui(ui);
+                let mut paint_options = lock(&self.options, "options").paint_options;
+                paint_options.ui(ui);
+                lock(&self.options, "options").paint_options = paint_options;
             });
     }
 

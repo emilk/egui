@@ -430,7 +430,7 @@ pub enum PathType {
 use self::PathType::{Closed, Open};
 
 /// Tesselation quality options
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PaintOptions {
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
