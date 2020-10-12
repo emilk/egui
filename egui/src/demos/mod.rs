@@ -10,7 +10,7 @@ pub mod toggle_switch;
 mod widgets;
 
 pub use {
-    app::DemoApp, color_test::ColorTest, demo_window::DemoWindow, fractal_clock::FractalClock,
+    app::*, color_test::ColorTest, demo_window::DemoWindow, fractal_clock::FractalClock,
     sliders::Sliders, widgets::Widgets,
 };
 
