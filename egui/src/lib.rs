@@ -60,6 +60,7 @@ mod layout;
 pub mod math;
 mod memory;
 pub mod menu;
+pub mod mutex;
 pub mod paint;
 mod painter;
 mod style;

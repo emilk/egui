@@ -3,12 +3,14 @@ use std::sync::{
     Arc,
 };
 
-use {
-    ahash::AHashMap,
-    parking_lot::{Mutex, MutexGuard},
-};
+use ahash::AHashMap;
 
-use crate::{animation_manager::AnimationManager, paint::*, *};
+use crate::{
+    animation_manager::AnimationManager,
+    mutex::{Mutex, MutexGuard},
+    paint::*,
+    *,
+};
 
 #[derive(Clone, Copy, Default)]
 struct PaintStats {
@@ -60,15 +62,15 @@ pub struct Context {
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
-            options: Mutex::new(lock(&self.options, "options").clone()),
+            options: self.options.clone(),
             fonts: self.fonts.clone(),
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
-            graphics: Mutex::new(self.graphics.lock().clone()),
-            output: Mutex::new(self.output.lock().clone()),
-            used_ids: Mutex::new(self.used_ids.lock().clone()),
-            paint_stats: Mutex::new(*self.paint_stats.lock()),
+            graphics: self.graphics.clone(),
+            output: self.output.clone(),
+            used_ids: self.used_ids.clone(),
+            paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
         }
     }
@@ -84,15 +86,15 @@ impl Context {
     }
 
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
-        lock(&self.memory, "memory")
+        self.memory.lock()
     }
 
     pub fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
-        lock(&self.graphics, "graphics")
+        self.graphics.lock()
     }
 
     pub fn output(&self) -> MutexGuard<'_, Output> {
-        lock(&self.output, "output")
+        self.output.lock()
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -127,15 +129,15 @@ impl Context {
     /// Will become active at the start of the next frame.
     /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        lock(&self.options, "options").font_definitions = font_definitions;
+        self.options.lock().font_definitions = font_definitions;
     }
 
     pub fn style(&self) -> Arc<Style> {
-        lock(&self.options, "options").style.clone()
+        self.options.lock().style.clone()
     }
 
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        lock(&self.options, "options").style = style.into();
+        self.options.lock().style = style.into();
     }
 
     pub fn pixels_per_point(&self) -> f32 {
@@ -183,7 +185,7 @@ impl Context {
         self.used_ids.lock().clear();
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
-        let mut font_definitions = lock(&self.options, "options").font_definitions.clone();
+        let mut font_definitions = self.options.lock().font_definitions.clone();
         font_definitions.pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
             None => false,
@@ -220,7 +222,7 @@ impl Context {
     }
 
     fn paint(&self) -> PaintJobs {
-        let mut paint_options = lock(&self.options, "options").paint_options;
+        let mut paint_options = self.options.lock().paint_options;
         paint_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_commands = self.drain_paint_lists();
         let num_primitives = paint_commands.len();
@@ -532,9 +534,9 @@ impl Context {
         CollapsingHeader::new("Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut paint_options = lock(&self.options, "options").paint_options;
+                let mut paint_options = self.options.lock().paint_options;
                 paint_options.ui(ui);
-                lock(&self.options, "options").paint_options = paint_options;
+                self.options.lock().paint_options = paint_options;
             });
     }
 
@@ -650,18 +652,4 @@ impl PaintStats {
         ui.label(format!("Vertices: {}", self.num_vertices));
         ui.label(format!("Triangles: {}", self.num_triangles));
     }
-}
-
-#[cfg(debug_assertions)]
-fn lock<'m, T>(mutex: &'m Mutex<T>, what: &'static str) -> MutexGuard<'m, T> {
-    // TODO: detect if we are trying to lock the same mutex *from the same thread*.
-    // at the moment we just panic on any double-locking of a mutex (so no multithreaded support in debug builds)
-    mutex
-        .try_lock()
-        .unwrap_or_else(|| panic!("The Mutex for {} is already locked. Probably a bug", what))
-}
-
-#[cfg(not(debug_assertions))]
-fn lock<'m, T>(mutex: &'m Mutex<T>, _what: &'static str) -> MutexGuard<'m, T> {
-    mutex.lock()
 }

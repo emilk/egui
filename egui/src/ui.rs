@@ -2,7 +2,7 @@
 
 use std::{hash::Hash, sync::Arc};
 
-use crate::{color::*, containers::*, layout::*, paint::*, widgets::*, *};
+use crate::{color::*, containers::*, layout::*, mutex::MutexGuard, paint::*, widgets::*, *};
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
@@ -154,13 +154,13 @@ impl Ui {
 
     /// The `Memory` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().memory()`.
-    pub fn memory(&self) -> parking_lot::MutexGuard<'_, Memory> {
+    pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.ctx().memory()
     }
 
     /// The `Output` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().output()`.
-    pub fn output(&self) -> parking_lot::MutexGuard<'_, Output> {
+    pub fn output(&self) -> MutexGuard<'_, Output> {
         self.ctx().output()
     }
 

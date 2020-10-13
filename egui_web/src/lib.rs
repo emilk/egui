@@ -6,7 +6,7 @@ pub mod webgl;
 
 pub use backend::*;
 
-use parking_lot::Mutex;
+use egui::mutex::Mutex;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 

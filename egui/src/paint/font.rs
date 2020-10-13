@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use {
     ahash::AHashMap,
-    parking_lot::{Mutex, RwLock},
+    parking_lot::RwLock,
     rusttype::{point, Scale},
 };
 
-use crate::math::{vec2, Vec2};
+use crate::{
+    math::{vec2, Vec2},
+    mutex::Mutex,
+};
 
 use super::texture_atlas::TextureAtlas;
 

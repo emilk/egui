@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::Mutex;
+use crate::mutex::Mutex;
 
 use super::{
     font::Font,
