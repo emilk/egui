@@ -94,15 +94,15 @@ fn button_frame(
 
     let mut response = ui.interact(outer_rect, id, sense);
     response.active |= button_active;
-    let style = ui.style().interact(&response);
+    let visuals = ui.style().interact(&response);
 
     ui.painter().set(
         where_to_put_background,
         PaintCmd::Rect {
             rect: outer_rect,
-            corner_radius: style.corner_radius,
-            fill: style.bg_fill,
-            stroke: style.bg_stroke,
+            corner_radius: visuals.corner_radius,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
         },
     );
 

@@ -197,7 +197,7 @@ impl Widget for Hyperlink {
             ui.ctx().output().open_url = Some(url.clone());
         }
 
-        let style = ui.style().interact(&response);
+        let visuals = ui.style().interact(&response);
 
         if response.hovered {
             // Underline:
@@ -209,7 +209,7 @@ impl Widget for Hyperlink {
                 let max_x = pos.x + line.max_x();
                 ui.painter().line_segment(
                     [pos2(min_x, y), pos2(max_x, y)],
-                    (style.fg_stroke.width, color),
+                    (visuals.fg_stroke.width, color),
                 );
             }
         }
@@ -301,16 +301,22 @@ impl Widget for Button {
         let rect = ui.allocate_space(desired_size);
 
         let response = ui.interact(rect, id, sense);
-        let style = ui.style().interact(&response);
+        let visuals = ui.style().interact(&response);
         // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
         let text_cursor = pos2(
             response.rect.left() + button_padding.x,
             response.rect.center().y - 0.5 * galley.size.y,
         ); // left-centered
-        let fill = fill.unwrap_or(style.bg_fill);
-        ui.painter()
-            .rect(response.rect, style.corner_radius, fill, style.bg_stroke);
-        let text_color = text_color.unwrap_or_else(|| style.text_color());
+        let fill = fill.unwrap_or(visuals.bg_fill);
+        ui.painter().rect(
+            response.rect,
+            visuals.corner_radius,
+            fill,
+            visuals.bg_stroke,
+        );
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -397,7 +403,9 @@ impl<'a> Widget for Checkbox<'a> {
             });
         }
 
-        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
         response
@@ -481,7 +489,9 @@ impl Widget for RadioButton {
             });
         }
 
-        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
         painter.galley(text_cursor, galley, text_style, text_color);
         response
     }

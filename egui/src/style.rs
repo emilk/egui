@@ -99,6 +99,22 @@ pub struct Interaction {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Visuals {
+    /// Override default text color for all text.
+    ///
+    /// This is great for setting the color of text for any widget.
+    ///
+    /// If `text_color` is `None` (default), then the text color will be the same as the
+    /// foreground stroke color (`WidgetVisuals::fg_stroke`)
+    /// and will depend on wether or not the widget is being interacted with.
+    ///
+    /// In the future we may instead modulate
+    /// the `text_color` based on wether or not it is interacted with
+    /// so that `visuals.text_color` is always used,
+    /// but its alpha may be different based on whether or not
+    /// it is disabled, non-interactive, hovered etc.
+    pub override_text_color: Option<Srgba>,
+
+    /// Visual styles of widgets
     pub widgets: Widgets,
 
     /// e.g. the background of the slider or text edit,
@@ -128,7 +144,8 @@ impl Visuals {
     }
 
     pub fn text_color(&self) -> Srgba {
-        self.widgets.noninteractive.text_color()
+        self.override_text_color
+            .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
 }
 
@@ -230,6 +247,7 @@ impl Default for Interaction {
 impl Default for Visuals {
     fn default() -> Self {
         Self {
+            override_text_color: None,
             widgets: Default::default(),
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
@@ -409,6 +427,7 @@ impl Visuals {
         }
 
         let Self {
+            override_text_color: _,
             widgets,
             dark_bg_color,
             window_corner_radius,

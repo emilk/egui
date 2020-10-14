@@ -216,7 +216,9 @@ impl<'t> Widget for TextEdit<'t> {
             }
         }
 
-        let text_color = text_color.unwrap_or_else(|| visuals.text_color());
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
         painter.galley(response.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
         response
