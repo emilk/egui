@@ -6,7 +6,7 @@
 
 #![allow(clippy::new_without_default)]
 
-use crate::{layout::Direction, *};
+use crate::{layout::Direction, paint::fonts::GlyphLayout, paint::*, *};
 
 pub mod color_picker;
 mod drag_value;
@@ -15,8 +15,6 @@ mod slider;
 pub(crate) mod text_edit;
 
 pub use {drag_value::DragValue, image::Image, slider::*, text_edit::*};
-
-use paint::*;
 
 // ----------------------------------------------------------------------------
 
@@ -74,7 +72,7 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, ui: &Ui) -> font::Galley {
+    pub fn layout(&self, ui: &Ui) -> GlyphLayout {
         let max_width = ui.available().width();
         // Prevent word-wrapping after a single letter, and other silly shit:
         // TODO: general "don't force labels and similar to wrap so early"
@@ -82,19 +80,20 @@ impl Label {
         self.layout_width(ui, max_width)
     }
 
-    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> font::Galley {
+    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> GlyphLayout {
         let text_style = self.text_style_or_default(ui.style());
-        let font = &ui.fonts()[text_style];
         if self.multiline {
-            font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
+            ui.fonts()
+                .lock()
+                .layout_multiline(text_style, &self.text, Some(max_width))
         } else {
-            font.layout_single_line(self.text.clone()) // TODO: avoid clone
+            ui.fonts().lock().layout_single_line(text_style, &self.text)
         }
     }
 
     pub fn font_height(&self, fonts: &Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].height()
+        fonts.text_style_height(text_style)
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -105,12 +104,12 @@ impl Label {
     // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
 
-    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
+    pub fn paint_layout(&self, ui: &mut Ui, pos: Pos2, layout: GlyphLayout) {
         let text_style = self.text_style_or_default(ui.style());
         let text_color = self
             .text_color
             .unwrap_or_else(|| ui.style().visuals.text_color());
-        ui.painter().galley(pos, galley, text_style, text_color);
+        ui.painter().layout(pos, layout, text_style, text_color);
     }
 
     /// Read the text style, or get the default for the current style
@@ -130,9 +129,9 @@ macro_rules! label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let galley = self.layout(ui);
-        let rect = ui.allocate_space(galley.size);
-        self.paint_galley(ui, rect.min, galley);
+        let layout = self.layout(ui);
+        let rect = ui.allocate_space(layout.size);
+        self.paint_layout(ui, rect.min, layout);
         ui.interact_hover(rect)
     }
 }
@@ -182,13 +181,14 @@ impl Hyperlink {
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
         let Hyperlink { url, text } = self;
-
         let color = color::LIGHT_BLUE;
         let text_style = ui.style().body_text_style;
         let id = ui.make_child_id(&url);
-        let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
-        let rect = ui.allocate_space(galley.size);
+        let layout =
+            ui.fonts()
+                .lock()
+                .layout_multiline(text_style, &text, Some(ui.available().width()));
+        let rect = ui.allocate_space(layout.size);
         let response = ui.interact(rect, id, Sense::click());
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -197,10 +197,13 @@ impl Widget for Hyperlink {
             ui.ctx().output().open_url = Some(url.clone());
         }
 
+        // FIXME Render the underline (render under all glyphs?)
+        /*
         let visuals = ui.style().interact(&response);
-
+        // Render the underline
         if response.hovered {
-            // Underline:
+
+
             for line in &galley.lines {
                 let pos = response.rect.min;
                 let y = pos.y + line.y_max;
@@ -213,9 +216,10 @@ impl Widget for Hyperlink {
                 );
             }
         }
+        */
 
         ui.painter()
-            .galley(response.rect.min, galley, text_style, color);
+            .layout(response.rect.min, layout, text_style, color);
 
         response.on_hover_text(url)
     }
@@ -294,9 +298,11 @@ impl Widget for Button {
         let button_padding = ui.style().spacing.button_padding;
 
         let id = ui.make_position_id();
-        let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
-        let mut desired_size = galley.size + 2.0 * button_padding;
+        let layout =
+            ui.fonts()
+                .lock()
+                .layout_multiline(text_style, &text, Some(ui.available().width()));
+        let mut desired_size = layout.size + 2.0 * button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
@@ -305,7 +311,7 @@ impl Widget for Button {
         // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
         let text_cursor = pos2(
             response.rect.left() + button_padding.x,
-            response.rect.center().y - 0.5 * galley.size.y,
+            response.rect.center().y - 0.5 * layout.size.y,
         ); // left-centered
         let fill = fill.unwrap_or(visuals.bg_fill);
         ui.painter().rect(
@@ -318,7 +324,7 @@ impl Widget for Button {
             .or(ui.style().visuals.override_text_color)
             .unwrap_or_else(|| visuals.text_color());
         ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+            .layout(text_cursor, layout, text_style, text_color);
         response
     }
 }
@@ -359,15 +365,14 @@ impl<'a> Widget for Checkbox<'a> {
 
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-        let galley = font.layout_single_line(text);
+        let layout = ui.fonts().lock().layout_single_line(text_style, &text);
 
         let spacing = &ui.style().spacing;
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = spacing.button_padding;
         let mut desired_size =
-            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
+            button_padding + vec2(icon_width + icon_spacing, 0.0) + layout.size + button_padding;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
@@ -380,7 +385,7 @@ impl<'a> Widget for Checkbox<'a> {
         let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
             response.rect.min.x + button_padding.x + icon_width + icon_spacing,
-            response.rect.center().y - 0.5 * galley.size.y,
+            response.rect.center().y - 0.5 * layout.size.y,
         );
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
         ui.painter().add(PaintCmd::Rect {
@@ -407,7 +412,7 @@ impl<'a> Widget for Checkbox<'a> {
             .or(ui.style().visuals.override_text_color)
             .unwrap_or_else(|| visuals.text_color());
         ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+            .layout(text_cursor, layout, text_style, text_color);
         response
     }
 }
@@ -446,14 +451,16 @@ impl Widget for RadioButton {
         } = self;
         let id = ui.make_position_id();
         let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
+        let layout =
+            ui.fonts()
+                .lock()
+                .layout_multiline(text_style, &text, Some(ui.available().width()));
 
         let icon_width = ui.style().spacing.icon_width;
         let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = ui.style().spacing.button_padding;
         let mut desired_size =
-            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
+            button_padding + vec2(icon_width + icon_spacing, 0.0) + layout.size + button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
@@ -462,7 +469,7 @@ impl Widget for RadioButton {
 
         let text_cursor = pos2(
             response.rect.min.x + button_padding.x + icon_width + icon_spacing,
-            response.rect.center().y - 0.5 * galley.size.y,
+            response.rect.center().y - 0.5 * layout.size.y,
         );
 
         let visuals = ui.style().interact(&response);
@@ -492,7 +499,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.style().visuals.override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_cursor, galley, text_style, text_color);
+        painter.layout(text_cursor, layout, text_style, text_color);
         response
     }
 }

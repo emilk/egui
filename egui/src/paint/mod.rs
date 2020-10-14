@@ -4,7 +4,6 @@
 
 pub mod color;
 pub mod command;
-pub mod font;
 pub mod fonts;
 pub mod tessellator;
 mod texture_atlas;
@@ -12,7 +11,7 @@ mod texture_atlas;
 pub use {
     color::{Rgba, Srgba},
     command::{PaintCmd, Stroke},
-    fonts::{FontDefinitions, Fonts, TextStyle},
+    fonts::{FontConfiguration, Fonts, TextStyle},
     tessellator::{PaintJobs, PaintOptions, TextureId, Triangles, Vertex, WHITE_UV},
     texture_atlas::Texture,
 };

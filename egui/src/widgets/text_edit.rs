@@ -96,17 +96,19 @@ impl<'t> Widget for TextEdit<'t> {
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
-        let font = &ui.fonts()[text_style];
-        let line_spacing = font.line_spacing();
+
+        let line_spacing = ui.fonts().lock().text_style_line_spacing(text_style);
         let available_width = ui.available().width();
-        let mut galley = if multiline {
-            font.layout_multiline(text.clone(), available_width)
+        let layout = if multiline {
+            ui.fonts()
+                .lock()
+                .layout_multiline(text_style, text, Some(available_width))
         } else {
-            font.layout_single_line(text.clone())
+            ui.fonts().lock().layout_single_line(text_style, text)
         };
         let desired_size = vec2(
-            galley.size.x.max(desired_width.min(available_width)),
-            galley.size.y.max(line_spacing),
+            layout.size.x.max(desired_width.min(available_width)),
+            layout.size.y.max(line_spacing),
         );
         let rect = ui.allocate_space(desired_size);
         let sense = if enabled {
@@ -118,9 +120,11 @@ impl<'t> Widget for TextEdit<'t> {
 
         if response.clicked && enabled {
             ui.memory().request_kb_focus(id);
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                state.cursor = Some(galley.char_at(mouse_pos - response.rect.min).char_idx);
-            }
+        /* FIXME find the character under the cursor
+        if let Some(mouse_pos) = ui.input().mouse.pos {
+            state.cursor = Some(layout.char_at(mouse_pos - response.rect.min).char_idx);
+        }
+         */
         } else if ui.input().mouse.click || (ui.input().mouse.pressed && !response.hovered) {
             // User clicked somewhere else
             ui.memory().surrender_kb_focus(id);
@@ -172,14 +176,13 @@ impl<'t> Widget for TextEdit<'t> {
             state.cursor = Some(cursor);
 
             // layout again to avoid frame delay:
-            let font = &ui.fonts()[text_style];
-            galley = if multiline {
-                font.layout_multiline(text.clone(), available_width)
+            if multiline {
+                ui.fonts()
+                    .lock()
+                    .layout_multiline(text_style, text, Some(available_width));
             } else {
-                font.layout_single_line(text.clone())
+                ui.fonts().lock().layout_single_line(text_style, text);
             };
-
-            // dbg!(&galley);
         }
 
         let painter = ui.painter();
@@ -196,14 +199,17 @@ impl<'t> Widget for TextEdit<'t> {
             });
         }
 
+        /* FIXME Print the cursor
         if ui.memory().has_kb_focus(id) {
             let cursor_blink_hz = ui.style().visuals.cursor_blink_hz;
+
             let show_cursor = if 0.0 < cursor_blink_hz {
                 ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
                 (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0
             } else {
                 true
             };
+
 
             if show_cursor {
                 if let Some(cursor) = state.cursor {
@@ -215,11 +221,11 @@ impl<'t> Widget for TextEdit<'t> {
                 }
             }
         }
-
+        */
         let text_color = text_color
             .or(ui.style().visuals.override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(response.rect.min, galley, text_style, text_color);
+        painter.layout(response.rect.min, layout, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
         response
     }

@@ -354,9 +354,10 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-        let height = font
-            .line_spacing()
+        let height = ui
+            .fonts()
+            .lock()
+            .text_style_line_spacing(text_style)
             .at_least(ui.style().spacing.interact_size.y);
 
         if self.text.is_some() {

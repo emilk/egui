@@ -129,7 +129,7 @@ impl FrameHistory {
                     ui.fonts(),
                     pos2(rect.left(), y),
                     align::LEFT_BOTTOM,
-                    text,
+                    &text,
                     TextStyle::Monospace,
                     color::WHITE,
                 ));

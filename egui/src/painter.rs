@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
+use parking_lot::Mutex;
+
 use crate::{
     align::{anchor_rect, Align, LEFT_TOP},
     color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
-    paint::{font, Fonts, PaintCmd, Stroke, TextStyle},
+    paint::fonts::GlyphLayout,
+    paint::{Fonts, PaintCmd, Stroke, TextStyle},
     Context, Layer, Srgba,
 };
 
@@ -48,7 +51,7 @@ impl Painter {
     }
 
     /// Available fonts
-    pub(crate) fn fonts(&self) -> &Fonts {
+    pub(crate) fn fonts(&self) -> Arc<Mutex<Fonts>> {
         self.ctx.fonts()
     }
 
@@ -115,25 +118,23 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: impl Into<String>) {
+    pub fn debug_rect(&mut self, rect: Rect, color: Srgba, text: &str) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
-        self.text(rect.min, LEFT_TOP, text.into(), text_style, color);
+        self.text(rect.min, LEFT_TOP, text, text_style, color);
     }
 
-    pub fn error(&self, pos: Pos2, text: impl Into<String>) {
-        let text = text.into();
+    pub fn error(&self, pos: Pos2, text: &str) {
         let text_style = TextStyle::Monospace;
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text, f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), LEFT_TOP);
+        let layout = self.fonts().lock().layout_multiline(text_style, text, None);
+        let rect = anchor_rect(Rect::from_min_size(pos, layout.size), LEFT_TOP);
         self.add(PaintCmd::Rect {
             rect: rect.expand(2.0),
             corner_radius: 0.0,
             fill: Srgba::black_alpha(240),
             stroke: Stroke::new(1.0, color::RED),
         });
-        self.galley(rect.min, galley, text_style, color::RED);
+        self.layout(rect.min, layout, text_style, color::RED);
     }
 
     pub fn debug_arrow(&self, origin: Pos2, dir: Vec2, stroke: Stroke) {
@@ -248,22 +249,21 @@ impl Painter {
         &self,
         pos: Pos2,
         anchor: (Align, Align),
-        text: impl Into<String>,
+        text: &str,
         text_style: TextStyle,
         text_color: Srgba,
     ) -> Rect {
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
-        self.galley(rect.min, galley, text_style, text_color);
+        let layout = self.fonts().lock().layout_multiline(text_style, text, None);
+        let rect = anchor_rect(Rect::from_min_size(pos, layout.size), anchor);
+        self.layout(rect.min, layout, text_style, text_color);
         rect
     }
 
-    /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Srgba) {
+    /// Paint text that has already been laid out in a `GlyphLayout`.
+    pub fn layout(&self, pos: Pos2, layout: GlyphLayout, text_style: TextStyle, color: Srgba) {
         self.add(PaintCmd::Text {
             pos,
-            galley,
+            layout,
             text_style,
             color,
         });

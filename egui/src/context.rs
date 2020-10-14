@@ -25,7 +25,7 @@ struct Options {
     /// Controls the tessellator.
     paint_options: paint::PaintOptions,
     /// Font sizes etc.
-    font_definitions: FontDefinitions,
+    font_configuration: FontConfiguration,
 }
 
 /// Thi is the first thing you need when working with Egui.
@@ -39,7 +39,7 @@ struct Options {
 pub struct Context {
     options: Mutex<Options>,
     /// None until first call to `begin_frame`.
-    fonts: Option<Arc<Fonts>>,
+    fonts: Option<Arc<Mutex<Fonts>>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
 
@@ -110,24 +110,24 @@ impl Context {
 
     /// Not valid until first call to `begin_frame()`
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn fonts(&self) -> &Fonts {
-        &*self
-            .fonts
+    pub fn fonts(&self) -> Arc<Mutex<Fonts>> {
+        self.fonts
             .as_ref()
             .expect("No fonts available until first call to Context::begin_frame()`")
+            .clone()
     }
 
     /// The Egui texture, containing font characters etc..
     /// Not valid until first call to `begin_frame()`
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn texture(&self) -> Arc<paint::Texture> {
-        self.fonts().texture()
+        self.fonts().lock().texture()
     }
 
     /// Will become active at the start of the next frame.
     /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
-    pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        lock(&self.options, "options").font_definitions = font_definitions;
+    pub fn set_fonts(&self, font_configuration: FontConfiguration) {
+        lock(&self.options, "options").font_configuration = font_configuration;
     }
 
     pub fn style(&self) -> Arc<Style> {
@@ -183,14 +183,16 @@ impl Context {
         self.used_ids.lock().clear();
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
-        let mut font_definitions = lock(&self.options, "options").font_definitions.clone();
-        font_definitions.pixels_per_point = self.input.pixels_per_point();
+        let mut font_configuration = lock(&self.options, "options").font_configuration.clone();
+        font_configuration.pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
             None => false,
-            Some(fonts) => *fonts.definitions() == font_definitions,
+            Some(fonts) => *fonts.lock().configuration() == font_configuration,
         };
         if !same_as_current {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions)));
+            self.fonts = Some(Arc::new(Mutex::new(Fonts::from_definitions(
+                font_configuration,
+            ))));
         }
     }
 
@@ -523,10 +525,11 @@ impl Context {
         CollapsingHeader::new("Fonts")
             .default_open(false)
             .show(ui, |ui| {
-                let mut font_definitions = self.fonts().definitions().clone();
-                font_definitions.ui(ui);
-                self.fonts().texture().ui(ui);
-                self.set_fonts(font_definitions);
+                let mut font_configuration = self.fonts().lock().configuration().clone();
+                font_configuration.ui(ui);
+                let texture = self.fonts().lock().texture();
+                texture.ui(ui);
+                self.set_fonts(font_configuration);
             });
 
         CollapsingHeader::new("Painting")

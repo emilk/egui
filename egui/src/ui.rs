@@ -3,6 +3,7 @@
 use std::{hash::Hash, sync::Arc};
 
 use crate::{color::*, containers::*, layout::*, paint::*, widgets::*, *};
+use parking_lot::Mutex;
 
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
@@ -166,7 +167,7 @@ impl Ui {
 
     /// The `Fonts` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().fonts()`.
-    pub fn fonts(&self) -> &Fonts {
+    pub fn fonts(&self) -> Arc<Mutex<Fonts>> {
         self.ctx().fonts()
     }
 

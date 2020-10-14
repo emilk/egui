@@ -169,8 +169,9 @@ struct Prepared {
 
 impl CollapsingHeader {
     fn begin(self, ui: &mut Ui) -> Prepared {
-        assert!(
-            ui.layout().dir() == Direction::Vertical,
+        assert_eq!(
+            ui.layout().dir(),
+            Direction::Vertical,
             "Horizontal collapsing is unimplemented"
         );
         let Self {
@@ -186,14 +187,14 @@ impl CollapsingHeader {
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);
-        let galley = label.layout_width(ui, available.right() - text_pos.x);
-        let text_max_x = text_pos.x + galley.size.x;
+        let layout = label.layout_width(ui, available.right() - text_pos.x);
+        let text_max_x = text_pos.x + layout.size.x;
         let desired_width = text_max_x - available.left();
         let desired_width = desired_width.max(available.width());
 
         let mut desired_size = vec2(
             desired_width,
-            galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
+            layout.size.y + 2.0 * ui.style().spacing.button_padding.y,
         );
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
@@ -201,7 +202,7 @@ impl CollapsingHeader {
         let header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - galley.size.y / 2.0,
+            header_response.rect.center().y - layout.size.y / 2.0,
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
@@ -226,9 +227,9 @@ impl CollapsingHeader {
         }
 
         let painter = ui.painter();
-        painter.galley(
+        painter.layout(
             text_pos,
-            galley,
+            layout,
             label.text_style_or_default(ui.style()),
             ui.style().interact(&header_response).text_color(),
         );

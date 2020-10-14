@@ -1,8 +1,13 @@
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+
 use {
-    super::{font::Galley, fonts::TextStyle, Fonts, Srgba, Triangles},
+    super::{fonts::TextStyle, Fonts, Srgba, Triangles},
     crate::{
         align::{anchor_rect, Align},
         math::{Pos2, Rect},
+        paint::fonts::GlyphLayout,
     },
 };
 
@@ -38,9 +43,8 @@ pub enum PaintCmd {
     Text {
         /// Top left corner of the first character.
         pos: Pos2,
-        /// The layed out text
-        galley: Galley,
-        text_style: TextStyle, // TODO: Font?
+        layout: GlyphLayout,
+        text_style: TextStyle,
         color: Srgba,
     },
     Triangles(Triangles),
@@ -91,19 +95,18 @@ impl PaintCmd {
     }
 
     pub fn text(
-        fonts: &Fonts,
+        fonts: Arc<Mutex<Fonts>>,
         pos: Pos2,
         anchor: (Align, Align),
-        text: impl Into<String>,
+        text: &str,
         text_style: TextStyle,
         color: Srgba,
     ) -> Self {
-        let font = &fonts[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        let layout = fonts.lock().layout_multiline(text_style, text, None);
+        let rect = anchor_rect(Rect::from_min_size(pos, layout.size), anchor);
         Self::Text {
             pos: rect.min,
-            galley,
+            layout,
             text_style,
             color,
         }

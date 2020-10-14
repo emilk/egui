@@ -2,9 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::{paint::*, widgets::*, *};
-
-use super::*;
+use crate::{paint::fonts::GlyphLayout, paint::*, widgets::*, *};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
@@ -219,7 +217,7 @@ impl<'open> Window<'open> {
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
-            let title_bar_height = title_label.font_height(ctx.fonts(), &ctx.style())
+            let title_bar_height = title_label.font_height(&ctx.fonts().lock(), &ctx.style())
                 + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
             let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
 
@@ -599,7 +597,7 @@ fn paint_frame_interaction(
 
 struct TitleBar {
     title_label: Label,
-    title_galley: font::Galley,
+    title_layout: GlyphLayout,
     title_rect: Rect,
     rect: Rect,
 }
@@ -613,7 +611,7 @@ fn show_title_bar(
     collapsible: bool,
 ) -> TitleBar {
     let (title_bar, response) = ui.horizontal(|ui| {
-        ui.set_min_height(title_label.font_height(ui.fonts(), ui.style()));
+        ui.set_min_height(title_label.font_height(&ui.fonts().lock(), ui.style()));
 
         let item_spacing = ui.style().spacing.item_spacing;
         let button_size = ui.style().spacing.icon_width;
@@ -630,8 +628,8 @@ fn show_title_bar(
             collapsing_header::paint_icon(ui, openness, &collapse_button_response);
         }
 
-        let title_galley = title_label.layout(ui);
-        let title_rect = ui.allocate_space(title_galley.size);
+        let title_layout = title_label.layout(ui);
+        let title_rect = ui.allocate_space(title_layout.size);
 
         if show_close_button {
             // Reserve space for close button which will be added later (once we know our full width):
@@ -649,7 +647,7 @@ fn show_title_bar(
 
         TitleBar {
             title_label,
-            title_galley,
+            title_layout,
             title_rect,
             rect: Rect::invalid(), // Will be filled in later
         }
@@ -685,7 +683,7 @@ impl TitleBar {
 
         // TODO: pick style for title based on move interaction
         self.title_label
-            .paint_galley(ui, self.title_rect.min, self.title_galley);
+            .paint_layout(ui, self.title_rect.min, self.title_layout);
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:

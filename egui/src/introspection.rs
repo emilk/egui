@@ -54,18 +54,18 @@ impl Texture {
     }
 }
 
-impl paint::FontDefinitions {
+impl paint::FontConfiguration {
     pub fn ui(&mut self, ui: &mut Ui) {
-        for (text_style, (_family, size)) in self.fonts.iter_mut() {
+        for (text_style, definition) in self.definitions.iter_mut() {
             // TODO: radio button for family
             ui.add(
-                Slider::f32(size, 4.0..=40.0)
+                Slider::f32(&mut definition.scale_in_points, 4.0..=40.0)
                     .precision(0)
                     .text(format!("{:?}", text_style)),
             );
         }
         if ui.button("Reset fonts").clicked {
-            *self = paint::FontDefinitions::with_pixels_per_point(self.pixels_per_point);
+            *self = paint::FontConfiguration::with_pixels_per_point(self.pixels_per_point);
         }
     }
 }

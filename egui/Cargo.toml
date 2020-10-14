@@ -17,7 +17,7 @@ include = [ "**/*.rs", "Cargo.toml", "fonts/ProggyClean.ttf", "fonts/Comfortaa-R
 [dependencies]
 ahash = { version = "0.4", features = ["std"], default-features = false }
 parking_lot = "0.11"
-rusttype = "0.9"
+fontdue = { version = "0.3", git = "https://github.com/mooman219/fontdue" }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
