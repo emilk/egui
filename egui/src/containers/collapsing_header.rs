@@ -62,7 +62,7 @@ impl State {
         ui: &mut Ui,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<(R, Rect)> {
+    ) -> Option<(R, Response)> {
         let openness = self.openness(ui.ctx(), id);
         let animate = 0.0 < openness && openness < 1.0;
         if animate {
@@ -96,10 +96,10 @@ impl State {
                 r
             }))
         } else if self.open || ui.memory().all_collpasing_are_open {
-            let ret_rect = ui.add_custom(add_contents);
-            let full_size = ret_rect.1.size();
+            let (ret, response) = ui.add_custom(add_contents);
+            let full_size = response.rect.size();
             self.open_height = Some(full_size.y);
-            Some(ret_rect)
+            Some((ret, response))
         } else {
             None
         }

@@ -179,6 +179,7 @@ pub struct Sense {
 }
 
 impl Sense {
+    /// Senses no clicks or drags (but everything senses mouse hover).
     pub fn nothing() -> Self {
         Self {
             click: false,

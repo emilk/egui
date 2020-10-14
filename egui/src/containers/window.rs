@@ -269,7 +269,7 @@ impl<'open> Window<'open> {
             );
             resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
 
-            let content_rect = collapsing
+            let content_response = collapsing
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         // Add some spacing between title and content:
@@ -295,7 +295,7 @@ impl<'open> Window<'open> {
             title_bar.ui(
                 &mut area_content_ui,
                 outer_rect,
-                content_rect,
+                content_response,
                 open,
                 &mut collapsing,
                 collapsible,
@@ -612,7 +612,7 @@ fn show_title_bar(
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
-    let title_bar_and_rect = ui.horizontal(|ui| {
+    let (title_bar, response) = ui.horizontal(|ui| {
         ui.set_min_height(title_label.font_height(ui.fonts(), ui.style()));
 
         let item_spacing = ui.style().spacing.item_spacing;
@@ -656,8 +656,8 @@ fn show_title_bar(
     });
 
     TitleBar {
-        rect: title_bar_and_rect.1,
-        ..title_bar_and_rect.0
+        rect: response.rect,
+        ..title_bar
     }
 }
 
@@ -666,14 +666,14 @@ impl TitleBar {
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
-        content_rect: Option<Rect>,
+        content_response: Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut collapsing_header::State,
         collapsible: bool,
     ) {
-        if let Some(content_rect) = content_rect {
+        if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
-            self.rect.max.x = self.rect.max.x.max(content_rect.max.x);
+            self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
         if let Some(open) = open {
@@ -687,11 +687,11 @@ impl TitleBar {
         self.title_label
             .paint_galley(ui, self.title_rect.min, self.title_galley);
 
-        if let Some(content_rect) = content_rect {
+        if let Some(content_response) = &content_response {
             // paint separator between title and content:
             let left = outer_rect.left();
             let right = outer_rect.right();
-            let y = content_rect.top() + ui.style().spacing.item_spacing.y * 0.5;
+            let y = content_response.rect.top() + ui.style().spacing.item_spacing.y * 0.5;
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
                 ui.style().visuals.widgets.inactive.bg_stroke,

@@ -458,7 +458,7 @@ fn ui_slider_vec2(
     range: std::ops::RangeInclusive<f32>,
     text: &str,
 ) -> Response {
-    let (_, rect) = ui.horizontal(|ui| {
+    ui.horizontal(|ui| {
         /*
         let fsw = full slider_width
         let ssw = small slider_width
@@ -481,8 +481,8 @@ fn ui_slider_vec2(
         ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
         ui.label(text);
-    });
-    ui.interact_hover(rect)
+    })
+    .1
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {

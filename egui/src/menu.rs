@@ -37,7 +37,7 @@ impl BarState {
     }
 }
 
-pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
     ui.horizontal(|ui| {
         Frame::menu_bar(ui.style()).show(ui, |ui| {
             let mut style = ui.style().clone();

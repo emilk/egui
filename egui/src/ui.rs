@@ -657,12 +657,13 @@ impl Ui {
     }
 
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let child_rect = self.available();
         let mut child_ui = self.child_ui(child_rect, self.layout);
-        let r = add_contents(&mut child_ui);
+        let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
-        (r, self.allocate_space(size))
+        let rect = self.allocate_space(size);
+        (ret, self.interact_hover(rect))
     }
 
     /// Create a child ui which is indented to the right
@@ -670,7 +671,7 @@ impl Ui {
         &mut self,
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Rect) {
+    ) -> (R, Response) {
         assert!(
             self.layout().dir() == Direction::Vertical,
             "You can only indent vertical layouts"
@@ -693,7 +694,8 @@ impl Ui {
             self.style().visuals.widgets.noninteractive.bg_stroke,
         );
 
-        (ret, self.allocate_space(indent + size))
+        let rect = self.allocate_space(indent + size);
+        (ret, self.interact_hover(rect))
     }
 
     pub fn left_column(&mut self, width: f32) -> Ui {
@@ -732,7 +734,11 @@ impl Ui {
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
     /// planning to to mix widgets or just different types of text.
-    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+    ///
+    /// The returned `Response` will only have checked for mouse hover
+    /// but can be used for tooltips (`on_hover_text`).
+    /// It also contains the `Rect` used by the horizontal layout.
+    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let initial_size = vec2(
             self.available().width(),
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
@@ -750,7 +756,7 @@ impl Ui {
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
-    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Rect) {
+    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         self.with_layout(Layout::vertical(Align::Min), add_contents)
     }
 
@@ -759,25 +765,25 @@ impl Ui {
         layout: Layout,
         initial_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Rect) {
+    ) -> (R, Response) {
         let child_rect = self.layout.rect_from_cursor_size(self.cursor, initial_size);
         let mut child_ui = self.child_ui(child_rect, layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
         let rect = self.allocate_space(size);
-        (ret, rect)
+        (ret, self.interact_hover(rect))
     }
 
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Rect) {
+    ) -> (R, Response) {
         let mut child_ui = self.child_ui(self.available(), layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
         let rect = self.allocate_space(size);
-        (ret, rect)
+        (ret, self.interact_hover(rect))
     }
 
     /// Temporarily split split an Ui into several columns.
