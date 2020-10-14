@@ -163,6 +163,7 @@ impl CollapsingHeader {
 
 struct Prepared {
     id: Id,
+    header_response: Response,
     state: State,
 }
 
@@ -197,25 +198,28 @@ impl CollapsingHeader {
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
-        let response = ui.interact(rect, id, Sense::click());
-        let text_pos = pos2(text_pos.x, response.rect.center().y - galley.size.y / 2.0);
+        let header_response = ui.interact(rect, id, Sense::click());
+        let text_pos = pos2(
+            text_pos.x,
+            header_response.rect.center().y - galley.size.y / 2.0,
+        );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
-        if response.clicked {
+        if header_response.clicked {
             state.toggle(ui);
         }
 
         let bg_index = ui.painter().add(PaintCmd::Noop);
 
         {
-            let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(response.rect);
+            let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(header_response.rect);
             icon_rect.set_center(pos2(
-                response.rect.left() + ui.style().spacing.indent / 2.0,
-                response.rect.center().y,
+                header_response.rect.left() + ui.style().spacing.indent / 2.0,
+                header_response.rect.center().y,
             ));
             let icon_response = Response {
                 rect: icon_rect,
-                ..response.clone()
+                ..header_response.clone()
             };
             let openness = state.openness(ui.ctx(), id);
             paint_icon(ui, openness, &icon_response);
@@ -226,27 +230,59 @@ impl CollapsingHeader {
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
-            ui.style().interact(&response).text_color(),
+            ui.style().interact(&header_response).text_color(),
         );
 
         painter.set(
             bg_index,
             PaintCmd::Rect {
-                rect: response.rect,
-                corner_radius: ui.style().interact(&response).corner_radius,
-                fill: ui.style().interact(&response).bg_fill,
+                rect: header_response.rect,
+                corner_radius: ui.style().interact(&header_response).corner_radius,
+                fill: ui.style().interact(&header_response).bg_fill,
                 stroke: Default::default(),
             },
         );
 
-        Prepared { id, state }
+        Prepared {
+            id,
+            header_response,
+            state,
+        }
     }
 
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
-        let Prepared { id, mut state } = self.begin(ui);
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        let Prepared {
+            id,
+            header_response,
+            mut state,
+        } = self.begin(ui);
         let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
-        let ret = ret_response.map(|ri| ri.0);
         ui.memory().collapsing_headers.insert(id, state);
-        ret
+
+        if let Some((ret, response)) = ret_response {
+            CollapsingResponse {
+                header_response,
+                body_response: Some(response),
+                body_returned: Some(ret),
+            }
+        } else {
+            CollapsingResponse {
+                header_response,
+                body_response: None,
+                body_returned: None,
+            }
+        }
     }
+}
+
+pub struct CollapsingResponse<R> {
+    pub header_response: Response,
+    /// None iff collapsed.
+    pub body_response: Option<Response>,
+    /// None iff collapsed.
+    pub body_returned: Option<R>,
 }

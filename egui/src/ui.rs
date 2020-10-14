@@ -637,7 +637,7 @@ impl Ui {
         &mut self,
         heading: impl Into<String>,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<R> {
+    ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)
     }
 

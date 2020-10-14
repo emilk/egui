@@ -451,6 +451,7 @@ impl Tree {
         CollapsingHeader::new(name)
             .default_open(depth < 1)
             .show(ui, |ui| self.children_ui(ui, depth))
+            .body_returned
             .unwrap_or(Action::Keep)
     }
 

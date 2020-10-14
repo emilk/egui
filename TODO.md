@@ -139,6 +139,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 
 * [ ] Rename things to be more consistent with Dear ImGui ?
 * [ ] Put everything in `Context` behind the same Mutex? `struct Context(Arc<Mutex<ContextImpl>>);`, with e.g. `context.lock().memory.foo`?
+* [ ] Resolve the various uses of "heading", "header", "title" etc
 
 ## Global widget search
 
