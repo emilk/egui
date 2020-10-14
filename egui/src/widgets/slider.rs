@@ -46,7 +46,6 @@ pub struct Slider<'a> {
     text: Option<String>,
     precision: Option<usize>,
     text_color: Option<Srgba>,
-    id: Option<Id>,
 }
 
 impl<'a> Slider<'a> {
@@ -65,7 +64,6 @@ impl<'a> Slider<'a> {
             text: None,
             precision: None,
             text_color: None,
-            id: None,
         }
     }
 
@@ -217,7 +215,7 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
-        let id = self.id.unwrap_or_else(|| ui.make_position_id());
+        let id = ui.make_position_id();
         let desired_size = vec2(ui.style().spacing.slider_width, height);
         let rect = ui.allocate_space(desired_size);
         ui.interact(rect, id, Sense::click_and_drag())
@@ -285,7 +283,7 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let kb_edit_id = self.id.expect("We should have an id by now").with("edit");
+        let kb_edit_id = ui.make_position_id().with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         let aim_radius = ui.input().aim_radius();
@@ -361,9 +359,7 @@ impl<'a> Widget for Slider<'a> {
             .line_spacing()
             .at_least(ui.style().spacing.interact_size.y);
 
-        if let Some(text) = &self.text {
-            self.id = self.id.or_else(|| Some(ui.make_unique_child_id(text)));
-
+        if self.text.is_some() {
             ui.horizontal(|ui| {
                 let slider_response = self.allocate_slide_space(ui, height);
                 self.slider_ui(ui, &slider_response);
