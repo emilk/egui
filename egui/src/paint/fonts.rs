@@ -196,8 +196,8 @@ impl Fonts {
         // FontFamily::VariableWidth.
         // FIXME: https://github.com/mooman219/fontdue/issues/38
         // FIXME: https://github.com/RazrFalcon/ttf-parser/issues/43
-        //let variable_typeface_data: &[u8] = include_bytes!("../../fonts/Comfortaa-Regular.ttf");
-        let variable_typeface_data: &[u8] = include_bytes!("../../fonts/Roboto-Regular.ttf");
+        let variable_typeface_data: &[u8] = include_bytes!("../../fonts/Comfortaa-Regular.ttf");
+        //let variable_typeface_data: &[u8] = include_bytes!("../../fonts/Roboto-Regular.ttf");
 
         // Fonts need to be added in the same order as defined in the `FontFamily.font_index()` method.
         self.fonts.push(
@@ -231,7 +231,7 @@ impl Fonts {
                 self.glyph_info(&key);
             }
 
-            // Precalculate the line spacings and heights
+            // Precalculate the line spacings and heights (in points)
             let px = scale_in_pixels;
             let font = &self.fonts[font_index];
             let line_spacing = font
@@ -369,9 +369,8 @@ impl Fonts {
             }
         }
 
-        let pixels_per_point = self.configuration.pixels_per_point;
         let uv_rect = UvRect {
-            size: vec2(metrics.width as f32, metrics.height as f32) / pixels_per_point,
+            size: vec2(metrics.width as f32, metrics.height as f32),
             min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
             max: (
                 (glyph_pos.0 + metrics.width) as u16,
