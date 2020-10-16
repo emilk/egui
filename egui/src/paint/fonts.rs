@@ -69,28 +69,28 @@ impl FontConfiguration {
             TextStyle::Body,
             FontDefinition {
                 family: FontFamily::VariableWidth,
-                scale_in_points: 14.0,
+                scale_in_points: 12.0,
             },
         );
         definitions.insert(
             TextStyle::Button,
             FontDefinition {
                 family: FontFamily::VariableWidth,
-                scale_in_points: 16.0,
+                scale_in_points: 13.0,
             },
         );
         definitions.insert(
             TextStyle::Heading,
             FontDefinition {
                 family: FontFamily::VariableWidth,
-                scale_in_points: 24.0,
+                scale_in_points: 20.0,
             },
         );
         definitions.insert(
             TextStyle::Monospace,
             FontDefinition {
                 family: FontFamily::Monospace,
-                scale_in_points: 13.0,
+                scale_in_points: 11.0,
             },
         );
         Self {
@@ -121,7 +121,7 @@ pub struct GlyphInfo {
     pub uv_rect: UvRect,
 }
 
-/// Glyph layout information.
+/// Glyph layout information. Units are in physical pixel and need to be scaled back to points.
 #[derive(Clone, Debug, Default)]
 pub struct GlyphLayout {
     pub size: Vec2,
@@ -211,10 +211,10 @@ impl Fonts {
 
         self.configuration = configuration;
 
-        let pixel_per_points = self.configuration.pixels_per_point;
+        let pixels_per_points = self.configuration.pixels_per_point;
         for (text_style, definition) in self.configuration.definitions.clone().iter() {
             let font_index = definition.family.font_index();
-            let scale_in_pixels = definition.scale_in_points * pixel_per_points;
+            let scale_in_pixels = definition.scale_in_points * pixels_per_points;
 
             // Preload the printable ASCII characters [33, 126] (which excludes control codes):
             const FIRST_ASCII: usize = 33; // !
@@ -239,9 +239,9 @@ impl Fonts {
                 .unwrap_or_else(|| panic!("font doesn't seem to support horizontal text layout"))
                 .new_line_size;
             self.line_spacings
-                .insert(*text_style, line_spacing / pixel_per_points);
+                .insert(*text_style, line_spacing / pixels_per_points);
             self.heights
-                .insert(*text_style, scale_in_pixels / pixel_per_points);
+                .insert(*text_style, scale_in_pixels / pixels_per_points);
         }
 
         // Make sure we seed the texture version with something unique based on the default characters:
@@ -285,7 +285,7 @@ impl Fonts {
             ..Default::default()
         };
 
-        self.layout(style, text, &settings)
+        self.layout(style, text, settings)
     }
 
     // FIXME: https://github.com/mooman219/fontdue/issues/39
@@ -302,50 +302,76 @@ impl Fonts {
             ..Default::default()
         };
 
-        self.layout(style, text, &settings)
+        self.layout(style, text, settings)
     }
 
-    fn layout(&mut self, style: TextStyle, text: &str, settings: &LayoutSettings) -> GlyphLayout {
+    fn layout(
+        &mut self,
+        style: TextStyle,
+        text: &str,
+        mut settings: LayoutSettings,
+    ) -> GlyphLayout {
+        // We calculate the layout in physical pixel and later scale back the metrics back to points.
+        // This is done to get a better looking layout.
         let mut layout = GlyphLayout::with_capacity(text.len());
 
         if text.is_empty() {
             return layout;
         }
 
-        let height = self.heights[&style];
+        // Convert points to pixel.
+        settings.max_width = if let Some(width) = settings.max_width {
+            Some(width * self.configuration.pixels_per_point)
+        } else {
+            None
+        };
+
         let font_index = self.configuration.definitions[&style].family.font_index();
+        let pixels_per_point = self.configuration.pixels_per_point;
+        let height = self.heights[&style];
+        let px_height = self.heights[&style] * pixels_per_point;
 
         let text_style = fontdue::layout::TextStyle {
             text,
-            px: height,
+            px: px_height,
             font_index,
         };
 
         self.layout_engine.layout_horizontal(
             &self.fonts,
             &[&text_style],
-            settings,
+            &settings,
             &mut layout.glyph_positions,
         );
 
-        // This assumes horizontal layout rendered from left to right.
-        let GlyphPosition {
-            x: first_x,
-            y: first_y,
-            height: first_height,
-            ..
-        } = *layout.glyph_positions.first().unwrap();
-        let GlyphPosition {
-            x: last_x,
-            y: last_y,
-            width: last_width,
-            ..
-        } = *layout.glyph_positions.last().unwrap();
+        let mut min_y = f32::MAX;
+        let mut max_y = f32::MIN;
+        let mut min_x = f32::MAX;
+        let mut max_x = f32::MIN;
 
-        let width = (last_x + last_width as f32) - first_x;
-        let height = last_y - (first_y - first_height as f32);
+        // Calculate logical points and max dimensions.
+        for pos in layout.glyph_positions.iter_mut() {
+            pos.width = (pos.width as f32 / pixels_per_point) as usize;
+            pos.height = (pos.height as f32 / pixels_per_point) as usize;
+            pos.x /= pixels_per_point;
+            pos.y /= pixels_per_point;
+
+            min_x = min_x.min(pos.x);
+            max_x = max_x.max(pos.x + pos.width as f32);
+            min_y = min_y.min(pos.y);
+            max_y = max_y.max(pos.y + pos.height as f32);
+        }
+
+        // Wait for fontdue do provide better line metrics to align the glyphs
+        // to the line with the current DPI setting.
+
+        // Add 20% height as margin to each side
+        let width = (max_x - min_x) + 0.4 * height;
+
+        // Add 20% height as margin to each side
+        let height = (max_y - min_y) + 0.4 * height;
+
         layout.size = vec2(width, height);
-
         layout
     }
 
@@ -370,7 +396,8 @@ impl Fonts {
         }
 
         let uv_rect = UvRect {
-            size: vec2(metrics.width as f32, metrics.height as f32),
+            size: vec2(metrics.width as f32, metrics.height as f32)
+                / self.configuration.pixels_per_point,
             min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
             max: (
                 (glyph_pos.0 + metrics.width) as u16,

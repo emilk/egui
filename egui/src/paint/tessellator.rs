@@ -761,14 +761,7 @@ fn tessellate_paint_command(
             let tex_w = fonts.lock().texture().width as f32;
             let tex_h = fonts.lock().texture().height as f32;
 
-            let pixels_per_point = fonts.lock().configuration().pixels_per_point;
-
             let line_height = fonts.lock().text_style_line_spacing(text_style);
-            let clip_rect = clip_rect.expand(5.0); // Some fudge to handle letter slightly larger than expected.
-
-            // FIXME This value should be calculated by parent widget.
-            // Eye-balled for buttons.
-            let text_offset = vec2(0.0, -1.0);
 
             let mut was_visible = false;
             for glyph in &layout.glyph_positions {
@@ -793,30 +786,17 @@ fn tessellate_paint_command(
 
                 let glyph_info = fonts.lock().glyph_info(&glyph.key);
                 let uv_rect = glyph_info.uv_rect;
-                let mut left_top = pos + vec2(glyph.x, glyph.y) + text_offset;
-                left_top.x = round_to_pixel(left_top.x, pixels_per_point); // Pixel-perfection.
-                left_top.y = round_to_pixel(left_top.y, pixels_per_point); // Pixel-perfection.
-
-                let p = Rect::from_min_max(left_top, left_top + uv_rect.size);
+                let glyph_pos = vec2(glyph.x, glyph.y);
+                let left_top = pos + glyph_pos;
+                let pos = Rect::from_min_max(left_top, left_top + uv_rect.size);
                 let uv = Rect::from_min_max(
                     pos2(uv_rect.min.0 as f32 / tex_w, uv_rect.min.1 as f32 / tex_h),
                     pos2(uv_rect.max.0 as f32 / tex_w, uv_rect.max.1 as f32 / tex_h),
                 );
-                out.add_rect_with_uv(p, uv, color);
 
-                /* FIXME Remove me
-                let pos_rec = Rect::from_center_size(
-                    Pos2::new(pos.x + glyph.x, pos.y + glyph.y),
-                    vec2(2.0, 2.0),
-                );
-                out.add_colored_rect(pos_rec, Srgba::new(255, 0, 0, 255));
-                */
+                out.add_rect_with_uv(pos, uv, color);
             }
         }
-    }
-
-    pub fn round_to_pixel(point: f32, pixels_per_point: f32) -> f32 {
-        (point * pixels_per_point).round() / pixels_per_point
     }
 }
 
