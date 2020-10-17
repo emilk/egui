@@ -208,6 +208,10 @@ impl InputState {
         }
     }
 
+    pub fn screen_rect(&self) -> Rect {
+        Rect::from_min_size(pos2(0.0, 0.0), self.screen_size)
+    }
+
     pub fn wants_repaint(&self) -> bool {
         self.mouse.pressed
             || self.mouse.released
@@ -372,6 +376,7 @@ impl InputState {
             events,
         } = self;
 
+        ui.style_mut().body_text_style = crate::paint::TextStyle::Monospace;
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("mouse")

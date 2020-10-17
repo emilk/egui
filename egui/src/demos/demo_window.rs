@@ -84,7 +84,7 @@ impl DemoWindow {
                 });
             });
 
-        CollapsingHeader::new("Painting")
+        CollapsingHeader::new("Paint with your mouse")
             .default_open(false)
             .show(ui, |ui| self.painting.ui(ui));
 

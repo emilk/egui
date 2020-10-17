@@ -87,6 +87,12 @@ impl Triangles {
         }
     }
 
+    pub fn bytes_used(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.vertices.len() * std::mem::size_of::<Vertex>()
+            + self.indices.len() * std::mem::size_of::<u32>()
+    }
+
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
         let n = self.vertices.len() as u32;

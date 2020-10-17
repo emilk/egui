@@ -8,17 +8,12 @@ use ahash::AHashMap;
 use crate::{
     animation_manager::AnimationManager,
     mutex::{Mutex, MutexGuard},
-    paint::*,
+    paint::{stats::*, *},
     *,
 };
 
 #[derive(Clone, Copy, Default)]
-struct PaintStats {
-    num_jobs: usize,
-    num_primitives: usize,
-    num_vertices: usize,
-    num_triangles: usize,
-}
+struct SliceStats<T>(usize, std::marker::PhantomData<T>);
 
 #[derive(Clone, Debug, Default)]
 struct Options {
@@ -225,20 +220,10 @@ impl Context {
         let mut paint_options = self.options.lock().paint_options;
         paint_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_commands = self.drain_paint_lists();
-        let num_primitives = paint_commands.len();
+        let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
         let paint_jobs =
             tessellator::tessellate_paint_commands(paint_commands, paint_options, self.fonts());
-
-        {
-            let mut stats = PaintStats::default();
-            stats.num_jobs = paint_jobs.len();
-            stats.num_primitives = num_primitives;
-            for (_, triangles) in &paint_jobs {
-                stats.num_vertices += triangles.vertices.len();
-                stats.num_triangles += triangles.indices.len() / 3;
-            }
-            *self.paint_stats.lock() = stats;
-        }
+        *self.paint_stats.lock() = paint_stats.with_paint_jobs(&paint_jobs);
 
         paint_jobs
     }
@@ -542,21 +527,12 @@ impl Context {
 
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
-        ui.style_mut().body_text_style = TextStyle::Monospace;
 
         CollapsingHeader::new("Input")
             .default_open(true)
             .show(ui, |ui| ui.input().clone().ui(ui));
 
-        ui.collapsing("Stats", |ui| {
-            ui.label(format!(
-                "Screen size: {} x {} points, pixels_per_point: {:?}",
-                ui.input().screen_size.x,
-                ui.input().screen_size.y,
-                ui.input().pixels_per_point,
-            ));
-
-            ui.heading("Painting:");
+        ui.collapsing("Paint stats", |ui| {
             self.paint_stats.lock().ui(ui);
         });
     }
@@ -640,16 +616,5 @@ impl paint::PaintOptions {
         );
         ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
         ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
-    }
-}
-
-impl PaintStats {
-    pub fn ui(&self, ui: &mut Ui) {
-        ui.label(format!("Jobs: {}", self.num_jobs))
-            .on_hover_text("Number of separate clip rectangles");
-        ui.label(format!("Primitives: {}", self.num_primitives))
-            .on_hover_text("Boxes, circles, text areas etc");
-        ui.label(format!("Vertices: {}", self.num_vertices));
-        ui.label(format!("Triangles: {}", self.num_triangles));
     }
 }
