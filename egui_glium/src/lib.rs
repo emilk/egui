@@ -27,30 +27,16 @@ pub fn input_to_egui(
     use glutin::event::WindowEvent::*;
     match event {
         CloseRequested | Destroyed => *control_flow = ControlFlow::Exit,
-
-        Resized(physical_size) => {
-            raw_input.screen_size =
-                egui::vec2(physical_size.width as f32, physical_size.height as f32)
-                    / raw_input.pixels_per_point.unwrap();
-        }
-
-        ScaleFactorChanged {
-            scale_factor,
-            new_inner_size,
-        } => {
-            raw_input.pixels_per_point = Some(scale_factor as f32);
-            raw_input.screen_size =
-                egui::vec2(new_inner_size.width as f32, new_inner_size.height as f32)
-                    / (scale_factor as f32);
-        }
-
         MouseInput { state, .. } => {
             raw_input.mouse_down = state == glutin::event::ElementState::Pressed;
         }
-        CursorMoved { position, .. } => {
+        CursorMoved {
+            position: pos_in_pixels,
+            ..
+        } => {
             raw_input.mouse_pos = Some(pos2(
-                position.x as f32 / raw_input.pixels_per_point.unwrap(),
-                position.y as f32 / raw_input.pixels_per_point.unwrap(),
+                pos_in_pixels.x as f32 / raw_input.pixels_per_point.unwrap(),
+                pos_in_pixels.y as f32 / raw_input.pixels_per_point.unwrap(),
             ));
         }
         CursorLeft { .. } => {
@@ -213,14 +199,11 @@ pub fn seconds_since_midnight() -> f64 {
     time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
 }
 
-pub fn make_raw_input(display: &glium::Display) -> egui::RawInput {
-    let pixels_per_point = display.gl_window().window().scale_factor() as f32;
-    egui::RawInput {
-        screen_size: {
-            let (width, height) = display.get_framebuffer_dimensions();
-            vec2(width as f32, height as f32) / pixels_per_point
-        },
-        pixels_per_point: Some(pixels_per_point),
-        ..Default::default()
-    }
+pub fn screen_size_in_pixels(display: &glium::Display) -> Vec2 {
+    let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
+    vec2(width_in_pixels as f32, height_in_pixels as f32)
+}
+
+pub fn native_pixels_per_point(display: &glium::Display) -> f32 {
+    display.gl_window().window().scale_factor() as f32
 }

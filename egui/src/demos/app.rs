@@ -188,6 +188,9 @@ pub struct DemoApp {
     demo_window: DemoWindow,
     fractal_clock: FractalClock,
 
+    /// current slider value for current gui scale (backend demo only)
+    pixels_per_point: Option<f32>,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: FrameHistory,
 
@@ -320,8 +323,6 @@ impl DemoApp {
 
         let is_web = info.web_info.is_some();
 
-        let mut options = app::AppOutput::default();
-
         if is_web {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
@@ -332,23 +333,17 @@ impl DemoApp {
                 ui.label("Project home page:");
                 ui.hyperlink("https://github.com/emilk/egui");
             });
-        } else {
-            ui.heading("Egui");
-            options.quit |= ui.button("Quit").clicked;
+            ui.separator();
         }
-
-        ui.separator();
 
         self.run_mode_ui(ui);
 
-        if self.run_mode == RunMode::Continuous {
-            ui.label(format!(
-                "Repainting the UI each frame. FPS: {:.1}",
-                self.frame_history.fps()
-            ));
-        } else {
-            ui.label("Only running UI code when there are animations or input");
-        }
+        ui.separator();
+
+        let mut output = app::AppOutput::default();
+        output.pixels_per_point = self.pixels_per_point_ui(ui, info);
+
+        ui.separator();
 
         ui.separator();
         self.frame_history.ui(ui);
@@ -359,7 +354,41 @@ impl DemoApp {
             "Show color blend test (debug backend painter)",
         );
 
-        options
+        if !is_web {
+            output.quit |= ui.button("Quit").clicked;
+        }
+
+        output
+    }
+
+    fn pixels_per_point_ui(&mut self, ui: &mut Ui, info: &app::BackendInfo) -> Option<f32> {
+        self.pixels_per_point = self
+            .pixels_per_point
+            .or(info.native_pixels_per_point)
+            .or_else(|| Some(ui.ctx().pixels_per_point()));
+        if let Some(pixels_per_point) = &mut self.pixels_per_point {
+            ui.add(
+                Slider::f32(pixels_per_point, 0.5..=5.0)
+                    .logarithmic(true)
+                    .text("Scale (physical pixels per point)"),
+            );
+            if let Some(native_pixels_per_point) = info.native_pixels_per_point {
+                if ui
+                    .button(format!(
+                        "Reset scale to native value ({:.1})",
+                        native_pixels_per_point
+                    ))
+                    .clicked
+                {
+                    *pixels_per_point = native_pixels_per_point;
+                }
+            }
+            if !ui.ctx().is_using_mouse() {
+                // We wait until mouse release to activate:
+                return Some(*pixels_per_point);
+            }
+        }
+        None
     }
 
     fn run_mode_ui(&mut self, ui: &mut Ui) {
@@ -371,6 +400,15 @@ impl DemoApp {
             ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
                 .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
         });
+
+        if self.run_mode == RunMode::Continuous {
+            ui.label(format!(
+                "Repainting the UI each frame. FPS: {:.1}",
+                self.frame_history.fps()
+            ));
+        } else {
+            ui.label("Only running UI code when there are animations or input");
+        }
     }
 }
 

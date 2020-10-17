@@ -5,6 +5,7 @@
 * `ui.horizontal(...)` etc returns `Response`
 * Add ability to override text color with `visuals.override_text_color`
 * Refactored the interface for `egui::app::App`
+* Demo App: Add slider to scale all of Egui
 
 ## 0.2.0 - 2020-10-10
 

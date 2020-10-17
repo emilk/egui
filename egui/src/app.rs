@@ -24,12 +24,14 @@ pub trait App {
     fn on_exit(&mut self, _storage: &mut dyn Storage) {}
 }
 
+#[derive(Clone, Debug)]
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment"
     pub web_location_hash: String,
 }
 
 /// Information about the backend passed to the use app each frame.
+#[derive(Clone, Debug)]
 pub struct BackendInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
@@ -41,14 +43,20 @@ pub struct BackendInfo {
     /// Local time. Used for the clock in the demo app.
     /// Set to `None` if you don't know.
     pub seconds_since_midnight: Option<f64>,
+
+    /// The OS native pixels-per-point
+    pub native_pixels_per_point: Option<f32>,
 }
 
 /// Action that can be taken by the user app.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AppOutput {
     /// Set to `true` to stop the app.
     /// This does nothing for web apps.
     pub quit: bool,
+
+    /// If the app sets this, change the `pixels_per_point` of Egui to this next frame.
+    pub pixels_per_point: Option<f32>,
 }
 
 pub trait TextureAllocator {

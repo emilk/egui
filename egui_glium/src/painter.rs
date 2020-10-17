@@ -152,16 +152,23 @@ impl Painter {
     pub fn paint_jobs(
         &mut self,
         display: &glium::Display,
+        pixels_per_point: f32,
         jobs: PaintJobs,
-        texture: &egui::Texture,
+        egui_texture: &egui::Texture,
     ) {
-        self.upload_egui_texture(display, texture);
+        self.upload_egui_texture(display, egui_texture);
         self.upload_pending_user_textures(display);
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
         for (clip_rect, triangles) in jobs {
-            self.paint_job(&mut target, display, clip_rect, &triangles)
+            self.paint_job(
+                &mut target,
+                display,
+                pixels_per_point,
+                clip_rect,
+                &triangles,
+            )
         }
         target.finish().unwrap();
     }
@@ -183,6 +190,7 @@ impl Painter {
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
+        pixels_per_point: f32,
         clip_rect: Rect,
         triangles: &Triangles,
     ) {
@@ -217,15 +225,14 @@ impl Painter {
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
 
-        let pixels_per_point = display.gl_window().window().scale_factor() as f32;
-        let (width_pixels, height_pixels) = display.get_framebuffer_dimensions();
-        let width_points = width_pixels as f32 / pixels_per_point;
-        let height_points = height_pixels as f32 / pixels_per_point;
+        let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
+        let width_in_points = width_in_pixels as f32 / pixels_per_point;
+        let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
         let texture = self.get_texture(triangles.texture_id);
 
         let uniforms = uniform! {
-            u_screen_size: [width_points, height_points],
+            u_screen_size: [width_in_points, height_in_points],
             u_sampler: texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
         };
 
@@ -255,10 +262,10 @@ impl Painter {
         let clip_max_y = pixels_per_point * clip_rect.max.y;
 
         // Make sure clip rect can fit withing an `u32`:
-        let clip_min_x = clamp(clip_min_x, 0.0..=width_pixels as f32);
-        let clip_min_y = clamp(clip_min_y, 0.0..=height_pixels as f32);
-        let clip_max_x = clamp(clip_max_x, clip_min_x..=width_pixels as f32);
-        let clip_max_y = clamp(clip_max_y, clip_min_y..=height_pixels as f32);
+        let clip_min_x = clamp(clip_min_x, 0.0..=width_in_pixels as f32);
+        let clip_min_y = clamp(clip_min_y, 0.0..=height_in_pixels as f32);
+        let clip_max_x = clamp(clip_max_x, clip_min_x..=width_in_pixels as f32);
+        let clip_max_y = clamp(clip_max_y, clip_min_y..=height_in_pixels as f32);
 
         let clip_min_x = clip_min_x.round() as u32;
         let clip_min_y = clip_min_y.round() as u32;
@@ -269,7 +276,7 @@ impl Painter {
             blend,
             scissor: Some(glium::Rect {
                 left: clip_min_x,
-                bottom: height_pixels - clip_max_y,
+                bottom: height_in_pixels - clip_max_y,
                 width: clip_max_x - clip_min_x,
                 height: clip_max_y - clip_min_y,
             }),

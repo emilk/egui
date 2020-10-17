@@ -388,7 +388,7 @@ impl InputState {
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_size: {:?} points", screen_size));
         ui.label(format!(
-            "{:?} points for each physical pixel (HDPI factor)",
+            "{:?} physical pixels for each logical point",
             pixels_per_point
         ));
         ui.label(format!("time: {:.3} s", time));

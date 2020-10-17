@@ -51,7 +51,10 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
     let mut ctx = egui::Context::new();
     *ctx.memory() = egui::app::get_value(&storage, EGUI_MEMORY_KEY).unwrap_or_default();
 
-    let mut raw_input = make_raw_input(&display);
+    let mut raw_input = egui::RawInput {
+        pixels_per_point: Some(native_pixels_per_point(&display)),
+        ..Default::default()
+    };
 
     let start_time = Instant::now();
     let mut previous_frame_time = None;
@@ -62,11 +65,14 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
         let mut redraw = || {
             let egui_start = Instant::now();
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            raw_input.screen_size =
+                screen_size_in_pixels(&display) / raw_input.pixels_per_point.unwrap();
 
             let backend_info = egui::app::BackendInfo {
                 web_info: None,
                 cpu_usage: previous_frame_time,
                 seconds_since_midnight: Some(seconds_since_midnight()),
+                native_pixels_per_point: Some(native_pixels_per_point(&display)),
             };
 
             let mut ui = ctx.begin_frame(raw_input.take());
@@ -75,10 +81,17 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
 
             let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);
-            painter.paint_jobs(&display, paint_jobs, &ctx.texture());
+            painter.paint_jobs(&display, ctx.pixels_per_point(), paint_jobs, &ctx.texture());
 
             {
-                let egui::app::AppOutput { quit } = app_output;
+                let egui::app::AppOutput {
+                    quit,
+                    pixels_per_point,
+                } = app_output;
+                if let Some(pixels_per_point) = pixels_per_point {
+                    // User changed GUI scale
+                    raw_input.pixels_per_point = Some(pixels_per_point);
+                }
 
                 *control_flow = if quit {
                     glutin::event_loop::ControlFlow::Exit

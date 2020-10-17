@@ -17,14 +17,6 @@ pub fn console_log(s: String) {
     web_sys::console::log_1(&s.into());
 }
 
-pub fn screen_size() -> Option<egui::Vec2> {
-    let window = web_sys::window()?;
-    Some(egui::Vec2::new(
-        window.inner_width().ok()?.as_f64()? as f32,
-        window.inner_height().ok()?.as_f64()? as f32,
-    ))
-}
-
 pub fn now_sec() -> f64 {
     web_sys::window()
         .expect("should have a Window")
@@ -40,7 +32,15 @@ pub fn seconds_since_midnight() -> f64 {
     seconds as f64 + 1e-3 * (d.get_milliseconds() as f64)
 }
 
-pub fn pixels_per_point() -> f32 {
+pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
+    let window = web_sys::window()?;
+    Some(egui::Vec2::new(
+        window.inner_width().ok()?.as_f64()? as f32,
+        window.inner_height().ok()?.as_f64()? as f32,
+    ))
+}
+
+pub fn native_pixels_per_point() -> f32 {
     let pixels_per_point = web_sys::window().unwrap().device_pixel_ratio() as f32;
     if pixels_per_point > 0.0 && pixels_per_point.is_finite() {
         pixels_per_point
@@ -78,11 +78,11 @@ pub fn pos_from_touch_event(event: &web_sys::TouchEvent) -> egui::Pos2 {
     }
 }
 
-pub fn resize_to_screen_size(canvas_id: &str) -> Option<()> {
+pub fn resize_canvas_to_screen_size(canvas_id: &str) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
 
-    let screen_size = screen_size()?;
-    let pixels_per_point = pixels_per_point();
+    let screen_size = screen_size_in_native_points()?;
+    let pixels_per_point = native_pixels_per_point();
     canvas
         .style()
         .set_property("width", &format!("{}px", screen_size.x))

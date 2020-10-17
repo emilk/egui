@@ -2,7 +2,7 @@ use crate::*;
 
 pub use egui::{
     app::{App, WebInfo},
-    Srgba,
+    pos2, Srgba,
 };
 
 // ----------------------------------------------------------------------------
@@ -105,13 +105,17 @@ pub struct WebInput {
 }
 
 impl WebInput {
-    pub fn new_frame(&mut self) -> egui::RawInput {
+    pub fn new_frame(&mut self, pixels_per_point: f32) -> egui::RawInput {
+        // Compensate for potential different scale of Egui compared to native.
+        let scale = native_pixels_per_point() / pixels_per_point;
+        let scroll_delta = std::mem::take(&mut self.scroll_delta) * scale;
+        let mouse_pos = self.mouse_pos.map(|mp| pos2(mp.x * scale, mp.y * scale));
         egui::RawInput {
             mouse_down: self.mouse_down,
-            mouse_pos: self.mouse_pos,
-            scroll_delta: std::mem::take(&mut self.scroll_delta),
-            screen_size: screen_size().unwrap(),
-            pixels_per_point: Some(pixels_per_point()),
+            mouse_pos,
+            scroll_delta,
+            screen_size: screen_size_in_native_points().unwrap() * scale,
+            pixels_per_point: Some(pixels_per_point),
             time: now_sec(),
             events: std::mem::take(&mut self.events),
         }
@@ -121,6 +125,7 @@ impl WebInput {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
+    pixels_per_point: f32,
     pub web_backend: WebBackend,
     pub web_input: WebInput,
     pub app: Box<dyn App>,
@@ -130,6 +135,7 @@ pub struct AppRunner {
 impl AppRunner {
     pub fn new(web_backend: WebBackend, app: Box<dyn App>) -> Result<Self, JsValue> {
         Ok(Self {
+            pixels_per_point: native_pixels_per_point(),
             web_backend,
             web_input: Default::default(),
             app,
@@ -142,9 +148,9 @@ impl AppRunner {
     }
 
     pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
-        resize_to_screen_size(self.web_backend.canvas_id());
+        resize_canvas_to_screen_size(self.web_backend.canvas_id());
 
-        let raw_input = self.web_input.new_frame();
+        let raw_input = self.web_input.new_frame(self.pixels_per_point);
 
         let backend_info = egui::app::BackendInfo {
             web_info: Some(WebInfo {
@@ -152,6 +158,7 @@ impl AppRunner {
             }),
             cpu_usage: self.web_backend.previous_frame_time,
             seconds_since_midnight: Some(seconds_since_midnight()),
+            native_pixels_per_point: Some(native_pixels_per_point()),
         };
 
         let mut ui = self.web_backend.begin_frame(raw_input);
@@ -162,7 +169,14 @@ impl AppRunner {
         handle_output(&egui_output);
 
         {
-            let egui::app::AppOutput { quit: _ } = app_output;
+            let egui::app::AppOutput {
+                quit: _,
+                pixels_per_point,
+            } = app_output;
+
+            if let Some(pixels_per_point) = pixels_per_point {
+                self.pixels_per_point = pixels_per_point;
+            }
         }
 
         Ok((egui_output, paint_jobs))
