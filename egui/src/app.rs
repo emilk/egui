@@ -13,7 +13,12 @@ use crate::Ui;
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn ui(&mut self, ui: &mut Ui, backend: &mut dyn Backend);
+    fn ui(
+        &mut self,
+        ui: &mut Ui,
+        info: &BackendInfo,
+        tex_allocator: Option<&mut dyn TextureAllocator>,
+    ) -> AppOutput;
 
     /// Called once on shutdown. Allows you to save state.
     fn on_exit(&mut self, _storage: &mut dyn Storage) {}
@@ -24,25 +29,29 @@ pub struct WebInfo {
     pub web_location_hash: String,
 }
 
-pub trait Backend {
+/// Information about the backend passed to the use app each frame.
+pub struct BackendInfo {
     /// If the app is running in a Web context, this returns information about the environment.
-    fn web_info(&self) -> Option<WebInfo> {
-        None
-    }
+    pub web_info: Option<WebInfo>,
 
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
-    /// Zero if this is the first frame.
-    fn cpu_usage(&self) -> Option<f32>;
+    /// `None` if this is the first frame.
+    pub cpu_usage: Option<f32>,
 
     /// Local time. Used for the clock in the demo app.
-    fn seconds_since_midnight(&self) -> Option<f64> {
-        None
-    }
+    /// Set to `None` if you don't know.
+    pub seconds_since_midnight: Option<f64>,
+}
 
-    /// Signal the backend that we'd like to exit the app now.
+/// Action that can be taken by the user app.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AppOutput {
+    /// Set to `true` to stop the app.
     /// This does nothing for web apps.
-    fn quit(&mut self) {}
+    pub quit: bool,
+}
 
+pub trait TextureAllocator {
     /// Allocate a user texture (EXPERIMENTAL!)
     fn new_texture_srgba_premultiplied(
         &mut self,

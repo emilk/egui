@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* `ui.horizontal(...)` etc returns `Response`
+* Add ability to override text color with `visuals.override_text_color`
+* Refactored the interface for `egui::app::App`
+
 ## 0.2.0 - 2020-10-10
 
 * Color picker

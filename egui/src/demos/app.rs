@@ -314,11 +314,13 @@ impl DemoApp {
     }
 
     // TODO: give cpu_usage and web_info via `struct BackendInfo`
-    fn backend_ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
+    fn backend_ui(&mut self, ui: &mut Ui, info: &app::BackendInfo) -> app::AppOutput {
         self.frame_history
-            .on_new_frame(ui.input().time, backend.cpu_usage());
+            .on_new_frame(ui.input().time, info.cpu_usage);
 
-        let is_web = backend.web_info().is_some();
+        let is_web = info.web_info.is_some();
+
+        let mut options = app::AppOutput::default();
 
         if is_web {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
@@ -332,10 +334,7 @@ impl DemoApp {
             });
         } else {
             ui.heading("Egui");
-            if ui.button("Quit").clicked {
-                backend.quit();
-                return;
-            }
+            options.quit |= ui.button("Quit").clicked;
         }
 
         ui.separator();
@@ -359,6 +358,8 @@ impl DemoApp {
             &mut self.show_color_test,
             "Show color blend test (debug backend painter)",
         );
+
+        options
     }
 
     fn run_mode_ui(&mut self, ui: &mut Ui) {
@@ -374,12 +375,19 @@ impl DemoApp {
 }
 
 impl app::App for DemoApp {
-    fn ui(&mut self, ui: &mut Ui, backend: &mut dyn app::Backend) {
+    fn ui(
+        &mut self,
+        ui: &mut Ui,
+        info: &app::BackendInfo,
+        tex_allocator: Option<&mut dyn app::TextureAllocator>,
+    ) -> app::AppOutput {
+        let mut output = app::AppOutput::default();
+
         Window::new("Backend")
             .min_width(360.0)
             .scroll(false)
             .show(ui.ctx(), |ui| {
-                self.backend_ui(ui, backend);
+                output = self.backend_ui(ui, info);
             });
 
         let Self {
@@ -388,28 +396,31 @@ impl app::App for DemoApp {
             ..
         } = self;
 
-        if *show_color_test {
-            let mut tex_loader = |size: (usize, usize), pixels: &[Srgba]| {
-                backend.new_texture_srgba_premultiplied(size, pixels)
-            };
-            Window::new("Color Test")
-                .default_size(vec2(1024.0, 1024.0))
-                .scroll(true)
-                .open(show_color_test)
-                .show(ui.ctx(), |ui| {
-                    color_test.ui(ui, &mut tex_loader);
-                });
+        // TODO: enable color test even without `tex_allocator`
+        if let Some(tex_allocator) = tex_allocator {
+            if *show_color_test {
+                let mut tex_loader = |size: (usize, usize), pixels: &[Srgba]| {
+                    tex_allocator.new_texture_srgba_premultiplied(size, pixels)
+                };
+                Window::new("Color Test")
+                    .default_size(vec2(1024.0, 1024.0))
+                    .scroll(true)
+                    .open(show_color_test)
+                    .show(ui.ctx(), |ui| {
+                        color_test.ui(ui, &mut tex_loader);
+                    });
+            }
         }
 
-        let web_info = backend.web_info();
-        let web_location_hash = web_info
+        let web_location_hash = info
+            .web_info
             .as_ref()
             .map(|info| info.web_location_hash.clone())
             .unwrap_or_default();
 
         let environment = DemoEnvironment {
             web_location_hash,
-            seconds_since_midnight: backend.seconds_since_midnight(),
+            seconds_since_midnight: info.seconds_since_midnight,
         };
 
         self.ui(ui, &environment);
@@ -418,6 +429,8 @@ impl app::App for DemoApp {
             // Tell the backend to repaint as soon as possible
             ui.ctx().request_repaint();
         }
+
+        output
     }
 
     #[cfg(feature = "serde_json")]

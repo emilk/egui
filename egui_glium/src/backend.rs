@@ -6,48 +6,20 @@ use crate::{
 };
 
 pub use egui::{
-    app::{App, Backend, Storage},
+    app::{self, App, Storage},
     Srgba,
 };
 
 const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
 
-pub struct GliumBackend {
-    previous_frame_time: Option<f32>,
-    quit: bool,
-    painter: Painter,
-}
-
-impl GliumBackend {
-    pub fn new(painter: Painter) -> Self {
-        Self {
-            previous_frame_time: None,
-            quit: false,
-            painter,
-        }
-    }
-}
-
-impl Backend for GliumBackend {
-    fn cpu_usage(&self) -> Option<f32> {
-        self.previous_frame_time
-    }
-
-    fn seconds_since_midnight(&self) -> Option<f64> {
-        Some(seconds_since_midnight())
-    }
-
-    fn quit(&mut self) {
-        self.quit = true;
-    }
-
+impl egui::app::TextureAllocator for Painter {
     fn new_texture_srgba_premultiplied(
         &mut self,
         size: (usize, usize),
         pixels: &[Srgba],
     ) -> egui::TextureId {
-        self.painter.new_user_texture(size, pixels)
+        self.new_user_texture(size, pixels)
     }
 }
 
@@ -81,9 +53,9 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
 
     let mut raw_input = make_raw_input(&display);
 
-    // used to keep track of time for animations
     let start_time = Instant::now();
-    let mut runner = GliumBackend::new(Painter::new(&display));
+    let mut previous_frame_time = None;
+    let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
 
     event_loop.run(move |event, _, control_flow| {
@@ -91,27 +63,34 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
             let egui_start = Instant::now();
             raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
 
-            let mut ui = ctx.begin_frame(raw_input.take());
-            app.ui(&mut ui, &mut runner);
-            let (output, paint_jobs) = ctx.end_frame();
-
-            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-            runner.previous_frame_time = Some(frame_time);
-
-            runner
-                .painter
-                .paint_jobs(&display, paint_jobs, &ctx.texture());
-
-            *control_flow = if runner.quit {
-                glutin::event_loop::ControlFlow::Exit
-            } else if output.needs_repaint {
-                display.gl_window().window().request_redraw();
-                glutin::event_loop::ControlFlow::Poll
-            } else {
-                glutin::event_loop::ControlFlow::Wait
+            let backend_info = egui::app::BackendInfo {
+                web_info: None,
+                cpu_usage: previous_frame_time,
+                seconds_since_midnight: Some(seconds_since_midnight()),
             };
 
-            handle_output(output, &display, clipboard.as_mut());
+            let mut ui = ctx.begin_frame(raw_input.take());
+            let app_output = app.ui(&mut ui, &backend_info, Some(&mut painter));
+            let (egui_output, paint_jobs) = ctx.end_frame();
+
+            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+            previous_frame_time = Some(frame_time);
+            painter.paint_jobs(&display, paint_jobs, &ctx.texture());
+
+            {
+                let egui::app::AppOutput { quit } = app_output;
+
+                *control_flow = if quit {
+                    glutin::event_loop::ControlFlow::Exit
+                } else if egui_output.needs_repaint {
+                    display.gl_window().window().request_redraw();
+                    glutin::event_loop::ControlFlow::Poll
+                } else {
+                    glutin::event_loop::ControlFlow::Wait
+                };
+            }
+
+            handle_output(egui_output, &display, clipboard.as_mut());
         };
 
         match event {

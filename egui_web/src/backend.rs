@@ -1,7 +1,7 @@
 use crate::*;
 
 pub use egui::{
-    app::{App, Backend, WebInfo},
+    app::{App, WebInfo},
     Srgba,
 };
 
@@ -80,27 +80,13 @@ impl WebBackend {
     }
 }
 
-impl Backend for WebBackend {
-    fn web_info(&self) -> Option<WebInfo> {
-        Some(WebInfo {
-            web_location_hash: location_hash().unwrap_or_default(),
-        })
-    }
-
-    fn cpu_usage(&self) -> Option<f32> {
-        self.previous_frame_time
-    }
-
-    fn seconds_since_midnight(&self) -> Option<f64> {
-        Some(seconds_since_midnight())
-    }
-
+impl egui::app::TextureAllocator for webgl::Painter {
     fn new_texture_srgba_premultiplied(
         &mut self,
         size: (usize, usize),
         pixels: &[Srgba],
     ) -> egui::TextureId {
-        self.painter.new_user_texture(size, pixels)
+        self.new_user_texture(size, pixels)
     }
 }
 
@@ -160,11 +146,26 @@ impl AppRunner {
 
         let raw_input = self.web_input.new_frame();
 
+        let backend_info = egui::app::BackendInfo {
+            web_info: Some(WebInfo {
+                web_location_hash: location_hash().unwrap_or_default(),
+            }),
+            cpu_usage: self.web_backend.previous_frame_time,
+            seconds_since_midnight: Some(seconds_since_midnight()),
+        };
+
         let mut ui = self.web_backend.begin_frame(raw_input);
-        self.app.ui(&mut ui, &mut self.web_backend);
-        let (output, paint_jobs) = self.web_backend.end_frame()?;
-        handle_output(&output);
-        Ok((output, paint_jobs))
+        let app_output = self
+            .app
+            .ui(&mut ui, &backend_info, Some(&mut self.web_backend.painter));
+        let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
+        handle_output(&egui_output);
+
+        {
+            let egui::app::AppOutput { quit: _ } = app_output;
+        }
+
+        Ok((egui_output, paint_jobs))
     }
 
     pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
@@ -174,7 +175,7 @@ impl AppRunner {
 
 /// Install event listeners to register different input events
 /// and starts running the given `AppRunner`.
-pub fn run(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
+pub fn start(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let runner_ref = AppRunnerRef(Arc::new(Mutex::new(app_runner)));
     install_canvas_events(&runner_ref)?;
     install_document_events(&runner_ref)?;

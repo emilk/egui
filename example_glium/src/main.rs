@@ -16,7 +16,12 @@ struct MyApp {
 impl egui::app::App for MyApp {
     /// This function will be called whenever the Ui needs to be shown,
     /// which may be many times per second.
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut dyn egui::app::Backend) {
+    fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _info: &egui::app::BackendInfo,
+        _tex_allocator: Option<&mut dyn egui::app::TextureAllocator>,
+    ) -> egui::app::AppOutput {
         let MyApp { my_string, value } = self;
 
         // Example used in `README.md`.
@@ -28,6 +33,8 @@ impl egui::app::App for MyApp {
             ui.text_edit(my_string);
             ui.add(Slider::f32(value, 0.0..=1.0).text("float"));
         });
+
+        Default::default()
     }
 
     fn on_exit(&mut self, storage: &mut dyn egui::app::Storage) {

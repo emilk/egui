@@ -9,6 +9,6 @@ pub fn start(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
     let backend = egui_web::WebBackend::new(canvas_id)?;
     let app = Box::new(egui::DemoApp::default());
     let runner = egui_web::AppRunner::new(backend, app)?;
-    egui_web::run(runner)?;
+    egui_web::start(runner)?;
     Ok(())
 }
