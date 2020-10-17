@@ -20,7 +20,7 @@
 //! }
 //! ```
 
-#![deny(warnings)]
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![warn(
     clippy::all,
     clippy::dbg_macro,
@@ -36,12 +36,10 @@
     clippy::needless_continue,
     clippy::pub_enum_variant_names,
     clippy::rest_pat_in_fully_bound_structs,
-    // clippy::suboptimal_flops, // TODO
     clippy::todo,
-    // clippy::use_self,
     future_incompatible,
     nonstandard_style,
-    rust_2018_idioms,
+    rust_2018_idioms
 )]
 
 pub mod align;

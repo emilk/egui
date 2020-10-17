@@ -159,6 +159,7 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
     }
 }
 
+#[allow(clippy::approx_constant)]
 #[test]
 fn test_format() {
     assert_eq!(format_with_minimum_precision(1_234_567.0, 0), "1234567");
@@ -204,6 +205,7 @@ fn test_almost_equal() {
     }
 }
 
+#[allow(clippy::float_cmp)]
 #[test]
 fn test_remap() {
     assert_eq!(remap_clamp(1.0, 0.0..=1.0, 0.0..=16.0), 16.0);
