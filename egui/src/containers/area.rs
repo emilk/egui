@@ -173,7 +173,7 @@ impl Prepared {
             movable,
         } = self;
 
-        state.size = (content_ui.min_rect().max - state.pos).ceil();
+        state.size = content_ui.min_rect().size();
 
         let rect = Rect::from_min_size(state.pos, state.size);
         let clip_rect = Rect::everything(); // TODO: get from context

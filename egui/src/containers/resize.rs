@@ -240,7 +240,6 @@ impl Resize {
         } = prepared;
 
         state.last_content_size = content_ui.min_size();
-        state.last_content_size = state.last_content_size.ceil(); // Avoid rounding errors in math
 
         // ------------------------------
 
@@ -249,7 +248,6 @@ impl Resize {
             // so we must follow the contents:
 
             state.desired_size = state.desired_size.max(state.last_content_size);
-            state.desired_size = ui.painter().round_vec_to_pixels(state.desired_size);
 
             // We are as large as we look
             ui.allocate_space(state.desired_size);

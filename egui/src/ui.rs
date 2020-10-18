@@ -438,9 +438,6 @@ impl Ui {
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
-        let desired_size = self.painter().round_vec_to_pixels(desired_size);
-        self.cursor = self.painter().round_pos_to_pixels(self.cursor);
-
         // For debug rendering
         let too_wide = desired_size.x > self.available().width();
         let too_high = desired_size.x > self.available().height();
