@@ -46,16 +46,19 @@ Window::new("Debug").show(ui.ctx(), |ui| {
 
 ## Goals
 
-* API: Simple and convenient
+* API: Simple and convenient (e.g. no lifetime arguments for [`Ui`](https://docs.rs/egui/latest/egui/struct.Ui.html)).
 * Responsive: target 60 Hz in debug build
-* Portable: the same code works on the web and as a native app
 * Friendly: difficult to make mistakes
+* Portable: the same code works on the web and as a native app
 * Easy to integrate into any environment
 * A simple 2D graphics API for custom painting
-* Simple: no callbacks, minimal dependencies, avoid unnecessary monomorphization
+* No callbacks
+* Pure immediate mode
 * Extensible: [easy to write your own widgets for Egui](https://github.com/emilk/egui/blob/master/egui/src/demos/toggle_switch.rs)
 * Modular: You should be able to use small parts of Egui and combine them in new ways
 * Safe: there is no `unsafe` code in Egui
+* Minimal dependencies
+  * Egui uses [`rusttype`](https://crates.io/crates/rusttype) to render text and [`ahash`](https://crates.io/crates/ahash) + [`parking_lot`](https://crates.io/crates/parking_lot) for a speed boost.
 
 Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
 
@@ -172,13 +175,15 @@ For a reference OpenGL backend, [see the `egui_glium` painter](https://github.co
 
 ### Conventions and design choices
 
-All coordinates are screen space coordinates, in logical "points" (which may consist of many physical pixels). Origin (0, 0) is top left.
+All coordinates are in screen space coordinates, with (0, 0) in the top left corner
+
+All coordinates are in locial "points" which may consist of many physical pixels.
 
 All colors have premultiplied alpha.
 
 Egui uses the builder pattern for construction widgets. For instance: `ui.add(Label::new("Hello").text_color(RED));` I am not a big fan of the builder pattern (it is quite verbose both in implementation and in use) but until Rust has named, default arguments it is the best we can do. To alleviate some of the verbosity there are common-case helper functions, like `ui.label("Hello");`.
 
-Instead of using matching `begin/end` style function calls (which can be error prone) Egui prefers to use lambdas passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this.
+Instead of using matching `begin/end` style function calls (which can be error prone) Egui prefers to use `FnOnce` closures passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this.
 
 ### Inspiration
 
