@@ -2,6 +2,7 @@
 
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
@@ -54,6 +55,7 @@ Window::new("Debug").show(ui.ctx(), |ui| {
 * Simple: no callbacks, minimal dependencies, avoid unnecessary monomorphization
 * Extensible: [easy to write your own widgets for Egui](https://github.com/emilk/egui/blob/master/egui/src/demos/toggle_switch.rs)
 * Modular: You should be able to use small parts of Egui and combine them in new ways
+* Safe: there is no `unsafe` code in Egui
 
 Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
 

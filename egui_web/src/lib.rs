@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![deny(warnings)]
 #![warn(clippy::all)]
 
