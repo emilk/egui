@@ -20,7 +20,7 @@ Sections:
 * [Goals](#goals)
 * [State / features](#state)
 * [How it works](#how-it-works)
-* [Backends](#backends)
+* [Integrations](#integrations)
 * [Other](#other)
 
 ## Demo
@@ -106,18 +106,23 @@ Loop:
 * Gather input (mouse, touches, keyboard, screen size, etc) and give it to Egui
 * Run application code (Immediate Mode GUI)
 * Tell Egui to tesselate the frame graphics to a triangle mesh
-* Render the triangle mesh with your favorite graphics API (see OpenGL examples)
+* Render the triangle mesh with your favorite graphics API (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs))
 
-## Backends
+## Integrations
 
-Wherever you can render textured triangles you can use Egui.
+Egui is build to be easy to integrate into any existing game engine or platform you are working on.
+Egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
+The integration needs to do two things:
+
+* **IO**: Supply Egui with input (mouse position, keyboard presses, ...) and handle Egui output (cursor changes, copy-paste integration, ...).
+* **Painting**: Render the textured triangles that Egui outputs.
 
 ### Official
 
-I maintain two official Egui backends:
+I maintain two official Egui integrations:
 
 * [egui_web](crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the Egui demo](https://emilk.github.io/egui/index.html).
-* [egui_glium](crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium) backend.
+* [egui_glium](crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 
 The same code can be compiled to a native app or a web app.
 
@@ -125,28 +130,28 @@ The same code can be compiled to a native app or a web app.
 
 * [emigui-miniquad](https://github.com/not-fl3/emigui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad). [Web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) and [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs).
 
-### Writing your own Egui backend
+### Writing your own Egui integration
 
 You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::PaintJobs`](https://docs.rs/egui/latest/egui/paint/tessellator/type.PaintJobs.html) and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
 
 ``` rust
 let mut egui_ctx = egui::Context::new();
 
-// game loop:
+// Game loop:
 loop {
-    let raw_input: egui::RawInput = my_backend.gather_input();
+    let raw_input: egui::RawInput = my_integration.gather_input();
     let mut ui = egui_ctx.begin_frame(raw_input);
     my_app.ui(&mut ui); // add windows and widgets to `ui` here
     let (output, paint_jobs) = egui_ctx.end_frame();
-    my_backend.paint(paint_jobs);
-    my_backend.set_cursor_icon(output.cursor_icon);
+    my_integration.paint(paint_jobs);
+    my_integration.set_cursor_icon(output.cursor_icon);
     // Also see `egui::Output` for more
 }
 ```
 
 For a reference OpenGL backend, [see the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs).
 
-#### Debugging your backend
+#### Debugging your integration
 
 #### My text is blurry
 
