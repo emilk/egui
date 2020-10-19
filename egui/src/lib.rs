@@ -89,7 +89,7 @@ pub use {
 
 #[test]
 pub fn text_egui_e2e() {
-    let mut demo_app = crate::demos::DemoApp::default();
+    let mut demo_windows = crate::demos::DemoWindows::default();
     let mut ctx = crate::Context::new();
     let raw_input = crate::RawInput {
         screen_size: crate::vec2(1280.0, 1024.0),
@@ -99,7 +99,7 @@ pub fn text_egui_e2e() {
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         let mut ui = ctx.begin_frame(raw_input.clone());
-        demo_app.ui(&mut ui, &Default::default());
+        demo_windows.ui(&mut ui, &Default::default(), None);
         let (_output, paint_jobs) = ctx.end_frame();
         assert!(!paint_jobs.is_empty());
     }

@@ -3,8 +3,6 @@ use crate::*;
 use color::*;
 use std::collections::HashMap;
 
-pub type TextureLoader<'a> = dyn FnMut((usize, usize), &[crate::Srgba]) -> TextureId + 'a;
-
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 24.0);
 
 pub struct ColorTest {
@@ -26,7 +24,11 @@ impl Default for ColorTest {
 }
 
 impl ColorTest {
-    pub fn ui(&mut self, ui: &mut Ui, tex_loader: &mut TextureLoader<'_>) {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        mut tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+    ) {
         ui.label("This is made to test if your Egui painter backend is set up correctly");
         ui.label("It is meant to ensure you do proper sRGBA decoding of both texture and vertex colors, and blend using premultiplied alpha.");
         ui.label("If everything is set up correctly, all groups of gradients will look uniform");
@@ -43,7 +45,7 @@ impl ColorTest {
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
             self.tex_gradient(
                 ui,
-                tex_loader,
+                tex_allocator,
                 "orange rgb(255, 165, 0) - texture",
                 WHITE,
                 &g,
@@ -70,38 +72,39 @@ impl ColorTest {
             {
                 let g = Gradient::one_color(Srgba::from(tex_color * vertex_color));
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
-                self.tex_gradient(ui, tex_loader, "Ground truth (texture)", WHITE, &g);
+                self.tex_gradient(ui, tex_allocator, "Ground truth (texture)", WHITE, &g);
             }
-            ui.horizontal(|ui| {
-                let g = Gradient::one_color(Srgba::from(tex_color));
-                let tex = self.tex_mngr.get(tex_loader, &g);
-                let texel_offset = 0.5 / (g.0.len() as f32);
-                let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-                ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
-                    .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
-                ui.label("GPU result");
-            });
+            if let Some(tex_allocator) = &mut tex_allocator {
+                ui.horizontal(|ui| {
+                    let g = Gradient::one_color(Srgba::from(tex_color));
+                    let tex = self.tex_mngr.get(*tex_allocator, &g);
+                    let texel_offset = 0.5 / (g.0.len() as f32);
+                    let uv =
+                        Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+                    ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
+                        .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
+                    ui.label("GPU result");
+                });
+            }
         });
-
-        ui.separator();
 
         ui.separator();
 
         // TODO: test color multiplication (image tint),
         // to make sure vertex and texture color multiplication is done in linear space.
 
-        self.show_gradients(ui, tex_loader, WHITE, (RED, GREEN));
+        self.show_gradients(ui, tex_allocator, WHITE, (RED, GREEN));
         if self.srgb {
             ui.label("Notice the darkening in the center of the naive sRGB interpolation.");
         }
 
         ui.separator();
 
-        self.show_gradients(ui, tex_loader, RED, (TRANSPARENT, GREEN));
+        self.show_gradients(ui, tex_allocator, RED, (TRANSPARENT, GREEN));
 
         ui.separator();
 
-        self.show_gradients(ui, tex_loader, WHITE, (TRANSPARENT, GREEN));
+        self.show_gradients(ui, tex_allocator, WHITE, (TRANSPARENT, GREEN));
         if self.srgb {
             ui.label(
             "Notice how the linear blend stays green while the naive sRGBA interpolation looks gray in the middle.",
@@ -112,13 +115,18 @@ impl ColorTest {
 
         // TODO: another ground truth where we do the alpha-blending against the background also.
         // TODO: exactly the same thing, but with vertex colors (no textures)
-        self.show_gradients(ui, tex_loader, WHITE, (TRANSPARENT, BLACK));
+        self.show_gradients(ui, tex_allocator, WHITE, (TRANSPARENT, BLACK));
         ui.separator();
-        self.show_gradients(ui, tex_loader, BLACK, (TRANSPARENT, WHITE));
+        self.show_gradients(ui, tex_allocator, BLACK, (TRANSPARENT, WHITE));
         ui.separator();
 
         ui.label("Additive blending: add more and more blue to the red background:");
-        self.show_gradients(ui, tex_loader, RED, (TRANSPARENT, Srgba::new(0, 0, 255, 0)));
+        self.show_gradients(
+            ui,
+            tex_allocator,
+            RED,
+            (TRANSPARENT, Srgba::new(0, 0, 255, 0)),
+        );
 
         ui.separator();
     }
@@ -126,7 +134,7 @@ impl ColorTest {
     fn show_gradients(
         &mut self,
         ui: &mut Ui,
-        tex_loader: &mut TextureLoader<'_>,
+        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
         bg_fill: Srgba,
         (left, right): (Srgba, Srgba),
     ) {
@@ -151,7 +159,7 @@ impl ColorTest {
                 self.vertex_gradient(ui, "Ground Truth (CPU gradient) - vertices", bg_fill, &g);
                 self.tex_gradient(
                     ui,
-                    tex_loader,
+                    tex_allocator,
                     "Ground Truth (CPU gradient) - texture",
                     bg_fill,
                     &g,
@@ -166,7 +174,7 @@ impl ColorTest {
                 );
                 self.tex_gradient(
                     ui,
-                    tex_loader,
+                    tex_allocator,
                     "Ground Truth (CPU gradient, CPU blending) - texture",
                     bg_fill,
                     &g,
@@ -175,7 +183,7 @@ impl ColorTest {
                 self.vertex_gradient(ui, "CPU gradient, GPU blending - vertices", bg_fill, &g);
                 self.tex_gradient(
                     ui,
-                    tex_loader,
+                    tex_allocator,
                     "CPU gradient, GPU blending - texture",
                     bg_fill,
                     &g,
@@ -191,7 +199,7 @@ impl ColorTest {
             );
             self.tex_gradient(
                 ui,
-                tex_loader,
+                tex_allocator,
                 "Texture of width 2 (test texture sampler)",
                 bg_fill,
                 &g,
@@ -208,7 +216,7 @@ impl ColorTest {
                 );
                 self.tex_gradient(
                     ui,
-                    tex_loader,
+                    tex_allocator,
                     "Naive sRGBA interpolation (WRONG)",
                     bg_fill,
                     &g,
@@ -220,7 +228,7 @@ impl ColorTest {
     fn tex_gradient(
         &mut self,
         ui: &mut Ui,
-        tex_loader: &mut TextureLoader<'_>,
+        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
         label: &str,
         bg_fill: Srgba,
         gradient: &Gradient,
@@ -228,17 +236,19 @@ impl ColorTest {
         if !self.texture_gradients {
             return;
         }
-        ui.horizontal(|ui| {
-            let tex = self.tex_mngr.get(tex_loader, gradient);
-            let texel_offset = 0.5 / (gradient.0.len() as f32);
-            let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-            ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
-                .on_hover_text(format!(
-                    "A texture that is {} texels wide",
-                    gradient.0.len()
-                ));
-            ui.label(label);
-        });
+        if let Some(tex_allocator) = tex_allocator {
+            ui.horizontal(|ui| {
+                let tex = self.tex_mngr.get(*tex_allocator, gradient);
+                let texel_offset = 0.5 / (gradient.0.len() as f32);
+                let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+                ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
+                    .on_hover_text(format!(
+                        "A texture that is {} texels wide",
+                        gradient.0.len()
+                    ));
+                ui.label(label);
+            });
+        }
     }
 
     fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Srgba, gradient: &Gradient) {
@@ -348,12 +358,16 @@ impl Gradient {
 struct TextureManager(HashMap<Gradient, TextureId>);
 
 impl TextureManager {
-    fn get(&mut self, tex_loader: &mut TextureLoader<'_>, gradient: &Gradient) -> TextureId {
+    fn get(
+        &mut self,
+        tex_allocator: &mut dyn app::TextureAllocator,
+        gradient: &Gradient,
+    ) -> TextureId {
         *self.0.entry(gradient.clone()).or_insert_with(|| {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            tex_loader((width, height), &pixels)
+            tex_allocator.new_texture_srgba_premultiplied((width, height), &pixels)
         })
     }
 }

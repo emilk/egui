@@ -8,12 +8,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::Context::new();
-        let mut demo_app = egui::demos::DemoApp::default();
+        let mut demo_windows = egui::demos::DemoWindows::default();
 
-        c.bench_function("demo_app_minimal", |b| {
+        c.bench_function("demo_windows_minimal", |b| {
             b.iter(|| {
                 let mut ui = ctx.begin_frame(raw_input.clone());
-                demo_app.ui(&mut ui, &Default::default());
+                demo_windows.ui(&mut ui, &Default::default(), None);
                 ctx.end_frame()
             })
         });
@@ -22,12 +22,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let mut ctx = egui::Context::new();
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
-        let mut demo_app = egui::demos::DemoApp::default();
+        let mut demo_windows = egui::demos::DemoWindows::default();
 
-        c.bench_function("demo_app_full", |b| {
+        c.bench_function("demo_windows_full", |b| {
             b.iter(|| {
                 let mut ui = ctx.begin_frame(raw_input.clone());
-                demo_app.ui(&mut ui, &Default::default());
+                demo_windows.ui(&mut ui, &Default::default(), None);
                 ctx.end_frame()
             })
         });

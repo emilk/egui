@@ -71,10 +71,10 @@ impl FractalClock {
         if seconds_since_midnight.is_some() {
             ui.add(label!(
                 "Local time: {:02}:{:02}:{:02}.{:03}",
-                (self.time.rem_euclid(24.0 * 60.0 * 60.0) / 3600.0).floor(),
-                (self.time.rem_euclid(60.0 * 60.0) / 60.0).floor(),
-                (self.time.rem_euclid(60.0)).floor(),
-                (self.time.rem_euclid(1.0) * 1000.0).floor()
+                (self.time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
+                (self.time % (60.0 * 60.0) / 60.0).floor(),
+                (self.time % 60.0).floor(),
+                (self.time % 1.0 * 100.0).floor()
             ));
         } else {
             ui.add(label!(
