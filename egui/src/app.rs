@@ -77,6 +77,17 @@ pub trait Storage {
     fn set_string(&mut self, key: &str, value: String);
 }
 
+/// Stores nothing.
+#[derive(Clone, Default)]
+pub struct DummyStorage {}
+
+impl Storage for DummyStorage {
+    fn get_string(&self, _key: &str) -> Option<&str> {
+        None
+    }
+    fn set_string(&mut self, _key: &str, _value: String) {}
+}
+
 #[cfg(feature = "serde_json")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
