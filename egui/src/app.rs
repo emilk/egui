@@ -75,6 +75,9 @@ pub trait TextureAllocator {
 pub trait Storage {
     fn get_string(&self, key: &str) -> Option<&str>;
     fn set_string(&mut self, key: &str, value: String);
+
+    /// write-to-disk or similar
+    fn flush(&mut self);
 }
 
 /// Stores nothing.
@@ -86,6 +89,7 @@ impl Storage for DummyStorage {
         None
     }
     fn set_string(&mut self, _key: &str, _value: String) {}
+    fn flush(&mut self) {}
 }
 
 #[cfg(feature = "serde_json")]

@@ -4,7 +4,6 @@
 #![warn(clippy::all)]
 
 use egui::{Slider, Window};
-use egui_glium::storage::FileStorage;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(Default, serde::Deserialize, serde::Serialize)]
@@ -44,9 +43,15 @@ impl egui::app::App for MyApp {
 
 fn main() {
     let title = "My Egui Window";
-    let storage = FileStorage::from_path(".egui_example_glium.json".into()); // Where to persist app state
+
+    // Persist app state to file:
+    let storage = egui_glium::storage::FileStorage::from_path(".egui_example_glium.json".into());
+
+    // Alternative: store nowhere
+    // let storage = egui::app::DummyStorage::default();
+
     let app: MyApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default(); // Restore `MyApp` from file, or create new `MyApp`.
-    egui_glium::run(title, storage, app);
+    egui_glium::run(title, Box::new(storage), app);
 }
 
 fn my_save_function() {

@@ -1,9 +1,6 @@
 use std::time::Instant;
 
-use crate::{
-    storage::{FileStorage, WindowSettings},
-    *,
-};
+use crate::{storage::WindowSettings, *};
 
 pub use egui::{
     app::{self, App, Storage},
@@ -24,7 +21,11 @@ impl egui::app::TextureAllocator for Painter {
 }
 
 /// Run an egui app
-pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -> ! {
+pub fn run(
+    title: &str,
+    mut storage: Box<dyn egui::app::Storage>,
+    mut app: impl App + 'static,
+) -> ! {
     let event_loop = glutin::event_loop::EventLoop::new();
     let mut window = glutin::window::WindowBuilder::new()
         .with_decorations(true)
@@ -32,7 +33,8 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
         .with_title(title)
         .with_transparent(false);
 
-    let window_settings: Option<WindowSettings> = egui::app::get_value(&storage, WINDOW_KEY);
+    let window_settings: Option<WindowSettings> =
+        egui::app::get_value(storage.as_ref(), WINDOW_KEY);
     if let Some(window_settings) = &window_settings {
         window = window_settings.initialize_size(window);
     }
@@ -49,7 +51,7 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
     }
 
     let mut ctx = egui::Context::new();
-    *ctx.memory() = egui::app::get_value(&storage, EGUI_MEMORY_KEY).unwrap_or_default();
+    *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
 
     let mut raw_input = egui::RawInput {
         pixels_per_point: Some(native_pixels_per_point(&display)),
@@ -119,13 +121,13 @@ pub fn run(title: &str, mut storage: FileStorage, mut app: impl App + 'static) -
             }
             glutin::event::Event::LoopDestroyed => {
                 egui::app::set_value(
-                    &mut storage,
+                    storage.as_mut(),
                     WINDOW_KEY,
                     &WindowSettings::from_display(&display),
                 );
-                egui::app::set_value(&mut storage, EGUI_MEMORY_KEY, &*ctx.memory());
-                app.on_exit(&mut storage);
-                storage.save();
+                egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                app.on_exit(storage.as_mut());
+                storage.flush();
             }
             _ => (),
         }

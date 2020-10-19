@@ -18,13 +18,6 @@ impl FileStorage {
             dirty: false,
         }
     }
-
-    pub fn save(&mut self) {
-        if self.dirty {
-            serde_json::to_writer(std::fs::File::create(&self.path).unwrap(), &self.kv).unwrap();
-            self.dirty = false;
-        }
-    }
 }
 
 impl egui::app::Storage for FileStorage {
@@ -36,6 +29,13 @@ impl egui::app::Storage for FileStorage {
         if self.kv.get(key) != Some(&value) {
             self.kv.insert(key.to_owned(), value);
             self.dirty = true;
+        }
+    }
+
+    fn flush(&mut self) {
+        if self.dirty {
+            serde_json::to_writer(std::fs::File::create(&self.path).unwrap(), &self.kv).unwrap();
+            self.dirty = false;
         }
     }
 }
