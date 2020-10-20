@@ -305,6 +305,8 @@ impl Context {
     pub fn is_mouse_over_area(&self) -> bool {
         if let Some(mouse_pos) = self.input.mouse.pos {
             if let Some(layer) = self.layer_at(mouse_pos) {
+                // TODO: this currently returns false for hovering the menu bar.
+                // We should probably move the menu bar to its own area to fix this.
                 layer.order != Order::Background
             } else {
                 false
@@ -319,10 +321,13 @@ impl Context {
     /// or the user is dragging an Egui widget.
     /// If false, the mouse is outside of any Egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
+    /// Returns `false` if a drag starts outside of Egui and then moves over an Egui window.
     pub fn wants_mouse_input(&self) -> bool {
-        self.is_mouse_over_area() || self.is_using_mouse()
+        self.is_using_mouse() || (self.is_mouse_over_area() && !self.input().mouse.down)
     }
 
+    /// Is Egui currently using the mouse position (e.g. dragging a slider).
+    /// NOTE: this will return false if the mouse is just hovering over an Egui window.
     pub fn is_using_mouse(&self) -> bool {
         self.memory().interaction.is_using_mouse()
     }
@@ -527,6 +532,17 @@ impl Context {
 
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
+
+        ui.label(format!("Is using mouse: {}", self.is_using_mouse()))
+            .on_hover_text("Is Egui currently using the mouse actively (e.g. dragging a slider)?");
+        ui.label(format!("Wants mouse input: {}", self.wants_mouse_input()))
+            .on_hover_text("Is Egui currently interested in the location of the mouse (either because it is in use, or because it is hovering over a window).");
+        ui.label(format!(
+            "Wants keyboard input: {}",
+            self.wants_keyboard_input()
+        ))
+        .on_hover_text("Is Egui currently listening for text input");
+        ui.advance_cursor(16.0);
 
         CollapsingHeader::new("Input")
             .default_open(true)
