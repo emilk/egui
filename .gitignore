@@ -1,1 +1,3 @@
 **/target
+/.*.json
+/.vscode
