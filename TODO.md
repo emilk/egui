@@ -5,8 +5,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 ## Top priority
 
 * Text input: text selection etc
-* Fix `is_mouse_over_area()` for menu bar:
-  * Probably a good time to create some sort of `ctx.top_panel()` allocation system and refactor paint layers
+* Refactor graphics layers and areas so one don't have to register LayerId:s.
 
 ## Other
 

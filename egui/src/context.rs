@@ -267,12 +267,10 @@ impl Context {
     /// A `Ui` for the entire screen, behind any windows.
     fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = self.input.screen_rect();
-        let id = Id::background();
-        let layer_id = LayerId {
-            order: Order::Background,
-            id,
-        };
-        // Ensure we register the background area so it is painted:
+        let layer_id = LayerId::background();
+        // Ensure we register the background area so it is painted
+        // and so we handle interactions properly (clicks on it etc).
+        // TODO: we shouldn't need to register areas. Maybe GraphicLayers should take care of it?
         self.memory().areas.set_state(
             layer_id,
             containers::area::State {
@@ -282,7 +280,7 @@ impl Context {
                 vel: Default::default(),
             },
         );
-        Ui::new(self.clone(), layer_id, id, rect, rect)
+        Ui::new(self.clone(), layer_id, layer_id.id, rect, rect)
     }
 
     // ---------------------------------------------------------------------
