@@ -3,8 +3,6 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 
-use egui::{Slider, Window};
-
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 struct MyApp {
@@ -24,13 +22,13 @@ impl egui::app::App for MyApp {
         let MyApp { my_string, value } = self;
 
         // Example used in `README.md`.
-        Window::new("Debug").show(ui.ctx(), |ui| {
+        egui::Window::new("Debug").show(ui.ctx(), |ui| {
             ui.label(format!("Hello, world {}", 123));
             if ui.button("Save").clicked {
                 my_save_function();
             }
             ui.text_edit(my_string);
-            ui.add(Slider::f32(value, 0.0..=1.0).text("float"));
+            ui.add(egui::Slider::f32(value, 0.0..=1.0).text("float"));
         });
 
         Default::default()

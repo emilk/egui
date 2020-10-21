@@ -37,25 +37,26 @@ impl BarState {
     }
 }
 
+/// The menu bar goes well in `TopPanel`,
+/// but can also be placed in a `Window`.
+/// In the latter case you may want to wrap it in `Frame`.
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-    Frame::menu_bar(ui.style()).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            let mut style = ui.style().clone();
-            style.spacing.button_padding = vec2(2.0, 0.0);
-            // style.visuals.widgets.active.bg_fill = TRANSPARENT;
-            style.visuals.widgets.active.bg_stroke = Stroke::none();
-            // style.visuals.widgets.hovered.bg_fill = TRANSPARENT;
-            style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-            style.visuals.widgets.inactive.bg_fill = TRANSPARENT;
-            style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-            ui.set_style(style);
+    ui.horizontal(|ui| {
+        let mut style = ui.style().clone();
+        style.spacing.button_padding = vec2(2.0, 0.0);
+        // style.visuals.widgets.active.bg_fill = TRANSPARENT;
+        style.visuals.widgets.active.bg_stroke = Stroke::none();
+        // style.visuals.widgets.hovered.bg_fill = TRANSPARENT;
+        style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+        style.visuals.widgets.inactive.bg_fill = TRANSPARENT;
+        style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+        ui.set_style(style);
 
-            // Take full width and fixed height:
-            let height = ui.style().spacing.interact_size.y;
-            ui.set_min_size(vec2(ui.available().width(), height));
+        // Take full width and fixed height:
+        let height = ui.style().spacing.interact_size.y;
+        ui.set_min_size(vec2(ui.available().width(), height));
 
-            add_contents(ui)
-        })
+        add_contents(ui)
     })
 }
 

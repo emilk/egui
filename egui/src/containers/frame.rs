@@ -31,9 +31,9 @@ impl Frame {
         }
     }
 
-    pub fn menu_bar(style: &Style) -> Self {
+    pub(crate) fn panel(style: &Style) -> Self {
         Self {
-            margin: Vec2::splat(1.0),
+            margin: Vec2::new(8.0, 2.0),
             corner_radius: 0.0,
             fill: style.visuals.widgets.noninteractive.bg_fill,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
@@ -56,10 +56,6 @@ impl Frame {
             fill: style.visuals.widgets.noninteractive.bg_fill,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
-    }
-
-    pub fn panel(style: &Style) -> Self {
-        Self::popup(style)
     }
 
     pub fn fill(mut self, fill: Srgba) -> Self {

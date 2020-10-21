@@ -1,0 +1,105 @@
+//! Panels
+
+use crate::*;
+use std::sync::Arc;
+
+// ----------------------------------------------------------------------------
+
+/// A panel that covers the entire left side of the screen.
+///
+/// Panels should be added before adding any `Window`s.
+pub struct SidePanel {
+    id: Id,
+    max_width: f32,
+}
+
+impl SidePanel {
+    /// The given `max_width` is a soft maximum (as always), and the actual panel may be smaller or larger.
+    pub fn left(id: Id, max_width: f32) -> Self {
+        Self { id, max_width }
+    }
+}
+
+impl SidePanel {
+    pub fn show<R>(
+        self,
+        ctx: &Arc<Context>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let Self { id, max_width } = self;
+
+        let mut panel_rect = ctx.available_rect();
+        panel_rect.max.x = panel_rect.max.x.at_most(panel_rect.min.x + max_width);
+
+        let layer_id = LayerId::background();
+
+        let clip_rect = ctx.input().screen_rect();
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+
+        let frame = Frame::panel(&ctx.style());
+        let r = frame.show(&mut panel_ui, |ui| {
+            ui.set_min_height(ui.max_rect_finite().height()); // fill full height
+            add_contents(ui)
+        });
+
+        let panel_rect = panel_ui.min_rect();
+        let response = panel_ui.interact_hover(panel_rect);
+
+        ctx.allocate_left_panel(panel_rect);
+
+        (r, response)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A panel that covers the entire top side of the screen.
+///
+/// Panels should be added before adding any `Window`s.
+pub struct TopPanel {
+    id: Id,
+    max_height: Option<f32>,
+}
+
+impl TopPanel {
+    /// Default height is that of `interact_size.y` (i.e. a button),
+    /// but the panel will expand as needed.
+    pub fn top(id: Id) -> Self {
+        Self {
+            id,
+            max_height: None,
+        }
+    }
+}
+
+impl TopPanel {
+    pub fn show<R>(
+        self,
+        ctx: &Arc<Context>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let Self { id, max_height } = self;
+        let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+
+        let mut panel_rect = ctx.available_rect();
+        panel_rect.max.y = panel_rect.max.y.at_most(panel_rect.min.y + max_height);
+
+        let layer_id = LayerId::background();
+
+        let clip_rect = ctx.input().screen_rect();
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+
+        let frame = Frame::panel(&ctx.style());
+        let r = frame.show(&mut panel_ui, |ui| {
+            ui.set_min_width(ui.max_rect_finite().width()); // fill full width
+            add_contents(ui)
+        });
+
+        let panel_rect = panel_ui.min_rect();
+        let response = panel_ui.interact_hover(panel_rect);
+
+        ctx.allocate_top_panel(panel_rect);
+
+        (r, response)
+    }
+}

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{app, demos, Context, Resize, ScrollArea, Ui, Window};
+use crate::{app, demos, Context, Id, Resize, ScrollArea, Ui, Window};
 
 // ----------------------------------------------------------------------------
 
@@ -63,8 +63,7 @@ impl DemoWindows {
             self.previous_link = env.link;
         }
 
-        let frame = crate::Frame::panel(ui.style());
-        ctx.panel_left(240.0, frame, |ui| {
+        crate::SidePanel::left(Id::new("side_panel"), 200.0).show(ctx, |ui| {
             ui.heading("Egui Demo");
             ui.label("Egui is an immediate mode GUI library written in Rust.");
             ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
@@ -83,7 +82,8 @@ impl DemoWindows {
                 self.open_windows.ui(ui);
             });
         });
-        ctx.panel_top(0.0, crate::Frame::none(), |ui| {
+
+        crate::TopPanel::top(Id::new("menu_bar")).show(ctx, |ui| {
             show_menu_bar(ui, &mut self.open_windows, env.seconds_since_midnight);
         });
 

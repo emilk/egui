@@ -287,77 +287,18 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Create a panel that covers the entire left side of the screen.
-    /// The given `max_width` is a soft maximum (as always), and the actual panel may be smaller or larger.
-    /// You should call this *before* adding windows to Egui.
-    pub fn panel_left<R>(
-        self: &Arc<Context>,
-        max_width: f32,
-        frame: Frame,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
-        let mut panel_rect = self.available_rect();
-        panel_rect.max.x = panel_rect.max.x.at_most(panel_rect.min.x + max_width);
-
-        let id = Id::background();
-        let layer_id = LayerId {
-            order: Order::Background,
-            id,
-        };
-
-        let clip_rect = self.input.screen_rect();
-        let mut panel_ui = Ui::new(self.clone(), layer_id, id, panel_rect, clip_rect);
-        let r = frame.show(&mut panel_ui, |ui| {
-            ui.set_min_height(ui.max_rect_finite().height()); // fill full height
-            add_contents(ui)
-        });
-
-        let panel_rect = panel_ui.min_rect();
-        let response = panel_ui.interact_hover(panel_rect);
-
-        // Shrink out `available_rect`:
+    /// Shrink `available_rect()`.
+    pub(crate) fn allocate_left_panel(&self, panel_rect: Rect) {
         let mut remainder = self.available_rect();
         remainder.min.x = panel_rect.max.x;
         *self.available_rect.lock() = Some(remainder);
-
-        (r, response)
     }
 
-    /// Create a panel that covers the entire top side of the screen.
-    /// This can be useful to add a menu bar to the whole window.
-    /// The given `max_height` is a soft maximum (as always), and the actual panel may be smaller or larger.
-    /// You should call this *before* adding windows to Egui.
-    pub fn panel_top<R>(
-        self: &Arc<Context>,
-        max_height: f32,
-        frame: Frame,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
-        let mut panel_rect = self.available_rect();
-        panel_rect.max.y = panel_rect.max.y.at_most(panel_rect.min.y + max_height);
-
-        let id = Id::background();
-        let layer_id = LayerId {
-            order: Order::Background,
-            id,
-        };
-
-        let clip_rect = self.input.screen_rect();
-        let mut panel_ui = Ui::new(self.clone(), layer_id, id, panel_rect, clip_rect);
-        let r = frame.show(&mut panel_ui, |ui| {
-            ui.set_min_width(ui.max_rect_finite().width()); // fill full width
-            add_contents(ui)
-        });
-
-        let panel_rect = panel_ui.min_rect();
-        let response = panel_ui.interact_hover(panel_rect);
-
-        // Shrink out `available_rect`:
+    /// Shrink `available_rect()`.
+    pub(crate) fn allocate_top_panel(&self, panel_rect: Rect) {
         let mut remainder = self.available_rect();
         remainder.min.y = panel_rect.max.y;
         *self.available_rect.lock() = Some(remainder);
-
-        (r, response)
     }
 
     // ---------------------------------------------------------------------

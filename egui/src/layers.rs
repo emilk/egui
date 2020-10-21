@@ -34,6 +34,13 @@ impl LayerId {
             id: Id::new("debug"),
         }
     }
+
+    pub fn background() -> Self {
+        Self {
+            order: Order::Background,
+            id: Id::background(),
+        }
+    }
 }
 
 /// A unique identifier of a specific `PaintCmd` in a `PaintList`.
