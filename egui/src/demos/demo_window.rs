@@ -31,15 +31,6 @@ impl Default for DemoWindow {
 
 impl DemoWindow {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.collapsing("About Egui", |ui| {
-            ui.label("Egui is an experimental immediate mode GUI written in Rust.");
-
-            ui.horizontal(|ui| {
-                ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/egui");
-            });
-        });
-
         CollapsingHeader::new("Widgets")
             .default_open(true)
             .show(ui, |ui| {

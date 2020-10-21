@@ -3,7 +3,7 @@
 use crate::{layers::PaintCmdIdx, paint::*, *};
 
 /// Adds a rectangular frame and background to some `Ui`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frame {
     // On each side
     pub margin: Vec2,
@@ -56,6 +56,10 @@ impl Frame {
             fill: style.visuals.widgets.noninteractive.bg_fill,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
+    }
+
+    pub fn panel(style: &Style) -> Self {
+        Self::popup(style)
     }
 
     pub fn fill(mut self, fill: Srgba) -> Self {

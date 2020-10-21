@@ -158,11 +158,14 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &Arc<Context>) -> Ui {
+        let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
+        let clip_rect = max_rect.expand(ctx.style().visuals.clip_rect_margin);
         Ui::new(
             ctx.clone(),
             self.layer_id,
             self.layer_id.id,
-            Rect::from_min_size(self.state.pos, Vec2::infinity()),
+            max_rect,
+            clip_rect,
         )
     }
 
@@ -176,7 +179,6 @@ impl Prepared {
         state.size = content_ui.min_rect().size();
 
         let area_rect = Rect::from_min_size(state.pos, state.size);
-        let clip_rect = ctx.rect();
 
         let interact_id = if movable {
             Some(layer_id.id.with("move"))
@@ -185,7 +187,7 @@ impl Prepared {
         };
         let move_response = ctx.interact(
             layer_id,
-            clip_rect,
+            Rect::everything(),
             area_rect,
             interact_id,
             Sense::click_and_drag(),
@@ -243,9 +245,11 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
         .collect();
     existing.sort_by_key(|r| r.left().round() as i32);
 
-    let left = 16.0;
-    let top = 32.0; // allow existence of menu bar. TODO: get from ui.available()
+    let available_rect = ctx.available_rect();
+
     let spacing = 16.0;
+    let left = available_rect.left() + spacing;
+    let top = available_rect.top() + spacing;
 
     if existing.is_empty() {
         return pos2(left, top);
@@ -279,14 +283,14 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
 
     // Find first column with some available space at the bottom of it:
     for col_bb in &column_bbs {
-        if col_bb.bottom() < ctx.input().screen_size.y * 0.5 {
+        if col_bb.bottom() < available_rect.center().y {
             return pos2(col_bb.left(), col_bb.bottom() + spacing);
         }
     }
 
     // Maybe we can fit a new column?
     let rightmost = column_bbs.last().unwrap().right();
-    if rightmost < ctx.input().screen_size.x - 200.0 {
+    if rightmost + 200.0 < available_rect.right() {
         return pos2(rightmost + spacing, top);
     }
 

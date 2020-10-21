@@ -278,20 +278,12 @@ impl app::App for DemoApp {
         info: &app::BackendInfo,
         tex_allocator: Option<&mut dyn app::TextureAllocator>,
     ) -> app::AppOutput {
-        let mut output = app::AppOutput::default();
-
-        crate::Window::new("Backend")
-            .min_width(360.0)
-            .scroll(false)
-            .show(ui.ctx(), |ui| {
-                output = self.backend_ui(ui, info);
-            });
-
         let web_location_hash = info
             .web_info
             .as_ref()
             .map(|info| info.web_location_hash.clone())
             .unwrap_or_default();
+
         let link = if web_location_hash == "clock" {
             Some(demos::DemoLink::Clock)
         } else {
@@ -304,6 +296,15 @@ impl app::App for DemoApp {
         };
 
         self.demo_windows.ui(ui, &demo_environment, tex_allocator);
+
+        let mut output = app::AppOutput::default();
+
+        crate::Window::new("Backend")
+            .min_width(360.0)
+            .scroll(false)
+            .show(ui.ctx(), |ui| {
+                output = self.backend_ui(ui, info);
+            });
 
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible

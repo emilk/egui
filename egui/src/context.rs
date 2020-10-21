@@ -42,6 +42,9 @@ pub struct Context {
 
     input: InputState,
 
+    /// Starts off as the screen_rect, shrinks as panels are added.
+    available_rect: Mutex<Option<Rect>>,
+
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
     output: Mutex<Output>,
@@ -62,6 +65,7 @@ impl Clone for Context {
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
+            available_rect: self.available_rect.clone(),
             graphics: self.graphics.clone(),
             output: self.output.clone(),
             used_ids: self.used_ids.clone(),
@@ -76,8 +80,13 @@ impl Context {
         Arc::new(Self::default())
     }
 
-    pub fn rect(&self) -> Rect {
-        Rect::from_min_size(pos2(0.0, 0.0), self.input.screen_size)
+    /// How much space is still available after panels has been added.
+    /// This is the "background" area, what Egui doesn't cover with panels (but may cover with windows).
+    /// This is also the area to which windows are constrained.
+    pub fn available_rect(&self) -> Rect {
+        self.available_rect
+            .lock()
+            .expect("Called `avaiblable_rect()` before `begin_frame()`")
     }
 
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
@@ -168,7 +177,7 @@ impl Context {
     /// Constraint the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
-        let screen = self.rect();
+        let screen = self.available_rect();
 
         let mut pos = window.min;
 
@@ -203,6 +212,8 @@ impl Context {
         self.used_ids.lock().clear();
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+        *self.available_rect.lock() = Some(self.input.screen_rect());
+
         let mut font_definitions = self.options.lock().font_definitions.clone();
         font_definitions.pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
@@ -255,7 +266,7 @@ impl Context {
 
     /// A `Ui` for the entire screen, behind any windows.
     fn fullscreen_ui(self: &Arc<Self>) -> Ui {
-        let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
+        let rect = self.input.screen_rect();
         let id = Id::background();
         let layer_id = LayerId {
             order: Order::Background,
@@ -271,7 +282,82 @@ impl Context {
                 vel: Default::default(),
             },
         );
-        Ui::new(self.clone(), layer_id, id, rect)
+        Ui::new(self.clone(), layer_id, id, rect, rect)
+    }
+
+    // ---------------------------------------------------------------------
+
+    /// Create a panel that covers the entire left side of the screen.
+    /// The given `max_width` is a soft maximum (as always), and the actual panel may be smaller or larger.
+    /// You should call this *before* adding windows to Egui.
+    pub fn panel_left<R>(
+        self: &Arc<Context>,
+        max_width: f32,
+        frame: Frame,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let mut panel_rect = self.available_rect();
+        panel_rect.max.x = panel_rect.max.x.at_most(panel_rect.min.x + max_width);
+
+        let id = Id::background();
+        let layer_id = LayerId {
+            order: Order::Background,
+            id,
+        };
+
+        let clip_rect = self.input.screen_rect();
+        let mut panel_ui = Ui::new(self.clone(), layer_id, id, panel_rect, clip_rect);
+        let r = frame.show(&mut panel_ui, |ui| {
+            ui.set_min_height(ui.max_rect_finite().height()); // fill full height
+            add_contents(ui)
+        });
+
+        let panel_rect = panel_ui.min_rect();
+        let response = panel_ui.interact_hover(panel_rect);
+
+        // Shrink out `available_rect`:
+        let mut remainder = self.available_rect();
+        remainder.min.x = panel_rect.max.x;
+        *self.available_rect.lock() = Some(remainder);
+
+        (r, response)
+    }
+
+    /// Create a panel that covers the entire top side of the screen.
+    /// This can be useful to add a menu bar to the whole window.
+    /// The given `max_height` is a soft maximum (as always), and the actual panel may be smaller or larger.
+    /// You should call this *before* adding windows to Egui.
+    pub fn panel_top<R>(
+        self: &Arc<Context>,
+        max_height: f32,
+        frame: Frame,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let mut panel_rect = self.available_rect();
+        panel_rect.max.y = panel_rect.max.y.at_most(panel_rect.min.y + max_height);
+
+        let id = Id::background();
+        let layer_id = LayerId {
+            order: Order::Background,
+            id,
+        };
+
+        let clip_rect = self.input.screen_rect();
+        let mut panel_ui = Ui::new(self.clone(), layer_id, id, panel_rect, clip_rect);
+        let r = frame.show(&mut panel_ui, |ui| {
+            ui.set_min_width(ui.max_rect_finite().width()); // fill full width
+            add_contents(ui)
+        });
+
+        let panel_rect = panel_ui.min_rect();
+        let response = panel_ui.interact_hover(panel_rect);
+
+        // Shrink out `available_rect`:
+        let mut remainder = self.available_rect();
+        remainder.min.y = panel_rect.max.y;
+        *self.available_rect.lock() = Some(remainder);
+
+        (r, response)
     }
 
     // ---------------------------------------------------------------------
@@ -328,9 +414,16 @@ impl Context {
     pub fn is_mouse_over_area(&self) -> bool {
         if let Some(mouse_pos) = self.input.mouse.pos {
             if let Some(layer) = self.layer_id_at(mouse_pos) {
-                // TODO: this currently returns false for hovering the menu bar.
-                // We should probably move the menu bar to its own area to fix this.
-                layer.order != Order::Background
+                if layer.order == Order::Background {
+                    if let Some(available_rect) = *self.available_rect.lock() {
+                        // "available_rect" is the area that Egui is NOT using.
+                        !available_rect.contains(mouse_pos)
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
             } else {
                 false
             }
@@ -521,7 +614,7 @@ impl Context {
 /// ## Painting
 impl Context {
     pub fn debug_painter(self: &Arc<Self>) -> Painter {
-        Painter::new(self.clone(), LayerId::debug(), self.rect())
+        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
     }
 }
 

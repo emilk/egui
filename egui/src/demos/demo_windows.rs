@@ -48,6 +48,8 @@ impl DemoWindows {
         env: &DemoEnvironment,
         tex_allocator: Option<&mut dyn app::TextureAllocator>,
     ) {
+        let ctx = ui.ctx();
+
         if self.previous_link != env.link {
             match env.link {
                 None => {}
@@ -61,8 +63,31 @@ impl DemoWindows {
             self.previous_link = env.link;
         }
 
-        show_menu_bar(ui, &mut self.open_windows, env.seconds_since_midnight);
-        self.windows(ui.ctx(), env, tex_allocator);
+        let frame = crate::Frame::panel(ui.style());
+        ctx.panel_left(240.0, frame, |ui| {
+            ui.heading("Egui Demo");
+            ui.label("Egui is an immediate mode GUI library written in Rust.");
+            ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
+
+            ui.separator();
+            ui.label(
+                "This is an example of a panel. Windows are constrained to the area that remain.",
+            );
+            if ui.button("Organize windows").clicked {
+                ui.ctx().memory().reset_areas();
+            }
+            ui.separator();
+
+            ui.heading("Windows:");
+            ui.indent("windows", |ui| {
+                self.open_windows.ui(ui);
+            });
+        });
+        ctx.panel_top(0.0, crate::Frame::none(), |ui| {
+            show_menu_bar(ui, &mut self.open_windows, env.seconds_since_midnight);
+        });
+
+        self.windows(ctx, env, tex_allocator);
     }
 
     /// Show the open windows.
@@ -218,6 +243,28 @@ impl OpenWindows {
             color_test: false,
         }
     }
+
+    fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            demo,
+            fractal_clock,
+            settings,
+            inspection,
+            memory,
+            resize,
+            color_test,
+        } = self;
+        ui.checkbox(demo, "Demo");
+        ui.checkbox(fractal_clock, "Fractal Clock");
+        ui.separator();
+        ui.checkbox(settings, "Settings");
+        ui.checkbox(inspection, "Inspection");
+        ui.checkbox(memory, "Memory");
+        ui.checkbox(resize, "Resize examples");
+        ui.separator();
+        ui.checkbox(color_test, "Color test")
+            .on_hover_text("For testing the integrations painter");
+    }
 }
 
 fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight: Option<f64>) {
@@ -225,7 +272,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
 
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            if ui.button("Reorganize windows").clicked {
+            if ui.button("Organize windows").clicked {
                 ui.ctx().memory().reset_areas();
             }
             if ui
@@ -236,27 +283,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
                 *ui.ctx().memory() = Default::default();
             }
         });
-        menu::menu(ui, "Windows", |ui| {
-            let OpenWindows {
-                demo,
-                fractal_clock,
-                settings,
-                inspection,
-                memory,
-                resize,
-                color_test,
-            } = windows;
-            ui.checkbox(demo, "Demo");
-            ui.checkbox(fractal_clock, "Fractal Clock");
-            ui.separator();
-            ui.checkbox(settings, "Settings");
-            ui.checkbox(inspection, "Inspection");
-            ui.checkbox(memory, "Memory");
-            ui.checkbox(resize, "Resize examples");
-            ui.separator();
-            ui.checkbox(color_test, "Color test")
-                .on_hover_text("For testing the integrations painter");
-        });
+        menu::menu(ui, "Windows", |ui| windows.ui(ui));
         menu::menu(ui, "About", |ui| {
             ui.label("This is Egui");
             ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));

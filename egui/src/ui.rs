@@ -60,9 +60,14 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    pub fn new(ctx: Arc<Context>, layer_id: LayerId, id: Id, max_rect: Rect) -> Self {
+    pub fn new(
+        ctx: Arc<Context>,
+        layer_id: LayerId,
+        id: Id,
+        max_rect: Rect,
+        clip_rect: Rect,
+    ) -> Self {
         let style = ctx.style();
-        let clip_rect = max_rect.expand(style.visuals.clip_rect_margin);
         let layout = Layout::default();
         let cursor = layout.initial_cursor(max_rect);
         let min_size = Vec2::zero(); // TODO: From Style
