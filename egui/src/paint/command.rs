@@ -113,6 +113,14 @@ impl PaintCmd {
         debug_assert!(triangles.is_valid());
         Self::Triangles(triangles)
     }
+
+    pub fn texture_id(&self) -> super::TextureId {
+        if let PaintCmd::Triangles(triangles) = self {
+            triangles.texture_id
+        } else {
+            super::TextureId::Egui
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

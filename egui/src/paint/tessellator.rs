@@ -104,23 +104,23 @@ impl Triangles {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
-    pub fn append(&mut self, other: &Triangles) {
+    pub fn append(&mut self, other: Triangles) {
         debug_assert!(other.is_valid());
 
         if self.is_empty() {
-            self.texture_id = other.texture_id;
+            *self = other;
         } else {
             assert_eq!(
                 self.texture_id, other.texture_id,
                 "Can't merge Triangles using different textures"
             );
-        }
 
-        let index_offset = self.vertices.len() as u32;
-        for index in &other.indices {
-            self.indices.push(index_offset + index);
+            let index_offset = self.vertices.len() as u32;
+            for index in &other.indices {
+                self.indices.push(index_offset + index);
+            }
+            self.vertices.extend(other.vertices.iter());
         }
-        self.vertices.extend(other.vertices.iter());
     }
 
     pub fn colored_vertex(&mut self, pos: Pos2, color: Srgba) {
@@ -695,7 +695,7 @@ fn tessellate_paint_command(
         }
         PaintCmd::Triangles(triangles) => {
             if triangles.is_valid() {
-                out.append(&triangles);
+                out.append(triangles);
             } else {
                 debug_assert!(false, "Ivalid Triangles in PaintCmd::Traingles");
             }
@@ -834,22 +834,12 @@ pub fn tessellate_paint_commands(
 
     let mut jobs = PaintJobs::default();
     for (clip_rect, cmd) in commands {
-        // TODO: cull(clip_rect, cmd)
+        let start_new_job = match jobs.last() {
+            None => true,
+            Some(job) => job.0 != clip_rect || job.1.texture_id != cmd.texture_id(),
+        };
 
-        if let PaintCmd::Triangles(triangles) = cmd {
-            // Assume non-Egui texture, which means own paint job.
-            if triangles.is_valid() {
-                jobs.push((clip_rect, triangles));
-            } else {
-                debug_assert!(false, "Ivalid Triangles in PaintCmd::Traingles");
-            }
-            continue;
-        }
-
-        if jobs.is_empty()
-            || jobs.last().unwrap().0 != clip_rect
-            || jobs.last().unwrap().1.texture_id != TextureId::Egui
-        {
+        if start_new_job {
             jobs.push((clip_rect, Triangles::default()));
         }
 
