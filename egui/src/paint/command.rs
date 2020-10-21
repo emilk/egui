@@ -108,6 +108,11 @@ impl PaintCmd {
             color,
         }
     }
+
+    pub fn triangles(triangles: Triangles) -> Self {
+        debug_assert!(triangles.is_valid());
+        Self::Triangles(triangles)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

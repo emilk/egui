@@ -35,7 +35,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         );
         std::mem::swap(&mut top_color, &mut bottom_color);
     }
-    painter.add(PaintCmd::Triangles(triangles));
+    painter.add(PaintCmd::triangles(triangles));
 }
 
 pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> Response {
@@ -105,7 +105,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba
                 triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(PaintCmd::Triangles(triangles));
+        ui.painter().add(PaintCmd::triangles(triangles));
     }
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
@@ -169,7 +169,7 @@ fn color_slider_2d(
             }
         }
     }
-    ui.painter().add(PaintCmd::Triangles(triangles)); // fill
+    ui.painter().add(PaintCmd::triangles(triangles)); // fill
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
 

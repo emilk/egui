@@ -22,7 +22,7 @@ impl Texture {
         let rect = ui.allocate_space(size);
         let mut triangles = Triangles::default();
         triangles.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), WHITE);
-        ui.painter().add(PaintCmd::Triangles(triangles));
+        ui.painter().add(PaintCmd::triangles(triangles));
 
         let tex_w = self.width as f32;
         let tex_h = self.height as f32;
@@ -48,7 +48,7 @@ impl Texture {
                 );
                 let mut triangles = Triangles::default();
                 triangles.add_rect_with_uv(zoom_rect, uv_rect, WHITE);
-                ui.painter().add(PaintCmd::Triangles(triangles));
+                ui.painter().add(PaintCmd::triangles(triangles));
             });
         }
     }

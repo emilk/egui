@@ -105,6 +105,8 @@ impl Triangles {
 
     /// Append all the indices and vertices of `other` to `self`.
     pub fn append(&mut self, other: &Triangles) {
+        debug_assert!(other.is_valid());
+
         if self.is_empty() {
             self.texture_id = other.texture_id;
         } else {
@@ -692,7 +694,11 @@ fn tessellate_paint_command(
             stroke_path(&path.0, Closed, stroke, options, out);
         }
         PaintCmd::Triangles(triangles) => {
-            out.append(&triangles);
+            if triangles.is_valid() {
+                out.append(&triangles);
+            } else {
+                debug_assert!(false, "Ivalid Triangles in PaintCmd::Traingles");
+            }
         }
         PaintCmd::LineSegment { points, stroke } => {
             path.add_line_segment(points);
@@ -831,8 +837,12 @@ pub fn tessellate_paint_commands(
         // TODO: cull(clip_rect, cmd)
 
         if let PaintCmd::Triangles(triangles) = cmd {
-            // Assume non-Egui texture, which means own paint job:
-            jobs.push((clip_rect, triangles));
+            // Assume non-Egui texture, which means own paint job.
+            if triangles.is_valid() {
+                jobs.push((clip_rect, triangles));
+            } else {
+                debug_assert!(false, "Ivalid Triangles in PaintCmd::Traingles");
+            }
             continue;
         }
 
@@ -878,6 +888,13 @@ pub fn tessellate_paint_commands(
         for (clip_rect, _) in &mut jobs {
             *clip_rect = Rect::everything();
         }
+    }
+
+    for (_, triangles) in &jobs {
+        debug_assert!(
+            triangles.is_valid(),
+            "Tesselator generated invalid Triangles"
+        );
     }
 
     jobs
