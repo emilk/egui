@@ -57,8 +57,8 @@ impl Area {
         }
     }
 
-    pub fn layer(&self) -> Layer {
-        Layer {
+    pub fn layer(&self) -> LayerId {
+        LayerId {
             order: self.order,
             id: self.id,
         }
@@ -105,7 +105,7 @@ impl Area {
 }
 
 pub(crate) struct Prepared {
-    layer: Layer,
+    layer_id: LayerId,
     state: State,
     movable: bool,
 }
@@ -121,7 +121,7 @@ impl Area {
             fixed_pos,
         } = self;
 
-        let layer = Layer { order, id };
+        let layer_id = LayerId { order, id };
 
         let state = ctx.memory().areas.get(id).cloned();
         let mut state = state.unwrap_or_else(|| State {
@@ -134,7 +134,7 @@ impl Area {
         state.pos = ctx.round_pos_to_pixels(state.pos);
 
         Prepared {
-            layer,
+            layer_id,
             state,
             movable,
         }
@@ -160,15 +160,15 @@ impl Prepared {
     pub(crate) fn content_ui(&self, ctx: &Arc<Context>) -> Ui {
         Ui::new(
             ctx.clone(),
-            self.layer,
-            self.layer.id,
+            self.layer_id,
+            self.layer_id.id,
             Rect::from_min_size(self.state.pos, Vec2::infinity()),
         )
     }
 
     pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> Response {
         let Prepared {
-            layer,
+            layer_id,
             mut state,
             movable,
         } = self;
@@ -179,12 +179,17 @@ impl Prepared {
         let clip_rect = Rect::everything(); // TODO: get from context
 
         let interact_id = if movable {
-            Some(layer.id.with("move"))
+            Some(layer_id.id.with("move"))
         } else {
             None
         };
-        let move_response =
-            ctx.interact(layer, clip_rect, rect, interact_id, Sense::click_and_drag());
+        let move_response = ctx.interact(
+            layer_id,
+            clip_rect,
+            rect,
+            interact_id,
+            Sense::click_and_drag(),
+        );
 
         let input = ctx.input();
         if move_response.active {
@@ -215,21 +220,21 @@ impl Prepared {
         state.pos = ctx.round_pos_to_pixels(state.pos);
 
         if move_response.active
-            || mouse_pressed_on_area(ctx, layer)
-            || !ctx.memory().areas.visible_last_frame(&layer)
+            || mouse_pressed_on_area(ctx, layer_id)
+            || !ctx.memory().areas.visible_last_frame(&layer_id)
         {
-            ctx.memory().areas.move_to_top(layer);
+            ctx.memory().areas.move_to_top(layer_id);
             ctx.request_repaint();
         }
-        ctx.memory().areas.set_state(layer, state);
+        ctx.memory().areas.set_state(layer_id, state);
 
         move_response
     }
 }
 
-fn mouse_pressed_on_area(ctx: &Context, layer: Layer) -> bool {
+fn mouse_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
-        ctx.input().mouse.pressed && ctx.layer_at(mouse_pos) == Some(layer)
+        ctx.input().mouse.pressed && ctx.layer_id_at(mouse_pos) == Some(layer_id)
     } else {
         false
     }

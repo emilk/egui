@@ -52,7 +52,7 @@ impl FractalClock {
             ui.ctx().request_repaint();
         }
 
-        let painter = Painter::new(ui.ctx().clone(), ui.layer(), ui.available_finite());
+        let painter = Painter::new(ui.ctx().clone(), ui.layer_id(), ui.available_finite());
         self.fractal_ui(&painter);
 
         Frame::popup(ui.style())

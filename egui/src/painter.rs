@@ -6,7 +6,7 @@ use crate::{
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{font, Fonts, PaintCmd, Stroke, TextStyle},
-    Context, Layer, Srgba,
+    Context, LayerId, Srgba,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -16,7 +16,7 @@ pub struct Painter {
     ctx: Arc<Context>,
 
     /// Where we paint
-    layer: Layer,
+    layer_id: LayerId,
 
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
@@ -24,10 +24,10 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new(ctx: Arc<Context>, layer: Layer, clip_rect: Rect) -> Self {
+    pub fn new(ctx: Arc<Context>, layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
-            layer,
+            layer_id,
             clip_rect,
         }
     }
@@ -37,7 +37,11 @@ impl Painter {
     /// The clip-rect of the returned `Painter` will be the intersection
     /// of the given rectangle and the `clip_rect()` of this `Painter`.
     pub fn sub_region(&self, rect: Rect) -> Self {
-        Self::new(self.ctx.clone(), self.layer, rect.intersect(self.clip_rect))
+        Self::new(
+            self.ctx.clone(),
+            self.layer_id,
+            rect.intersect(self.clip_rect),
+        )
     }
 }
 
@@ -53,8 +57,8 @@ impl Painter {
     }
 
     /// Where we paint
-    pub fn layer(&self) -> Layer {
-        self.layer
+    pub fn layer_id(&self) -> LayerId {
+        self.layer_id
     }
 
     /// Everything painted in this `Painter` will be clipped against this.
@@ -93,14 +97,14 @@ impl Painter {
     pub fn add(&self, paint_cmd: PaintCmd) -> PaintCmdIdx {
         self.ctx
             .graphics()
-            .list(self.layer)
+            .list(self.layer_id)
             .add(self.clip_rect, paint_cmd)
     }
 
     pub fn extend(&self, cmds: Vec<PaintCmd>) {
         self.ctx
             .graphics()
-            .list(self.layer)
+            .list(self.layer_id)
             .extend(self.clip_rect, cmds);
     }
 
@@ -108,7 +112,7 @@ impl Painter {
     pub fn set(&self, idx: PaintCmdIdx, cmd: PaintCmd) {
         self.ctx
             .graphics()
-            .list(self.layer)
+            .list(self.layer_id)
             .set(idx, self.clip_rect, cmd)
     }
 }

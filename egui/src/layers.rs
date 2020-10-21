@@ -22,12 +22,12 @@ pub enum Order {
 /// Also acts as an identifier for `Area`:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Layer {
+pub struct LayerId {
     pub order: Order,
     pub id: Id,
 }
 
-impl Layer {
+impl LayerId {
     pub fn debug() -> Self {
         Self {
             order: Order::Debug,
@@ -71,26 +71,26 @@ impl PaintList {
 
 // TODO: improve GraphicLayers
 #[derive(Clone, Default)]
-pub struct GraphicLayers(AHashMap<Layer, PaintList>);
+pub struct GraphicLayers(AHashMap<LayerId, PaintList>);
 
 impl GraphicLayers {
-    pub fn list(&mut self, layer: Layer) -> &mut PaintList {
-        self.0.entry(layer).or_default()
+    pub fn list(&mut self, layer_id: LayerId) -> &mut PaintList {
+        self.0.entry(layer_id).or_default()
     }
 
     pub fn drain(
         &mut self,
-        area_order: &[Layer],
+        area_order: &[LayerId],
     ) -> impl ExactSizeIterator<Item = (Rect, PaintCmd)> {
         let mut all_commands: Vec<_> = Default::default();
 
-        for layer in area_order {
-            if let Some(commands) = self.0.get_mut(layer) {
+        for layer_id in area_order {
+            if let Some(commands) = self.0.get_mut(layer_id) {
                 all_commands.extend(commands.0.drain(..));
             }
         }
 
-        if let Some(commands) = self.0.get_mut(&Layer::debug()) {
+        if let Some(commands) = self.0.get_mut(&LayerId::debug()) {
             all_commands.extend(commands.0.drain(..));
         }
 

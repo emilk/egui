@@ -197,7 +197,7 @@ impl<'open> Window<'open> {
         }
 
         let window_id = Id::new(title_label.text());
-        let area_layer = area.layer();
+        let area_layer_id = area.layer();
         let resize_id = window_id.with("resize");
         let collapsing_id = window_id.with("collapsing");
 
@@ -226,7 +226,7 @@ impl<'open> Window<'open> {
             window_interaction(
                 ctx,
                 possible,
-                area_layer,
+                area_layer_id,
                 window_id.with("frame_resize"),
                 last_frame_outer_rect,
             )
@@ -235,7 +235,7 @@ impl<'open> Window<'open> {
                     window_interaction,
                     ctx,
                     margins,
-                    area_layer,
+                    area_layer_id,
                     area.state_mut(),
                     resize_id,
                 )
@@ -243,7 +243,7 @@ impl<'open> Window<'open> {
         } else {
             None
         };
-        let hover_interaction = resize_hover(ctx, possible, area_layer, last_frame_outer_rect);
+        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -346,7 +346,7 @@ struct PossibleInteractions {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WindowInteraction {
-    pub(crate) area_layer: Layer,
+    pub(crate) area_layer_id: LayerId,
     pub(crate) start_rect: Rect,
     pub(crate) left: bool,
     pub(crate) right: bool,
@@ -380,7 +380,7 @@ fn interact(
     window_interaction: WindowInteraction,
     ctx: &Context,
     margins: Vec2,
-    area_layer: Layer,
+    area_layer_id: LayerId,
     area_state: &mut area::State,
     resize_id: Id,
 ) -> Option<WindowInteraction> {
@@ -397,7 +397,7 @@ fn interact(
         ctx.memory().resize.insert(resize_id, resize_state);
     }
 
-    ctx.memory().areas.move_to_top(area_layer);
+    ctx.memory().areas.move_to_top(area_layer_id);
     Some(window_interaction)
 }
 
@@ -429,7 +429,7 @@ fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Optio
 fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer: Layer,
+    area_layer_id: LayerId,
     id: Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
@@ -444,7 +444,7 @@ fn window_interaction(
     let mut window_interaction = { ctx.memory().window_interaction };
 
     if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer, rect) {
+        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().mouse.pressed {
                 ctx.memory().interaction.drag_id = Some(id);
@@ -458,7 +458,7 @@ fn window_interaction(
     if let Some(window_interaction) = window_interaction {
         let is_active = ctx.memory().interaction.drag_id == Some(id);
 
-        if is_active && window_interaction.area_layer == area_layer {
+        if is_active && window_interaction.area_layer_id == area_layer_id {
             return Some(window_interaction);
         }
     }
@@ -469,12 +469,12 @@ fn window_interaction(
 fn resize_hover(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer: Layer,
+    area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
     if let Some(mouse_pos) = ctx.input().mouse.pos {
-        if let Some(top_layer) = ctx.layer_at(mouse_pos) {
-            if top_layer != area_layer && top_layer.order != Order::Background {
+        if let Some(top_layer_id) = ctx.layer_id_at(mouse_pos) {
+            if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
                 return None; // Another window is on top here
             }
         }
@@ -523,7 +523,7 @@ fn resize_hover(
 
             if any_resize || possible.movable {
                 Some(WindowInteraction {
-                    area_layer,
+                    area_layer_id,
                     start_rect: rect,
                     left,
                     right,

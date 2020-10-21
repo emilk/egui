@@ -60,7 +60,7 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    pub fn new(ctx: Arc<Context>, layer: Layer, id: Id, max_rect: Rect) -> Self {
+    pub fn new(ctx: Arc<Context>, layer_id: LayerId, id: Id, max_rect: Rect) -> Self {
         let style = ctx.style();
         let clip_rect = max_rect.expand(style.visuals.clip_rect_margin);
         let layout = Layout::default();
@@ -69,7 +69,7 @@ impl Ui {
         let min_rect = layout.rect_from_cursor_size(cursor, min_size);
         Ui {
             id,
-            painter: Painter::new(ctx, layer, clip_rect),
+            painter: Painter::new(ctx, layer_id, clip_rect),
             min_rect,
             max_rect,
             style,
@@ -142,8 +142,8 @@ impl Ui {
     }
 
     /// Use this to paint stuff within this `Ui`.
-    pub fn layer(&self) -> Layer {
-        self.painter().layer()
+    pub fn layer_id(&self) -> LayerId {
+        self.painter().layer_id()
     }
 
     /// The `Input` of the `Context` associated with the `Ui`.
@@ -398,12 +398,17 @@ impl Ui {
 impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx()
-            .interact(self.layer(), self.clip_rect(), rect, Some(id), sense)
+            .interact(self.layer_id(), self.clip_rect(), rect, Some(id), sense)
     }
 
     pub fn interact_hover(&self, rect: Rect) -> Response {
-        self.ctx()
-            .interact(self.layer(), self.clip_rect(), rect, None, Sense::nothing())
+        self.ctx().interact(
+            self.layer_id(),
+            self.clip_rect(),
+            rect,
+            None,
+            Sense::nothing(),
+        )
     }
 
     pub fn hovered(&self, rect: Rect) -> bool {
@@ -412,7 +417,7 @@ impl Ui {
 
     pub fn contains_mouse(&self, rect: Rect) -> bool {
         self.ctx()
-            .contains_mouse(self.layer(), self.clip_rect(), rect)
+            .contains_mouse(self.layer_id(), self.clip_rect(), rect)
     }
 
     // ------------------------------------------------------------------------

@@ -305,7 +305,7 @@ impl Painting {
         let response = ui.interact(rect, ui.id(), Sense::drag());
         let rect = response.rect;
         let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(ui.ctx().clone(), ui.layer(), clip_rect);
+        let painter = Painter::new(ui.ctx().clone(), ui.layer_id(), clip_rect);
 
         if self.lines.is_empty() {
             self.lines.push(vec![]);

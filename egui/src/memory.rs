@@ -7,7 +7,7 @@ use crate::{
     paint::color::{Hsva, Srgba},
     resize, scroll_area,
     widgets::text_edit,
-    window, Id, Layer, Pos2, Rect,
+    window, Id, LayerId, Pos2, Rect,
 };
 
 /// The data that Egui persists between frames.
@@ -119,16 +119,16 @@ impl Interaction {
 pub struct Areas {
     areas: HashMap<Id, area::State>,
     /// Top is last
-    order: Vec<Layer>,
-    visible_last_frame: HashSet<Layer>,
-    visible_current_frame: HashSet<Layer>,
+    order: Vec<LayerId>,
+    visible_last_frame: HashSet<LayerId>,
+    visible_current_frame: HashSet<LayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: HashSet<Layer>,
+    wants_to_be_on_top: HashSet<LayerId>,
 }
 
 impl Memory {
@@ -142,11 +142,11 @@ impl Memory {
             if let Some(window_interaction) = window_interaction {
                 if window_interaction.is_pure_move() {
                     // Throw windows because it is fun:
-                    let area_layer = window_interaction.area_layer;
-                    let area_state = self.areas.get(area_layer.id).cloned();
+                    let area_layer_id = window_interaction.area_layer_id;
+                    let area_state = self.areas.get(area_layer_id.id).cloned();
                     if let Some(mut area_state) = area_state {
                         area_state.vel = prev_input.mouse.velocity;
-                        self.areas.set_state(area_layer, area_state);
+                        self.areas.set_state(area_layer_id, area_state);
                     }
                 }
             }
@@ -157,8 +157,8 @@ impl Memory {
         self.areas.end_frame();
     }
 
-    pub fn layer_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<Layer> {
-        self.areas.layer_at(pos, resize_interact_radius_side)
+    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
+        self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {
@@ -216,19 +216,19 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    pub(crate) fn order(&self) -> &[Layer] {
+    pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
     }
 
-    pub(crate) fn set_state(&mut self, layer: Layer, state: area::State) {
-        self.visible_current_frame.insert(layer);
-        let did_insert = self.areas.insert(layer.id, state).is_none();
+    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
+        self.visible_current_frame.insert(layer_id);
+        let did_insert = self.areas.insert(layer_id.id, state).is_none();
         if did_insert {
-            self.order.push(layer);
+            self.order.push(layer_id);
         }
     }
 
-    pub fn layer_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<Layer> {
+    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
@@ -246,15 +246,15 @@ impl Areas {
         None
     }
 
-    pub fn visible_last_frame(&self, layer: &Layer) -> bool {
-        self.visible_last_frame.contains(layer)
+    pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
+        self.visible_last_frame.contains(layer_id)
     }
 
-    pub fn is_visible(&self, layer: &Layer) -> bool {
-        self.visible_last_frame.contains(layer) || self.visible_current_frame.contains(layer)
+    pub fn is_visible(&self, layer_id: &LayerId) -> bool {
+        self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
     }
 
-    pub fn visible_layers(&self) -> HashSet<Layer> {
+    pub fn visible_layer_ids(&self) -> HashSet<LayerId> {
         self.visible_last_frame
             .iter()
             .cloned()
@@ -263,19 +263,19 @@ impl Areas {
     }
 
     pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
-        self.visible_layers()
+        self.visible_layer_ids()
             .iter()
             .filter(|layer| layer.order == crate::layers::Order::Middle)
             .filter_map(|layer| self.get(layer.id))
             .collect()
     }
 
-    pub fn move_to_top(&mut self, layer: Layer) {
-        self.visible_current_frame.insert(layer);
-        self.wants_to_be_on_top.insert(layer);
+    pub fn move_to_top(&mut self, layer_id: LayerId) {
+        self.visible_current_frame.insert(layer_id);
+        self.wants_to_be_on_top.insert(layer_id);
 
-        if self.order.iter().find(|x| **x == layer).is_none() {
-            self.order.push(layer);
+        if self.order.iter().find(|x| **x == layer_id).is_none() {
+            self.order.push(layer_id);
         }
     }
 

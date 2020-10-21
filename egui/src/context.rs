@@ -234,13 +234,13 @@ impl Context {
     fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = Rect::from_min_size(Default::default(), self.input().screen_size);
         let id = Id::background();
-        let layer = Layer {
+        let layer_id = LayerId {
             order: Order::Background,
             id,
         };
         // Ensure we register the background area so it is painted:
         self.memory().areas.set_state(
-            layer,
+            layer_id,
             containers::area::State {
                 pos: rect.min,
                 size: rect.size(),
@@ -248,7 +248,7 @@ impl Context {
                 vel: Default::default(),
             },
         );
-        Ui::new(self.clone(), layer, id, rect)
+        Ui::new(self.clone(), layer_id, id, rect)
     }
 
     // ---------------------------------------------------------------------
@@ -304,7 +304,7 @@ impl Context {
     /// Is the mouse over any Egui area?
     pub fn is_mouse_over_area(&self) -> bool {
         if let Some(mouse_pos) = self.input.mouse.pos {
-            if let Some(layer) = self.layer_at(mouse_pos) {
+            if let Some(layer) = self.layer_id_at(mouse_pos) {
                 // TODO: this currently returns false for hovering the menu bar.
                 // We should probably move the menu bar to its own area to fix this.
                 layer.order != Order::Background
@@ -339,15 +339,15 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    pub fn layer_at(&self, pos: Pos2) -> Option<Layer> {
+    pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         let resize_grab_radius_side = self.style().interaction.resize_grab_radius_side;
-        self.memory().layer_at(pos, resize_grab_radius_side)
+        self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
-    pub fn contains_mouse(&self, layer: Layer, clip_rect: Rect, rect: Rect) -> bool {
+    pub fn contains_mouse(&self, layer_id: LayerId, clip_rect: Rect, rect: Rect) -> bool {
         let rect = rect.intersect(clip_rect);
         if let Some(mouse_pos) = self.input.mouse.pos {
-            rect.contains(mouse_pos) && self.layer_at(mouse_pos) == Some(layer)
+            rect.contains(mouse_pos) && self.layer_id_at(mouse_pos) == Some(layer_id)
         } else {
             false
         }
@@ -356,14 +356,14 @@ impl Context {
     /// Use `ui.interact` instead
     pub(crate) fn interact(
         self: &Arc<Self>,
-        layer: Layer,
+        layer_id: LayerId,
         clip_rect: Rect,
         rect: Rect,
         interaction_id: Option<Id>,
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.expand2(0.5 * self.style().spacing.item_spacing); // make it easier to click. TODO: nice way to do this
-        let hovered = self.contains_mouse(layer, clip_rect, interact_rect);
+        let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
         let has_kb_focus = interaction_id
             .map(|id| self.memory().has_kb_focus(id))
             .unwrap_or(false);
@@ -498,7 +498,7 @@ impl Context {
 /// ## Painting
 impl Context {
     pub fn debug_painter(self: &Arc<Self>) -> Painter {
-        Painter::new(self.clone(), Layer::debug(), self.rect())
+        Painter::new(self.clone(), LayerId::debug(), self.rect())
     }
 }
 
