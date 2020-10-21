@@ -38,8 +38,8 @@ impl BarState {
 }
 
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-    ui.horizontal(|ui| {
-        Frame::menu_bar(ui.style()).show(ui, |ui| {
+    Frame::menu_bar(ui.style()).show(ui, |ui| {
+        ui.horizontal(|ui| {
             let mut style = ui.style().clone();
             style.spacing.button_padding = vec2(2.0, 0.0);
             // style.visuals.widgets.active.bg_fill = TRANSPARENT;
