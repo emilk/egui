@@ -165,6 +165,29 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Constraint the position of a window/area
+    /// so it fits within the screen.
+    pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
+        let screen = self.rect();
+
+        let mut pos = window.min;
+
+        // Constrain to screen, unless window is too large to fit:
+        let margin_x = (window.width() - screen.width()).at_least(0.0);
+        let margin_y = (window.height() - screen.height()).at_least(0.0);
+
+        pos.x = pos.x.at_least(screen.left() - margin_x);
+        pos.x = pos.x.at_most(screen.right() + margin_x - window.width());
+        pos.y = pos.y.at_least(screen.top() - margin_y);
+        pos.y = pos.y.at_most(screen.bottom() + margin_y - window.height());
+
+        pos = self.round_pos_to_pixels(pos);
+
+        Rect::from_min_size(pos, window.size())
+    }
+
+    // ---------------------------------------------------------------------
+
     /// Call at the start of every frame.
     /// Returns a master fullscreen UI, covering the entire screen.
     pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) -> Ui {

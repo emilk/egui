@@ -175,8 +175,8 @@ impl Prepared {
 
         state.size = content_ui.min_rect().size();
 
-        let rect = Rect::from_min_size(state.pos, state.size);
-        let clip_rect = Rect::everything(); // TODO: get from context
+        let area_rect = Rect::from_min_size(state.pos, state.size);
+        let clip_rect = ctx.rect();
 
         let interact_id = if movable {
             Some(layer_id.id.with("move"))
@@ -186,7 +186,7 @@ impl Prepared {
         let move_response = ctx.interact(
             layer_id,
             clip_rect,
-            rect,
+            area_rect,
             interact_id,
             Sense::click_and_drag(),
         );
@@ -210,14 +210,7 @@ impl Prepared {
             }
         }
 
-        // Constrain to screen:
-        let margin = 32.0;
-        state.pos = state.pos.max(pos2(margin - state.size.x, 0.0));
-        state.pos = state.pos.min(pos2(
-            ctx.input().screen_size.x - margin,
-            ctx.input().screen_size.y - margin,
-        ));
-        state.pos = ctx.round_pos_to_pixels(state.pos);
+        state.pos = ctx.constrain_window_rect(area_rect).min;
 
         if move_response.active
             || mouse_pressed_on_area(ctx, layer_id)

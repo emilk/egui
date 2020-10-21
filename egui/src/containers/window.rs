@@ -384,11 +384,11 @@ fn interact(
     area_state: &mut area::State,
     resize_id: Id,
 ) -> Option<WindowInteraction> {
-    let new_rect = resize_window(ctx, &window_interaction)?;
-
+    let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
-    // TODO: add this to a Window state instead as a command "move here next frame"
+    let new_rect = ctx.constrain_window_rect(new_rect);
 
+    // TODO: add this to a Window state instead as a command "move here next frame"
     area_state.pos = new_rect.min;
 
     if window_interaction.is_resize() {
@@ -401,7 +401,7 @@ fn interact(
     Some(window_interaction)
 }
 
-fn resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
+fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
     let mouse_pos = ctx.input().mouse.pos?;
     let mut rect = window_interaction.start_rect; // prevent drift

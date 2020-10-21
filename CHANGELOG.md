@@ -6,6 +6,7 @@
 * Add ability to override text color with `visuals.override_text_color`
 * Refactored the interface for `egui::app::App`
 * Demo App: Add slider to scale all of Egui
+* Windows are now constrained to the screen
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
 
 ## 0.2.0 - 2020-10-10
