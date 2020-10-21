@@ -294,6 +294,7 @@ impl Painter {
         let gl = &self.gl;
 
         gl.enable(Gl::SCISSOR_TEST);
+        gl.disable(Gl::CULL_FACE); // Egui is not strict about winding order.
         gl.enable(Gl::BLEND);
         gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
         gl.use_program(Some(&self.program));
