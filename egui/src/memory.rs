@@ -135,21 +135,8 @@ impl Memory {
     pub(crate) fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
         self.interaction.begin_frame(prev_input);
 
-        if !prev_input.mouse.down || prev_input.mouse.pos.is_none() {
-            // mouse was not down last frame
-
-            let window_interaction = self.window_interaction.take();
-            if let Some(window_interaction) = window_interaction {
-                if window_interaction.is_pure_move() {
-                    // Throw windows because it is fun:
-                    let area_layer_id = window_interaction.area_layer_id;
-                    let area_state = self.areas.get(area_layer_id.id).cloned();
-                    if let Some(mut area_state) = area_state {
-                        area_state.vel = prev_input.mouse.velocity;
-                        self.areas.set_state(area_layer_id, area_state);
-                    }
-                }
-            }
+        if !prev_input.mouse.down {
+            self.window_interaction = None;
         }
     }
 

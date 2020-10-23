@@ -19,11 +19,6 @@ pub(crate) struct State {
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
-
-    /// You can throw a moveable Area. It's fun.
-    /// TODO: separate out moveable to container?
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub vel: Vec2,
 }
 
 impl State {
@@ -128,7 +123,6 @@ impl Area {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::zero(),
             interactable,
-            vel: Vec2::zero(),
         });
         state.pos = fixed_pos.unwrap_or(state.pos);
         state.pos = ctx.round_pos_to_pixels(state.pos);
@@ -183,6 +177,7 @@ impl Prepared {
         } else {
             None
         };
+
         let move_response = ctx.interact(
             layer_id,
             Rect::everything(),
@@ -191,23 +186,8 @@ impl Prepared {
             Sense::click_and_drag(),
         );
 
-        let input = ctx.input();
         if move_response.active {
-            state.pos += input.mouse.delta;
-            state.vel = input.mouse.velocity;
-        } else {
-            let stop_speed = 20.0; // Pixels per second.
-            let friction_coeff = 1000.0; // Pixels per second squared.
-            let dt = input.unstable_dt;
-
-            let friction = friction_coeff * dt;
-            if friction > state.vel.length() || state.vel.length() < stop_speed {
-                state.vel = Vec2::zero();
-            } else {
-                state.vel -= friction * state.vel.normalized();
-                state.pos += state.vel * dt;
-                ctx.request_repaint();
-            }
+            state.pos += ctx.input().mouse.delta;
         }
 
         state.pos = ctx.constrain_window_rect(state.rect()).min;

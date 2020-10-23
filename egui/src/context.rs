@@ -277,7 +277,6 @@ impl Context {
                 pos: rect.min,
                 size: rect.size(),
                 interactable: true,
-                vel: Default::default(),
             },
         );
         Ui::new(self.clone(), layer_id, layer_id.id, rect, rect)

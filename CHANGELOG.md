@@ -9,6 +9,7 @@
 * Windows are now constrained to the screen
 * Panels: you can now create panels using `SidePanel` and `TopPanel`.
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
+* You can no longer throw windows
 
 ## 0.2.0 - 2020-10-10
 

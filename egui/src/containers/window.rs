@@ -370,10 +370,6 @@ impl WindowInteraction {
     pub fn is_resize(&self) -> bool {
         self.left || self.right || self.top || self.bottom
     }
-
-    pub fn is_pure_move(&self) -> bool {
-        !self.is_resize()
-    }
 }
 
 fn interact(
