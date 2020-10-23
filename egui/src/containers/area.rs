@@ -178,8 +178,6 @@ impl Prepared {
 
         state.size = content_ui.min_rect().size();
 
-        let area_rect = Rect::from_min_size(state.pos, state.size);
-
         let interact_id = if movable {
             Some(layer_id.id.with("move"))
         } else {
@@ -188,7 +186,7 @@ impl Prepared {
         let move_response = ctx.interact(
             layer_id,
             Rect::everything(),
-            area_rect,
+            state.rect(),
             interact_id,
             Sense::click_and_drag(),
         );
@@ -212,7 +210,7 @@ impl Prepared {
             }
         }
 
-        state.pos = ctx.constrain_window_rect(area_rect).min;
+        state.pos = ctx.constrain_window_rect(state.rect()).min;
 
         if move_response.active
             || mouse_pressed_on_area(ctx, layer_id)
