@@ -17,6 +17,16 @@ pub enum Order {
     /// Debug layer, always painted last / on top
     Debug,
 }
+impl Order {
+    const COUNT: usize = 5;
+    const ALL: [Order; Self::COUNT] = [
+        Self::Background,
+        Self::Middle,
+        Self::Foreground,
+        Self::Tooltip,
+        Self::Debug,
+    ];
+}
 
 /// An identifier for a paint layer.
 /// Also acts as an identifier for `Area`:s.
@@ -52,6 +62,10 @@ pub struct PaintCmdIdx(usize);
 pub struct PaintList(Vec<(Rect, PaintCmd)>);
 
 impl PaintList {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Returns the index of the new command that can be used with `PaintList::set`.
     pub fn add(&mut self, clip_rect: Rect, cmd: PaintCmd) -> PaintCmdIdx {
         let idx = PaintCmdIdx(self.0.len());
@@ -76,13 +90,14 @@ impl PaintList {
     }
 }
 
-// TODO: improve GraphicLayers
 #[derive(Clone, Default)]
-pub struct GraphicLayers(AHashMap<LayerId, PaintList>);
+pub struct GraphicLayers([AHashMap<Id, PaintList>; Order::COUNT]);
 
 impl GraphicLayers {
     pub fn list(&mut self, layer_id: LayerId) -> &mut PaintList {
-        self.0.entry(layer_id).or_default()
+        self.0[layer_id.order as usize]
+            .entry(layer_id.id)
+            .or_default()
     }
 
     pub fn drain(
@@ -91,14 +106,27 @@ impl GraphicLayers {
     ) -> impl ExactSizeIterator<Item = (Rect, PaintCmd)> {
         let mut all_commands: Vec<_> = Default::default();
 
-        for layer_id in area_order {
-            if let Some(commands) = self.0.get_mut(layer_id) {
+        for &order in &Order::ALL {
+            let order_map = &mut self.0[order as usize];
+
+            // If a layer is empty at the start of the frame
+            // the nobody has added to it, and it is old and defunct.
+            // Free it to save memory:
+            order_map.retain(|_, list| !list.is_empty());
+
+            // First do the layers part of area_order:
+            for layer_id in area_order {
+                if layer_id.order == order {
+                    if let Some(commands) = order_map.get_mut(&layer_id.id) {
+                        all_commands.extend(commands.0.drain(..));
+                    }
+                }
+            }
+
+            // Also draw areas that are missing in `area_order`:
+            for commands in order_map.values_mut() {
                 all_commands.extend(commands.0.drain(..));
             }
-        }
-
-        if let Some(commands) = self.0.get_mut(&LayerId::debug()) {
-            all_commands.extend(commands.0.drain(..));
         }
 
         all_commands.into_iter()

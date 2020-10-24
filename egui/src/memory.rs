@@ -113,6 +113,8 @@ impl Interaction {
     }
 }
 
+/// Keeps track of `Area`s, which are free-floating `Ui`s.
+/// These `Area`s can be in any `Order`.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

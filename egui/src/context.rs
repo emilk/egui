@@ -223,6 +223,17 @@ impl Context {
         if !same_as_current {
             self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions)));
         }
+
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory().areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
     }
 
     /// Call at the end of each frame.
@@ -268,17 +279,6 @@ impl Context {
     fn fullscreen_ui(self: &Arc<Self>) -> Ui {
         let rect = self.input.screen_rect();
         let layer_id = LayerId::background();
-        // Ensure we register the background area so it is painted
-        // and so we handle interactions properly (clicks on it etc).
-        // TODO: we shouldn't need to register areas. Maybe GraphicLayers should take care of it?
-        self.memory().areas.set_state(
-            layer_id,
-            containers::area::State {
-                pos: rect.min,
-                size: rect.size(),
-                interactable: true,
-            },
-        );
         Ui::new(self.clone(), layer_id, layer_id.id, rect, rect)
     }
 
