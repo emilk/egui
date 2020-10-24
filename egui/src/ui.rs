@@ -192,9 +192,11 @@ impl Ui {
 
 /// ## Sizes etc
 impl Ui {
-    /// The current size of this Ui.
-    /// Bounding box of all contained child widgets.
+    /// Where and how large the `Ui` is already.
+    /// All widgets that have been added ot this `Ui` fits within this rectangle.
+    ///
     /// No matter what, the final Ui will be at least this large.
+    ///
     /// This will grow as new widgets are added, but never shrink.
     pub fn min_rect(&self) -> Rect {
         self.min_rect
@@ -205,11 +207,13 @@ impl Ui {
         self.min_rect.size()
     }
 
-    /// This is the soft max size of the Ui.
     /// New widgets will *try* to fit within this rectangle.
-    /// For instance, text will wrap to fit within it.
-    /// If a widget doesn't fit within the `max_rect` then it will expand.
-    /// `max_rect()` is always at least as large as `min_rect()`.
+    ///
+    /// Text labels will wrap to fit within `max_rect`.
+    /// Separator lines will span the `max_rect`.
+    ///
+    /// If a new widget doesn't fit within the `max_rect` then the
+    /// `Ui` will make room for it by expanding both `min_rect` and `max_rect`.
     pub fn max_rect(&self) -> Rect {
         self.max_rect
     }

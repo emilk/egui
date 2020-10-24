@@ -3,6 +3,17 @@
 //! To get started with Egui, you can use one of the available integrations
 //! such as [`egui_web`](https://crates.io/crates/egui_web) or  [`egui_glium`](https://crates.io/crates/egui_glium).
 //!
+//! Whatever you use, you need an `egui::Context` (by convention referred to by `ctx`).
+//! With it you can then get access to an `Ui` where you can put widgets.
+//! Use one of `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`. For instace:
+//!
+//! ``` ignore
+//! egui::CentralPanel::default().show(ctx, |ui| {
+//!     ui.label("Hello");
+//! })
+//! ```
+//!
+//!
 //! To write your own integration for Egui you need to do this:
 //!
 //! ``` ignore
