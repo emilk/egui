@@ -20,35 +20,40 @@ impl egui::app::TextureAllocator for Painter {
     }
 }
 
+fn create_display(
+    title: &str,
+    window_settings: Option<WindowSettings>,
+    event_loop: &glutin::event_loop::EventLoop<()>,
+) -> glium::Display {
+    let mut window_builder = glutin::window::WindowBuilder::new()
+        .with_decorations(true)
+        .with_resizable(true)
+        .with_title(title)
+        .with_transparent(false);
+
+    if let Some(window_settings) = &window_settings {
+        window_builder = window_settings.initialize_size(window_builder);
+    }
+
+    let context_builder = glutin::ContextBuilder::new()
+        .with_depth_buffer(0)
+        .with_srgb(true)
+        .with_stencil_buffer(0)
+        .with_vsync(true);
+
+    glium::Display::new(window_builder, context_builder, &event_loop).unwrap()
+}
+
 /// Run an egui app
 pub fn run(
     title: &str,
     mut storage: Box<dyn egui::app::Storage>,
     mut app: impl App + 'static,
 ) -> ! {
-    let event_loop = glutin::event_loop::EventLoop::new();
-    let mut window = glutin::window::WindowBuilder::new()
-        .with_decorations(true)
-        .with_resizable(true)
-        .with_title(title)
-        .with_transparent(false);
-
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
-    if let Some(window_settings) = &window_settings {
-        window = window_settings.initialize_size(window);
-    }
-
-    let context = glutin::ContextBuilder::new()
-        .with_depth_buffer(0)
-        .with_srgb(true)
-        .with_stencil_buffer(0)
-        .with_vsync(true);
-    let display = glium::Display::new(window, context, &event_loop).unwrap();
-
-    if let Some(window_settings) = &window_settings {
-        window_settings.restore_positions(&display);
-    }
+    let event_loop = glutin::event_loop::EventLoop::new();
+    let display = create_display(title, window_settings, &event_loop);
 
     let mut ctx = egui::Context::new();
     *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
