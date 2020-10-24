@@ -170,7 +170,8 @@ impl AppRunner {
 
         {
             let egui::app::AppOutput {
-                quit: _,
+                quit: _,        // Can't quit a web page
+                window_size: _, // Can't resize a web page
                 pixels_per_point,
             } = app_output;
 

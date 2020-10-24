@@ -56,6 +56,9 @@ pub struct AppOutput {
     /// This does nothing for web apps.
     pub quit: bool,
 
+    /// Set to some size to resize the outer window (e.g. glium window) to this size.
+    pub window_size: Option<crate::Vec2>,
+
     /// If the app sets this, change the `pixels_per_point` of Egui to this next frame.
     pub pixels_per_point: Option<f32>,
 }

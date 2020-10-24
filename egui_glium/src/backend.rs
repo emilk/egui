@@ -88,11 +88,23 @@ pub fn run(
             {
                 let egui::app::AppOutput {
                     quit,
+                    window_size,
                     pixels_per_point,
                 } = app_output;
+
                 if let Some(pixels_per_point) = pixels_per_point {
                     // User changed GUI scale
                     raw_input.pixels_per_point = Some(pixels_per_point);
+                }
+
+                if let Some(window_size) = window_size {
+                    display
+                        .gl_window()
+                        .window()
+                        .set_inner_size(glutin::dpi::LogicalSize {
+                            width: window_size.x,
+                            height: window_size.y,
+                        });
                 }
 
                 *control_flow = if quit {
