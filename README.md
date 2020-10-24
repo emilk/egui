@@ -32,17 +32,19 @@ Sections:
 ### Example
 
 ``` rust
-Window::new("Debug").show(ui.ctx(), |ui| {
-    ui.label(format!("Hello, world {}", 123));
-    if ui.button("Save").clicked {
-        my_save_function();
-    }
-    ui.text_edit(&mut my_string);
-    ui.add(Slider::f32(&mut value, 0.0..=1.0).text("float"));
+ui.heading("My Egui Application");
+ui.horizontal(|ui| {
+    ui.label("Your name: ");
+    ui.text_edit(&mut name);
 });
+ui.add(egui::Slider::u32(&mut age, 0..=120).text("age"));
+if ui.button("Click each year").clicked {
+    age += 1;
+}
+ui.label(format!("Hello '{}', age {}", name, age));
 ```
 
-<img src="media/demo-2020-08-21.png" width="50%">
+<img src="media/demo-2020-10-24.png" width="40%">
 
 ## Goals
 

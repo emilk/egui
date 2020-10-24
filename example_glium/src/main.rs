@@ -4,10 +4,19 @@
 #![warn(clippy::all)]
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(Default, serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 struct MyApp {
-    my_string: String,
-    value: f32,
+    name: String,
+    age: u32,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self {
+            name: "Arthur".to_owned(),
+            age: 42,
+        }
+    }
 }
 
 impl egui::app::App for MyApp {
@@ -16,19 +25,33 @@ impl egui::app::App for MyApp {
     fn ui(
         &mut self,
         ctx: &std::sync::Arc<egui::Context>,
-        _integration_context: &mut egui::app::IntegrationContext,
+        integration_context: &mut egui::app::IntegrationContext,
     ) {
-        let MyApp { my_string, value } = self;
+        let MyApp { name, age } = self;
 
         // Example used in `README.md`.
-        egui::Window::new("Debug").show(ctx, |ui| {
-            ui.label(format!("Hello, world {}", 123));
-            if ui.button("Save").clicked {
-                my_save_function();
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("My Egui Application");
+
+            ui.horizontal(|ui| {
+                ui.label("Your name: ");
+                ui.text_edit(name);
+            });
+
+            ui.add(egui::Slider::u32(age, 0..=120).text("age"));
+            if ui.button("Click each year").clicked {
+                *age += 1;
             }
-            ui.text_edit(my_string);
-            ui.add(egui::Slider::f32(value, 0.0..=1.0).text("float"));
+
+            ui.label(format!("Hello '{}', age {}", name, age));
+
+            ui.advance_cursor(16.0);
+            if ui.button("Quit").clicked {
+                integration_context.output.quit = true;
+            }
         });
+
+        integration_context.output.window_size = Some(ctx.used_size()); // resize the window to be just the size we need it to be
     }
 
     fn on_exit(&mut self, storage: &mut dyn egui::app::Storage) {
@@ -47,8 +70,4 @@ fn main() {
 
     let app: MyApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default(); // Restore `MyApp` from file, or create new `MyApp`.
     egui_glium::run(title, Box::new(storage), app);
-}
-
-fn my_save_function() {
-    // dummy
 }
