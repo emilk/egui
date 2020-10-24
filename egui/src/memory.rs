@@ -113,26 +113,6 @@ impl Interaction {
     }
 }
 
-/// Keeps track of `Area`s, which are free-floating `Ui`s.
-/// These `Area`s can be in any `Order`.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct Areas {
-    areas: HashMap<Id, area::State>,
-    /// Top is last
-    order: Vec<LayerId>,
-    visible_last_frame: HashSet<LayerId>,
-    visible_current_frame: HashSet<LayerId>,
-
-    /// When an area want to be on top, it is put in here.
-    /// At the end of the frame, this is used to reorder the layers.
-    /// This means if several layers want to be on top, they will keep their relative order.
-    /// So if you close three windows and then reopen them all in one frame,
-    /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: HashSet<LayerId>,
-}
-
 impl Memory {
     pub(crate) fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
         self.interaction.begin_frame(prev_input);
@@ -196,6 +176,28 @@ impl Memory {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// Keeps track of `Area`s, which are free-floating `Ui`s.
+/// These `Area`s can be in any `Order`.
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct Areas {
+    areas: HashMap<Id, area::State>,
+    /// Top is last
+    order: Vec<LayerId>,
+    visible_last_frame: HashSet<LayerId>,
+    visible_current_frame: HashSet<LayerId>,
+
+    /// When an area want to be on top, it is put in here.
+    /// At the end of the frame, this is used to reorder the layers.
+    /// This means if several layers want to be on top, they will keep their relative order.
+    /// So if you close three windows and then reopen them all in one frame,
+    /// they will all be sent to the top, but keep their previous internal order.
+    wants_to_be_on_top: HashSet<LayerId>,
+}
+
 impl Areas {
     pub(crate) fn count(&self) -> usize {
         self.areas.len()
@@ -211,8 +213,8 @@ impl Areas {
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
-        let did_insert = self.areas.insert(layer_id.id, state).is_none();
-        if did_insert {
+        self.areas.insert(layer_id.id, state);
+        if self.order.iter().find(|x| **x == layer_id).is_none() {
             self.order.push(layer_id);
         }
     }

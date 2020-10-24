@@ -599,12 +599,14 @@ impl Context {
         ui.advance_cursor(16.0);
 
         CollapsingHeader::new("Input")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| ui.input().clone().ui(ui));
 
-        ui.collapsing("Paint stats", |ui| {
-            self.paint_stats.lock().ui(ui);
-        });
+        CollapsingHeader::new("Paint stats")
+            .default_open(true)
+            .show(ui, |ui| {
+                self.paint_stats.lock().ui(ui);
+            });
     }
 
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
@@ -623,6 +625,29 @@ impl Context {
             ));
             if ui.button("Reset").clicked {
                 self.memory().areas = Default::default();
+            }
+        });
+        ui.indent("areas", |ui| {
+            let layers_ids: Vec<LayerId> = self.memory().areas.order().to_vec();
+            for layer_id in layers_ids {
+                let area = self.memory().areas.get(layer_id.id).cloned();
+                if let Some(area) = area {
+                    let is_visible = self.memory().areas.is_visible(&layer_id);
+                    if ui
+                        .label(format!(
+                            "{:?} {:?} {}",
+                            layer_id.order,
+                            area.rect(),
+                            if is_visible { "" } else { "(INVISIBLE)" }
+                        ))
+                        .hovered
+                        && is_visible
+                    {
+                        ui.ctx()
+                            .debug_painter()
+                            .debug_rect(area.rect(), color::RED, "");
+                    }
+                }
             }
         });
 
