@@ -18,7 +18,7 @@ pub struct TextEdit<'t> {
     text_color: Option<Srgba>,
     multiline: bool,
     enabled: bool,
-    desired_width: f32,
+    desired_width: Option<f32>,
 }
 
 impl<'t> TextEdit<'t> {
@@ -31,7 +31,7 @@ impl<'t> TextEdit<'t> {
             text_color: None,
             multiline: true,
             enabled: true,
-            desired_width: f32::INFINITY,
+            desired_width: None,
         }
     }
 
@@ -73,7 +73,7 @@ impl<'t> TextEdit<'t> {
 
     /// Set to 0.0 to keep as small as possible
     pub fn desired_width(mut self, desired_width: f32) -> Self {
-        self.desired_width = desired_width;
+        self.desired_width = Some(desired_width);
         self
     }
 }
@@ -90,6 +90,8 @@ impl<'t> Widget for TextEdit<'t> {
             enabled,
             desired_width,
         } = self;
+
+        let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
 
         let id = id.unwrap_or_else(|| ui.make_child_id(id_source));
 

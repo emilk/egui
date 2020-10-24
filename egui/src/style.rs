@@ -57,8 +57,11 @@ pub struct Spacing {
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Total width of a slider.
+    /// Default width of a `Slider`.
     pub slider_width: f32, // TODO: rename big_interact_size ?
+
+    /// Default width of a `TextEdit`.
+    pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// This is the width/height of this icon.
@@ -232,6 +235,7 @@ impl Default for Spacing {
             indent: 25.0,
             interact_size: vec2(40.0, 20.0),
             slider_width: 140.0,
+            text_edit_width: 280.0,
             icon_width: 16.0,
             icon_spacing: 1.0,
             tooltip_width: 400.0,
@@ -350,6 +354,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            text_edit_width,
             icon_width,
             icon_spacing,
             tooltip_width,
@@ -362,6 +367,7 @@ impl Spacing {
             .on_hover_text("Minimum size of an interactive widget");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
+        ui.add(Slider::f32(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
         ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
         ui.add(Slider::f32(tooltip_width, 0.0..=10.0).text("tooltip_width"));
