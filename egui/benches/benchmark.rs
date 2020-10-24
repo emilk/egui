@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_windows_minimal", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx, &Default::default(), None);
+                demo_windows.ui(&ctx, &Default::default(), &mut None);
                 ctx.end_frame()
             })
         });
@@ -27,7 +27,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_windows_full", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx, &Default::default(), None);
+                demo_windows.ui(&ctx, &Default::default(), &mut None);
                 ctx.end_frame()
             })
         });

@@ -99,7 +99,7 @@ pub fn text_egui_e2e() {
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx, &Default::default(), None);
+        demo_windows.ui(&ctx, &Default::default(), &mut None);
         let (_output, paint_jobs) = ctx.end_frame();
         assert!(!paint_jobs.is_empty());
     }

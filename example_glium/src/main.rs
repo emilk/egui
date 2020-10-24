@@ -16,9 +16,8 @@ impl egui::app::App for MyApp {
     fn ui(
         &mut self,
         ctx: &std::sync::Arc<egui::Context>,
-        _info: &egui::app::BackendInfo,
-        _tex_allocator: Option<&mut dyn egui::app::TextureAllocator>,
-    ) -> egui::app::AppOutput {
+        _integration_context: &mut egui::app::IntegrationContext,
+    ) {
         let MyApp { my_string, value } = self;
 
         // Example used in `README.md`.
@@ -30,8 +29,6 @@ impl egui::app::App for MyApp {
             ui.text_edit(my_string);
             ui.add(egui::Slider::f32(value, 0.0..=1.0).text("float"));
         });
-
-        Default::default()
     }
 
     fn on_exit(&mut self, storage: &mut dyn egui::app::Storage) {

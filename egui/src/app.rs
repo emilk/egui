@@ -17,12 +17,20 @@ pub trait App {
     fn ui(
         &mut self,
         ctx: &std::sync::Arc<Context>,
-        info: &BackendInfo,
-        tex_allocator: Option<&mut dyn TextureAllocator>,
-    ) -> AppOutput;
+        integration_context: &mut IntegrationContext<'_>,
+    );
 
     /// Called once on shutdown. Allows you to save state.
     fn on_exit(&mut self, _storage: &mut dyn Storage) {}
+}
+
+pub struct IntegrationContext<'a> {
+    /// Information about the integration.
+    pub info: IntegrationInfo,
+    /// A way to allocate textures (on integrations that support it).
+    pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
+    /// Where the app can issue commands back to the integration.
+    pub output: AppOutput,
 }
 
 #[derive(Clone, Debug)]
@@ -31,9 +39,9 @@ pub struct WebInfo {
     pub web_location_hash: String,
 }
 
-/// Information about the backend passed to the use app each frame.
+/// Information about the integration passed to the use app each frame.
 #[derive(Clone, Debug)]
-pub struct BackendInfo {
+pub struct IntegrationInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 

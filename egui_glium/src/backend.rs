@@ -75,15 +75,19 @@ pub fn run(
             raw_input.screen_size =
                 screen_size_in_pixels(&display) / raw_input.pixels_per_point.unwrap();
 
-            let backend_info = egui::app::BackendInfo {
-                web_info: None,
-                cpu_usage: previous_frame_time,
-                seconds_since_midnight: Some(seconds_since_midnight()),
-                native_pixels_per_point: Some(native_pixels_per_point(&display)),
-            };
-
             ctx.begin_frame(raw_input.take());
-            let app_output = app.ui(&ctx, &backend_info, Some(&mut painter));
+            let mut integration_context = egui::app::IntegrationContext {
+                info: egui::app::IntegrationInfo {
+                    web_info: None,
+                    cpu_usage: previous_frame_time,
+                    seconds_since_midnight: Some(seconds_since_midnight()),
+                    native_pixels_per_point: Some(native_pixels_per_point(&display)),
+                },
+                tex_allocator: Some(&mut painter),
+                output: Default::default(),
+            };
+            app.ui(&ctx, &mut integration_context);
+            let app_output = integration_context.output;
             let (egui_output, paint_jobs) = ctx.end_frame();
 
             let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;

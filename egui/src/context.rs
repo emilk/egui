@@ -90,7 +90,7 @@ impl Context {
     pub fn available_rect(&self) -> Rect {
         self.available_rect
             .lock()
-            .expect("Called `avaiblable_rect()` before `begin_frame()`")
+            .expect("Called `available_rect()` before `begin_frame()`")
     }
 
     pub fn memory(&self) -> MutexGuard<'_, Memory> {

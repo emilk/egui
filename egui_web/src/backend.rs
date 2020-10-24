@@ -150,21 +150,24 @@ impl AppRunner {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
 
         let raw_input = self.web_input.new_frame(self.pixels_per_point);
+        self.web_backend.begin_frame(raw_input);
 
-        let backend_info = egui::app::BackendInfo {
-            web_info: Some(WebInfo {
-                web_location_hash: location_hash().unwrap_or_default(),
-            }),
-            cpu_usage: self.web_backend.previous_frame_time,
-            seconds_since_midnight: Some(seconds_since_midnight()),
-            native_pixels_per_point: Some(native_pixels_per_point()),
+        let mut integration_context = egui::app::IntegrationContext {
+            info: egui::app::IntegrationInfo {
+                web_info: Some(WebInfo {
+                    web_location_hash: location_hash().unwrap_or_default(),
+                }),
+                cpu_usage: self.web_backend.previous_frame_time,
+                seconds_since_midnight: Some(seconds_since_midnight()),
+                native_pixels_per_point: Some(native_pixels_per_point()),
+            },
+            tex_allocator: Some(&mut self.web_backend.painter),
+            output: Default::default(),
         };
 
-        self.web_backend.begin_frame(raw_input);
         let egui_ctx = &self.web_backend.ctx;
-        let app_output = self
-            .app
-            .ui(egui_ctx, &backend_info, Some(&mut self.web_backend.painter));
+        self.app.ui(egui_ctx, &mut integration_context);
+        let app_output = integration_context.output;
         let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
         handle_output(&egui_output);
 

@@ -46,7 +46,7 @@ impl DemoWindows {
         &mut self,
         ctx: &Arc<Context>,
         env: &DemoEnvironment,
-        tex_allocator: Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
     ) {
         if self.previous_link != env.link {
             match env.link {
@@ -93,7 +93,7 @@ impl DemoWindows {
         &mut self,
         ctx: &Arc<Context>,
         env: &DemoEnvironment,
-        mut tex_allocator: Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
     ) {
         let Self {
             open_windows,
@@ -135,7 +135,7 @@ impl DemoWindows {
             .scroll(true)
             .open(&mut open_windows.color_test)
             .show(ctx, |ui| {
-                color_test.ui(ui, &mut tex_allocator);
+                color_test.ui(ui, tex_allocator);
             });
 
         fractal_clock.window(

@@ -183,11 +183,11 @@ pub struct DemoApp {
 }
 
 impl DemoApp {
-    fn backend_ui(&mut self, ui: &mut Ui, info: &app::BackendInfo) -> app::AppOutput {
+    fn backend_ui(&mut self, ui: &mut Ui, integration_context: &mut app::IntegrationContext<'_>) {
         self.frame_history
-            .on_new_frame(ui.input().time, info.cpu_usage);
+            .on_new_frame(ui.input().time, integration_context.info.cpu_usage);
 
-        let is_web = info.web_info.is_some();
+        let is_web = integration_context.info.web_info.is_some();
 
         if is_web {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
@@ -210,18 +210,16 @@ impl DemoApp {
 
         ui.separator();
 
-        let mut output = app::AppOutput::default();
-        output.pixels_per_point = self.pixels_per_point_ui(ui, info);
+        integration_context.output.pixels_per_point =
+            self.pixels_per_point_ui(ui, &integration_context.info);
 
         if !is_web {
             ui.separator();
-            output.quit |= ui.button("Quit").clicked;
+            integration_context.output.quit |= ui.button("Quit").clicked;
         }
-
-        output
     }
 
-    fn pixels_per_point_ui(&mut self, ui: &mut Ui, info: &app::BackendInfo) -> Option<f32> {
+    fn pixels_per_point_ui(&mut self, ui: &mut Ui, info: &app::IntegrationInfo) -> Option<f32> {
         self.pixels_per_point = self
             .pixels_per_point
             .or(info.native_pixels_per_point)
@@ -276,10 +274,10 @@ impl app::App for DemoApp {
     fn ui(
         &mut self,
         ctx: &Arc<Context>,
-        info: &app::BackendInfo,
-        tex_allocator: Option<&mut dyn app::TextureAllocator>,
-    ) -> app::AppOutput {
-        let web_location_hash = info
+        integration_context: &mut crate::app::IntegrationContext<'_>,
+    ) {
+        let web_location_hash = integration_context
+            .info
             .web_info
             .as_ref()
             .map(|info| info.web_location_hash.clone())
@@ -292,27 +290,27 @@ impl app::App for DemoApp {
         };
 
         let demo_environment = demos::DemoEnvironment {
-            seconds_since_midnight: info.seconds_since_midnight,
+            seconds_since_midnight: integration_context.info.seconds_since_midnight,
             link,
         };
 
-        self.demo_windows.ui(ctx, &demo_environment, tex_allocator);
-
-        let mut output = app::AppOutput::default();
+        self.demo_windows.ui(
+            ctx,
+            &demo_environment,
+            &mut integration_context.tex_allocator,
+        );
 
         crate::Window::new("Backend")
             .min_width(360.0)
             .scroll(false)
             .show(ctx, |ui| {
-                output = self.backend_ui(ui, info);
+                self.backend_ui(ui, integration_context);
             });
 
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible
             ctx.request_repaint();
         }
-
-        output
     }
 
     #[cfg(feature = "serde_json")]
