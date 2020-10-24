@@ -44,12 +44,10 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     pub fn ui(
         &mut self,
-        ui: &mut Ui,
+        ctx: &Arc<Context>,
         env: &DemoEnvironment,
         tex_allocator: Option<&mut dyn app::TextureAllocator>,
     ) {
-        let ctx = ui.ctx();
-
         if self.previous_link != env.link {
             match env.link {
                 None => {}

@@ -12,8 +12,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         c.bench_function("demo_windows_minimal", |b| {
             b.iter(|| {
-                let mut ui = ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&mut ui, &Default::default(), None);
+                ctx.begin_frame(raw_input.clone());
+                demo_windows.ui(&ctx, &Default::default(), None);
                 ctx.end_frame()
             })
         });
@@ -26,8 +26,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         c.bench_function("demo_windows_full", |b| {
             b.iter(|| {
-                let mut ui = ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&mut ui, &Default::default(), None);
+                ctx.begin_frame(raw_input.clone());
+                demo_windows.ui(&ctx, &Default::default(), None);
                 ctx.end_frame()
             })
         });
@@ -35,7 +35,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::Context::new();
-        let mut ui = ctx.begin_frame(raw_input);
+        ctx.begin_frame(raw_input);
+        let mut ui = ctx.background_ui();
         c.bench_function("label", |b| {
             b.iter(|| {
                 ui.label(egui::demos::LOREM_IPSUM_LONG);

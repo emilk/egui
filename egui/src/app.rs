@@ -7,15 +7,16 @@
 
 // TODO: move egui/src/app.rs to own crate, e.g. egui_framework ?
 
-use crate::Ui;
+use crate::Context;
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
+    /// Put your widgets into a `SidePanel`, `TopPanel`, `Window` or into `ctx.background_ui()`.
     fn ui(
         &mut self,
-        ui: &mut Ui,
+        ctx: &std::sync::Arc<Context>,
         info: &BackendInfo,
         tex_allocator: Option<&mut dyn TextureAllocator>,
     ) -> AppOutput;

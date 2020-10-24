@@ -11,8 +11,8 @@
 //! // Game loop:
 //! loop {
 //!     let raw_input: egui::RawInput = my_integration.gather_input();
-//!     let mut ui = egui_ctx.begin_frame(raw_input);
-//!     my_app.ui(&mut ui); // add windows and widgets to `ui` here
+//!     egui_ctx.begin_frame(raw_input);
+//!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
 //!     let (output, paint_jobs) = egui_ctx.end_frame();
 //!     my_integration.paint(paint_jobs);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
@@ -98,8 +98,8 @@ pub fn text_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let mut ui = ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&mut ui, &Default::default(), None);
+        ctx.begin_frame(raw_input.clone());
+        demo_windows.ui(&ctx, &Default::default(), None);
         let (_output, paint_jobs) = ctx.end_frame();
         assert!(!paint_jobs.is_empty());
     }

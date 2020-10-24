@@ -11,18 +11,18 @@ struct MyApp {
 }
 
 impl egui::app::App for MyApp {
-    /// This function will be called whenever the Ui needs to be shown,
-    /// which may be many times per second.
+    /// Called each time the UI needs repainting, which may be many times per second.
+    /// Put your widgets into a `SidePanel`, `TopPanel`, `Window` or into `ctx.background_ui()`.
     fn ui(
         &mut self,
-        ui: &mut egui::Ui,
+        ctx: &std::sync::Arc<egui::Context>,
         _info: &egui::app::BackendInfo,
         _tex_allocator: Option<&mut dyn egui::app::TextureAllocator>,
     ) -> egui::app::AppOutput {
         let MyApp { my_string, value } = self;
 
         // Example used in `README.md`.
-        egui::Window::new("Debug").show(ui.ctx(), |ui| {
+        egui::Window::new("Debug").show(ctx, |ui| {
             ui.label(format!("Hello, world {}", 123));
             if ui.button("Save").clicked {
                 my_save_function();

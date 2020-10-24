@@ -33,8 +33,7 @@ impl WebBackend {
         self.painter.canvas_id()
     }
 
-    /// Returns a master fullscreen UI, covering the entire screen.
-    pub fn begin_frame(&mut self, raw_input: egui::RawInput) -> egui::Ui {
+    pub fn begin_frame(&mut self, raw_input: egui::RawInput) {
         self.frame_start = Some(now_sec());
         self.ctx.begin_frame(raw_input)
     }
@@ -161,10 +160,11 @@ impl AppRunner {
             native_pixels_per_point: Some(native_pixels_per_point()),
         };
 
-        let mut ui = self.web_backend.begin_frame(raw_input);
+        self.web_backend.begin_frame(raw_input);
+        let egui_ctx = &self.web_backend.ctx;
         let app_output = self
             .app
-            .ui(&mut ui, &backend_info, Some(&mut self.web_backend.painter));
+            .ui(egui_ctx, &backend_info, Some(&mut self.web_backend.painter));
         let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
         handle_output(&egui_output);
 

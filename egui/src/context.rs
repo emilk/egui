@@ -43,6 +43,7 @@ pub struct Context {
     input: InputState,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
+    /// Becomes `Rect::nothing()` when `Context::background_ui` is called.
     available_rect: Mutex<Option<Rect>>,
 
     // The output of a frame:
@@ -198,12 +199,14 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Call at the start of every frame.
-    /// Returns a master fullscreen UI, covering the entire screen.
-    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) -> Ui {
+    /// To get a `Ui` to place widgets into you one or more of:
+    /// * `SidePanel` or `TopPanel`
+    /// * `Window`
+    /// * `Context::background_ui()`
+    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
         let mut self_: Self = (**self).clone();
         self_.begin_frame_mut(new_input);
         *self = Arc::new(self_);
-        self.fullscreen_ui()
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
@@ -275,9 +278,20 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// A `Ui` for the entire screen, behind any windows.
-    fn fullscreen_ui(self: &Arc<Self>) -> Ui {
-        let rect = self.input.screen_rect();
+    /// A `Ui` that covers the whole background (not used by panels).
+    ///
+    /// This is the same area that `Window`s are put in to,
+    /// so either put your UI into `background_ui()` or into `Window`s.
+    ///
+    /// Call this at most once per frame.
+    pub fn background_ui(self: &Arc<Self>) -> Ui {
+        let rect = self.available_rect();
+        debug_assert!(
+            rect != Rect::nothing(),
+            "You already called `background_ui()` once this frame!"
+        );
+        *self.available_rect.lock() = Some(Rect::nothing()); // Nothing left after this
+
         let layer_id = LayerId::background();
         Ui::new(self.clone(), layer_id, layer_id.id, rect, rect)
     }

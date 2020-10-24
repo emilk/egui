@@ -1,4 +1,5 @@
-use crate::{app, demos, History, Ui};
+use crate::{app, demos, Context, History, Ui};
+use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 
@@ -274,7 +275,7 @@ impl DemoApp {
 impl app::App for DemoApp {
     fn ui(
         &mut self,
-        ui: &mut Ui,
+        ctx: &Arc<Context>,
         info: &app::BackendInfo,
         tex_allocator: Option<&mut dyn app::TextureAllocator>,
     ) -> app::AppOutput {
@@ -295,20 +296,20 @@ impl app::App for DemoApp {
             link,
         };
 
-        self.demo_windows.ui(ui, &demo_environment, tex_allocator);
+        self.demo_windows.ui(ctx, &demo_environment, tex_allocator);
 
         let mut output = app::AppOutput::default();
 
         crate::Window::new("Backend")
             .min_width(360.0)
             .scroll(false)
-            .show(ui.ctx(), |ui| {
+            .show(ctx, |ui| {
                 output = self.backend_ui(ui, info);
             });
 
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible
-            ui.ctx().request_repaint();
+            ctx.request_repaint();
         }
 
         output

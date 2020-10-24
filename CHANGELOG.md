@@ -10,6 +10,8 @@
 * Panels: you can now create panels using `SidePanel` and `TopPanel`.
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
 * You can no longer throw windows
+* `Context::begin_frame()` no longer returns anything.
+  * Put your widgets into a `SidePanel`, `TopPanel`, `Window` or into `ctx.background_ui()`.
 
 ## 0.2.0 - 2020-10-10
 

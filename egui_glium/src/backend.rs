@@ -77,8 +77,8 @@ pub fn run(
                 native_pixels_per_point: Some(native_pixels_per_point(&display)),
             };
 
-            let mut ui = ctx.begin_frame(raw_input.take());
-            let app_output = app.ui(&mut ui, &backend_info, Some(&mut painter));
+            ctx.begin_frame(raw_input.take());
+            let app_output = app.ui(&ctx, &backend_info, Some(&mut painter));
             let (egui_output, paint_jobs) = ctx.end_frame();
 
             let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
