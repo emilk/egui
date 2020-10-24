@@ -31,6 +31,16 @@ impl Frame {
         }
     }
 
+    /// Suitable for a fullscreen app
+    pub fn background(style: &Style) -> Self {
+        Self {
+            margin: Vec2::new(8.0, 8.0),
+            corner_radius: 0.0,
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: Default::default(),
+        }
+    }
+
     pub(crate) fn panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 2.0),

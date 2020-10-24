@@ -43,8 +43,10 @@ pub struct Context {
     input: InputState,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
-    /// Becomes `Rect::nothing()` when `Context::background_ui` is called.
+    /// Becomes `Rect::nothing()` after a `CentralPanel` is finished.
     available_rect: Mutex<Option<Rect>>,
+    /// How much space is used by panels.
+    used_by_panels: Mutex<Option<Rect>>,
 
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
@@ -67,6 +69,7 @@ impl Clone for Context {
             animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
             available_rect: self.available_rect.clone(),
+            used_by_panels: self.used_by_panels.clone(),
             graphics: self.graphics.clone(),
             output: self.output.clone(),
             used_ids: self.used_ids.clone(),
@@ -199,10 +202,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Call at the start of every frame.
-    /// To get a `Ui` to place widgets into you one or more of:
-    /// * `SidePanel` or `TopPanel`
-    /// * `Window`
-    /// * `Context::background_ui()`
+    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
         let mut self_: Self = (**self).clone();
         self_.begin_frame_mut(new_input);
@@ -216,6 +216,7 @@ impl Context {
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         *self.available_rect.lock() = Some(self.input.screen_rect());
+        *self.used_by_panels.lock() = Some(Rect::nothing());
 
         let mut font_definitions = self.options.lock().font_definitions.clone();
         font_definitions.pixels_per_point = self.input.pixels_per_point();
@@ -278,31 +279,12 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// A `Ui` that covers the whole background (not used by panels).
-    ///
-    /// This is the same area that `Window`s are put in to,
-    /// so either put your UI into `background_ui()` or into `Window`s.
-    ///
-    /// Call this at most once per frame.
-    pub fn background_ui(self: &Arc<Self>) -> Ui {
-        let rect = self.available_rect();
-        debug_assert!(
-            rect != Rect::nothing(),
-            "You already called `background_ui()` once this frame!"
-        );
-        *self.available_rect.lock() = Some(Rect::nothing()); // Nothing left after this
-
-        let layer_id = LayerId::background();
-        Ui::new(self.clone(), layer_id, layer_id.id, rect, rect)
-    }
-
-    // ---------------------------------------------------------------------
-
     /// Shrink `available_rect()`.
     pub(crate) fn allocate_left_panel(&self, panel_rect: Rect) {
         let mut remainder = self.available_rect();
         remainder.min.x = panel_rect.max.x;
         *self.available_rect.lock() = Some(remainder);
+        self.register_panel(panel_rect);
     }
 
     /// Shrink `available_rect()`.
@@ -310,6 +292,38 @@ impl Context {
         let mut remainder = self.available_rect();
         remainder.min.y = panel_rect.max.y;
         *self.available_rect.lock() = Some(remainder);
+        self.register_panel(panel_rect);
+    }
+
+    /// Shrink `available_rect()`.
+    pub(crate) fn allocate_central_panel(&self, panel_rect: Rect) {
+        let mut available_rect = self.available_rect.lock();
+        debug_assert!(
+            *available_rect != Some(Rect::nothing()),
+            "You already created a  `CentralPanel` this frame!"
+        );
+        *available_rect = Some(Rect::nothing()); // Nothing left after this
+        self.register_panel(panel_rect);
+    }
+
+    fn register_panel(&self, panel_rect: Rect) {
+        let mut used = self.used_by_panels.lock();
+        *used = Some(used.unwrap_or(Rect::nothing()).union(panel_rect));
+    }
+
+    /// How much space is used by panels and windows.
+    pub fn used_rect(&self) -> Rect {
+        let mut used = self.used_by_panels.lock().unwrap_or(Rect::nothing());
+        for window in self.memory().areas.visible_windows() {
+            used = used.union(window.rect());
+        }
+        used
+    }
+
+    /// How much space is used by panels and windows.
+    /// You can shrink your Egui area to this size and still fit all Egui components.
+    pub fn used_size(&self) -> Vec2 {
+        self.used_rect().max - Pos2::new(0.0, 0.0)
     }
 
     // ---------------------------------------------------------------------

@@ -1,4 +1,6 @@
-//! Panels
+//! Panels are fixed `Ui` regions.
+//! Together with `Window` and `Area`:s they are
+//! the only places where you can put you widgets.
 
 use crate::*;
 use std::sync::Arc;
@@ -99,6 +101,44 @@ impl TopPanel {
         let response = panel_ui.interact_hover(panel_rect);
 
         ctx.allocate_top_panel(panel_rect);
+
+        (r, response)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A panel that covers the remainder of the screen,
+/// i.e. whatever area is left after adding other panels.
+///
+/// `CentralPanel` should be added after all other panels.
+/// Any `Window`s and `Area`s will cover the `CentralPanel`.
+#[derive(Default)]
+pub struct CentralPanel {}
+
+impl CentralPanel {
+    pub fn show<R>(
+        self,
+        ctx: &Arc<Context>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let Self {} = self;
+
+        let panel_rect = ctx.available_rect();
+
+        let layer_id = LayerId::background();
+        let id = Id::new("central_panel");
+
+        let clip_rect = ctx.input().screen_rect();
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+
+        let frame = Frame::background(&ctx.style());
+        let r = frame.show(&mut panel_ui, |ui| add_contents(ui));
+
+        let panel_rect = panel_ui.min_rect();
+        let response = panel_ui.interact_hover(panel_rect);
+
+        ctx.allocate_central_panel(panel_rect);
 
         (r, response)
     }

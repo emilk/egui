@@ -36,11 +36,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let mut ctx = egui::Context::new();
         ctx.begin_frame(raw_input);
-        let mut ui = ctx.background_ui();
-        c.bench_function("label", |b| {
-            b.iter(|| {
-                ui.label(egui::demos::LOREM_IPSUM_LONG);
-            })
+        egui::CentralPanel::default().show(&ctx, |ui| {
+            c.bench_function("label", |b| {
+                b.iter(|| {
+                    ui.label(egui::demos::LOREM_IPSUM_LONG);
+                })
+            });
         });
         // let _ = ctx.end_frame(); // skip, because tessellating all that text is slow
     }
