@@ -113,6 +113,18 @@ impl<'a> Slider<'a> {
         .integer()
     }
 
+    pub fn u32(value: &'a mut u32, range: RangeInclusive<u32>) -> Self {
+        Self {
+            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+                if let Some(v) = v {
+                    *value = v.round() as u32
+                }
+                *value as f64
+            })
+        }
+        .integer()
+    }
+
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
         let range = (*range.start() as f64)..=(*range.end() as f64);
         Self {
