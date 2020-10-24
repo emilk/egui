@@ -67,6 +67,9 @@ pub struct Spacing {
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// This is the spacing between the icon and the text
     pub icon_spacing: f32,
+
+    /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
+    pub tooltip_width: f32,
 }
 
 impl Spacing {
@@ -231,6 +234,7 @@ impl Default for Spacing {
             slider_width: 140.0,
             icon_width: 16.0,
             icon_spacing: 1.0,
+            tooltip_width: 400.0,
         }
     }
 }
@@ -348,6 +352,7 @@ impl Spacing {
             slider_width,
             icon_width,
             icon_spacing,
+            tooltip_width,
         } = self;
 
         ui_slider_vec2(ui, item_spacing, 0.0..=10.0, "item_spacing");
@@ -359,6 +364,7 @@ impl Spacing {
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
         ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
+        ui.add(Slider::f32(tooltip_width, 0.0..=10.0).text("tooltip_width"));
     }
 }
 

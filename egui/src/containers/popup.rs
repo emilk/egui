@@ -31,5 +31,10 @@ fn show_popup(
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
         .interactable(false)
-        .show(ctx, |ui| Frame::popup(&ctx.style()).show(ui, add_contents))
+        .show(ctx, |ui| {
+            Frame::popup(&ctx.style()).show(ui, |ui| {
+                ui.set_max_width(ui.style().spacing.tooltip_width);
+                add_contents(ui);
+            })
+        })
 }
