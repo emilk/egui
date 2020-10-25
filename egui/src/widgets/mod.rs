@@ -69,6 +69,10 @@ impl Label {
         self.text_style(TextStyle::Monospace)
     }
 
+    pub fn small(self) -> Self {
+        self.text_style(TextStyle::Small)
+    }
+
     pub fn text_color(mut self, text_color: Srgba) -> Self {
         self.text_color = Some(text_color);
         self
@@ -159,8 +163,10 @@ impl Into<Label> for String {
 
 /// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
 pub struct Hyperlink {
+    // TODO: wrap Label
     url: String,
     text: String,
+    pub(crate) text_style: Option<TextStyle>,
 }
 
 impl Hyperlink {
@@ -169,6 +175,7 @@ impl Hyperlink {
         Self {
             text: url.clone(),
             url,
+            text_style: None,
         }
     }
 
@@ -177,14 +184,27 @@ impl Hyperlink {
         self.text = text.into();
         self
     }
+
+    /// If you do not set a `TextStyle`, the default `style.text_style`.
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
+        self
+    }
+
+    pub fn small(self) -> Self {
+        self.text_style(TextStyle::Small)
+    }
 }
 
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Hyperlink { url, text } = self;
-
+        let Hyperlink {
+            url,
+            text,
+            text_style,
+        } = self;
         let color = color::LIGHT_BLUE;
-        let text_style = ui.style().body_text_style;
+        let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let id = ui.make_child_id(&url);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());

@@ -531,6 +531,11 @@ impl Ui {
         self.add(label.into().monospace())
     }
 
+    /// Shortcut for `add(Label::new(text).small())`
+    pub fn small(&mut self, label: impl Into<Label>) -> Response {
+        self.add(label.into().small())
+    }
+
     /// Shortcut for `add(Hyperlink::new(url))`
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
