@@ -126,8 +126,8 @@ The integration needs to do two things:
 
 I maintain two official Egui integrations:
 
-* [egui_web](crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the Egui demo](https://emilk.github.io/egui/index.html).
-* [egui_glium](crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
+* [egui_web](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the Egui demo](https://emilk.github.io/egui/index.html).
+* [egui_glium](https://crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 
 The same code can be compiled to a native app or a web app.
 
