@@ -9,6 +9,18 @@ pub(crate) struct State {
 }
 
 /// A text region that the user can edit the contents of.
+///
+/// Example:
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// # let mut my_string = String::new();
+/// let response = ui.add(egui::TextEdit::new(&mut my_string).multiline(false));
+/// if response.has_kb_focus && ui.input().key_pressed(egui::Key::Enter) {
+///     ui.memory().stop_text_input();
+///     // use my_string
+/// }
+/// ```
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,

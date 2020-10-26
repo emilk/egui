@@ -153,10 +153,12 @@ impl std::ops::BitOr for Response {
 
 /// To summarize the response from many widgets you can use this pattern:
 ///
-/// ``` ignore
-/// let mut response = ui.add(some_widget);
-/// response |= ui.add(some_other_widget);
-/// response |= ui.add(some_widget);
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// # let (widget_a, widget_b, widget_c) = (egui::Label::new("a"), egui::Label::new("b"), egui::Label::new("c"));
+/// let mut response = ui.add(widget_a);
+/// response |= ui.add(widget_b);
+/// response |= ui.add(widget_c);
 /// if response.active { ui.label("You are interacting with one of the widgets"); }
 /// ```
 impl std::ops::BitOrAssign for Response {

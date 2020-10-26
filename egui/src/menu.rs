@@ -1,7 +1,7 @@
 //! Menu bar functionality (very basic so far).
 //!
 //! Usage:
-//! ``` rust
+//! ```
 //! fn show_menu(ui: &mut egui::Ui) {
 //!     use egui::{menu, Button};
 //!

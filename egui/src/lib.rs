@@ -7,10 +7,12 @@
 //! With it you can then get access to an `Ui` where you can put widgets.
 //! Use one of `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`. For instace:
 //!
-//! ``` ignore
-//! egui::CentralPanel::default().show(ctx, |ui| {
+//! ```
+//! # let mut ctx = egui::Context::new();
+//! # ctx.begin_frame(Default::default());
+//! egui::CentralPanel::default().show(&ctx, |ui| {
 //!     ui.label("Hello");
-//! })
+//! });
 //! ```
 //!
 //!

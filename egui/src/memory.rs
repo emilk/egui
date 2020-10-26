@@ -144,6 +144,11 @@ impl Memory {
         }
     }
 
+    /// Stop editing of active `TextEdit` (if any).
+    pub fn stop_text_input(&mut self) {
+        self.interaction.kb_focus_id = None;
+    }
+
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {

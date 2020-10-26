@@ -104,6 +104,19 @@ impl Ui {
         }
     }
 
+    /// Empty `Ui` for use in tests.
+    pub fn __test() -> Self {
+        let mut ctx = Context::new();
+        ctx.begin_frame(Default::default());
+        let id = Id::new("__test");
+        let layer_id = LayerId {
+            order: Order::Middle,
+            id,
+        };
+        let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), vec2(1000.0, 1000.0));
+        Self::new(ctx, layer_id, id, rect, rect)
+    }
+
     // -------------------------------------------------
 
     pub fn id(&self) -> Id {
@@ -799,10 +812,11 @@ impl Ui {
 
     /// Temporarily split split an Ui into several columns.
     ///
-    /// ``` ignore
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
     /// ui.columns(2, |columns| {
-    ///     columns[0].add(egui::widgets::label!("First column"));
-    ///     columns[1].add(egui::widgets::label!("Second column"));
+    ///     columns[0].label("First column");
+    ///     columns[1].label("Second column");
     /// });
     /// ```
     pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
