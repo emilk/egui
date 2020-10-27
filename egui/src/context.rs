@@ -281,6 +281,10 @@ impl Context {
 
     /// Shrink `available_rect()`.
     pub(crate) fn allocate_left_panel(&self, panel_rect: Rect) {
+        debug_assert!(
+            panel_rect.min == self.available_rect().min,
+            "Mismatching panels. You must not create a panel from within another panel."
+        );
         let mut remainder = self.available_rect();
         remainder.min.x = panel_rect.max.x;
         *self.available_rect.lock() = Some(remainder);
@@ -289,6 +293,10 @@ impl Context {
 
     /// Shrink `available_rect()`.
     pub(crate) fn allocate_top_panel(&self, panel_rect: Rect) {
+        debug_assert!(
+            panel_rect.min == self.available_rect().min,
+            "Mismatching panels. You must not create a panel from within another panel."
+        );
         let mut remainder = self.available_rect();
         remainder.min.y = panel_rect.max.y;
         *self.available_rect.lock() = Some(remainder);
@@ -300,7 +308,7 @@ impl Context {
         let mut available_rect = self.available_rect.lock();
         debug_assert!(
             *available_rect != Some(Rect::nothing()),
-            "You already created a  `CentralPanel` this frame!"
+            "You already created a `CentralPanel` this frame!"
         );
         *available_rect = Some(Rect::nothing()); // Nothing left after this
         self.register_panel(panel_rect);
