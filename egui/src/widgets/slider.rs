@@ -49,7 +49,7 @@ pub struct Slider<'a> {
 }
 
 impl<'a> Slider<'a> {
-    fn from_get_set(
+    pub fn from_get_set(
         range: RangeInclusive<f64>,
         get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
     ) -> Self {
