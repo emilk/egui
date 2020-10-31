@@ -57,6 +57,7 @@ pub fn run(
 
     let mut ctx = egui::Context::new();
     *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
+    app.setup(&ctx);
 
     let mut raw_input = egui::RawInput {
         pixels_per_point: Some(native_pixels_per_point(&display)),

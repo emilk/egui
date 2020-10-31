@@ -132,7 +132,8 @@ pub struct AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(web_backend: WebBackend, app: Box<dyn App>) -> Result<Self, JsValue> {
+    pub fn new(web_backend: WebBackend, mut app: Box<dyn App>) -> Result<Self, JsValue> {
+        app.setup(&web_backend.ctx);
         Ok(Self {
             pixels_per_point: native_pixels_per_point(),
             web_backend,

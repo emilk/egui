@@ -36,6 +36,11 @@ pub struct FontDefinitions {
     pub pixels_per_point: f32,
 
     pub fonts: BTreeMap<TextStyle, (FontFamily, f32)>,
+
+    /// The TTF data for each font family.
+    /// Egui has built-in-default for these,
+    /// but you can override them if you like.
+    pub ttf_data: BTreeMap<FontFamily, &'static [u8]>,
 }
 
 impl Default for FontDefinitions {
@@ -51,11 +56,20 @@ impl FontDefinitions {
         fonts.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
         fonts.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
         fonts.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
-        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0));
+        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
+
+        // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
+        let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
+        let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
+
+        let mut ttf_data: BTreeMap<FontFamily, &'static [u8]> = BTreeMap::new();
+        ttf_data.insert(FontFamily::Monospace, monospace_typeface_data);
+        ttf_data.insert(FontFamily::VariableWidth, variable_typeface_data);
 
         Self {
             pixels_per_point,
             fonts,
+            ttf_data,
         }
     }
 }
@@ -98,32 +112,21 @@ impl Fonts {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
-        let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-
-        // let monospace_typeface_data = include_bytes!("../../fonts/Roboto-Regular.ttf");
-
-        let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
-
-        // let variable_typeface_data = include_bytes!("../../fonts/DejaVuSans.ttf"); // Basic, boring, takes up more space
-
         self.definitions = definitions.clone();
         let FontDefinitions {
             pixels_per_point,
             fonts,
+            ttf_data,
         } = definitions;
         self.fonts = fonts
             .into_iter()
             .map(|(text_style, (family, size))| {
-                let typeface_data: &[u8] = match family {
-                    FontFamily::Monospace => monospace_typeface_data,
-                    FontFamily::VariableWidth => variable_typeface_data,
-                };
+                let typeface_data = ttf_data
+                    .get(&family)
+                    .unwrap_or_else(|| panic!("Missing TTF data for {:?}", family));
+                let font = Font::new(atlas.clone(), typeface_data, size, pixels_per_point);
 
-                (
-                    text_style,
-                    Font::new(atlas.clone(), typeface_data, size, pixels_per_point),
-                )
+                (text_style, font)
             })
             .collect();
 

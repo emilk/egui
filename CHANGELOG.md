@@ -8,6 +8,7 @@
 * Demo App: Add slider to scale all of Egui
 * Windows are now constrained to the screen
 * Panels: you can now create panels using `SidePanel` and `TopPanel`.
+* You can override the default Egui fonts
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
 * You can no longer throw windows
 * `Context::begin_frame()` no longer returns anything.

@@ -12,6 +12,11 @@ use crate::Context;
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
+    /// Called once before the first frame.
+    /// Allows you to do setup code and to call `ctx.set_fonts()`.
+    /// Optional.
+    fn setup(&mut self, _ctx: &std::sync::Arc<Context>) {}
+
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn ui(
