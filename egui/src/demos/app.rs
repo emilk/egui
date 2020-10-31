@@ -86,6 +86,7 @@ impl FrameHistory {
             "Includes Egui layout and tesselation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
+        crate::demos::warn_if_debug_build(ui);
 
         crate::CollapsingHeader::new("CPU usage history")
             .default_open(false)

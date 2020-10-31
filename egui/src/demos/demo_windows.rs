@@ -63,6 +63,7 @@ impl DemoWindows {
 
         crate::SidePanel::left(Id::new("side_panel"), 200.0).show(ctx, |ui| {
             ui.heading("Egui Demo");
+            crate::demos::warn_if_debug_build(ui);
             ui.label("Egui is an immediate mode GUI library written in Rust.");
             ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
 
