@@ -90,10 +90,9 @@ fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
 
 pub fn demo(ui: &mut Ui, on: &mut bool) {
     ui.label("It's easy to create your own widgets!");
-    let url = format!("https://github.com/emilk/egui/blob/master/{}", file!());
     ui.horizontal(|ui| {
         ui.label("Like this toggle switch:");
         toggle(ui, on).on_hover_text("Click to toggle");
-        ui.add(Hyperlink::new(url).text("(source code)"));
+        ui.add(__egui_github_link_file!());
     });
 }

@@ -46,8 +46,7 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let url = format!("https://github.com/emilk/egui/blob/master/{}", file!());
-        ui.add(Hyperlink::new(url).text("Click here to read the source code for this section"));
+        ui.add(crate::__egui_github_link_file_line!());
 
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 0.0;

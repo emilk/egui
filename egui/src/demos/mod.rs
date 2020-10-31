@@ -43,3 +43,49 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
         .on_hover_text("Egui has detect that debug assertions are enabled.");
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Create a `Hyperlink` to this file (and line) on Github
+/// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+#[macro_export]
+macro_rules! github_link_file_line {
+    ($github_url:expr, $label:expr) => {{
+        let url = format!("{}{}#L{}", $github_url, file!(), line!());
+        Hyperlink::new(url).text($label)
+    }};
+}
+
+/// Create a `Hyperlink` to this file on github.
+/// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+#[macro_export]
+macro_rules! github_link_file {
+    ($github_url:expr, $label:expr) => {{
+        let url = format!("{}{}", $github_url, file!());
+        Hyperlink::new(url).text($label)
+    }};
+}
+
+/// Create a `Hyperlink` to this egui source code file on github.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __egui_github_link_file {
+    () => {
+        __egui_github_link_file!("(source code)")
+    };
+    ($label:expr) => {
+        github_link_file!("https://github.com/emilk/egui/blob/master/", $label).small()
+    };
+}
+
+/// Create a `Hyperlink` to this egui source code file and line on github.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __egui_github_link_file_line {
+    () => {
+        __egui_github_link_file_line!("(source code)")
+    };
+    ($label:expr) => {
+        github_link_file_line!("https://github.com/emilk/egui/blob/master/", $label).small()
+    };
+}
