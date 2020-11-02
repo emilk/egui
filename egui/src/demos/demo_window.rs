@@ -318,12 +318,7 @@ impl Painting {
         for line in &self.lines {
             if line.len() >= 2 {
                 let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                painter.add(paint::PaintCmd::Path {
-                    points,
-                    closed: false,
-                    stroke: self.stroke,
-                    fill: Default::default(),
-                });
+                painter.add(paint::PaintCmd::line(points, self.stroke));
             }
         }
     }

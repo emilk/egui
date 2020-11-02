@@ -122,12 +122,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
         *p = rect.center() + v;
     }
 
-    ui.painter().add(PaintCmd::Path {
-        points,
-        closed: true,
-        fill: Default::default(),
-        stroke,
-    });
+    ui.painter().add(PaintCmd::closed_line(points, stroke));
 }
 
 /// A header which can be collapsed/expanded, revealing a contained `Ui` region.

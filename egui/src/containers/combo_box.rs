@@ -116,10 +116,8 @@ fn paint_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
-    painter.add(PaintCmd::Path {
-        points: vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-        closed: true,
-        fill: Default::default(),
-        stroke: visuals.fg_stroke,
-    });
+    painter.add(PaintCmd::closed_line(
+        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
+        visuals.fg_stroke,
+    ));
 }

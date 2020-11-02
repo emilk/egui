@@ -46,10 +46,38 @@ pub enum PaintCmd {
     Triangles(Triangles),
 }
 
+/// ## Constructors
 impl PaintCmd {
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
+            stroke: stroke.into(),
+        }
+    }
+
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        Self::Path {
+            points,
+            closed: false,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        Self::Path {
+            points,
+            closed: true,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Srgba>, stroke: impl Into<Stroke>) -> Self {
+        Self::Path {
+            points,
+            closed: true,
+            fill: fill.into(),
             stroke: stroke.into(),
         }
     }
@@ -108,7 +136,10 @@ impl PaintCmd {
             color,
         }
     }
+}
 
+/// ## Operations
+impl PaintCmd {
     pub fn triangles(triangles: Triangles) -> Self {
         debug_assert!(triangles.is_valid());
         Self::Triangles(triangles)

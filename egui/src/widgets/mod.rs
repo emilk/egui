@@ -411,16 +411,15 @@ impl<'a> Widget for Checkbox<'a> {
         });
 
         if *checked {
-            ui.painter().add(PaintCmd::Path {
-                points: vec![
+            // Check mark:
+            ui.painter().add(PaintCmd::line(
+                vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
-                closed: false,
-                fill: Default::default(),
-                stroke: visuals.fg_stroke,
-            });
+                visuals.fg_stroke,
+            ));
         }
 
         let text_color = text_color

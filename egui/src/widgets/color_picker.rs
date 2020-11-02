@@ -115,16 +115,15 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba
         let x = lerp(rect.left()..=rect.right(), *value);
         let r = rect.height() / 4.0;
         let picked_color = color_at(*value);
-        ui.painter().add(PaintCmd::Path {
-            points: vec![
+        ui.painter().add(PaintCmd::polygon(
+            vec![
                 pos2(x - r, rect.bottom()),
                 pos2(x + r, rect.bottom()),
                 pos2(x, rect.center().y),
             ],
-            closed: true,
-            fill: picked_color,
-            stroke: Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
-        });
+            picked_color,
+            Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
+        ));
     }
 
     response
