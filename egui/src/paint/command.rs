@@ -3,6 +3,7 @@ use {
     crate::{
         align::{anchor_rect, Align},
         math::{Pos2, Rect},
+        *,
     },
 };
 
@@ -150,6 +151,35 @@ impl PaintCmd {
             triangles.texture_id
         } else {
             super::TextureId::Egui
+        }
+    }
+
+    /// Translate location by this much, in-place
+    pub fn translate(&mut self, delta: Vec2) {
+        match self {
+            PaintCmd::Noop => {}
+            PaintCmd::Circle { center, .. } => {
+                *center += delta;
+            }
+            PaintCmd::LineSegment { points, .. } => {
+                for p in points {
+                    *p += delta;
+                }
+            }
+            PaintCmd::Path { points, .. } => {
+                for p in points {
+                    *p += delta;
+                }
+            }
+            PaintCmd::Rect { rect, .. } => {
+                *rect = rect.translate(delta);
+            }
+            PaintCmd::Text { pos, .. } => {
+                *pos += delta;
+            }
+            PaintCmd::Triangles(triangles) => {
+                triangles.translate(delta);
+            }
         }
     }
 }

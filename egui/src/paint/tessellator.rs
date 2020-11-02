@@ -243,6 +243,13 @@ impl Triangles {
         }
         output
     }
+
+    /// Translate location by this much, in-place
+    pub fn translate(&mut self, delta: Vec2) {
+        for v in &mut self.vertices {
+            v.pos += delta;
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -697,7 +704,7 @@ fn tessellate_paint_command(
             if triangles.is_valid() {
                 out.append(triangles);
             } else {
-                debug_assert!(false, "Ivalid Triangles in PaintCmd::Traingles");
+                debug_assert!(false, "Invalid Triangles in PaintCmd::Triangles");
             }
         }
         PaintCmd::LineSegment { points, stroke } => {

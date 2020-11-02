@@ -1,6 +1,6 @@
 use ahash::AHashMap;
 
-use crate::{math::Rect, paint::PaintCmd, Id};
+use crate::{math::Rect, paint::PaintCmd, Id, *};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -104,6 +104,14 @@ impl PaintList {
     pub fn set(&mut self, idx: PaintCmdIdx, clip_rect: Rect, cmd: PaintCmd) {
         assert!(idx.0 < self.0.len());
         self.0[idx.0] = (clip_rect, cmd);
+    }
+
+    /// Translate each paint-command and clip rectangle by this much, in-place
+    pub fn translate(&mut self, delta: Vec2) {
+        for (clip_rect, cmd) in &mut self.0 {
+            *clip_rect = clip_rect.translate(delta);
+            cmd.translate(delta);
+        }
     }
 }
 
