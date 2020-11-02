@@ -67,7 +67,7 @@ impl Sliders {
                     .text("f64 demo slider"),
             );
 
-            ui.label("Sliders  will automatically figure out how many decimals to show.");
+            ui.label("Sliders will automatically figure out how many decimals to show.");
 
             if ui.button("Assign PI").clicked {
                 self.value = std::f64::consts::PI;

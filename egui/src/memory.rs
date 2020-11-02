@@ -149,6 +149,14 @@ impl Memory {
         self.interaction.kb_focus_id = None;
     }
 
+    pub fn is_anything_being_dragged(&self) -> bool {
+        self.interaction.drag_id.is_some()
+    }
+
+    pub fn is_being_dragged(&self, id: Id) -> bool {
+        self.interaction.drag_id == Some(id)
+    }
+
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {

@@ -39,7 +39,7 @@ impl FractalClock {
     ) {
         Window::new("FractalClock")
             .open(open)
-            .default_rect(ctx.available_rect().expand(-42.0))
+            .default_size(vec2(512.0, 512.0))
             .scroll(false)
             // Dark background frame to make it pop:
             .frame(Frame::window(&ctx.style()).fill(Srgba::black_alpha(250)))

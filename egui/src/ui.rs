@@ -659,12 +659,26 @@ impl Ui {
 
 /// # Adding Containers / Sub-uis:
 impl Ui {
-    pub fn collapsing<R>(
+    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
+    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+        let child_rect = self.available();
+        let mut child_ui = self.child_ui(child_rect, self.layout);
+        let ret = add_contents(&mut child_ui);
+        let size = child_ui.min_size();
+        let rect = self.allocate_space(size);
+        (ret, self.interact_hover(rect))
+    }
+
+    /// Redirect paint commands to another paint layer.
+    pub fn with_layer_id<R>(
         &mut self,
-        heading: impl Into<String>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> CollapsingResponse<R> {
-        CollapsingHeader::new(heading).show(self, add_contents)
+        layer_id: LayerId,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Response) {
+        self.wrap(|ui| {
+            ui.painter.set_layer_id(layer_id);
+            add_contents(ui)
+        })
     }
 
     /// Create a child ui at the current cursor.
@@ -682,14 +696,12 @@ impl Ui {
         self.allocate_space(child_ui.min_size())
     }
 
-    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn add_custom<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-        let child_rect = self.available();
-        let mut child_ui = self.child_ui(child_rect, self.layout);
-        let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
-        (ret, self.interact_hover(rect))
+    pub fn collapsing<R>(
+        &mut self,
+        heading: impl Into<String>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        CollapsingHeader::new(heading).show(self, add_contents)
     }
 
     /// Create a child ui which is indented to the right
@@ -786,7 +798,7 @@ impl Ui {
         self.with_layout(Layout::vertical(Align::Min), add_contents)
     }
 
-    pub fn inner_layout<R>(
+    fn inner_layout<R>(
         &mut self,
         layout: Layout,
         initial_size: Vec2,

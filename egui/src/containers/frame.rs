@@ -31,6 +31,16 @@ impl Frame {
         }
     }
 
+    /// dark canvas to draw on
+    pub fn dark_canvas(style: &Style) -> Self {
+        Self {
+            margin: Vec2::new(10.0, 10.0),
+            corner_radius: 5.0,
+            fill: Srgba::black_alpha(250),
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+        }
+    }
+
     /// Suitable for a fullscreen app
     pub fn background(style: &Style) -> Self {
         Self {

@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use crate::{app, demos, Context, Id, Resize, ScrollArea, Ui, Window};
+use crate::{
+    app,
+    demos::{self, Demo},
+    Context, Id, Resize, ScrollArea, Ui, Window,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -22,6 +26,39 @@ pub struct DemoEnvironment {
 
 // ----------------------------------------------------------------------------
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct Demos {
+    /// open, view
+    #[serde(skip)] // TODO
+    demos: Vec<(bool, Box<dyn Demo>)>,
+}
+impl Default for Demos {
+    fn default() -> Self {
+        Self {
+            demos: vec![
+                (false, Box::new(crate::demos::DancingStrings::default())),
+                (false, Box::new(crate::demos::DragAndDropDemo::default())),
+            ],
+        }
+    }
+}
+impl Demos {
+    pub fn checkboxes(&mut self, ui: &mut Ui) {
+        for (ref mut open, demo) in &mut self.demos {
+            ui.checkbox(open, demo.name());
+        }
+    }
+
+    pub fn show(&mut self, ctx: &Arc<Context>) {
+        for (ref mut open, demo) in &mut self.demos {
+            demo.show(ctx, open);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A menu bar in which you can select different demo windows to show.
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -35,6 +72,9 @@ pub struct DemoWindows {
     color_test: demos::ColorTest,
 
     fractal_clock: demos::FractalClock,
+
+    /// open, title, view
+    demos: Demos,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     previous_link: Option<DemoLink>,
@@ -78,7 +118,8 @@ impl DemoWindows {
 
             ui.heading("Windows:");
             ui.indent("windows", |ui| {
-                self.open_windows.ui(ui);
+                self.open_windows.checkboxes(ui);
+                self.demos.checkboxes(ui);
             });
         });
 
@@ -101,6 +142,7 @@ impl DemoWindows {
             demo_window,
             color_test,
             fractal_clock,
+            demos,
             ..
         } = self;
 
@@ -138,6 +180,8 @@ impl DemoWindows {
             .show(ctx, |ui| {
                 color_test.ui(ui, tex_allocator);
             });
+
+        demos.show(ctx);
 
         fractal_clock.window(
             ctx,
@@ -243,7 +287,7 @@ impl OpenWindows {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui) {
+    fn checkboxes(&mut self, ui: &mut Ui) {
         let Self {
             demo,
             fractal_clock,
@@ -253,16 +297,19 @@ impl OpenWindows {
             resize,
             color_test,
         } = self;
-        ui.checkbox(demo, "Demo");
-        ui.checkbox(fractal_clock, "Fractal Clock");
-        ui.separator();
+        ui.label("Egui:");
         ui.checkbox(settings, "Settings");
         ui.checkbox(inspection, "Inspection");
         ui.checkbox(memory, "Memory");
-        ui.checkbox(resize, "Resize examples");
         ui.separator();
+        ui.checkbox(demo, "Demo");
+        ui.separator();
+        ui.checkbox(resize, "Resize examples");
         ui.checkbox(color_test, "Color test")
             .on_hover_text("For testing the integrations painter");
+        ui.separator();
+        ui.label("Misc:");
+        ui.checkbox(fractal_clock, "Fractal Clock");
     }
 }
 
@@ -282,7 +329,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
                 *ui.ctx().memory() = Default::default();
             }
         });
-        menu::menu(ui, "Windows", |ui| windows.ui(ui));
+        menu::menu(ui, "Windows", |ui| windows.checkboxes(ui));
         menu::menu(ui, "About", |ui| {
             ui.label("This is Egui");
             ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));

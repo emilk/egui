@@ -32,6 +32,20 @@ impl Painter {
         }
     }
 
+    #[must_use]
+    pub fn with_layer_id(self, layer_id: LayerId) -> Self {
+        Self {
+            ctx: self.ctx,
+            layer_id,
+            clip_rect: self.clip_rect,
+        }
+    }
+
+    /// redirect
+    pub fn set_layer_id(&mut self, layer_id: LayerId) {
+        self.layer_id = layer_id;
+    }
+
     /// Create a painter for a sub-region of this `Painter`.
     ///
     /// The clip-rect of the returned `Painter` will be the intersection
