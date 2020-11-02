@@ -458,8 +458,8 @@ impl Context {
             .map(|id| self.memory().has_kb_focus(id))
             .unwrap_or(false);
 
-        if interaction_id.is_none() || sense == Sense::nothing() {
-            // Not interested in input:
+        if interaction_id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
+            // Not interested or allowed input:
             return Response {
                 ctx: self.clone(),
                 sense,

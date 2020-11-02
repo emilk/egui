@@ -53,10 +53,7 @@ impl Area {
     }
 
     pub fn layer(&self) -> LayerId {
-        LayerId {
-            order: self.order,
-            id: self.id,
-        }
+        LayerId::new(self.order, self.id)
     }
 
     /// moveable by dragging the area?

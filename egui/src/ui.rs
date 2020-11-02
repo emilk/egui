@@ -109,10 +109,7 @@ impl Ui {
         let mut ctx = Context::new();
         ctx.begin_frame(Default::default());
         let id = Id::new("__test");
-        let layer_id = LayerId {
-            order: Order::Middle,
-            id,
-        };
+        let layer_id = LayerId::new(Order::Middle, id);
         let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), vec2(1000.0, 1000.0));
         Self::new(ctx, layer_id, id, rect, rect)
     }

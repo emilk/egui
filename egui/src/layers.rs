@@ -11,8 +11,10 @@ pub enum Order {
     /// Normal moveable windows that you reorder by click
     Middle,
     /// Popups, menus etc that should always be painted on top of windows
-    Foreground,
     /// Foreground objects can also have tooltips
+    Foreground,
+    /// Things floating on top of everything else, like tooltips.
+    /// You cannot interact with these.
     Tooltip,
     /// Debug layer, always painted last / on top
     Debug,
@@ -26,6 +28,13 @@ impl Order {
         Self::Tooltip,
         Self::Debug,
     ];
+
+    pub fn allow_interaction(&self) -> bool {
+        match self {
+            Self::Background | Self::Middle | Self::Foreground | Self::Debug => true,
+            Self::Tooltip => false,
+        }
+    }
 }
 
 /// An identifier for a paint layer.
@@ -38,6 +47,10 @@ pub struct LayerId {
 }
 
 impl LayerId {
+    pub fn new(order: Order, id: Id) -> Self {
+        Self { order, id }
+    }
+
     pub fn debug() -> Self {
         Self {
             order: Order::Debug,
@@ -50,6 +63,10 @@ impl LayerId {
             order: Order::Background,
             id: Id::background(),
         }
+    }
+
+    pub fn allow_interaction(&self) -> bool {
+        self.order.allow_interaction()
     }
 }
 
