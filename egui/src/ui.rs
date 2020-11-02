@@ -849,11 +849,7 @@ impl Ui {
                     pos,
                     pos2(pos.x + column_width, self.max_rect.right_bottom().y),
                 );
-
-                Self {
-                    id: self.make_child_id(&("column", col_idx)),
-                    ..self.child_ui(child_rect, self.layout)
-                }
+                self.child_ui(child_rect, self.layout)
             })
             .collect();
 
