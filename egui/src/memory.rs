@@ -1,14 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    area,
-    cache::Cache,
-    collapsing_header, menu,
-    paint::color::{Hsva, Srgba},
-    resize, scroll_area,
-    widgets::text_edit,
-    window, Id, LayerId, Pos2, Rect,
-};
+use crate::{cache::Cache, color::Hsva, *};
 
 /// The data that Egui persists between frames.
 ///
@@ -24,11 +16,11 @@ pub struct Memory {
     pub(crate) interaction: Interaction,
 
     // states of various types of widgets
-    pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
+    pub(crate) collapsing_headers: HashMap<StrongId, collapsing_header::State>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) menu_bar: HashMap<Id, menu::BarState>,
-    pub(crate) resize: HashMap<Id, resize::State>,
-    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
+    pub(crate) menu_bar: HashMap<StrongId, menu::BarState>,
+    pub(crate) resize: HashMap<StrongId, resize::State>,
+    pub(crate) scroll_areas: HashMap<StrongId, scroll_area::State>,
     pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -197,7 +189,7 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: HashMap<Id, area::State>,
+    areas: HashMap<StrongId, area::State>,
     /// Top is last
     order: Vec<LayerId>,
     visible_last_frame: HashSet<LayerId>,

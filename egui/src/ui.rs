@@ -7,12 +7,11 @@ use crate::{color::*, containers::*, layout::*, mutex::MutexGuard, paint::*, wid
 /// Represents a region of the screen
 /// with a type of layout (horizontal or vertical).
 pub struct Ui {
-    /// ID of this ui.
-    /// Generated based on id of parent ui together with
-    /// another source of child identity (e.g. window title).
-    /// Acts like a namespace for child uis.
-    /// Hopefully unique.
-    id: Id,
+    /// Used to seed more StrongId:s.
+    strong_id: StrongId,
+
+    /// For automatic Id generation.
+    auto_id: Id,
 
     painter: Painter,
 
@@ -49,11 +48,6 @@ pub struct Ui {
     /// If something has already been added, this will point ot style.spacing.item_spacing beyond the latest child.
     /// The cursor can thus be style.spacing.item_spacing pixels outside of the min_rect.
     cursor: Pos2, // TODO: move into Layout?
-
-    /// How many children has been added to us?
-    /// This is only used to create a unique interact ID for some widgets
-    /// that work as long as no other widgets are added/removed while interacting.
-    child_count: usize,
 }
 
 impl Ui {
@@ -63,7 +57,7 @@ impl Ui {
     pub fn new(
         ctx: Arc<Context>,
         layer_id: LayerId,
-        id: Id,
+        strong_id: StrongId,
         max_rect: Rect,
         clip_rect: Rect,
     ) -> Self {
@@ -73,14 +67,14 @@ impl Ui {
         let min_size = Vec2::zero(); // TODO: From Style
         let min_rect = layout.rect_from_cursor_size(cursor, min_size);
         Ui {
-            id,
+            strong_id,
+            auto_id: strong_id.with("auto"),
             painter: Painter::new(ctx, layer_id, clip_rect),
             min_rect,
             max_rect,
             style,
             layout,
             cursor,
-            child_count: 0,
         }
     }
 
@@ -366,7 +360,7 @@ impl Ui {
 /// # `Id` creation
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in `Memory`.
-    pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
+    pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> StrongId
     where
         IdSource: Hash + std::fmt::Debug,
     {
@@ -379,15 +373,22 @@ impl Ui {
     /// Call AFTER allocating new space for your widget.
     // TODO: return from `allocate_space` ?
     pub fn make_position_id(&self) -> Id {
-        self.id.with(self.child_count)
+        let id = self.id.with(self.child_count);
+        // self.ctx().register_unique_id(id, self.cursor, "position"); // NO: position may change until we interact
+        id
     }
 }
 
 /// # Interaction
 impl Ui {
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx()
-            .interact(self.layer_id(), self.clip_rect(), rect, Some(id), sense)
+    pub fn interact(&self, rect: Rect, id: impl Into<Id>, sense: Sense) -> Response {
+        self.ctx().interact(
+            self.layer_id(),
+            self.clip_rect(),
+            rect,
+            Some(id.into()),
+            sense,
+        )
     }
 
     pub fn interact_hover(&self, rect: Rect) -> Response {

@@ -32,7 +32,7 @@ impl State {
 /// This forms the base of the `Window` container.
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
-    id: Id,
+    strong_id: StrongId,
     movable: bool,
     interactable: bool,
     order: Order,
@@ -41,9 +41,9 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn new(id_source: impl Hash) -> Self {
+    pub fn new(strong_id_source: impl Hash) -> Self {
         Self {
-            id: Id::new(id_source),
+            strong_id: StrongId::new(strong_id_source),
             movable: true,
             interactable: true,
             order: Order::Middle,
@@ -53,7 +53,7 @@ impl Area {
     }
 
     pub fn layer(&self) -> LayerId {
-        LayerId::new(self.order, self.id)
+        LayerId::new(self.order, self.strong_id)
     }
 
     /// moveable by dragging the area?
@@ -105,7 +105,7 @@ pub(crate) struct Prepared {
 impl Area {
     pub(crate) fn begin(self, ctx: &Arc<Context>) -> Prepared {
         let Area {
-            id,
+            strong_id,
             movable,
             order,
             interactable,
@@ -113,9 +113,9 @@ impl Area {
             fixed_pos,
         } = self;
 
-        let layer_id = LayerId::new(order, id);
+        let layer_id = LayerId::new(order, strong_id);
 
-        let state = ctx.memory().areas.get(id).cloned();
+        let state = ctx.memory().areas.get(strong_id).cloned();
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::zero(),

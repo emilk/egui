@@ -40,14 +40,14 @@ impl Id {
         Self(1)
     }
 
-    pub fn new(source: impl Hash) -> Id {
+    pub fn new(source: impl Hash) -> Self {
         use std::hash::Hasher;
         let mut hasher = ahash::AHasher::default();
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
 
-    pub fn with(self, child: impl Hash) -> Id {
+    pub fn with(self, child: impl Hash) -> Self {
         use std::hash::Hasher;
         let mut hasher = ahash::AHasher::default();
         hasher.write_u64(self.0);
@@ -57,5 +57,51 @@ impl Id {
 
     pub(crate) fn short_debug_format(&self) -> String {
         format!("{:04X}", self.0 as u16)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// This is an identifier that must be unique over long time.
+/// Used for storing state, like window position, scroll amount, etc.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct StrongId(u64);
+
+impl StrongId {
+    pub fn background() -> Self {
+        Self(0)
+    }
+
+    pub fn tooltip() -> Self {
+        Self(1)
+    }
+
+    pub fn new(source: impl Hash) -> Self {
+        use std::hash::Hasher;
+        let mut hasher = ahash::AHasher::default();
+        source.hash(&mut hasher);
+        Id(hasher.finish())
+    }
+
+    pub fn with(self, child: impl Hash) -> Self {
+        use std::hash::Hasher;
+        let mut hasher = ahash::AHasher::default();
+        hasher.write_u64(self.0);
+        child.hash(&mut hasher);
+        Id(hasher.finish())
+    }
+
+    pub(crate) fn short_debug_format(&self) -> String {
+        format!("{:04X}", self.0 as u16)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Ok to weaken a `StrongId`
+impl From<StrongId> for Id {
+    fn from(strong: StrongId) -> Self {
+        Id(strong.0)
     }
 }

@@ -3,6 +3,7 @@
 //! the only places where you can put you widgets.
 
 use crate::*;
+use std::hash::Hash;
 use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
@@ -11,14 +12,17 @@ use std::sync::Arc;
 ///
 /// Panels should be added before adding any `Window`s.
 pub struct SidePanel {
-    id: Id,
+    strong_id: Id,
     max_width: f32,
 }
 
 impl SidePanel {
     /// The given `max_width` is a soft maximum (as always), and the actual panel may be smaller or larger.
-    pub fn left(id: Id, max_width: f32) -> Self {
-        Self { id, max_width }
+    pub fn left(strong_id_source: impl Hash, max_width: f32) -> Self {
+        Self {
+            strong_id: StrongId::new(strong_id_source),
+            max_width,
+        }
     }
 }
 
@@ -28,7 +32,10 @@ impl SidePanel {
         ctx: &Arc<Context>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
-        let Self { id, max_width } = self;
+        let Self {
+            strong_id,
+            max_width,
+        } = self;
 
         let mut panel_rect = ctx.available_rect();
         panel_rect.max.x = panel_rect.max.x.at_most(panel_rect.min.x + max_width);
@@ -36,7 +43,7 @@ impl SidePanel {
         let layer_id = LayerId::background();
 
         let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, strong_id, panel_rect, clip_rect);
 
         let frame = Frame::panel(&ctx.style());
         let r = frame.show(&mut panel_ui, |ui| {
@@ -59,16 +66,16 @@ impl SidePanel {
 ///
 /// Panels should be added before adding any `Window`s.
 pub struct TopPanel {
-    id: Id,
+    strong_id: StrongId,
     max_height: Option<f32>,
 }
 
 impl TopPanel {
     /// Default height is that of `interact_size.y` (i.e. a button),
     /// but the panel will expand as needed.
-    pub fn top(id: Id) -> Self {
+    pub fn top(strong_id_source: impl Hash) -> Self {
         Self {
-            id,
+            strong_id: StrongId::new(strong_id_source),
             max_height: None,
         }
     }
@@ -80,7 +87,10 @@ impl TopPanel {
         ctx: &Arc<Context>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
-        let Self { id, max_height } = self;
+        let Self {
+            strong_id,
+            max_height,
+        } = self;
         let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
         let mut panel_rect = ctx.available_rect();
@@ -89,7 +99,7 @@ impl TopPanel {
         let layer_id = LayerId::background();
 
         let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, strong_id, panel_rect, clip_rect);
 
         let frame = Frame::panel(&ctx.style());
         let r = frame.show(&mut panel_ui, |ui| {
@@ -127,10 +137,10 @@ impl CentralPanel {
         let panel_rect = ctx.available_rect();
 
         let layer_id = LayerId::background();
-        let id = Id::new("central_panel");
+        let strong_id = Id::new("central_panel");
 
         let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, strong_id, panel_rect, clip_rect);
 
         let frame = Frame::background(&ctx.style());
         let r = frame.show(&mut panel_ui, |ui| add_contents(ui));
