@@ -36,6 +36,9 @@ pub enum CursorIcon {
     ResizeNwSe,
     ResizeVertical,
     Text,
+    /// Used when moving
+    Grab,
+    Grabbing,
 }
 
 impl Default for CursorIcon {

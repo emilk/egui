@@ -167,9 +167,11 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
         ResizeNwSe => "nwse-resize",
         ResizeVertical => "ns-resize",
         Text => "text",
+        Grab => "grab",
+        Grabbing => "grabbing",
         // "no-drop"
         // "not-allowed"
-        // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move, grab, grabbing,
+        // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move
     }
 }
 

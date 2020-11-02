@@ -153,6 +153,8 @@ pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::Cursor
         CursorIcon::ResizeNwSe => glutin::window::CursorIcon::NwseResize,
         CursorIcon::ResizeVertical => glutin::window::CursorIcon::NsResize,
         CursorIcon::Text => glutin::window::CursorIcon::Text,
+        CursorIcon::Grab => glutin::window::CursorIcon::Grab,
+        CursorIcon::Grabbing => glutin::window::CursorIcon::Grabbing,
     }
 }
 
