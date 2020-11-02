@@ -468,70 +468,72 @@ fn resize_hover(
     area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    if let Some(mouse_pos) = ctx.input().mouse.pos {
-        if let Some(top_layer_id) = ctx.layer_id_at(mouse_pos) {
-            if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
-                return None; // Another window is on top here
-            }
+    let mouse_pos = ctx.input().mouse.pos?;
+
+    if ctx.input().mouse.down && !ctx.input().mouse.pressed {
+        return None; // already dragging (something)
+    }
+
+    if let Some(top_layer_id) = ctx.layer_id_at(mouse_pos) {
+        if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
+            return None; // Another window is on top here
+        }
+    }
+
+    if ctx.memory().interaction.drag_interest {
+        // Another widget will become active if we drag here
+        return None;
+    }
+
+    let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
+    let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
+    if !rect.expand(side_grab_radius).contains(mouse_pos) {
+        return None;
+    }
+
+    let (mut left, mut right, mut top, mut bottom) = Default::default();
+    if possible.resizable {
+        right = (rect.right() - mouse_pos.x).abs() <= side_grab_radius;
+        bottom = (rect.bottom() - mouse_pos.y).abs() <= side_grab_radius;
+
+        if rect.right_bottom().distance(mouse_pos) < corner_grab_radius {
+            right = true;
+            bottom = true;
         }
 
-        if ctx.memory().interaction.drag_interest {
-            // Another widget will become active if we drag here
-            return None;
+        if possible.movable {
+            left = (rect.left() - mouse_pos.x).abs() <= side_grab_radius;
+            top = (rect.top() - mouse_pos.y).abs() <= side_grab_radius;
+
+            if rect.right_top().distance(mouse_pos) < corner_grab_radius {
+                right = true;
+                top = true;
+            }
+            if rect.left_top().distance(mouse_pos) < corner_grab_radius {
+                left = true;
+                top = true;
+            }
+            if rect.left_bottom().distance(mouse_pos) < corner_grab_radius {
+                left = true;
+                bottom = true;
+            }
         }
+    }
+    let any_resize = left || right || top || bottom;
 
-        let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
-        let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
-        if rect.expand(side_grab_radius).contains(mouse_pos) {
-            let (mut left, mut right, mut top, mut bottom) = Default::default();
-            if possible.resizable {
-                right = (rect.right() - mouse_pos.x).abs() <= side_grab_radius;
-                bottom = (rect.bottom() - mouse_pos.y).abs() <= side_grab_radius;
+    if !any_resize && !possible.movable {
+        return None;
+    }
 
-                if rect.right_bottom().distance(mouse_pos) < corner_grab_radius {
-                    right = true;
-                    bottom = true;
-                }
-
-                if possible.movable {
-                    left = (rect.left() - mouse_pos.x).abs() <= side_grab_radius;
-                    top = (rect.top() - mouse_pos.y).abs() <= side_grab_radius;
-
-                    if rect.right_top().distance(mouse_pos) < corner_grab_radius {
-                        right = true;
-                        top = true;
-                    }
-                    if rect.left_top().distance(mouse_pos) < corner_grab_radius {
-                        left = true;
-                        top = true;
-                    }
-                    if rect.left_bottom().distance(mouse_pos) < corner_grab_radius {
-                        left = true;
-                        bottom = true;
-                    }
-                }
-            }
-            let any_resize = left || right || top || bottom;
-
-            if !any_resize && !possible.movable {
-                return None;
-            }
-
-            if any_resize || possible.movable {
-                Some(WindowInteraction {
-                    area_layer_id,
-                    start_rect: rect,
-                    left,
-                    right,
-                    top,
-                    bottom,
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    if any_resize || possible.movable {
+        Some(WindowInteraction {
+            area_layer_id,
+            start_rect: rect,
+            left,
+            right,
+            top,
+            bottom,
+        })
     } else {
         None
     }
