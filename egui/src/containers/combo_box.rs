@@ -7,7 +7,7 @@ pub fn combo_box_with_label(
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let label = label.into();
-    let button_id = ui.make_unique_child_id(label.text());
+    let button_id = ui.make_persistent_id(label.text());
 
     ui.horizontal(|ui| {
         let mut response = combo_box(ui, button_id, selected, menu_contents);

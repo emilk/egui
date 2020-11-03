@@ -691,7 +691,7 @@ impl TitleBar {
             );
         }
 
-        let title_bar_id = ui.make_child_id("title_bar");
+        let title_bar_id = ui.make_position_id().with("title_bar");
         if ui
             .interact(self.rect, title_bar_id, Sense::click())
             .double_clicked
@@ -716,7 +716,7 @@ impl TitleBar {
 }
 
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
-    let close_id = ui.make_child_id("window_close_button");
+    let close_id = ui.make_position_id().with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_rect(response.rect);
 

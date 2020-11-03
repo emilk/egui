@@ -105,7 +105,7 @@ impl<'t> Widget for TextEdit<'t> {
 
         let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
 
-        let id = id.unwrap_or_else(|| ui.make_child_id(id_source));
+        let id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
 
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
 

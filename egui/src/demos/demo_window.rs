@@ -105,33 +105,6 @@ impl DemoWindow {
                     painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
                 });
             });
-
-        if false {
-            // TODO: either show actual name clash, or remove this example
-            ui.collapsing("Name clash demo", |ui| {
-                ui.label("\
-                    Widgets that store state require unique identifiers so we can track their state between frames. \
-                    Identifiers are normally derived from the titles of the widget.");
-
-                ui.label("\
-                    For instance, collapsable headers needs to store wether or not they are open. \
-                    If you fail to give them unique names then clicking one will open both. \
-                    To help you debug this, an error message is printed on screen:");
-
-                ui.collapsing("Collapsing header", |ui| {
-                    ui.label("Contents of first foldable ui");
-                });
-                ui.collapsing("Collapsing header", |ui| {
-                    ui.label("Contents of second foldable ui");
-                });
-
-                ui.label("\
-                    Most widgets don't need unique names, but are tracked \
-                    based on their position on screen. For instance, buttons:");
-                let _ = ui.button("Button");
-                let _ = ui.button("Button");
-            });
-        }
     }
 }
 

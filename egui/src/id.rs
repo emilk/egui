@@ -12,7 +12,7 @@ use std::hash::Hash;
 /// For some widgets `Id`s are also used to persist some state about the
 /// widgets, such as Window position or wether not a collapsing header region is open.
 ///
-/// This implies that the `Id`s must be unqiue.
+/// This implies that the `Id`s must be unique.
 ///
 /// For simple things like sliders and buttons that don't have any memory and
 /// doesn't move we can use the location of the widget as a source of identity.
@@ -53,5 +53,9 @@ impl Id {
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())
+    }
+
+    pub(crate) fn short_debug_format(&self) -> String {
+        format!("{:04X}", self.0 as u16)
     }
 }

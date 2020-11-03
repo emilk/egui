@@ -9,12 +9,13 @@ mod demo_windows;
 mod drag_and_drop;
 mod fractal_clock;
 mod sliders;
+mod tests;
 pub mod toggle_switch;
 mod widgets;
 
 pub use {
     app::*, color_test::ColorTest, dancing_strings::DancingStrings, demo_window::DemoWindow,
-    demo_windows::*, drag_and_drop::*, fractal_clock::FractalClock, sliders::Sliders,
+    demo_windows::*, drag_and_drop::*, fractal_clock::FractalClock, sliders::Sliders, tests::Tests,
     widgets::Widgets,
 };
 

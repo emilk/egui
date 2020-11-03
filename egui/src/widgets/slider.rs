@@ -227,9 +227,9 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
-        let id = ui.make_position_id();
         let desired_size = vec2(ui.style().spacing.slider_width, height);
         let rect = ui.allocate_space(desired_size);
+        let id = ui.make_position_id();
         ui.interact(rect, id, Sense::click_and_drag())
     }
 

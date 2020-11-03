@@ -85,8 +85,8 @@ impl Ui {
     }
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        let id = self.make_position_id(); // TODO: is this a good idea?
         self.child_count += 1;
+        let id = self.make_position_id(); // TODO: ui.id should be persistent and not position based.
 
         let cursor = layout.initial_cursor(max_rect);
         let min_size = Vec2::zero(); // TODO: From Style
@@ -365,51 +365,21 @@ impl Ui {
 
 /// # `Id` creation
 impl Ui {
-    /// Will warn if the returned id is not guaranteed unique.
-    /// Use this to generate widget ids for widgets that have persistent state in Memory.
-    /// If the `id_source` is not unique within this ui
-    /// then an error will be printed at the current cursor position.
-    pub fn make_unique_child_id<IdSource>(&self, id_source: IdSource) -> Id
+    /// Use this to generate widget ids for widgets that have persistent state in `Memory`.
+    pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {
-        let id = self.id.with(&id_source);
-        // TODO: clip name clash error messages to clip rect
-        self.ctx().register_unique_id(id, id_source, self.cursor)
-    }
-
-    /// Ideally, all widgets should use this. TODO
-    /// Widgets can set an explicit id source (user picked, e.g. some loop index),
-    /// and a default id source (e.g. label).
-    /// If they fail to be unique, a positional id will be used instead.
-    pub fn make_unique_child_id_full(
-        &mut self,
-        explicit_id_source: Option<Id>,
-        default_id_source: Option<&str>,
-    ) -> Id {
-        let id = if let Some(explicit_id_source) = explicit_id_source {
-            self.id.with(&explicit_id_source)
-        } else {
-            let id = self.id.with(default_id_source);
-            if self.ctx().is_unique_id(id) {
-                id
-            } else {
-                self.make_position_id()
-            }
-        };
-        self.ctx()
-            .register_unique_id(id, default_id_source.unwrap_or_default(), self.cursor)
+        self.id.with(&id_source)
     }
 
     /// Make an Id that is unique to this position.
     /// Can be used for widgets that do NOT persist state in Memory
     /// but you still need to interact with (e.g. buttons, sliders).
+    /// Call AFTER allocating new space for your widget.
+    // TODO: return from `allocate_space` ?
     pub fn make_position_id(&self) -> Id {
         self.id.with(self.child_count)
-    }
-
-    pub fn make_child_id(&self, id_seed: impl Hash) -> Id {
-        self.id.with(id_seed)
     }
 }
 
@@ -716,7 +686,7 @@ impl Ui {
         );
         let indent = vec2(self.style().spacing.indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor + indent, self.max_rect.right_bottom()); // TODO: wrong for reversed layouts
-        let mut child_ui = Ui {
+        let mut child_ui = Self {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, self.layout)
         };
@@ -736,20 +706,20 @@ impl Ui {
         (ret, self.interact_hover(rect))
     }
 
-    pub fn left_column(&mut self, width: f32) -> Ui {
+    pub fn left_column(&mut self, width: f32) -> Self {
         self.column(Align::Min, width)
     }
 
-    pub fn centered_column(&mut self, width: f32) -> Ui {
+    pub fn centered_column(&mut self, width: f32) -> Self {
         self.column(Align::Center, width)
     }
 
-    pub fn right_column(&mut self, width: f32) -> Ui {
+    pub fn right_column(&mut self, width: f32) -> Self {
         self.column(Align::Max, width)
     }
 
     /// A column ui with a given width.
-    pub fn column(&mut self, column_position: Align, width: f32) -> Ui {
+    pub fn column(&mut self, column_position: Align, width: f32) -> Self {
         let x = match column_position {
             Align::Min => 0.0,
             Align::Center => self.available().width() / 2.0 - width / 2.0,

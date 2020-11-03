@@ -72,7 +72,7 @@ impl ScrollArea {
 
         let ctx = ui.ctx().clone();
 
-        let id = ui.make_child_id("scroll_area");
+        let id = ui.make_persistent_id("scroll_area");
         let state = ctx
             .memory()
             .scroll_areas
@@ -221,28 +221,21 @@ impl Prepared {
                 pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
 
-            // intentionally use same id for inside and outside of handle
             let interact_id = id.with("vertical");
-            let mut response = ui.interact(handle_rect, interact_id, Sense::click_and_drag());
+            let response = ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
 
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                if response.active {
-                    if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
-                        state.offset.y +=
-                            ui.input().mouse.delta.y * content_size.y / inner_rect.height();
-                    }
-                } else {
-                    // Check for mouse down outside handle:
-                    let scroll_bg_response =
-                        ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
-
-                    if scroll_bg_response.active {
+            if response.active {
+                if let Some(mouse_pos) = ui.input().mouse.pos {
+                    if handle_rect.contains(mouse_pos) {
+                        if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
+                            state.offset.y +=
+                                ui.input().mouse.delta.y * content_size.y / inner_rect.height();
+                        }
+                    } else {
                         // Center scroll at mouse pos:
                         let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
                         state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
                     }
-
-                    response = response.union(scroll_bg_response);
                 }
             }
 

@@ -145,7 +145,8 @@ struct Prepared {
 
 impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
-        let id = self.id.unwrap_or_else(|| ui.make_child_id("resize"));
+        let position = ui.available().min;
+        let id = self.id.unwrap_or_else(|| ui.make_persistent_id("resize"));
 
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
@@ -166,8 +167,6 @@ impl Resize {
             .desired_size
             .at_least(self.min_size)
             .at_most(self.max_size);
-
-        let position = ui.available().min;
 
         let corner_response = if self.resizable {
             // Resize-corner:

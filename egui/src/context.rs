@@ -51,7 +51,7 @@ pub struct Context {
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
     output: Mutex<Output>,
-    /// Used to debug name clashes of e.g. windows
+    /// Used to debug `Id` clashes of widgets.
     used_ids: Mutex<AHashMap<Id, Pos2>>,
 
     paint_stats: Mutex<PaintStats>,
@@ -336,49 +336,26 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Generate a id from the given source.
-    /// If it is not unique, an error will be printed at the given position.
-    pub fn make_unique_id<IdSource>(self: &Arc<Self>, source: IdSource, pos: Pos2) -> Id
-    where
-        IdSource: std::hash::Hash + std::fmt::Debug + Copy,
-    {
-        self.register_unique_id(Id::new(source), source, pos)
-    }
-
-    pub fn is_unique_id(&self, id: Id) -> bool {
-        !self.used_ids.lock().contains_key(&id)
-    }
-
-    /// If the given Id is not unique, an error will be printed at the given position.
-    pub fn register_unique_id(
-        self: &Arc<Self>,
-        id: Id,
-        source_name: impl std::fmt::Debug,
-        pos: Pos2,
-    ) -> Id {
-        if let Some(clash_pos) = self.used_ids.lock().insert(id, pos) {
-            let painter = self.debug_painter();
-            if clash_pos.distance(pos) < 4.0 {
-                painter.error(
-                    pos,
-                    &format!("use of non-unique ID {:?} (name clash?)", source_name),
-                );
-            } else {
-                painter.error(
-                    clash_pos,
-                    &format!("first use of non-unique ID {:?} (name clash?)", source_name),
-                );
-                painter.error(
-                    pos,
-                    &format!(
-                        "second use of non-unique ID {:?} (name clash?)",
-                        source_name
-                    ),
-                );
+    /// If the given `Id` is not unique, an error will be printed at the given position.
+    /// Call this for `Id`:s that need interaction or persistence.
+    pub(crate) fn register_unique_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
+        if let Some(prev_pos) = self.used_ids.lock().insert(id, new_pos) {
+            if prev_pos == new_pos {
+                // Likely same Widget being interacted with twice, which is fine.
+                return;
             }
-            id
-        } else {
-            id
+
+            let id_str = id.short_debug_format();
+
+            let painter = self.debug_painter();
+            if prev_pos.distance(new_pos) < 4.0 {
+                painter.error(new_pos, format!("Double use of ID {}", id_str));
+            } else {
+                painter.error(prev_pos, format!("First use of ID {}", id_str));
+                painter.error(new_pos, format!("Second use of ID {}", id_str));
+            }
+
+            // TODO: a tooltip explaining this.
         }
     }
 
@@ -449,16 +426,14 @@ impl Context {
         layer_id: LayerId,
         clip_rect: Rect,
         rect: Rect,
-        interaction_id: Option<Id>,
+        id: Option<Id>,
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.expand2(0.5 * self.style().spacing.item_spacing); // make it easier to click. TODO: nice way to do this
         let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
-        let has_kb_focus = interaction_id
-            .map(|id| self.memory().has_kb_focus(id))
-            .unwrap_or(false);
+        let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
 
-        if interaction_id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
+        if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return Response {
                 ctx: self.clone(),
@@ -471,15 +446,17 @@ impl Context {
                 has_kb_focus,
             };
         }
-        let interaction_id = interaction_id.unwrap();
+        let id = id.unwrap();
+
+        self.register_unique_id(id, rect.min);
 
         let mut memory = self.memory();
 
         memory.interaction.click_interest |= hovered && sense.click;
         memory.interaction.drag_interest |= hovered && sense.drag;
 
-        let active = memory.interaction.click_id == Some(interaction_id)
-            || memory.interaction.drag_id == Some(interaction_id);
+        let active =
+            memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
 
         if self.input.mouse.pressed {
             if hovered {
@@ -496,7 +473,7 @@ impl Context {
 
                 if sense.click && memory.interaction.click_id.is_none() {
                     // start of a click
-                    memory.interaction.click_id = Some(interaction_id);
+                    memory.interaction.click_id = Some(id);
                     response.active = true;
                 }
 
@@ -504,7 +481,7 @@ impl Context {
                     && (memory.interaction.drag_id.is_none() || memory.interaction.drag_is_window)
                 {
                     // start of a drag
-                    memory.interaction.drag_id = Some(interaction_id);
+                    memory.interaction.drag_id = Some(id);
                     memory.interaction.drag_is_window = false;
                     memory.window_interaction = None; // HACK: stop moving windows (if any)
                     response.active = true;

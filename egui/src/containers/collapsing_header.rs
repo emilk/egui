@@ -129,17 +129,19 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
-    id_source: Option<Id>,
+    id_source: Id,
 }
 
 impl CollapsingHeader {
     pub fn new(label: impl Into<String>) -> Self {
+        let label = Label::new(label)
+            .text_style(TextStyle::Button)
+            .multiline(false);
+        let id_source = Id::new(label.text());
         Self {
-            label: Label::new(label)
-                .text_style(TextStyle::Button)
-                .multiline(false),
+            label,
             default_open: false,
-            id_source: None,
+            id_source,
         }
     }
 
@@ -149,9 +151,9 @@ impl CollapsingHeader {
     }
 
     /// Explicitly set the source of the `Id` of this widget, instead of using title label.
-    /// This is useful if the title label is dynamics.
+    /// This is useful if the title label is dynamic or not unique.
     pub fn id_source(mut self, id_source: impl Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+        self.id_source = Id::new(id_source);
         self
     }
 }
@@ -176,8 +178,7 @@ impl CollapsingHeader {
 
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
-        let title = label.text();
-        let id = ui.make_unique_child_id_full(id_source, Some(title));
+        let id = ui.make_persistent_id(id_source);
 
         let available = ui.available_finite();
         let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);

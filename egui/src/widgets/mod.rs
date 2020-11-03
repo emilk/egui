@@ -205,10 +205,11 @@ impl Widget for Hyperlink {
         } = self;
         let color = color::LIGHT_BLUE;
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
-        let id = ui.make_child_id(&url);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
         let rect = ui.allocate_space(galley.size);
+
+        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -313,13 +314,13 @@ impl Widget for Button {
 
         let button_padding = ui.style().spacing.button_padding;
 
-        let id = ui.make_position_id();
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
         let mut desired_size = galley.size + 2.0 * button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
 
+        let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
         let visuals = ui.style().interact(&response);
         // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
@@ -377,7 +378,6 @@ impl<'a> Widget for Checkbox<'a> {
             text_color,
         } = self;
 
-        let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let galley = font.layout_single_line(text);
@@ -392,6 +392,7 @@ impl<'a> Widget for Checkbox<'a> {
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
 
+        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
         if response.clicked {
             *checked = !*checked;
@@ -463,7 +464,6 @@ impl Widget for RadioButton {
             text,
             text_color,
         } = self;
-        let id = ui.make_position_id();
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available().width());
@@ -477,6 +477,7 @@ impl Widget for RadioButton {
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
 
+        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
 
         let text_cursor = pos2(

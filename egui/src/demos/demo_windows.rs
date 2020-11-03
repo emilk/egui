@@ -39,6 +39,7 @@ impl Default for Demos {
             demos: vec![
                 (false, Box::new(crate::demos::DancingStrings::default())),
                 (false, Box::new(crate::demos::DragAndDropDemo::default())),
+                (false, Box::new(crate::demos::Tests::default())),
             ],
         }
     }
@@ -323,7 +324,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
             }
             if ui
                 .button("Clear entire Egui memory")
-                .on_hover_text("Forget scroll, collapsibles etc")
+                .on_hover_text("Forget scroll, collapsing headers etc")
                 .clicked
             {
                 *ui.ctx().memory() = Default::default();

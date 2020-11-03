@@ -113,7 +113,7 @@ impl Area {
             fixed_pos,
         } = self;
 
-        let layer_id = LayerId { order, id };
+        let layer_id = LayerId::new(order, id);
 
         let state = ctx.memory().areas.get(id).cloned();
         let mut state = state.unwrap_or_else(|| State {
