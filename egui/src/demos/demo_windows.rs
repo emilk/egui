@@ -30,7 +30,7 @@ pub struct DemoEnvironment {
 #[cfg_attr(feature = "serde", serde(default))]
 struct Demos {
     /// open, view
-    #[serde(skip)] // TODO
+    #[cfg_attr(feature = "serde", serde(skip))] // TODO: serialize the `open` state.
     demos: Vec<(bool, Box<dyn Demo>)>,
 }
 impl Default for Demos {
