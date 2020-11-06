@@ -6,6 +6,7 @@ cargo fmt --all -- --check
 CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all #-W clippy::pedantic -W clippy::restriction -W clippy::nursery
 cargo test --workspace --all-targets --all-features
 
+cargo check -p demo_web --target wasm32-unknown-unknown
 
 # For finding bloat:
 # cargo bloat --release --bin demo_glium -n 200 | rg egui
