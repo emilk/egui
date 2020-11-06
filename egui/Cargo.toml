@@ -20,8 +20,8 @@ include = [
 [lib]
 
 [dependencies]
-# ahash 0.5 breaks ./build_web.sh, keep at 0.4, more info https://github.com/emilk/egui/pull/35
-ahash = { version = "0.4", features = ["std"], default-features = false }
+ahash = { version = "0.5", features = ["std"], default-features = false }
+getrandom = { version = "0.2", features = ["js"] } # Used by `ahash`, workaround for https://github.com/emilk/egui/pull/35
 parking_lot = "0.11"
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
