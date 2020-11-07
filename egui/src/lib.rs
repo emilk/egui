@@ -122,3 +122,13 @@ pub fn text_egui_e2e() {
         assert!(!paint_jobs.is_empty());
     }
 }
+
+#[cfg(debug_assertions)]
+pub(crate) fn has_debug_assertions() -> bool {
+    true
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn has_debug_assertions() -> bool {
+    false
+}

@@ -450,6 +450,7 @@ pub struct TesselationOptions {
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
+    /// By default this is enabled in release builds and disabled in debug builds.
     pub anti_alias: bool,
     /// If `true` (default) cull certain primitives before tessellating them
     pub coarse_tessellation_culling: bool,
@@ -463,7 +464,7 @@ impl Default for TesselationOptions {
     fn default() -> Self {
         Self {
             aa_size: 1.0,
-            anti_alias: true,
+            anti_alias: !crate::has_debug_assertions(),
             coarse_tessellation_culling: true,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,

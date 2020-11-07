@@ -14,6 +14,7 @@
 * `Context::begin_frame()` no longer returns anything.
   * Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
 * `Context::end_frame()` now returns "paint jobs" that need to be converted to triangles with `Context::tesselate()`.
+* Turn off anti-aliasing in debug builds by default.
 
 ## 0.2.0 - 2020-10-10
 

@@ -42,18 +42,8 @@ pub trait Demo {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(debug_assertions)]
-pub fn has_debug_assertions() -> bool {
-    true
-}
-
-#[cfg(not(debug_assertions))]
-pub fn has_debug_assertions() -> bool {
-    false
-}
-
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
-    if has_debug_assertions() {
+    if crate::has_debug_assertions() {
         ui.label(
             crate::Label::new("[Debug build]")
                 .small()
