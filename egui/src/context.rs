@@ -20,7 +20,7 @@ struct Options {
     /// The default style for new `Ui`:s.
     style: Arc<Style>,
     /// Controls the tessellator.
-    paint_options: paint::PaintOptions,
+    tesselation_options: paint::TesselationOptions,
     /// Font sizes etc.
     font_definitions: FontDefinitions,
 }
@@ -242,8 +242,10 @@ impl Context {
 
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
+    /// You can transform the returned paint commands into triangles with a call to
+    /// `Context::tesselate`.
     #[must_use]
-    pub fn end_frame(&self) -> (Output, PaintJobs) {
+    pub fn end_frame(&self) -> (Output, Vec<(Rect, PaintCmd)>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
@@ -256,8 +258,8 @@ impl Context {
             output.needs_repaint = true;
         }
 
-        let paint_jobs = self.paint();
-        (output, paint_jobs)
+        let paint_commands = self.drain_paint_lists();
+        (output, paint_commands)
     }
 
     fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
@@ -265,15 +267,17 @@ impl Context {
         self.graphics().drain(memory.areas.order()).collect()
     }
 
-    fn paint(&self) -> PaintJobs {
-        let mut paint_options = self.options.lock().paint_options;
-        paint_options.aa_size = 1.0 / self.pixels_per_point();
-        let paint_commands = self.drain_paint_lists();
+    /// Tesselate the given paint commands into triangle meshes.
+    pub fn tesselate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
+        let mut tesselation_options = self.options.lock().tesselation_options;
+        tesselation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
-        let paint_jobs =
-            tessellator::tessellate_paint_commands(paint_commands, paint_options, self.fonts());
+        let paint_jobs = tessellator::tessellate_paint_commands(
+            paint_commands,
+            tesselation_options,
+            self.fonts(),
+        );
         *self.paint_stats.lock() = paint_stats.with_paint_jobs(&paint_jobs);
-
         paint_jobs
     }
 
@@ -591,9 +595,9 @@ impl Context {
         CollapsingHeader::new("Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut paint_options = self.options.lock().paint_options;
-                paint_options.ui(ui);
-                self.options.lock().paint_options = paint_options;
+                let mut tesselation_options = self.options.lock().tesselation_options;
+                tesselation_options.ui(ui);
+                self.options.lock().tesselation_options = tesselation_options;
             });
     }
 
@@ -708,7 +712,7 @@ impl Context {
     }
 }
 
-impl paint::PaintOptions {
+impl paint::TesselationOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
             aa_size: _,

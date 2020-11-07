@@ -44,7 +44,8 @@ impl WebBackend {
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
-        let (output, paint_jobs) = self.ctx.end_frame();
+        let (output, paint_commands) = self.ctx.end_frame();
+        let paint_jobs = self.ctx.tesselate(paint_commands);
 
         self.auto_save();
 

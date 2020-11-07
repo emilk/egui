@@ -15,6 +15,8 @@ pub use {
     command::{PaintCmd, Stroke},
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
     stats::PaintStats,
-    tessellator::{PaintJob, PaintJobs, PaintOptions, TextureId, Triangles, Vertex, WHITE_UV},
+    tessellator::{
+        PaintJob, PaintJobs, TesselationOptions, TextureId, Triangles, Vertex, WHITE_UV,
+    },
     texture_atlas::Texture,
 };

@@ -26,7 +26,8 @@
 //!     let raw_input: egui::RawInput = my_integration.gather_input();
 //!     egui_ctx.begin_frame(raw_input);
 //!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-//!     let (output, paint_jobs) = egui_ctx.end_frame();
+//!     let (output, paint_commands) = egui_ctx.end_frame();
+//!     let paint_jobs = self.ctx.tesselate(paint_commands); // create triangles to paint
 //!     my_integration.paint(paint_jobs);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
 //!     // Also see `egui::Output` for more
@@ -116,7 +117,8 @@ pub fn text_egui_e2e() {
     for _ in 0..NUM_FRAMES {
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx, &Default::default(), &mut None);
-        let (_output, paint_jobs) = ctx.end_frame();
+        let (_output, paint_commands) = ctx.end_frame();
+        let paint_jobs = ctx.tesselate(paint_commands);
         assert!(!paint_jobs.is_empty());
     }
 }

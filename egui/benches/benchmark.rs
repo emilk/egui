@@ -35,6 +35,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::Context::new();
+        ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
+        let mut demo_windows = egui::demos::DemoWindows::default();
+        ctx.begin_frame(raw_input.clone());
+        demo_windows.ui(&ctx, &Default::default(), &mut None);
+        let (_, paint_commands) = ctx.end_frame();
+
+        c.bench_function("tesselate", |b| {
+            b.iter(|| ctx.tesselate(paint_commands.clone()))
+        });
+    }
+
+    {
+        let mut ctx = egui::Context::new();
         ctx.begin_frame(raw_input);
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("label", |b| {
@@ -43,7 +56,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 })
             });
         });
-        // let _ = ctx.end_frame(); // skip, because tessellating all that text is slow
+        let _ = ctx.end_frame();
     }
 }
 

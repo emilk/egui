@@ -446,7 +446,7 @@ use self::PathType::{Closed, Open};
 
 /// Tesselation quality options
 #[derive(Clone, Copy, Debug)]
-pub struct PaintOptions {
+pub struct TesselationOptions {
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
@@ -459,20 +459,25 @@ pub struct PaintOptions {
     pub debug_ignore_clip_rects: bool,
 }
 
-impl Default for PaintOptions {
+impl Default for TesselationOptions {
     fn default() -> Self {
         Self {
             aa_size: 1.0,
             anti_alias: true,
+            coarse_tessellation_culling: true,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
-            coarse_tessellation_culling: true,
         }
     }
 }
 
 /// Tesselate the given convex area into a polygon.
-fn fill_closed_path(path: &[PathPoint], color: Srgba, options: PaintOptions, out: &mut Triangles) {
+fn fill_closed_path(
+    path: &[PathPoint],
+    color: Srgba,
+    options: TesselationOptions,
+    out: &mut Triangles,
+) {
     if color == color::TRANSPARENT {
         return;
     }
@@ -516,7 +521,7 @@ fn stroke_path(
     path: &[PathPoint],
     path_type: PathType,
     stroke: Stroke,
-    options: PaintOptions,
+    options: TesselationOptions,
     out: &mut Triangles,
 ) {
     if stroke.width <= 0.0 || stroke.color == color::TRANSPARENT {
@@ -669,7 +674,7 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 fn tessellate_paint_command(
     clip_rect: Rect,
     command: PaintCmd,
-    options: PaintOptions,
+    options: TesselationOptions,
     fonts: &Fonts,
     out: &mut Triangles,
     scratchpad_points: &mut Vec<Pos2>,
@@ -833,7 +838,7 @@ fn tessellate_paint_command(
 /// A list of clip rectangles with matching `Triangles`.
 pub fn tessellate_paint_commands(
     commands: Vec<(Rect, PaintCmd)>,
-    options: PaintOptions,
+    options: TesselationOptions,
     fonts: &Fonts,
 ) -> Vec<(Rect, Triangles)> {
     let mut scratchpad_points = Vec::new();
