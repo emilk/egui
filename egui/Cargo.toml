@@ -20,8 +20,8 @@ include = [
 [lib]
 
 [dependencies]
-ahash = { version = "0.5", features = ["std"], default-features = false }
-getrandom = { version = "0.2", features = ["js"] } # Used by `ahash`, workaround for https://github.com/emilk/egui/pull/35
+# Can't upgrade ahash until we can use it within wasmtime (https://github.com/tkaitchuck/aHash/issues/59)
+ahash = { version = "0.4", features = ["std"], default-features = false }
 parking_lot = "0.11"
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
