@@ -1,20 +1,37 @@
 # Egui Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
 ## Unreleased
 
-* `ui.horizontal(...)` etc returns `Response`
-* Add ability to override text color with `visuals.override_text_color`
-* Refactored the interface for `egui::app::App`
-* Demo App: Add slider to scale all of Egui
-* Windows are now constrained to the screen
-* Panels: you can now create panels using `SidePanel` and `TopPanel`.
-* You can override the default Egui fonts
+## 0.3.0 - 2020-11-07
+
+### Added ⭐
+
+* Panels: you can now create panels using `SidePanel`, `TopPanel` and `CentralPanel`.
+* You can now override the default Egui fonts.
+* Add ability to override text color with `visuals.override_text_color`.
+* The demo now includes a simple drag-and-drop example.
+* The demo app now has a slider to scale all of Egui.
+
+### Changed 🔧
+
+* `ui.horizontal(...)` etc returns `Response`.
+* Refactored the interface for `egui::app::App`.
+* Windows are now constrained to the screen.
+* `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
+* `Context::end_frame()` now returns paint commands that need to be converted to triangles with `Context::tesselate()`.
+* Anti-aliasing is now off by default in debug builds.
+
+### Removed 🔥
+
+* You can no longer throw windows.
+
+### Fixed 🐛
+
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
-* You can no longer throw windows
-* `Context::begin_frame()` no longer returns anything.
-  * Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-* `Context::end_frame()` now returns "paint jobs" that need to be converted to triangles with `Context::tesselate()`.
-* Turn off anti-aliasing in debug builds by default.
 
 ## 0.2.0 - 2020-10-10
 
