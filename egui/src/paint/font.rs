@@ -26,14 +26,16 @@ pub struct GalleyCursor {
 /// A collection of text locked into place.
 #[derive(Clone, Debug, Default)]
 pub struct Galley {
-    /// The full text
+    /// The full text, including any an all `\n`.
     pub text: String,
 
     /// Lines of text, from top to bottom.
-    /// The number of chars in all lines sum up to text.chars().count()
+    /// The number of chars in all lines sum up to text.chars().count().
+    /// Note that each paragraph (pieces of text separated with `\n`)
+    /// can be split up into multiple lines.
     pub lines: Vec<Line>,
 
-    // Optimization: calculate once and reuse.
+    // Optimization: calculated once and reused.
     pub size: Vec2,
 }
 
@@ -42,9 +44,10 @@ pub struct Galley {
 pub struct Line {
     /// The start of each character, probably starting at zero.
     /// The last element is the end of the last character.
-    /// x_offsets.len() == text.chars().count() + 1
     /// This is never empty.
     /// Unit: points.
+    ///
+    /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
     pub x_offsets: Vec<f32>,
 
     /// Top of the line, offset within the Galley.
@@ -55,7 +58,11 @@ pub struct Line {
     /// Unit: points.
     pub y_max: f32,
 
-    /// If true, the last char on this line is '\n'
+    /// If true, this Line came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from `x_offsets`.
+    /// A `\n` in the input text always creates a new `Line` below it,
+    /// so that text that ends with `\n` has an empty `Line` last.
+    /// This also implies that the last `Line` in a `Galley` always has `ends_with_newline == false`.
     pub ends_with_newline: bool,
 }
 
@@ -64,9 +71,17 @@ impl Galley {
         let mut char_count = 0;
         for line in &self.lines {
             line.sanity_check();
-            char_count += line.char_count();
+            char_count += line.char_count_including_newline();
         }
         assert_eq!(char_count, self.text.chars().count());
+        if let Some(last_line) = self.lines.last() {
+            debug_assert!(
+                !last_line.ends_with_newline,
+                "If the text ends with '\\n', there would be an empty Line last.\n\
+                Galley: {:#?}",
+                self
+            );
+        }
     }
 
     /// If given a char index after the first line, the end of the last character is returned instead.
@@ -74,7 +89,7 @@ impl Galley {
     pub fn char_start_pos(&self, char_idx: usize) -> Vec2 {
         let mut char_count = 0;
         for line in &self.lines {
-            let line_char_count = line.char_count();
+            let line_char_count = line.char_count_including_newline();
             if char_count <= char_idx && char_idx < char_count + line_char_count {
                 let line_char_offset = char_idx - char_count;
                 return vec2(line.x_offsets[line_char_offset], line.y_min);
@@ -100,19 +115,14 @@ impl Galley {
             let y_dist = (line.y_min - pos.y).abs().min((line.y_max - pos.y).abs());
             if y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let mut column = line.char_at(pos.x);
-                if column == line.char_count() && line.ends_with_newline && column > 0 {
-                    // handle the case where line ends with a \n and we click after it.
-                    // We should return the position BEFORE the \n!
-                    column -= 1;
-                }
+                let column = line.char_at(pos.x);
                 cursor = GalleyCursor {
                     char_idx: char_count + column,
                     line: line_nr,
                     column,
                 }
             }
-            char_count += line.char_count();
+            char_count += line.char_count_including_newline();
         }
         cursor
     }
@@ -123,9 +133,15 @@ impl Line {
         assert!(!self.x_offsets.is_empty());
     }
 
-    pub fn char_count(&self) -> usize {
+    /// Excludes the implicit `\n` after the `Line`, if any.
+    pub fn char_count_excluding_newline(&self) -> usize {
         assert!(!self.x_offsets.is_empty());
         self.x_offsets.len() - 1
+    }
+
+    /// Includes the implicit `\n` after the `Line`, if any.
+    pub fn char_count_including_newline(&self) -> usize {
+        self.char_count_excluding_newline() + (self.ends_with_newline as usize)
     }
 
     pub fn min_x(&self) -> f32 {
@@ -136,7 +152,8 @@ impl Line {
         *self.x_offsets.last().unwrap()
     }
 
-    /// Closest char at the desired x coordinate. returns something in the range `[0, char_count()]`
+    /// Closest char at the desired x coordinate.
+    /// Returns something in the range `[0, char_count_excluding_newline()]`
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, char_x_bounds) in self.x_offsets.windows(2).enumerate() {
             let char_center_x = 0.5 * (char_x_bounds[0] + char_x_bounds[1]);
@@ -144,7 +161,7 @@ impl Line {
                 return i;
             }
         }
-        self.char_count()
+        self.char_count_excluding_newline()
     }
 }
 
@@ -257,12 +274,8 @@ impl Font {
         self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
     }
 
+    /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
     fn glyph_info(&self, c: char) -> GlyphInfo {
-        if c == '\n' {
-            // Hack: else we show '\n' as '?' (REPLACEMENT_CHAR)
-            return self.glyph_info(' ');
-        }
-
         {
             if let Some(glyph_info) = self.glyph_infos.read().get(&c) {
                 return *glyph_info;
@@ -284,8 +297,8 @@ impl Font {
     }
 
     /// Typeset the given text onto one line.
-    /// Assumes there are no \n in the text.
-    /// Always returns exactly one fragment.
+    /// Any `\n` will show up as `REPLACEMENT_CHAR` ('?').
+    /// Always returns exactly one `Line` in the `Galley`.
     pub fn layout_single_line(&self, text: String) -> Galley {
         let x_offsets = self.layout_single_line_fragment(&text);
         let line = Line {
@@ -315,34 +328,34 @@ impl Font {
         while paragraph_start < text.len() {
             let next_newline = text[paragraph_start..].find('\n');
             let paragraph_end = next_newline
-                .map(|newline| paragraph_start + newline + 1)
+                .map(|newline| paragraph_start + newline)
                 .unwrap_or_else(|| text.len());
 
-            assert!(paragraph_start < paragraph_end);
+            assert!(paragraph_start <= paragraph_end);
             let paragraph_text = &text[paragraph_start..paragraph_end];
             let mut paragraph_lines =
                 self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
             assert!(!paragraph_lines.is_empty());
+            paragraph_lines.last_mut().unwrap().ends_with_newline = next_newline.is_some();
 
             for line in &mut paragraph_lines {
                 line.y_min += cursor_y;
                 line.y_max += cursor_y;
             }
             cursor_y = paragraph_lines.last().unwrap().y_max;
-            cursor_y += line_spacing * 0.4; // extra spacing between paragraphs. less hacky
+            cursor_y += line_spacing * 0.4; // Extra spacing between paragraphs. TODO: less hacky
 
             lines.append(&mut paragraph_lines);
 
-            paragraph_start = paragraph_end;
+            paragraph_start = paragraph_end + 1;
         }
 
         if text.is_empty() || text.ends_with('\n') {
-            // Add an empty last line for correct visuals etc:
             lines.push(Line {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
                 y_max: cursor_y + line_spacing,
-                ends_with_newline: text.ends_with('\n'),
+                ends_with_newline: false,
             });
         }
 
@@ -358,7 +371,7 @@ impl Font {
     }
 
     /// Typeset the given text onto one line.
-    /// Assumes there are no \n in the text.
+    /// Assumes there are no `\n` in the text.
     /// Return `x_offsets`, one longer than the number of characters in the text.
     fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
@@ -389,8 +402,17 @@ impl Font {
     }
 
     /// A paragraph is text with no line break character in it.
-    /// The text will be linebreaked by the given `max_width_in_points`.
-    pub fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Line> {
+    /// The text will be wrapped by the given `max_width_in_points`.
+    fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Line> {
+        if text == "" {
+            return vec![Line {
+                x_offsets: vec![0.0],
+                y_min: 0.0,
+                y_max: self.height(),
+                ends_with_newline: false,
+            }];
+        }
+
         let full_x_offsets = self.layout_single_line_fragment(text);
 
         let mut line_start_x = full_x_offsets[0];
@@ -409,6 +431,7 @@ impl Font {
         let mut out_lines = vec![];
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
+            debug_assert!(chr != '\n');
             let line_width = x - line_start_x;
 
             if line_width > max_width_in_points {
@@ -422,7 +445,7 @@ impl Font {
                                 .collect(),
                             y_min: cursor_y,
                             y_max: cursor_y + self.height(),
-                            ends_with_newline: false, // we'll fix this later
+                            ends_with_newline: false,
                         }
                     } else {
                         Line {
@@ -432,7 +455,7 @@ impl Font {
                                 .collect(),
                             y_min: cursor_y,
                             y_max: cursor_y + self.height(),
-                            ends_with_newline: false, // we'll fix this later
+                            ends_with_newline: false,
                         }
                     };
                     line.sanity_check();
@@ -460,14 +483,10 @@ impl Font {
                     .collect(),
                 y_min: cursor_y,
                 y_max: cursor_y + self.height(),
-                ends_with_newline: false, // we'll fix this later
+                ends_with_newline: false,
             };
             line.sanity_check();
             out_lines.push(line);
-        }
-
-        if text.ends_with('\n') {
-            out_lines.last_mut().unwrap().ends_with_newline = true;
         }
 
         out_lines
@@ -531,4 +550,56 @@ fn allocate_glyph(
         advance_width: advance_width_in_points,
         uv_rect,
     })
+}
+
+#[test]
+fn test_text_layout() {
+    let pixels_per_point = 1.0;
+    let typeface_data = include_bytes!("../../fonts/ProggyClean.ttf");
+    let atlas = TextureAtlas::new(512, 16);
+    let atlas = Arc::new(Mutex::new(atlas));
+    let font = Font::new(atlas, typeface_data, 13.0, pixels_per_point);
+
+    let galley = font.layout_multiline("".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 1);
+    assert_eq!(galley.lines[0].ends_with_newline, false);
+    assert_eq!(galley.lines[0].x_offsets, vec![0.0]);
+
+    let galley = font.layout_multiline("\n".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 2);
+    assert_eq!(galley.lines[0].ends_with_newline, true);
+    assert_eq!(galley.lines[1].ends_with_newline, false);
+    assert_eq!(galley.lines[1].x_offsets, vec![0.0]);
+
+    let galley = font.layout_multiline("\n\n".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 3);
+    assert_eq!(galley.lines[0].ends_with_newline, true);
+    assert_eq!(galley.lines[1].ends_with_newline, true);
+    assert_eq!(galley.lines[2].ends_with_newline, false);
+    assert_eq!(galley.lines[2].x_offsets, vec![0.0]);
+
+    let galley = font.layout_multiline(" ".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 1);
+    assert_eq!(galley.lines[0].ends_with_newline, false);
+
+    let galley = font.layout_multiline("One line".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 1);
+    assert_eq!(galley.lines[0].ends_with_newline, false);
+
+    let galley = font.layout_multiline("First line\n".to_owned(), 1024.0);
+    assert_eq!(galley.lines.len(), 2);
+    assert_eq!(galley.lines[0].ends_with_newline, true);
+    assert_eq!(galley.lines[1].ends_with_newline, false);
+    assert_eq!(galley.lines[1].x_offsets, vec![0.0]);
+
+    // Test wrapping:
+    let galley = font.layout_multiline("line wrap".to_owned(), 10.0);
+    assert_eq!(galley.lines.len(), 2);
+    assert_eq!(galley.lines[0].ends_with_newline, false);
+    assert_eq!(galley.lines[1].ends_with_newline, false);
+
+    let galley = font.layout_multiline("line\nwrap".to_owned(), 10.0);
+    assert_eq!(galley.lines.len(), 2);
+    assert_eq!(galley.lines[0].ends_with_newline, true);
+    assert_eq!(galley.lines[1].ends_with_newline, false);
 }

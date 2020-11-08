@@ -787,7 +787,7 @@ fn tessellate_paint_command(
 
             let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
 
-            let clip_rect = clip_rect.expand(2.0); // Some fudge to handle letter slightly larger than expected.
+            let clip_rect = clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
             let font = &fonts[text_style];
             let mut chars = galley.text.chars();
@@ -819,6 +819,10 @@ fn tessellate_paint_command(
                         );
                         out.add_rect_with_uv(pos, uv, color);
                     }
+                }
+                if line.ends_with_newline {
+                    let newline = chars.next().unwrap();
+                    debug_assert_eq!(newline, '\n');
                 }
             }
             assert_eq!(chars.next(), None);
