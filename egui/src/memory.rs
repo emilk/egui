@@ -130,6 +130,13 @@ impl Memory {
 
     pub(crate) fn end_frame(&mut self) {
         self.areas.end_frame();
+
+        if let Some(kb_focus_id) = self.interaction.kb_focus_id {
+            if !self.used_ids.contains_key(&kb_focus_id) {
+                // Dead-mans-switch: the widget with kb focus has dissappeared!
+                self.interaction.kb_focus_id = None;
+            }
+        }
     }
 
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
