@@ -71,7 +71,7 @@ pub struct Memory {
 /// If the user releases the button without moving the mouse we register it as a click on `click_id`.
 /// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
 #[derive(Clone, Debug, Default)]
-pub struct Interaction {
+pub(crate) struct Interaction {
     /// A widget interested in clicks that has a mouse press on it.
     pub click_id: Option<Id>,
 
@@ -80,6 +80,9 @@ pub struct Interaction {
 
     /// The widget with keyboard focus (i.e. a text input field).
     pub kb_focus_id: Option<Id>,
+
+    /// What had keyboard focus previous frame?
+    pub kb_focus_id_previous_frame: Option<Id>,
 
     /// HACK: windows have low priority on dragging.
     /// This is so that if you drag a slider in a window,
@@ -103,6 +106,7 @@ impl Interaction {
     }
 
     fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
+        self.kb_focus_id_previous_frame = self.kb_focus_id;
         self.click_interest = false;
         self.drag_interest = false;
 
@@ -141,6 +145,11 @@ impl Memory {
 
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
+    }
+
+    /// True if the given widget had keyboard focus last frame, but not this one.
+    pub fn lost_kb_focus(&self, id: Id) -> bool {
+        self.interaction.kb_focus_id_previous_frame == Some(id) && !self.has_kb_focus(id)
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {

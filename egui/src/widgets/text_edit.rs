@@ -16,8 +16,7 @@ pub(crate) struct State {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::new(&mut my_string).multiline(false));
-/// if response.has_kb_focus && ui.input().key_pressed(egui::Key::Enter) {
-///     ui.memory().stop_text_input();
+/// if response.lost_kb_focus {
 ///     // use my_string
 /// }
 /// ```
@@ -240,7 +239,11 @@ impl<'t> Widget for TextEdit<'t> {
             .unwrap_or_else(|| visuals.text_color());
         painter.galley(response.rect.min, galley, text_style, text_color);
         ui.memory().text_edit.insert(id, state);
-        response
+
+        Response {
+            lost_kb_focus: ui.memory().lost_kb_focus(id), // we may have lost it during the course of this function
+            ..response
+        }
     }
 }
 

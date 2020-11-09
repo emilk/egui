@@ -133,12 +133,16 @@ impl Widgets {
 
         ui.horizontal(|ui| {
             ui.label("Single line text input:");
-            ui.add(
+            let response = ui.add(
                 TextEdit::new(&mut self.single_line_text_input)
                     .multiline(false)
                     .id_source("single line"),
             );
-        }); // TODO: .on_hover_text("Enter text to edit me")
+
+            if response.lost_kb_focus {
+                // The user pressed enter.
+            }
+        });
 
         ui.label("Multiline text input:");
         ui.add(TextEdit::new(&mut self.multiline_text_input).id_source("multiline"));

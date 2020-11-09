@@ -81,18 +81,36 @@ pub struct Response {
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed)
     pub has_kb_focus: bool,
+
+    /// The widget had keyboard focus and lost it,
+    /// perhaps because the user pressed enter.
+    /// This is often a signal to the user to the application
+    /// to make use of the contents of the text field.
+    pub lost_kb_focus: bool,
 }
 
 impl std::fmt::Debug for Response {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            ctx: _,
+            rect,
+            sense,
+            hovered,
+            clicked,
+            double_clicked,
+            active,
+            has_kb_focus,
+            lost_kb_focus,
+        } = self;
         f.debug_struct("Response")
-            .field("rect", &self.rect)
-            .field("sense", &self.sense)
-            .field("hovered", &self.hovered)
-            .field("clicked", &self.clicked)
-            .field("double_clicked", &self.double_clicked)
-            .field("active", &self.active)
-            .field("has_kb_focus", &self.has_kb_focus)
+            .field("rect", rect)
+            .field("sense", sense)
+            .field("hovered", hovered)
+            .field("clicked", clicked)
+            .field("double_clicked", double_clicked)
+            .field("active", active)
+            .field("has_kb_focus", has_kb_focus)
+            .field("lost_kb_focus", lost_kb_focus)
             .finish()
     }
 }
@@ -133,6 +151,7 @@ impl Response {
             double_clicked: self.double_clicked || other.double_clicked,
             active: self.active || other.active,
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
+            lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
         }
     }
 }

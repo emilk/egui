@@ -430,6 +430,12 @@ impl Context {
         let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
         let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
 
+        // If the the focus is lost after the call to interact,
+        // this will be `false`, so `TextEdit` also sets this manually.
+        let lost_kb_focus = id
+            .map(|id| self.memory().lost_kb_focus(id))
+            .unwrap_or(false);
+
         if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return Response {
@@ -441,6 +447,7 @@ impl Context {
                 double_clicked: false,
                 active: false,
                 has_kb_focus,
+                lost_kb_focus,
             };
         }
         let id = id.unwrap();
@@ -466,6 +473,7 @@ impl Context {
                     double_clicked: false,
                     active: false,
                     has_kb_focus,
+                    lost_kb_focus,
                 };
 
                 if sense.click && memory.interaction.click_id.is_none() {
@@ -496,6 +504,7 @@ impl Context {
                     double_clicked: false,
                     active: false,
                     has_kb_focus,
+                    lost_kb_focus,
                 }
             }
         } else if self.input.mouse.released {
@@ -509,6 +518,7 @@ impl Context {
                 double_clicked: clicked && self.input.mouse.double_click,
                 active,
                 has_kb_focus,
+                lost_kb_focus,
             }
         } else if self.input.mouse.down {
             Response {
@@ -520,6 +530,7 @@ impl Context {
                 double_clicked: false,
                 active,
                 has_kb_focus,
+                lost_kb_focus,
             }
         } else {
             Response {
@@ -531,6 +542,7 @@ impl Context {
                 double_clicked: false,
                 active,
                 has_kb_focus,
+                lost_kb_focus,
             }
         }
     }
