@@ -66,7 +66,7 @@ impl AllocInfo {
         }
     }
 
-    pub fn from_galley(galley: &font::Galley) -> Self {
+    pub fn from_galley(galley: &Galley) -> Self {
         Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.lines)
     }
 

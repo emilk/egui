@@ -5,7 +5,7 @@ use crate::{
     color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
-    paint::{font, Fonts, PaintCmd, Stroke, TextStyle},
+    paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
     Context, LayerId, Srgba,
 };
 
@@ -278,7 +278,7 @@ impl Painter {
     }
 
     /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: font::Galley, text_style: TextStyle, color: Srgba) {
+    pub fn galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color: Srgba) {
         self.add(PaintCmd::Text {
             pos,
             galley,

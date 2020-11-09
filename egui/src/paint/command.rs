@@ -1,5 +1,5 @@
 use {
-    super::{font::Galley, fonts::TextStyle, Fonts, Srgba, Triangles},
+    super::{fonts::TextStyle, Fonts, Galley, Srgba, Triangles},
     crate::{
         align::{anchor_rect, Align},
         math::{Pos2, Rect},

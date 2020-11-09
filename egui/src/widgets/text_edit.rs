@@ -2,11 +2,25 @@ use crate::{paint::*, *};
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
-    /// Character based, NOT bytes.
-    /// TODO: store as line + row
-    pub cursor: Option<usize>,
+    /// We store as PCursor (paragraph number, and character offset within that paragraph).
+    /// This is so what if we resize the `TextEdit` region, and text wrapping changes,
+    /// we keep the same byte character offset from the beginning of the text,
+    /// even though the number of lines changes
+    /// (each paragraph can be several lines, due to word wrapping).
+    /// The column (character offset) should be able to extend beyond the last word so that we can
+    /// go down and still end up on the same column when we return.
+    pcursor: Option<PCursor>,
 }
+
+// struct PCursorPair {
+//     /// Where the selection started (e.g. a drag started).
+//     begin: PCursor,
+//     /// The end of the selection. When moving with e.g. shift+arrows, this is what moves.
+//     /// Note that this may be BEFORE the `begin`.
+//     end: PCursor,
+// }
 
 /// A text region that the user can edit the contents of.
 ///
@@ -167,7 +181,7 @@ impl<'t> Widget for TextEdit<'t> {
         if response.clicked && enabled {
             ui.memory().request_kb_focus(id);
             if let Some(mouse_pos) = ui.input().mouse.pos {
-                state.cursor = Some(galley.char_at(mouse_pos - response.rect.min).char_idx);
+                state.pcursor = Some(galley.cursor_at(mouse_pos - response.rect.min).pcursor);
             }
         } else if ui.input().mouse.click || (ui.input().mouse.pressed && !response.hovered) {
             // User clicked somewhere else
@@ -182,19 +196,29 @@ impl<'t> Widget for TextEdit<'t> {
         }
 
         if ui.memory().has_kb_focus(id) && enabled {
-            let mut cursor = state.cursor.unwrap_or_else(|| text.chars().count());
-            cursor = clamp(cursor, 0..=text.chars().count());
+            let mut cursor = state
+                .pcursor
+                .map(|pcursor| galley.from_pcursor(pcursor))
+                .unwrap_or_else(|| galley.end());
 
             for event in &ui.input().events {
-                match event {
+                let did_mutate_text = match event {
                     Event::Copy | Event::Cut => {
                         // TODO: cut
                         ui.ctx().output().copied_text = text.clone();
+                        None
                     }
                     Event::Text(text_to_insert) => {
-                        // newlines are handled by `Key::Enter`.
-                        if text_to_insert != "\n" && text_to_insert != "\r" {
-                            insert_text(&mut cursor, text, text_to_insert);
+                        // Newlines are handled by `Key::Enter`.
+                        if !text_to_insert.is_empty()
+                            && text_to_insert != "\n"
+                            && text_to_insert != "\r"
+                        {
+                            let mut ccursor = cursor.ccursor;
+                            insert_text(&mut ccursor, text, text_to_insert);
+                            Some(ccursor)
+                        } else {
+                            None
                         }
                     }
                     Event::Key {
@@ -202,7 +226,9 @@ impl<'t> Widget for TextEdit<'t> {
                         pressed: true,
                     } => {
                         if multiline {
-                            insert_text(&mut cursor, text, "\n");
+                            let mut ccursor = cursor.ccursor;
+                            insert_text(&mut ccursor, text, "\n");
+                            Some(ccursor)
                         } else {
                             // Common to end input with enter
                             ui.memory().surrender_kb_focus(id);
@@ -217,22 +243,25 @@ impl<'t> Widget for TextEdit<'t> {
                         break;
                     }
                     Event::Key { key, pressed: true } => {
-                        on_key_press(&mut cursor, text, *key);
+                        on_key_press(&mut cursor, text, &galley, *key)
                     }
-                    _ => {}
+                    Event::Key { .. } => None,
+                };
+
+                if let Some(new_ccursor) = did_mutate_text {
+                    // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
+                    let font = &ui.fonts()[text_style];
+                    galley = if multiline {
+                        font.layout_multiline(text.clone(), available_width)
+                    } else {
+                        font.layout_single_line(text.clone())
+                    };
+
+                    // Set cursor using new galley:
+                    cursor = galley.from_ccursor(new_ccursor);
                 }
             }
-            state.cursor = Some(cursor);
-
-            // layout again to avoid frame delay:
-            let font = &ui.fonts()[text_style];
-            galley = if multiline {
-                font.layout_multiline(text.clone(), available_width)
-            } else {
-                font.layout_single_line(text.clone())
-            };
-
-            // dbg!(&galley);
+            state.pcursor = Some(cursor.pcursor);
         }
 
         let painter = ui.painter();
@@ -259,8 +288,8 @@ impl<'t> Widget for TextEdit<'t> {
             };
 
             if show_cursor {
-                if let Some(cursor) = state.cursor {
-                    let cursor_pos = response.rect.min + galley.char_start_pos(cursor);
+                if let Some(pcursor) = state.pcursor {
+                    let cursor_pos = response.rect.min + galley.pos_from_pcursor(pcursor);
                     painter.line_segment(
                         [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
                         (ui.style().visuals.text_cursor_width, color::WHITE),
@@ -282,114 +311,79 @@ impl<'t> Widget for TextEdit<'t> {
     }
 }
 
-fn insert_text(cursor: &mut usize, text: &mut String, text_to_insert: &str) {
-    // eprintln!("insert_text {:?}", text_to_insert);
-
+fn insert_text(ccursor: &mut CCursor, text: &mut String, text_to_insert: &str) {
     let mut char_it = text.chars();
     let mut new_text = String::with_capacity(text.capacity());
-    for _ in 0..*cursor {
+    for _ in 0..ccursor.index {
         let c = char_it.next().unwrap();
         new_text.push(c);
     }
-    *cursor += text_to_insert.chars().count();
+    ccursor.index += text_to_insert.chars().count();
     new_text += text_to_insert;
     new_text.extend(char_it);
     *text = new_text;
 }
 
-fn on_key_press(cursor: &mut usize, text: &mut String, key: Key) {
+/// Returns `Some(new_cursor)` if we did mutate `text`.
+fn on_key_press(
+    cursor: &mut Cursor,
+    text: &mut String,
+    galley: &Galley,
+    key: Key,
+) -> Option<CCursor> {
     // eprintln!("on_key_press before: '{}', cursor at {}", text, cursor);
 
     match key {
-        Key::Backspace if *cursor > 0 => {
-            *cursor -= 1;
-
+        Key::Backspace if cursor.ccursor.index > 0 => {
+            *cursor = galley.from_ccursor(cursor.ccursor - 1);
             let mut char_it = text.chars();
             let mut new_text = String::with_capacity(text.capacity());
-            for _ in 0..*cursor {
+            for _ in 0..cursor.ccursor.index {
                 new_text.push(char_it.next().unwrap())
             }
             new_text.extend(char_it.skip(1));
             *text = new_text;
+            Some(cursor.ccursor)
         }
         Key::Delete => {
             let mut char_it = text.chars();
             let mut new_text = String::with_capacity(text.capacity());
-            for _ in 0..*cursor {
+            for _ in 0..cursor.ccursor.index {
                 new_text.push(char_it.next().unwrap())
             }
             new_text.extend(char_it.skip(1));
             *text = new_text;
+            Some(cursor.ccursor)
         }
-        Key::Enter => {} // handled earlier
+        Key::Enter => unreachable!("Should have been handled earlier"),
+
         Key::Home => {
-            // To start of paragraph:
-            let pos = line_col_from_char_idx(text, *cursor);
-            *cursor = char_idx_from_line_col(text, (pos.0, 0));
+            // To start of line:
+            *cursor = galley.cursor_begin_of_line(cursor);
+            None
         }
         Key::End => {
-            // To end of paragraph:
-            let pos = line_col_from_char_idx(text, *cursor);
-            let line = line_from_number(text, pos.0);
-            *cursor = char_idx_from_line_col(text, (pos.0, line.chars().count()));
+            *cursor = galley.cursor_end_of_line(cursor);
+            None
         }
-        Key::Left if *cursor > 0 => {
-            *cursor -= 1;
+        Key::Left => {
+            *cursor = galley.cursor_left_one_character(cursor);
+            None
         }
         Key::Right => {
-            *cursor = (*cursor + 1).min(text.chars().count());
+            *cursor = galley.cursor_right_one_character(cursor);
+            None
         }
         Key::Up => {
-            let mut pos = line_col_from_char_idx(text, *cursor);
-            pos.0 = pos.0.saturating_sub(1);
-            *cursor = char_idx_from_line_col(text, pos);
+            *cursor = galley.cursor_up_one_line(cursor);
+            None
         }
         Key::Down => {
-            let mut pos = line_col_from_char_idx(text, *cursor);
-            pos.0 += 1;
-            *cursor = char_idx_from_line_col(text, pos);
+            *cursor = galley.cursor_down_one_line(cursor);
+            None
         }
-        _ => {}
+        _ => None,
     }
 
     // eprintln!("on_key_press after:  '{}', cursor at {}\n", text, cursor);
-}
-
-fn line_col_from_char_idx(s: &str, char_idx: usize) -> (usize, usize) {
-    let mut char_count = 0;
-
-    let mut last_line_nr = 0;
-    let mut last_line = s;
-    for (line_nr, line) in s.split('\n').enumerate() {
-        let line_width = line.chars().count();
-        if char_idx <= char_count + line_width {
-            return (line_nr, char_idx - char_count);
-        }
-        char_count += line_width + 1;
-        last_line_nr = line_nr;
-        last_line = line;
-    }
-
-    // safe fallback:
-    (last_line_nr, last_line.chars().count())
-}
-
-fn char_idx_from_line_col(s: &str, pos: (usize, usize)) -> usize {
-    let mut char_count = 0;
-    for (line_nr, line) in s.split('\n').enumerate() {
-        if line_nr == pos.0 {
-            return char_count + pos.1.min(line.chars().count());
-        }
-        char_count += line.chars().count() + 1;
-    }
-    char_count
-}
-
-fn line_from_number(s: &str, desired_line_number: usize) -> &str {
-    for (line_nr, line) in s.split('\n').enumerate() {
-        if line_nr == desired_line_number {
-            return line;
-        }
-    }
-    s
 }

@@ -592,7 +592,7 @@ fn paint_frame_interaction(
 
 struct TitleBar {
     title_label: Label,
-    title_galley: font::Galley,
+    title_galley: Galley,
     title_rect: Rect,
     rect: Rect,
 }
