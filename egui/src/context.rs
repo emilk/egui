@@ -3,8 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use ahash::AHashMap;
-
 use crate::{
     animation_manager::AnimationManager,
     mutex::{Mutex, MutexGuard},
@@ -51,8 +49,6 @@ pub struct Context {
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
     output: Mutex<Output>,
-    /// Used to debug `Id` clashes of widgets.
-    used_ids: Mutex<AHashMap<Id, Pos2>>,
 
     paint_stats: Mutex<PaintStats>,
 
@@ -72,7 +68,6 @@ impl Clone for Context {
             used_by_panels: self.used_by_panels.clone(),
             graphics: self.graphics.clone(),
             output: self.output.clone(),
-            used_ids: self.used_ids.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
         }
@@ -212,8 +207,6 @@ impl Context {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory().begin_frame(&self.input);
 
-        self.used_ids.lock().clear();
-
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         *self.available_rect.lock() = Some(self.input.screen_rect());
         *self.used_by_panels.lock() = Some(Rect::nothing());
@@ -342,8 +335,8 @@ impl Context {
 
     /// If the given `Id` is not unique, an error will be printed at the given position.
     /// Call this for `Id`:s that need interaction or persistence.
-    pub(crate) fn register_unique_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
-        if let Some(prev_pos) = self.used_ids.lock().insert(id, new_pos) {
+    pub(crate) fn register_interaction_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
+        if let Some(prev_pos) = self.memory().used_ids.insert(id, new_pos) {
             if prev_pos == new_pos {
                 // Likely same Widget being interacted with twice, which is fine.
                 return;
@@ -452,7 +445,7 @@ impl Context {
         }
         let id = id.unwrap();
 
-        self.register_unique_id(id, rect.min);
+        self.register_interaction_id(id, rect.min);
 
         let mut memory = self.memory();
 

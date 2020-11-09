@@ -20,6 +20,11 @@ use crate::{
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
+    /// All `Id`s that were used this frame.
+    /// Used to debug `Id` clashes of widgets.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) used_ids: ahash::AHashMap<Id, Pos2>,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
@@ -115,6 +120,7 @@ impl Interaction {
 
 impl Memory {
     pub(crate) fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
+        self.used_ids.clear();
         self.interaction.begin_frame(prev_input);
 
         if !prev_input.mouse.down {
