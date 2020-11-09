@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed 🔧
+
+* Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it
+
 ### Fixed 🐛
 
 * Fixed bug where a lost widget could still retain keyboard focus.

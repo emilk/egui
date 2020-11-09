@@ -169,6 +169,10 @@ impl<'t> Widget for TextEdit<'t> {
                     } => {
                         if multiline {
                             insert_text(&mut cursor, text, "\n");
+                        } else {
+                            // Common to end input with enter
+                            ui.memory().surrender_kb_focus(id);
+                            break;
                         }
                     }
                     Event::Key {
@@ -176,6 +180,7 @@ impl<'t> Widget for TextEdit<'t> {
                         pressed: true,
                     } => {
                         ui.memory().surrender_kb_focus(id);
+                        break;
                     }
                     Event::Key { key, pressed: true } => {
                         on_key_press(&mut cursor, text, *key);
