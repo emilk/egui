@@ -27,7 +27,7 @@ use std::hash::Hash;
 ///
 /// Then there are widgets that need no identifiers at all, like labels,
 /// because they have no state nor are interacted with.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(u64);
 
@@ -57,5 +57,11 @@ impl Id {
 
     pub(crate) fn short_debug_format(&self) -> String {
         format!("{:04X}", self.0 as u16)
+    }
+}
+
+impl std::fmt::Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:X}", self.0)
     }
 }
