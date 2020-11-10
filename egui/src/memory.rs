@@ -58,7 +58,7 @@ pub struct Memory {
     /// Useful for debugging, benchmarking etc.
     pub all_collpasing_are_open: bool,
     /// Useful for debugging, benchmarking etc.
-    pub all_menues_are_open: bool,
+    pub all_menus_are_open: bool,
     /// Useful for debugging, benchmarking etc.
     pub all_windows_are_open: bool,
 }

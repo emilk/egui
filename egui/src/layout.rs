@@ -73,7 +73,7 @@ impl Layout {
     }
 
     /// Full-width layout.
-    /// Nice for menues etc where each button is full width.
+    /// Nice for menus etc where each button is full width.
     pub fn justified(dir: Direction) -> Self {
         Self {
             dir,
