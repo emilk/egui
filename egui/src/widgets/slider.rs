@@ -367,7 +367,7 @@ impl<'a> Widget for Slider<'a> {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
         let height = font
-            .line_spacing()
+            .row_height()
             .at_least(ui.style().spacing.interact_size.y);
 
         if self.text.is_some() {

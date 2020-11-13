@@ -98,7 +98,7 @@ impl Label {
 
     pub fn font_height(&self, fonts: &Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].height()
+        fonts[text_style].row_height()
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -222,7 +222,7 @@ impl Widget for Hyperlink {
 
         if response.hovered {
             // Underline:
-            for line in &galley.lines {
+            for line in &galley.rows {
                 let pos = response.rect.min;
                 let y = pos.y + line.y_max;
                 let y = ui.painter().round_to_pixel(y);

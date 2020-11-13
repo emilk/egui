@@ -67,7 +67,7 @@ impl AllocInfo {
     }
 
     pub fn from_galley(galley: &Galley) -> Self {
-        Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.lines)
+        Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.rows)
     }
 
     pub fn from_triangles(triangles: &Triangles) -> Self {

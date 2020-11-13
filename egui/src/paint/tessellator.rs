@@ -791,9 +791,9 @@ fn tessellate_paint_command(
 
             let font = &fonts[text_style];
             let mut chars = galley.text.chars();
-            for line in &galley.lines {
+            for line in &galley.rows {
                 let line_min_y = pos.y + line.y_min + text_offset.x;
-                let line_max_y = line_min_y + font.height();
+                let line_max_y = line_min_y + font.row_height();
                 let is_line_visible =
                     line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
 

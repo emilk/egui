@@ -9,7 +9,7 @@ use {
 use crate::{
     math::{vec2, Vec2},
     mutex::Mutex,
-    paint::{Galley, Line},
+    paint::{Galley, Row},
 };
 
 use super::texture_atlas::TextureAtlas;
@@ -110,12 +110,8 @@ impl Font {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
-    /// Height of one line of text. In points
-    /// TODO: rename height ?
-    pub fn line_spacing(&self) -> f32 {
-        self.scale_in_pixels / self.pixels_per_point
-    }
-    pub fn height(&self) -> f32 {
+    /// Height of one row of text. In points
+    pub fn row_height(&self) -> f32 {
         self.scale_in_pixels / self.pixels_per_point
     }
 
@@ -145,22 +141,22 @@ impl Font {
         glyph_info
     }
 
-    /// Typeset the given text onto one line.
+    /// Typeset the given text onto one row.
     /// Any `\n` will show up as `REPLACEMENT_CHAR` ('?').
-    /// Always returns exactly one `Line` in the `Galley`.
+    /// Always returns exactly one `Row` in the `Galley`.
     pub fn layout_single_line(&self, text: String) -> Galley {
-        let x_offsets = self.layout_single_line_fragment(&text);
-        let line = Line {
+        let x_offsets = self.layout_single_row_fragment(&text);
+        let row = Row {
             x_offsets,
             y_min: 0.0,
-            y_max: self.height(),
+            y_max: self.row_height(),
             ends_with_newline: false,
         };
-        let width = line.max_x();
-        let size = vec2(width, self.height());
+        let width = row.max_x();
+        let size = vec2(width, self.row_height());
         let galley = Galley {
             text,
-            lines: vec![line],
+            rows: vec![row],
             size,
         };
         galley.sanity_check();
@@ -168,9 +164,9 @@ impl Font {
     }
 
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
-        let line_spacing = self.line_spacing();
+        let line_spacing = self.row_height();
         let mut cursor_y = 0.0;
-        let mut lines = Vec::new();
+        let mut rows = Vec::new();
 
         let mut paragraph_start = 0;
 
@@ -182,25 +178,25 @@ impl Font {
 
             assert!(paragraph_start <= paragraph_end);
             let paragraph_text = &text[paragraph_start..paragraph_end];
-            let mut paragraph_lines =
+            let mut paragraph_rows =
                 self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
-            assert!(!paragraph_lines.is_empty());
-            paragraph_lines.last_mut().unwrap().ends_with_newline = next_newline.is_some();
+            assert!(!paragraph_rows.is_empty());
+            paragraph_rows.last_mut().unwrap().ends_with_newline = next_newline.is_some();
 
-            for line in &mut paragraph_lines {
-                line.y_min += cursor_y;
-                line.y_max += cursor_y;
+            for row in &mut paragraph_rows {
+                row.y_min += cursor_y;
+                row.y_max += cursor_y;
             }
-            cursor_y = paragraph_lines.last().unwrap().y_max;
+            cursor_y = paragraph_rows.last().unwrap().y_max;
             cursor_y += line_spacing * 0.4; // Extra spacing between paragraphs. TODO: less hacky
 
-            lines.append(&mut paragraph_lines);
+            rows.append(&mut paragraph_rows);
 
             paragraph_start = paragraph_end + 1;
         }
 
         if text.is_empty() || text.ends_with('\n') {
-            lines.push(Line {
+            rows.push(Row {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
                 y_max: cursor_y + line_spacing,
@@ -208,21 +204,21 @@ impl Font {
             });
         }
 
-        let mut widest_line = 0.0;
-        for line in &lines {
-            widest_line = line.max_x().max(widest_line);
+        let mut widest_row = 0.0;
+        for row in &rows {
+            widest_row = row.max_x().max(widest_row);
         }
-        let size = vec2(widest_line, lines.last().unwrap().y_max);
+        let size = vec2(widest_row, rows.last().unwrap().y_max);
 
-        let galley = Galley { text, lines, size };
+        let galley = Galley { text, rows, size };
         galley.sanity_check();
         galley
     }
 
-    /// Typeset the given text onto one line.
+    /// Typeset the given text onto one row.
     /// Assumes there are no `\n` in the text.
     /// Return `x_offsets`, one longer than the number of characters in the text.
-    fn layout_single_line_fragment(&self, text: &str) -> Vec<f32> {
+    fn layout_single_row_fragment(&self, text: &str) -> Vec<f32> {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
 
         let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
@@ -252,68 +248,68 @@ impl Font {
 
     /// A paragraph is text with no line break character in it.
     /// The text will be wrapped by the given `max_width_in_points`.
-    fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Line> {
+    fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Row> {
         if text == "" {
-            return vec![Line {
+            return vec![Row {
                 x_offsets: vec![0.0],
                 y_min: 0.0,
-                y_max: self.height(),
+                y_max: self.row_height(),
                 ends_with_newline: false,
             }];
         }
 
-        let full_x_offsets = self.layout_single_line_fragment(text);
+        let full_x_offsets = self.layout_single_row_fragment(text);
 
-        let mut line_start_x = full_x_offsets[0];
+        let mut row_start_x = full_x_offsets[0];
 
         {
             #![allow(clippy::float_cmp)]
-            assert_eq!(line_start_x, 0.0);
+            assert_eq!(row_start_x, 0.0);
         }
 
         let mut cursor_y = 0.0;
-        let mut line_start_idx = 0;
+        let mut row_start_idx = 0;
 
-        // start index of the last space. A candidate for a new line.
+        // start index of the last space. A candidate for a new row.
         let mut last_space = None;
 
-        let mut out_lines = vec![];
+        let mut out_rows = vec![];
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
             debug_assert!(chr != '\n');
-            let line_width = x - line_start_x;
+            let potential_row_width = x - row_start_x;
 
-            if line_width > max_width_in_points {
+            if potential_row_width > max_width_in_points {
                 if let Some(last_space_idx) = last_space {
                     let include_trailing_space = true;
-                    let line = if include_trailing_space {
-                        Line {
-                            x_offsets: full_x_offsets[line_start_idx..=last_space_idx + 1]
+                    let row = if include_trailing_space {
+                        Row {
+                            x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
                                 .iter()
-                                .map(|x| x - line_start_x)
+                                .map(|x| x - row_start_x)
                                 .collect(),
                             y_min: cursor_y,
-                            y_max: cursor_y + self.height(),
+                            y_max: cursor_y + self.row_height(),
                             ends_with_newline: false,
                         }
                     } else {
-                        Line {
-                            x_offsets: full_x_offsets[line_start_idx..=last_space_idx]
+                        Row {
+                            x_offsets: full_x_offsets[row_start_idx..=last_space_idx]
                                 .iter()
-                                .map(|x| x - line_start_x)
+                                .map(|x| x - row_start_x)
                                 .collect(),
                             y_min: cursor_y,
-                            y_max: cursor_y + self.height(),
+                            y_max: cursor_y + self.row_height(),
                             ends_with_newline: false,
                         }
                     };
-                    line.sanity_check();
-                    out_lines.push(line);
+                    row.sanity_check();
+                    out_rows.push(row);
 
-                    line_start_idx = last_space_idx + 1;
-                    line_start_x = full_x_offsets[line_start_idx];
+                    row_start_idx = last_space_idx + 1;
+                    row_start_x = full_x_offsets[row_start_idx];
                     last_space = None;
-                    cursor_y += self.line_spacing();
+                    cursor_y += self.row_height();
                     cursor_y = self.round_to_pixel(cursor_y);
                 }
             }
@@ -324,21 +320,21 @@ impl Font {
             }
         }
 
-        if line_start_idx + 1 < full_x_offsets.len() {
-            let line = Line {
-                x_offsets: full_x_offsets[line_start_idx..]
+        if row_start_idx + 1 < full_x_offsets.len() {
+            let row = Row {
+                x_offsets: full_x_offsets[row_start_idx..]
                     .iter()
-                    .map(|x| x - line_start_x)
+                    .map(|x| x - row_start_x)
                     .collect(),
                 y_min: cursor_y,
-                y_max: cursor_y + self.height(),
+                y_max: cursor_y + self.row_height(),
                 ends_with_newline: false,
             };
-            line.sanity_check();
-            out_lines.push(line);
+            row.sanity_check();
+            out_rows.push(row);
         }
 
-        out_lines
+        out_rows
     }
 }
 

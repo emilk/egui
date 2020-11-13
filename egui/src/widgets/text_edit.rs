@@ -7,8 +7,8 @@ pub(crate) struct State {
     /// We store as PCursor (paragraph number, and character offset within that paragraph).
     /// This is so what if we resize the `TextEdit` region, and text wrapping changes,
     /// we keep the same byte character offset from the beginning of the text,
-    /// even though the number of lines changes
-    /// (each paragraph can be several lines, due to word wrapping).
+    /// even though the number of rows changes
+    /// (each paragraph can be several rows, due to word wrapping).
     /// The column (character offset) should be able to extend beyond the last word so that we can
     /// go down and still end up on the same column when we return.
     pcursor: Option<PCursor>,
@@ -156,7 +156,7 @@ impl<'t> Widget for TextEdit<'t> {
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
-        let line_spacing = font.line_spacing();
+        let line_spacing = font.row_height();
         let available_width = ui.available().width();
         let mut galley = if multiline {
             font.layout_multiline(text.clone(), available_width)

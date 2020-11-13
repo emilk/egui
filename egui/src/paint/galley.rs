@@ -1,3 +1,21 @@
+//! This is going to get complicated.
+//!
+//! To avoid confusion, we never use the word "line".
+//! The `\n` character demarcates the split of text into "paragraphs".
+//! Each paragraph is wrapped at some width onto one or more "rows".
+//!
+//! If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
+//! do we prefer the next row?
+//! For instance, consider this single paragraph, word wrapped:
+//! ``` text
+//! Hello_
+//! world!
+//! ```
+//!
+//! The offset `6` is both the end of the first row
+//! and the start of the second row.
+//! The `prefer_next_row` selects which.
+
 use crate::math::{vec2, NumExt, Vec2};
 
 /// Character cursor
@@ -7,31 +25,22 @@ pub struct CCursor {
     /// Character offset (NOT byte offset!).
     pub index: usize,
 
-    /// If this cursors sits right at the border of a wrapped line (NOT `\n`),
-    /// do we prefer the next line?
-    /// For instance, consider this text, word wrapped:
-    /// ``` text
-    /// Hello_
-    /// world!
-    /// ```
-    ///
-    /// The offset `6` is both the end of the first line
-    /// and the start of the second line.
-    /// The `prefer_next_line` selects which.
-    pub prefer_next_line: bool,
+    /// If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
+    /// do we prefer the next row?
+    pub prefer_next_row: bool,
 }
 
 impl CCursor {
     pub fn new(index: usize) -> Self {
         Self {
             index,
-            prefer_next_line: false,
+            prefer_next_row: false,
         }
     }
 }
 
 /// Two `CCursor`s are considered equal if they refer to the same character boundary,
-/// even if one prefers the start of the next line.
+/// even if one prefers the start of the next row.
 impl PartialEq for CCursor {
     fn eq(&self, other: &CCursor) -> bool {
         self.index == other.index
@@ -43,7 +52,7 @@ impl std::ops::Add<usize> for CCursor {
     fn add(self, rhs: usize) -> Self::Output {
         CCursor {
             index: self.index.saturating_add(rhs),
-            prefer_next_line: self.prefer_next_line,
+            prefer_next_row: self.prefer_next_row,
         }
     }
 }
@@ -53,23 +62,23 @@ impl std::ops::Sub<usize> for CCursor {
     fn sub(self, rhs: usize) -> Self::Output {
         CCursor {
             index: self.index.saturating_sub(rhs),
-            prefer_next_line: self.prefer_next_line,
+            prefer_next_row: self.prefer_next_row,
         }
     }
 }
 
-/// Line Cursor
+/// Row Cursor
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct LCursor {
-    /// 0 is first line, and so on.
-    /// Note that a single paragraph can span multiple lines.
+pub struct RCursor {
+    /// 0 is first row, and so on.
+    /// Note that a single paragraph can span multiple rows.
     /// (a paragraph is text separated by `\n`).
-    pub line: usize,
+    pub row: usize,
 
     /// Character based (NOT bytes).
-    /// It is fine if this points to something beyond the end of the current line.
-    /// When moving up/down it may again be within the next line.
+    /// It is fine if this points to something beyond the end of the current row.
+    /// When moving up/down it may again be within the next row.
     pub column: usize,
 }
 
@@ -78,31 +87,22 @@ pub struct LCursor {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PCursor {
     /// 0 is first paragraph, and so on.
-    /// Note that a single paragraph can span multiple lines.
+    /// Note that a single paragraph can span multiple rows.
     /// (a paragraph is text separated by `\n`).
     pub paragraph: usize,
 
     /// Character based (NOT bytes).
-    /// It is fine if this points to something beyond the end of the current line.
-    /// When moving up/down it may again be within the next line.
+    /// It is fine if this points to something beyond the end of the current paragraph.
+    /// When moving up/down it may again be within the next paragraph.
     pub offset: usize,
 
-    /// If this cursors sits right at the border of a wrapped line (NOT `\n`),
-    /// do we prefer the next line?
-    /// For instance, consider this text, word wrapped:
-    /// ``` text
-    /// Hello_
-    /// world!
-    /// ```
-    ///
-    /// The offset `6` is both the end of the first line
-    /// and the start of the second line.
-    /// The `prefer_next_line` selects which.
-    pub prefer_next_line: bool,
+    /// If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
+    /// do we prefer the next row?
+    pub prefer_next_row: bool,
 }
 
 /// Two `PCursor`s are considered equal if they refer to the same character boundary,
-/// even if one prefers the start of the next line.
+/// even if one prefers the start of the next row.
 impl PartialEq for PCursor {
     fn eq(&self, other: &PCursor) -> bool {
         self.paragraph == other.paragraph && self.offset == other.offset
@@ -115,7 +115,7 @@ impl PartialEq for PCursor {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {
     pub ccursor: CCursor,
-    pub lcursor: LCursor,
+    pub rcursor: RCursor,
     pub pcursor: PCursor,
 }
 
@@ -125,20 +125,19 @@ pub struct Galley {
     /// The full text, including any an all `\n`.
     pub text: String,
 
-    /// Lines of text, from top to bottom.
-    /// The number of chars in all lines sum up to text.chars().count().
+    /// Rows of text, from top to bottom.
+    /// The number of chars in all rows sum up to text.chars().count().
     /// Note that each paragraph (pieces of text separated with `\n`)
-    /// can be split up into multiple lines.
-    pub lines: Vec<Line>,
+    /// can be split up into multiple rows.
+    pub rows: Vec<Row>,
 
     // Optimization: calculated once and reused.
     pub size: Vec2,
 }
 
-// TODO: should this maybe be renamed `Row` to avoid confusion with lines as 'that which is broken by \n'.
-/// A typeset piece of text on a single line.
+/// A typeset piece of text on a single row.
 #[derive(Clone, Debug)]
-pub struct Line {
+pub struct Row {
     /// The start of each character, probably starting at zero.
     /// The last element is the end of the last character.
     /// This is never empty.
@@ -147,34 +146,34 @@ pub struct Line {
     /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
     pub x_offsets: Vec<f32>,
 
-    /// Top of the line, offset within the Galley.
+    /// Top of the row, offset within the Galley.
     /// Unit: points.
     pub y_min: f32,
 
-    /// Bottom of the line, offset within the Galley.
+    /// Bottom of the row, offset within the Galley.
     /// Unit: points.
     pub y_max: f32,
 
-    /// If true, this Line came from a paragraph ending with a `\n`.
+    /// If true, this `Row` came from a paragraph ending with a `\n`.
     /// The `\n` itself is omitted from `x_offsets`.
-    /// A `\n` in the input text always creates a new `Line` below it,
-    /// so that text that ends with `\n` has an empty `Line` last.
-    /// This also implies that the last `Line` in a `Galley` always has `ends_with_newline == false`.
+    /// A `\n` in the input text always creates a new `Row` below it,
+    /// so that text that ends with `\n` has an empty `Row` last.
+    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
     pub ends_with_newline: bool,
 }
 
-impl Line {
+impl Row {
     pub fn sanity_check(&self) {
         assert!(!self.x_offsets.is_empty());
     }
 
-    /// Excludes the implicit `\n` after the `Line`, if any.
+    /// Excludes the implicit `\n` after the `Row`, if any.
     pub fn char_count_excluding_newline(&self) -> usize {
         assert!(!self.x_offsets.is_empty());
         self.x_offsets.len() - 1
     }
 
-    /// Includes the implicit `\n` after the `Line`, if any.
+    /// Includes the implicit `\n` after the `Row`, if any.
     pub fn char_count_including_newline(&self) -> usize {
         self.char_count_excluding_newline() + (self.ends_with_newline as usize)
     }
@@ -203,15 +202,15 @@ impl Line {
 impl Galley {
     pub fn sanity_check(&self) {
         let mut char_count = 0;
-        for line in &self.lines {
-            line.sanity_check();
-            char_count += line.char_count_including_newline();
+        for row in &self.rows {
+            row.sanity_check();
+            char_count += row.char_count_including_newline();
         }
         assert_eq!(char_count, self.text.chars().count());
-        if let Some(last_line) = self.lines.last() {
+        if let Some(last_row) = self.rows.last() {
             debug_assert!(
-                !last_line.ends_with_newline,
-                "If the text ends with '\\n', there would be an empty Line last.\n\
+                !last_row.ends_with_newline,
+                "If the text ends with '\\n', there would be an empty row last.\n\
                 Galley: {:#?}",
                 self
             );
@@ -222,7 +221,7 @@ impl Galley {
 /// ## Physical positions
 impl Galley {
     pub fn last_pos(&self) -> Vec2 {
-        if let Some(last) = self.lines.last() {
+        if let Some(last) = self.rows.last() {
             vec2(last.max_x(), last.y_min)
         } else {
             vec2(0.0, 0.0) // Empty galley
@@ -232,30 +231,30 @@ impl Galley {
     pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Vec2 {
         let mut it = PCursor::default();
 
-        for line in &self.lines {
+        for row in &self.rows {
             if it.paragraph == pcursor.paragraph {
-                // Right paragraph, but is it the right line in the paragraph?
+                // Right paragraph, but is it the right row in the paragraph?
 
                 if it.offset <= pcursor.offset
-                    && pcursor.offset <= it.offset + line.char_count_excluding_newline()
+                    && pcursor.offset <= it.offset + row.char_count_excluding_newline()
                 {
                     let column = pcursor.offset - it.offset;
-                    let column = column.at_most(line.char_count_excluding_newline());
+                    let column = column.at_most(row.char_count_excluding_newline());
 
-                    let select_next_line_instead = pcursor.prefer_next_line
-                        && !line.ends_with_newline
-                        && column == line.char_count_excluding_newline();
+                    let select_next_line_instead = pcursor.prefer_next_row
+                        && !row.ends_with_newline
+                        && column == row.char_count_excluding_newline();
                     if !select_next_line_instead {
-                        return vec2(line.x_offsets[column], line.y_min);
+                        return vec2(row.x_offsets[column], row.y_min);
                     }
                 }
             }
 
-            if line.ends_with_newline {
+            if row.ends_with_newline {
                 it.paragraph += 1;
                 it.offset = 0;
             } else {
-                it.offset += line.char_count_including_newline();
+                it.offset += row.char_count_including_newline();
             }
         }
 
@@ -263,7 +262,7 @@ impl Galley {
     }
 
     pub fn pos_from_cursor(&self, cursor: &Cursor) -> Vec2 {
-        // self.pos_from_lcursor(cursor.lcursor)
+        // self.pos_from_rcursor(cursor.rcursor)
         self.pos_from_pcursor(cursor.pcursor) // The one TextEdit stores
     }
 
@@ -275,33 +274,33 @@ impl Galley {
         let mut ccursor_index = 0;
         let mut pcursor_it = PCursor::default();
 
-        for (line_nr, line) in self.lines.iter().enumerate() {
-            let y_dist = (line.y_min - pos.y).abs().min((line.y_max - pos.y).abs());
+        for (line_nr, row) in self.rows.iter().enumerate() {
+            let y_dist = (row.y_min - pos.y).abs().min((row.y_max - pos.y).abs());
             if y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let column = line.char_at(pos.x);
+                let column = row.char_at(pos.x);
                 cursor = Cursor {
                     ccursor: CCursor {
                         index: ccursor_index + column,
-                        prefer_next_line: column == 0,
+                        prefer_next_row: column == 0,
                     },
-                    lcursor: LCursor {
-                        line: line_nr,
+                    rcursor: RCursor {
+                        row: line_nr,
                         column,
                     },
                     pcursor: PCursor {
                         paragraph: pcursor_it.paragraph,
                         offset: pcursor_it.offset + column,
-                        prefer_next_line: column == 0,
+                        prefer_next_row: column == 0,
                     },
                 }
             }
-            ccursor_index += line.char_count_including_newline();
-            if line.ends_with_newline {
+            ccursor_index += row.char_count_including_newline();
+            if row.ends_with_newline {
                 pcursor_it.paragraph += 1;
                 pcursor_it.offset = 0;
             } else {
-                pcursor_it.offset += line.char_count_including_newline();
+                pcursor_it.offset += row.char_count_including_newline();
             }
         }
         cursor
@@ -312,22 +311,22 @@ impl Galley {
 impl Galley {
     /// Cursor to one-past last character.
     pub fn end(&self) -> Cursor {
-        if self.lines.is_empty() {
+        if self.rows.is_empty() {
             return Default::default();
         }
         let mut ccursor = CCursor {
             index: 0,
-            prefer_next_line: true,
+            prefer_next_row: true,
         };
         let mut pcursor = PCursor {
             paragraph: 0,
             offset: 0,
-            prefer_next_line: true,
+            prefer_next_row: true,
         };
-        for line in &self.lines {
-            let line_char_count = line.char_count_including_newline();
+        for row in &self.rows {
+            let line_char_count = row.char_count_including_newline();
             ccursor.index += line_char_count;
-            if line.ends_with_newline {
+            if row.ends_with_newline {
                 pcursor.paragraph += 1;
                 pcursor.offset = 0;
             } else {
@@ -336,17 +335,17 @@ impl Galley {
         }
         Cursor {
             ccursor,
-            lcursor: self.end_lcursor(),
+            rcursor: self.end_rcursor(),
             pcursor,
         }
     }
 
-    pub fn end_lcursor(&self) -> LCursor {
-        if let Some(last_line) = self.lines.last() {
-            debug_assert!(!last_line.ends_with_newline);
-            LCursor {
-                line: self.lines.len() - 1,
-                column: last_line.char_count_excluding_newline(),
+    pub fn end_rcursor(&self) -> RCursor {
+        if let Some(last_row) = self.rows.last() {
+            debug_assert!(!last_row.ends_with_newline);
+            RCursor {
+                row: self.rows.len() - 1,
+                column: last_row.char_count_excluding_newline(),
             }
         } else {
             Default::default()
@@ -358,19 +357,19 @@ impl Galley {
 impl Galley {
     // TODO: return identical cursor, or clamp?
     pub fn from_ccursor(&self, ccursor: CCursor) -> Cursor {
-        let prefer_next_line = ccursor.prefer_next_line;
+        let prefer_next_line = ccursor.prefer_next_row;
         let mut ccursor_it = CCursor {
             index: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
         let mut pcursor_it = PCursor {
             paragraph: 0,
             offset: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
 
-        for (line_nr, line) in self.lines.iter().enumerate() {
-            let line_char_count = line.char_count_excluding_newline();
+        for (line_nr, row) in self.rows.iter().enumerate() {
+            let line_char_count = row.char_count_excluding_newline();
 
             if ccursor_it.index <= ccursor.index
                 && ccursor.index <= ccursor_it.index + line_char_count
@@ -378,118 +377,118 @@ impl Galley {
                 let column = ccursor.index - ccursor_it.index;
 
                 let select_next_line_instead = prefer_next_line
-                    && !line.ends_with_newline
-                    && column == line.char_count_excluding_newline();
+                    && !row.ends_with_newline
+                    && column == row.char_count_excluding_newline();
                 if !select_next_line_instead {
                     pcursor_it.offset += column;
                     return Cursor {
                         ccursor,
-                        lcursor: LCursor {
-                            line: line_nr,
+                        rcursor: RCursor {
+                            row: line_nr,
                             column,
                         },
                         pcursor: pcursor_it,
                     };
                 }
             }
-            ccursor_it.index += line.char_count_including_newline();
-            if line.ends_with_newline {
+            ccursor_it.index += row.char_count_including_newline();
+            if row.ends_with_newline {
                 pcursor_it.paragraph += 1;
                 pcursor_it.offset = 0;
             } else {
-                pcursor_it.offset += line.char_count_including_newline();
+                pcursor_it.offset += row.char_count_including_newline();
             }
         }
         debug_assert_eq!(ccursor_it, self.end().ccursor);
         Cursor {
             ccursor: ccursor_it, // clamp
-            lcursor: self.end_lcursor(),
+            rcursor: self.end_rcursor(),
             pcursor: pcursor_it,
         }
     }
 
     // TODO: return identical cursor, or clamp?
-    pub fn from_lcursor(&self, lcursor: LCursor) -> Cursor {
-        if lcursor.line >= self.lines.len() {
+    pub fn from_rcursor(&self, rcursor: RCursor) -> Cursor {
+        if rcursor.row >= self.rows.len() {
             return self.end();
         }
 
-        let prefer_next_line = lcursor.column == 0;
+        let prefer_next_line = rcursor.column == 0;
         let mut ccursor_it = CCursor {
             index: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
         let mut pcursor_it = PCursor {
             paragraph: 0,
             offset: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
 
-        for (line_nr, line) in self.lines.iter().enumerate() {
-            if line_nr == lcursor.line {
-                let column = lcursor.column.at_most(line.char_count_excluding_newline());
+        for (line_nr, row) in self.rows.iter().enumerate() {
+            if line_nr == rcursor.row {
+                let column = rcursor.column.at_most(row.char_count_excluding_newline());
 
                 let select_next_line_instead = prefer_next_line
-                    && !line.ends_with_newline
-                    && column == line.char_count_excluding_newline();
+                    && !row.ends_with_newline
+                    && column == row.char_count_excluding_newline();
 
                 if !select_next_line_instead {
                     ccursor_it.index += column;
                     pcursor_it.offset += column;
                     return Cursor {
                         ccursor: ccursor_it,
-                        lcursor,
+                        rcursor,
                         pcursor: pcursor_it,
                     };
                 }
             }
-            ccursor_it.index += line.char_count_including_newline();
-            if line.ends_with_newline {
+            ccursor_it.index += row.char_count_including_newline();
+            if row.ends_with_newline {
                 pcursor_it.paragraph += 1;
                 pcursor_it.offset = 0;
             } else {
-                pcursor_it.offset += line.char_count_including_newline();
+                pcursor_it.offset += row.char_count_including_newline();
             }
         }
         Cursor {
             ccursor: ccursor_it,
-            lcursor: self.end_lcursor(),
+            rcursor: self.end_rcursor(),
             pcursor: pcursor_it,
         }
     }
 
     // TODO: return identical cursor, or clamp?
     pub fn from_pcursor(&self, pcursor: PCursor) -> Cursor {
-        let prefer_next_line = pcursor.prefer_next_line;
+        let prefer_next_line = pcursor.prefer_next_row;
         let mut ccursor_it = CCursor {
             index: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
         let mut pcursor_it = PCursor {
             paragraph: 0,
             offset: 0,
-            prefer_next_line,
+            prefer_next_row: prefer_next_line,
         };
 
-        for (line_nr, line) in self.lines.iter().enumerate() {
+        for (line_nr, row) in self.rows.iter().enumerate() {
             if pcursor_it.paragraph == pcursor.paragraph {
-                // Right paragraph, but is it the right line in the paragraph?
+                // Right paragraph, but is it the right row in the paragraph?
 
                 if pcursor_it.offset <= pcursor.offset
-                    && pcursor.offset <= pcursor_it.offset + line.char_count_excluding_newline()
+                    && pcursor.offset <= pcursor_it.offset + row.char_count_excluding_newline()
                 {
                     let column = pcursor.offset - pcursor_it.offset;
-                    let column = column.at_most(line.char_count_excluding_newline());
+                    let column = column.at_most(row.char_count_excluding_newline());
 
-                    let select_next_line_instead = pcursor.prefer_next_line
-                        && !line.ends_with_newline
-                        && column == line.char_count_excluding_newline();
+                    let select_next_line_instead = pcursor.prefer_next_row
+                        && !row.ends_with_newline
+                        && column == row.char_count_excluding_newline();
                     if !select_next_line_instead {
                         ccursor_it.index += column;
                         return Cursor {
                             ccursor: ccursor_it,
-                            lcursor: LCursor {
-                                line: line_nr,
+                            rcursor: RCursor {
+                                row: line_nr,
                                 column,
                             },
                             pcursor,
@@ -498,17 +497,17 @@ impl Galley {
                 }
             }
 
-            ccursor_it.index += line.char_count_including_newline();
-            if line.ends_with_newline {
+            ccursor_it.index += row.char_count_including_newline();
+            if row.ends_with_newline {
                 pcursor_it.paragraph += 1;
                 pcursor_it.offset = 0;
             } else {
-                pcursor_it.offset += line.char_count_including_newline();
+                pcursor_it.offset += row.char_count_including_newline();
             }
         }
         Cursor {
             ccursor: ccursor_it,
-            lcursor: self.end_lcursor(),
+            rcursor: self.end_rcursor(),
             pcursor,
         }
     }
@@ -529,38 +528,38 @@ impl Galley {
     }
 
     pub fn cursor_up_one_line(&self, cursor: &Cursor) -> Cursor {
-        if cursor.lcursor.line == 0 {
+        if cursor.rcursor.row == 0 {
             Cursor::default()
         } else {
             let x = self.pos_from_cursor(cursor).x;
-            let line = cursor.lcursor.line - 1;
-            let column = self.lines[line].char_at(x).max(cursor.lcursor.column);
-            self.from_lcursor(LCursor { line, column })
+            let row = cursor.rcursor.row - 1;
+            let column = self.rows[row].char_at(x).max(cursor.rcursor.column);
+            self.from_rcursor(RCursor { row, column })
         }
     }
 
     pub fn cursor_down_one_line(&self, cursor: &Cursor) -> Cursor {
-        if cursor.lcursor.line + 1 < self.lines.len() {
+        if cursor.rcursor.row + 1 < self.rows.len() {
             let x = self.pos_from_cursor(cursor).x;
-            let line = cursor.lcursor.line + 1;
-            let column = self.lines[line].char_at(x).max(cursor.lcursor.column);
-            self.from_lcursor(LCursor { line, column })
+            let row = cursor.rcursor.row + 1;
+            let column = self.rows[row].char_at(x).max(cursor.rcursor.column);
+            self.from_rcursor(RCursor { row, column })
         } else {
             self.end()
         }
     }
 
     pub fn cursor_begin_of_line(&self, cursor: &Cursor) -> Cursor {
-        self.from_lcursor(LCursor {
-            line: cursor.lcursor.line,
+        self.from_rcursor(RCursor {
+            row: cursor.rcursor.row,
             column: 0,
         })
     }
 
     pub fn cursor_end_of_line(&self, cursor: &Cursor) -> Cursor {
-        self.from_lcursor(LCursor {
-            line: cursor.lcursor.line,
-            column: self.lines[cursor.lcursor.line].char_count_excluding_newline(),
+        self.from_rcursor(RCursor {
+            row: cursor.rcursor.row,
+            column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
     }
 }
@@ -579,172 +578,160 @@ fn test_text_layout() {
     let font = Font::new(atlas, typeface_data, 13.0, pixels_per_point);
 
     let galley = font.layout_multiline("".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 1);
-    assert_eq!(galley.lines[0].ends_with_newline, false);
-    assert_eq!(galley.lines[0].x_offsets, vec![0.0]);
+    assert_eq!(galley.rows.len(), 1);
+    assert_eq!(galley.rows[0].ends_with_newline, false);
+    assert_eq!(galley.rows[0].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("\n".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 2);
-    assert_eq!(galley.lines[0].ends_with_newline, true);
-    assert_eq!(galley.lines[1].ends_with_newline, false);
-    assert_eq!(galley.lines[1].x_offsets, vec![0.0]);
+    assert_eq!(galley.rows.len(), 2);
+    assert_eq!(galley.rows[0].ends_with_newline, true);
+    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("\n\n".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 3);
-    assert_eq!(galley.lines[0].ends_with_newline, true);
-    assert_eq!(galley.lines[1].ends_with_newline, true);
-    assert_eq!(galley.lines[2].ends_with_newline, false);
-    assert_eq!(galley.lines[2].x_offsets, vec![0.0]);
+    assert_eq!(galley.rows.len(), 3);
+    assert_eq!(galley.rows[0].ends_with_newline, true);
+    assert_eq!(galley.rows[1].ends_with_newline, true);
+    assert_eq!(galley.rows[2].ends_with_newline, false);
+    assert_eq!(galley.rows[2].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline(" ".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 1);
-    assert_eq!(galley.lines[0].ends_with_newline, false);
+    assert_eq!(galley.rows.len(), 1);
+    assert_eq!(galley.rows[0].ends_with_newline, false);
 
-    let galley = font.layout_multiline("One line".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 1);
-    assert_eq!(galley.lines[0].ends_with_newline, false);
+    let galley = font.layout_multiline("One row!".to_owned(), 1024.0);
+    assert_eq!(galley.rows.len(), 1);
+    assert_eq!(galley.rows[0].ends_with_newline, false);
 
-    let galley = font.layout_multiline("First line\n".to_owned(), 1024.0);
-    assert_eq!(galley.lines.len(), 2);
-    assert_eq!(galley.lines[0].ends_with_newline, true);
-    assert_eq!(galley.lines[1].ends_with_newline, false);
-    assert_eq!(galley.lines[1].x_offsets, vec![0.0]);
+    let galley = font.layout_multiline("First row!\n".to_owned(), 1024.0);
+    assert_eq!(galley.rows.len(), 2);
+    assert_eq!(galley.rows[0].ends_with_newline, true);
+    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("line\nbreak".to_owned(), 10.0);
-    assert_eq!(galley.lines.len(), 2);
-    assert_eq!(galley.lines[0].ends_with_newline, true);
-    assert_eq!(galley.lines[1].ends_with_newline, false);
+    assert_eq!(galley.rows.len(), 2);
+    assert_eq!(galley.rows[0].ends_with_newline, true);
+    assert_eq!(galley.rows[1].ends_with_newline, false);
 
     // Test wrapping:
-    let galley = font.layout_multiline("line wrap".to_owned(), 10.0);
-    assert_eq!(galley.lines.len(), 2);
-    assert_eq!(galley.lines[0].ends_with_newline, false);
-    assert_eq!(galley.lines[1].ends_with_newline, false);
+    let galley = font.layout_multiline("word wrap".to_owned(), 10.0);
+    assert_eq!(galley.rows.len(), 2);
+    assert_eq!(galley.rows[0].ends_with_newline, false);
+    assert_eq!(galley.rows[1].ends_with_newline, false);
 
     {
         // Test wrapping:
-        let galley = font.layout_multiline("Line wrap.\nNew paragraph.".to_owned(), 10.0);
-        assert_eq!(galley.lines.len(), 4);
-        assert_eq!(galley.lines[0].ends_with_newline, false);
+        let galley = font.layout_multiline("word wrap.\nNew paragraph.".to_owned(), 10.0);
+        assert_eq!(galley.rows.len(), 4);
+        assert_eq!(galley.rows[0].ends_with_newline, false);
+        assert_eq!(galley.rows[0].char_count_excluding_newline(), "word ".len());
+        assert_eq!(galley.rows[0].char_count_including_newline(), "word ".len());
+        assert_eq!(galley.rows[1].ends_with_newline, true);
+        assert_eq!(galley.rows[1].char_count_excluding_newline(), "wrap.".len());
         assert_eq!(
-            galley.lines[0].char_count_excluding_newline(),
-            "Line ".len()
-        );
-        assert_eq!(
-            galley.lines[0].char_count_including_newline(),
-            "Line ".len()
-        );
-        assert_eq!(galley.lines[1].ends_with_newline, true);
-        assert_eq!(
-            galley.lines[1].char_count_excluding_newline(),
-            "wrap.".len()
-        );
-        assert_eq!(
-            galley.lines[1].char_count_including_newline(),
+            galley.rows[1].char_count_including_newline(),
             "wrap.\n".len()
         );
-        assert_eq!(galley.lines[2].ends_with_newline, false);
-        assert_eq!(galley.lines[3].ends_with_newline, false);
+        assert_eq!(galley.rows[2].ends_with_newline, false);
+        assert_eq!(galley.rows[3].ends_with_newline, false);
 
         let cursor = Cursor::default();
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
         assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
 
         let cursor = galley.end();
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
         assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
         assert_eq!(
             cursor,
             Cursor {
                 ccursor: CCursor::new(25),
-                lcursor: LCursor {
-                    line: 3,
-                    column: 10
-                },
+                rcursor: RCursor { row: 3, column: 10 },
                 pcursor: PCursor {
                     paragraph: 1,
                     offset: 14,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
 
         let cursor = galley.from_ccursor(CCursor::new(1));
-        assert_eq!(cursor.lcursor, LCursor { line: 0, column: 1 });
+        assert_eq!(cursor.rcursor, RCursor { row: 0, column: 1 });
         assert_eq!(
             cursor.pcursor,
             PCursor {
                 paragraph: 0,
                 offset: 1,
-                prefer_next_line: false,
+                prefer_next_row: false,
             }
         );
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
         assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
 
         let cursor = galley.from_pcursor(PCursor {
             paragraph: 1,
             offset: 2,
-            prefer_next_line: false,
+            prefer_next_row: false,
         });
-        assert_eq!(cursor.lcursor, LCursor { line: 2, column: 2 });
+        assert_eq!(cursor.rcursor, RCursor { row: 2, column: 2 });
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
         assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
 
         let cursor = galley.from_pcursor(PCursor {
             paragraph: 1,
             offset: 6,
-            prefer_next_line: false,
+            prefer_next_row: false,
         });
-        assert_eq!(cursor.lcursor, LCursor { line: 3, column: 2 });
+        assert_eq!(cursor.rcursor, RCursor { row: 3, column: 2 });
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
         assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
 
-        // On the border between two lines within the same paragraph:
-        let cursor = galley.from_lcursor(LCursor { line: 0, column: 5 });
+        // On the border between two rows within the same paragraph:
+        let cursor = galley.from_rcursor(RCursor { row: 0, column: 5 });
         assert_eq!(
             cursor,
             Cursor {
                 ccursor: CCursor::new(5),
-                lcursor: LCursor { line: 0, column: 5 },
+                rcursor: RCursor { row: 0, column: 5 },
                 pcursor: PCursor {
                     paragraph: 0,
                     offset: 5,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
 
-        let cursor = galley.from_lcursor(LCursor { line: 1, column: 0 });
+        let cursor = galley.from_rcursor(RCursor { row: 1, column: 0 });
         assert_eq!(
             cursor,
             Cursor {
                 ccursor: CCursor::new(5),
-                lcursor: LCursor { line: 1, column: 0 },
+                rcursor: RCursor { row: 1, column: 0 },
                 pcursor: PCursor {
                     paragraph: 0,
                     offset: 5,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
-        assert_eq!(cursor, galley.from_lcursor(cursor.lcursor));
+        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
     }
 
     {
         // Test cursor movement:
-        let galley = font.layout_multiline("Line wrap.\nNew paragraph.".to_owned(), 10.0);
-        assert_eq!(galley.lines.len(), 4);
-        assert_eq!(galley.lines[0].ends_with_newline, false);
-        assert_eq!(galley.lines[1].ends_with_newline, true);
-        assert_eq!(galley.lines[2].ends_with_newline, false);
-        assert_eq!(galley.lines[3].ends_with_newline, false);
+        let galley = font.layout_multiline("word wrap.\nNew paragraph.".to_owned(), 10.0);
+        assert_eq!(galley.rows.len(), 4);
+        assert_eq!(galley.rows[0].ends_with_newline, false);
+        assert_eq!(galley.rows[1].ends_with_newline, true);
+        assert_eq!(galley.rows[2].ends_with_newline, false);
+        assert_eq!(galley.rows[3].ends_with_newline, false);
 
         let cursor = Cursor::default();
 
@@ -755,11 +742,11 @@ fn test_text_layout() {
             galley.cursor_end_of_line(&cursor),
             Cursor {
                 ccursor: CCursor::new(5),
-                lcursor: LCursor { line: 0, column: 5 },
+                rcursor: RCursor { row: 0, column: 5 },
                 pcursor: PCursor {
                     paragraph: 0,
                     offset: 5,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
@@ -768,11 +755,11 @@ fn test_text_layout() {
             galley.cursor_down_one_line(&cursor),
             Cursor {
                 ccursor: CCursor::new(5),
-                lcursor: LCursor { line: 1, column: 0 },
+                rcursor: RCursor { row: 1, column: 0 },
                 pcursor: PCursor {
                     paragraph: 0,
                     offset: 5,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
@@ -782,11 +769,11 @@ fn test_text_layout() {
             galley.cursor_down_one_line(&galley.cursor_down_one_line(&cursor)),
             Cursor {
                 ccursor: CCursor::new(11),
-                lcursor: LCursor { line: 2, column: 0 },
+                rcursor: RCursor { row: 2, column: 0 },
                 pcursor: PCursor {
                     paragraph: 1,
                     offset: 0,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
@@ -801,14 +788,11 @@ fn test_text_layout() {
             galley.cursor_up_one_line(&galley.end()),
             Cursor {
                 ccursor: CCursor::new(15),
-                lcursor: LCursor {
-                    line: 2,
-                    column: 10
-                },
+                rcursor: RCursor { row: 2, column: 10 },
                 pcursor: PCursor {
                     paragraph: 1,
                     offset: 4,
-                    prefer_next_line: false,
+                    prefer_next_row: false,
                 }
             }
         );
