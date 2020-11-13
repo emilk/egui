@@ -136,7 +136,11 @@ impl Memory {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {
-            if !self.used_ids.contains_key(&kb_focus_id) {
+            // Allow calling `request_kb_focus` one frame and not using it until next frame
+            let recently_gained_kb_focus =
+                self.interaction.kb_focus_id_previous_frame != Some(kb_focus_id);
+
+            if !recently_gained_kb_focus && !self.used_ids.contains_key(&kb_focus_id) {
                 // Dead-mans-switch: the widget with kb focus has dissappeared!
                 self.interaction.kb_focus_id = None;
             }
