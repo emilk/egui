@@ -128,9 +128,8 @@ impl<'a> Widget for DragValue<'a> {
                 .take()
                 .unwrap_or_else(|| value_text);
             let response = ui.add(
-                TextEdit::new(&mut value_text)
+                TextEdit::singleline(&mut value_text)
                     .id(kb_edit_id)
-                    .multiline(false)
                     .desired_width(button_width)
                     .text_style(TextStyle::Monospace),
             );

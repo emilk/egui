@@ -35,7 +35,7 @@ impl egui::app::App for MyApp {
 
             ui.horizontal(|ui| {
                 ui.label("Your name: ");
-                ui.text_edit(name);
+                ui.text_edit_singleline(name);
             });
 
             ui.add(egui::Slider::u32(age, 0..=120).text("age"));

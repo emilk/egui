@@ -9,10 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * You can now check if a `TextEdit` lost keyboard focus with `response.lost_kb_focus`.
+* Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
 
 ### Changed 🔧
 
-* Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it
+* Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.
+* You must now be explicit when creating a `TextEdit` if you want it to be singeline or multiline.
 
 ### Fixed 🐛
 

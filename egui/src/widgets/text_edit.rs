@@ -30,10 +30,32 @@ pub struct TextEdit<'t> {
     multiline: bool,
     enabled: bool,
     desired_width: Option<f32>,
+    desired_height_rows: usize,
 }
 
 impl<'t> TextEdit<'t> {
+    #[deprecated = "Use `TextEdit::singleline` or `TextEdit::multiline` (or the helper `ui.text_edit_singleline`, `ui.text_edit_multiline`) instead"]
     pub fn new(text: &'t mut String) -> Self {
+        Self::multiline(text)
+    }
+
+    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    pub fn singleline(text: &'t mut String) -> Self {
+        TextEdit {
+            text,
+            id: None,
+            id_source: None,
+            text_style: None,
+            text_color: None,
+            multiline: false,
+            enabled: true,
+            desired_width: None,
+            desired_height_rows: 1,
+        }
+    }
+
+    /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
+    pub fn multiline(text: &'t mut String) -> Self {
         TextEdit {
             text,
             id: None,
@@ -43,6 +65,7 @@ impl<'t> TextEdit<'t> {
             multiline: true,
             enabled: true,
             desired_width: None,
+            desired_height_rows: 4,
         }
     }
 
@@ -71,11 +94,6 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    pub fn multiline(mut self, multiline: bool) -> Self {
-        self.multiline = multiline;
-        self
-    }
-
     /// Default is `true`. If set to `false` then you cannot edit the text.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
@@ -84,6 +102,14 @@ impl<'t> TextEdit<'t> {
 
     /// Set to 0.0 to keep as small as possible
     pub fn desired_width(mut self, desired_width: f32) -> Self {
+        self.desired_width = Some(desired_width);
+        self
+    }
+
+    /// Set the number of rows to show by default.
+    /// The default for singleline text is `1`.
+    /// The default for multiline text is `4`.
+    pub fn desired_rows(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
     }
@@ -100,9 +126,8 @@ impl<'t> Widget for TextEdit<'t> {
             multiline,
             enabled,
             desired_width,
+            desired_height_rows,
         } = self;
-
-        let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
 
         let id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
 
@@ -117,9 +142,12 @@ impl<'t> Widget for TextEdit<'t> {
         } else {
             font.layout_single_line(text.clone())
         };
+
+        let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
+        let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(
             galley.size.x.max(desired_width.min(available_width)),
-            galley.size.y.max(line_spacing),
+            galley.size.y.max(desired_height),
         );
         let rect = ui.allocate_space(desired_size);
         let sense = if enabled {

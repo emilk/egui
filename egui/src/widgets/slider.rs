@@ -309,9 +309,8 @@ impl<'a> Slider<'a> {
                 .take()
                 .unwrap_or_else(|| value_text);
             ui.add(
-                TextEdit::new(&mut value_text)
+                TextEdit::singleline(&mut value_text)
                     .id(kb_edit_id)
-                    .multiline(false)
                     .desired_width(button_width)
                     .text_color_opt(self.text_color)
                     .text_style(TextStyle::Monospace),

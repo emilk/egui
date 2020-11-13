@@ -508,8 +508,19 @@ impl Ui {
         self.add(Hyperlink::new(url))
     }
 
+    #[deprecated = "Use `text_edit_singleline` or `text_edit_multiline`"]
     pub fn text_edit(&mut self, text: &mut String) -> Response {
-        self.add(TextEdit::new(text))
+        self.text_edit_multiline(text)
+    }
+
+    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::singleline(text))
+    }
+
+    /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
+    pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::multiline(text))
     }
 
     /// Shortcut for `add(Button::new(text))`
