@@ -164,7 +164,7 @@ impl Font {
     }
 
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
-        let line_spacing = self.row_height();
+        let row_height = self.row_height();
         let mut cursor_y = 0.0;
         let mut rows = Vec::new();
 
@@ -188,7 +188,7 @@ impl Font {
                 row.y_max += cursor_y;
             }
             cursor_y = paragraph_rows.last().unwrap().y_max;
-            cursor_y += line_spacing * 0.4; // Extra spacing between paragraphs. TODO: less hacky
+            cursor_y += row_height * 0.4; // Extra spacing between paragraphs. TODO: less hacky
 
             rows.append(&mut paragraph_rows);
 
@@ -199,7 +199,7 @@ impl Font {
             rows.push(Row {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
-                y_max: cursor_y + line_spacing,
+                y_max: cursor_y + row_height,
                 ends_with_newline: false,
             });
         }
