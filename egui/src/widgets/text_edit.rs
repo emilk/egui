@@ -15,7 +15,7 @@ pub(crate) struct State {
 /// ```
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
-/// let response = ui.add(egui::TextEdit::new(&mut my_string).multiline(false));
+/// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
 /// if response.lost_kb_focus {
 ///     // use my_string
 /// }
