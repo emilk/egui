@@ -59,10 +59,7 @@ pub fn run(
     *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
     app.setup(&ctx);
 
-    let mut raw_input = egui::RawInput {
-        pixels_per_point: Some(native_pixels_per_point(&display)),
-        ..Default::default()
-    };
+    let mut input_state = GliumInputState::from_pixels_per_point(native_pixels_per_point(&display));
 
     let start_time = Instant::now();
     let mut previous_frame_time = None;
@@ -72,11 +69,11 @@ pub fn run(
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let egui_start = Instant::now();
-            raw_input.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
-            raw_input.screen_size =
-                screen_size_in_pixels(&display) / raw_input.pixels_per_point.unwrap();
+            input_state.raw.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            input_state.raw.screen_size =
+                screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap();
 
-            ctx.begin_frame(raw_input.take());
+            ctx.begin_frame(input_state.raw.take());
             let mut integration_context = egui::app::IntegrationContext {
                 info: egui::app::IntegrationInfo {
                     web_info: None,
@@ -105,7 +102,7 @@ pub fn run(
 
                 if let Some(pixels_per_point) = pixels_per_point {
                     // User changed GUI scale
-                    raw_input.pixels_per_point = Some(pixels_per_point);
+                    input_state.raw.pixels_per_point = Some(pixels_per_point);
                 }
 
                 if let Some(window_size) = window_size {
@@ -139,7 +136,7 @@ pub fn run(
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                input_to_egui(event, clipboard.as_mut(), &mut raw_input, control_flow);
+                input_to_egui(event, clipboard.as_mut(), &mut input_state, control_flow);
                 display.gl_window().window().request_redraw(); // TODO: ask Egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {

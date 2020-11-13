@@ -2,7 +2,6 @@
 #![deny(warnings)]
 #![warn(clippy::all)]
 #![allow(clippy::single_match)]
-#![allow(deprecated)] // TODO: remove
 
 mod backend;
 mod painter;
@@ -19,66 +18,100 @@ use {
 
 pub use clipboard::ClipboardContext; // TODO: remove
 
+pub struct GliumInputState {
+    raw: egui::RawInput,
+
+    /// Command modifier key.
+    /// Mac command key on Mac, ctrl on Window/Linux.
+    cmd: bool,
+}
+
+impl GliumInputState {
+    pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
+        Self {
+            raw: egui::RawInput {
+                pixels_per_point: Some(pixels_per_point),
+                ..Default::default()
+            },
+            cmd: false,
+        }
+    }
+}
+
 pub fn input_to_egui(
     event: glutin::event::WindowEvent,
     clipboard: Option<&mut ClipboardContext>,
-    raw_input: &mut RawInput,
+    input_state: &mut GliumInputState,
     control_flow: &mut ControlFlow,
 ) {
     use glutin::event::WindowEvent::*;
     match event {
         CloseRequested | Destroyed => *control_flow = ControlFlow::Exit,
         MouseInput { state, .. } => {
-            raw_input.mouse_down = state == glutin::event::ElementState::Pressed;
+            input_state.raw.mouse_down = state == glutin::event::ElementState::Pressed;
         }
         CursorMoved {
             position: pos_in_pixels,
             ..
         } => {
-            raw_input.mouse_pos = Some(pos2(
-                pos_in_pixels.x as f32 / raw_input.pixels_per_point.unwrap(),
-                pos_in_pixels.y as f32 / raw_input.pixels_per_point.unwrap(),
+            input_state.raw.mouse_pos = Some(pos2(
+                pos_in_pixels.x as f32 / input_state.raw.pixels_per_point.unwrap(),
+                pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
             ));
         }
         CursorLeft { .. } => {
-            raw_input.mouse_pos = None;
+            input_state.raw.mouse_pos = None;
         }
         ReceivedCharacter(ch) => {
-            if printable_char(ch) {
-                raw_input.events.push(Event::Text(ch.to_string()));
+            if !input_state.cmd && printable_char(ch) {
+                input_state.raw.events.push(Event::Text(ch.to_string()));
             }
         }
         KeyboardInput { input, .. } => {
             if let Some(virtual_keycode) = input.virtual_keycode {
-                if cfg!(target_os = "macos")
-                    && input.modifiers.logo()
-                    && virtual_keycode == VirtualKeyCode::Q
-                {
-                    *control_flow = ControlFlow::Exit;
+                let is_command_key = if cfg!(target_os = "macos") {
+                    matches!(virtual_keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
+                } else {
+                    matches!(
+                        virtual_keycode,
+                        VirtualKeyCode::LControl | VirtualKeyCode::RControl
+                    )
+                };
+
+                if is_command_key {
+                    input_state.cmd = input.state == glutin::event::ElementState::Pressed;
                 }
 
-                match virtual_keycode {
-                    VirtualKeyCode::Paste => {
+                if input.state == glutin::event::ElementState::Pressed {
+                    if cfg!(target_os = "macos")
+                        && input_state.cmd
+                        && virtual_keycode == VirtualKeyCode::Q
+                    {
+                        *control_flow = ControlFlow::Exit;
+                    }
+
+                    // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
+                    // so we detect these things manually:
+                    if input_state.cmd && virtual_keycode == VirtualKeyCode::X {
+                        input_state.raw.events.push(Event::Cut);
+                    } else if input_state.cmd && virtual_keycode == VirtualKeyCode::C {
+                        input_state.raw.events.push(Event::Copy);
+                    } else if input_state.cmd && virtual_keycode == VirtualKeyCode::V {
                         if let Some(clipboard) = clipboard {
                             match clipboard.get_contents() {
                                 Ok(contents) => {
-                                    raw_input.events.push(Event::Text(contents));
+                                    input_state.raw.events.push(Event::Text(contents));
                                 }
                                 Err(err) => {
                                     eprintln!("Paste error: {}", err);
                                 }
                             }
                         }
-                    }
-                    VirtualKeyCode::Copy => raw_input.events.push(Event::Copy),
-                    VirtualKeyCode::Cut => raw_input.events.push(Event::Cut),
-                    _ => {
-                        if let Some(key) = translate_virtual_key_code(virtual_keycode) {
-                            raw_input.events.push(Event::Key {
-                                key,
-                                pressed: input.state == glutin::event::ElementState::Pressed,
-                            });
-                        }
+                    } else if let Some(key) = translate_virtual_key_code(virtual_keycode) {
+                        input_state.raw.events.push(Event::Key {
+                            key,
+                            pressed: input.state == glutin::event::ElementState::Pressed,
+                        });
                     }
                 }
             }
@@ -87,11 +120,11 @@ pub fn input_to_egui(
             match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 24.0; // TODO
-                    raw_input.scroll_delta = vec2(x, y) * line_height;
+                    input_state.raw.scroll_delta = vec2(x, y) * line_height;
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
                     // Actually point delta
-                    raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
+                    input_state.raw.scroll_delta = vec2(delta.x as f32, delta.y as f32);
                 }
             }
         }
