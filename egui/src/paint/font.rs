@@ -101,7 +101,7 @@ impl Galley {
             if y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 let mut column = line.char_at(pos.x);
-                if column == line.char_count() && line.ends_with_newline {
+                if column == line.char_count() && line.ends_with_newline && column > 0 {
                     // handle the case where line ends with a \n and we click after it.
                     // We should return the position BEFORE the \n!
                     column -= 1;
