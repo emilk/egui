@@ -288,9 +288,11 @@ impl<'t> Widget for TextEdit<'t> {
 
         if ui.memory().has_kb_focus(id) {
             if let Some(pcursor) = state.pcursor {
-                let cursor_pos = response.rect.min + galley.pos_from_pcursor(pcursor);
+                let cursor_pos = galley
+                    .pos_from_pcursor(pcursor)
+                    .translate(response.rect.min.to_vec2());
                 painter.line_segment(
-                    [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
+                    [cursor_pos.center_top(), cursor_pos.center_bottom()],
                     (ui.style().visuals.text_cursor_width, color::WHITE),
                 );
             }

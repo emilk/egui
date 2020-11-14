@@ -16,7 +16,7 @@
 //! and the start of the second row.
 //! The `prefer_next_row` selects which.
 
-use crate::math::{vec2, NumExt, Vec2};
+use crate::math::{pos2, NumExt, Rect, Vec2};
 
 /// Character cursor
 #[derive(Clone, Copy, Debug, Default)]
@@ -224,15 +224,18 @@ impl Galley {
 
 /// ## Physical positions
 impl Galley {
-    pub fn last_pos(&self) -> Vec2 {
-        if let Some(last) = self.rows.last() {
-            vec2(last.max_x(), last.y_min)
+    fn last_pos(&self) -> Rect {
+        if let Some(row) = self.rows.last() {
+            let x = row.max_x();
+            return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
         } else {
-            vec2(0.0, 0.0) // Empty galley
+            // Empty galley
+            Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0))
         }
     }
 
-    pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Vec2 {
+    /// Returns a 0-width Rect.
+    pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Rect {
         let mut it = PCursor::default();
 
         for row in &self.rows {
@@ -250,7 +253,8 @@ impl Galley {
                         && !row.ends_with_newline
                         && column >= row.char_count_excluding_newline();
                     if !select_next_row_instead {
-                        return vec2(row.x_offsets[column], row.y_min);
+                        let x = row.x_offsets[column];
+                        return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
                     }
                 }
             }
@@ -266,8 +270,8 @@ impl Galley {
         self.last_pos()
     }
 
-    pub fn pos_from_cursor(&self, cursor: &Cursor) -> Vec2 {
-        // self.pos_from_rcursor(cursor.rcursor)
+    /// Returns a 0-width Rect.
+    pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
         self.pos_from_pcursor(cursor.pcursor) // The one TextEdit stores
     }
 
@@ -558,7 +562,7 @@ impl Galley {
                 }
             } else {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).x;
+                let x = self.pos_from_cursor(cursor).center().x;
                 let column = if x > self.rows[new_row].max_x() {
                     // beyond the end of this row - keep same colum
                     cursor.rcursor.column
@@ -589,7 +593,7 @@ impl Galley {
                 }
             } else {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).x;
+                let x = self.pos_from_cursor(cursor).center().x;
                 let column = if x > self.rows[new_row].max_x() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
