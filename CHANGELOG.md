@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.
 * You must now be explicit when creating a `TextEdit` if you want it to be singeline or multiline.
 * Improved automatic `Id` generation, making `Id` clashes less likely.
+* Egui now requires modifier key state from the integration
+* Renamed and removed some keys in the `Key` enum.
 
 ### Fixed 🐛
 

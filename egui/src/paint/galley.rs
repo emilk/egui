@@ -621,6 +621,39 @@ impl Galley {
             column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
     }
+
+    pub fn cursor_next_word(&self, cursor: &Cursor) -> Cursor {
+        self.from_ccursor(CCursor {
+            index: next_word(self.text.chars(), cursor.ccursor.index),
+            prefer_next_row: true,
+        })
+    }
+
+    pub fn cursor_previous_word(&self, cursor: &Cursor) -> Cursor {
+        let num_chars = self.text.chars().count();
+        self.from_ccursor(CCursor {
+            index: num_chars - next_word(self.text.chars().rev(), num_chars - cursor.ccursor.index),
+            prefer_next_row: true,
+        })
+    }
+}
+
+fn next_word(it: impl Iterator<Item = char>, mut index: usize) -> usize {
+    let mut it = it.skip(index);
+    if let Some(_first) = it.next() {
+        index += 1;
+
+        if let Some(second) = it.next() {
+            index += 1;
+            for next in it {
+                if next.is_alphabetic() != second.is_alphabetic() {
+                    break;
+                }
+                index += 1;
+            }
+        }
+    }
+    index
 }
 
 // ----------------------------------------------------------------------------

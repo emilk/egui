@@ -187,14 +187,22 @@ pub fn location_hash() -> Option<String> {
     web_sys::window()?.location().hash().ok()
 }
 
-/// Web sends all all keys as strings, so it is up to us to figure out if it is
+/// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 fn should_ignore_key(key: &str) -> bool {
     let is_function_key = key.starts_with('F') && key.len() > 1;
     is_function_key
         || matches!(
             key,
-            "CapsLock" | "ContextMenu" | "NumLock" | "Pause" | "ScrollLock"
+            "Alt"
+                | "CapsLock"
+                | "ContextMenu"
+                | "Control"
+                | "Meta"
+                | "NumLock"
+                | "Pause"
+                | "ScrollLock"
+                | "Shift"
         )
 }
 
@@ -202,24 +210,20 @@ fn should_ignore_key(key: &str) -> bool {
 /// a real text input or the name of a key.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
     match key {
-        "Alt" => Some(egui::Key::Alt),
+        "ArrowDown" => Some(egui::Key::ArrowDown),
+        "ArrowLeft" => Some(egui::Key::ArrowLeft),
+        "ArrowRight" => Some(egui::Key::ArrowRight),
+        "ArrowUp" => Some(egui::Key::ArrowUp),
         "Backspace" => Some(egui::Key::Backspace),
-        "Control" => Some(egui::Key::Control),
         "Delete" => Some(egui::Key::Delete),
-        "ArrowDown" => Some(egui::Key::Down),
         "End" => Some(egui::Key::End),
+        "Enter" => Some(egui::Key::Enter),
         "Esc" | "Escape" => Some(egui::Key::Escape),
-        "Home" => Some(egui::Key::Home),
         "Help" | "Insert" => Some(egui::Key::Insert),
-        "ArrowLeft" => Some(egui::Key::Left),
-        "Meta" => Some(egui::Key::Logo),
+        "Home" => Some(egui::Key::Home),
         "PageDown" => Some(egui::Key::PageDown),
         "PageUp" => Some(egui::Key::PageUp),
-        "Enter" => Some(egui::Key::Enter),
-        "ArrowRight" => Some(egui::Key::Right),
-        "Shift" => Some(egui::Key::Shift),
         "Tab" => Some(egui::Key::Tab),
-        "ArrowUp" => Some(egui::Key::Up),
         _ => None,
     }
 }
@@ -269,15 +273,16 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
             let mut runner_lock = runner_ref.0.lock();
             let key = event.key();
-            if !should_ignore_key(&key) {
-                if let Some(key) = translate_key(&key) {
-                    runner_lock
-                        .web_input
-                        .events
-                        .push(egui::Event::Key { key, pressed: true });
-                } else {
-                    runner_lock.web_input.events.push(egui::Event::Text(key));
-                }
+
+            if let Some(key) = translate_key(&key) {
+                runner_lock.web_input.events.push(egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers: modifiers_from_event(&event),
+                });
+                runner_lock.needs_repaint = true;
+            } else if !should_ignore_key(&key) {
+                runner_lock.web_input.events.push(egui::Event::Text(key));
                 runner_lock.needs_repaint = true;
             }
         }) as Box<dyn FnMut(_)>);
@@ -295,6 +300,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.web_input.events.push(egui::Event::Key {
                     key,
                     pressed: false,
+                    modifiers: modifiers_from_event(&event),
                 });
                 runner_lock.needs_repaint = true;
             }
@@ -313,6 +319,22 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     Ok(())
+}
+
+fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
+    egui::Modifiers {
+        alt: event.alt_key(),
+        ctrl: event.ctrl_key(),
+        shift: event.shift_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        mac_cmd: event.meta_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        command: event.ctrl_key() || event.meta_key(),
+    }
 }
 
 fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {

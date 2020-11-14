@@ -176,7 +176,7 @@ impl<'t> Widget for TextEdit<'t> {
         } else {
             Sense::nothing()
         };
-        let response = ui.interact(rect, id, sense); // TODO: implement drag-select
+        let response = ui.interact(rect, id, sense);
 
         if response.clicked && enabled {
             ui.memory().request_kb_focus(id);
@@ -228,6 +228,7 @@ impl<'t> Widget for TextEdit<'t> {
                     Event::Key {
                         key: Key::Enter,
                         pressed: true,
+                        ..
                     } => {
                         if multiline {
                             let mut ccursor = cursor.ccursor;
@@ -242,13 +243,16 @@ impl<'t> Widget for TextEdit<'t> {
                     Event::Key {
                         key: Key::Escape,
                         pressed: true,
+                        ..
                     } => {
                         ui.memory().surrender_kb_focus(id);
                         break;
                     }
-                    Event::Key { key, pressed: true } => {
-                        on_key_press(&mut cursor, text, &galley, *key)
-                    }
+                    Event::Key {
+                        key,
+                        pressed: true,
+                        modifiers,
+                    } => on_key_press(&mut cursor, text, &galley, *key, modifiers),
                     Event::Key { .. } => None,
                 };
 
@@ -334,18 +338,35 @@ fn on_key_press(
     text: &mut String,
     galley: &Galley,
     key: Key,
+    modifiers: &Modifiers,
 ) -> Option<CCursor> {
+    // TODO: cursor position preview on mouse hover
+    // TODO: drag-select
+    // TODO: double-click to select whole word
+    // TODO: triple-click to select whole paragraph
+    // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
+    // TODO: ctrl-U to clear paragraph before the cursor
+    // TODO: ctrl-W to delete previous word
+    // TODO: alt/ctrl + backspace to delete previous word (alt on mac, ctrl on windows)
+    // TODO: alt/ctrl + delete to delete next word (alt on mac, ctrl on windows)
+    // TODO: cmd-A to select all
+    // TODO: shift modifier to only move half of the cursor to select things
+
     match key {
-        Key::Backspace if cursor.ccursor.index > 0 => {
-            *cursor = galley.from_ccursor(cursor.ccursor - 1);
-            let mut char_it = text.chars();
-            let mut new_text = String::with_capacity(text.capacity());
-            for _ in 0..cursor.ccursor.index {
-                new_text.push(char_it.next().unwrap())
+        Key::Backspace => {
+            if cursor.ccursor.index > 0 {
+                *cursor = galley.from_ccursor(cursor.ccursor - 1);
+                let mut char_it = text.chars();
+                let mut new_text = String::with_capacity(text.capacity());
+                for _ in 0..cursor.ccursor.index {
+                    new_text.push(char_it.next().unwrap())
+                }
+                new_text.extend(char_it.skip(1));
+                *text = new_text;
+                Some(cursor.ccursor)
+            } else {
+                None
             }
-            new_text.extend(char_it.skip(1));
-            *text = new_text;
-            Some(cursor.ccursor)
         }
         Key::Delete => {
             let mut char_it = text.chars();
@@ -357,32 +378,69 @@ fn on_key_press(
             *text = new_text;
             Some(cursor.ccursor)
         }
-        Key::Enter => unreachable!("Should have been handled earlier"),
+
+        Key::ArrowLeft => {
+            if modifiers.alt || modifiers.ctrl {
+                // alt on mac, ctrl on windows
+                *cursor = galley.cursor_previous_word(cursor);
+            } else if modifiers.mac_cmd {
+                *cursor = galley.cursor_begin_of_row(cursor);
+            } else {
+                *cursor = galley.cursor_left_one_character(cursor);
+            }
+            None
+        }
+        Key::ArrowRight => {
+            if modifiers.alt || modifiers.ctrl {
+                // alt on mac, ctrl on windows
+                *cursor = galley.cursor_next_word(cursor);
+            } else if modifiers.mac_cmd {
+                *cursor = galley.cursor_end_of_row(cursor);
+            } else {
+                *cursor = galley.cursor_right_one_character(cursor);
+            }
+            None
+        }
+        Key::ArrowUp => {
+            if modifiers.command {
+                // mac and windows behavior
+                *cursor = Cursor::default();
+            } else {
+                *cursor = galley.cursor_up_one_row(cursor);
+            }
+            None
+        }
+        Key::ArrowDown => {
+            if modifiers.command {
+                // mac and windows behavior
+                *cursor = galley.end();
+            } else {
+                *cursor = galley.cursor_down_one_row(cursor);
+            }
+            None
+        }
 
         Key::Home => {
-            *cursor = galley.cursor_begin_of_row(cursor);
+            if modifiers.ctrl {
+                // windows behavior
+                *cursor = Cursor::default();
+            } else {
+                *cursor = galley.cursor_begin_of_row(cursor);
+            }
             None
         }
         Key::End => {
-            *cursor = galley.cursor_end_of_row(cursor);
+            if modifiers.ctrl {
+                // windows behavior
+                *cursor = galley.end();
+            } else {
+                *cursor = galley.cursor_end_of_row(cursor);
+            }
             None
         }
-        Key::Left => {
-            *cursor = galley.cursor_left_one_character(cursor);
-            None
-        }
-        Key::Right => {
-            *cursor = galley.cursor_right_one_character(cursor);
-            None
-        }
-        Key::Up => {
-            *cursor = galley.cursor_up_one_row(cursor);
-            None
-        }
-        Key::Down => {
-            *cursor = galley.cursor_down_one_row(cursor);
-            None
-        }
-        _ => None,
+
+        Key::Enter | Key::Escape => unreachable!("Handled outside this function"),
+
+        Key::Insert | Key::PageDown | Key::PageUp | Key::Tab => None,
     }
 }
