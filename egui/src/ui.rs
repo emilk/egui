@@ -11,8 +11,16 @@ pub struct Ui {
     /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
     /// Acts like a namespace for child uis.
-    /// Hopefully unique.
+    /// Should be unique and persist predictably from one frame to next
+    /// so it can be used as a source for storing state (e.g. window position, or if a collapsing header is open).
     id: Id,
+
+    /// This is used to create a unique interact ID for some widgets.
+    /// This value is based on where in the hierarchy of widgets this Ui is in,
+    /// and the value is increment with each added child widget.
+    /// This works as an Id source only as long as new widgets aren't added or removed.
+    /// They are therefore only good for Id:s that has no state.
+    next_auto_id: u64,
 
     painter: Painter,
 
@@ -49,11 +57,6 @@ pub struct Ui {
     /// If something has already been added, this will point ot style.spacing.item_spacing beyond the latest child.
     /// The cursor can thus be style.spacing.item_spacing pixels outside of the min_rect.
     cursor: Pos2, // TODO: move into Layout?
-
-    /// How many children has been added to us?
-    /// This is only used to create a unique interact ID for some widgets
-    /// that work as long as no other widgets are added/removed while interacting.
-    child_count: usize,
 }
 
 impl Ui {
@@ -74,33 +77,31 @@ impl Ui {
         let min_rect = layout.rect_from_cursor_size(cursor, min_size);
         Ui {
             id,
+            next_auto_id: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             min_rect,
             max_rect,
             style,
             layout,
             cursor,
-            child_count: 0,
         }
     }
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        self.child_count += 1;
-        let id = self.make_position_id(); // TODO: ui.id should be persistent and not position based.
-
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
         let cursor = layout.initial_cursor(max_rect);
         let min_size = Vec2::zero(); // TODO: From Style
         let min_rect = layout.rect_from_cursor_size(cursor, min_size);
 
         Ui {
-            id,
+            id: self.id,
+            next_auto_id: Id::new(self.next_auto_id).with("child").value(),
             painter: self.painter.clone(),
             min_rect,
             max_rect,
             style: self.style.clone(),
             layout,
             cursor,
-            child_count: 0,
         }
     }
 
@@ -379,7 +380,7 @@ impl Ui {
     /// Call AFTER allocating new space for your widget.
     // TODO: return from `allocate_space` ?
     pub fn make_position_id(&self) -> Id {
-        self.id.with(self.child_count)
+        Id::new(self.next_auto_id)
     }
 }
 
@@ -472,7 +473,7 @@ impl Ui {
         let item_spacing = self.style().spacing.item_spacing;
         self.layout.advance_cursor2(&mut self.cursor, item_spacing);
         self.expand_to_include_rect(child_rect);
-        self.child_count += 1;
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
         child_rect
     }
 }

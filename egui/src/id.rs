@@ -58,6 +58,10 @@ impl Id {
     pub(crate) fn short_debug_format(&self) -> String {
         format!("{:04X}", self.0 as u16)
     }
+
+    pub(crate) fn value(&self) -> u64 {
+        self.0
+    }
 }
 
 impl std::fmt::Debug for Id {

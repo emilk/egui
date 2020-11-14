@@ -129,7 +129,14 @@ impl<'t> Widget for TextEdit<'t> {
             desired_height_rows,
         } = self;
 
-        let id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
+        let id = id.unwrap_or_else(|| {
+            if let Some(id_source) = id_source {
+                ui.make_persistent_id(id_source)
+            } else {
+                // Since we are only storing cursor, perfect persistence Id not super important
+                ui.make_position_id()
+            }
+        });
 
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
 
