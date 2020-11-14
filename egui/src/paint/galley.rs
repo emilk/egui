@@ -115,7 +115,9 @@ impl PartialEq for PCursor {
 
 /// All different types of cursors together.
 /// They all point to the same place, but in their own different ways.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// pcursor/rcursor can also point to after the end of the paragraph/row.
+/// Does not implement `PartialEq` because you must think which cursor should be equivalent.
+#[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {
     pub ccursor: CCursor,
@@ -201,6 +203,10 @@ impl Row {
         }
         self.char_count_excluding_newline()
     }
+
+    pub fn x_offset(&self, column: usize) -> f32 {
+        self.x_offsets[column.min(self.x_offsets.len() - 1)]
+    }
 }
 
 impl Galley {
@@ -224,7 +230,7 @@ impl Galley {
 
 /// ## Physical positions
 impl Galley {
-    fn last_pos(&self) -> Rect {
+    fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
             let x = row.max_x();
             return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
@@ -247,13 +253,12 @@ impl Galley {
                         || row.ends_with_newline)
                 {
                     let column = pcursor.offset - it.offset;
-                    let column = column.at_most(row.char_count_excluding_newline());
 
                     let select_next_row_instead = pcursor.prefer_next_row
                         && !row.ends_with_newline
                         && column >= row.char_count_excluding_newline();
                     if !select_next_row_instead {
-                        let x = row.x_offsets[column];
+                        let x = row.x_offset(column);
                         return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
                     }
                 }
@@ -267,7 +272,7 @@ impl Galley {
             }
         }
 
-        self.last_pos()
+        self.end_pos()
     }
 
     /// Returns a 0-width Rect.
@@ -625,39 +630,6 @@ impl Galley {
             column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
     }
-
-    pub fn cursor_next_word(&self, cursor: &Cursor) -> Cursor {
-        self.from_ccursor(CCursor {
-            index: next_word(self.text.chars(), cursor.ccursor.index),
-            prefer_next_row: true,
-        })
-    }
-
-    pub fn cursor_previous_word(&self, cursor: &Cursor) -> Cursor {
-        let num_chars = self.text.chars().count();
-        self.from_ccursor(CCursor {
-            index: num_chars - next_word(self.text.chars().rev(), num_chars - cursor.ccursor.index),
-            prefer_next_row: true,
-        })
-    }
-}
-
-fn next_word(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
-    if let Some(_first) = it.next() {
-        index += 1;
-
-        if let Some(second) = it.next() {
-            index += 1;
-            for next in it {
-                if next.is_alphabetic() != second.is_alphabetic() {
-                    break;
-                }
-                index += 1;
-            }
-        }
-    }
-    index
 }
 
 // ----------------------------------------------------------------------------
