@@ -131,8 +131,6 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    /// Blink text cursor by this frequency. If 0, always show the cursor.
-    pub cursor_blink_hz: f32,
     pub text_cursor_width: f32,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
@@ -260,7 +258,6 @@ impl Default for Visuals {
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
             resize_corner_size: 12.0,
-            cursor_blink_hz: 0.0, // 1.0 looks good
             text_cursor_width: 2.0,
             clip_rect_margin: 3.0,
             debug_widget_rects: false,
@@ -444,7 +441,6 @@ impl Visuals {
             dark_bg_color,
             window_corner_radius,
             resize_corner_size,
-            cursor_blink_hz,
             text_cursor_width,
             clip_rect_margin,
             debug_widget_rects,
@@ -455,7 +451,6 @@ impl Visuals {
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::f32(cursor_blink_hz, 0.0..=4.0).text("cursor_blink_hz"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 

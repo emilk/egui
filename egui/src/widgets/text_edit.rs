@@ -287,22 +287,12 @@ impl<'t> Widget for TextEdit<'t> {
         }
 
         if ui.memory().has_kb_focus(id) {
-            let cursor_blink_hz = ui.style().visuals.cursor_blink_hz;
-            let show_cursor = if 0.0 < cursor_blink_hz {
-                ui.ctx().request_repaint(); // TODO: only when cursor blinks on or off
-                (ui.input().time * cursor_blink_hz as f64 * 3.0).floor() as i64 % 3 != 0
-            } else {
-                true
-            };
-
-            if show_cursor {
-                if let Some(pcursor) = state.pcursor {
-                    let cursor_pos = response.rect.min + galley.pos_from_pcursor(pcursor);
-                    painter.line_segment(
-                        [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
-                        (ui.style().visuals.text_cursor_width, color::WHITE),
-                    );
-                }
+            if let Some(pcursor) = state.pcursor {
+                let cursor_pos = response.rect.min + galley.pos_from_pcursor(pcursor);
+                painter.line_segment(
+                    [cursor_pos, cursor_pos + vec2(0.0, line_spacing)],
+                    (ui.style().visuals.text_cursor_width, color::WHITE),
+                );
             }
         }
 
