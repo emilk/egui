@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    area,
-    cache::Cache,
-    collapsing_header, menu,
+    area, collapsing_header, menu,
     paint::color::{Hsva, Srgba},
     resize, scroll_area,
+    util::Cache,
     widgets::text_edit,
     window, Id, LayerId, Pos2, Rect,
 };

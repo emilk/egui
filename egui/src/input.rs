@@ -1,6 +1,6 @@
 //! The input needed by Egui.
 
-use crate::{math::*, History};
+use crate::{math::*, util::History};
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0;
