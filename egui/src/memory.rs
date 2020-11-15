@@ -83,6 +83,18 @@ pub(crate) struct Interaction {
     /// What had keyboard focus previous frame?
     pub kb_focus_id_previous_frame: Option<Id>,
 
+    /// If set, the next widget that is interested in kb_focus will automatically get it.
+    /// Probably because the user pressed Tab.
+    pub kb_focus_give_to_next: bool,
+
+    /// The last widget interested in kb focus.
+    pub kb_focus_last_interested: Option<Id>,
+
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_tab: bool,
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_shift_tab: bool,
+
     /// HACK: windows have low priority on dragging.
     /// This is so that if you drag a slider in a window,
     /// the slider will steal the drag away from the window.
@@ -104,7 +116,11 @@ impl Interaction {
         self.click_id.is_some() || self.drag_id.is_some()
     }
 
-    fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
+    fn begin_frame(
+        &mut self,
+        prev_input: &crate::input::InputState,
+        new_input: &crate::input::RawInput,
+    ) {
         self.kb_focus_id_previous_frame = self.kb_focus_id;
         self.click_interest = false;
         self.drag_interest = false;
@@ -118,13 +134,34 @@ impl Interaction {
             self.click_id = None;
             self.drag_id = None;
         }
+
+        self.pressed_tab = false;
+        self.pressed_shift_tab = false;
+        for event in &new_input.events {
+            if let crate::input::Event::Key {
+                key: crate::input::Key::Tab,
+                pressed: true,
+                modifiers,
+            } = event
+            {
+                if modifiers.shift {
+                    self.pressed_shift_tab = true;
+                } else {
+                    self.pressed_tab = true;
+                }
+            }
+        }
     }
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(&mut self, prev_input: &crate::input::InputState) {
+    pub(crate) fn begin_frame(
+        &mut self,
+        prev_input: &crate::input::InputState,
+        new_input: &crate::input::RawInput,
+    ) {
         self.used_ids.clear();
-        self.interaction.begin_frame(prev_input);
+        self.interaction.begin_frame(prev_input, new_input);
 
         if !prev_input.mouse.down {
             self.window_interaction = None;
@@ -167,6 +204,26 @@ impl Memory {
         if self.interaction.kb_focus_id == Some(id) {
             self.interaction.kb_focus_id = None;
         }
+    }
+
+    /// Register this widget as being interested in getting keyboard focus.
+    /// This will allow the user to select it with tab and shift-tab.
+    pub fn interested_in_kb_focus(&mut self, id: Id) {
+        if self.interaction.kb_focus_give_to_next {
+            self.interaction.kb_focus_id = Some(id);
+            self.interaction.kb_focus_give_to_next = false;
+        } else if self.has_kb_focus(id) {
+            if self.interaction.pressed_tab {
+                self.interaction.kb_focus_id = None;
+                self.interaction.kb_focus_give_to_next = true;
+                self.interaction.pressed_tab = false;
+            } else if self.interaction.pressed_shift_tab {
+                self.interaction.kb_focus_id = self.interaction.kb_focus_last_interested;
+                self.interaction.pressed_shift_tab = false;
+            }
+        }
+
+        self.interaction.kb_focus_last_interested = Some(id);
     }
 
     /// Stop editing of active `TextEdit` (if any).

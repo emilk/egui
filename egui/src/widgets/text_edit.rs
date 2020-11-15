@@ -253,6 +253,10 @@ impl<'t> Widget for TextEdit<'t> {
         let response = ui.interact(rect, id, sense);
 
         if enabled {
+            ui.memory().interested_in_kb_focus(id);
+        }
+
+        if enabled {
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)

@@ -205,7 +205,7 @@ impl Context {
     }
 
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        self.memory().begin_frame(&self.input);
+        self.memory().begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         *self.available_rect.lock() = Some(self.input.screen_rect());

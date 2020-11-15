@@ -4,7 +4,8 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 
 ## Top priority
 
-* Refactor graphics layers and areas so one don't have to register LayerId:s.
+* Egui-web copy-paste
+* Egui-web fetch
 
 ## Other
 
@@ -13,14 +14,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Tooltip widget: Something that looks like this:  (?)  :that shows text on hover.
       * [ ] ui.info_button().on_hover_text("More info here");
     * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
-  * [ ] Text input
-    * [x] Input
-    * [x] Text focus
-    * [x] Cursor movement
-    * [x] Text selection
-    * [x] Clipboard copy/paste
-    * [ ] Text edit undo
-    * [ ] Move focus with tab
   * [ ] Vertical slider
   * [/] Color picker
     * [x] linear rgb <-> sRGB
@@ -32,21 +25,13 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Additive blending aware color picker
     * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
     * [ ] Hue wheel
-* Containers
-  * [ ] Scroll areas
-    * [x] Vertical scrolling
-    * [x] Scroll-wheel input
-    * [x] Drag background to scroll
-    * [x] Kinetic scrolling
-    * [ ] Horizontal scrolling
 * Input
   * [x] Distinguish between clicks and drags
   * [x] Double-click
   * [x] Text
-  * [x] Get modifier keys
+  * [x] Modifier keys
   * [ ] Support all mouse buttons
   * [ ] Distinguish between touch input and mouse input
-  * [ ] Keyboard shortcuts (copy, paste, undo, select-all, ...?)
 * Text
   * [/] Unicode
     * [x] Shared mutable expanding texture map
@@ -91,26 +76,14 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Ask Egui if an event requires repainting
   * [ ] Only repaint when mouse is over a Egui window (or is pressed and there is an active widget)
 
-## Backends
-
-* [ ] Extract egui_app as egui_backend
-
-* egui_glium
-* egui_web
-  * [ ] async HTTP requests
-* [ ] egui_bitmap: slow reference rasterizer for tests
-  * Port https://github.com/emilk/imgui_software_renderer
-  * Less important: fast rasterizer for embedded 🤷‍♀️
-* [ ] egui_terminal (think ncurses)
-  * [ ] replace `round_to_pixel` with `round_to_X` where user can select X to be e.g. width of a letter
-* [ ] egui_svg: No idea what this would be for :)
+## Integrations
 
 ### egui_web
-
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [x] Port most code to Rust
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
+* [ ] Copy/paste support
 * [ ] Async HTTP requests
 * [ ] Fix WebGL colors/blending (try EXT_sRGB)
 * [ ] Embeddability
@@ -120,6 +93,17 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Multiple canvases from the same rust code
     * Different Egui instances, same app
     * Allows very nice web integration
+
+### Other
+
+* [ ] Extract egui::app as own library (egui_framework ?)
+* [ ] egui_bitmap: slow reference rasterizer for tests
+  * Port https://github.com/emilk/imgui_software_renderer
+  * Less important: fast rasterizer for embedded 🤷‍♀️
+* [ ] egui_terminal (think ncurses)
+  * [ ] replace `round_to_pixel` with `round_to_X` where user can select X to be e.g. width of a letter
+* [ ] egui_svg: No idea what this would be for :)
+
 
 ## Modularity
 
@@ -163,13 +147,24 @@ Ability to do a search for any widget. The search works even for collapsed regio
   * [x] Collapsing header region
   * [x] Tooltip
   * [x] Movable/resizable windows
-    * [x] Kinetic windows
   * [x] Add support for clicking hyperlinks
+* [x] Text input
+  * [x] Input
+  * [x] Text focus
+  * [x] Cursor movement
+  * [x] Text selection
+  * [x] Clipboard copy/paste
+  * [x] Move focus with tab
+  * [x] Text edit undo
 * Containers
   * [x] Vertical slider
     * [x] Resize any side and corner on windows
     * [x] Fix autoshrink
     * [x] Automatic positioning of new windows
+  * [x] Vertical scroll areas
+    * [x] Scroll-wheel input
+    * [x] Drag background to scroll
+    * [x] Kinetic scrolling
 * Simple animations
 * Clip rects
   * [x] Separate Ui::clip_rect from Ui::rect
