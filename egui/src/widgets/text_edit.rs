@@ -1,10 +1,13 @@
-use crate::{paint::*, *};
+use crate::{paint::*, util::undoer::Undoer, *};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     cursorp: Option<CursorPair>,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    undoer: Undoer<(CCursorPair, String)>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -32,6 +35,13 @@ impl CursorPair {
         Self {
             primary: max,
             secondary: min,
+        }
+    }
+
+    fn as_ccursorp(&self) -> CCursorPair {
+        CCursorPair {
+            primary: self.primary.ccursor,
+            secondary: self.secondary.ccursor,
         }
     }
 
@@ -64,7 +74,7 @@ impl CursorPair {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct CCursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
@@ -315,6 +325,12 @@ impl<'t> Widget for TextEdit<'t> {
                 })
                 .unwrap_or_else(|| CursorPair::one(galley.end()));
 
+            // We feed state to the undoer both before and after handling input
+            // so that the undoer creates automatic saves even when there are no events for a while.
+            state
+                .undoer
+                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
+
             for event in &ui.input().events {
                 let did_mutate_text = match event {
                     Event::Copy => {
@@ -370,11 +386,29 @@ impl<'t> Widget for TextEdit<'t> {
                         ui.memory().surrender_kb_focus(id);
                         break;
                     }
+
+                    Event::Key {
+                        key: Key::Z,
+                        pressed: true,
+                        modifiers,
+                    } if modifiers.command && !modifiers.shift => {
+                        // TODO: redo
+                        if let Some((undo_ccursorp, undo_txt)) =
+                            state.undoer.undo(&(cursorp.as_ccursorp(), text.clone()))
+                        {
+                            *text = undo_txt.clone();
+                            Some(*undo_ccursorp)
+                        } else {
+                            None
+                        }
+                    }
+
                     Event::Key {
                         key,
                         pressed: true,
                         modifiers,
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
+
                     Event::Key { .. } => None,
                 };
 
@@ -395,6 +429,10 @@ impl<'t> Widget for TextEdit<'t> {
                 }
             }
             state.cursorp = Some(cursorp);
+
+            state
+                .undoer
+                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
         }
 
         {
@@ -425,6 +463,7 @@ impl<'t> Widget for TextEdit<'t> {
             .unwrap_or_else(|| ui.style().visuals.widgets.inactive.text_color());
         ui.painter()
             .galley(response.rect.min, galley, text_style, text_color);
+
         ui.memory().text_edit.insert(id, state);
 
         Response {
