@@ -1,6 +1,6 @@
 //! The input needed by Egui.
 
-use crate::{math::*, History};
+use crate::{math::*, util::History};
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0;
@@ -33,6 +33,9 @@ pub struct RawInput {
     /// Time in seconds. Relative to whatever. Used for animations.
     pub time: f64,
 
+    /// Which modifier keys are down at the start of the frame?
+    pub modifiers: Modifiers,
+
     /// In-order events received this frame
     pub events: Vec<Event>,
 }
@@ -47,6 +50,7 @@ impl RawInput {
             screen_size: self.screen_size,
             pixels_per_point: self.pixels_per_point,
             time: self.time,
+            modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
         }
     }
@@ -79,6 +83,9 @@ pub struct InputState {
     /// Used for animations to get instant feedback (avoid frame delay).
     /// Should be set to the expected time between frames when painting at vsync speeds.
     pub predicted_dt: f32,
+
+    /// Which modifier keys are down at the start of the frame?
+    pub modifiers: Modifiers,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -151,7 +158,7 @@ impl Default for MouseInput {
 }
 
 /// An input event. Only covers events used by Egui.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
     Copy,
     Cut,
@@ -161,33 +168,51 @@ pub enum Event {
     Key {
         key: Key,
         pressed: bool,
+        modifiers: Modifiers,
     },
 }
 
-/// Keyboard key name. Only covers keys used by Egui.
+/// State of the modifier keys. These must be fed to Egui.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Modifiers {
+    /// Either of the alt keys are down (option ⌥ on Mac)
+    pub alt: bool,
+    /// Either of the control keys are down
+    pub ctrl: bool,
+    /// Either of the shift keys are down
+    pub shift: bool,
+    /// The Mac ⌘ Command key. Should always be set to `false` on other platforms.
+    pub mac_cmd: bool,
+    /// On Mac, this should be set whenever one of the ⌘ Command keys are down (same as `mac_cmd`).
+    /// On Windows and Linux, set this to the same value as `ctrl`.
+    /// This is so that Egui can, for instance, select all text by checking for `command + A`
+    /// and it will work on both Mac and Windows.
+    pub command: bool,
+}
+
+/// Keyboard key name. Only covers keys used by Egui (mostly for text editing).
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Key {
-    Alt,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUp,
     Backspace,
-    Control,
     Delete,
-    Down,
     End,
+    Enter,
     Escape,
     Home,
     Insert,
-    Left,
-    /// Windows key or Mac Command key
-    Logo,
     PageDown,
     PageUp,
-    /// Enter/Return key
-    Enter,
-    Right,
-    Shift,
-    // Space,
     Tab,
-    Up,
+
+    A, // Used for cmd+A (select All)
+    K, // Used for ctrl+K (delete text after cursor)
+    U, // Used for ctrl+U (delete text before cursor)
+    W, // Used for ctrl+W (delete previous word)
+    Z, // Used for cmd+Z (undo)
 }
 
 impl InputState {
@@ -202,7 +227,8 @@ impl InputState {
             pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
             time: new.time,
             unstable_dt,
-            predicted_dt: 1.0 / 60.0,   // TODO: remove this hack
+            predicted_dt: 1.0 / 60.0, // TODO: remove this hack
+            modifiers: new.modifiers,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
         }
@@ -227,7 +253,8 @@ impl InputState {
                 event,
                 Event::Key {
                     key,
-                    pressed: true
+                    pressed: true,
+                    ..
                 } if *key == desired_key
             )
         })
@@ -240,7 +267,8 @@ impl InputState {
                 event,
                 Event::Key {
                     key,
-                    pressed: false
+                    pressed: false,
+                    ..
                 } if *key == desired_key
             )
         })
@@ -343,6 +371,7 @@ impl RawInput {
             screen_size,
             pixels_per_point,
             time,
+            modifiers,
             events,
         } = self;
 
@@ -357,6 +386,7 @@ impl RawInput {
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
     }
@@ -373,6 +403,7 @@ impl InputState {
             time,
             unstable_dt,
             predicted_dt,
+            modifiers,
             events,
         } = self;
 
@@ -397,6 +428,7 @@ impl InputState {
             1e3 * unstable_dt
         ));
         ui.label(format!("expected dt: {:.1} ms", 1e3 * predicted_dt));
+        ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
     }

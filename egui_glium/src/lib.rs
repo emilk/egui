@@ -20,10 +20,6 @@ pub use clipboard::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
     raw: egui::RawInput,
-
-    /// Command modifier key.
-    /// Mac command key on Mac, ctrl on Window/Linux.
-    cmd: bool,
 }
 
 impl GliumInputState {
@@ -33,7 +29,6 @@ impl GliumInputState {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
             },
-            cmd: false,
         }
     }
 }
@@ -63,40 +58,51 @@ pub fn input_to_egui(
             input_state.raw.mouse_pos = None;
         }
         ReceivedCharacter(ch) => {
-            if !input_state.cmd && printable_char(ch) {
+            if printable_char(ch)
+                && !input_state.raw.modifiers.ctrl
+                && !input_state.raw.modifiers.mac_cmd
+            {
                 input_state.raw.events.push(Event::Text(ch.to_string()));
             }
         }
         KeyboardInput { input, .. } => {
-            if let Some(virtual_keycode) = input.virtual_keycode {
-                let is_command_key = if cfg!(target_os = "macos") {
-                    matches!(virtual_keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
-                } else {
-                    matches!(
-                        virtual_keycode,
-                        VirtualKeyCode::LControl | VirtualKeyCode::RControl
-                    )
-                };
+            if let Some(keycode) = input.virtual_keycode {
+                let pressed = input.state == glutin::event::ElementState::Pressed;
 
-                if is_command_key {
-                    input_state.cmd = input.state == glutin::event::ElementState::Pressed;
+                if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
+                    input_state.raw.modifiers.alt = pressed;
+                }
+                if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
+                    input_state.raw.modifiers.ctrl = pressed;
+                    if !cfg!(target_os = "macos") {
+                        input_state.raw.modifiers.command = pressed;
+                    }
+                }
+                if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
+                    input_state.raw.modifiers.shift = pressed;
+                }
+                if cfg!(target_os = "macos")
+                    && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
+                {
+                    input_state.raw.modifiers.mac_cmd = pressed;
+                    input_state.raw.modifiers.command = pressed;
                 }
 
-                if input.state == glutin::event::ElementState::Pressed {
+                if pressed {
                     if cfg!(target_os = "macos")
-                        && input_state.cmd
-                        && virtual_keycode == VirtualKeyCode::Q
+                        && input_state.raw.modifiers.mac_cmd
+                        && keycode == VirtualKeyCode::Q
                     {
                         *control_flow = ControlFlow::Exit;
                     }
 
                     // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
                     // so we detect these things manually:
-                    if input_state.cmd && virtual_keycode == VirtualKeyCode::X {
+                    if input_state.raw.modifiers.command && keycode == VirtualKeyCode::X {
                         input_state.raw.events.push(Event::Cut);
-                    } else if input_state.cmd && virtual_keycode == VirtualKeyCode::C {
+                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::C {
                         input_state.raw.events.push(Event::Copy);
-                    } else if input_state.cmd && virtual_keycode == VirtualKeyCode::V {
+                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::V {
                         if let Some(clipboard) = clipboard {
                             match clipboard.get_contents() {
                                 Ok(contents) => {
@@ -107,10 +113,11 @@ pub fn input_to_egui(
                                 }
                             }
                         }
-                    } else if let Some(key) = translate_virtual_key_code(virtual_keycode) {
+                    } else if let Some(key) = translate_virtual_key_code(keycode) {
                         input_state.raw.events.push(Event::Key {
                             key,
-                            pressed: input.state == glutin::event::ElementState::Pressed,
+                            pressed,
+                            modifiers: input_state.raw.modifiers,
                         });
                     }
                 }
@@ -157,19 +164,19 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
         End => Key::End,
         PageDown => Key::PageDown,
         PageUp => Key::PageUp,
-        Left => Key::Left,
-        Up => Key::Up,
-        Right => Key::Right,
-        Down => Key::Down,
+        Left => Key::ArrowLeft,
+        Up => Key::ArrowUp,
+        Right => Key::ArrowRight,
+        Down => Key::ArrowDown,
         Back => Key::Backspace,
         Return => Key::Enter,
-        // Space => Key::Space,
         Tab => Key::Tab,
 
-        LAlt | RAlt => Key::Alt,
-        LShift | RShift => Key::Shift,
-        LControl | RControl => Key::Control,
-        LWin | RWin => Key::Logo,
+        A => Key::A,
+        K => Key::K,
+        U => Key::U,
+        W => Key::W,
+        Z => Key::Z,
 
         _ => {
             return None;

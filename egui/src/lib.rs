@@ -60,11 +60,9 @@
 pub mod align;
 mod animation_manager;
 pub mod app;
-pub(crate) mod cache;
 pub mod containers;
 mod context;
 pub mod demos;
-mod history;
 mod id;
 mod input;
 mod introspection;
@@ -73,12 +71,12 @@ mod layout;
 pub mod math;
 mod memory;
 pub mod menu;
-pub mod mutex;
 pub mod paint;
 mod painter;
 mod style;
 mod types;
 mod ui;
+pub mod util;
 pub mod widgets;
 
 pub use {
@@ -86,7 +84,6 @@ pub use {
     containers::*,
     context::Context,
     demos::DemoApp,
-    history::History,
     id::Id,
     input::*,
     layers::*,
@@ -101,6 +98,7 @@ pub use {
     style::Style,
     types::*,
     ui::Ui,
+    util::mutex,
     widgets::*,
 };
 

@@ -92,16 +92,18 @@ impl egui::app::TextureAllocator for webgl::Painter {
 
 // ----------------------------------------------------------------------------
 
-// TODO: Just use RawInput?
 /// Data gathered between frames.
 /// Is translated to `egui::RawInput` at the start of each frame.
 #[derive(Default)]
 pub struct WebInput {
+    /// In native points (not same as Egui points)
     pub mouse_pos: Option<egui::Pos2>,
-    pub mouse_down: bool, // TODO: which button
+    /// Is this a touch screen? If so, we ignore mouse events.
     pub is_touch: bool,
+    /// In native points (not same as Egui points)
     pub scroll_delta: egui::Vec2,
-    pub events: Vec<egui::Event>,
+
+    pub raw: egui::RawInput,
 }
 
 impl WebInput {
@@ -111,13 +113,12 @@ impl WebInput {
         let scroll_delta = std::mem::take(&mut self.scroll_delta) * scale;
         let mouse_pos = self.mouse_pos.map(|mp| pos2(mp.x * scale, mp.y * scale));
         egui::RawInput {
-            mouse_down: self.mouse_down,
             mouse_pos,
             scroll_delta,
             screen_size: screen_size_in_native_points().unwrap() * scale,
             pixels_per_point: Some(pixels_per_point),
             time: now_sec(),
-            events: std::mem::take(&mut self.events),
+            ..self.raw.take()
         }
     }
 }
@@ -127,7 +128,7 @@ impl WebInput {
 pub struct AppRunner {
     pixels_per_point: f32,
     pub web_backend: WebBackend,
-    pub web_input: WebInput,
+    pub input: WebInput,
     pub app: Box<dyn App>,
     pub needs_repaint: bool, // TODO: move
 }
@@ -138,7 +139,7 @@ impl AppRunner {
         Ok(Self {
             pixels_per_point: native_pixels_per_point(),
             web_backend,
-            web_input: Default::default(),
+            input: Default::default(),
             app,
             needs_repaint: true, // TODO: move
         })
@@ -151,7 +152,7 @@ impl AppRunner {
     pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
 
-        let raw_input = self.web_input.new_frame(self.pixels_per_point);
+        let raw_input = self.input.new_frame(self.pixels_per_point);
         self.web_backend.begin_frame(raw_input);
 
         let mut integration_context = egui::app::IntegrationContext {

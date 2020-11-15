@@ -1,4 +1,4 @@
-use crate::{app, demos, Context, History, Ui};
+use crate::{app, demos, util::History, Context, Ui};
 use std::sync::Arc;
 
 // ----------------------------------------------------------------------------

@@ -78,7 +78,7 @@ impl Label {
         self
     }
 
-    pub fn layout(&self, ui: &Ui) -> font::Galley {
+    pub fn layout(&self, ui: &Ui) -> Galley {
         let max_width = ui.available().width();
         // Prevent word-wrapping after a single letter, and other silly shit:
         // TODO: general "don't force labels and similar to wrap so early"
@@ -86,7 +86,7 @@ impl Label {
         self.layout_width(ui, max_width)
     }
 
-    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> font::Galley {
+    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
         let text_style = self.text_style_or_default(ui.style());
         let font = &ui.fonts()[text_style];
         if self.multiline {
@@ -98,7 +98,7 @@ impl Label {
 
     pub fn font_height(&self, fonts: &Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].height()
+        fonts[text_style].row_height()
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -109,7 +109,7 @@ impl Label {
     // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
 
-    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: font::Galley) {
+    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
         let text_style = self.text_style_or_default(ui.style());
         let text_color = self
             .text_color
@@ -222,7 +222,7 @@ impl Widget for Hyperlink {
 
         if response.hovered {
             // Underline:
-            for line in &galley.lines {
+            for line in &galley.rows {
                 let pos = response.rect.min;
                 let y = pos.y + line.y_max;
                 let y = ui.painter().round_to_pixel(y);
