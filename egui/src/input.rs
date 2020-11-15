@@ -33,6 +33,9 @@ pub struct RawInput {
     /// Time in seconds. Relative to whatever. Used for animations.
     pub time: f64,
 
+    /// Which modifier keys are down at the start of the frame?
+    pub modifiers: Modifiers,
+
     /// In-order events received this frame
     pub events: Vec<Event>,
 }
@@ -47,6 +50,7 @@ impl RawInput {
             screen_size: self.screen_size,
             pixels_per_point: self.pixels_per_point,
             time: self.time,
+            modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
         }
     }
@@ -79,6 +83,9 @@ pub struct InputState {
     /// Used for animations to get instant feedback (avoid frame delay).
     /// Should be set to the expected time between frames when painting at vsync speeds.
     pub predicted_dt: f32,
+
+    /// Which modifier keys are down at the start of the frame?
+    pub modifiers: Modifiers,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -200,6 +207,12 @@ pub enum Key {
     PageDown,
     PageUp,
     Tab,
+
+    A, // Used for cmd+A (select All)
+    K, // Used for ctrl+K (delete text after cursor)
+    U, // Used for ctrl+U (delete text before cursor)
+    W, // Used for ctrl+W (delete previous word)
+    Z, // Used for cmd+Z (undo)
 }
 
 impl InputState {
@@ -214,7 +227,8 @@ impl InputState {
             pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
             time: new.time,
             unstable_dt,
-            predicted_dt: 1.0 / 60.0,   // TODO: remove this hack
+            predicted_dt: 1.0 / 60.0, // TODO: remove this hack
+            modifiers: new.modifiers,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
         }
@@ -357,6 +371,7 @@ impl RawInput {
             screen_size,
             pixels_per_point,
             time,
+            modifiers,
             events,
         } = self;
 
@@ -371,6 +386,7 @@ impl RawInput {
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
     }
@@ -387,6 +403,7 @@ impl InputState {
             time,
             unstable_dt,
             predicted_dt,
+            modifiers,
             events,
         } = self;
 
@@ -411,6 +428,7 @@ impl InputState {
             1e3 * unstable_dt
         ));
         ui.label(format!("expected dt: {:.1} ms", 1e3 * predicted_dt));
+        ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
     }

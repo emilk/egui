@@ -4,7 +4,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 
 ## Top priority
 
-* Text input: text selection etc
 * Refactor graphics layers and areas so one don't have to register LayerId:s.
 
 ## Other
@@ -18,8 +17,9 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [x] Input
     * [x] Text focus
     * [x] Cursor movement
-    * [ ] Text selection
-    * [ ] Clipboard copy/paste
+    * [x] Text selection
+    * [x] Clipboard copy/paste
+    * [ ] Text edit undo
     * [ ] Move focus with tab
   * [ ] Vertical slider
   * [/] Color picker
@@ -43,15 +43,16 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [x] Distinguish between clicks and drags
   * [x] Double-click
   * [x] Text
+  * [x] Get modifier keys
   * [ ] Support all mouse buttons
   * [ ] Distinguish between touch input and mouse input
-  * [ ] Get modifier keys
-  * [ ] Keyboard shortcuts
-    * [ ] Copy, paste, undo, ...
+  * [ ] Keyboard shortcuts (copy, paste, undo, select-all, ...?)
 * Text
   * [/] Unicode
     * [x] Shared mutable expanding texture map
-    * [ ] Text editing of unicode
+    * [/] Text editing of unicode (needs more testing)
+    * [ ] Font with some more unicode characters
+  * [ ] Emoji support (great for things like ▶️⏸⏹⚠︎)
   * [ ] Change text style/color and continue in same layout
 * Menu bar (File, Edit, etc)
   * [ ] Sub-menus

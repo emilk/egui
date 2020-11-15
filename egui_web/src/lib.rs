@@ -195,14 +195,30 @@ fn should_ignore_key(key: &str) -> bool {
         || matches!(
             key,
             "Alt"
+                | "ArrowDown"
+                | "ArrowLeft"
+                | "ArrowRight"
+                | "ArrowUp"
+                | "Backspace"
                 | "CapsLock"
                 | "ContextMenu"
                 | "Control"
+                | "Delete"
+                | "End"
+                | "Enter"
+                | "Esc"
+                | "Escape"
+                | "Help"
+                | "Home"
+                | "Insert"
                 | "Meta"
                 | "NumLock"
+                | "PageDown"
+                | "PageUp"
                 | "Pause"
                 | "ScrollLock"
                 | "Shift"
+                | "Tab"
         )
 }
 
@@ -224,6 +240,11 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "PageDown" => Some(egui::Key::PageDown),
         "PageUp" => Some(egui::Key::PageUp),
         "Tab" => Some(egui::Key::Tab),
+        "a" | "A" => Some(egui::Key::A),
+        "k" | "K" => Some(egui::Key::K),
+        "u" | "U" => Some(egui::Key::U),
+        "w" | "W" => Some(egui::Key::W),
+        "z" | "Z" => Some(egui::Key::Z),
         _ => None,
     }
 }
@@ -271,20 +292,24 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 // https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 return;
             }
+
             let mut runner_lock = runner_ref.0.lock();
+            let modifiers = modifiers_from_event(&event);
+            runner_lock.input.raw.modifiers = modifiers;
+
             let key = event.key();
 
             if let Some(key) = translate_key(&key) {
-                runner_lock.web_input.events.push(egui::Event::Key {
+                runner_lock.input.raw.events.push(egui::Event::Key {
                     key,
                     pressed: true,
-                    modifiers: modifiers_from_event(&event),
+                    modifiers,
                 });
-                runner_lock.needs_repaint = true;
-            } else if !should_ignore_key(&key) {
-                runner_lock.web_input.events.push(egui::Event::Text(key));
-                runner_lock.needs_repaint = true;
             }
+            if !modifiers.ctrl && !modifiers.command && !should_ignore_key(&key) {
+                runner_lock.input.raw.events.push(egui::Event::Text(key));
+            }
+            runner_lock.needs_repaint = true;
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -295,15 +320,16 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            let key = event.key();
-            if let Some(key) = translate_key(&key) {
-                runner_lock.web_input.events.push(egui::Event::Key {
+            let modifiers = modifiers_from_event(&event);
+            runner_lock.input.raw.modifiers = modifiers;
+            if let Some(key) = translate_key(&event.key()) {
+                runner_lock.input.raw.events.push(egui::Event::Key {
                     key,
                     pressed: false,
-                    modifiers: modifiers_from_event(&event),
+                    modifiers,
                 });
-                runner_lock.needs_repaint = true;
             }
+            runner_lock.needs_repaint = true;
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keyup", closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -346,10 +372,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.web_input.is_touch {
-                runner_lock.web_input.mouse_pos =
+            if !runner_lock.input.is_touch {
+                runner_lock.input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.web_input.mouse_down = true;
+                runner_lock.input.raw.mouse_down = true;
                 runner_lock.logic().unwrap(); // in case we get "mouseup" the same frame. TODO: handle via events instead
                 runner_lock.needs_repaint = true;
                 event.stop_propagation();
@@ -365,8 +391,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.web_input.is_touch {
-                runner_lock.web_input.mouse_pos =
+            if !runner_lock.input.is_touch {
+                runner_lock.input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
                 runner_lock.needs_repaint = true;
                 event.stop_propagation();
@@ -382,10 +408,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.web_input.is_touch {
-                runner_lock.web_input.mouse_pos =
+            if !runner_lock.input.is_touch {
+                runner_lock.input.mouse_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.web_input.mouse_down = false;
+                runner_lock.input.raw.mouse_down = false;
                 runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
@@ -400,8 +426,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.web_input.is_touch {
-                runner_lock.web_input.mouse_pos = None;
+            if !runner_lock.input.is_touch {
+                runner_lock.input.mouse_pos = None;
                 runner_lock.needs_repaint = true;
                 event.stop_propagation();
                 event.prevent_default();
@@ -416,9 +442,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.web_input.is_touch = true;
-            runner_lock.web_input.mouse_pos = Some(pos_from_touch_event(&event));
-            runner_lock.web_input.mouse_down = true;
+            runner_lock.input.is_touch = true;
+            runner_lock.input.mouse_pos = Some(pos_from_touch_event(&event));
+            runner_lock.input.raw.mouse_down = true;
             runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
@@ -432,8 +458,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.web_input.is_touch = true;
-            runner_lock.web_input.mouse_pos = Some(pos_from_touch_event(&event));
+            runner_lock.input.is_touch = true;
+            runner_lock.input.mouse_pos = Some(pos_from_touch_event(&event));
             runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
@@ -447,10 +473,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.web_input.is_touch = true;
-            runner_lock.web_input.mouse_down = false; // First release mouse to click...
+            runner_lock.input.is_touch = true;
+            runner_lock.input.raw.mouse_down = false; // First release mouse to click...
             runner_lock.logic().unwrap(); // ...do the clicking... (TODO: handle via events instead)
-            runner_lock.web_input.mouse_pos = None; // ...remove hover effect
+            runner_lock.input.mouse_pos = None; // ...remove hover effect
             runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();
@@ -464,8 +490,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.web_input.scroll_delta.x -= event.delta_x() as f32;
-            runner_lock.web_input.scroll_delta.y -= event.delta_y() as f32;
+            runner_lock.input.scroll_delta.x -= event.delta_x() as f32;
+            runner_lock.input.scroll_delta.y -= event.delta_y() as f32;
             runner_lock.needs_repaint = true;
             event.stop_propagation();
             event.prevent_default();

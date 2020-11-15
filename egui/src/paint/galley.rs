@@ -192,6 +192,10 @@ impl Row {
         *self.x_offsets.last().unwrap()
     }
 
+    pub fn height(&self) -> f32 {
+        self.y_max - self.y_min
+    }
+
     /// Closest char at the desired x coordinate.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
@@ -233,7 +237,7 @@ impl Galley {
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
             let x = row.max_x();
-            return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
+            Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max))
         } else {
             // Empty galley
             Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0))
@@ -636,6 +640,13 @@ impl Galley {
 
 #[test]
 fn test_text_layout() {
+    impl PartialEq for Cursor {
+        fn eq(&self, other: &Cursor) -> bool {
+            (self.ccursor, self.rcursor, self.pcursor)
+                == (other.ccursor, other.rcursor, other.pcursor)
+        }
+    }
+
     use crate::mutex::Mutex;
     use crate::paint::{font::Font, *};
 

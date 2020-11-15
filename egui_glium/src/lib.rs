@@ -20,7 +20,6 @@ pub use clipboard::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
     raw: egui::RawInput,
-    modifiers: egui::Modifiers,
 }
 
 impl GliumInputState {
@@ -30,7 +29,6 @@ impl GliumInputState {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
             },
-            modifiers: Default::default(), // cmd: false,
         }
     }
 }
@@ -60,7 +58,10 @@ pub fn input_to_egui(
             input_state.raw.mouse_pos = None;
         }
         ReceivedCharacter(ch) => {
-            if printable_char(ch) && !input_state.modifiers.ctrl && !input_state.modifiers.mac_cmd {
+            if printable_char(ch)
+                && !input_state.raw.modifiers.ctrl
+                && !input_state.raw.modifiers.mac_cmd
+            {
                 input_state.raw.events.push(Event::Text(ch.to_string()));
             }
         }
@@ -69,27 +70,27 @@ pub fn input_to_egui(
                 let pressed = input.state == glutin::event::ElementState::Pressed;
 
                 if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
-                    input_state.modifiers.alt = pressed;
+                    input_state.raw.modifiers.alt = pressed;
                 }
                 if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
-                    input_state.modifiers.ctrl = pressed;
+                    input_state.raw.modifiers.ctrl = pressed;
                     if !cfg!(target_os = "macos") {
-                        input_state.modifiers.command = pressed;
+                        input_state.raw.modifiers.command = pressed;
                     }
                 }
                 if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
-                    input_state.modifiers.shift = pressed;
+                    input_state.raw.modifiers.shift = pressed;
                 }
                 if cfg!(target_os = "macos")
                     && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
                 {
-                    input_state.modifiers.mac_cmd = pressed;
-                    input_state.modifiers.command = pressed;
+                    input_state.raw.modifiers.mac_cmd = pressed;
+                    input_state.raw.modifiers.command = pressed;
                 }
 
                 if pressed {
                     if cfg!(target_os = "macos")
-                        && input_state.modifiers.mac_cmd
+                        && input_state.raw.modifiers.mac_cmd
                         && keycode == VirtualKeyCode::Q
                     {
                         *control_flow = ControlFlow::Exit;
@@ -97,11 +98,11 @@ pub fn input_to_egui(
 
                     // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
                     // so we detect these things manually:
-                    if input_state.modifiers.command && keycode == VirtualKeyCode::X {
+                    if input_state.raw.modifiers.command && keycode == VirtualKeyCode::X {
                         input_state.raw.events.push(Event::Cut);
-                    } else if input_state.modifiers.command && keycode == VirtualKeyCode::C {
+                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::C {
                         input_state.raw.events.push(Event::Copy);
-                    } else if input_state.modifiers.command && keycode == VirtualKeyCode::V {
+                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::V {
                         if let Some(clipboard) = clipboard {
                             match clipboard.get_contents() {
                                 Ok(contents) => {
@@ -116,7 +117,7 @@ pub fn input_to_egui(
                         input_state.raw.events.push(Event::Key {
                             key,
                             pressed,
-                            modifiers: input_state.modifiers,
+                            modifiers: input_state.raw.modifiers,
                         });
                     }
                 }
@@ -170,6 +171,13 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
         Back => Key::Backspace,
         Return => Key::Enter,
         Tab => Key::Tab,
+
+        A => Key::A,
+        K => Key::K,
+        U => Key::U,
+        W => Key::W,
+        Z => Key::Z,
+
         _ => {
             return None;
         }

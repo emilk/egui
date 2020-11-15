@@ -267,7 +267,15 @@ impl<'t> Widget for TextEdit<'t> {
                     });
                 } else if response.hovered && ui.input().mouse.pressed {
                     ui.memory().request_kb_focus(id);
-                    state.cursorp = Some(CursorPair::one(cursor_at_mouse));
+                    if ui.input().modifiers.shift {
+                        if let Some(cursorp) = &mut state.cursorp {
+                            cursorp.primary = cursor_at_mouse;
+                        } else {
+                            state.cursorp = Some(CursorPair::one(cursor_at_mouse));
+                        }
+                    } else {
+                        state.cursorp = Some(CursorPair::one(cursor_at_mouse));
+                    }
                 } else if ui.input().mouse.down && response.active {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_mouse;
@@ -332,7 +340,7 @@ impl<'t> Widget for TextEdit<'t> {
                             && text_to_insert != "\n"
                             && text_to_insert != "\r"
                         {
-                            let mut ccursor = delete_selected(text, &cursorp).into();
+                            let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -345,7 +353,7 @@ impl<'t> Widget for TextEdit<'t> {
                         ..
                     } => {
                         if multiline {
-                            let mut ccursor = delete_selected(text, &cursorp).into();
+                            let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, "\n");
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -452,7 +460,12 @@ fn paint_cursor_selection(
         let right = if ri == max.row {
             row.x_offset(max.column)
         } else {
-            row.max_x()
+            let newline_size = if row.ends_with_newline {
+                row.height() / 2.0 // visualize that we select the newline
+            } else {
+                0.0
+            };
+            row.max_x() + newline_size
         };
         let rect = Rect::from_min_max(pos + vec2(left, row.y_min), pos + vec2(right, row.y_max));
         ui.painter().rect_filled(rect, 0.0, color);
@@ -499,7 +512,7 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
             return bi;
         }
     }
-    return s.len();
+    s.len()
 }
 
 fn insert_text(ccursor: &mut CCursor, text: &mut String, text_to_insert: &str) {
@@ -555,12 +568,12 @@ fn delete_next_char(text: &mut String, ccursor: CCursor) -> CCursor {
 }
 
 fn delete_previous_word(text: &mut String, max_ccursor: CCursor) -> CCursor {
-    let min_ccursor = ccursor_previous_word(&text, max_ccursor);
+    let min_ccursor = ccursor_previous_word(text, max_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
 fn delete_next_word(text: &mut String, min_ccursor: CCursor) -> CCursor {
-    let max_ccursor = ccursor_next_word(&text, min_ccursor);
+    let max_ccursor = ccursor_next_word(text, min_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
@@ -610,10 +623,6 @@ fn on_key_press(
     key: Key,
     modifiers: &Modifiers,
 ) -> Option<CCursorPair> {
-    // TODO: ctrl-U to clear paragraph before the cursor
-    // TODO: ctrl-W to delete previous word
-    // TODO: cmd-A to select all
-
     match key {
         Key::Backspace => {
             let ccursor = if modifiers.mac_cmd {
@@ -650,6 +659,31 @@ fn on_key_press(
             Some(CCursorPair::one(ccursor))
         }
 
+        Key::A if modifiers.command => {
+            // select all
+            *cursorp = CursorPair::two(Cursor::default(), galley.end());
+            None
+        }
+
+        Key::K if modifiers.ctrl => {
+            let ccursor = delete_paragraph_after_cursor(text, galley, cursorp);
+            Some(CCursorPair::one(ccursor))
+        }
+
+        Key::U if modifiers.ctrl => {
+            let ccursor = delete_paragraph_before_cursor(text, galley, cursorp);
+            Some(CCursorPair::one(ccursor))
+        }
+
+        Key::W if modifiers.ctrl => {
+            let ccursor = if let Some(cursor) = cursorp.single() {
+                delete_previous_word(text, cursor.ccursor)
+            } else {
+                delete_selected(text, cursorp)
+            };
+            Some(CCursorPair::one(ccursor))
+        }
+
         Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End => {
             move_single_cursor(&mut cursorp.primary, galley, key, modifiers);
             if !modifiers.shift {
@@ -658,9 +692,7 @@ fn on_key_press(
             None
         }
 
-        Key::Enter | Key::Escape => unreachable!("Handled outside this function"),
-
-        Key::Insert | Key::PageDown | Key::PageUp | Key::Tab => None,
+        _ => None,
     }
 }
 
