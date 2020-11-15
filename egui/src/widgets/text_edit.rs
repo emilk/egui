@@ -242,20 +242,20 @@ impl<'t> Widget for TextEdit<'t> {
         };
         let response = ui.interact(rect, id, sense);
 
-        if enabled && response.hovered {
+        if enabled {
             if let Some(mouse_pos) = ui.input().mouse.pos {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
 
                 let cursor_at_mouse = galley.cursor_from_pos(mouse_pos - response.rect.min);
 
-                {
+                if response.hovered {
                     // preview:
                     let end_color = Rgba::new(0.1, 0.6, 1.0, 1.0).multiply(0.5).into(); // TODO: from style
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_mouse, end_color);
                 }
 
-                if response.double_clicked {
+                if response.hovered && response.double_clicked {
                     // Select word:
                     let center = cursor_at_mouse;
                     let primary =
@@ -265,7 +265,7 @@ impl<'t> Widget for TextEdit<'t> {
                             .from_ccursor(ccursor_previous_word(&galley.text, primary.ccursor)),
                         primary,
                     });
-                } else if ui.input().mouse.pressed {
+                } else if response.hovered && ui.input().mouse.pressed {
                     ui.memory().request_kb_focus(id);
                     state.cursorp = Some(CursorPair::one(cursor_at_mouse));
                 } else if ui.input().mouse.down && response.active {
