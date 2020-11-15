@@ -2,6 +2,9 @@ on: [push, pull_request]
 
 name: CI
 
+env:
+  RUSTFLAGS: --cfg=web_sys_unstable_apis
+
 jobs:
   check:
     name: Check

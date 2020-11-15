@@ -12,6 +12,8 @@ fi
 # BUILD=debug
 BUILD=release
 
+export RUSTFLAGS=--cfg=web_sys_unstable_apis # required for the clipboard API
+
 # Clear output from old stuff:
 rm -rf docs/*.wasm
 
