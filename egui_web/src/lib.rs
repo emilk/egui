@@ -134,7 +134,7 @@ pub fn save_memory(ctx: &egui::Context) {
         }
         Err(err) => {
             console_log(format!(
-                "ERROR: Failed to seriealize memory as json: {}",
+                "ERROR: Failed to serialize memory as json: {}",
                 err
             ));
         }
@@ -142,9 +142,20 @@ pub fn save_memory(ctx: &egui::Context) {
 }
 
 pub fn handle_output(output: &egui::Output) {
-    set_cursor_icon(output.cursor_icon);
-    if let Some(url) = &output.open_url {
-        open_url(url);
+    let egui::Output {
+        cursor_icon,
+        open_url,
+        copied_text,
+        needs_repaint: _, // handled elsewhere
+    } = output;
+
+    set_cursor_icon(*cursor_icon);
+    if let Some(url) = open_url {
+        crate::open_url(url);
+    }
+
+    if !copied_text.is_empty() {
+        set_clipboard_text(copied_text);
     }
 }
 
@@ -155,6 +166,20 @@ pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()
+}
+
+pub fn set_clipboard_text(s: &str) {
+    if let Some(window) = web_sys::window() {
+        let clipboard = window.navigator().clipboard();
+        let promise = clipboard.write_text(s);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                console_log(format!("Copy/cut action denied: {:?}", err));
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
+    }
 }
 
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
@@ -332,6 +357,46 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.needs_repaint = true;
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keyup", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        // paste
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
+            if let Some(data) = event.clipboard_data() {
+                if let Ok(text) = data.get_data("text") {
+                    let mut runner_lock = runner_ref.0.lock();
+                    runner_lock.input.raw.events.push(egui::Event::Text(text));
+                    runner_lock.needs_repaint = true;
+                }
+            }
+        }) as Box<dyn FnMut(_)>);
+        document.add_event_listener_with_callback("paste", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        // cut
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.raw.events.push(egui::Event::Cut);
+            runner_lock.needs_repaint = true;
+        }) as Box<dyn FnMut(_)>);
+        document.add_event_listener_with_callback("cut", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        // copy
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.raw.events.push(egui::Event::Copy);
+            runner_lock.needs_repaint = true;
+        }) as Box<dyn FnMut(_)>);
+        document.add_event_listener_with_callback("copy", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
 

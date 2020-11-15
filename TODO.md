@@ -4,7 +4,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 
 ## Top priority
 
-* Egui-web copy-paste
 * Egui-web fetch
 
 ## Other
@@ -83,7 +82,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 * [x] Change to resize cursor on hover
 * [x] Port most code to Rust
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
-* [ ] Copy/paste support
+* [x] Copy/paste support
 * [ ] Async HTTP requests
 * [ ] Fix WebGL colors/blending (try EXT_sRGB)
 * [ ] Embeddability

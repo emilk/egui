@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 
+export RUSTFLAGS=--cfg=web_sys_unstable_apis # required for the clipboard API
+
 cargo check --workspace --all-targets --all-features --release
 cargo fmt --all -- --check
 CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all #-W clippy::pedantic -W clippy::restriction -W clippy::nursery
