@@ -48,6 +48,9 @@ impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(crate::__egui_github_link_file_line!());
 
+        ui.checkbox(&mut self.button_enabled, "Use Cloud for training");
+        ui.text_edit_singleline(&mut self.single_line_text_input);
+
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 0.0;
             ui.add(Label::new("Text can have ").text_color(srgba(110, 255, 110, 255)));

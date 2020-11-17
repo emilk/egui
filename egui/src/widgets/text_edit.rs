@@ -217,17 +217,6 @@ impl<'t> Widget for TextEdit<'t> {
             desired_height_rows,
         } = self;
 
-        let id = id.unwrap_or_else(|| {
-            if let Some(id_source) = id_source {
-                ui.make_persistent_id(id_source)
-            } else {
-                // Since we are only storing cursor, perfect persistence Id not super important
-                ui.make_position_id()
-            }
-        });
-
-        let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
-
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let line_spacing = font.row_height();
@@ -245,6 +234,17 @@ impl<'t> Widget for TextEdit<'t> {
             galley.size.y.max(desired_height),
         );
         let rect = ui.allocate_space(desired_size);
+
+        let id = id.unwrap_or_else(|| {
+            if let Some(id_source) = id_source {
+                ui.make_persistent_id(id_source)
+            } else {
+                // Since we are only storing cursor, perfect persistence Id not super important
+                ui.make_position_id() // Must be after allocate_space!
+            }
+        });
+        let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
+
         let sense = if enabled {
             Sense::click_and_drag()
         } else {
