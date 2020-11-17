@@ -3,6 +3,7 @@
 #![warn(clippy::all)]
 
 pub mod backend;
+pub mod fetch;
 pub mod webgl;
 
 pub use backend::*;
@@ -14,8 +15,12 @@ use wasm_bindgen::prelude::*;
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
 
-pub fn console_log(s: String) {
+pub fn console_log(s: impl Into<JsValue>) {
     web_sys::console::log_1(&s.into());
+}
+
+pub fn console_error(s: impl Into<JsValue>) {
+    web_sys::console::error_1(&s.into());
 }
 
 pub fn now_sec() -> f64 {
@@ -180,6 +185,13 @@ pub fn set_clipboard_text(s: &str) {
         };
         wasm_bindgen_futures::spawn_local(future);
     }
+}
+
+pub fn spawn_future<F>(future: F)
+where
+    F: std::future::Future<Output = ()> + 'static,
+{
+    wasm_bindgen_futures::spawn_local(future);
 }
 
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
