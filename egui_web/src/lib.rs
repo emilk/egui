@@ -347,6 +347,28 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
             runner_lock.needs_repaint = true;
+
+            // So, shall we call prevent_default?
+            // YES:
+            // * Tab  (move to next text field)
+            //
+            // SOMETIMES:
+            // * Backspace - when entering text we don't want to go back one page.
+            //
+            // NO:
+            // * F5 / cmd-R (refresh)
+            // * cmd-shift-C (debug tools)
+            // * ...
+            //
+            // NOTE: if we call prevent_default for cmd-c/v/x, we will prevent copy/paste/cut events.
+            // Let's do things manually for now:
+            if matches!(
+                event.key().as_str(),
+                "Backspace"  // so we don't go back to previous page when deleting text
+                | "Tab" // so that e.g. tab doesn't move focus to url bar
+            ) {
+                event.prevent_default();
+            }
         }) as Box<dyn FnMut(_)>);
         document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
         closure.forget();
