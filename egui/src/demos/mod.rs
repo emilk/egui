@@ -61,7 +61,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 macro_rules! github_link_file_line {
     ($github_url:expr, $label:expr) => {{
         let url = format!("{}{}#L{}", $github_url, file!(), line!());
-        Hyperlink::new(url).text($label)
+        $crate::Hyperlink::new(url).text($label)
     }};
 }
 
@@ -71,7 +71,7 @@ macro_rules! github_link_file_line {
 macro_rules! github_link_file {
     ($github_url:expr, $label:expr) => {{
         let url = format!("{}{}", $github_url, file!());
-        Hyperlink::new(url).text($label)
+        $crate::Hyperlink::new(url).text($label)
     }};
 }
 

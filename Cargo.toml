@@ -1,11 +1,12 @@
 [workspace]
 members = [
     "demo_glium",
+    "demo_web",
     "egui_glium",
     "egui_web",
     "egui",
     "example_glium",
-    "demo_web",
+    "example_web",
 ]
 
 
