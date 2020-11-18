@@ -42,10 +42,12 @@ impl egui::app::App for ExampleApp {
                     if ui.button("Egui README.md").clicked {
                         self.url = "https://raw.githubusercontent.com/emilk/egui/master/README.md"
                             .to_owned();
+                        trigger_fetch = true;
                     }
                     if ui.button("Source code for this file").clicked {
                         self.url =
                             format!("https://raw.githubusercontent.com/emilk/egui/{}", file!());
+                        trigger_fetch = true;
                     }
                 });
                 trigger_fetch |= ui.button("GET").clicked;
