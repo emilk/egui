@@ -45,8 +45,10 @@ impl egui::app::App for ExampleApp {
                         trigger_fetch = true;
                     }
                     if ui.button("Source code for this file").clicked {
-                        self.url =
-                            format!("https://raw.githubusercontent.com/emilk/egui/{}", file!());
+                        self.url = format!(
+                            "https://raw.githubusercontent.com/emilk/egui/master/{}",
+                            file!()
+                        );
                         trigger_fetch = true;
                     }
                 });
