@@ -19,6 +19,10 @@ pub fn console_log(s: impl Into<JsValue>) {
     web_sys::console::log_1(&s.into());
 }
 
+pub fn console_warn(s: impl Into<JsValue>) {
+    web_sys::console::warn_1(&s.into());
+}
+
 pub fn console_error(s: impl Into<JsValue>) {
     web_sys::console::error_1(&s.into());
 }

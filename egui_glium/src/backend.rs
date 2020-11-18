@@ -11,12 +11,21 @@ const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
 
 impl egui::app::TextureAllocator for Painter {
-    fn new_texture_srgba_premultiplied(
+    fn alloc(&mut self) -> egui::TextureId {
+        self.alloc_user_texture()
+    }
+
+    fn set_srgba_premultiplied(
         &mut self,
+        id: egui::TextureId,
         size: (usize, usize),
-        pixels: &[Srgba],
-    ) -> egui::TextureId {
-        self.new_user_texture(size, pixels)
+        srgba_pixels: &[Srgba],
+    ) {
+        self.set_user_texture(id, size, srgba_pixels);
+    }
+
+    fn free(&mut self, id: egui::TextureId) {
+        self.free_user_texture(id)
     }
 }
 

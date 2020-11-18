@@ -24,13 +24,39 @@ impl std::ops::IndexMut<usize> for Srgba {
     }
 }
 
+// TODO: remove ?
 pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Srgba {
-    Srgba::new(r, g, b, a)
+    Srgba::from_rgba_premultiplied(r, g, b, a)
 }
 
 impl Srgba {
+    #[deprecated = "Use from_rgb(..), from_rgba_premultiplied(..) or from_srgba_unmultiplied(..)"]
     pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self([r, g, b, a])
+    }
+
+    pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self([r, g, b, 255])
+    }
+
+    pub const fn from_rgb_additive(r: u8, g: u8, b: u8) -> Self {
+        Self([r, g, b, 0])
+    }
+
+    /// From `sRGBA` with premultiplied alpha.
+    pub const fn from_rgba_premultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self([r, g, b, a])
+    }
+
+    /// From `sRGBA` WITHOUT premultiplied alpha.
+    pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        if a == 255 {
+            Self::from_rgba_premultiplied(r, g, b, a) // common-case optimization
+        } else {
+            Rgba::from(Self::from_rgb(r, g, b))
+                .multiply(a as f32 / 255.0)
+                .into()
+        }
     }
 
     pub const fn gray(l: u8) -> Self {
@@ -476,7 +502,7 @@ fn test_hsv_roundtrip() {
     for r in 0..=255 {
         for g in 0..=255 {
             for b in 0..=255 {
-                let srgba = Srgba::new(r, g, b, 255);
+                let srgba = Srgba::from_rgb(r, g, b);
                 let hsva = Hsva::from(srgba);
                 assert_eq!(srgba, Srgba::from(hsva));
             }

@@ -93,7 +93,8 @@ pub struct Painter {
     egui_texture: WebGlTexture,
     egui_texture_version: Option<u64>,
 
-    user_textures: Vec<UserTexture>,
+    /// `None` means unallocated (freed) slot.
+    user_textures: Vec<Option<UserTexture>>,
 }
 
 #[derive(Default)]
@@ -104,7 +105,7 @@ struct UserTexture {
     pixels: Vec<u8>,
 
     /// Lazily uploaded
-    texture: Option<WebGlTexture>,
+    gl_texture: Option<WebGlTexture>,
 }
 
 impl Painter {
@@ -165,28 +166,66 @@ impl Painter {
         &self.canvas_id
     }
 
-    pub fn new_user_texture(
+    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
+        for (i, tex) in self.user_textures.iter_mut().enumerate() {
+            if tex.is_none() {
+                *tex = Some(Default::default());
+                return egui::TextureId::User(i as u64);
+            }
+        }
+        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        self.user_textures.push(Some(Default::default()));
+        id
+    }
+
+    pub fn set_user_texture(
         &mut self,
+        id: egui::TextureId,
         size: (usize, usize),
         srgba_pixels: &[Srgba],
-    ) -> egui::TextureId {
+    ) {
         assert_eq!(size.0 * size.1, srgba_pixels.len());
 
-        let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
-        for srgba in srgba_pixels {
-            pixels.push(srgba.r());
-            pixels.push(srgba.g());
-            pixels.push(srgba.b());
-            pixels.push(srgba.a());
-        }
+        if let egui::TextureId::User(id) = id {
+            if let Some(user_texture) = self.user_textures.get_mut(id as usize) {
+                if let Some(user_texture) = user_texture {
+                    let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
+                    for srgba in srgba_pixels {
+                        pixels.push(srgba.r());
+                        pixels.push(srgba.g());
+                        pixels.push(srgba.b());
+                        pixels.push(srgba.a());
+                    }
 
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
-        self.user_textures.push(UserTexture {
-            size,
-            pixels,
-            texture: None,
-        });
-        id
+                    *user_texture = UserTexture {
+                        size,
+                        pixels,
+                        gl_texture: None,
+                    };
+                }
+            }
+        }
+    }
+
+    pub fn free_user_texture(&mut self, id: egui::TextureId) {
+        if let egui::TextureId::User(id) = id {
+            let index = id as usize;
+            if index < self.user_textures.len() {
+                self.user_textures[index] = None;
+            }
+        }
+    }
+
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
+        match texture_id {
+            egui::TextureId::Egui => Some(&self.egui_texture),
+            egui::TextureId::User(id) => self
+                .user_textures
+                .get(id as usize)?
+                .as_ref()?
+                .gl_texture
+                .as_ref(),
+        }
     }
 
     fn upload_egui_texture(&mut self, texture: &Texture) {
@@ -233,50 +272,40 @@ impl Painter {
         let gl = &self.gl;
 
         for user_texture in &mut self.user_textures {
-            if user_texture.texture.is_none() {
-                let pixels = std::mem::take(&mut user_texture.pixels);
+            if let Some(user_texture) = user_texture {
+                if user_texture.gl_texture.is_none() {
+                    let pixels = std::mem::take(&mut user_texture.pixels);
 
-                let gl_texture = gl.create_texture().unwrap();
-                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
+                    let gl_texture = gl.create_texture().unwrap();
+                    gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
+                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
+                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
+                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
-                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+                    gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
-                // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
-                let level = 0;
-                let internal_format = Gl::RGBA;
-                let border = 0;
-                let src_format = Gl::RGBA;
-                let src_type = Gl::UNSIGNED_BYTE;
-                gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-                    Gl::TEXTURE_2D,
-                    level,
-                    internal_format as i32,
-                    user_texture.size.0 as i32,
-                    user_texture.size.1 as i32,
-                    border,
-                    src_format,
-                    src_type,
-                    Some(&pixels),
-                )
-                .unwrap();
+                    // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+                    let level = 0;
+                    let internal_format = Gl::RGBA;
+                    let border = 0;
+                    let src_format = Gl::RGBA;
+                    let src_type = Gl::UNSIGNED_BYTE;
+                    gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                        Gl::TEXTURE_2D,
+                        level,
+                        internal_format as i32,
+                        user_texture.size.0 as i32,
+                        user_texture.size.1 as i32,
+                        border,
+                        src_format,
+                        src_type,
+                        Some(&pixels),
+                    )
+                    .unwrap();
 
-                user_texture.texture = Some(gl_texture);
-            }
-        }
-    }
-
-    fn get_texture(&self, texture_id: egui::TextureId) -> &WebGlTexture {
-        match texture_id {
-            egui::TextureId::Egui => &self.egui_texture,
-            egui::TextureId::User(id) => {
-                let id = id as usize;
-                assert!(id < self.user_textures.len());
-                let texture = self.user_textures[id].texture.as_ref();
-                texture.expect("Should have been uploaded")
+                    user_texture.gl_texture = Some(gl_texture);
+                }
             }
         }
     }
@@ -330,31 +359,38 @@ impl Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, triangles) in jobs {
-            gl.bind_texture(Gl::TEXTURE_2D, Some(self.get_texture(triangles.texture_id)));
+            if let Some(gl_texture) = self.get_texture(triangles.texture_id) {
+                gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
 
-            let clip_min_x = pixels_per_point * clip_rect.min.x;
-            let clip_min_y = pixels_per_point * clip_rect.min.y;
-            let clip_max_x = pixels_per_point * clip_rect.max.x;
-            let clip_max_y = pixels_per_point * clip_rect.max.y;
-            let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
-            let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
-            let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
-            let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
-            let clip_min_x = clip_min_x.round() as i32;
-            let clip_min_y = clip_min_y.round() as i32;
-            let clip_max_x = clip_max_x.round() as i32;
-            let clip_max_y = clip_max_y.round() as i32;
+                let clip_min_x = pixels_per_point * clip_rect.min.x;
+                let clip_min_y = pixels_per_point * clip_rect.min.y;
+                let clip_max_x = pixels_per_point * clip_rect.max.x;
+                let clip_max_y = pixels_per_point * clip_rect.max.y;
+                let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
+                let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
+                let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
+                let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
+                let clip_min_x = clip_min_x.round() as i32;
+                let clip_min_y = clip_min_y.round() as i32;
+                let clip_max_x = clip_max_x.round() as i32;
+                let clip_max_y = clip_max_y.round() as i32;
 
-            // scissor Y coordinate is from the bottom
-            gl.scissor(
-                clip_min_x,
-                self.canvas.height() as i32 - clip_max_y,
-                clip_max_x - clip_min_x,
-                clip_max_y - clip_min_y,
-            );
+                // scissor Y coordinate is from the bottom
+                gl.scissor(
+                    clip_min_x,
+                    self.canvas.height() as i32 - clip_max_y,
+                    clip_max_x - clip_min_x,
+                    clip_max_y - clip_min_y,
+                );
 
-            for triangles in triangles.split_to_u16() {
-                self.paint_triangles(&triangles)?;
+                for triangles in triangles.split_to_u16() {
+                    self.paint_triangles(&triangles)?;
+                }
+            } else {
+                crate::console_warn(format!(
+                    "WebGL: Failed to find texture {:?}",
+                    triangles.texture_id
+                ));
             }
         }
         Ok(())

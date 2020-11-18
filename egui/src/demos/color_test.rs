@@ -41,7 +41,7 @@ impl ColorTest {
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
         ui.wrap(|ui| {
             ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
-            let g = Gradient::one_color(Srgba::new(255, 165, 0, 255));
+            let g = Gradient::one_color(Srgba::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
             self.tex_gradient(
                 ui,
@@ -125,7 +125,7 @@ impl ColorTest {
             ui,
             tex_allocator,
             RED,
-            (TRANSPARENT, Srgba::new(0, 0, 255, 0)),
+            (TRANSPARENT, Srgba::from_rgba_premultiplied(0, 0, 255, 0)),
         );
 
         ui.separator();
@@ -367,7 +367,9 @@ impl TextureManager {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            tex_allocator.new_texture_srgba_premultiplied((width, height), &pixels)
+            let id = tex_allocator.alloc();
+            tex_allocator.set_srgba_premultiplied(id, (width, height), &pixels);
+            id
         })
     }
 }

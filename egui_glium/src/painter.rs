@@ -67,7 +67,8 @@ pub struct Painter {
     egui_texture: Option<SrgbTexture2d>,
     egui_texture_version: Option<u64>,
 
-    user_textures: Vec<UserTexture>,
+    /// `None` means unallocated (freed) slot.
+    user_textures: Vec<Option<UserTexture>>,
 }
 
 #[derive(Default)]
@@ -77,7 +78,7 @@ struct UserTexture {
     pixels: Vec<Vec<(u8, u8, u8, u8)>>,
 
     /// Lazily uploaded
-    texture: Option<SrgbTexture2d>,
+    gl_texture: Option<SrgbTexture2d>,
 }
 
 impl Painter {
@@ -94,20 +95,62 @@ impl Painter {
         }
     }
 
-    pub fn new_user_texture(&mut self, size: (usize, usize), pixels: &[Srgba]) -> egui::TextureId {
+    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
+        for (i, tex) in self.user_textures.iter_mut().enumerate() {
+            if tex.is_none() {
+                *tex = Some(Default::default());
+                return egui::TextureId::User(i as u64);
+            }
+        }
+        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        self.user_textures.push(Some(Default::default()));
+        id
+    }
+
+    pub fn set_user_texture(
+        &mut self,
+        id: egui::TextureId,
+        size: (usize, usize),
+        pixels: &[Srgba],
+    ) {
         assert_eq!(size.0 * size.1, pixels.len());
 
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
-            .chunks(size.0 as usize)
-            .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
-            .collect();
+        if let egui::TextureId::User(id) = id {
+            if let Some(user_texture) = self.user_textures.get_mut(id as usize) {
+                if let Some(user_texture) = user_texture {
+                    let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
+                        .chunks(size.0 as usize)
+                        .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+                        .collect();
 
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
-        self.user_textures.push(UserTexture {
-            pixels,
-            texture: None,
-        });
-        id
+                    *user_texture = UserTexture {
+                        pixels,
+                        gl_texture: None,
+                    };
+                }
+            }
+        }
+    }
+
+    pub fn free_user_texture(&mut self, id: egui::TextureId) {
+        if let egui::TextureId::User(id) = id {
+            let index = id as usize;
+            if index < self.user_textures.len() {
+                self.user_textures[index] = None;
+            }
+        }
+    }
+
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+        match texture_id {
+            egui::TextureId::Egui => self.egui_texture.as_ref(),
+            egui::TextureId::User(id) => self
+                .user_textures
+                .get(id as usize)?
+                .as_ref()?
+                .gl_texture
+                .as_ref(),
+        }
     }
 
     fn upload_egui_texture(
@@ -138,12 +181,14 @@ impl Painter {
 
     fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
         for user_texture in &mut self.user_textures {
-            if user_texture.texture.is_none() {
-                let pixels = std::mem::take(&mut user_texture.pixels);
-                let format = texture::SrgbFormat::U8U8U8U8;
-                let mipmaps = texture::MipmapsOption::NoMipmap;
-                user_texture.texture =
-                    Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+            if let Some(user_texture) = user_texture {
+                if user_texture.gl_texture.is_none() {
+                    let pixels = std::mem::take(&mut user_texture.pixels);
+                    let format = texture::SrgbFormat::U8U8U8U8;
+                    let mipmaps = texture::MipmapsOption::NoMipmap;
+                    user_texture.gl_texture =
+                        Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+                }
             }
         }
     }
@@ -171,18 +216,6 @@ impl Painter {
             )
         }
         target.finish().unwrap();
-    }
-
-    fn get_texture(&self, texture_id: egui::TextureId) -> &SrgbTexture2d {
-        match texture_id {
-            egui::TextureId::Egui => self.egui_texture.as_ref().unwrap(),
-            egui::TextureId::User(id) => {
-                let id = id as usize;
-                assert!(id < self.user_textures.len());
-                let texture = self.user_textures[id].texture.as_ref();
-                texture.expect("Should have been uploaded")
-            }
-        }
     }
 
     #[inline(never)] // Easier profiling
@@ -229,68 +262,68 @@ impl Painter {
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
-        let texture = self.get_texture(triangles.texture_id);
+        if let Some(texture) = self.get_texture(triangles.texture_id) {
+            let uniforms = uniform! {
+                u_screen_size: [width_in_points, height_in_points],
+                u_sampler: texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
+            };
 
-        let uniforms = uniform! {
-            u_screen_size: [width_in_points, height_in_points],
-            u_sampler: texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
-        };
+            // Egui outputs colors with premultiplied alpha:
+            let color_blend_func = glium::BlendingFunction::Addition {
+                source: glium::LinearBlendingFactor::One,
+                destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
+            };
 
-        // Egui outputs colors with premultiplied alpha:
-        let color_blend_func = glium::BlendingFunction::Addition {
-            source: glium::LinearBlendingFactor::One,
-            destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
-        };
+            // Less important, but this is technically the correct alpha blend function
+            // when you want to make use of the framebuffer alpha (for screenshots, compositing, etc).
+            let alpha_blend_func = glium::BlendingFunction::Addition {
+                source: glium::LinearBlendingFactor::OneMinusDestinationAlpha,
+                destination: glium::LinearBlendingFactor::One,
+            };
 
-        // Less important, but this is technically the correct alpha blend function
-        // when you want to make use of the framebuffer alpha (for screenshots, compositing, etc).
-        let alpha_blend_func = glium::BlendingFunction::Addition {
-            source: glium::LinearBlendingFactor::OneMinusDestinationAlpha,
-            destination: glium::LinearBlendingFactor::One,
-        };
+            let blend = glium::Blend {
+                color: color_blend_func,
+                alpha: alpha_blend_func,
+                ..Default::default()
+            };
 
-        let blend = glium::Blend {
-            color: color_blend_func,
-            alpha: alpha_blend_func,
-            ..Default::default()
-        };
+            // Transform clip rect to physical pixels:
+            let clip_min_x = pixels_per_point * clip_rect.min.x;
+            let clip_min_y = pixels_per_point * clip_rect.min.y;
+            let clip_max_x = pixels_per_point * clip_rect.max.x;
+            let clip_max_y = pixels_per_point * clip_rect.max.y;
 
-        // Transform clip rect to physical pixels:
-        let clip_min_x = pixels_per_point * clip_rect.min.x;
-        let clip_min_y = pixels_per_point * clip_rect.min.y;
-        let clip_max_x = pixels_per_point * clip_rect.max.x;
-        let clip_max_y = pixels_per_point * clip_rect.max.y;
+            // Make sure clip rect can fit withing an `u32`:
+            let clip_min_x = clamp(clip_min_x, 0.0..=width_in_pixels as f32);
+            let clip_min_y = clamp(clip_min_y, 0.0..=height_in_pixels as f32);
+            let clip_max_x = clamp(clip_max_x, clip_min_x..=width_in_pixels as f32);
+            let clip_max_y = clamp(clip_max_y, clip_min_y..=height_in_pixels as f32);
 
-        // Make sure clip rect can fit withing an `u32`:
-        let clip_min_x = clamp(clip_min_x, 0.0..=width_in_pixels as f32);
-        let clip_min_y = clamp(clip_min_y, 0.0..=height_in_pixels as f32);
-        let clip_max_x = clamp(clip_max_x, clip_min_x..=width_in_pixels as f32);
-        let clip_max_y = clamp(clip_max_y, clip_min_y..=height_in_pixels as f32);
+            let clip_min_x = clip_min_x.round() as u32;
+            let clip_min_y = clip_min_y.round() as u32;
+            let clip_max_x = clip_max_x.round() as u32;
+            let clip_max_y = clip_max_y.round() as u32;
 
-        let clip_min_x = clip_min_x.round() as u32;
-        let clip_min_y = clip_min_y.round() as u32;
-        let clip_max_x = clip_max_x.round() as u32;
-        let clip_max_y = clip_max_y.round() as u32;
+            let params = glium::DrawParameters {
+                blend,
+                scissor: Some(glium::Rect {
+                    left: clip_min_x,
+                    bottom: height_in_pixels - clip_max_y,
+                    width: clip_max_x - clip_min_x,
+                    height: clip_max_y - clip_min_y,
+                }),
+                ..Default::default()
+            };
 
-        let params = glium::DrawParameters {
-            blend,
-            scissor: Some(glium::Rect {
-                left: clip_min_x,
-                bottom: height_in_pixels - clip_max_y,
-                width: clip_max_x - clip_min_x,
-                height: clip_max_y - clip_min_y,
-            }),
-            ..Default::default()
-        };
-
-        target
-            .draw(
-                &vertex_buffer,
-                &index_buffer,
-                &self.program,
-                &uniforms,
-                &params,
-            )
-            .unwrap();
+            target
+                .draw(
+                    &vertex_buffer,
+                    &index_buffer,
+                    &self.program,
+                    &uniforms,
+                    &params,
+                )
+                .unwrap();
+        }
     }
 }
