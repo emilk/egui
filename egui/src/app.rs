@@ -77,12 +77,19 @@ pub struct AppOutput {
 }
 
 pub trait TextureAllocator {
-    /// Allocate a user texture (EXPERIMENTAL!)
-    fn new_texture_srgba_premultiplied(
+    /// A.locate a new user texture.
+    fn alloc(&mut self) -> crate::TextureId;
+
+    /// Set or change the pixels of a user texture.
+    fn set_srgba_premultiplied(
         &mut self,
+        id: crate::TextureId,
         size: (usize, usize),
-        pixels: &[crate::Srgba],
-    ) -> crate::TextureId;
+        srgba_pixels: &[crate::Srgba],
+    );
+
+    /// Free the given texture.
+    fn free(&mut self, id: crate::TextureId);
 }
 
 /// A place where you can store custom data in a way that persists when you restart the app.

@@ -4,7 +4,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 
 ## Top priority
 
-* Egui-web fetch
+* Egui-web local storage
 
 ## Other
 
