@@ -424,6 +424,23 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     Ok(())
 }
 
+/// Repaint at least every `ms` milliseconds.
+fn repaint_every_ms(runner_ref: &AppRunnerRef, milliseconds: i32) -> Result<(), JsValue> {
+    assert!(milliseconds >= 0);
+    use wasm_bindgen::JsCast;
+    let window = web_sys::window().unwrap();
+    let runner_ref = runner_ref.clone();
+    let closure = Closure::wrap(Box::new(move || {
+        runner_ref.0.lock().needs_repaint = true;
+    }) as Box<dyn FnMut()>);
+    window.set_interval_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        milliseconds,
+    )?;
+    closure.forget();
+    Ok(())
+}
+
 fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
     egui::Modifiers {
         alt: event.alt_key(),
