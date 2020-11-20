@@ -2,11 +2,7 @@
 
 TODO-list for the Egui project. If you looking for something to do, look here.
 
-## Top priority
-
-* Egui-web local storage
-
-## Other
+## Misc
 
 * Widgets
   * [ ] Tooltips:
@@ -15,25 +11,14 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Allow adding multiple tooltips to the same widget, showing them all one after the other.
   * [ ] Vertical slider
   * [/] Color picker
-    * [x] linear rgb <-> sRGB
-    * [x] HSV
-    * [x] Color edit button with popup color picker
-    * [x] Gamma for value (brightness) slider
-    * [x] Easily edit users own (s)RGBA quadruplets (`&mut [u8;4]`/`[f32;4]`)
-    * [x] RGB editing without alpha
     * [ ] Additive blending aware color picker
     * [ ] Premultiplied alpha is a bit of a pain in the ass. Maybe rethink this a bit.
     * [ ] Hue wheel
 * Input
-  * [x] Distinguish between clicks and drags
-  * [x] Double-click
-  * [x] Text
-  * [x] Modifier keys
   * [ ] Support all mouse buttons
   * [ ] Distinguish between touch input and mouse input
 * Text
   * [/] Unicode
-    * [x] Shared mutable expanding texture map
     * [/] Text editing of unicode (needs more testing)
     * [ ] Font with some more unicode characters
   * [ ] Emoji support (great for things like ▶️⏸⏹⚠︎)
@@ -42,8 +27,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Sub-menus
   * [ ] Keyboard shortcuts
 * Layout
-  * [x] Generalize Layout (separate from Ui)
-  * [ ] Break out `Region` with min_size + max_size + cursor + layout
   * [ ] Table with resizable columns
   * [ ] Grid layout
   * [ ] Point list
@@ -52,13 +35,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
     * [ ] Keeping right/bottom on expand. Maybe cover jitteryness with quick animation?
   * [ ] Make auto-positioning of windows respect permanent side-bars.
 * Visuals
-  * [x] Pixel-perfect painting (round positions to nearest pixel).
-  * [x] Fix `aa_size`: should be 1, currently fudged at 1.5
-  * [x] Fix thin rounded corners rendering bug (too bright)
-  * [x] Smoother animation (e.g. ease-out)? NO: animation are too brief for subtelty
-  * [x] Veriy alpha and sRGB correctness
-    * [x] sRGBA decode in fragment shader
-    * [ ] Fix alpha blending / sRGB weirdness in WebGL (EXT_sRGB)
+  * [ ] Fix alpha blending / sRGB weirdness in WebGL (EXT_sRGB)
   * [ ] Thin circles look bad
   * [ ] Optimize small filled circles with the global texture.
 * Id
@@ -78,12 +55,15 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 ## Integrations
 
 ### egui_web
+
 * [x] Scroll input
 * [x] Change to resize cursor on hover
 * [x] Port most code to Rust
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
 * [x] Copy/paste support
-* [ ] Async HTTP requests
+* [x] Async HTTP requests
+* [ ] Local storage of app state
+* [ ] Repaint on completed fetch request (etc)
 * [ ] Fix WebGL colors/blending (try EXT_sRGB)
 * [ ] Embeddability
   * [ ] Support canvas that does NOT cover entire screen.
@@ -107,9 +87,9 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 ## Modularity
 
 * [x] `trait Widget` (`Label`, `Slider`, `Checkbox`, ...)
-* [ ] `trait Container` (`Frame`, `Resize`, `ScrollArea`, ...)
-* [ ] `widget::TextButton` implemented as a `container::Button` which contains a `widget::Label`.
-* [ ] Easily chain `Container`s without nested closures.
+* [ ] `trait Wrapper` (`Frame`, `Resize`, `ScrollArea`, ...)
+* [ ] `widget::TextButton` implemented as a `wrapper::Button` which wraps a `widget::Label`.
+* [ ] Easily chain `Wrapper`s without nested closures.
   * e.g. `ui.wrap(Frame::new()).wrap(Resize::new()).wrap(ScrollArea::new()).show(|ui| ...)`
 * [ ] Attach labels to checkboxes, radio buttons and sliders with a separate wrapper-widget ?
 
@@ -122,13 +102,10 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [ ] Draw as flame graph
   * [ ] Draw as hotmap
   * [ ] Integrate puffin?
-* [ ] Windows should open from `UI`s and be boxed by parent ui.
-  * Then we could open the example app inside a window in the example app, recursively.
 * [ ] Implement a minimal markdown viewer
 
 ## Names and structure
 
-* [ ] Rename things to be more consistent with Dear ImGui ?
 * [ ] Put everything in `Context` behind the same Mutex? `struct Context(Arc<Mutex<ContextImpl>>);`, with e.g. `context.lock().memory.foo`?
 * [ ] Resolve the various uses of "heading", "header", "title" etc
 
@@ -147,6 +124,7 @@ Ability to do a search for any widget. The search works even for collapsed regio
   * [x] Tooltip
   * [x] Movable/resizable windows
   * [x] Add support for clicking hyperlinks
+  * [/] Color picker
 * [x] Text input
   * [x] Input
   * [x] Text focus
