@@ -36,6 +36,8 @@ pub struct IntegrationContext<'a> {
     pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
     /// Where the app can issue commands back to the integration.
     pub output: AppOutput,
+    /// If you need to request a repaint from another thread, clone this and give to that other thread
+    pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
 }
 
 #[derive(Clone, Debug)]
@@ -90,6 +92,12 @@ pub trait TextureAllocator {
 
     /// Free the given texture.
     fn free(&mut self, id: crate::TextureId);
+}
+
+pub trait RepaintSignal: Send {
+    /// This signals the Egui integration that a repaint is required.
+    /// This is meant to be called when a background process finishes in an async context and/or background thread.
+    fn request_repaint(&self);
 }
 
 /// A place where you can store custom data in a way that persists when you restart the app.

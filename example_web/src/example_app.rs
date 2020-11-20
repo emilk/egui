@@ -46,6 +46,15 @@ impl egui::app::App for ExampleApp {
         ctx: &std::sync::Arc<egui::Context>,
         integration_context: &mut egui::app::IntegrationContext,
     ) {
+        if let Some(receiver) = &mut self.in_progress {
+            // Are we there yet?
+            if let Ok(result) = receiver.try_recv() {
+                self.in_progress = None;
+                self.result = Some(result.map(Resource::from_response));
+            } else {
+            }
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Egui Example App");
             ui.add(egui::github_link_file!(
@@ -54,12 +63,13 @@ impl egui::app::App for ExampleApp {
             ));
 
             if ui_url(ui, &mut self.url) {
+                let repaint_signal = integration_context.repaint_signal.clone();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
                 let url = self.url.clone();
                 egui_web::spawn_future(async move {
                     sender.send(egui_web::fetch::get(&url).await).ok();
-                    // TODO: trigger egui repaint somehow
+                    repaint_signal.request_repaint();
                 });
             }
 
@@ -79,14 +89,6 @@ impl egui::app::App for ExampleApp {
                 }
             }
         });
-
-        if let Some(receiver) = &mut self.in_progress {
-            // Are we there yet?
-            if let Ok(result) = receiver.try_recv() {
-                self.in_progress = None;
-                self.result = Some(result.map(Resource::from_response));
-            }
-        }
     }
 }
 

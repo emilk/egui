@@ -134,12 +134,40 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
+use std::sync::atomic::Ordering::SeqCst;
+
+pub struct NeedRepaint(std::sync::atomic::AtomicBool);
+
+impl Default for NeedRepaint {
+    fn default() -> Self {
+        Self(true.into())
+    }
+}
+
+impl NeedRepaint {
+    pub fn fetch_and_clear(&self) -> bool {
+        self.0.swap(false, SeqCst)
+    }
+
+    pub fn set_true(&self) {
+        self.0.store(true, SeqCst);
+    }
+}
+
+impl egui::app::RepaintSignal for NeedRepaint {
+    fn request_repaint(&self) {
+        self.0.store(true, SeqCst);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct AppRunner {
     pixels_per_point: f32,
     pub web_backend: WebBackend,
     pub input: WebInput,
     pub app: Box<dyn App>,
-    pub needs_repaint: bool, // TODO: move
+    pub needs_repaint: std::sync::Arc<NeedRepaint>,
 }
 
 impl AppRunner {
@@ -150,7 +178,7 @@ impl AppRunner {
             web_backend,
             input: Default::default(),
             app,
-            needs_repaint: true, // TODO: move
+            needs_repaint: Default::default(),
         })
     }
 
@@ -175,6 +203,7 @@ impl AppRunner {
             },
             tex_allocator: Some(&mut self.web_backend.painter),
             output: Default::default(),
+            repaint_signal: self.needs_repaint.clone(),
         };
 
         let egui_ctx = &self.web_backend.ctx;

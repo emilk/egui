@@ -29,10 +29,20 @@ impl egui::app::TextureAllocator for Painter {
     }
 }
 
+struct RequestRepaintEvent;
+
+struct GliumRepaintSignal(glutin::event_loop::EventLoopProxy<RequestRepaintEvent>);
+
+impl egui::app::RepaintSignal for GliumRepaintSignal {
+    fn request_repaint(&self) {
+        self.0.send_event(RequestRepaintEvent).ok();
+    }
+}
+
 fn create_display(
     title: &str,
     window_settings: Option<WindowSettings>,
-    event_loop: &glutin::event_loop::EventLoop<()>,
+    event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_decorations(true)
@@ -61,8 +71,10 @@ pub fn run(
 ) -> ! {
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
-    let event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(title, window_settings, &event_loop);
+
+    let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
     let mut ctx = egui::Context::new();
     *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
@@ -92,6 +104,7 @@ pub fn run(
                 },
                 tex_allocator: Some(&mut painter),
                 output: Default::default(),
+                repaint_signal: repaint_signal.clone(),
             };
             app.ui(&ctx, &mut integration_context);
             let app_output = integration_context.output;
@@ -158,6 +171,11 @@ pub fn run(
                 app.on_exit(storage.as_mut());
                 storage.flush();
             }
+
+            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
+                display.gl_window().window().request_redraw();
+            }
+
             _ => (),
         }
     });

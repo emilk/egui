@@ -62,8 +62,8 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 * [x] Read url fragment and redirect to a subpage (e.g. different examples apps)]
 * [x] Copy/paste support
 * [x] Async HTTP requests
+* [x] Repaint on completed fetch request (etc)
 * [ ] Local storage of app state
-* [ ] Repaint on completed fetch request (etc)
 * [ ] Fix WebGL colors/blending (try EXT_sRGB)
 * [ ] Embeddability
   * [ ] Support canvas that does NOT cover entire screen.
