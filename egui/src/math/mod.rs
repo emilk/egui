@@ -125,7 +125,7 @@ pub fn round_to_precision(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
     format!("{:.*}", decimal_places, value)
         .parse()
-        .unwrap_or_else(|_| value)
+        .unwrap_or(value)
 }
 
 pub fn format_with_minimum_precision(value: f32, precision: usize) -> String {

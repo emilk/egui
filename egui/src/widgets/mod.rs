@@ -119,7 +119,7 @@ impl Label {
 
     /// Read the text style, or get the default for the current style
     pub fn text_style_or_default(&self, style: &Style) -> TextStyle {
-        self.text_style.unwrap_or_else(|| style.body_text_style)
+        self.text_style.unwrap_or(style.body_text_style)
     }
 }
 
