@@ -234,8 +234,7 @@ impl Painter {
         }
 
         let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        for &alpha in &texture.pixels {
-            let srgba = Srgba::white_alpha(alpha);
+        for srgba in texture.srgba_pixels() {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());

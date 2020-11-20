@@ -95,64 +95,6 @@ impl Painter {
         }
     }
 
-    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
-        for (i, tex) in self.user_textures.iter_mut().enumerate() {
-            if tex.is_none() {
-                *tex = Some(Default::default());
-                return egui::TextureId::User(i as u64);
-            }
-        }
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
-        self.user_textures.push(Some(Default::default()));
-        id
-    }
-
-    pub fn set_user_texture(
-        &mut self,
-        id: egui::TextureId,
-        size: (usize, usize),
-        pixels: &[Srgba],
-    ) {
-        assert_eq!(size.0 * size.1, pixels.len());
-
-        if let egui::TextureId::User(id) = id {
-            if let Some(user_texture) = self.user_textures.get_mut(id as usize) {
-                if let Some(user_texture) = user_texture {
-                    let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
-                        .chunks(size.0 as usize)
-                        .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
-                        .collect();
-
-                    *user_texture = UserTexture {
-                        pixels,
-                        gl_texture: None,
-                    };
-                }
-            }
-        }
-    }
-
-    pub fn free_user_texture(&mut self, id: egui::TextureId) {
-        if let egui::TextureId::User(id) = id {
-            let index = id as usize;
-            if index < self.user_textures.len() {
-                self.user_textures[index] = None;
-            }
-        }
-    }
-
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
-        match texture_id {
-            egui::TextureId::Egui => self.egui_texture.as_ref(),
-            egui::TextureId::User(id) => self
-                .user_textures
-                .get(id as usize)?
-                .as_ref()?
-                .gl_texture
-                .as_ref(),
-        }
-    }
-
     fn upload_egui_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
@@ -177,20 +119,6 @@ impl Painter {
         self.egui_texture =
             Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
         self.egui_texture_version = Some(texture.version);
-    }
-
-    fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
-        for user_texture in &mut self.user_textures {
-            if let Some(user_texture) = user_texture {
-                if user_texture.gl_texture.is_none() {
-                    let pixels = std::mem::take(&mut user_texture.pixels);
-                    let format = texture::SrgbFormat::U8U8U8U8;
-                    let mipmaps = texture::MipmapsOption::NoMipmap;
-                    user_texture.gl_texture =
-                        Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
-                }
-            }
-        }
     }
 
     /// Main entry-point for painting a frame
@@ -324,6 +252,82 @@ impl Painter {
                     &params,
                 )
                 .unwrap();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // user textures: this is an experimental feature.
+    // No need to implement this in your Egui integration!
+
+    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
+        for (i, tex) in self.user_textures.iter_mut().enumerate() {
+            if tex.is_none() {
+                *tex = Some(Default::default());
+                return egui::TextureId::User(i as u64);
+            }
+        }
+        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        self.user_textures.push(Some(Default::default()));
+        id
+    }
+
+    pub fn set_user_texture(
+        &mut self,
+        id: egui::TextureId,
+        size: (usize, usize),
+        pixels: &[Srgba],
+    ) {
+        assert_eq!(size.0 * size.1, pixels.len());
+
+        if let egui::TextureId::User(id) = id {
+            if let Some(user_texture) = self.user_textures.get_mut(id as usize) {
+                if let Some(user_texture) = user_texture {
+                    let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
+                        .chunks(size.0 as usize)
+                        .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+                        .collect();
+
+                    *user_texture = UserTexture {
+                        pixels,
+                        gl_texture: None,
+                    };
+                }
+            }
+        }
+    }
+
+    pub fn free_user_texture(&mut self, id: egui::TextureId) {
+        if let egui::TextureId::User(id) = id {
+            let index = id as usize;
+            if index < self.user_textures.len() {
+                self.user_textures[index] = None;
+            }
+        }
+    }
+
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+        match texture_id {
+            egui::TextureId::Egui => self.egui_texture.as_ref(),
+            egui::TextureId::User(id) => self
+                .user_textures
+                .get(id as usize)?
+                .as_ref()?
+                .gl_texture
+                .as_ref(),
+        }
+    }
+
+    fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
+        for user_texture in &mut self.user_textures {
+            if let Some(user_texture) = user_texture {
+                if user_texture.gl_texture.is_none() {
+                    let pixels = std::mem::take(&mut user_texture.pixels);
+                    let format = texture::SrgbFormat::U8U8U8U8;
+                    let mipmaps = texture::MipmapsOption::NoMipmap;
+                    user_texture.gl_texture =
+                        Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+                }
+            }
         }
     }
 }

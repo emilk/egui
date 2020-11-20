@@ -6,7 +6,19 @@ pub struct Texture {
     pub version: u64,
     pub width: usize,
     pub height: usize,
+    /// luminance and alpha, linear space 0-255
     pub pixels: Vec<u8>,
+}
+
+impl Texture {
+    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
+    pub fn srgba_pixels<'slf>(&'slf self) -> impl Iterator<Item = super::Srgba> + 'slf {
+        use super::Srgba;
+        let srgba_from_luminance_lut: Vec<Srgba> = (0..=255).map(Srgba::white_alpha).collect();
+        self.pixels
+            .iter()
+            .map(move |&l| srgba_from_luminance_lut[l as usize])
+    }
 }
 
 impl std::ops::Index<(usize, usize)> for Texture {
