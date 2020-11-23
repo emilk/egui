@@ -138,7 +138,10 @@ pub struct Visuals {
 
     // -----------------------------------------------
     // Debug rendering:
-    pub debug_widget_rects: bool,
+    /// Show which widgets make their parent wider
+    pub debug_expand_width: bool,
+    /// Show which widgets make their parent higher
+    pub debug_expand_height: bool,
     pub debug_resize: bool,
 }
 
@@ -260,7 +263,8 @@ impl Default for Visuals {
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             clip_rect_margin: 3.0,
-            debug_widget_rects: false,
+            debug_expand_width: false,
+            debug_expand_height: false,
             debug_resize: false,
         }
     }
@@ -443,7 +447,8 @@ impl Visuals {
             resize_corner_size,
             text_cursor_width,
             clip_rect_margin,
-            debug_widget_rects,
+            debug_expand_width,
+            debug_expand_height,
             debug_resize,
         } = self;
 
@@ -454,7 +459,15 @@ impl Visuals {
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.checkbox(debug_widget_rects, "Paint debug rectangles around widgets");
+        ui.label("DEBUG:");
+        ui.checkbox(
+            debug_expand_width,
+            "Show which widgets make their parent wider",
+        );
+        ui.checkbox(
+            debug_expand_height,
+            "Show which widgets make their parent higher",
+        );
         ui.checkbox(debug_resize, "Debug Resize");
     }
 }

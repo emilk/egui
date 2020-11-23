@@ -434,26 +434,34 @@ impl Ui {
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
         // For debug rendering
-        let too_wide = desired_size.x > self.available().width();
-        let too_high = desired_size.x > self.available().height();
+        let original_size = self.available().size();
+        let too_wide = desired_size.x > original_size.x;
+        let too_high = desired_size.y > original_size.y;
 
         let rect = self.reserve_space_impl(desired_size);
 
-        if self.style().visuals.debug_widget_rects {
+        let debug_expand_width = self.style().visuals.debug_expand_width;
+        let debug_expand_height = self.style().visuals.debug_expand_height;
+
+        if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter.rect_stroke(rect, 0.0, (1.0, LIGHT_BLUE));
 
-            let color = color::srgba(200, 0, 0, 255);
+            let color = color::Srgba::from_rgb(200, 0, 0);
             let width = 2.5;
 
             let paint_line_seg = |a, b| self.painter().line_segment([a, b], (width, color));
 
-            if too_wide {
+            if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
                 paint_line_seg(rect.left_center(), rect.right_center());
+                paint_line_seg(
+                    pos2(rect.left() + original_size.x, rect.top()),
+                    pos2(rect.left() + original_size.x, rect.bottom()),
+                );
                 paint_line_seg(rect.right_top(), rect.right_bottom());
             }
 
-            if too_high {
+            if debug_expand_height && too_high {
                 paint_line_seg(rect.left_top(), rect.right_top());
                 paint_line_seg(rect.center_top(), rect.center_bottom());
                 paint_line_seg(rect.left_bottom(), rect.right_bottom());
