@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Undo edtis in a `TextEdit`.
   * You can now check if a `TextEdit` lost keyboard focus with `response.lost_kb_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
+* You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
 
 ### Changed 🔧
 
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Improved automatic `Id` generation, making `Id` clashes less likely.
 * Egui now requires modifier key state from the integration
 * Added, renamed and removed some keys in the `Key` enum.
+* Fixed incorrect text wrapping width on radio buttons
 
 ### Fixed 🐛
 

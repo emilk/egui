@@ -380,14 +380,17 @@ impl<'a> Widget for Checkbox<'a> {
 
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_single_line(text);
 
         let spacing = &ui.style().spacing;
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = spacing.button_padding;
-        let mut desired_size =
-            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
+        let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
+
+        let galley = font.layout_single_line(text);
+        // let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+
+        let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
@@ -464,15 +467,18 @@ impl Widget for RadioButton {
             text,
             text_color,
         } = self;
+
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
 
         let icon_width = ui.style().spacing.icon_width;
         let icon_spacing = ui.style().spacing.icon_spacing;
         let button_padding = ui.style().spacing.button_padding;
-        let mut desired_size =
-            button_padding + vec2(icon_width + icon_spacing, 0.0) + galley.size + button_padding;
+        let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
+
+        let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+
+        let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
