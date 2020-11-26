@@ -18,7 +18,7 @@ Egui can be used anywhere you can draw textured triangles.
 
 Sections:
 
-* [Demo](#demos)
+* [Demo](#demo)
 * [Goals](#goals)
 * [State / features](#state)
 * [How it works](#how-it-works)
