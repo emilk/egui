@@ -197,8 +197,8 @@ impl<'t> TextEdit<'t> {
     /// Set the number of rows to show by default.
     /// The default for singleline text is `1`.
     /// The default for multiline text is `4`.
-    pub fn desired_rows(mut self, desired_width: f32) -> Self {
-        self.desired_width = Some(desired_width);
+    pub fn desired_rows(mut self, desired_height_rows: usize) -> Self {
+        self.desired_height_rows = desired_height_rows;
         self
     }
 }
