@@ -262,7 +262,7 @@ impl Default for Visuals {
             window_corner_radius: 10.0,
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
-            clip_rect_margin: 3.0,
+            clip_rect_margin: 1.0, // should be half the size of the widest frame stroke
             debug_expand_width: false,
             debug_expand_height: false,
             debug_resize: false,
