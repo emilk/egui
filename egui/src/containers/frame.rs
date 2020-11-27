@@ -98,10 +98,11 @@ pub struct Prepared {
 
 impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
+        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
         let outer_rect_bounds = ui.available();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
-        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
-        let content_ui = ui.child_ui(inner_rect, *ui.layout());
+        let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
+        content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Don't color outside the lines
         Prepared {
             frame: self,
             outer_rect_bounds,
