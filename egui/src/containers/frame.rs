@@ -101,8 +101,10 @@ impl Frame {
         let where_to_put_background = ui.painter().add(PaintCmd::Noop);
         let outer_rect_bounds = ui.available();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
-        let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
-        content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Don't color outside the lines
+        let content_ui = ui.child_ui(inner_rect, *ui.layout());
+
+        // content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Can't do this since we don't know final size yet
+
         Prepared {
             frame: self,
             outer_rect_bounds,
