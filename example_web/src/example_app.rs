@@ -192,7 +192,7 @@ impl Image {
     fn decode(bytes: &[u8]) -> Option<Image> {
         use image::GenericImageView;
         let image = image::load_from_memory(&bytes).ok()?;
-        let image_buffer = image.to_rgba();
+        let image_buffer = image.to_rgba8();
         let size = (image.width() as usize, image.height() as usize);
         let pixels = image_buffer.into_vec();
         assert_eq!(size.0 * size.1 * 4, pixels.len());
