@@ -41,15 +41,19 @@ impl Id {
     }
 
     pub fn new(source: impl Hash) -> Id {
+        // NOTE: AHasher is NOT suitable for this!
+        use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
-        let mut hasher = ahash::AHasher::default();
+        let mut hasher = DefaultHasher::default();
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
 
     pub fn with(self, child: impl Hash) -> Id {
+        // NOTE: AHasher is NOT suitable for this!
+        use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
-        let mut hasher = ahash::AHasher::default();
+        let mut hasher = DefaultHasher::default();
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())

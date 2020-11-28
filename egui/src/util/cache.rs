@@ -41,7 +41,8 @@ where
 }
 
 fn hash(value: impl Hash) -> u64 {
-    let mut hasher = ahash::AHasher::default();
+    use std::collections::hash_map::DefaultHasher;
+    let mut hasher = DefaultHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
 }

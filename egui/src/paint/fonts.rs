@@ -134,7 +134,8 @@ impl Fonts {
             let mut atlas = atlas.lock();
             let texture = atlas.texture_mut();
             // Make sure we seed the texture version with something unique based on the default characters:
-            let mut hasher = ahash::AHasher::default();
+            use std::collections::hash_map::DefaultHasher;
+            let mut hasher = DefaultHasher::default();
             texture.pixels.hash(&mut hasher);
             texture.version = hasher.finish();
         }
