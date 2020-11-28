@@ -51,7 +51,6 @@ impl egui::app::App for ExampleApp {
             if let Ok(result) = receiver.try_recv() {
                 self.in_progress = None;
                 self.result = Some(result.map(Resource::from_response));
-            } else {
             }
         }
 

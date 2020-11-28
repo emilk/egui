@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+
 use std::ops::RangeInclusive;
 
 use crate::{paint::*, *};

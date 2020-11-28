@@ -160,6 +160,7 @@ impl Prepared {
         )
     }
 
+    #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> Response {
         let Prepared {
             layer_id,

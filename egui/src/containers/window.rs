@@ -295,7 +295,7 @@ impl<'open> Window<'open> {
             title_bar.ui(
                 &mut area_content_ui,
                 outer_rect,
-                content_response,
+                &content_response,
                 open,
                 &mut collapsing,
                 collapsible,
@@ -659,7 +659,7 @@ impl TitleBar {
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
-        content_response: Option<Response>,
+        content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut collapsing_header::State,
         collapsible: bool,
