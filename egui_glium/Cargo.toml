@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using Egui natively using the glium library"
 edition = "2018"
@@ -15,7 +15,7 @@ include = [ "**/*.rs", "Cargo.toml"]
 [dependencies]
 chrono = { version = "0.4" }
 clipboard = "0.5"
-egui = { version = "0.3.0", path = "../egui", features = ["serde", "serde_json"] }
+egui = { version = "0.4.0", path = "../egui", features = ["serde", "serde_json"] }
 glium = "0.28"
 serde = "1"
 serde_json = "1"
