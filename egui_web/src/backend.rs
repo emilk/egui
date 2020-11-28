@@ -102,30 +102,19 @@ impl egui::app::TextureAllocator for webgl::Painter {
 // ----------------------------------------------------------------------------
 
 /// Data gathered between frames.
-/// Is translated to `egui::RawInput` at the start of each frame.
 #[derive(Default)]
 pub struct WebInput {
-    /// In native points (not same as Egui points)
-    pub mouse_pos: Option<egui::Pos2>,
     /// Is this a touch screen? If so, we ignore mouse events.
     pub is_touch: bool,
-    /// In native points (not same as Egui points)
-    pub scroll_delta: egui::Vec2,
 
     pub raw: egui::RawInput,
 }
 
 impl WebInput {
-    pub fn new_frame(&mut self, pixels_per_point: f32) -> egui::RawInput {
-        // Compensate for potential different scale of Egui compared to native.
-        let scale = native_pixels_per_point() / pixels_per_point;
-        let scroll_delta = std::mem::take(&mut self.scroll_delta) * scale;
-        let mouse_pos = self.mouse_pos.map(|mp| pos2(mp.x * scale, mp.y * scale));
+    pub fn new_frame(&mut self) -> egui::RawInput {
         egui::RawInput {
-            mouse_pos,
-            scroll_delta,
-            screen_size: screen_size_in_native_points().unwrap() * scale,
-            pixels_per_point: Some(pixels_per_point),
+            screen_size: screen_size_in_native_points().unwrap(),
+            pixels_per_point: Some(native_pixels_per_point()),
             time: now_sec(),
             ..self.raw.take()
         }
@@ -163,7 +152,6 @@ impl egui::app::RepaintSignal for NeedRepaint {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
-    pixels_per_point: f32,
     pub web_backend: WebBackend,
     pub input: WebInput,
     pub app: Box<dyn App>,
@@ -174,7 +162,6 @@ impl AppRunner {
     pub fn new(web_backend: WebBackend, mut app: Box<dyn App>) -> Result<Self, JsValue> {
         app.setup(&web_backend.ctx);
         Ok(Self {
-            pixels_per_point: native_pixels_per_point(),
             web_backend,
             input: Default::default(),
             app,
@@ -189,7 +176,7 @@ impl AppRunner {
     pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
 
-        let raw_input = self.input.new_frame(self.pixels_per_point);
+        let raw_input = self.input.new_frame();
         self.web_backend.begin_frame(raw_input);
 
         let mut integration_context = egui::app::IntegrationContext {
@@ -214,14 +201,10 @@ impl AppRunner {
 
         {
             let egui::app::AppOutput {
-                quit: _,        // Can't quit a web page
-                window_size: _, // Can't resize a web page
-                pixels_per_point,
+                quit: _,             // Can't quit a web page
+                window_size: _,      // Can't resize a web page
+                pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)
             } = app_output;
-
-            if let Some(pixels_per_point) = pixels_per_point {
-                self.pixels_per_point = pixels_per_point;
-            }
         }
 
         Ok((egui_output, paint_jobs))

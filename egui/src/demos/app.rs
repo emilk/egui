@@ -209,10 +209,12 @@ impl DemoApp {
 
         self.frame_history.ui(ui);
 
-        ui.separator();
-
-        integration_context.output.pixels_per_point =
-            self.pixels_per_point_ui(ui, &integration_context.info);
+        if !is_web {
+            // web browsers have their own way of zooming, which egui_web respects
+            ui.separator();
+            integration_context.output.pixels_per_point =
+                self.pixels_per_point_ui(ui, &integration_context.info);
+        }
 
         if !is_web {
             ui.separator();
