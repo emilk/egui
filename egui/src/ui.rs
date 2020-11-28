@@ -94,7 +94,7 @@ impl Ui {
         let min_rect = layout.rect_from_cursor_size(cursor, min_size);
 
         Ui {
-            id: self.id,
+            id: self.id.with("child"),
             next_auto_id: Id::new(self.next_auto_id).with("child").value(),
             painter: self.painter.clone(),
             min_rect,
