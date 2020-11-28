@@ -94,6 +94,13 @@ impl CCursorPair {
             secondary: ccursor,
         }
     }
+
+    fn two(min: CCursor, max: CCursor) -> Self {
+        Self {
+            primary: max,
+            secondary: min,
+        }
+    }
 }
 
 /// A text region that the user can edit the contents of.
@@ -272,12 +279,10 @@ impl<'t> Widget for TextEdit<'t> {
                 if response.hovered && response.double_clicked {
                     // Select word:
                     let center = cursor_at_mouse;
-                    let primary =
-                        galley.from_ccursor(ccursor_next_word(&galley.text, center.ccursor));
+                    let ccursorp = select_word_at(text, center.ccursor);
                     state.cursorp = Some(CursorPair {
-                        secondary: galley
-                            .from_ccursor(ccursor_previous_word(&galley.text, primary.ccursor)),
-                        primary,
+                        primary: galley.from_ccursor(ccursorp.primary),
+                        secondary: galley.from_ccursor(ccursorp.secondary),
                     });
                 } else if response.hovered && ui.input().mouse.pressed {
                     ui.memory().request_kb_focus(id);
@@ -801,9 +806,44 @@ fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers:
 
 // ----------------------------------------------------------------------------
 
+fn select_word_at(text: &str, ccursor: CCursor) -> CCursorPair {
+    if ccursor.index == 0 {
+        CCursorPair::two(ccursor, ccursor_next_word(text, ccursor))
+    } else {
+        let it = text.chars();
+        let mut it = it.skip(ccursor.index - 1);
+        if let Some(char_before_cursor) = it.next() {
+            if let Some(char_after_cursor) = it.next() {
+                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
+                    let min = ccursor_previous_word(text, ccursor + 1);
+                    let max = ccursor_next_word(text, min);
+                    CCursorPair::two(min, max)
+                } else if is_word_char(char_before_cursor) {
+                    let min = ccursor_previous_word(text, ccursor);
+                    let max = ccursor_next_word(text, min);
+                    CCursorPair::two(min, max)
+                } else if is_word_char(char_after_cursor) {
+                    let max = ccursor_next_word(text, ccursor);
+                    CCursorPair::two(ccursor, max)
+                } else {
+                    let min = ccursor_previous_word(text, ccursor);
+                    let max = ccursor_next_word(text, ccursor);
+                    CCursorPair::two(min, max)
+                }
+            } else {
+                let min = ccursor_previous_word(text, ccursor);
+                CCursorPair::two(min, ccursor)
+            }
+        } else {
+            let max = ccursor_next_word(text, ccursor);
+            CCursorPair::two(ccursor, max)
+        }
+    }
+}
+
 fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
-        index: next_word_char_index(text.chars(), ccursor.index),
+        index: next_word_boundary_char_index(text.chars(), ccursor.index),
         prefer_next_row: false,
     }
 }
@@ -811,12 +851,13 @@ fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
 fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     let num_chars = text.chars().count();
     CCursor {
-        index: num_chars - next_word_char_index(text.chars().rev(), num_chars - ccursor.index),
+        index: num_chars
+            - next_word_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
         prefer_next_row: true,
     }
 }
 
-fn next_word_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
+fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
     let mut it = it.skip(index);
     if let Some(_first) = it.next() {
         index += 1;
