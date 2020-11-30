@@ -76,9 +76,9 @@ impl Widgets {
         });
 
         combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
-            ui.radio_value(&mut self.radio, Enum::First, "First");
-            ui.radio_value(&mut self.radio, Enum::Second, "Second");
-            ui.radio_value(&mut self.radio, Enum::Third, "Third");
+            ui.selectable_value(&mut self.radio, Enum::First, "First");
+            ui.selectable_value(&mut self.radio, Enum::Second, "Second");
+            ui.selectable_value(&mut self.radio, Enum::Third, "Third");
         });
 
         ui.checkbox(&mut self.button_enabled, "Button enabled");

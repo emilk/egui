@@ -272,8 +272,7 @@ impl<'t> Widget for TextEdit<'t> {
 
                 if response.hovered {
                     // preview:
-                    let end_color = Rgba::new(0.1, 0.6, 1.0, 1.0).multiply(0.5).into(); // TODO: from style
-                    paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_mouse, end_color);
+                    paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_mouse);
                 }
 
                 if response.hovered && response.double_clicked {
@@ -458,11 +457,8 @@ impl<'t> Widget for TextEdit<'t> {
 
         if ui.memory().has_kb_focus(id) {
             if let Some(cursorp) = state.cursorp {
-                // TODO: color from Style
-                let selection_color = Rgba::new(0.0, 0.5, 1.0, 0.0).multiply(0.15).into(); // additive!
-                let end_color = Rgba::new(0.3, 0.6, 1.0, 1.0).into();
-                paint_cursor_selection(ui, response.rect.min, &galley, &cursorp, selection_color);
-                paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary, end_color);
+                paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
+                paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);
             }
         }
 
@@ -484,13 +480,8 @@ impl<'t> Widget for TextEdit<'t> {
 
 // ----------------------------------------------------------------------------
 
-fn paint_cursor_selection(
-    ui: &mut Ui,
-    pos: Pos2,
-    galley: &Galley,
-    cursorp: &CursorPair,
-    color: Srgba,
-) {
+fn paint_cursor_selection(ui: &mut Ui, pos: Pos2, galley: &Galley, cursorp: &CursorPair) {
+    let color = ui.style().visuals.selection.bg_fill;
     if cursorp.is_empty() {
         return;
     }
@@ -520,15 +511,19 @@ fn paint_cursor_selection(
     }
 }
 
-fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor, color: Srgba) {
+fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
+    let stroke = ui.style().visuals.selection.stroke;
+
     let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     let cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
 
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    ui.painter()
-        .line_segment([top, bottom], (ui.style().visuals.text_cursor_width, color));
+    ui.painter().line_segment(
+        [top, bottom],
+        (ui.style().visuals.text_cursor_width, stroke.color),
+    );
 
     if false {
         // Roof/floor:
@@ -536,11 +531,11 @@ fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor, co
         let width = 1.0;
         ui.painter().line_segment(
             [top - vec2(extrusion, 0.0), top + vec2(extrusion, 0.0)],
-            (width, color),
+            (width, stroke.color),
         );
         ui.painter().line_segment(
             [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
-            (width, color),
+            (width, stroke.color),
         );
     }
 }

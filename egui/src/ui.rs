@@ -544,21 +544,46 @@ impl Ui {
     }
 
     /// Show a radio button.
-    pub fn radio(&mut self, checked: bool, text: impl Into<String>) -> Response {
-        self.add(RadioButton::new(checked, text))
+    /// Often you want to use `ui.radio_value` instead.
+    pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
+        self.add(RadioButton::new(selected, text))
     }
 
-    /// Show a radio button. It is selected if `*current_value == radio_value`.
-    /// If clicked, `radio_value` is assigned to `*current_value`;
+    /// Show a radio button. It is selected if `*current_value == selected_value`.
+    /// If clicked, `selected_value` is assigned to `*current_value`.
+    ///
+    /// Example: `ui.radio_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
-        radio_value: Value,
+        selected_value: Value,
         text: impl Into<String>,
     ) -> Response {
-        let response = self.radio(*current_value == radio_value, text);
+        let response = self.radio(*current_value == selected_value, text);
         if response.clicked {
-            *current_value = radio_value;
+            *current_value = selected_value;
+        }
+        response
+    }
+
+    /// Show a label which can be selected or not.
+    pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
+        self.add(SelectableLabel::new(checked, text))
+    }
+
+    /// Show selectable text. It is selected if `*current_value == selected_value`.
+    /// If clicked, `selected_value` is assigned to `*current_value`.
+    ///
+    /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
+    pub fn selectable_value<Value: PartialEq>(
+        &mut self,
+        current_value: &mut Value,
+        selected_value: Value,
+        text: impl Into<String>,
+    ) -> Response {
+        let response = self.selectable_label(*current_value == selected_value, text);
+        if response.clicked {
+            *current_value = selected_value;
         }
         response
     }
@@ -686,6 +711,7 @@ impl Ui {
         self.allocate_space(child_ui.min_size())
     }
 
+    /// A `CollapsingHeader` that starts out collapsed.
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<String>,

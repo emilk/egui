@@ -123,6 +123,8 @@ pub struct Visuals {
     /// Visual styles of widgets
     pub widgets: Widgets,
 
+    pub selection: Selection,
+
     /// e.g. the background of the slider or text edit,
     /// needs to look different from other interactive stuff.
     pub dark_bg_color: Srgba, // TODO: remove, rename, or clarify what it is for
@@ -154,6 +156,14 @@ impl Visuals {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
+}
+
+/// Selected text, selected elements etc
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Selection {
+    pub bg_fill: Srgba,
+    pub stroke: Stroke,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -258,6 +268,7 @@ impl Default for Visuals {
         Self {
             override_text_color: None,
             widgets: Default::default(),
+            selection: Default::default(),
             dark_bg_color: Srgba::black_alpha(140),
             window_corner_radius: 10.0,
             resize_corner_size: 12.0,
@@ -266,6 +277,15 @@ impl Default for Visuals {
             debug_expand_width: false,
             debug_expand_height: false,
             debug_resize: false,
+        }
+    }
+}
+
+impl Default for Selection {
+    fn default() -> Self {
+        Self {
+            bg_fill: Rgba::new(0.0, 0.5, 1.0, 0.0).multiply(0.15).into(), // additive!
+            stroke: Stroke::new(1.0, Rgba::new(0.3, 0.6, 1.0, 1.0)),
         }
     }
 }
@@ -415,6 +435,15 @@ impl Widgets {
     }
 }
 
+impl Selection {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self { bg_fill, stroke } = self;
+
+        ui_color(ui, bg_fill, "bg_fill");
+        stroke.ui(ui, "stroke");
+    }
+}
+
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
@@ -442,6 +471,7 @@ impl Visuals {
         let Self {
             override_text_color: _,
             widgets,
+            selection,
             dark_bg_color,
             window_corner_radius,
             resize_corner_size,
@@ -453,6 +483,7 @@ impl Visuals {
         } = self;
 
         ui.collapsing("widgets", |ui| widgets.ui(ui));
+        ui.collapsing("selection", |ui| selection.ui(ui));
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
