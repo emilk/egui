@@ -60,7 +60,7 @@ impl FontDefinitions {
 
         // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
         let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-        let variable_typeface_data = include_bytes!("../../fonts/Comfortaa-Regular.ttf"); // Funny, hard to read
+        let variable_typeface_data = include_bytes!("../../fonts/Ubuntu-Light.ttf");
 
         let mut ttf_data: BTreeMap<FontFamily, &'static [u8]> = BTreeMap::new();
         ttf_data.insert(FontFamily::Monospace, monospace_typeface_data);

@@ -209,6 +209,5 @@ Egui is under MIT OR Apache-2.0 license.
 
 Fonts:
 
-* Comfortaa: Open Font License, see OFT.txt
 * ProggyClean.ttf, Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. <http://www.proggyfonts.net/>
-* Roboto-Regular.ttf: Apache License, Version 2.0
+* Ubuntu-Light.ttf by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)
