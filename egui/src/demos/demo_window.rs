@@ -335,14 +335,13 @@ impl LayoutDemo {
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
         // ui.label(format!("Available space: {:?}", ui.available().size()));
-        if ui.button("Reset").clicked {
+        if ui.button("Default").clicked {
             *self = Default::default();
         }
+
         ui.separator();
-        ui.label("Direction:");
 
-        // TODO: enum iter
-
+        ui.label("Main Direction:");
         for &dir in &[
             Direction::LeftToRight,
             Direction::RightToLeft,
@@ -354,12 +353,14 @@ impl LayoutDemo {
 
         ui.separator();
 
-        ui.label("Align:");
+        ui.label("Cross Align:");
         for &align in &[Align::Min, Align::Center, Align::Max] {
             ui.radio_value(&mut self.cross_align, align, format!("{:?}", align));
         }
 
-        ui.checkbox(&mut self.cross_justify, "Justified")
+        ui.separator();
+
+        ui.checkbox(&mut self.cross_justify, "Cross Justified")
             .on_hover_text("Try to fill full width/height (e.g. buttons)");
     }
 }

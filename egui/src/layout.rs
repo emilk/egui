@@ -216,6 +216,37 @@ impl Layout {
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
     }
 
+    pub fn horizontal_align(self) -> Align {
+        match self.main_dir {
+            Direction::LeftToRight => Align::left(),
+            Direction::RightToLeft => Align::right(),
+            Direction::TopDown | Direction::BottomUp => self.cross_align,
+        }
+    }
+
+    pub fn vertical_align(self) -> Align {
+        match self.main_dir {
+            Direction::TopDown => Align::top(),
+            Direction::BottomUp => Align::bottom(),
+            Direction::LeftToRight | Direction::RightToLeft => self.cross_align,
+        }
+    }
+
+    pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
+        let x = match self.horizontal_align() {
+            Align::Min => outer.left(),
+            Align::Center => outer.center().x - size.x / 2.0,
+            Align::Max => outer.right() - size.x,
+        };
+        let y = match self.vertical_align() {
+            Align::Min => outer.top(),
+            Align::Center => outer.center().y - size.y / 2.0,
+            Align::Max => outer.bottom() - size.y,
+        };
+
+        Rect::from_min_size(Pos2::new(x, y), size)
+    }
+
     // ------------------------------------------------------------------------
 
     fn initial_cursor(self, max_rect: Rect) -> Pos2 {
@@ -303,6 +334,7 @@ impl Layout {
     /// for justified layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
+    #[allow(clippy::collapsible_if)]
     pub fn next_space(self, region: &Region, minimum_child_size: Vec2) -> Rect {
         let available_size = self.available_finite(region).size();
         let available_size = available_size.at_least(minimum_child_size);

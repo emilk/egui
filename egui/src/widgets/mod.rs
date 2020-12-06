@@ -127,6 +127,7 @@ impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let galley = self.layout(ui);
         let rect = ui.allocate_space(galley.size);
+        let rect = ui.layout().align_size_within_rect(galley.size, rect);
         self.paint_galley(ui, rect.min, galley);
         ui.interact_hover(rect)
     }
@@ -314,11 +315,10 @@ impl Widget for Button {
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
         let visuals = ui.style().interact(&response);
-        // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
-        let text_cursor = pos2(
-            response.rect.left() + button_padding.x,
-            response.rect.center().y - 0.5 * galley.size.y,
-        ); // left-centered
+        let text_cursor = ui
+            .layout()
+            .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+            .min;
         let fill = fill.unwrap_or(visuals.bg_fill);
         ui.painter().rect(
             response.rect,
@@ -473,7 +473,6 @@ impl Widget for RadioButton {
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
-
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
 
