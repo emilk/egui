@@ -2,6 +2,68 @@ use crate::{math::*, Align};
 
 // ----------------------------------------------------------------------------
 
+/// This describes the bounds and existing contents of an `Ui`.
+/// It is what is used and updated by `Layout` when adding new widgets.
+#[derive(Clone, Copy, Debug)]
+pub struct Region {
+    /// This is the minimal size of the `Ui`.
+    /// When adding new widgets, this will generally expand.
+    ///
+    /// Always finite.
+    ///
+    /// The bounding box of all child widgets, but not necessarily a tight bounding box
+    /// since `Ui` can start with a non-zero min_rect size.
+    pub min_rect: Rect,
+
+    /// The maximum size of this `Ui`. This is a *soft max*
+    /// meaning new widgets will *try* not to expand beyond it,
+    /// but if they have to, they will.
+    ///
+    /// Text will wrap at `max_rect.right()`.
+    /// Some widgets (like separator lines) will try to fill the full `max_rect` width of the ui.
+    ///
+    /// `max_rect` will always be at least the size of `min_rect`.
+    ///
+    /// If the `max_rect` size is zero, it is a signal that child widgets should be as small as possible.
+    /// If the `max_rect` size is infinite, it is a signal that child widgets should take up as much room as they want.
+    pub max_rect: Rect,
+
+    /// Where the next widget will be put.
+    /// If something has already been added, this will point ot `style.spacing.item_spacing` beyond the latest child.
+    /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the min_rect.
+    pub(crate) cursor: Pos2,
+}
+
+impl Region {
+    /// This is like `max_rect`, but will never be infinite.
+    /// If the desired rect is infinite ("be as big as you want")
+    /// this will be bounded by `min_rect` instead.
+    pub fn max_rect_finite(&self) -> Rect {
+        let mut result = self.max_rect;
+        if !result.min.x.is_finite() {
+            result.min.x = self.min_rect.min.x;
+        }
+        if !result.min.y.is_finite() {
+            result.min.y = self.min_rect.min.y;
+        }
+        if !result.max.x.is_finite() {
+            result.max.x = self.min_rect.max.x;
+        }
+        if !result.max.y.is_finite() {
+            result.max.y = self.min_rect.max.y;
+        }
+        result
+    }
+
+    /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
+    pub fn expand_to_include_rect(&mut self, rect: Rect) {
+        self.min_rect = self.min_rect.union(rect);
+        self.max_rect = self.max_rect.union(rect);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// `Layout` direction (horizontal or vertical).
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -112,7 +174,7 @@ impl Layout {
         self.reversed
     }
 
-    pub fn initial_cursor(self, max_rect: Rect) -> Pos2 {
+    fn initial_cursor(self, max_rect: Rect) -> Pos2 {
         match self.dir {
             Direction::Horizontal => {
                 if self.reversed {
@@ -131,9 +193,27 @@ impl Layout {
         }
     }
 
+    pub fn region_from_max_rect(&self, max_rect: Rect) -> Region {
+        let cursor = self.initial_cursor(max_rect);
+        let min_rect = Rect::from_min_size(cursor, Vec2::zero());
+        Region {
+            min_rect,
+            max_rect,
+            cursor,
+        }
+    }
+
+    pub fn available(&self, region: &Region) -> Rect {
+        self.available_from_cursor_max_rect(region.cursor, region.max_rect)
+    }
+
+    pub fn available_finite(&self, region: &Region) -> Rect {
+        self.available_from_cursor_max_rect(region.cursor, region.max_rect_finite())
+    }
+
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    pub fn available(self, cursor: Pos2, max_rect: Rect) -> Rect {
+    fn available_from_cursor_max_rect(self, cursor: Pos2, max_rect: Rect) -> Rect {
         let mut rect = max_rect;
         match self.dir {
             Direction::Horizontal => {
@@ -157,46 +237,46 @@ impl Layout {
     }
 
     /// Advance the cursor by this many points.
-    pub fn advance_cursor(self, cursor: &mut Pos2, amount: f32) {
+    pub fn advance_cursor(self, region: &mut Region, amount: f32) {
         match self.dir() {
             Direction::Horizontal => {
                 if self.is_reversed() {
-                    cursor.x -= amount;
+                    region.cursor.x -= amount;
                 } else {
-                    cursor.x += amount;
+                    region.cursor.x += amount;
                 }
             }
             Direction::Vertical => {
                 if self.is_reversed() {
-                    cursor.y -= amount;
+                    region.cursor.y -= amount;
                 } else {
-                    cursor.y += amount;
+                    region.cursor.y += amount;
                 }
             }
         }
     }
 
     /// Advance the cursor by this spacing
-    pub fn advance_cursor2(self, cursor: &mut Pos2, amount: Vec2) {
+    pub fn advance_cursor2(self, region: &mut Region, amount: Vec2) {
         match self.dir() {
-            Direction::Horizontal => self.advance_cursor(cursor, amount.x),
-            Direction::Vertical => self.advance_cursor(cursor, amount.y),
+            Direction::Horizontal => self.advance_cursor(region, amount.x),
+            Direction::Vertical => self.advance_cursor(region, amount.y),
         }
     }
 
-    pub fn rect_from_cursor_size(self, cursor: Pos2, size: Vec2) -> Rect {
-        let mut rect = Rect::from_min_size(cursor, size);
+    pub fn rect_from_cursor_size(self, region: &Region, size: Vec2) -> Rect {
+        let mut rect = Rect::from_min_size(region.cursor, size);
 
         match self.dir {
             Direction::Horizontal => {
                 if self.reversed {
-                    rect.min.x = cursor.x - size.x;
+                    rect.min.x = region.cursor.x - size.x;
                     rect.max.x = rect.min.x - size.x
                 }
             }
             Direction::Vertical => {
                 if self.reversed {
-                    rect.min.y = cursor.y - size.y;
+                    rect.min.y = region.cursor.y - size.y;
                     rect.max.y = rect.min.y - size.y
                 }
             }
@@ -217,12 +297,8 @@ impl Layout {
     /// for `Justified` aligned layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    pub fn allocate_space(
-        self,
-        cursor: &mut Pos2,
-        available_size: Vec2,
-        minimum_child_size: Vec2,
-    ) -> Rect {
+    pub fn allocate_space(self, region: &mut Region, minimum_child_size: Vec2) -> Rect {
+        let available_size = self.available_finite(region).size();
         let available_size = available_size.at_least(minimum_child_size);
 
         let mut child_size = minimum_child_size;
@@ -260,16 +336,16 @@ impl Layout {
         }
 
         if self.is_reversed() {
-            let child_pos = *cursor + child_move;
+            let child_pos = region.cursor + child_move;
             let child_pos = match self.dir {
                 Direction::Horizontal => child_pos + vec2(-child_size.x, 0.0),
                 Direction::Vertical => child_pos + vec2(0.0, -child_size.y),
             };
-            *cursor -= cursor_change;
+            region.cursor -= cursor_change; // TODO: separate call
             Rect::from_min_size(child_pos, child_size)
         } else {
-            let child_pos = *cursor + child_move;
-            *cursor += cursor_change;
+            let child_pos = region.cursor + child_move;
+            region.cursor += cursor_change; // TODO: separate call
             Rect::from_min_size(child_pos, child_size)
         }
     }
@@ -280,8 +356,11 @@ impl Layout {
 /// ## Debug stuff
 impl Layout {
     /// Shows where the next widget is going to be placed
-    pub fn debug_paint_cursor(&self, cursor: Pos2, painter: &crate::Painter) {
+    pub fn debug_paint_cursor(&self, region: &Region, painter: &crate::Painter) {
         use crate::paint::*;
+
+        let cursor = region.cursor;
+
         let color = color::GREEN;
         let stroke = Stroke::new(2.0, color);
 
