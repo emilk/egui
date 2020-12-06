@@ -44,7 +44,7 @@ impl DemoWindow {
             });
 
         CollapsingHeader::new("Layout")
-            .default_open(false)
+            .default_open(true)
             .show(ui, |ui| self.layout.ui(ui));
 
         CollapsingHeader::new("Tree")
@@ -304,29 +304,25 @@ use crate::layout::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 struct LayoutDemo {
-    dir: Direction,
-    align: Option<Align>, // None == justified
-    reversed: bool,
+    // Identical to contents of `egui::Layout`
+    main_dir: Direction,
+    cross_align: Align,
+    cross_justify: bool,
 }
 
 impl Default for LayoutDemo {
     fn default() -> Self {
         Self {
-            dir: Direction::Vertical,
-            align: Some(Align::Center),
-            reversed: false,
+            main_dir: Direction::TopDown,
+            cross_align: Align::Min,
+            cross_justify: false,
         }
     }
 }
 
 impl LayoutDemo {
     fn layout(&self) -> Layout {
-        let layout = Layout::from_dir_align(self.dir, self.align);
-        if self.reversed {
-            layout.reverse()
-        } else {
-            layout
-        }
+        Layout::from_parts(self.main_dir, self.cross_align, self.cross_justify)
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
@@ -347,39 +343,24 @@ impl LayoutDemo {
 
         // TODO: enum iter
 
-        for &dir in &[Direction::Horizontal, Direction::Vertical] {
-            if ui
-                .add(RadioButton::new(self.dir == dir, format!("{:?}", dir)))
-                .clicked
-            {
-                self.dir = dir;
-            }
+        for &dir in &[
+            Direction::LeftToRight,
+            Direction::RightToLeft,
+            Direction::TopDown,
+            Direction::BottomUp,
+        ] {
+            ui.radio_value(&mut self.main_dir, dir, format!("{:?}", dir));
         }
-
-        ui.checkbox(&mut self.reversed, "Reversed");
 
         ui.separator();
 
         ui.label("Align:");
-
         for &align in &[Align::Min, Align::Center, Align::Max] {
-            if ui
-                .add(RadioButton::new(
-                    self.align == Some(align),
-                    format!("{:?}", align),
-                ))
-                .clicked
-            {
-                self.align = Some(align);
-            }
+            ui.radio_value(&mut self.cross_align, align, format!("{:?}", align));
         }
-        if ui
-            .add(RadioButton::new(self.align == None, "Justified"))
-            .on_hover_text("Try to fill full width/height (e.g. buttons)")
-            .clicked
-        {
-            self.align = None;
-        }
+
+        ui.checkbox(&mut self.cross_justify, "Justified")
+            .on_hover_text("Try to fill full width/height (e.g. buttons)");
     }
 }
 

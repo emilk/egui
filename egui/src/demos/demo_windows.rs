@@ -345,7 +345,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
                 (time % 1.0 * 100.0).floor()
             );
 
-            ui.with_layout(Layout::horizontal(Align::Center).reverse(), |ui| {
+            ui.with_layout(Layout::right_to_left(), |ui| {
                 if ui
                     .add(Button::new(time).text_style(TextStyle::Monospace))
                     .clicked

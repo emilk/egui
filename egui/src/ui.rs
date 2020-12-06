@@ -223,7 +223,7 @@ impl Ui {
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_width(&mut self, width: f32) {
-        if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
+        if self.layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(self.min_rect().max.x, self.max_rect().max.x);
             self.region.max_rect.min.x =
                 self.region.max_rect.max.x - width.at_least(self.min_rect().width());
@@ -237,7 +237,7 @@ impl Ui {
     /// Set the maximum height of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_height(&mut self, height: f32) {
-        if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
+        if self.layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(self.min_rect().max.y, self.region.max_rect.max.y);
             self.region.max_rect.min.y =
                 self.region.max_rect.max.y - height.at_least(self.min_rect().height());
@@ -260,7 +260,7 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
-        if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
+        if self.layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(self.region.min_rect.max.x, self.region.max_rect.max.x);
             let min_rect = &mut self.region.min_rect;
             min_rect.min.x = min_rect.min.x.min(min_rect.max.x - width);
@@ -275,7 +275,7 @@ impl Ui {
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
-        if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
+        if self.layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(self.region.min_rect.max.y, self.region.max_rect.max.y);
             let min_rect = &mut self.region.min_rect;
             min_rect.min.y = min_rect.min.y.min(min_rect.max.y - height);
@@ -733,8 +733,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
         assert!(
-            self.layout().dir() == Direction::Vertical,
-            "You can only indent vertical layouts"
+            self.layout.is_vertical(),
+            "You can only indent vertical layouts, found {:?}",
+            self.layout
         );
         let indent = vec2(self.style().spacing.indent, 0.0);
         let child_rect =
@@ -805,22 +806,19 @@ impl Ui {
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
-        let right_to_left =
-            (self.layout.dir(), self.layout.align()) == (Direction::Vertical, Some(Align::Max));
+        let layout = if self.layout.prefer_right_to_left() {
+            Layout::right_to_left()
+        } else {
+            Layout::left_to_right()
+        };
 
-        self.allocate_ui_min(initial_size, |ui| {
-            ui.with_layout(
-                Layout::horizontal(Align::Center).with_reversed(right_to_left),
-                add_contents,
-            )
-            .0
-        })
+        self.allocate_ui_min(initial_size, |ui| ui.with_layout(layout, add_contents).0)
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-        self.with_layout(Layout::vertical(Align::Min), add_contents)
+        self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
     pub fn with_layout<R>(

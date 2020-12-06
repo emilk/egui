@@ -64,18 +64,30 @@ impl Region {
 
 // ----------------------------------------------------------------------------
 
-/// `Layout` direction (horizontal or vertical).
+/// Main layout direction
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Direction {
-    Horizontal,
-    Vertical,
+    LeftToRight,
+    RightToLeft,
+    TopDown,
+    BottomUp,
 }
 
-impl Default for Direction {
-    fn default() -> Direction {
-        Direction::Vertical
+impl Direction {
+    pub fn is_horizontal(self) -> bool {
+        match self {
+            Direction::LeftToRight | Direction::RightToLeft => true,
+            Direction::TopDown | Direction::BottomUp => false,
+        }
+    }
+
+    pub fn is_vertical(self) -> bool {
+        match self {
+            Direction::LeftToRight | Direction::RightToLeft => false,
+            Direction::TopDown | Direction::BottomUp => true,
+        }
     }
 }
 
@@ -85,111 +97,133 @@ impl Default for Direction {
 #[derive(Clone, Copy, Debug, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
-    /// Lay out things horizontally or vertically? Main axis.
-    dir: Direction,
+    /// Main axis direction
+    main_dir: Direction,
 
     /// How to align things on the cross axis.
     /// For vertical layouts: put things to left, center or right?
     /// For horizontal layouts: put things to top, center or bottom?
-    /// `None` means justified, which means full width (vertical layout) or height (horizontal layouts).
-    align: Option<Align>,
+    cross_align: Align,
 
-    /// Lay out things in reversed order, i.e. from the right or bottom-up.
-    reversed: bool,
+    /// Justify the cross axis?
+    /// For vertical layouts justify mean all widgets get maximum width.
+    /// For horizontal layouts justify mean all widgets get maximum height.
+    cross_justify: bool,
 }
 
 impl Default for Layout {
     fn default() -> Self {
+        // TODO: Get from `Style` instead.
+        // This is a very euro-centric default.
         Self {
-            dir: Direction::Vertical,
-            align: Some(Align::Min),
-            reversed: false,
+            main_dir: Direction::TopDown,
+            cross_align: Align::left(),
+            cross_justify: false,
         }
     }
 }
 
 impl Layout {
     /// None align means justified, e.g. fill full width/height.
-    pub fn from_dir_align(dir: Direction, align: Option<Align>) -> Self {
+    pub(crate) fn from_parts(main_dir: Direction, cross_align: Align, cross_justify: bool) -> Self {
         Self {
-            dir,
-            align,
-            reversed: false,
+            main_dir,
+            cross_align,
+            cross_justify,
         }
     }
 
-    pub fn vertical(align: Align) -> Self {
+    #[deprecated = "Use `top_down`"]
+    pub fn vertical(cross_align: Align) -> Self {
+        Self::top_down(cross_align)
+    }
+
+    #[deprecated = "Use `left_to_right`"]
+    pub fn horizontal(cross_align: Align) -> Self {
+        Self::left_to_right().with_cross_align(cross_align)
+    }
+
+    pub fn left_to_right() -> Self {
         Self {
-            dir: Direction::Vertical,
-            align: Some(align),
-            reversed: false,
+            main_dir: Direction::LeftToRight,
+            cross_align: Align::Center,
+            cross_justify: false,
         }
     }
 
-    pub fn horizontal(align: Align) -> Self {
+    pub fn right_to_left() -> Self {
         Self {
-            dir: Direction::Horizontal,
-            align: Some(align),
-            reversed: false,
+            main_dir: Direction::RightToLeft,
+            cross_align: Align::Center,
+            cross_justify: false,
         }
     }
 
-    /// Full-width layout.
-    /// Nice for menus etc where each button is full width.
-    pub fn justified(dir: Direction) -> Self {
+    pub fn top_down(cross_align: Align) -> Self {
         Self {
-            dir,
-            align: None,
-            reversed: false,
+            main_dir: Direction::TopDown,
+            cross_align,
+            cross_justify: false,
         }
     }
 
-    #[must_use]
-    pub fn reverse(self) -> Self {
+    pub fn bottom_up(cross_align: Align) -> Self {
         Self {
-            dir: self.dir,
-            align: self.align,
-            reversed: !self.reversed,
+            main_dir: Direction::BottomUp,
+            cross_align,
+            cross_justify: false,
         }
     }
 
-    #[must_use]
-    pub fn with_reversed(self, reversed: bool) -> Self {
-        if reversed {
-            self.reverse()
-        } else {
-            self
+    pub fn with_cross_align(self, cross_align: Align) -> Self {
+        Self {
+            cross_align,
+            ..self
         }
     }
 
-    pub fn dir(self) -> Direction {
-        self.dir
+    pub fn with_cross_justify(self, cross_justify: bool) -> Self {
+        Self {
+            cross_justify,
+            ..self
+        }
     }
 
-    pub fn align(self) -> Option<Align> {
-        self.align
+    // ------------------------------------------------------------------------
+
+    pub fn main_dir(self) -> Direction {
+        self.main_dir
     }
 
-    pub fn is_reversed(self) -> bool {
-        self.reversed
+    pub fn cross_align(self) -> Align {
+        self.cross_align
     }
+
+    pub fn cross_justify(self) -> bool {
+        self.cross_justify
+    }
+
+    pub fn is_horizontal(self) -> bool {
+        self.main_dir().is_horizontal()
+    }
+
+    pub fn is_vertical(self) -> bool {
+        self.main_dir().is_vertical()
+    }
+
+    pub fn prefer_right_to_left(self) -> bool {
+        self.main_dir == Direction::RightToLeft
+            || self.main_dir.is_vertical() && self.cross_align == Align::Max
+    }
+
+    // ------------------------------------------------------------------------
 
     fn initial_cursor(self, max_rect: Rect) -> Pos2 {
-        match self.dir {
-            Direction::Horizontal => {
-                if self.reversed {
-                    max_rect.right_top()
-                } else {
-                    max_rect.left_top()
-                }
-            }
-            Direction::Vertical => {
-                if self.reversed {
-                    max_rect.left_bottom()
-                } else {
-                    max_rect.left_top()
-                }
-            }
+        match self.main_dir {
+            Direction::LeftToRight => max_rect.left_top(),
+            Direction::RightToLeft => max_rect.right_top(),
+            Direction::TopDown => max_rect.left_top(),
+            Direction::BottomUp => max_rect.left_bottom(),
         }
     }
 
@@ -215,52 +249,45 @@ impl Layout {
     /// for the next widget?
     fn available_from_cursor_max_rect(self, cursor: Pos2, max_rect: Rect) -> Rect {
         let mut rect = max_rect;
-        match self.dir {
-            Direction::Horizontal => {
-                rect.min.y = cursor.y;
-                if self.reversed {
-                    rect.max.x = cursor.x;
-                } else {
-                    rect.min.x = cursor.x;
-                }
-            }
-            Direction::Vertical => {
+
+        match self.main_dir {
+            Direction::LeftToRight => {
                 rect.min.x = cursor.x;
-                if self.reversed {
-                    rect.max.y = cursor.y;
-                } else {
-                    rect.min.y = cursor.y;
-                }
+                rect.min.y = cursor.y;
+            }
+            Direction::RightToLeft => {
+                rect.max.x = cursor.x;
+                rect.min.y = cursor.y;
+            }
+            Direction::TopDown => {
+                rect.min.x = cursor.x;
+                rect.min.y = cursor.y;
+            }
+            Direction::BottomUp => {
+                rect.min.x = cursor.x;
+                rect.max.y = cursor.y;
             }
         }
+
         rect
     }
 
     /// Advance the cursor by this many points.
     pub fn advance_cursor(self, region: &mut Region, amount: f32) {
-        match self.dir() {
-            Direction::Horizontal => {
-                if self.is_reversed() {
-                    region.cursor.x -= amount;
-                } else {
-                    region.cursor.x += amount;
-                }
-            }
-            Direction::Vertical => {
-                if self.is_reversed() {
-                    region.cursor.y -= amount;
-                } else {
-                    region.cursor.y += amount;
-                }
-            }
+        match self.main_dir {
+            Direction::LeftToRight => region.cursor.x += amount,
+            Direction::RightToLeft => region.cursor.x -= amount,
+            Direction::TopDown => region.cursor.y += amount,
+            Direction::BottomUp => region.cursor.y -= amount,
         }
     }
 
     /// Advance the cursor by this spacing
     pub fn advance_cursor2(self, region: &mut Region, amount: Vec2) {
-        match self.dir() {
-            Direction::Horizontal => self.advance_cursor(region, amount.x),
-            Direction::Vertical => self.advance_cursor(region, amount.y),
+        if self.main_dir.is_horizontal() {
+            self.advance_cursor(region, amount.x)
+        } else {
+            self.advance_cursor(region, amount.y)
         }
     }
 
@@ -282,49 +309,39 @@ impl Layout {
 
         let mut child_size = minimum_child_size;
         let mut child_move = Vec2::default();
-        let mut cursor_change = Vec2::default();
 
-        match self.dir {
-            Direction::Horizontal => {
-                if let Some(align) = self.align {
-                    child_move.y += match align {
-                        Align::Min => 0.0,
-                        Align::Center => 0.5 * (available_size.y - child_size.y),
-                        Align::Max => available_size.y - child_size.y,
-                    };
-                } else {
-                    // justified: fill full height
-                    child_size.y = child_size.y.max(available_size.y);
-                }
-
-                cursor_change.x += child_size.x;
-            }
-            Direction::Vertical => {
-                if let Some(align) = self.align {
-                    child_move.x += match align {
-                        Align::Min => 0.0,
-                        Align::Center => 0.5 * (available_size.x - child_size.x),
-                        Align::Max => available_size.x - child_size.x,
-                    };
-                } else {
-                    // justified: fill full width
-                    child_size.x = child_size.x.max(available_size.x);
+        if self.main_dir.is_horizontal() {
+            if self.cross_justify {
+                // fill full height
+                child_size.y = child_size.y.max(available_size.y);
+            } else {
+                child_move.y += match self.cross_align {
+                    Align::Min => 0.0,
+                    Align::Center => 0.5 * (available_size.y - child_size.y),
+                    Align::Max => available_size.y - child_size.y,
                 };
-                cursor_change.y += child_size.y;
+            }
+        } else {
+            if self.cross_justify {
+                // justified: fill full width
+                child_size.x = child_size.x.max(available_size.x);
+            } else {
+                child_move.x += match self.cross_align {
+                    Align::Min => 0.0,
+                    Align::Center => 0.5 * (available_size.x - child_size.x),
+                    Align::Max => available_size.x - child_size.x,
+                };
             }
         }
 
-        if self.is_reversed() {
-            let child_pos = region.cursor + child_move;
-            let child_pos = match self.dir {
-                Direction::Horizontal => child_pos + vec2(-child_size.x, 0.0),
-                Direction::Vertical => child_pos + vec2(0.0, -child_size.y),
-            };
-            Rect::from_min_size(child_pos, child_size)
-        } else {
-            let child_pos = region.cursor + child_move;
-            Rect::from_min_size(child_pos, child_size)
-        }
+        let child_pos = match self.main_dir {
+            Direction::LeftToRight => region.cursor + child_move,
+            Direction::RightToLeft => region.cursor + child_move + vec2(-child_size.x, 0.0),
+            Direction::TopDown => region.cursor + child_move,
+            Direction::BottomUp => region.cursor + child_move + vec2(0.0, -child_size.y),
+        };
+
+        Rect::from_min_size(child_pos, child_size)
     }
 }
 
@@ -343,24 +360,22 @@ impl Layout {
 
         let align;
 
-        match self.dir {
-            Direction::Horizontal => {
-                if self.reversed {
-                    painter.debug_arrow(cursor, vec2(-1.0, 0.0), stroke);
-                    align = (Align::Max, Align::Min);
-                } else {
-                    painter.debug_arrow(cursor, vec2(1.0, 0.0), stroke);
-                    align = (Align::Min, Align::Min);
-                }
+        match self.main_dir {
+            Direction::LeftToRight => {
+                painter.debug_arrow(cursor, vec2(1.0, 0.0), stroke);
+                align = (Align::Min, Align::Min);
             }
-            Direction::Vertical => {
-                if self.reversed {
-                    painter.debug_arrow(cursor, vec2(0.0, -1.0), stroke);
-                    align = (Align::Min, Align::Max);
-                } else {
-                    painter.debug_arrow(cursor, vec2(0.0, 1.0), stroke);
-                    align = (Align::Min, Align::Min);
-                }
+            Direction::RightToLeft => {
+                painter.debug_arrow(cursor, vec2(-1.0, 0.0), stroke);
+                align = (Align::Max, Align::Min);
+            }
+            Direction::TopDown => {
+                painter.debug_arrow(cursor, vec2(0.0, 1.0), stroke);
+                align = (Align::Min, Align::Min);
+            }
+            Direction::BottomUp => {
+                painter.debug_arrow(cursor, vec2(0.0, -1.0), stroke);
+                align = (Align::Min, Align::Max);
             }
         }
 

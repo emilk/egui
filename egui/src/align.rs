@@ -16,6 +16,21 @@ pub enum Align {
     Max,
 }
 
+impl Align {
+    pub fn left() -> Self {
+        Self::Min
+    }
+    pub fn right() -> Self {
+        Self::Max
+    }
+    pub fn top() -> Self {
+        Self::Min
+    }
+    pub fn bottom() -> Self {
+        Self::Max
+    }
+}
+
 impl Default for Align {
     fn default() -> Align {
         Align::Min

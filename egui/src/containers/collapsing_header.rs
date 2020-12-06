@@ -1,7 +1,6 @@
 use std::hash::Hash;
 
 use crate::{
-    layout::Direction,
     paint::{PaintCmd, TextStyle},
     widgets::Label,
     *,
@@ -168,7 +167,7 @@ struct Prepared {
 impl CollapsingHeader {
     fn begin(self, ui: &mut Ui) -> Prepared {
         assert!(
-            ui.layout().dir() == Direction::Vertical,
+            ui.layout().main_dir().is_vertical(),
             "Horizontal collapsing is unimplemented"
         );
         let Self {

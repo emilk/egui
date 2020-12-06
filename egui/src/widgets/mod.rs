@@ -6,7 +6,7 @@
 
 #![allow(clippy::new_without_default)]
 
-use crate::{layout::Direction, *};
+use crate::*;
 
 pub mod color_picker;
 mod drag_value;
@@ -606,27 +606,24 @@ impl Widget for Separator {
 
         let available_space = ui.available_finite().size();
 
-        let (points, rect) = match ui.layout().dir() {
-            Direction::Horizontal => {
-                let rect = ui.allocate_space(vec2(spacing, available_space.y));
-                (
-                    [
-                        pos2(rect.center().x, rect.top()),
-                        pos2(rect.center().x, rect.bottom()),
-                    ],
-                    rect,
-                )
-            }
-            Direction::Vertical => {
-                let rect = ui.allocate_space(vec2(available_space.x, spacing));
-                (
-                    [
-                        pos2(rect.left(), rect.center().y),
-                        pos2(rect.right(), rect.center().y),
-                    ],
-                    rect,
-                )
-            }
+        let (points, rect) = if ui.layout().main_dir().is_horizontal() {
+            let rect = ui.allocate_space(vec2(spacing, available_space.y));
+            (
+                [
+                    pos2(rect.center().x, rect.top()),
+                    pos2(rect.center().x, rect.bottom()),
+                ],
+                rect,
+            )
+        } else {
+            let rect = ui.allocate_space(vec2(available_space.x, spacing));
+            (
+                [
+                    pos2(rect.left(), rect.center().y),
+                    pos2(rect.right(), rect.center().y),
+                ],
+                rect,
+            )
         };
         let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
