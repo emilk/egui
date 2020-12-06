@@ -60,6 +60,7 @@ impl Default for FrameHistory {
 }
 
 impl FrameHistory {
+    // Called first
     pub fn on_new_frame(&mut self, now: f64, previus_frame_time: Option<f32>) {
         let previus_frame_time = previus_frame_time.unwrap_or_default();
         if let Some(latest) = self.frame_times.latest_mut() {
@@ -74,7 +75,7 @@ impl FrameHistory {
 
     fn ui(&mut self, ui: &mut Ui) {
         ui.label(format!(
-            "Total frames painted: {}",
+            "Total frames painted (including this one): {}",
             self.frame_times.total_count()
         ));
 

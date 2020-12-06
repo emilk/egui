@@ -76,7 +76,12 @@ impl Clone for Context {
 
 impl Context {
     pub fn new() -> Arc<Self> {
-        Arc::new(Self::default())
+        Arc::new(Self {
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: AtomicU32::new(1),
+            ..Self::default()
+        })
     }
 
     /// How much space is still available after panels has been added.
