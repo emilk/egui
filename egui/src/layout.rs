@@ -264,27 +264,6 @@ impl Layout {
         }
     }
 
-    pub fn rect_from_cursor_size(self, region: &Region, size: Vec2) -> Rect {
-        let mut rect = Rect::from_min_size(region.cursor, size);
-
-        match self.dir {
-            Direction::Horizontal => {
-                if self.reversed {
-                    rect.min.x = region.cursor.x - size.x;
-                    rect.max.x = rect.min.x - size.x
-                }
-            }
-            Direction::Vertical => {
-                if self.reversed {
-                    rect.min.y = region.cursor.y - size.y;
-                    rect.max.y = rect.min.y - size.y
-                }
-            }
-        }
-
-        rect
-    }
-
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///
@@ -294,10 +273,10 @@ impl Layout {
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
-    /// for `Justified` aligned layouts, like in menus.
+    /// for justified layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    pub fn allocate_space(self, region: &mut Region, minimum_child_size: Vec2) -> Rect {
+    pub fn next_space(self, region: &Region, minimum_child_size: Vec2) -> Rect {
         let available_size = self.available_finite(region).size();
         let available_size = available_size.at_least(minimum_child_size);
 
@@ -341,11 +320,9 @@ impl Layout {
                 Direction::Horizontal => child_pos + vec2(-child_size.x, 0.0),
                 Direction::Vertical => child_pos + vec2(0.0, -child_size.y),
             };
-            region.cursor -= cursor_change; // TODO: separate call
             Rect::from_min_size(child_pos, child_size)
         } else {
             let child_pos = region.cursor + child_move;
-            region.cursor += cursor_change; // TODO: separate call
             Rect::from_min_size(child_pos, child_size)
         }
     }

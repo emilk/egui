@@ -393,7 +393,7 @@ impl Ui {
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
-    /// for `Justified` aligned layouts, like in menus.
+    /// for justified layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
@@ -437,11 +437,14 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    fn allocate_space_impl(&mut self, child_size: Vec2) -> Rect {
+    fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
+        let child_rect = self.layout.next_space(&self.region, desired_size);
+        self.layout
+            .advance_cursor2(&mut self.region, child_rect.size());
         let item_spacing = self.style().spacing.item_spacing;
-        let child_rect = self.layout.allocate_space(&mut self.region, child_size);
         self.layout.advance_cursor2(&mut self.region, item_spacing);
-        self.expand_to_include_rect(child_rect);
+        self.region.expand_to_include_rect(child_rect);
+
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         child_rect
     }
@@ -450,13 +453,48 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// At least the amount of space requested will always be allocated.
     /// Thus you can ask for a little and use more, but you cannot ask for a lot and use less.
-    pub fn allocate_ui(&mut self, desired_size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let child_rect = self.allocate_space(desired_size);
+    pub fn allocate_ui_max<R>(
+        &mut self,
+        desired_size: Vec2,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        let child_rect = self.layout.next_space(&self.region, desired_size);
         let mut child_ui = self.child_ui(child_rect, self.layout);
-        add_contents(&mut child_ui);
-        let final_rect = child_ui.region.max_rect;
-        self.expand_to_include_rect(final_rect);
-        final_rect
+        let ret = add_contents(&mut child_ui);
+        let child_rect = child_ui.region.max_rect;
+
+        self.layout
+            .advance_cursor2(&mut self.region, child_rect.size());
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout.advance_cursor2(&mut self.region, item_spacing);
+        self.region.expand_to_include_rect(child_rect);
+
+        let response = self.interact_hover(child_rect);
+        (ret, response)
+    }
+
+    /// Allocated the given space and then adds content to that space.
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
+    /// So you can request a lot of space and then use less.
+    fn allocate_ui_min<R>(
+        &mut self,
+        initial_size: Vec2,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Response) {
+        let child_rect = self.layout.next_space(&self.region, initial_size);
+        let mut child_ui = self.child_ui(child_rect, self.layout);
+        let ret = add_contents(&mut child_ui);
+        let child_rect = child_ui.region.min_rect;
+
+        self.layout
+            .advance_cursor2(&mut self.region, child_rect.size());
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout.advance_cursor2(&mut self.region, item_spacing);
+        self.region.expand_to_include_rect(child_rect);
+
+        let response = self.interact_hover(child_rect);
+        (ret, response)
     }
 }
 
@@ -670,19 +708,13 @@ impl Ui {
         })
     }
 
-    /// Create a child ui at the current cursor.
-    /// `size` is the desired size.
-    /// Actual size may be much smaller if `available_size()` is not enough.
-    /// Set `size` to `Vec::infinity()` to get as much space as possible.
-    /// Just because you ask for a lot of space does not mean you have to use it!
-    /// After `add_contents` is called the contents of `min_size`
-    /// will decide how much space will be used in the parent ui.
-    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let size = size.at_most(self.available().size());
-        let child_rect = self.layout.rect_from_cursor_size(&self.region, size);
-        let mut child_ui = self.child_ui(child_rect, self.layout);
-        add_contents(&mut child_ui);
-        self.allocate_space(child_ui.min_size())
+    #[deprecated = "Use `ui.allocate_ui_max` or `ui.allocate_ui_min` instead"]
+    pub fn add_custom_contents(
+        &mut self,
+        desired_size: Vec2,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Rect {
+        self.allocate_ui_max(desired_size, add_contents).1.rect
     }
 
     /// A `CollapsingHeader` that starts out collapsed.
@@ -769,40 +801,26 @@ impl Ui {
     /// It also contains the `Rect` used by the horizontal layout.
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let initial_size = vec2(
-            self.available().width(),
+            self.available_finite().width(),
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
         let right_to_left =
             (self.layout.dir(), self.layout.align()) == (Direction::Vertical, Some(Align::Max));
 
-        self.inner_layout(
-            Layout::horizontal(Align::Center).with_reversed(right_to_left),
-            initial_size,
-            add_contents,
-        )
+        self.allocate_ui_min(initial_size, |ui| {
+            ui.with_layout(
+                Layout::horizontal(Align::Center).with_reversed(right_to_left),
+                add_contents,
+            )
+            .0
+        })
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         self.with_layout(Layout::vertical(Align::Min), add_contents)
-    }
-
-    fn inner_layout<R>(
-        &mut self,
-        layout: Layout,
-        initial_size: Vec2,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
-        let child_rect = self
-            .layout
-            .rect_from_cursor_size(&self.region, initial_size);
-        let mut child_ui = self.child_ui(child_rect, layout);
-        let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
-        (ret, self.interact_hover(rect))
     }
 
     pub fn with_layout<R>(
