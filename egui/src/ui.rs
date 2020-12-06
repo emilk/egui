@@ -439,11 +439,10 @@ impl Ui {
     /// Returns where to put the widget.
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let child_rect = self.layout.next_space(&self.region, desired_size);
-        self.layout
-            .advance_cursor2(&mut self.region, child_rect.size());
+
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout.advance_cursor2(&mut self.region, item_spacing);
-        self.region.expand_to_include_rect(child_rect);
+        self.layout
+            .advance_after_rect(&mut self.region, child_rect, item_spacing);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         child_rect
@@ -463,11 +462,9 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let child_rect = child_ui.region.max_rect;
 
-        self.layout
-            .advance_cursor2(&mut self.region, child_rect.size());
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout.advance_cursor2(&mut self.region, item_spacing);
-        self.region.expand_to_include_rect(child_rect);
+        self.layout
+            .advance_after_rect(&mut self.region, child_rect, item_spacing);
 
         let response = self.interact_hover(child_rect);
         (ret, response)
@@ -477,7 +474,7 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
-    fn allocate_ui_min<R>(
+    pub fn allocate_ui_min<R>(
         &mut self,
         initial_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
@@ -487,11 +484,9 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let child_rect = child_ui.region.min_rect;
 
-        self.layout
-            .advance_cursor2(&mut self.region, child_rect.size());
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout.advance_cursor2(&mut self.region, item_spacing);
-        self.region.expand_to_include_rect(child_rect);
+        self.layout
+            .advance_after_rect(&mut self.region, child_rect, item_spacing);
 
         let response = self.interact_hover(child_rect);
         (ret, response)

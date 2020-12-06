@@ -303,25 +303,6 @@ impl Layout {
         rect
     }
 
-    /// Advance the cursor by this many points.
-    pub fn advance_cursor(self, region: &mut Region, amount: f32) {
-        match self.main_dir {
-            Direction::LeftToRight => region.cursor.x += amount,
-            Direction::RightToLeft => region.cursor.x -= amount,
-            Direction::TopDown => region.cursor.y += amount,
-            Direction::BottomUp => region.cursor.y -= amount,
-        }
-    }
-
-    /// Advance the cursor by this spacing
-    pub fn advance_cursor2(self, region: &mut Region, amount: Vec2) {
-        if self.main_dir.is_horizontal() {
-            self.advance_cursor(region, amount.x)
-        } else {
-            self.advance_cursor(region, amount.y)
-        }
-    }
-
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///
@@ -374,6 +355,36 @@ impl Layout {
         };
 
         Rect::from_min_size(child_pos, child_size)
+    }
+
+    /// Advance the cursor by this many points.
+    pub fn advance_cursor(self, region: &mut Region, amount: f32) {
+        match self.main_dir {
+            Direction::LeftToRight => region.cursor.x += amount,
+            Direction::RightToLeft => region.cursor.x -= amount,
+            Direction::TopDown => region.cursor.y += amount,
+            Direction::BottomUp => region.cursor.y -= amount,
+        }
+    }
+
+    /// Advance the cursor by this spacing
+    pub fn advance_cursor2(self, region: &mut Region, amount: Vec2) {
+        if self.main_dir.is_horizontal() {
+            self.advance_cursor(region, amount.x)
+        } else {
+            self.advance_cursor(region, amount.y)
+        }
+    }
+
+    /// Advance cursor after a widget was added to a specific rectangle.
+    pub fn advance_after_rect(self, region: &mut Region, rect: Rect, item_spacing: Vec2) {
+        match self.main_dir {
+            Direction::LeftToRight => region.cursor.x = rect.right() + item_spacing.x,
+            Direction::RightToLeft => region.cursor.x = rect.left() - item_spacing.x,
+            Direction::TopDown => region.cursor.y = rect.bottom() + item_spacing.y,
+            Direction::BottomUp => region.cursor.y = rect.top() - item_spacing.y,
+        }
+        region.expand_to_include_rect(rect);
     }
 }
 
