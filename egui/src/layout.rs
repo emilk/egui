@@ -100,6 +100,11 @@ pub struct Layout {
     /// Main axis direction
     main_dir: Direction,
 
+    /// If true, wrap around when reading the end of the main direction.
+    /// For instance, for `main_dir == Direction::LeftToRight` this will
+    /// wrap to a new row when we reach the right side of the `max_rect`.
+    main_wrap: bool,
+
     /// How to align things on the cross axis.
     /// For vertical layouts: put things to left, center or right?
     /// For horizontal layouts: put things to top, center or bottom?
@@ -117,6 +122,7 @@ impl Default for Layout {
         // This is a very euro-centric default.
         Self {
             main_dir: Direction::TopDown,
+            main_wrap: false,
             cross_align: Align::left(),
             cross_justify: false,
         }
@@ -124,12 +130,48 @@ impl Default for Layout {
 }
 
 impl Layout {
-    /// None align means justified, e.g. fill full width/height.
-    pub(crate) fn from_parts(main_dir: Direction, cross_align: Align, cross_justify: bool) -> Self {
+    pub(crate) fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
         Self {
             main_dir,
+            main_wrap: false,
             cross_align,
-            cross_justify,
+            cross_justify: false,
+        }
+    }
+
+    pub fn left_to_right() -> Self {
+        Self {
+            main_dir: Direction::LeftToRight,
+            main_wrap: false,
+            cross_align: Align::Center,
+            cross_justify: false,
+        }
+    }
+
+    pub fn right_to_left() -> Self {
+        Self {
+            main_dir: Direction::RightToLeft,
+            main_wrap: false,
+            cross_align: Align::Center,
+            cross_justify: false,
+        }
+    }
+
+    pub fn top_down(cross_align: Align) -> Self {
+        Self {
+            main_dir: Direction::TopDown,
+            main_wrap: false,
+            cross_align,
+            cross_justify: false,
+        }
+    }
+
+    pub fn bottom_up(cross_align: Align) -> Self {
+        Self {
+            main_dir: Direction::BottomUp,
+            main_wrap: false,
+            cross_align,
+            cross_justify: false,
         }
     }
 
@@ -143,36 +185,8 @@ impl Layout {
         Self::left_to_right().with_cross_align(cross_align)
     }
 
-    pub fn left_to_right() -> Self {
-        Self {
-            main_dir: Direction::LeftToRight,
-            cross_align: Align::Center,
-            cross_justify: false,
-        }
-    }
-
-    pub fn right_to_left() -> Self {
-        Self {
-            main_dir: Direction::RightToLeft,
-            cross_align: Align::Center,
-            cross_justify: false,
-        }
-    }
-
-    pub fn top_down(cross_align: Align) -> Self {
-        Self {
-            main_dir: Direction::TopDown,
-            cross_align,
-            cross_justify: false,
-        }
-    }
-
-    pub fn bottom_up(cross_align: Align) -> Self {
-        Self {
-            main_dir: Direction::BottomUp,
-            cross_align,
-            cross_justify: false,
-        }
+    pub fn with_main_wrap(self, main_wrap: bool) -> Self {
+        Self { main_wrap, ..self }
     }
 
     pub fn with_cross_align(self, cross_align: Align) -> Self {
@@ -317,6 +331,43 @@ impl Layout {
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     #[allow(clippy::collapsible_if)]
     pub fn next_space(self, region: &Region, minimum_child_size: Vec2) -> Rect {
+        let mut cursor = region.cursor;
+
+        if self.main_wrap {
+            let available_size = self.available_finite(region).size();
+            // TODO: spacing?
+            match self.main_dir {
+                Direction::LeftToRight => {
+                    if available_size.x < minimum_child_size.x && region.max_rect.left() < cursor.x
+                    {
+                        // New row
+                        cursor = pos2(region.max_rect.left(), region.max_rect.bottom());
+                    }
+                }
+                Direction::RightToLeft => {
+                    if available_size.x < minimum_child_size.x && cursor.x < region.max_rect.right()
+                    {
+                        // New row
+                        cursor = pos2(region.max_rect.right(), region.max_rect.bottom());
+                    }
+                }
+                Direction::TopDown => {
+                    if available_size.y < minimum_child_size.y && region.max_rect.top() < cursor.y {
+                        // New column
+                        cursor = pos2(region.max_rect.right(), region.max_rect.top());
+                    }
+                }
+                Direction::BottomUp => {
+                    if available_size.y < minimum_child_size.y
+                        && cursor.y < region.max_rect.bottom()
+                    {
+                        // New column
+                        cursor = pos2(region.max_rect.right(), region.max_rect.bottom());
+                    }
+                }
+            }
+        }
+
         let available_size = self.available_finite(region).size();
         let available_size = available_size.at_least(minimum_child_size);
 
@@ -348,10 +399,10 @@ impl Layout {
         }
 
         let child_pos = match self.main_dir {
-            Direction::LeftToRight => region.cursor + child_move,
-            Direction::RightToLeft => region.cursor + child_move + vec2(-child_size.x, 0.0),
-            Direction::TopDown => region.cursor + child_move,
-            Direction::BottomUp => region.cursor + child_move + vec2(0.0, -child_size.y),
+            Direction::LeftToRight => cursor + child_move,
+            Direction::RightToLeft => cursor + child_move + vec2(-child_size.x, 0.0),
+            Direction::TopDown => cursor + child_move,
+            Direction::BottomUp => cursor + child_move + vec2(0.0, -child_size.y),
         };
 
         Rect::from_min_size(child_pos, child_size)
@@ -378,12 +429,12 @@ impl Layout {
 
     /// Advance cursor after a widget was added to a specific rectangle.
     pub fn advance_after_rect(self, region: &mut Region, rect: Rect, item_spacing: Vec2) {
-        match self.main_dir {
-            Direction::LeftToRight => region.cursor.x = rect.right() + item_spacing.x,
-            Direction::RightToLeft => region.cursor.x = rect.left() - item_spacing.x,
-            Direction::TopDown => region.cursor.y = rect.bottom() + item_spacing.y,
-            Direction::BottomUp => region.cursor.y = rect.top() - item_spacing.y,
-        }
+        region.cursor = match self.main_dir {
+            Direction::LeftToRight => pos2(rect.right() + item_spacing.x, rect.top()),
+            Direction::RightToLeft => pos2(rect.left() - item_spacing.x, rect.top()),
+            Direction::TopDown => pos2(rect.left(), rect.bottom() + item_spacing.y),
+            Direction::BottomUp => pos2(rect.left(), rect.top() - item_spacing.y),
+        };
         region.expand_to_include_rect(rect);
     }
 }
