@@ -465,7 +465,6 @@ impl Layout {
             Direction::TopDown => pos2(rect.left(), rect.bottom() + item_spacing.y),
             Direction::BottomUp => pos2(rect.left(), rect.top() - item_spacing.y),
         };
-        region.expand_to_include_rect(rect);
     }
 }
 

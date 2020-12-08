@@ -454,6 +454,7 @@ impl Ui {
 
         self.layout
             .advance_after_outer_rect(&mut self.region, outer_child_rect, item_spacing);
+        self.region.expand_to_include_rect(inner_child_rect);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         inner_child_rect
@@ -483,6 +484,7 @@ impl Ui {
             outer_child_rect.union(final_child_rect),
             item_spacing,
         );
+        self.region.expand_to_include_rect(final_child_rect);
 
         let response = self.interact_hover(final_child_rect);
         (ret, response)
@@ -512,6 +514,7 @@ impl Ui {
             outer_child_rect.union(final_child_rect),
             item_spacing,
         );
+        self.region.expand_to_include_rect(final_child_rect);
 
         let response = self.interact_hover(final_child_rect);
         (ret, response)
@@ -852,6 +855,7 @@ impl Ui {
         let item_spacing = self.style().spacing.item_spacing;
         self.layout
             .advance_after_outer_rect(&mut self.region, rect, item_spacing);
+        self.region.expand_to_include_rect(rect);
         (ret, self.interact_hover(rect))
     }
 
