@@ -313,9 +313,17 @@ impl Ui {
     /// The available space at the moment, given the current cursor.
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
-    /// A small rectangle should be interpreted as "as little as possible".
-    /// An infinite rectangle should be interpreted as "as much as you want".
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    /// A small size should be interpreted as "as little as possible".
+    /// An infinite size should be interpreted as "as much as you want".
+    pub fn available_size(&self) -> Vec2 {
+        self.layout.available_size(&self.region)
+    }
+
+    pub fn available_width(&self) -> f32 {
+        self.available_size().x
+    }
+
+    // TODO: clarify if this is before or after wrap
     pub fn available(&self) -> Rect {
         self.layout.available(&self.region)
     }
@@ -438,14 +446,17 @@ impl Ui {
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
-        let child_rect = self.layout.next_space(&self.region, desired_size);
-
         let item_spacing = self.style().spacing.item_spacing;
+        let outer_child_rect = self
+            .layout
+            .next_space(&self.region, desired_size, item_spacing);
+        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
+
         self.layout
-            .advance_after_rect(&mut self.region, child_rect, item_spacing);
+            .advance_after_outer_rect(&mut self.region, outer_child_rect, item_spacing);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        child_rect
+        inner_child_rect
     }
 
     /// Allocated the given space and then adds content to that space.
@@ -457,16 +468,23 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
-        let child_rect = self.layout.next_space(&self.region, desired_size);
-        let mut child_ui = self.child_ui(child_rect, self.layout);
-        let ret = add_contents(&mut child_ui);
-        let child_rect = child_ui.region.max_rect;
-
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout
-            .advance_after_rect(&mut self.region, child_rect, item_spacing);
+        let outer_child_rect = self
+            .layout
+            .next_space(&self.region, desired_size, item_spacing);
+        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
 
-        let response = self.interact_hover(child_rect);
+        let mut child_ui = self.child_ui(inner_child_rect, self.layout);
+        let ret = add_contents(&mut child_ui);
+        let final_child_rect = child_ui.region.max_rect;
+
+        self.layout.advance_after_outer_rect(
+            &mut self.region,
+            outer_child_rect.union(final_child_rect),
+            item_spacing,
+        );
+
+        let response = self.interact_hover(final_child_rect);
         (ret, response)
     }
 
@@ -476,19 +494,26 @@ impl Ui {
     /// So you can request a lot of space and then use less.
     pub fn allocate_ui_min<R>(
         &mut self,
-        initial_size: Vec2,
+        desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Response) {
-        let child_rect = self.layout.next_space(&self.region, initial_size);
-        let mut child_ui = self.child_ui(child_rect, self.layout);
-        let ret = add_contents(&mut child_ui);
-        let child_rect = child_ui.region.min_rect;
-
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout
-            .advance_after_rect(&mut self.region, child_rect, item_spacing);
+        let outer_child_rect = self
+            .layout
+            .next_space(&self.region, desired_size, item_spacing);
+        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
 
-        let response = self.interact_hover(child_rect);
+        let mut child_ui = self.child_ui(inner_child_rect, self.layout);
+        let ret = add_contents(&mut child_ui);
+        let final_child_rect = child_ui.region.min_rect;
+
+        self.layout.advance_after_outer_rect(
+            &mut self.region,
+            outer_child_rect.union(final_child_rect),
+            item_spacing,
+        );
+
+        let response = self.interact_hover(final_child_rect);
         (ret, response)
     }
 }
@@ -771,8 +796,8 @@ impl Ui {
     pub fn column(&mut self, column_position: Align, width: f32) -> Self {
         let x = match column_position {
             Align::Min => 0.0,
-            Align::Center => self.available().width() / 2.0 - width / 2.0,
-            Align::Max => self.available().width() - width,
+            Align::Center => self.available_width() / 2.0 - width / 2.0,
+            Align::Max => self.available_width() - width,
         };
         self.child_ui(
             Rect::from_min_size(
@@ -823,8 +848,10 @@ impl Ui {
     ) -> (R, Response) {
         let mut child_ui = self.child_ui(self.available(), layout);
         let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
+        let rect = child_ui.min_rect();
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout
+            .advance_after_outer_rect(&mut self.region, rect, item_spacing);
         (ret, self.interact_hover(rect))
     }
 
@@ -844,7 +871,7 @@ impl Ui {
         // TODO: ensure there is space
         let spacing = self.style().spacing.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
-        let column_width = (self.available().width() - total_spacing) / (num_columns as f32);
+        let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
@@ -871,7 +898,7 @@ impl Ui {
             max_height = size.y.max(max_height);
         }
 
-        let size = vec2(self.available().width().max(sum_width), max_height);
+        let size = vec2(self.available_width().max(sum_width), max_height);
         self.allocate_space(size);
         result
     }

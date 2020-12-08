@@ -79,7 +79,7 @@ impl Label {
     }
 
     pub fn layout(&self, ui: &Ui) -> Galley {
-        let max_width = ui.available().width();
+        let max_width = ui.available_width();
         // Prevent word-wrapping after a single letter, and other silly shit:
         // TODO: general "don't force labels and similar to wrap so early"
         // TODO: max_width = max_width.at_least(ui.spacing.first_wrap_width);
@@ -198,7 +198,7 @@ impl Widget for Hyperlink {
         let color = color::LIGHT_BLUE;
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available_width());
         let rect = ui.allocate_space(galley.size);
 
         let id = ui.make_position_id();
@@ -307,7 +307,7 @@ impl Widget for Button {
         let button_padding = ui.style().spacing.button_padding;
 
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available_width());
         let mut desired_size = galley.size + 2.0 * button_padding;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let rect = ui.allocate_space(desired_size);
@@ -379,7 +379,7 @@ impl<'a> Widget for Checkbox<'a> {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let galley = font.layout_single_line(text);
-        // let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        // let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -467,7 +467,7 @@ impl Widget for RadioButton {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
@@ -543,7 +543,7 @@ impl Widget for SelectableLabel {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);

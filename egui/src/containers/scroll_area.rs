@@ -103,7 +103,7 @@ impl ScrollArea {
         };
 
         let outer_size = vec2(
-            ui.available().width(),
+            ui.available_width(),
             ui.available().height().at_most(max_height),
         );
 

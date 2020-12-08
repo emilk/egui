@@ -323,7 +323,7 @@ impl Default for LayoutDemo {
             cross_align: Align::Min,
             cross_justify: false,
             wrap_column_width: 150.0,
-            wrap_row_height: 40.0,
+            wrap_row_height: 20.0,
         }
     }
 }
@@ -338,7 +338,7 @@ impl LayoutDemo {
     pub fn ui(&mut self, ui: &mut Ui) {
         self.content_ui(ui);
         Resize::default()
-            .default_size([200.0, 100.0])
+            .default_size([300.0, 200.0])
             .show(ui, |ui| {
                 if self.main_wrap {
                     if self.main_dir.is_horizontal() {
@@ -360,10 +360,22 @@ impl LayoutDemo {
     }
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
-        // ui.label(format!("Available space: {:?}", ui.available().size()));
-        if ui.button("Default").clicked {
-            *self = Default::default();
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Top-down").clicked {
+                *self = Default::default();
+            }
+            if ui.button("Top-down, centered and justified").clicked {
+                *self = Default::default();
+                self.cross_align = Align::Center;
+                self.cross_justify = true;
+            }
+            if ui.button("Horizontal wrapped").clicked {
+                *self = Default::default();
+                self.main_dir = Direction::LeftToRight;
+                self.cross_align = Align::Center;
+                self.main_wrap = true;
+            }
+        });
 
         ui.horizontal(|ui| {
             ui.label("Main Direction:");
@@ -400,9 +412,20 @@ impl LayoutDemo {
     }
 
     pub fn demo_ui(&mut self, ui: &mut Ui) {
-        ui.heading("Effect:");
-        for i in 0..7 {
-            let _ = ui.button(format!("Button {}", i));
+        ui.monospace("Example widgets:");
+        for i in 0..9 {
+            match i % 3 {
+                0 => {
+                    ui.label(format!("{} label", i));
+                }
+                1 => {
+                    let mut dummy = false;
+                    ui.checkbox(&mut dummy, format!("{} checkbox", i));
+                }
+                _ => {
+                    let _ = ui.button(format!("{} button", i));
+                }
+            }
         }
     }
 }

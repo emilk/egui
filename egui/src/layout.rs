@@ -282,10 +282,31 @@ impl Layout {
         }
     }
 
-    pub fn available(&self, region: &Region) -> Rect {
+    // TODO: clarify if it is before or after wrap
+    pub(crate) fn available(&self, region: &Region) -> Rect {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect)
     }
 
+    /// Amount of space available for a widget.
+    /// Wor wrapping layouts, this is the maximum (after wrap)
+    pub fn available_size(&self, r: &Region) -> Vec2 {
+        if self.main_wrap {
+            if self.main_dir.is_horizontal() {
+                vec2(r.max_rect.width(), r.max_rect.bottom() - r.cursor.y)
+            } else {
+                vec2(r.max_rect.right() - r.cursor.x, r.max_rect.height())
+            }
+        } else {
+            self.available_from_cursor_max_rect(r.cursor, r.max_rect)
+                .size()
+        }
+    }
+
+    fn available_size_before_wrap(&self, region: &Region) -> Rect {
+        self.available_from_cursor_max_rect(region.cursor, region.max_rect)
+    }
+
+    // TODO
     pub fn available_finite(&self, region: &Region) -> Rect {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect_finite())
     }
@@ -317,95 +338,104 @@ impl Layout {
         rect
     }
 
-    /// Reserve this much space and move the cursor.
-    /// Returns where to put the widget.
-    ///
-    /// ## How sizes are negotiated
-    /// Each widget should have a *minimum desired size* and a *desired size*.
-    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
-    /// If you want to fill the space, ask about `available().size()` and use that.
-    ///
-    /// You may get MORE space than you asked for, for instance
-    /// for justified layouts, like in menus.
-    ///
-    /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
+    /// Returns where to put the next widget that is of the given size.
+    /// The returned "outer" `Rect` will always be justified along the cross axis.
+    /// This is what you then pass to `advance_after_outer_rect`.
+    /// Use `justify_or_align` to get the inner `Rect`.
     #[allow(clippy::collapsible_if)]
-    pub fn next_space(self, region: &Region, minimum_child_size: Vec2) -> Rect {
+    pub fn next_space(self, region: &Region, mut child_size: Vec2, item_spacing: Vec2) -> Rect {
         let mut cursor = region.cursor;
 
         if self.main_wrap {
-            let available_size = self.available_finite(region).size();
-            // TODO: spacing?
+            let available_size = self.available_size_before_wrap(region).size();
             match self.main_dir {
                 Direction::LeftToRight => {
-                    if available_size.x < minimum_child_size.x && region.max_rect.left() < cursor.x
-                    {
+                    if available_size.x < child_size.x && region.max_rect.left() < cursor.x {
                         // New row
-                        cursor = pos2(region.max_rect.left(), region.max_rect.bottom());
+                        cursor = pos2(
+                            region.max_rect.left(),
+                            region.max_rect.bottom() + item_spacing.y,
+                        );
                     }
                 }
                 Direction::RightToLeft => {
-                    if available_size.x < minimum_child_size.x && cursor.x < region.max_rect.right()
-                    {
+                    if available_size.x < child_size.x && cursor.x < region.max_rect.right() {
                         // New row
-                        cursor = pos2(region.max_rect.right(), region.max_rect.bottom());
+                        cursor = pos2(
+                            region.max_rect.right(),
+                            region.max_rect.bottom() + item_spacing.y,
+                        );
                     }
                 }
                 Direction::TopDown => {
-                    if available_size.y < minimum_child_size.y && region.max_rect.top() < cursor.y {
+                    if available_size.y < child_size.y && region.max_rect.top() < cursor.y {
                         // New column
-                        cursor = pos2(region.max_rect.right(), region.max_rect.top());
+                        cursor = pos2(
+                            region.max_rect.right() + item_spacing.x,
+                            region.max_rect.top(),
+                        );
                     }
                 }
                 Direction::BottomUp => {
-                    if available_size.y < minimum_child_size.y
-                        && cursor.y < region.max_rect.bottom()
-                    {
+                    if available_size.y < child_size.y && cursor.y < region.max_rect.bottom() {
                         // New column
-                        cursor = pos2(region.max_rect.right(), region.max_rect.bottom());
+                        cursor = pos2(
+                            region.max_rect.right() + item_spacing.x,
+                            region.max_rect.bottom(),
+                        );
                     }
                 }
             }
         }
 
         let available_size = self.available_finite(region).size();
-        let available_size = available_size.at_least(minimum_child_size);
-
-        let mut child_size = minimum_child_size;
-        let mut child_move = Vec2::default();
-
         if self.main_dir.is_horizontal() {
-            if self.cross_justify {
-                // fill full height
-                child_size.y = child_size.y.max(available_size.y);
-            } else {
-                child_move.y += match self.cross_align {
-                    Align::Min => 0.0,
-                    Align::Center => 0.5 * (available_size.y - child_size.y),
-                    Align::Max => available_size.y - child_size.y,
-                };
-            }
+            // Fill full height
+            child_size.y = child_size.y.max(available_size.y);
         } else {
-            if self.cross_justify {
-                // justified: fill full width
-                child_size.x = child_size.x.max(available_size.x);
-            } else {
-                child_move.x += match self.cross_align {
-                    Align::Min => 0.0,
-                    Align::Center => 0.5 * (available_size.x - child_size.x),
-                    Align::Max => available_size.x - child_size.x,
-                };
-            }
+            // Fill full width
+            child_size.x = child_size.x.max(available_size.x);
         }
 
         let child_pos = match self.main_dir {
-            Direction::LeftToRight => cursor + child_move,
-            Direction::RightToLeft => cursor + child_move + vec2(-child_size.x, 0.0),
-            Direction::TopDown => cursor + child_move,
-            Direction::BottomUp => cursor + child_move + vec2(0.0, -child_size.y),
+            Direction::LeftToRight => cursor,
+            Direction::RightToLeft => cursor + vec2(-child_size.x, 0.0),
+            Direction::TopDown => cursor,
+            Direction::BottomUp => cursor + vec2(0.0, -child_size.y),
         };
 
         Rect::from_min_size(child_pos, child_size)
+    }
+
+    /// Apply justify or alignment after calling `next_space`.
+    pub fn justify_or_align(self, mut rect: Rect, child_size: Vec2) -> Rect {
+        if self.main_dir.is_horizontal() {
+            debug_assert!((rect.width() - child_size.x).abs() < 0.1);
+            if self.cross_justify {
+                rect // fill full height
+            } else {
+                rect.min.y += match self.cross_align {
+                    Align::Min => 0.0,
+                    Align::Center => 0.5 * (rect.size().y - child_size.y),
+                    Align::Max => rect.size().y - child_size.y,
+                };
+                rect.max.y = rect.min.y + child_size.y;
+                rect
+            }
+        } else {
+            debug_assert!((rect.height() - child_size.y).abs() < 0.1);
+            if self.cross_justify {
+                rect // justified: fill full width
+            } else {
+                rect.min.x += match self.cross_align {
+                    Align::Min => 0.0,
+                    Align::Center => 0.5 * (rect.size().x - child_size.x),
+                    Align::Max => rect.size().x - child_size.x,
+                };
+                rect.max.x = rect.min.x + child_size.x;
+                rect
+            }
+        }
     }
 
     /// Advance the cursor by this many points.
@@ -428,7 +458,7 @@ impl Layout {
     }
 
     /// Advance cursor after a widget was added to a specific rectangle.
-    pub fn advance_after_rect(self, region: &mut Region, rect: Rect, item_spacing: Vec2) {
+    pub fn advance_after_outer_rect(self, region: &mut Region, rect: Rect, item_spacing: Vec2) {
         region.cursor = match self.main_dir {
             Direction::LeftToRight => pos2(rect.right() + item_spacing.x, rect.top()),
             Direction::RightToLeft => pos2(rect.left() - item_spacing.x, rect.top()),
