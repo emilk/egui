@@ -824,6 +824,58 @@ impl Ui {
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+        self.horizontal_with_main_wrap(false, add_contents)
+    }
+
+    /// Start a ui with horizontal layout that wraps to a new row
+    /// when it reaches the right edge of the `max_size`.
+    /// After you have called this, the function registers the contents as any other widget.
+    ///
+    /// Elements will be centered on the Y axis, i.e.
+    /// adjusted up and down to lie in the center of the horizontal layout.
+    /// The initial height is `style.spacing.interact_size.y`.
+    /// Centering is almost always what you want if you are
+    /// planning to to mix widgets or use different types of text.
+    ///
+    /// The returned `Response` will only have checked for mouse hover
+    /// but can be used for tooltips (`on_hover_text`).
+    /// It also contains the `Rect` used by the horizontal layout.
+    pub fn horizontal_wrapped<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.horizontal_with_main_wrap(true, add_contents)
+    }
+
+    /// Like `horizontal_wrapped`, but will set up spacing so that
+    /// the line size and matches that for a normal label.
+    ///
+    /// In particular, the space between widgets is the same with as the space character
+    /// and the line spacing is the same as that for text.
+    ///
+    /// You can still add any widgets to the layout (not only Labels).
+    pub fn horizontal_wrapped_for_text<R>(
+        &mut self,
+        text_style: TextStyle,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.wrap(|ui| {
+            let font = &ui.fonts()[text_style];
+            let row_height = font.row_height();
+            let space_width = font.glyph_width(' ');
+            let style = ui.style_mut();
+            style.spacing.interact_size.y = row_height;
+            style.spacing.item_spacing.x = space_width;
+            style.spacing.item_spacing.y = 0.0;
+            ui.horizontal_wrapped(add_contents).0
+        })
+    }
+
+    fn horizontal_with_main_wrap<R>(
+        &mut self,
+        main_wrap: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
         let initial_size = vec2(
             self.available_finite().width(),
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
@@ -833,7 +885,8 @@ impl Ui {
             Layout::right_to_left()
         } else {
             Layout::left_to_right()
-        };
+        }
+        .with_main_wrap(main_wrap);
 
         self.allocate_ui_min(initial_size, |ui| ui.with_layout(layout, add_contents).0)
     }

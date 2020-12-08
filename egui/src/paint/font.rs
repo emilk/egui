@@ -119,6 +119,10 @@ impl Font {
         self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
     }
 
+    pub fn glyph_width(&self, c: char) -> f32 {
+        self.glyph_info(c).advance_width
+    }
+
     /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
     fn glyph_info(&self, c: char) -> GlyphInfo {
         {
