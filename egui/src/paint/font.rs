@@ -167,7 +167,20 @@ impl Font {
         galley
     }
 
+    /// Always returns at least one row.
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
+        self.layout_multiline_with_indentation_and_max_width(text, 0.0, max_width_in_points)
+    }
+
+    /// * `first_row_indentation`: extra space before the very first character (in points).
+    /// * `max_width_in_points`: wrapping width.
+    /// Always returns at least one row.
+    pub fn layout_multiline_with_indentation_and_max_width(
+        &self,
+        text: String,
+        first_row_indentation: f32,
+        max_width_in_points: f32,
+    ) -> Galley {
         let row_height = self.row_height();
         let mut cursor_y = 0.0;
         let mut rows = Vec::new();
@@ -182,8 +195,16 @@ impl Font {
 
             assert!(paragraph_start <= paragraph_end);
             let paragraph_text = &text[paragraph_start..paragraph_end];
-            let mut paragraph_rows =
-                self.layout_paragraph_max_width(paragraph_text, max_width_in_points);
+            let line_indentation = if rows.is_empty() {
+                first_row_indentation
+            } else {
+                0.0
+            };
+            let mut paragraph_rows = self.layout_paragraph_max_width(
+                paragraph_text,
+                line_indentation,
+                max_width_in_points,
+            );
             assert!(!paragraph_rows.is_empty());
             paragraph_rows.last_mut().unwrap().ends_with_newline = next_newline.is_some();
 
@@ -252,10 +273,16 @@ impl Font {
 
     /// A paragraph is text with no line break character in it.
     /// The text will be wrapped by the given `max_width_in_points`.
-    fn layout_paragraph_max_width(&self, text: &str, max_width_in_points: f32) -> Vec<Row> {
+    /// Always returns at least one row.
+    fn layout_paragraph_max_width(
+        &self,
+        text: &str,
+        mut first_row_indentation: f32,
+        max_width_in_points: f32,
+    ) -> Vec<Row> {
         if text == "" {
             return vec![Row {
-                x_offsets: vec![0.0],
+                x_offsets: vec![first_row_indentation],
                 y_min: 0.0,
                 y_max: self.row_height(),
                 ends_with_newline: false,
@@ -264,12 +291,7 @@ impl Font {
 
         let full_x_offsets = self.layout_single_row_fragment(text);
 
-        let mut row_start_x = full_x_offsets[0];
-
-        {
-            #![allow(clippy::float_cmp)]
-            assert_eq!(row_start_x, 0.0);
-        }
+        let mut row_start_x = 0.0; // NOTE: BEFORE the `first_row_indentation`.
 
         let mut cursor_y = 0.0;
         let mut row_start_idx = 0;
@@ -281,40 +303,40 @@ impl Font {
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
             debug_assert!(chr != '\n');
-            let potential_row_width = x - row_start_x;
+            let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
                 if let Some(last_space_idx) = last_space {
-                    let include_trailing_space = true;
-                    let row = if include_trailing_space {
-                        Row {
-                            x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
-                                .iter()
-                                .map(|x| x - row_start_x)
-                                .collect(),
-                            y_min: cursor_y,
-                            y_max: cursor_y + self.row_height(),
-                            ends_with_newline: false,
-                        }
-                    } else {
-                        Row {
-                            x_offsets: full_x_offsets[row_start_idx..=last_space_idx]
-                                .iter()
-                                .map(|x| x - row_start_x)
-                                .collect(),
-                            y_min: cursor_y,
-                            y_max: cursor_y + self.row_height(),
-                            ends_with_newline: false,
-                        }
+                    // We include the trailing space in the row:
+                    let row = Row {
+                        x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
+                            .iter()
+                            .map(|x| first_row_indentation + x - row_start_x)
+                            .collect(),
+                        y_min: cursor_y,
+                        y_max: cursor_y + self.row_height(),
+                        ends_with_newline: false,
                     };
                     row.sanity_check();
                     out_rows.push(row);
 
                     row_start_idx = last_space_idx + 1;
-                    row_start_x = full_x_offsets[row_start_idx];
+                    row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
                     last_space = None;
-                    cursor_y += self.row_height();
-                    cursor_y = self.round_to_pixel(cursor_y);
+                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
+                } else if out_rows.is_empty() && first_row_indentation > 0.0 {
+                    assert_eq!(row_start_idx, 0);
+                    // Allow the first row to be completely empty, because we know there will be more space on the next row:
+                    let row = Row {
+                        x_offsets: vec![first_row_indentation],
+                        y_min: cursor_y,
+                        y_max: cursor_y + self.row_height(),
+                        ends_with_newline: false,
+                    };
+                    row.sanity_check();
+                    out_rows.push(row);
+                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
+                    first_row_indentation = 0.0; // Continue all other rows as if there is no indentation
                 }
             }
 
@@ -328,7 +350,7 @@ impl Font {
             let row = Row {
                 x_offsets: full_x_offsets[row_start_idx..]
                     .iter()
-                    .map(|x| x - row_start_x)
+                    .map(|x| first_row_indentation + x - row_start_x)
                     .collect(),
                 y_min: cursor_y,
                 y_max: cursor_y + self.row_height(),

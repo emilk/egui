@@ -80,9 +80,6 @@ impl Label {
 
     pub fn layout(&self, ui: &Ui) -> Galley {
         let max_width = ui.available_width();
-        // Prevent word-wrapping after a single letter, and other silly shit:
-        // TODO: general "don't force labels and similar to wrap so early"
-        // TODO: max_width = max_width.at_least(ui.spacing.first_wrap_width);
         self.layout_width(ui, max_width)
     }
 
@@ -125,11 +122,48 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let galley = self.layout(ui);
-        let rect = ui.allocate_space(galley.size);
-        let rect = ui.layout().align_size_within_rect(galley.size, rect);
-        self.paint_galley(ui, rect.min, galley);
-        ui.interact_hover(rect)
+        if self.multiline
+            && ui.layout().main_dir() == Direction::LeftToRight
+            && ui.layout().main_wrap()
+        {
+            // On a wrapping horizontal layout we want text to start after the last widget,
+            // then continue on the line below! This will take some extra work:
+
+            let max_width = ui.available_width();
+            let first_row_indentation = max_width - ui.available_width_before_wrap();
+
+            let text_style = self.text_style_or_default(ui.style());
+            let font = &ui.fonts()[text_style];
+            let galley = font.layout_multiline_with_indentation_and_max_width(
+                self.text.clone(),
+                first_row_indentation,
+                max_width,
+            );
+
+            let pos = pos2(ui.min_rect().left(), ui.cursor().y);
+
+            let mut total_response = None;
+
+            for row in &galley.rows {
+                let rect = row.rect().translate(vec2(pos.x, pos.y));
+                ui.advance_cursor_after_rect(rect);
+                let row_response = ui.interact_hover(rect);
+                if total_response.is_none() {
+                    total_response = Some(row_response);
+                } else {
+                    total_response = Some(total_response.unwrap().union(row_response));
+                }
+            }
+
+            self.paint_galley(ui, pos, galley);
+            total_response.expect("Galley rows shouldn't be empty")
+        } else {
+            let galley = self.layout(ui);
+            let rect = ui.allocate_space(galley.size);
+            let rect = ui.layout().align_size_within_rect(galley.size, rect);
+            self.paint_galley(ui, rect.min, galley);
+            ui.interact_hover(rect)
+        }
     }
 }
 

@@ -323,6 +323,11 @@ impl Ui {
         self.available_size().x
     }
 
+    /// In case of a wrapping layout, how much space is left on this row/column?
+    pub fn available_width_before_wrap(&self) -> f32 {
+        self.layout.available_size_before_wrap(&self.region).x
+    }
+
     // TODO: clarify if this is before or after wrap
     pub fn available(&self) -> Rect {
         self.layout.available(&self.region)
@@ -462,6 +467,17 @@ impl Ui {
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         inner_child_rect
+    }
+
+    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) {
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout
+            .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
+        self.region.expand_to_include_rect(rect);
+    }
+
+    pub(crate) fn cursor(&self) -> Pos2 {
+        self.region.cursor
     }
 
     /// Allocated the given space and then adds content to that space.

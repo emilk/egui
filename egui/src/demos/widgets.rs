@@ -49,6 +49,7 @@ impl Widgets {
         ui.add(__egui_github_link_file_line!());
 
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
+            ui.label("Long text will wrap, just as you would expect.");
             ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
             ui.add(Label::new("color").text_color(srgba(128, 140, 255, 255)));
             ui.add(Label::new("and tooltips.")).on_hover_text(
@@ -63,7 +64,7 @@ impl Widgets {
                 let _ = ui.button("A button you can never press");
             };
             ui.label("Tooltips can be more than just simple text.").on_hover_ui(tooltip_ui);
-            ui.label("Ευρηκα! τ = 2×π")
+            ui.label("There is also (limited) non-ASCII support: Ευρηκα! τ = 2×π")
                 .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
         });
 

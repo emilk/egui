@@ -209,6 +209,10 @@ impl Layout {
         self.main_dir
     }
 
+    pub fn main_wrap(self) -> bool {
+        self.main_wrap
+    }
+
     pub fn cross_align(self) -> Align {
         self.cross_align
     }
@@ -306,8 +310,10 @@ impl Layout {
         }
     }
 
-    fn available_size_before_wrap(&self, region: &Region) -> Rect {
+    /// In case of a wrapping layout, how much space is left on this row/column?
+    pub fn available_size_before_wrap(&self, region: &Region) -> Vec2 {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect)
+            .size()
     }
 
     // TODO
@@ -351,7 +357,7 @@ impl Layout {
         let mut cursor = region.cursor;
 
         if self.main_wrap {
-            let available_size = self.available_size_before_wrap(region).size();
+            let available_size = self.available_size_before_wrap(region);
             match self.main_dir {
                 Direction::LeftToRight => {
                     if available_size.x < child_size.x && region.max_rect.left() < cursor.x {

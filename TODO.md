@@ -5,7 +5,7 @@ TODO-list for the Egui project. If you looking for something to do, look here.
 ## Layout refactor
 
 * Test `allocate_ui`
-* Text wrapping
+* Mix wrapping text and other widgets.
 
 ## Misc
 
