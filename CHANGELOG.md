@@ -8,12 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
-* `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): a text-button that can be selected
+* Wrapping layouts:
+  * `ui.horizontal_wrapped(|ui| ...)`: Add widgets on a row but wrap at `max_size`.
+  * `ui.horizontal_wrapped_for_text`: Like `horizontal_wrapped`, but with spacing made for embedding text.
+* `egui::Layout` now supports justified layouts where contents is _also_ centered, right-aligned, etc.
+* `ui.allocate_ui(size, |ui| ...)`: Easily created a sized child-`Ui`.
+* `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): A text-button that can be selected.
+* `ui.small_button`: A smaller button that looks good embedded in text.
 * Add `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
 
 ### Changed 🔧
 
 * Changed default font to [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
+* Refactored `egui::Layout` substantially, changing its interface.
 
 ### Removed 🔥
 
