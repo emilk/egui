@@ -134,7 +134,7 @@ impl Widget for Label {
 
             let text_style = self.text_style_or_default(ui.style());
             let font = &ui.fonts()[text_style];
-            let galley = font.layout_multiline_with_indentation_and_max_width(
+            let mut galley = font.layout_multiline_with_indentation_and_max_width(
                 self.text.clone(),
                 first_row_indentation,
                 max_width,
@@ -142,21 +142,30 @@ impl Widget for Label {
 
             let pos = pos2(ui.min_rect().left(), ui.cursor().y);
 
-            let mut total_response = None;
+            assert!(!galley.rows.is_empty(), "Gallyes are never empty");
+            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
+            ui.advance_cursor_after_rect(rect);
+            let mut total_response = ui.interact_hover(rect);
 
-            for row in &galley.rows {
-                let rect = row.rect().translate(vec2(pos.x, pos.y));
-                ui.advance_cursor_after_rect(rect);
-                let row_response = ui.interact_hover(rect);
-                if total_response.is_none() {
-                    total_response = Some(row_response);
-                } else {
-                    total_response = Some(total_response.unwrap().union(row_response));
+            let mut y_translation = 0.0;
+            if let Some(row) = galley.rows.get(1) {
+                // We could be sharing the first row with e.g. a button, that is higher than text.
+                // So we need to compensate for that:
+                if pos.y + row.y_min < ui.min_rect().bottom() {
+                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
                 }
             }
 
+            for row in galley.rows.iter_mut().skip(1) {
+                row.y_min += y_translation;
+                row.y_max += y_translation;
+                let rect = row.rect().translate(vec2(pos.x, pos.y));
+                ui.advance_cursor_after_rect(rect);
+                total_response |= ui.interact_hover(rect);
+            }
+
             self.paint_galley(ui, pos, galley);
-            total_response.expect("Galley rows shouldn't be empty")
+            total_response
         } else {
             let galley = self.layout(ui);
             let rect = ui.allocate_space(galley.size);

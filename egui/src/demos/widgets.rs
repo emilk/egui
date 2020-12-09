@@ -55,18 +55,24 @@ impl Widgets {
             ui.add(Label::new("and tooltips.")).on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
-            let tooltip_ui = |ui: &mut Ui| {
-                ui.heading("The name of the tooltip");
-                ui.horizontal(|ui| {
-                    ui.label("This tooltip was created with");
-                    ui.monospace(".on_hover_ui(...)");
-                });
-                let _ = ui.button("A button you can never press");
-            };
-            ui.label("Tooltips can be more than just simple text.").on_hover_ui(tooltip_ui);
+
+            ui.label("You can mix in other widgets into text, like this button:");
+            let _ = ui.button("button");
+
             ui.label("There is also (limited) non-ASCII support: Ευρηκα! τ = 2×π")
                 .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
         });
+
+        let tooltip_ui = |ui: &mut Ui| {
+            ui.heading("The name of the tooltip");
+            ui.horizontal(|ui| {
+                ui.label("This tooltip was created with");
+                ui.monospace(".on_hover_ui(...)");
+            });
+            let _ = ui.button("A button you can never press");
+        };
+        ui.label("Tooltips can be more than just simple text.")
+            .on_hover_ui(tooltip_ui);
 
         ui.horizontal(|ui| {
             ui.radio_value(&mut self.radio, Enum::First, "First");
