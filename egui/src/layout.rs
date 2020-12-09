@@ -462,12 +462,20 @@ impl Layout {
     }
 
     /// Advance cursor after a widget was added to a specific rectangle.
-    pub fn advance_after_outer_rect(self, region: &mut Region, rect: Rect, item_spacing: Vec2) {
+    /// `outer_rect` is a hack needed because the Vec2 cursor is not quite sufficient to keep track
+    /// of what is happening when we are doing wrapping layouts.
+    pub fn advance_after_outer_rect(
+        self,
+        region: &mut Region,
+        outer_rect: Rect,
+        inner_rect: Rect,
+        item_spacing: Vec2,
+    ) {
         region.cursor = match self.main_dir {
-            Direction::LeftToRight => pos2(rect.right() + item_spacing.x, rect.top()),
-            Direction::RightToLeft => pos2(rect.left() - item_spacing.x, rect.top()),
-            Direction::TopDown => pos2(rect.left(), rect.bottom() + item_spacing.y),
-            Direction::BottomUp => pos2(rect.left(), rect.top() - item_spacing.y),
+            Direction::LeftToRight => pos2(inner_rect.right() + item_spacing.x, outer_rect.top()),
+            Direction::RightToLeft => pos2(inner_rect.left() - item_spacing.x, outer_rect.top()),
+            Direction::TopDown => pos2(outer_rect.left(), inner_rect.bottom() + item_spacing.y),
+            Direction::BottomUp => pos2(outer_rect.left(), inner_rect.top() - item_spacing.y),
         };
     }
 }

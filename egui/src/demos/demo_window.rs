@@ -342,12 +342,12 @@ impl LayoutDemo {
             .show(ui, |ui| {
                 if self.main_wrap {
                     if self.main_dir.is_horizontal() {
-                        ui.allocate_ui_min(
+                        ui.allocate_ui(
                             vec2(ui.available_finite().width(), self.wrap_row_height),
                             |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
                         );
                     } else {
-                        ui.allocate_ui_min(
+                        ui.allocate_ui(
                             vec2(self.wrap_column_width, ui.available_finite().height()),
                             |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
                         );

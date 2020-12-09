@@ -452,8 +452,12 @@ impl Ui {
             .next_space(&self.region, desired_size, item_spacing);
         let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
 
-        self.layout
-            .advance_after_outer_rect(&mut self.region, outer_child_rect, item_spacing);
+        self.layout.advance_after_outer_rect(
+            &mut self.region,
+            outer_child_rect,
+            inner_child_rect,
+            item_spacing,
+        );
         self.region.expand_to_include_rect(inner_child_rect);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
@@ -462,39 +466,9 @@ impl Ui {
 
     /// Allocated the given space and then adds content to that space.
     /// If the contents overflow, more space will be allocated.
-    /// At least the amount of space requested will always be allocated.
-    /// Thus you can ask for a little and use more, but you cannot ask for a lot and use less.
-    pub fn allocate_ui_max<R>(
-        &mut self,
-        desired_size: Vec2,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
-        let item_spacing = self.style().spacing.item_spacing;
-        let outer_child_rect = self
-            .layout
-            .next_space(&self.region, desired_size, item_spacing);
-        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
-
-        let mut child_ui = self.child_ui(inner_child_rect, self.layout);
-        let ret = add_contents(&mut child_ui);
-        let final_child_rect = child_ui.region.max_rect;
-
-        self.layout.advance_after_outer_rect(
-            &mut self.region,
-            outer_child_rect.union(final_child_rect),
-            item_spacing,
-        );
-        self.region.expand_to_include_rect(final_child_rect);
-
-        let response = self.interact_hover(final_child_rect);
-        (ret, response)
-    }
-
-    /// Allocated the given space and then adds content to that space.
-    /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
-    pub fn allocate_ui_min<R>(
+    pub fn allocate_ui<R>(
         &mut self,
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
@@ -512,6 +486,7 @@ impl Ui {
         self.layout.advance_after_outer_rect(
             &mut self.region,
             outer_child_rect.union(final_child_rect),
+            final_child_rect,
             item_spacing,
         );
         self.region.expand_to_include_rect(final_child_rect);
@@ -731,13 +706,13 @@ impl Ui {
         })
     }
 
-    #[deprecated = "Use `ui.allocate_ui_max` or `ui.allocate_ui_min` instead"]
+    #[deprecated = "Use `ui.allocate_ui` instead"]
     pub fn add_custom_contents(
         &mut self,
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Rect {
-        self.allocate_ui_max(desired_size, add_contents).1.rect
+        self.allocate_ui(desired_size, add_contents).1.rect
     }
 
     /// A `CollapsingHeader` that starts out collapsed.
@@ -888,7 +863,7 @@ impl Ui {
         }
         .with_main_wrap(main_wrap);
 
-        self.allocate_ui_min(initial_size, |ui| ui.with_layout(layout, add_contents).0)
+        self.allocate_ui(initial_size, |ui| ui.with_layout(layout, add_contents).0)
     }
 
     /// Start a ui with vertical layout.
@@ -907,7 +882,7 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.style().spacing.item_spacing;
         self.layout
-            .advance_after_outer_rect(&mut self.region, rect, item_spacing);
+            .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
         self.region.expand_to_include_rect(rect);
         (ret, self.interact_hover(rect))
     }
