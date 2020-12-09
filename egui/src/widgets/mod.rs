@@ -385,6 +385,7 @@ impl<'a> Widget for Checkbox<'a> {
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
+        let rect = ui.layout().align_size_within_rect(desired_size, rect);
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -473,6 +474,8 @@ impl Widget for RadioButton {
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
+        let rect = ui.layout().align_size_within_rect(desired_size, rect);
+
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
 

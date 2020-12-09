@@ -389,16 +389,20 @@ impl LayoutDemo {
             }
         });
 
-        ui.checkbox(&mut self.main_wrap, "Main wrap")
-            .on_hover_text("Wrap when next widget doesn't fit the current row/column");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.main_wrap, "Main wrap")
+                .on_hover_text("Wrap when next widget doesn't fit the current row/column");
 
-        if self.main_wrap {
-            if self.main_dir.is_horizontal() {
-                ui.add(Slider::f32(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
-            } else {
-                ui.add(Slider::f32(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"));
+            if self.main_wrap {
+                if self.main_dir.is_horizontal() {
+                    ui.add(Slider::f32(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
+                } else {
+                    ui.add(
+                        Slider::f32(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
+                    );
+                }
             }
-        }
+        });
 
         ui.horizontal(|ui| {
             ui.label("Cross Align:");
