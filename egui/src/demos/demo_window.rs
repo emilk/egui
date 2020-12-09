@@ -44,7 +44,7 @@ impl DemoWindow {
             });
 
         CollapsingHeader::new("Layout")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| self.layout.ui(ui));
 
         CollapsingHeader::new("Tree")
@@ -417,19 +417,15 @@ impl LayoutDemo {
 
     pub fn demo_ui(&mut self, ui: &mut Ui) {
         ui.monospace("Example widgets:");
-        for i in 0..9 {
-            match i % 3 {
-                0 => {
-                    ui.label(format!("{} label", i));
-                }
-                1 => {
-                    let mut dummy = false;
-                    ui.checkbox(&mut dummy, format!("{} checkbox", i));
-                }
-                _ => {
-                    let _ = ui.button(format!("{} button", i));
-                }
-            }
+        for _ in 0..3 {
+            ui.label("label");
+        }
+        for _ in 0..3 {
+            let mut dummy = false;
+            ui.checkbox(&mut dummy, "checkbox");
+        }
+        for _ in 0..3 {
+            let _ = ui.button("button");
         }
     }
 }

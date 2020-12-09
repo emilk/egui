@@ -558,10 +558,22 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
+    /// Usage: `if ui.button("Click me").clicked { ... }`
+    ///
     /// Shortcut for `add(Button::new(text))`
     #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
+    }
+
+    /// A button as small as normal body text.
+    ///
+    /// Usage: `if ui.small_button("Click me").clicked { ... }`
+    ///
+    /// Shortcut for `add(Button::new(text).small())`
+    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked { ... } "]
+    pub fn small_button(&mut self, text: impl Into<String>) -> Response {
+        self.add(Button::new(text).small())
     }
 
     /// Show a checkbox.

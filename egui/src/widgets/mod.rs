@@ -287,6 +287,7 @@ pub struct Button {
     /// None means default for interact
     fill: Option<Srgba>,
     sense: Sense,
+    small: bool,
 }
 
 impl Button {
@@ -297,6 +298,7 @@ impl Button {
             text_style: TextStyle::Button,
             fill: Default::default(),
             sense: Sense::click(),
+            small: false,
         }
     }
 
@@ -317,6 +319,13 @@ impl Button {
 
     pub fn fill(mut self, fill: Option<Srgba>) -> Self {
         self.fill = fill;
+        self
+    }
+
+    /// Make this a small button, suitable for embedding into text.
+    pub fn small(mut self) -> Self {
+        self.text_style = TextStyle::Body;
+        self.small = true;
         self
     }
 
@@ -345,14 +354,20 @@ impl Widget for Button {
             text_style,
             fill,
             sense,
+            small,
         } = self;
 
-        let button_padding = ui.style().spacing.button_padding;
+        let mut button_padding = ui.style().spacing.button_padding;
+        if small {
+            button_padding.y = 0.0;
+        }
 
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available_width());
         let mut desired_size = galley.size + 2.0 * button_padding;
-        desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        if !small {
+            desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        }
         let rect = ui.allocate_space(desired_size);
 
         let id = ui.make_position_id();
