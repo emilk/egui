@@ -1,4 +1,4 @@
-# Egui Changelog
+# Changelog for egui_web
 
 All notable changes to the `egui_web` integration will be noted in this file.
 
