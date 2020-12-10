@@ -265,7 +265,7 @@ impl Painting {
     }
 
     fn content(&mut self, ui: &mut Ui) {
-        let rect = ui.allocate_space(ui.available_finite().size());
+        let rect = ui.allocate_space(ui.available_size_before_wrap_finite());
         let response = ui.interact(rect, ui.id(), Sense::drag());
         let rect = response.rect;
         let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
@@ -343,12 +343,18 @@ impl LayoutDemo {
                 if self.main_wrap {
                     if self.main_dir.is_horizontal() {
                         ui.allocate_ui(
-                            vec2(ui.available_finite().width(), self.wrap_row_height),
+                            vec2(
+                                ui.available_size_before_wrap_finite().x,
+                                self.wrap_row_height,
+                            ),
                             |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
                         );
                     } else {
                         ui.allocate_ui(
-                            vec2(self.wrap_column_width, ui.available_finite().height()),
+                            vec2(
+                                self.wrap_column_width,
+                                ui.available_size_before_wrap_finite().y,
+                            ),
                             |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
                         );
                     }

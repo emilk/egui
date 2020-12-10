@@ -153,7 +153,7 @@ struct Prepared {
 
 impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
-        let position = ui.available().min;
+        let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
             let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
             ui.make_persistent_id(id_source)

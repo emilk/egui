@@ -324,20 +324,28 @@ impl Ui {
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
-    pub fn available_width_before_wrap(&self) -> f32 {
-        self.layout.available_size_before_wrap(&self.region).x
+    pub fn available_size_before_wrap(&self) -> Vec2 {
+        self.layout.available_size_before_wrap(&self.region)
     }
 
-    // TODO: clarify if this is before or after wrap
-    pub fn available(&self) -> Rect {
-        self.layout.available(&self.region)
-    }
-
-    /// This is like `available()`, but will never be infinite.
+    /// This is like `available_size_before_wrap()`, but will never be infinite.
     /// Use this for components that want to grow without bounds (but shouldn't).
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
-    pub fn available_finite(&self) -> Rect {
-        self.layout.available_finite(&self.region)
+    pub fn available_size_before_wrap_finite(&self) -> Vec2 {
+        self.layout
+            .available_rect_before_wrap_finite(&self.region)
+            .size()
+    }
+
+    pub fn available_rect_before_wrap(&self) -> Rect {
+        self.layout.available_rect_before_wrap(&self.region)
+    }
+
+    /// This is like `available_rect_before_wrap()`, but will never be infinite.
+    /// Use this for components that want to grow without bounds (but shouldn't).
+    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    pub fn available_rect_before_wrap_finite(&self) -> Rect {
+        self.layout.available_rect_before_wrap_finite(&self.region)
     }
 }
 
@@ -411,9 +419,9 @@ impl Ui {
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
         // For debug rendering
-        let original_size = self.available().size();
-        let too_wide = desired_size.x > original_size.x;
-        let too_high = desired_size.y > original_size.y;
+        let original_available = self.available_size_before_wrap();
+        let too_wide = desired_size.x > original_available.x;
+        let too_high = desired_size.y > original_available.y;
 
         let rect = self.allocate_space_impl(desired_size);
 
@@ -432,8 +440,8 @@ impl Ui {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
                 paint_line_seg(rect.left_center(), rect.right_center());
                 paint_line_seg(
-                    pos2(rect.left() + original_size.x, rect.top()),
-                    pos2(rect.left() + original_size.x, rect.bottom()),
+                    pos2(rect.left() + original_available.x, rect.top()),
+                    pos2(rect.left() + original_available.x, rect.bottom()),
                 );
                 paint_line_seg(rect.right_top(), rect.right_bottom());
             }
@@ -714,7 +722,7 @@ impl Ui {
 impl Ui {
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
     pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-        let child_rect = self.available();
+        let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, self.layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
@@ -808,7 +816,7 @@ impl Ui {
         self.child_ui(
             Rect::from_min_size(
                 self.region.cursor + vec2(x, 0.0),
-                vec2(width, self.available().height()),
+                vec2(width, self.available_size_before_wrap().y),
             ),
             self.layout,
         )
@@ -880,7 +888,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
         let initial_size = vec2(
-            self.available_finite().width(),
+            self.available_size_before_wrap_finite().x,
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
@@ -905,7 +913,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Response) {
-        let mut child_ui = self.child_ui(self.available(), layout);
+        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let ret = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.style().spacing.item_spacing;

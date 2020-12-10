@@ -52,8 +52,12 @@ impl FractalClock {
             ui.ctx().request_repaint();
         }
 
-        let painter = Painter::new(ui.ctx().clone(), ui.layer_id(), ui.available_finite());
-        self.fractal_ui(&painter);
+        let painter = Painter::new(
+            ui.ctx().clone(),
+            ui.layer_id(),
+            ui.available_rect_before_wrap_finite(),
+        );
+        self.paint(&painter);
 
         Frame::popup(ui.style())
             .fill(Rgba::luminance_alpha(0.02, 0.5).into())
@@ -97,7 +101,7 @@ impl FractalClock {
         );
     }
 
-    fn fractal_ui(&mut self, painter: &Painter) {
+    fn paint(&mut self, painter: &Painter) {
         let rect = painter.clip_rect();
 
         struct Hand {

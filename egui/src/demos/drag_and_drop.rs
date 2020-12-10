@@ -44,7 +44,7 @@ pub fn drop_target<R>(
 
     let margin = Vec2::splat(4.0);
 
-    let outer_rect_bounds = ui.available();
+    let outer_rect_bounds = ui.available_rect_before_wrap();
     let inner_rect = outer_rect_bounds.shrink2(margin);
     let where_to_put_background = ui.painter().add(PaintCmd::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());

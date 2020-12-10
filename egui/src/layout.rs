@@ -290,9 +290,20 @@ impl Layout {
         }
     }
 
-    // TODO: clarify if it is before or after wrap
-    pub(crate) fn available(&self, region: &Region) -> Rect {
+    pub(crate) fn available_rect_before_wrap(&self, region: &Region) -> Rect {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect)
+    }
+
+    pub(crate) fn available_size_before_wrap(&self, region: &Region) -> Vec2 {
+        self.available_rect_before_wrap(region).size()
+    }
+
+    pub(crate) fn available_rect_before_wrap_finite(&self, region: &Region) -> Rect {
+        self.available_from_cursor_max_rect(region.cursor, region.max_rect_finite())
+    }
+
+    pub(crate) fn available_size_before_wrap_finite(&self, region: &Region) -> Vec2 {
+        self.available_rect_before_wrap_finite(region).size()
     }
 
     /// Amount of space available for a widget.
@@ -308,17 +319,6 @@ impl Layout {
             self.available_from_cursor_max_rect(r.cursor, r.max_rect)
                 .size()
         }
-    }
-
-    /// In case of a wrapping layout, how much space is left on this row/column?
-    pub fn available_size_before_wrap(&self, region: &Region) -> Vec2 {
-        self.available_from_cursor_max_rect(region.cursor, region.max_rect)
-            .size()
-    }
-
-    // TODO
-    pub fn available_finite(&self, region: &Region) -> Rect {
-        self.available_from_cursor_max_rect(region.cursor, region.max_rect_finite())
     }
 
     /// Given the cursor in the region, how much space is available
@@ -398,7 +398,7 @@ impl Layout {
             }
         }
 
-        let available_size = self.available_finite(region).size();
+        let available_size = self.available_size_before_wrap_finite(region);
         if self.main_dir.is_horizontal() {
             // Fill full height
             child_size.y = child_size.y.max(available_size.y);

@@ -130,7 +130,7 @@ impl Widget for Label {
             // then continue on the line below! This will take some extra work:
 
             let max_width = ui.available_width();
-            let first_row_indentation = max_width - ui.available_width_before_wrap();
+            let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
             let text_style = self.text_style_or_default(ui.style());
             let font = &ui.fonts()[text_style];
@@ -664,7 +664,7 @@ impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> Response {
         let Separator { spacing } = self;
 
-        let available_space = ui.available_finite().size();
+        let available_space = ui.available_size_before_wrap_finite();
 
         let (points, rect) = if ui.layout().main_dir().is_horizontal() {
             let rect = ui.allocate_space(vec2(spacing, available_space.y));
