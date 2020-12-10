@@ -10,7 +10,7 @@ fn main() {
     let title = "My Egui Window";
 
     // Persist app state to file:
-    let storage = egui_glium::storage::FileStorage::from_path(".egui_example_glium.json".into());
+    let storage = egui_glium::storage::FileStorage::from_path(".egui_example_glium.json");
 
     // Alternative: store nowhere
     // let storage = egui::app::DummyStorage::default();
