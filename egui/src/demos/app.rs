@@ -106,7 +106,7 @@ impl FrameHistory {
 
         // TODO: we should not use `slider_width` as default graph width.
         let height = ui.style().spacing.slider_width;
-        let rect = ui.allocate_space(vec2(ui.available_finite().width(), height));
+        let rect = ui.allocate_space(vec2(ui.available_size_before_wrap_finite().x, height));
         let style = ui.style().noninteractive();
 
         let mut cmds = vec![PaintCmd::Rect {

@@ -196,6 +196,13 @@ impl Row {
         self.y_max - self.y_min
     }
 
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_max(
+            pos2(self.min_x(), self.y_min),
+            pos2(self.max_x(), self.y_max),
+        )
+    }
+
     /// Closest char at the desired x coordinate.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {

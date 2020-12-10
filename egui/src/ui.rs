@@ -22,41 +22,19 @@ pub struct Ui {
     /// They are therefore only good for Id:s that has no state.
     next_auto_id: u64,
 
+    /// Specifies paint layer, clip rectangle and a reference to `Context`.
     painter: Painter,
 
-    /// This is the minimal size of the `Ui`.
-    /// When adding new widgets, this will generally expand.
-    ///
-    /// Always finite.
-    ///
-    /// The bounding box of all child widgets, but not necessarily a tight bounding box
-    /// since `Ui` can start with a non-zero min_rect size.
-    min_rect: Rect,
-
-    /// The maximum size of this `Ui`. This is a *soft max*
-    /// meaning new widgets will *try* not to expand beyond it,
-    /// but if they have to, they will.
-    ///
-    /// Text will wrap at `max_rect.right()`.
-    /// Some widgets (like separator lines) will try to fill the full `max_rect` width of the ui.
-    ///
-    /// `max_rect` will always be at least the size of `min_rect`.
-    ///
-    /// If the `max_rect` size is zero, it is a signal that child widgets should be as small as possible.
-    /// If the `max_rect` size is infinite, it is a signal that child widgets should take up as much room as they want.
-    max_rect: Rect,
-
-    /// Override default style in this ui
+    /// The `Style` (visuals, spacing, etc) of this ui.
+    /// Commonly many `Ui`:s share the same `Style`.
+    /// The `Ui` implements copy-on-write for this.
     style: Arc<Style>,
 
+    /// The strategy for where to put the next widget.
     layout: Layout,
 
-    /// Where the next widget will be put.
-    /// Progresses along self.dir.
-    /// Initially set to rect.min
-    /// If something has already been added, this will point ot style.spacing.item_spacing beyond the latest child.
-    /// The cursor can thus be style.spacing.item_spacing pixels outside of the min_rect.
-    cursor: Pos2, // TODO: move into Layout?
+    /// Sizes/bounds and cursor used by `Layout`.
+    region: Region,
 }
 
 impl Ui {
@@ -72,36 +50,28 @@ impl Ui {
     ) -> Self {
         let style = ctx.style();
         let layout = Layout::default();
-        let cursor = layout.initial_cursor(max_rect);
-        let min_size = Vec2::zero(); // TODO: From Style
-        let min_rect = layout.rect_from_cursor_size(cursor, min_size);
+        let region = layout.region_from_max_rect(max_rect);
         Ui {
             id,
             next_auto_id: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
-            min_rect,
-            max_rect,
             style,
             layout,
-            cursor,
+            region,
         }
     }
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        let cursor = layout.initial_cursor(max_rect);
-        let min_size = Vec2::zero(); // TODO: From Style
-        let min_rect = layout.rect_from_cursor_size(cursor, min_size);
+        let region = layout.region_from_max_rect(max_rect);
 
         Ui {
             id: self.id.with("child"),
             next_auto_id: Id::new(self.next_auto_id).with("child").value(),
             painter: self.painter.clone(),
-            min_rect,
-            max_rect,
             style: self.style.clone(),
             layout,
-            cursor,
+            region,
         }
     }
 
@@ -210,12 +180,12 @@ impl Ui {
     ///
     /// This will grow as new widgets are added, but never shrink.
     pub fn min_rect(&self) -> Rect {
-        self.min_rect
+        self.region.min_rect
     }
 
     /// Size of content; same as `min_rect().size()`
     pub fn min_size(&self) -> Vec2 {
-        self.min_rect.size()
+        self.min_rect().size()
     }
 
     /// New widgets will *try* to fit within this rectangle.
@@ -226,32 +196,19 @@ impl Ui {
     /// If a new widget doesn't fit within the `max_rect` then the
     /// `Ui` will make room for it by expanding both `min_rect` and `max_rect`.
     pub fn max_rect(&self) -> Rect {
-        self.max_rect
+        self.region.max_rect
     }
 
     /// Used for animation, kind of hacky
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.min_rect = min_rect;
+        self.region.min_rect = min_rect;
     }
 
     /// This is like `max_rect()`, but will never be infinite.
     /// If the desired rect is infinite ("be as big as you want")
     /// this will be bounded by `min_rect` instead.
     pub fn max_rect_finite(&self) -> Rect {
-        let mut result = self.max_rect;
-        if !result.min.x.is_finite() {
-            result.min.x = self.min_rect.min.x;
-        }
-        if !result.min.y.is_finite() {
-            result.min.y = self.min_rect.min.y;
-        }
-        if !result.max.x.is_finite() {
-            result.max.x = self.min_rect.max.x;
-        }
-        if !result.max.y.is_finite() {
-            result.max.y = self.min_rect.max.y;
-        }
-        result
+        self.region.max_rect_finite()
     }
 
     // ------------------------------------------------------------------------
@@ -266,24 +223,28 @@ impl Ui {
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_width(&mut self, width: f32) {
-        if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
-            debug_assert_eq!(self.min_rect.max.x, self.max_rect.max.x);
-            self.max_rect.min.x = self.max_rect.max.x - width.at_least(self.min_rect.width());
+        if self.layout.main_dir() == Direction::RightToLeft {
+            debug_assert_eq!(self.min_rect().max.x, self.max_rect().max.x);
+            self.region.max_rect.min.x =
+                self.region.max_rect.max.x - width.at_least(self.min_rect().width());
         } else {
-            debug_assert_eq!(self.min_rect.min.x, self.max_rect.min.x);
-            self.max_rect.max.x = self.max_rect.min.x + width.at_least(self.min_rect.width());
+            debug_assert_eq!(self.min_rect().min.x, self.region.max_rect.min.x);
+            self.region.max_rect.max.x =
+                self.region.max_rect.min.x + width.at_least(self.min_rect().width());
         }
     }
 
     /// Set the maximum height of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_height(&mut self, height: f32) {
-        if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
-            debug_assert_eq!(self.min_rect.max.y, self.max_rect.max.y);
-            self.max_rect.min.y = self.max_rect.max.y - height.at_least(self.min_rect.height());
+        if self.layout.main_dir() == Direction::BottomUp {
+            debug_assert_eq!(self.min_rect().max.y, self.region.max_rect.max.y);
+            self.region.max_rect.min.y =
+                self.region.max_rect.max.y - height.at_least(self.min_rect().height());
         } else {
-            debug_assert_eq!(self.min_rect.min.y, self.max_rect.min.y);
-            self.max_rect.max.y = self.max_rect.min.y + height.at_least(self.min_rect.height());
+            debug_assert_eq!(self.min_rect().min.y, self.region.max_rect.min.y);
+            self.region.max_rect.max.y =
+                self.region.max_rect.min.y + height.at_least(self.min_rect().height());
         }
     }
 
@@ -299,27 +260,31 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
-        if self.layout.dir() == Direction::Horizontal && self.layout.is_reversed() {
-            debug_assert_eq!(self.min_rect.max.x, self.max_rect.max.x);
-            self.min_rect.min.x = self.min_rect.min.x.min(self.min_rect.max.x - width);
+        if self.layout.main_dir() == Direction::RightToLeft {
+            debug_assert_eq!(self.region.min_rect.max.x, self.region.max_rect.max.x);
+            let min_rect = &mut self.region.min_rect;
+            min_rect.min.x = min_rect.min.x.min(min_rect.max.x - width);
         } else {
-            debug_assert_eq!(self.min_rect.min.x, self.max_rect.min.x);
-            self.min_rect.max.x = self.min_rect.max.x.max(self.min_rect.min.x + width);
+            debug_assert_eq!(self.region.min_rect.min.x, self.region.max_rect.min.x);
+            let min_rect = &mut self.region.min_rect;
+            min_rect.max.x = min_rect.max.x.max(min_rect.min.x + width);
         }
-        self.max_rect = self.max_rect.union(self.min_rect);
+        self.region.max_rect = self.region.max_rect.union(self.min_rect());
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
-        if self.layout.dir() == Direction::Vertical && self.layout.is_reversed() {
-            debug_assert_eq!(self.min_rect.max.y, self.max_rect.max.y);
-            self.min_rect.min.y = self.min_rect.min.y.min(self.min_rect.max.y - height);
+        if self.layout.main_dir() == Direction::BottomUp {
+            debug_assert_eq!(self.region.min_rect.max.y, self.region.max_rect.max.y);
+            let min_rect = &mut self.region.min_rect;
+            min_rect.min.y = min_rect.min.y.min(min_rect.max.y - height);
         } else {
-            debug_assert_eq!(self.min_rect.min.y, self.max_rect.min.y);
-            self.min_rect.max.y = self.min_rect.max.y.max(self.min_rect.min.y + height);
+            debug_assert_eq!(self.region.min_rect.min.y, self.region.max_rect.min.y);
+            let min_rect = &mut self.region.min_rect;
+            min_rect.max.y = min_rect.max.y.max(min_rect.min.y + height);
         }
-        self.max_rect = self.max_rect.union(self.min_rect);
+        self.region.max_rect = self.region.max_rect.union(self.min_rect());
     }
 
     // ------------------------------------------------------------------------
@@ -339,8 +304,7 @@ impl Ui {
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub fn expand_to_include_rect(&mut self, rect: Rect) {
-        self.min_rect = self.min_rect.union(rect);
-        self.max_rect = self.max_rect.union(rect);
+        self.region.expand_to_include_rect(rect);
     }
 
     // ------------------------------------------------------------------------
@@ -349,18 +313,39 @@ impl Ui {
     /// The available space at the moment, given the current cursor.
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
-    /// A small rectangle should be interpreted as "as little as possible".
-    /// An infinite rectangle should be interpreted as "as much as you want".
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
-    pub fn available(&self) -> Rect {
-        self.layout.available(self.cursor, self.max_rect())
+    /// A small size should be interpreted as "as little as possible".
+    /// An infinite size should be interpreted as "as much as you want".
+    pub fn available_size(&self) -> Vec2 {
+        self.layout.available_size(&self.region)
     }
 
-    /// This is like `available()`, but will never be infinite.
+    pub fn available_width(&self) -> f32 {
+        self.available_size().x
+    }
+
+    /// In case of a wrapping layout, how much space is left on this row/column?
+    pub fn available_size_before_wrap(&self) -> Vec2 {
+        self.layout.available_size_before_wrap(&self.region)
+    }
+
+    /// This is like `available_size_before_wrap()`, but will never be infinite.
     /// Use this for components that want to grow without bounds (but shouldn't).
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
-    pub fn available_finite(&self) -> Rect {
-        self.layout.available(self.cursor, self.max_rect_finite())
+    pub fn available_size_before_wrap_finite(&self) -> Vec2 {
+        self.layout
+            .available_rect_before_wrap_finite(&self.region)
+            .size()
+    }
+
+    pub fn available_rect_before_wrap(&self) -> Rect {
+        self.layout.available_rect_before_wrap(&self.region)
+    }
+
+    /// This is like `available_rect_before_wrap()`, but will never be infinite.
+    /// Use this for components that want to grow without bounds (but shouldn't).
+    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    pub fn available_rect_before_wrap_finite(&self) -> Rect {
+        self.layout.available_rect_before_wrap_finite(&self.region)
     }
 }
 
@@ -417,7 +402,7 @@ impl Ui {
     /// The direction is dependent on the layout.
     /// This is useful for creating some extra space between widgets.
     pub fn advance_cursor(&mut self, amount: f32) {
-        self.layout.advance_cursor(&mut self.cursor, amount);
+        self.layout.advance_cursor(&mut self.region, amount);
     }
 
     /// Reserve this much space and move the cursor.
@@ -429,16 +414,16 @@ impl Ui {
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
-    /// for `Justified` aligned layouts, like in menus.
+    /// for justified layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
     pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
         // For debug rendering
-        let original_size = self.available().size();
-        let too_wide = desired_size.x > original_size.x;
-        let too_high = desired_size.y > original_size.y;
+        let original_available = self.available_size_before_wrap();
+        let too_wide = desired_size.x > original_available.x;
+        let too_high = desired_size.y > original_available.y;
 
-        let rect = self.reserve_space_impl(desired_size);
+        let rect = self.allocate_space_impl(desired_size);
 
         let debug_expand_width = self.style().visuals.debug_expand_width;
         let debug_expand_height = self.style().visuals.debug_expand_height;
@@ -455,8 +440,8 @@ impl Ui {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
                 paint_line_seg(rect.left_center(), rect.right_center());
                 paint_line_seg(
-                    pos2(rect.left() + original_size.x, rect.top()),
-                    pos2(rect.left() + original_size.x, rect.bottom()),
+                    pos2(rect.left() + original_available.x, rect.top()),
+                    pos2(rect.left() + original_available.x, rect.bottom()),
                 );
                 paint_line_seg(rect.right_top(), rect.right_bottom());
             }
@@ -473,16 +458,65 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    fn reserve_space_impl(&mut self, child_size: Vec2) -> Rect {
-        let available_size = self.available_finite().size();
-        let child_rect = self
-            .layout
-            .allocate_space(&mut self.cursor, available_size, child_size);
+    fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.style().spacing.item_spacing;
-        self.layout.advance_cursor2(&mut self.cursor, item_spacing);
-        self.expand_to_include_rect(child_rect);
+        let outer_child_rect = self
+            .layout
+            .next_space(&self.region, desired_size, item_spacing);
+        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
+
+        self.layout.advance_after_outer_rect(
+            &mut self.region,
+            outer_child_rect,
+            inner_child_rect,
+            item_spacing,
+        );
+        self.region.expand_to_include_rect(inner_child_rect);
+
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        child_rect
+        inner_child_rect
+    }
+
+    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) {
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout
+            .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
+        self.region.expand_to_include_rect(rect);
+    }
+
+    pub(crate) fn cursor(&self) -> Pos2 {
+        self.region.cursor
+    }
+
+    /// Allocated the given space and then adds content to that space.
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_ui<R>(
+        &mut self,
+        desired_size: Vec2,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Response) {
+        let item_spacing = self.style().spacing.item_spacing;
+        let outer_child_rect = self
+            .layout
+            .next_space(&self.region, desired_size, item_spacing);
+        let inner_child_rect = self.layout.justify_or_align(outer_child_rect, desired_size);
+
+        let mut child_ui = self.child_ui(inner_child_rect, self.layout);
+        let ret = add_contents(&mut child_ui);
+        let final_child_rect = child_ui.region.min_rect;
+
+        self.layout.advance_after_outer_rect(
+            &mut self.region,
+            outer_child_rect.union(final_child_rect),
+            final_child_rect,
+            item_spacing,
+        );
+        self.region.expand_to_include_rect(final_child_rect);
+
+        let response = self.interact_hover(final_child_rect);
+        (ret, response)
     }
 }
 
@@ -532,10 +566,22 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
+    /// Usage: `if ui.button("Click me").clicked { ... }`
+    ///
     /// Shortcut for `add(Button::new(text))`
     #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
+    }
+
+    /// A button as small as normal body text.
+    ///
+    /// Usage: `if ui.small_button("Click me").clicked { ... }`
+    ///
+    /// Shortcut for `add(Button::new(text).small())`
+    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked { ... } "]
+    pub fn small_button(&mut self, text: impl Into<String>) -> Response {
+        self.add(Button::new(text).small())
     }
 
     /// Show a checkbox.
@@ -676,7 +722,7 @@ impl Ui {
 impl Ui {
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
     pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-        let child_rect = self.available();
+        let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, self.layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
@@ -696,19 +742,13 @@ impl Ui {
         })
     }
 
-    /// Create a child ui at the current cursor.
-    /// `size` is the desired size.
-    /// Actual size may be much smaller if `available_size()` is not enough.
-    /// Set `size` to `Vec::infinity()` to get as much space as possible.
-    /// Just because you ask for a lot of space does not mean you have to use it!
-    /// After `add_contents` is called the contents of `min_size`
-    /// will decide how much space will be used in the parent ui.
-    pub fn add_custom_contents(&mut self, size: Vec2, add_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let size = size.at_most(self.available().size());
-        let child_rect = self.layout.rect_from_cursor_size(self.cursor, size);
-        let mut child_ui = self.child_ui(child_rect, self.layout);
-        add_contents(&mut child_ui);
-        self.allocate_space(child_ui.min_size())
+    #[deprecated = "Use `ui.allocate_ui` instead"]
+    pub fn add_custom_contents(
+        &mut self,
+        desired_size: Vec2,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Rect {
+        self.allocate_ui(desired_size, add_contents).1.rect
     }
 
     /// A `CollapsingHeader` that starts out collapsed.
@@ -727,11 +767,13 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
         assert!(
-            self.layout().dir() == Direction::Vertical,
-            "You can only indent vertical layouts"
+            self.layout.is_vertical(),
+            "You can only indent vertical layouts, found {:?}",
+            self.layout
         );
         let indent = vec2(self.style().spacing.indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor + indent, self.max_rect.right_bottom()); // TODO: wrong for reversed layouts
+        let child_rect =
+            Rect::from_min_max(self.region.cursor + indent, self.max_rect().right_bottom()); // TODO: wrong for reversed layouts
         let mut child_ui = Self {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, self.layout)
@@ -768,64 +810,102 @@ impl Ui {
     pub fn column(&mut self, column_position: Align, width: f32) -> Self {
         let x = match column_position {
             Align::Min => 0.0,
-            Align::Center => self.available().width() / 2.0 - width / 2.0,
-            Align::Max => self.available().width() - width,
+            Align::Center => self.available_width() / 2.0 - width / 2.0,
+            Align::Max => self.available_width() - width,
         };
         self.child_ui(
             Rect::from_min_size(
-                self.cursor + vec2(x, 0.0),
-                vec2(width, self.available().height()),
+                self.region.cursor + vec2(x, 0.0),
+                vec2(width, self.available_size_before_wrap().y),
             ),
             self.layout,
         )
     }
 
     /// Start a ui with horizontal layout.
-    /// After you have called this, the registers the contents as any other widget.
+    /// After you have called this, the function registers the contents as any other widget.
     ///
     /// Elements will be centered on the Y axis, i.e.
     /// adjusted up and down to lie in the center of the horizontal layout.
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
-    /// planning to to mix widgets or just different types of text.
+    /// planning to to mix widgets or use different types of text.
     ///
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+        self.horizontal_with_main_wrap(false, add_contents)
+    }
+
+    /// Start a ui with horizontal layout that wraps to a new row
+    /// when it reaches the right edge of the `max_size`.
+    /// After you have called this, the function registers the contents as any other widget.
+    ///
+    /// Elements will be centered on the Y axis, i.e.
+    /// adjusted up and down to lie in the center of the horizontal layout.
+    /// The initial height is `style.spacing.interact_size.y`.
+    /// Centering is almost always what you want if you are
+    /// planning to to mix widgets or use different types of text.
+    ///
+    /// The returned `Response` will only have checked for mouse hover
+    /// but can be used for tooltips (`on_hover_text`).
+    /// It also contains the `Rect` used by the horizontal layout.
+    pub fn horizontal_wrapped<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.horizontal_with_main_wrap(true, add_contents)
+    }
+
+    /// Like `horizontal_wrapped`, but will set up spacing so that
+    /// the line size and matches that for a normal label.
+    ///
+    /// In particular, the space between widgets is the same with as the space character
+    /// and the line spacing is the same as that for text.
+    ///
+    /// You can still add any widgets to the layout (not only Labels).
+    pub fn horizontal_wrapped_for_text<R>(
+        &mut self,
+        text_style: TextStyle,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.wrap(|ui| {
+            let font = &ui.fonts()[text_style];
+            let row_height = font.row_height();
+            let space_width = font.glyph_width(' ');
+            let style = ui.style_mut();
+            style.spacing.interact_size.y = row_height;
+            style.spacing.item_spacing.x = space_width;
+            style.spacing.item_spacing.y = 0.0;
+            ui.horizontal_wrapped(add_contents).0
+        })
+    }
+
+    fn horizontal_with_main_wrap<R>(
+        &mut self,
+        main_wrap: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
         let initial_size = vec2(
-            self.available().width(),
+            self.available_size_before_wrap_finite().x,
             self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
-        let right_to_left =
-            (self.layout.dir(), self.layout.align()) == (Direction::Vertical, Some(Align::Max));
+        let layout = if self.layout.prefer_right_to_left() {
+            Layout::right_to_left()
+        } else {
+            Layout::left_to_right()
+        }
+        .with_main_wrap(main_wrap);
 
-        self.inner_layout(
-            Layout::horizontal(Align::Center).with_reversed(right_to_left),
-            initial_size,
-            add_contents,
-        )
+        self.allocate_ui(initial_size, |ui| ui.with_layout(layout, add_contents).0)
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
-        self.with_layout(Layout::vertical(Align::Min), add_contents)
-    }
-
-    fn inner_layout<R>(
-        &mut self,
-        layout: Layout,
-        initial_size: Vec2,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
-        let child_rect = self.layout.rect_from_cursor_size(self.cursor, initial_size);
-        let mut child_ui = self.child_ui(child_rect, layout);
-        let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
-        (ret, self.interact_hover(rect))
+        self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
     pub fn with_layout<R>(
@@ -833,10 +913,13 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Response) {
-        let mut child_ui = self.child_ui(self.available(), layout);
+        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
+        let rect = child_ui.min_rect();
+        let item_spacing = self.style().spacing.item_spacing;
+        self.layout
+            .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
+        self.region.expand_to_include_rect(rect);
         (ret, self.interact_hover(rect))
     }
 
@@ -856,14 +939,15 @@ impl Ui {
         // TODO: ensure there is space
         let spacing = self.style().spacing.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
-        let column_width = (self.available().width() - total_spacing) / (num_columns as f32);
+        let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
-                let pos = self.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let pos =
+                    self.region.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
                 let child_rect = Rect::from_min_max(
                     pos,
-                    pos2(pos.x + column_width, self.max_rect.right_bottom().y),
+                    pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
                 self.child_ui(child_rect, self.layout)
             })
@@ -873,7 +957,7 @@ impl Ui {
 
         let mut sum_width = total_spacing;
         for column in &columns {
-            sum_width += column.min_rect.width();
+            sum_width += column.min_rect().width();
         }
 
         let mut max_height = 0.0;
@@ -882,7 +966,7 @@ impl Ui {
             max_height = size.y.max(max_height);
         }
 
-        let size = vec2(self.available().width().max(sum_width), max_height);
+        let size = vec2(self.available_width().max(sum_width), max_height);
         self.allocate_space(size);
         result
     }
@@ -894,6 +978,6 @@ impl Ui {
 impl Ui {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {
-        self.layout.debug_paint_cursor(self.cursor, &self.painter);
+        self.layout.debug_paint_cursor(&self.region, &self.painter);
     }
 }

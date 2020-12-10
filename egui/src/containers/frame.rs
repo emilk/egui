@@ -99,7 +99,7 @@ pub struct Prepared {
 impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
         let where_to_put_background = ui.painter().add(PaintCmd::Noop);
-        let outer_rect_bounds = ui.available();
+        let outer_rect_bounds = ui.available_rect_before_wrap();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
         let content_ui = ui.child_ui(inner_rect, *ui.layout());
 

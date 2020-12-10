@@ -103,12 +103,12 @@ impl ScrollArea {
         };
 
         let outer_size = vec2(
-            ui.available().width(),
-            ui.available().height().at_most(max_height),
+            ui.available_width(),
+            ui.available_size_before_wrap().y.at_most(max_height),
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
-        let inner_rect = Rect::from_min_size(ui.available().min, inner_size);
+        let inner_rect = Rect::from_min_size(ui.available_rect_before_wrap().min, inner_size);
 
         let mut content_ui = ui.child_ui(
             Rect::from_min_size(

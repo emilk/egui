@@ -60,10 +60,13 @@ pub fn combo_box(
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
-                    ui.with_layout(Layout::justified(Direction::Vertical), |ui| {
-                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        menu_contents(ui);
-                    });
+                    ui.with_layout(
+                        Layout::top_down(Align::left()).with_cross_justify(true),
+                        |ui| {
+                            ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
+                            menu_contents(ui);
+                        },
+                    );
                 })
             });
 
@@ -84,7 +87,7 @@ fn button_frame(
     add_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let margin = ui.style().spacing.button_padding;
-    let outer_rect_bounds = ui.available();
+    let outer_rect_bounds = ui.available_rect_before_wrap();
     let inner_rect = outer_rect_bounds.shrink2(margin);
     let where_to_put_background = ui.painter().add(PaintCmd::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());

@@ -16,8 +16,8 @@ impl Texture {
             return;
         }
         let mut size = vec2(self.width as f32, self.height as f32);
-        if size.x > ui.available().width() {
-            size *= ui.available().width() / size.x;
+        if size.x > ui.available_width() {
+            size *= ui.available_width() / size.x;
         }
         let rect = ui.allocate_space(size);
         let mut triangles = Triangles::default();

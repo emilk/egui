@@ -46,28 +46,34 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(crate::__egui_github_link_file_line!());
+        ui.add(__egui_github_link_file_line!());
 
-        ui.horizontal(|ui| {
-            ui.style_mut().spacing.item_spacing.x = 0.0;
-            ui.add(Label::new("Text can have ").text_color(srgba(110, 255, 110, 255)));
-            ui.add(Label::new("color ").text_color(srgba(128, 140, 255, 255)));
+        ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
+            ui.label("Long text will wrap, just as you would expect.");
+            ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
+            ui.add(Label::new("color").text_color(srgba(128, 140, 255, 255)));
             ui.add(Label::new("and tooltips.")).on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
-        });
-        ui.label("Tooltips can be more than just simple text.")
-            .on_hover_ui(|ui| {
-                ui.heading("The name of the tooltip");
-                ui.horizontal(|ui| {
-                    ui.label("This tooltip was created with");
-                    ui.monospace(".on_hover_ui(...)");
-                });
-                let _ = ui.button("A button you can never press");
-            });
 
-        ui.label("Ευρηκα! τ = 2×π")
-            .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
+            ui.label("You can mix in other widgets into text, like this");
+            let _ = ui.small_button("button");
+            ui.label(".");
+
+            ui.label("There is also (limited) non-ASCII support: Ευρηκα! τ = 2×π")
+                .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
+        });
+
+        let tooltip_ui = |ui: &mut Ui| {
+            ui.heading("The name of the tooltip");
+            ui.horizontal(|ui| {
+                ui.label("This tooltip was created with");
+                ui.monospace(".on_hover_ui(...)");
+            });
+            let _ = ui.button("A button you can never press");
+        };
+        ui.label("Tooltips can be more than just simple text.")
+            .on_hover_ui(tooltip_ui);
 
         ui.horizontal(|ui| {
             ui.radio_value(&mut self.radio, Enum::First, "First");

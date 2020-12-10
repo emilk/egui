@@ -265,7 +265,7 @@ impl Painting {
     }
 
     fn content(&mut self, ui: &mut Ui) {
-        let rect = ui.allocate_space(ui.available_finite().size());
+        let rect = ui.allocate_space(ui.available_size_before_wrap_finite());
         let response = ui.interact(rect, ui.id(), Sense::drag());
         let rect = response.rect;
         let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
@@ -304,81 +304,134 @@ use crate::layout::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 struct LayoutDemo {
-    dir: Direction,
-    align: Option<Align>, // None == justified
-    reversed: bool,
+    // Identical to contents of `egui::Layout`
+    main_dir: Direction,
+    main_wrap: bool,
+    cross_align: Align,
+    cross_justify: bool,
+
+    // Extra for testing wrapping:
+    wrap_column_width: f32,
+    wrap_row_height: f32,
 }
 
 impl Default for LayoutDemo {
     fn default() -> Self {
         Self {
-            dir: Direction::Vertical,
-            align: Some(Align::Center),
-            reversed: false,
+            main_dir: Direction::TopDown,
+            main_wrap: false,
+            cross_align: Align::Min,
+            cross_justify: false,
+            wrap_column_width: 150.0,
+            wrap_row_height: 20.0,
         }
     }
 }
 
 impl LayoutDemo {
     fn layout(&self) -> Layout {
-        let layout = Layout::from_dir_align(self.dir, self.align);
-        if self.reversed {
-            layout.reverse()
-        } else {
-            layout
-        }
+        Layout::from_main_dir_and_cross_align(self.main_dir, self.cross_align)
+            .with_main_wrap(self.main_wrap)
+            .with_cross_justify(self.cross_justify)
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
+        self.content_ui(ui);
         Resize::default()
-            .default_size([200.0, 100.0])
+            .default_size([300.0, 200.0])
             .show(ui, |ui| {
-                ui.with_layout(self.layout(), |ui| self.content_ui(ui))
+                if self.main_wrap {
+                    if self.main_dir.is_horizontal() {
+                        ui.allocate_ui(
+                            vec2(
+                                ui.available_size_before_wrap_finite().x,
+                                self.wrap_row_height,
+                            ),
+                            |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
+                        );
+                    } else {
+                        ui.allocate_ui(
+                            vec2(
+                                self.wrap_column_width,
+                                ui.available_size_before_wrap_finite().y,
+                            ),
+                            |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
+                        );
+                    }
+                } else {
+                    ui.with_layout(self.layout(), |ui| self.demo_ui(ui));
+                }
             });
+        ui.label("Resize to see effect");
     }
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
-        // ui.label(format!("Available space: {:?}", ui.available().size()));
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
-        ui.separator();
-        ui.label("Direction:");
-
-        // TODO: enum iter
-
-        for &dir in &[Direction::Horizontal, Direction::Vertical] {
-            if ui
-                .add(RadioButton::new(self.dir == dir, format!("{:?}", dir)))
-                .clicked
-            {
-                self.dir = dir;
+        ui.horizontal(|ui| {
+            if ui.button("Top-down").clicked {
+                *self = Default::default();
             }
-        }
-
-        ui.checkbox(&mut self.reversed, "Reversed");
-
-        ui.separator();
-
-        ui.label("Align:");
-
-        for &align in &[Align::Min, Align::Center, Align::Max] {
-            if ui
-                .add(RadioButton::new(
-                    self.align == Some(align),
-                    format!("{:?}", align),
-                ))
-                .clicked
-            {
-                self.align = Some(align);
+            if ui.button("Top-down, centered and justified").clicked {
+                *self = Default::default();
+                self.cross_align = Align::Center;
+                self.cross_justify = true;
             }
+            if ui.button("Horizontal wrapped").clicked {
+                *self = Default::default();
+                self.main_dir = Direction::LeftToRight;
+                self.cross_align = Align::Center;
+                self.main_wrap = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Main Direction:");
+            for &dir in &[
+                Direction::LeftToRight,
+                Direction::RightToLeft,
+                Direction::TopDown,
+                Direction::BottomUp,
+            ] {
+                ui.radio_value(&mut self.main_dir, dir, format!("{:?}", dir));
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.main_wrap, "Main wrap")
+                .on_hover_text("Wrap when next widget doesn't fit the current row/column");
+
+            if self.main_wrap {
+                if self.main_dir.is_horizontal() {
+                    ui.add(Slider::f32(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
+                } else {
+                    ui.add(
+                        Slider::f32(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
+                    );
+                }
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Cross Align:");
+            for &align in &[Align::Min, Align::Center, Align::Max] {
+                ui.radio_value(&mut self.cross_align, align, format!("{:?}", align));
+            }
+        });
+
+        ui.checkbox(&mut self.cross_justify, "Cross Justified")
+            .on_hover_text("Try to fill full width/height (e.g. buttons)");
+    }
+
+    pub fn demo_ui(&mut self, ui: &mut Ui) {
+        ui.monospace("Example widgets:");
+        for _ in 0..3 {
+            ui.label("label");
         }
-        if ui
-            .add(RadioButton::new(self.align == None, "Justified"))
-            .on_hover_text("Try to fill full width/height (e.g. buttons)")
-            .clicked
-        {
-            self.align = None;
+        for _ in 0..3 {
+            let mut dummy = false;
+            ui.checkbox(&mut dummy, "checkbox");
+        }
+        for _ in 0..3 {
+            let _ = ui.button("button");
         }
     }
 }

@@ -6,7 +6,7 @@
 
 #![allow(clippy::new_without_default)]
 
-use crate::{layout::Direction, *};
+use crate::*;
 
 pub mod color_picker;
 mod drag_value;
@@ -79,10 +79,7 @@ impl Label {
     }
 
     pub fn layout(&self, ui: &Ui) -> Galley {
-        let max_width = ui.available().width();
-        // Prevent word-wrapping after a single letter, and other silly shit:
-        // TODO: general "don't force labels and similar to wrap so early"
-        // TODO: max_width = max_width.at_least(ui.spacing.first_wrap_width);
+        let max_width = ui.available_width();
         self.layout_width(ui, max_width)
     }
 
@@ -125,10 +122,57 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let galley = self.layout(ui);
-        let rect = ui.allocate_space(galley.size);
-        self.paint_galley(ui, rect.min, galley);
-        ui.interact_hover(rect)
+        if self.multiline
+            && ui.layout().main_dir() == Direction::LeftToRight
+            && ui.layout().main_wrap()
+        {
+            // On a wrapping horizontal layout we want text to start after the last widget,
+            // then continue on the line below! This will take some extra work:
+
+            let max_width = ui.available_width();
+            let first_row_indentation = max_width - ui.available_size_before_wrap().x;
+
+            let text_style = self.text_style_or_default(ui.style());
+            let font = &ui.fonts()[text_style];
+            let mut galley = font.layout_multiline_with_indentation_and_max_width(
+                self.text.clone(),
+                first_row_indentation,
+                max_width,
+            );
+
+            let pos = pos2(ui.min_rect().left(), ui.cursor().y);
+
+            assert!(!galley.rows.is_empty(), "Gallyes are never empty");
+            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
+            ui.advance_cursor_after_rect(rect);
+            let mut total_response = ui.interact_hover(rect);
+
+            let mut y_translation = 0.0;
+            if let Some(row) = galley.rows.get(1) {
+                // We could be sharing the first row with e.g. a button, that is higher than text.
+                // So we need to compensate for that:
+                if pos.y + row.y_min < ui.min_rect().bottom() {
+                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
+                }
+            }
+
+            for row in galley.rows.iter_mut().skip(1) {
+                row.y_min += y_translation;
+                row.y_max += y_translation;
+                let rect = row.rect().translate(vec2(pos.x, pos.y));
+                ui.advance_cursor_after_rect(rect);
+                total_response |= ui.interact_hover(rect);
+            }
+
+            self.paint_galley(ui, pos, galley);
+            total_response
+        } else {
+            let galley = self.layout(ui);
+            let rect = ui.allocate_space(galley.size);
+            let rect = ui.layout().align_size_within_rect(galley.size, rect);
+            self.paint_galley(ui, rect.min, galley);
+            ui.interact_hover(rect)
+        }
     }
 }
 
@@ -197,7 +241,7 @@ impl Widget for Hyperlink {
         let color = color::LIGHT_BLUE;
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available_width());
         let rect = ui.allocate_space(galley.size);
 
         let id = ui.make_position_id();
@@ -243,6 +287,7 @@ pub struct Button {
     /// None means default for interact
     fill: Option<Srgba>,
     sense: Sense,
+    small: bool,
 }
 
 impl Button {
@@ -253,6 +298,7 @@ impl Button {
             text_style: TextStyle::Button,
             fill: Default::default(),
             sense: Sense::click(),
+            small: false,
         }
     }
 
@@ -273,6 +319,13 @@ impl Button {
 
     pub fn fill(mut self, fill: Option<Srgba>) -> Self {
         self.fill = fill;
+        self
+    }
+
+    /// Make this a small button, suitable for embedding into text.
+    pub fn small(mut self) -> Self {
+        self.text_style = TextStyle::Body;
+        self.small = true;
         self
     }
 
@@ -301,24 +354,29 @@ impl Widget for Button {
             text_style,
             fill,
             sense,
+            small,
         } = self;
 
-        let button_padding = ui.style().spacing.button_padding;
+        let mut button_padding = ui.style().spacing.button_padding;
+        if small {
+            button_padding.y = 0.0;
+        }
 
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available().width());
+        let galley = font.layout_multiline(text, ui.available_width());
         let mut desired_size = galley.size + 2.0 * button_padding;
-        desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        if !small {
+            desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        }
         let rect = ui.allocate_space(desired_size);
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
         let visuals = ui.style().interact(&response);
-        // let text_cursor = response.rect.center() - 0.5 * galley.size; // centered-centered (looks bad for justified drop-down menus
-        let text_cursor = pos2(
-            response.rect.left() + button_padding.x,
-            response.rect.center().y - 0.5 * galley.size.y,
-        ); // left-centered
+        let text_cursor = ui
+            .layout()
+            .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+            .min;
         let fill = fill.unwrap_or(visuals.bg_fill);
         ui.painter().rect(
             response.rect,
@@ -379,12 +437,13 @@ impl<'a> Widget for Checkbox<'a> {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let galley = font.layout_single_line(text);
-        // let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        // let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
+        let rect = ui.layout().align_size_within_rect(desired_size, rect);
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -467,12 +526,13 @@ impl Widget for RadioButton {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let rect = ui.allocate_space(desired_size);
+        let rect = ui.layout().align_size_within_rect(desired_size, rect);
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
@@ -544,7 +604,7 @@ impl Widget for SelectableLabel {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available().width() - total_extra.x);
+        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
@@ -604,29 +664,26 @@ impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> Response {
         let Separator { spacing } = self;
 
-        let available_space = ui.available_finite().size();
+        let available_space = ui.available_size_before_wrap_finite();
 
-        let (points, rect) = match ui.layout().dir() {
-            Direction::Horizontal => {
-                let rect = ui.allocate_space(vec2(spacing, available_space.y));
-                (
-                    [
-                        pos2(rect.center().x, rect.top()),
-                        pos2(rect.center().x, rect.bottom()),
-                    ],
-                    rect,
-                )
-            }
-            Direction::Vertical => {
-                let rect = ui.allocate_space(vec2(available_space.x, spacing));
-                (
-                    [
-                        pos2(rect.left(), rect.center().y),
-                        pos2(rect.right(), rect.center().y),
-                    ],
-                    rect,
-                )
-            }
+        let (points, rect) = if ui.layout().main_dir().is_horizontal() {
+            let rect = ui.allocate_space(vec2(spacing, available_space.y));
+            (
+                [
+                    pos2(rect.center().x, rect.top()),
+                    pos2(rect.center().x, rect.bottom()),
+                ],
+                rect,
+            )
+        } else {
+            let rect = ui.allocate_space(vec2(available_space.x, spacing));
+            (
+                [
+                    pos2(rect.left(), rect.center().y),
+                    pos2(rect.right(), rect.center().y),
+                ],
+                rect,
+            )
         };
         let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);

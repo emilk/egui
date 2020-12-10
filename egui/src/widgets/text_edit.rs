@@ -228,7 +228,7 @@ impl<'t> Widget for TextEdit<'t> {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let line_spacing = font.row_height();
-        let available_width = ui.available().width();
+        let available_width = ui.available_width();
         let mut galley = if multiline {
             font.layout_multiline(text.clone(), available_width)
         } else {
