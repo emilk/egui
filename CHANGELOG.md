@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): a text-button that can be selected
+* Add `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
+
+### Changed 🔧
 
 * Changed default font to [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
 

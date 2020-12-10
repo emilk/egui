@@ -20,6 +20,7 @@ pub(crate) struct State {
 #[derive(Clone, Copy, Debug)]
 pub struct Resize {
     id: Option<Id>,
+    id_source: Option<Id>,
 
     /// If false, we are no enabled
     resizable: bool,
@@ -36,6 +37,7 @@ impl Default for Resize {
     fn default() -> Self {
         Self {
             id: None,
+            id_source: None,
             resizable: true,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
@@ -49,6 +51,12 @@ impl Resize {
     /// Assign an explicit and globally unique id.
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
+        self
+    }
+
+    /// A source for the unique `Id`, e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
+    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
+        self.id_source = Some(Id::new(id_source));
         self
     }
 
@@ -146,7 +154,10 @@ struct Prepared {
 impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
         let position = ui.available().min;
-        let id = self.id.unwrap_or_else(|| ui.make_persistent_id("resize"));
+        let id = self.id.unwrap_or_else(|| {
+            let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
+            ui.make_persistent_id(id_source)
+        });
 
         let mut state = ui.memory().resize.get(&id).cloned().unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay

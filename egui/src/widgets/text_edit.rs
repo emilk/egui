@@ -169,6 +169,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// A source for the unique `Id`, e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self

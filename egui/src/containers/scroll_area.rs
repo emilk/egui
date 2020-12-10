@@ -30,6 +30,7 @@ impl Default for State {
 pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,
+    id_source: Option<Id>,
 }
 
 impl ScrollArea {
@@ -43,6 +44,7 @@ impl ScrollArea {
         Self {
             max_height,
             always_show_scroll: false,
+            id_source: None,
         }
     }
 
@@ -50,6 +52,12 @@ impl ScrollArea {
     /// If `true`, the scroll bar will always be displayed even if not needed.
     pub fn always_show_scroll(mut self, always_show_scroll: bool) -> Self {
         self.always_show_scroll = always_show_scroll;
+        self
+    }
+
+    /// A source for the unique `Id`, e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
+    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
+        self.id_source = Some(Id::new(id_source));
         self
     }
 }
@@ -68,11 +76,13 @@ impl ScrollArea {
         let Self {
             max_height,
             always_show_scroll,
+            id_source,
         } = self;
 
         let ctx = ui.ctx().clone();
 
-        let id = ui.make_persistent_id("scroll_area");
+        let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
+        let id = ui.make_persistent_id(id_source);
         let state = ctx
             .memory()
             .scroll_areas
