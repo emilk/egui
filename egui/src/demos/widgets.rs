@@ -91,7 +91,7 @@ impl Widgets {
             {
                 self.count += 1;
             }
-            ui.add(label!("The button has been clicked {} times", self.count));
+            ui.label(format!("The button has been clicked {} times", self.count));
         });
 
         ui.separator();

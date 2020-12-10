@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Changed default font to [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
 
+### Removed 🔥
+
+* Removed the `label!` macro
+
 ## 0.4.0 - 2020-11-28
 
 ### Added ⭐

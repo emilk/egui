@@ -55,7 +55,7 @@ impl DemoWindow {
             ui.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
-                    col.add(label!("Column {} out of {}", i + 1, self.num_columns));
+                    col.label(format!("Column {} out of {}", i + 1, self.num_columns));
                     if i + 1 == self.num_columns && col.button("Delete this").clicked {
                         self.num_columns -= 1;
                     }

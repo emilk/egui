@@ -69,7 +69,7 @@ impl FractalClock {
 
     fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if seconds_since_midnight.is_some() {
-            ui.add(label!(
+            ui.label(format!(
                 "Local time: {:02}:{:02}:{:02}.{:03}",
                 (self.time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
                 (self.time % (60.0 * 60.0) / 60.0).floor(),
@@ -77,9 +77,7 @@ impl FractalClock {
                 (self.time % 1.0 * 100.0).floor()
             ));
         } else {
-            ui.add(label!(
-                "The fractal_clock clock is not showing the correct time"
-            ));
+            ui.label("The fractal_clock clock is not showing the correct time");
         };
 
         ui.checkbox(&mut self.paused, "Paused");

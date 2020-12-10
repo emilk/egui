@@ -123,15 +123,6 @@ impl Label {
     }
 }
 
-/// Shortcut for creating a `Label` widget.
-///
-/// Usage: `label!("Foo: {}", bar)` equivalent to `Label::new(format!("Foo: {}", bar))`.
-#[macro_export]
-macro_rules! label {
-    ($fmt:expr) => ($crate::widgets::Label::new($fmt));
-    ($fmt:expr, $($arg:tt)*) => ($crate::widgets::Label::new(format!($fmt, $($arg)*)));
-}
-
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let galley = self.layout(ui);
