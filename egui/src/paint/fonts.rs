@@ -124,9 +124,15 @@ impl Fonts {
                 let typeface_data = ttf_data
                     .get(&family)
                     .unwrap_or_else(|| panic!("Missing TTF data for {:?}", family));
-                let font = Font::new(atlas.clone(), typeface_data, size, pixels_per_point);
+                let font_impl = super::font::FontImpl::new(
+                    atlas.clone(),
+                    typeface_data,
+                    size,
+                    pixels_per_point,
+                );
+                let font_impl = Arc::new(font_impl);
 
-                (text_style, font)
+                (text_style, Font::new(font_impl))
             })
             .collect();
 
