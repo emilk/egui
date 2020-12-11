@@ -50,7 +50,7 @@ pub struct FontImpl {
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    glyph_infos: RwLock<AHashMap<char, GlyphInfo>>,
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -71,7 +71,7 @@ impl FontImpl {
             font,
             scale_in_pixels,
             pixels_per_point,
-            glyph_infos: Default::default(),
+            glyph_info_cache: Default::default(),
             atlas,
         };
 
@@ -89,7 +89,7 @@ impl FontImpl {
     /// `\n` will result in `None`
     fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
         {
-            if let Some(glyph_info) = self.glyph_infos.read().get(&c) {
+            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
                 return Some(*glyph_info);
             }
         }
@@ -103,7 +103,7 @@ impl FontImpl {
             self.pixels_per_point,
         );
         let glyph_info = glyph_info?;
-        self.glyph_infos.write().insert(c, glyph_info);
+        self.glyph_info_cache.write().insert(c, glyph_info);
         Some(glyph_info)
     }
 
@@ -118,63 +118,135 @@ impl FontImpl {
             / self.pixels_per_point
     }
 
+    /// Height of one row of text. In points
+    pub fn row_height(&self) -> f32 {
+        self.scale_in_pixels / self.pixels_per_point
+    }
+
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
+    }
+}
+
+type FontIndex = usize;
+
+// TODO: rename Layouter ?
+/// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
+pub struct Font {
+    fonts: Vec<Arc<FontImpl>>,
+    replacement_font_index_glyph_info: (FontIndex, GlyphInfo),
+    pixels_per_point: f32,
+    row_height: f32,
+    glyph_info_cache: RwLock<AHashMap<char, (FontIndex, GlyphInfo)>>,
+}
+
+impl Font {
+    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
+        assert!(!fonts.is_empty());
+        let replacement_glyph_font_index = 0;
+
+        let replacement_glyph_info = fonts[replacement_glyph_font_index]
+            .glyph_info(REPLACEMENT_CHAR)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed to find replacement character {:?}",
+                    REPLACEMENT_CHAR
+                )
+            });
+
+        let replacement_font_index_glyph_info =
+            (replacement_glyph_font_index, replacement_glyph_info);
+
+        let pixels_per_point = fonts[0].pixels_per_point();
+        let row_height = fonts[0].row_height();
+
+        let slf = Self {
+            fonts,
+            replacement_font_index_glyph_info,
+            pixels_per_point,
+            row_height,
+            glyph_info_cache: Default::default(),
+        };
+        slf.glyph_info_cache
+            .write()
+            .insert(REPLACEMENT_CHAR, replacement_font_index_glyph_info);
+        slf
+    }
+
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
     pub fn row_height(&self) -> f32 {
-        self.scale_in_pixels / self.pixels_per_point
+        self.row_height
     }
 
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
-    }
-}
-
-// TODO: rename Layouter ?
-/// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
-pub struct Font {
-    font_impl: Arc<FontImpl>,
-    replacement_glyph_info: GlyphInfo,
-}
-
-impl Font {
-    pub fn new(font_impl: Arc<FontImpl>) -> Self {
-        let replacement_glyph_info = font_impl.glyph_info(REPLACEMENT_CHAR).unwrap_or_else(|| {
-            panic!(
-                "Failed to find replacement character {:?}",
-                REPLACEMENT_CHAR
-            )
-        });
-        Self {
-            font_impl,
-            replacement_glyph_info,
-        }
-    }
-
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        self.font_impl.round_to_pixel(point)
-    }
-
-    /// Height of one row of text. In points
-    pub fn row_height(&self) -> f32 {
-        self.font_impl.row_height()
-    }
-
-    pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        self.font_impl.uv_rect(c)
+        self.glyph_info_cache
+            .read()
+            .get(&c)
+            .and_then(|gi| gi.1.uv_rect)
     }
 
     pub fn glyph_width(&self, c: char) -> f32 {
-        self.glyph_info(c).advance_width
+        self.glyph_info(c).1.advance_width
     }
 
     /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
-    fn glyph_info(&self, c: char) -> GlyphInfo {
-        self.font_impl
-            .glyph_info(c)
-            .unwrap_or_else(|| self.replacement_glyph_info)
+    fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
+        {
+            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
+                return *glyph_info;
+            }
+        }
+
+        let font_index_glyph_info = self.glyph_info_no_cache(c);
+        let font_index_glyph_info =
+            font_index_glyph_info.unwrap_or_else(|| self.replacement_font_index_glyph_info);
+        self.glyph_info_cache
+            .write()
+            .insert(c, font_index_glyph_info);
+        font_index_glyph_info
+    }
+
+    fn glyph_info_no_cache(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
+        for (font_index, font_impl) in self.fonts.iter().enumerate() {
+            if let Some(glyph_info) = font_impl.glyph_info(c) {
+                self.glyph_info_cache
+                    .write()
+                    .insert(c, (font_index, glyph_info));
+                return Some((font_index, glyph_info));
+            }
+        }
+        None
+    }
+
+    /// Typeset the given text onto one row.
+    /// Assumes there are no `\n` in the text.
+    /// Return `x_offsets`, one longer than the number of characters in the text.
+    fn layout_single_row_fragment(&self, text: &str) -> Vec<f32> {
+        let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
+        x_offsets.push(0.0);
+
+        let mut cursor_x_in_points = 0.0f32;
+        let mut last_glyph_id = None;
+
+        for c in text.chars() {
+            let (font_index, glyph_info) = self.glyph_info(c);
+            let font_impl = &self.fonts[font_index];
+
+            if let Some(last_glyph_id) = last_glyph_id {
+                cursor_x_in_points += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+            }
+            cursor_x_in_points += glyph_info.advance_width;
+            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
+            last_glyph_id = Some(glyph_info.id);
+
+            x_offsets.push(cursor_x_in_points);
+        }
+
+        x_offsets
     }
 
     /// Typeset the given text onto one row.
@@ -270,32 +342,6 @@ impl Font {
         let galley = Galley { text, rows, size };
         galley.sanity_check();
         galley
-    }
-
-    /// Typeset the given text onto one row.
-    /// Assumes there are no `\n` in the text.
-    /// Return `x_offsets`, one longer than the number of characters in the text.
-    fn layout_single_row_fragment(&self, text: &str) -> Vec<f32> {
-        let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
-        x_offsets.push(0.0);
-
-        let mut cursor_x_in_points = 0.0f32;
-        let mut last_glyph_id = None;
-
-        for c in text.chars() {
-            let glyph = self.glyph_info(c);
-
-            if let Some(last_glyph_id) = last_glyph_id {
-                cursor_x_in_points += self.font_impl.pair_kerning(last_glyph_id, glyph.id)
-            }
-            cursor_x_in_points += glyph.advance_width;
-            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
-            last_glyph_id = Some(glyph.id);
-
-            x_offsets.push(cursor_x_in_points);
-        }
-
-        x_offsets
     }
 
     /// A paragraph is text with no line break character in it.

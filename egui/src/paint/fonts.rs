@@ -7,7 +7,7 @@ use std::{
 use crate::mutex::Mutex;
 
 use super::{
-    font::Font,
+    font::{Font, FontImpl},
     texture_atlas::{Texture, TextureAtlas},
 };
 
@@ -41,6 +41,9 @@ pub struct FontDefinitions {
     /// Egui has built-in-default for these,
     /// but you can override them if you like.
     pub ttf_data: BTreeMap<FontFamily, &'static [u8]>,
+
+    /// ttf data for emoji font, if any
+    pub emoji_ttf_data: Option<&'static [u8]>,
 }
 
 impl Default for FontDefinitions {
@@ -66,10 +69,13 @@ impl FontDefinitions {
         ttf_data.insert(FontFamily::Monospace, monospace_typeface_data);
         ttf_data.insert(FontFamily::VariableWidth, variable_typeface_data);
 
+        let emoji_ttf_data = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+
         Self {
             pixels_per_point,
             fonts,
             ttf_data,
+            emoji_ttf_data: Some(emoji_ttf_data),
         }
     }
 }
@@ -101,7 +107,7 @@ impl Fonts {
             return;
         }
 
-        let mut atlas = TextureAtlas::new(512, 16); // TODO: better default?
+        let mut atlas = TextureAtlas::new(1024, 16); // TODO: better default?
 
         {
             // Make the top left pixel fully white:
@@ -117,22 +123,36 @@ impl Fonts {
             pixels_per_point,
             fonts,
             ttf_data,
+            emoji_ttf_data,
         } = definitions;
+
         self.fonts = fonts
             .into_iter()
             .map(|(text_style, (family, size))| {
                 let typeface_data = ttf_data
                     .get(&family)
                     .unwrap_or_else(|| panic!("Missing TTF data for {:?}", family));
-                let font_impl = super::font::FontImpl::new(
+
+                let font_impl = Arc::new(FontImpl::new(
                     atlas.clone(),
                     typeface_data,
                     size,
                     pixels_per_point,
-                );
-                let font_impl = Arc::new(font_impl);
+                ));
 
-                (text_style, Font::new(font_impl))
+                let mut fonts = vec![font_impl];
+
+                if let Some(emoji_ttf_data) = emoji_ttf_data {
+                    let emoji_font_impl = Arc::new(FontImpl::new(
+                        atlas.clone(),
+                        emoji_ttf_data,
+                        size,
+                        pixels_per_point,
+                    ));
+                    fonts.push(emoji_font_impl);
+                }
+
+                (text_style, Font::new(fonts))
             })
             .collect();
 

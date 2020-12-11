@@ -209,5 +209,6 @@ Egui is under MIT OR Apache-2.0 license.
 
 Fonts:
 
+* NotoEmoji-Regular.ttf, [google.com/get/noto](https://google.com/get/noto), [SIL Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)
 * ProggyClean.ttf, Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. <http://www.proggyfonts.net/>
 * Ubuntu-Light.ttf by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)
