@@ -50,7 +50,6 @@ pub struct FontImpl {
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    replacement_glyph_info: GlyphInfo,
     glyph_infos: RwLock<AHashMap<char, GlyphInfo>>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
@@ -68,32 +67,13 @@ impl FontImpl {
         let font = rusttype::Font::try_from_bytes(font_data).expect("Error constructing Font");
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let replacement_glyph_info = allocate_glyph(
-            &mut atlas.lock(),
-            REPLACEMENT_CHAR,
-            &font,
-            scale_in_pixels,
-            pixels_per_point,
-        )
-        .unwrap_or_else(|| {
-            panic!(
-                "Failed to find replacement character {:?}",
-                REPLACEMENT_CHAR
-            )
-        });
-
         let font = Self {
             font,
             scale_in_pixels,
             pixels_per_point,
-            replacement_glyph_info,
             glyph_infos: Default::default(),
             atlas,
         };
-
-        font.glyph_infos
-            .write()
-            .insert(REPLACEMENT_CHAR, font.replacement_glyph_info);
 
         // Preload the printable ASCII characters [32, 126] (which excludes control codes):
         const FIRST_ASCII: usize = 32; // 32 == space
@@ -106,11 +86,11 @@ impl FontImpl {
         font
     }
 
-    /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
-    fn glyph_info(&self, c: char) -> GlyphInfo {
+    /// `\n` will result in `None`
+    fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
         {
             if let Some(glyph_info) = self.glyph_infos.read().get(&c) {
-                return *glyph_info;
+                return Some(*glyph_info);
             }
         }
 
@@ -122,10 +102,9 @@ impl FontImpl {
             self.scale_in_pixels,
             self.pixels_per_point,
         );
-        // debug_assert!(glyph_info.is_some(), "Failed to find {:?}", c);
-        let glyph_info = glyph_info.unwrap_or(self.replacement_glyph_info);
+        let glyph_info = glyph_info?;
         self.glyph_infos.write().insert(c, glyph_info);
-        glyph_info
+        Some(glyph_info)
     }
 
     pub fn pair_kerning(
@@ -151,25 +130,27 @@ impl FontImpl {
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
         self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
     }
-
-    pub fn glyph_width(&self, c: char) -> f32 {
-        self.glyph_info(c).advance_width
-    }
-
-    pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point
-    }
 }
 
 // TODO: rename Layouter ?
 /// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
 pub struct Font {
     font_impl: Arc<FontImpl>,
+    replacement_glyph_info: GlyphInfo,
 }
 
 impl Font {
     pub fn new(font_impl: Arc<FontImpl>) -> Self {
-        Self { font_impl }
+        let replacement_glyph_info = font_impl.glyph_info(REPLACEMENT_CHAR).unwrap_or_else(|| {
+            panic!(
+                "Failed to find replacement character {:?}",
+                REPLACEMENT_CHAR
+            )
+        });
+        Self {
+            font_impl,
+            replacement_glyph_info,
+        }
     }
 
     pub fn round_to_pixel(&self, point: f32) -> f32 {
@@ -186,11 +167,14 @@ impl Font {
     }
 
     pub fn glyph_width(&self, c: char) -> f32 {
-        self.font_impl.glyph_width(c)
+        self.glyph_info(c).advance_width
     }
 
+    /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
     fn glyph_info(&self, c: char) -> GlyphInfo {
-        self.font_impl.glyph_info(c)
+        self.font_impl
+            .glyph_info(c)
+            .unwrap_or_else(|| self.replacement_glyph_info)
     }
 
     /// Typeset the given text onto one row.
