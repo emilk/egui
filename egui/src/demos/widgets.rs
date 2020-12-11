@@ -51,8 +51,8 @@ impl Widgets {
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
             ui.label("Long text will wrap, just as you would expect.");
             ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
-            ui.add(Label::new("color").text_color(srgba(128, 140, 255, 255)));
-            ui.add(Label::new("and tooltips.")).on_hover_text(
+            ui.colored_label(srgba(128, 140, 255, 255), "color"); // Shortcut version
+            ui.label("and tooltips.").on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
 

@@ -1,7 +1,7 @@
 //! Widgets are pieces of GUI such as labels, buttons, sliders etc.
 //!
 //! Example widget uses:
-//! * `ui.add(Label::new("Text").text_color(color::red));`//!
+//! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked { ... }`
 
 #![allow(clippy::new_without_default)]
@@ -73,8 +73,8 @@ impl Label {
         self.text_style(TextStyle::Small)
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
-        self.text_color = Some(text_color);
+    pub fn text_color(mut self, text_color: impl Into<Srgba>) -> Self {
+        self.text_color = Some(text_color.into());
         self
     }
 

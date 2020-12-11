@@ -531,6 +531,11 @@ impl Ui {
         self.add(label.into())
     }
 
+    /// Shortcut for `add(Label::new(text).text_color(color))`
+    pub fn colored_label(&mut self, color: impl Into<Srgba>, label: impl Into<Label>) -> Response {
+        self.add(label.into().text_color(color))
+    }
+
     /// Shortcut for `add(Label::new(text).heading())`
     pub fn heading(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into().heading())
