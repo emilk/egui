@@ -654,14 +654,11 @@ fn test_text_layout() {
         }
     }
 
-    use crate::mutex::Mutex;
-    use crate::paint::{font::Font, *};
+    use crate::paint::*;
 
     let pixels_per_point = 1.0;
-    let typeface_data = include_bytes!("../../fonts/ProggyClean.ttf");
-    let atlas = TextureAtlas::new(512, 16);
-    let atlas = std::sync::Arc::new(Mutex::new(atlas));
-    let font = Font::new(atlas, typeface_data, 13.0, pixels_per_point);
+    let fonts = Fonts::from_definitions(FontDefinitions::with_pixels_per_point(pixels_per_point));
+    let font = &fonts[TextStyle::Monospace];
 
     let galley = font.layout_multiline("".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 1);
