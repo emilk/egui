@@ -1,17 +1,21 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 // ----------------------------------------------------------------------------
 
 /// A key-value store backed by a JSON file on disk.
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
-    path: String,
+    path: PathBuf,
     kv: HashMap<String, String>,
     dirty: bool,
 }
 
 impl FileStorage {
-    pub fn from_path(path: String) -> Self {
+    pub fn from_path(path: impl Into<PathBuf>) -> Self {
+        let path: PathBuf = path.into();
         Self {
             kv: read_json(&path).unwrap_or_default(),
             path,
@@ -42,7 +46,7 @@ impl egui::app::Storage for FileStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_json<T>(memory_json_path: impl AsRef<std::path::Path>) -> Option<T>
+pub fn read_json<T>(memory_json_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
