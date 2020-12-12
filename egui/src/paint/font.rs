@@ -16,9 +16,9 @@ use super::texture_atlas::TextureAtlas;
 
 // ----------------------------------------------------------------------------
 
-// const REPLACEMENT_CHAR: char = '\u{25A1}'; // □ white square Replaces a missing or unsupported Unicode character.
 // const REPLACEMENT_CHAR: char = '\u{FFFD}'; // � REPLACEMENT CHARACTER
-const REPLACEMENT_CHAR: char = '?';
+// const REPLACEMENT_CHAR: char = '?';
+const REPLACEMENT_CHAR: char = '◻'; // white medium square
 
 #[derive(Clone, Copy, Debug)]
 pub struct UvRect {
@@ -44,31 +44,43 @@ pub struct GlyphInfo {
     pub uv_rect: Option<UvRect>,
 }
 
+impl Default for GlyphInfo {
+    fn default() -> Self {
+        Self {
+            id: rusttype::GlyphId(0),
+            advance_width: 0.0,
+            uv_rect: None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A specific font with a size.
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
-    font: rusttype::Font<'static>,
+    rusttype_font: Arc<rusttype::Font<'static>>,
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>,
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
 impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
-        font_data: &'static [u8],
-        scale_in_points: f32,
         pixels_per_point: f32,
+        rusttype_font: Arc<rusttype::Font<'static>>,
+        scale_in_points: f32,
     ) -> FontImpl {
         assert!(scale_in_points > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        let font = rusttype::Font::try_from_bytes(font_data).expect("Error constructing Font");
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
         let font = Self {
-            font,
+            rusttype_font,
             scale_in_pixels,
             pixels_per_point,
             glyph_info_cache: Default::default(),
@@ -95,16 +107,19 @@ impl FontImpl {
         }
 
         // Add new character:
-        let glyph_info = allocate_glyph(
-            &mut self.atlas.lock(),
-            c,
-            &self.font,
-            self.scale_in_pixels,
-            self.pixels_per_point,
-        );
-        let glyph_info = glyph_info?;
-        self.glyph_info_cache.write().insert(c, glyph_info);
-        Some(glyph_info)
+        let glyph = self.rusttype_font.glyph(c);
+        if glyph.id().0 == 0 {
+            None
+        } else {
+            let glyph_info = allocate_glyph(
+                &mut self.atlas.lock(),
+                glyph,
+                self.scale_in_pixels,
+                self.pixels_per_point,
+            );
+            self.glyph_info_cache.write().insert(c, glyph_info);
+            Some(glyph_info)
+        }
     }
 
     pub fn pair_kerning(
@@ -113,7 +128,7 @@ impl FontImpl {
         glyph_id: rusttype::GlyphId,
     ) -> f32 {
         let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
-        self.font
+        self.rusttype_font
             .pair_kerning(scale_in_pixels, last_glyph_id, glyph_id)
             / self.pixels_per_point
     }
@@ -134,7 +149,7 @@ type FontIndex = usize;
 /// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
-    replacement_font_index_glyph_info: (FontIndex, GlyphInfo),
+    replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
     glyph_info_cache: RwLock<AHashMap<char, (FontIndex, GlyphInfo)>>,
@@ -143,33 +158,25 @@ pub struct Font {
 impl Font {
     pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
         assert!(!fonts.is_empty());
-        let replacement_glyph_font_index = 0;
+        let pixels_per_point = fonts[0].pixels_per_point();
+        let row_height = fonts[0].row_height();
 
-        let replacement_glyph_info = fonts[replacement_glyph_font_index]
-            .glyph_info(REPLACEMENT_CHAR)
+        let mut slf = Self {
+            fonts,
+            replacement_glyph: Default::default(),
+            pixels_per_point,
+            row_height,
+            glyph_info_cache: Default::default(),
+        };
+        let replacement_glyph = slf
+            .glyph_info_no_cache(REPLACEMENT_CHAR)
             .unwrap_or_else(|| {
                 panic!(
                     "Failed to find replacement character {:?}",
                     REPLACEMENT_CHAR
                 )
             });
-
-        let replacement_font_index_glyph_info =
-            (replacement_glyph_font_index, replacement_glyph_info);
-
-        let pixels_per_point = fonts[0].pixels_per_point();
-        let row_height = fonts[0].row_height();
-
-        let slf = Self {
-            fonts,
-            replacement_font_index_glyph_info,
-            pixels_per_point,
-            row_height,
-            glyph_info_cache: Default::default(),
-        };
-        slf.glyph_info_cache
-            .write()
-            .insert(REPLACEMENT_CHAR, replacement_font_index_glyph_info);
+        slf.replacement_glyph = replacement_glyph;
         slf
     }
 
@@ -193,7 +200,7 @@ impl Font {
         self.glyph_info(c).1.advance_width
     }
 
-    /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
+    /// `\n` will (intentionally) show up as `REPLACEMENT_CHAR`
     fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
         {
             if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
@@ -202,8 +209,7 @@ impl Font {
         }
 
         let font_index_glyph_info = self.glyph_info_no_cache(c);
-        let font_index_glyph_info =
-            font_index_glyph_info.unwrap_or(self.replacement_font_index_glyph_info);
+        let font_index_glyph_info = font_index_glyph_info.unwrap_or(self.replacement_glyph);
         self.glyph_info_cache
             .write()
             .insert(c, font_index_glyph_info);
@@ -439,15 +445,11 @@ impl Font {
 
 fn allocate_glyph(
     atlas: &mut TextureAtlas,
-    c: char,
-    font: &rusttype::Font<'static>,
+    glyph: rusttype::Glyph<'static>,
     scale_in_pixels: f32,
     pixels_per_point: f32,
-) -> Option<GlyphInfo> {
-    let glyph = font.glyph(c);
-    if glyph.id().0 == 0 {
-        return None; // Failed to find a glyph for the character
-    }
+) -> GlyphInfo {
+    assert!(glyph.id().0 != 0);
 
     let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
     let glyph = glyph.positioned(point(0.0, 0.0));
@@ -492,9 +494,9 @@ fn allocate_glyph(
 
     let advance_width_in_points = glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
 
-    Some(GlyphInfo {
+    GlyphInfo {
         id: glyph.id(),
         advance_width: advance_width_in_points,
         uv_rect,
-    })
+    }
 }
