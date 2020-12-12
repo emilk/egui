@@ -389,27 +389,29 @@ impl Widget for Button {
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
 
-        let visuals = ui.style().interact(&response);
-        let text_cursor = ui
-            .layout()
-            .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
-            .min;
+        if ui.clip_rect().intersects(rect) {
+            let visuals = ui.style().interact(&response);
+            let text_cursor = ui
+                .layout()
+                .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+                .min;
 
-        if frame {
-            let fill = fill.unwrap_or(visuals.bg_fill);
-            ui.painter().rect(
-                response.rect,
-                visuals.corner_radius,
-                fill,
-                visuals.bg_stroke,
-            );
+            if frame {
+                let fill = fill.unwrap_or(visuals.bg_fill);
+                ui.painter().rect(
+                    response.rect,
+                    visuals.corner_radius,
+                    fill,
+                    visuals.bg_stroke,
+                );
+            }
+
+            let text_color = text_color
+                .or(ui.style().visuals.override_text_color)
+                .unwrap_or_else(|| visuals.text_color());
+            ui.painter()
+                .galley(text_cursor, galley, text_style, text_color);
         }
-
-        let text_color = text_color
-            .or(ui.style().visuals.override_text_color)
-            .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
 
         response
     }
