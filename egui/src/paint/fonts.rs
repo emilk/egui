@@ -42,8 +42,8 @@ pub struct FontDefinitions {
     /// but you can override them if you like.
     pub ttf_data: BTreeMap<FontFamily, &'static [u8]>,
 
-    /// ttf data for emoji font, if any
-    pub emoji_ttf_data: Option<&'static [u8]>,
+    /// ttf data for emoji font(s), if any, in order of preference
+    pub emoji_ttf_data: Vec<&'static [u8]>,
 }
 
 impl Default for FontDefinitions {
@@ -69,13 +69,14 @@ impl FontDefinitions {
         ttf_data.insert(FontFamily::Monospace, monospace_typeface_data);
         ttf_data.insert(FontFamily::VariableWidth, variable_typeface_data);
 
-        let emoji_ttf_data = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-
         Self {
             pixels_per_point,
             fonts,
             ttf_data,
-            emoji_ttf_data: Some(emoji_ttf_data),
+            emoji_ttf_data: vec![
+                include_bytes!("../../fonts/NotoEmoji-Regular.ttf"), // few, but good looking. Use as first priority
+                include_bytes!("../../fonts/emoji-icon-font.ttf"), // bigger and more: http://jslegers.github.io/emoji-icon-font/
+            ],
         }
     }
 }
@@ -142,7 +143,7 @@ impl Fonts {
 
                 let mut fonts = vec![font_impl];
 
-                if let Some(emoji_ttf_data) = emoji_ttf_data {
+                for &emoji_ttf_data in &emoji_ttf_data {
                     let emoji_font_impl = Arc::new(FontImpl::new(
                         atlas.clone(),
                         emoji_ttf_data,

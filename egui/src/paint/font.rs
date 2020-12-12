@@ -203,7 +203,7 @@ impl Font {
 
         let font_index_glyph_info = self.glyph_info_no_cache(c);
         let font_index_glyph_info =
-            font_index_glyph_info.unwrap_or_else(|| self.replacement_font_index_glyph_info);
+            font_index_glyph_info.unwrap_or(self.replacement_font_index_glyph_info);
         self.glyph_info_cache
             .write()
             .insert(c, font_index_glyph_info);
@@ -455,33 +455,36 @@ fn allocate_glyph(
     let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
         let glyph_width = bb.width() as usize;
         let glyph_height = bb.height() as usize;
-        assert!(glyph_width >= 1);
-        assert!(glyph_height >= 1);
 
-        let glyph_pos = atlas.allocate((glyph_width, glyph_height));
+        if glyph_width == 0 || glyph_height == 0 {
+            None
+        } else {
+            let glyph_pos = atlas.allocate((glyph_width, glyph_height));
 
-        let texture = atlas.texture_mut();
-        glyph.draw(|x, y, v| {
-            if v > 0.0 {
-                let px = glyph_pos.0 + x as usize;
-                let py = glyph_pos.1 + y as usize;
-                texture[(px, py)] = (v * 255.0).round() as u8;
-            }
-        });
+            let texture = atlas.texture_mut();
+            glyph.draw(|x, y, v| {
+                if v > 0.0 {
+                    let px = glyph_pos.0 + x as usize;
+                    let py = glyph_pos.1 + y as usize;
+                    texture[(px, py)] = (v * 255.0).round() as u8;
+                }
+            });
 
-        let offset_y_in_pixels = scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
-        Some(UvRect {
-            offset: vec2(
-                bb.min.x as f32 / pixels_per_point,
-                offset_y_in_pixels / pixels_per_point,
-            ),
-            size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-            min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-            max: (
-                (glyph_pos.0 + glyph_width) as u16,
-                (glyph_pos.1 + glyph_height) as u16,
-            ),
-        })
+            let offset_y_in_pixels =
+                scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
+            Some(UvRect {
+                offset: vec2(
+                    bb.min.x as f32 / pixels_per_point,
+                    offset_y_in_pixels / pixels_per_point,
+                ),
+                size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+                min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
+                max: (
+                    (glyph_pos.0 + glyph_width) as u16,
+                    (glyph_pos.1 + glyph_height) as u16,
+                ),
+            })
+        }
     } else {
         // No bounding box. Maybe a space?
         None
