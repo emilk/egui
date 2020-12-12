@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
+* Emoji support:
+  * 1216 different emojis.
+  * Works in any text.
+  * Great for button icons.
+  * The Demo app comes with a Font Book to explore the available glyphs.
 * Wrapping layouts:
   * `ui.horizontal_wrapped(|ui| ...)`: Add widgets on a row but wrap at `max_size`.
   * `ui.horizontal_wrapped_for_text`: Like `horizontal_wrapped`, but with spacing made for embedding text.

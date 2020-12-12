@@ -21,8 +21,6 @@ TODO-list for the Egui project. If you looking for something to do, look here.
   * [/] Unicode
     * [/] Text editing of unicode (needs more testing)
     * [ ] Font with some more unicode characters
-  * [ ] Emoji support (great for things like ▶️⏸⏹⚠︎)
-  * [ ] Change text style/color and continue in same layout
 * Menu bar (File, Edit, etc)
   * [ ] Sub-menus
   * [ ] Keyboard shortcuts
@@ -117,6 +115,8 @@ Ability to do a search for any widget. The search works even for collapsed regio
 
 * Widgets
   * [x] Label
+    * [x] Emoji support (great for things like ▶️⏸⏹⚠︎)
+    * [x] Change text style/color and continue in same layout
   * [x] Button
   * [x] Checkbox
   * [x] Radiobutton
