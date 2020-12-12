@@ -89,7 +89,7 @@ impl FrameHistory {
         );
         crate::demos::warn_if_debug_build(ui);
 
-        crate::CollapsingHeader::new("CPU usage history")
+        crate::CollapsingHeader::new("📊 CPU usage history")
             .default_open(false)
             .show(ui, |ui| {
                 self.graph(ui);
@@ -304,7 +304,7 @@ impl app::App for DemoApp {
             &mut integration_context.tex_allocator,
         );
 
-        crate::Window::new("Backend")
+        crate::Window::new("💻 Backend")
             .min_width(360.0)
             .scroll(false)
             .show(ctx, |ui| {

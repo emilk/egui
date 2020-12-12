@@ -288,6 +288,7 @@ pub struct Button {
     fill: Option<Srgba>,
     sense: Sense,
     small: bool,
+    frame: bool,
 }
 
 impl Button {
@@ -299,6 +300,7 @@ impl Button {
             fill: Default::default(),
             sense: Sense::click(),
             small: false,
+            frame: true,
         }
     }
 
@@ -329,6 +331,12 @@ impl Button {
         self
     }
 
+    /// Turn off the frame
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     pub fn sense(mut self, sense: Sense) -> Self {
@@ -355,6 +363,7 @@ impl Widget for Button {
             fill,
             sense,
             small,
+            frame,
         } = self;
 
         let mut button_padding = ui.style().spacing.button_padding;
@@ -363,32 +372,47 @@ impl Widget for Button {
         }
 
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available_width());
+
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width())
+        };
+
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
-            desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+            desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
         let rect = ui.allocate_space(desired_size);
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
-        let visuals = ui.style().interact(&response);
-        let text_cursor = ui
-            .layout()
-            .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
-            .min;
-        let fill = fill.unwrap_or(visuals.bg_fill);
-        ui.painter().rect(
-            response.rect,
-            visuals.corner_radius,
-            fill,
-            visuals.bg_stroke,
-        );
-        let text_color = text_color
-            .or(ui.style().visuals.override_text_color)
-            .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+
+        if ui.clip_rect().intersects(rect) {
+            let visuals = ui.style().interact(&response);
+            let text_cursor = ui
+                .layout()
+                .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+                .min;
+
+            if frame {
+                let fill = fill.unwrap_or(visuals.bg_fill);
+                ui.painter().rect(
+                    response.rect,
+                    visuals.corner_radius,
+                    fill,
+                    visuals.bg_stroke,
+                );
+            }
+
+            let text_color = text_color
+                .or(ui.style().visuals.override_text_color)
+                .unwrap_or_else(|| visuals.text_color());
+            ui.painter()
+                .galley(text_cursor, galley, text_style, text_color);
+        }
+
         response
     }
 }
@@ -436,8 +460,12 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_single_line(text);
-        // let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -526,7 +554,12 @@ impl Widget for RadioButton {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);

@@ -16,9 +16,9 @@ use super::texture_atlas::TextureAtlas;
 
 // ----------------------------------------------------------------------------
 
-// const REPLACEMENT_CHAR: char = '\u{25A1}'; // □ white square Replaces a missing or unsupported Unicode character.
 // const REPLACEMENT_CHAR: char = '\u{FFFD}'; // � REPLACEMENT CHARACTER
-const REPLACEMENT_CHAR: char = '?';
+// const REPLACEMENT_CHAR: char = '?';
+const REPLACEMENT_CHAR: char = '◻'; // white medium square
 
 #[derive(Clone, Copy, Debug)]
 pub struct UvRect {
@@ -44,56 +44,48 @@ pub struct GlyphInfo {
     pub uv_rect: Option<UvRect>,
 }
 
+impl Default for GlyphInfo {
+    fn default() -> Self {
+        Self {
+            id: rusttype::GlyphId(0),
+            advance_width: 0.0,
+            uv_rect: None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A specific font with a size.
 /// The interface uses points as the unit for everything.
-pub struct Font {
-    font: rusttype::Font<'static>,
+pub struct FontImpl {
+    rusttype_font: Arc<rusttype::Font<'static>>,
     /// Maximum character height
     scale_in_pixels: f32,
     pixels_per_point: f32,
-    replacement_glyph_info: GlyphInfo,
-    glyph_infos: RwLock<AHashMap<char, GlyphInfo>>,
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
-impl Font {
+impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
-        font_data: &'static [u8],
-        scale_in_points: f32,
         pixels_per_point: f32,
-    ) -> Font {
+        rusttype_font: Arc<rusttype::Font<'static>>,
+        scale_in_points: f32,
+    ) -> FontImpl {
         assert!(scale_in_points > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        let font = rusttype::Font::try_from_bytes(font_data).expect("Error constructing Font");
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let replacement_glyph_info = allocate_glyph(
-            &mut atlas.lock(),
-            REPLACEMENT_CHAR,
-            &font,
+        let font = Self {
+            rusttype_font,
             scale_in_pixels,
             pixels_per_point,
-        )
-        .unwrap_or_else(|| {
-            panic!(
-                "Failed to find replacement character {:?}",
-                REPLACEMENT_CHAR
-            )
-        });
-
-        let font = Font {
-            font,
-            scale_in_pixels,
-            pixels_per_point,
-            replacement_glyph_info,
-            glyph_infos: Default::default(),
+            glyph_info_cache: Default::default(),
             atlas,
         };
-
-        font.glyph_infos
-            .write()
-            .insert(REPLACEMENT_CHAR, font.replacement_glyph_info);
 
         // Preload the printable ASCII characters [32, 126] (which excludes control codes):
         const FIRST_ASCII: usize = 32; // 32 == space
@@ -106,8 +98,39 @@ impl Font {
         font
     }
 
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
+    /// `\n` will result in `None`
+    fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
+        {
+            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
+                return Some(*glyph_info);
+            }
+        }
+
+        // Add new character:
+        let glyph = self.rusttype_font.glyph(c);
+        if glyph.id().0 == 0 {
+            None
+        } else {
+            let glyph_info = allocate_glyph(
+                &mut self.atlas.lock(),
+                glyph,
+                self.scale_in_pixels,
+                self.pixels_per_point,
+            );
+            self.glyph_info_cache.write().insert(c, glyph_info);
+            Some(glyph_info)
+        }
+    }
+
+    pub fn pair_kerning(
+        &self,
+        last_glyph_id: rusttype::GlyphId,
+        glyph_id: rusttype::GlyphId,
+    ) -> f32 {
+        let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
+        self.rusttype_font
+            .pair_kerning(scale_in_pixels, last_glyph_id, glyph_id)
+            / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
@@ -115,34 +138,121 @@ impl Font {
         self.scale_in_pixels / self.pixels_per_point
     }
 
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
+    }
+}
+
+type FontIndex = usize;
+
+// TODO: rename Layouter ?
+/// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
+pub struct Font {
+    fonts: Vec<Arc<FontImpl>>,
+    replacement_glyph: (FontIndex, GlyphInfo),
+    pixels_per_point: f32,
+    row_height: f32,
+    glyph_info_cache: RwLock<AHashMap<char, (FontIndex, GlyphInfo)>>,
+}
+
+impl Font {
+    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
+        assert!(!fonts.is_empty());
+        let pixels_per_point = fonts[0].pixels_per_point();
+        let row_height = fonts[0].row_height();
+
+        let mut slf = Self {
+            fonts,
+            replacement_glyph: Default::default(),
+            pixels_per_point,
+            row_height,
+            glyph_info_cache: Default::default(),
+        };
+        let replacement_glyph = slf
+            .glyph_info_no_cache(REPLACEMENT_CHAR)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed to find replacement character {:?}",
+                    REPLACEMENT_CHAR
+                )
+            });
+        slf.replacement_glyph = replacement_glyph;
+        slf
+    }
+
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    /// Height of one row of text. In points
+    pub fn row_height(&self) -> f32 {
+        self.row_height
+    }
+
     pub fn uv_rect(&self, c: char) -> Option<UvRect> {
-        self.glyph_infos.read().get(&c).and_then(|gi| gi.uv_rect)
+        self.glyph_info_cache
+            .read()
+            .get(&c)
+            .and_then(|gi| gi.1.uv_rect)
     }
 
     pub fn glyph_width(&self, c: char) -> f32 {
-        self.glyph_info(c).advance_width
+        self.glyph_info(c).1.advance_width
     }
 
-    /// `\n` will (intentionally) show up as '?' (`REPLACEMENT_CHAR`)
-    fn glyph_info(&self, c: char) -> GlyphInfo {
+    /// `\n` will (intentionally) show up as `REPLACEMENT_CHAR`
+    fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
         {
-            if let Some(glyph_info) = self.glyph_infos.read().get(&c) {
+            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
                 return *glyph_info;
             }
         }
 
-        // Add new character:
-        let glyph_info = allocate_glyph(
-            &mut self.atlas.lock(),
-            c,
-            &self.font,
-            self.scale_in_pixels,
-            self.pixels_per_point,
-        );
-        // debug_assert!(glyph_info.is_some(), "Failed to find {:?}", c);
-        let glyph_info = glyph_info.unwrap_or(self.replacement_glyph_info);
-        self.glyph_infos.write().insert(c, glyph_info);
-        glyph_info
+        let font_index_glyph_info = self.glyph_info_no_cache(c);
+        let font_index_glyph_info = font_index_glyph_info.unwrap_or(self.replacement_glyph);
+        self.glyph_info_cache
+            .write()
+            .insert(c, font_index_glyph_info);
+        font_index_glyph_info
+    }
+
+    fn glyph_info_no_cache(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
+        for (font_index, font_impl) in self.fonts.iter().enumerate() {
+            if let Some(glyph_info) = font_impl.glyph_info(c) {
+                self.glyph_info_cache
+                    .write()
+                    .insert(c, (font_index, glyph_info));
+                return Some((font_index, glyph_info));
+            }
+        }
+        None
+    }
+
+    /// Typeset the given text onto one row.
+    /// Assumes there are no `\n` in the text.
+    /// Return `x_offsets`, one longer than the number of characters in the text.
+    fn layout_single_row_fragment(&self, text: &str) -> Vec<f32> {
+        let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
+        x_offsets.push(0.0);
+
+        let mut cursor_x_in_points = 0.0f32;
+        let mut last_glyph_id = None;
+
+        for c in text.chars() {
+            let (font_index, glyph_info) = self.glyph_info(c);
+            let font_impl = &self.fonts[font_index];
+
+            if let Some(last_glyph_id) = last_glyph_id {
+                cursor_x_in_points += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+            }
+            cursor_x_in_points += glyph_info.advance_width;
+            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
+            last_glyph_id = Some(glyph_info.id);
+
+            x_offsets.push(cursor_x_in_points);
+        }
+
+        x_offsets
     }
 
     /// Typeset the given text onto one row.
@@ -240,37 +350,6 @@ impl Font {
         galley
     }
 
-    /// Typeset the given text onto one row.
-    /// Assumes there are no `\n` in the text.
-    /// Return `x_offsets`, one longer than the number of characters in the text.
-    fn layout_single_row_fragment(&self, text: &str) -> Vec<f32> {
-        let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
-
-        let mut x_offsets = Vec::with_capacity(text.chars().count() + 1);
-        x_offsets.push(0.0);
-
-        let mut cursor_x_in_points = 0.0f32;
-        let mut last_glyph_id = None;
-
-        for c in text.chars() {
-            let glyph = self.glyph_info(c);
-
-            if let Some(last_glyph_id) = last_glyph_id {
-                cursor_x_in_points +=
-                    self.font
-                        .pair_kerning(scale_in_pixels, last_glyph_id, glyph.id)
-                        / self.pixels_per_point
-            }
-            cursor_x_in_points += glyph.advance_width;
-            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
-            last_glyph_id = Some(glyph.id);
-
-            x_offsets.push(cursor_x_in_points);
-        }
-
-        x_offsets
-    }
-
     /// A paragraph is text with no line break character in it.
     /// The text will be wrapped by the given `max_width_in_points`.
     /// Always returns at least one row.
@@ -366,15 +445,11 @@ impl Font {
 
 fn allocate_glyph(
     atlas: &mut TextureAtlas,
-    c: char,
-    font: &rusttype::Font<'static>,
+    glyph: rusttype::Glyph<'static>,
     scale_in_pixels: f32,
     pixels_per_point: f32,
-) -> Option<GlyphInfo> {
-    let glyph = font.glyph(c);
-    if glyph.id().0 == 0 {
-        return None; // Failed to find a glyph for the character
-    }
+) -> GlyphInfo {
+    assert!(glyph.id().0 != 0);
 
     let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
     let glyph = glyph.positioned(point(0.0, 0.0));
@@ -382,33 +457,36 @@ fn allocate_glyph(
     let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
         let glyph_width = bb.width() as usize;
         let glyph_height = bb.height() as usize;
-        assert!(glyph_width >= 1);
-        assert!(glyph_height >= 1);
 
-        let glyph_pos = atlas.allocate((glyph_width, glyph_height));
+        if glyph_width == 0 || glyph_height == 0 {
+            None
+        } else {
+            let glyph_pos = atlas.allocate((glyph_width, glyph_height));
 
-        let texture = atlas.texture_mut();
-        glyph.draw(|x, y, v| {
-            if v > 0.0 {
-                let px = glyph_pos.0 + x as usize;
-                let py = glyph_pos.1 + y as usize;
-                texture[(px, py)] = (v * 255.0).round() as u8;
-            }
-        });
+            let texture = atlas.texture_mut();
+            glyph.draw(|x, y, v| {
+                if v > 0.0 {
+                    let px = glyph_pos.0 + x as usize;
+                    let py = glyph_pos.1 + y as usize;
+                    texture[(px, py)] = (v * 255.0).round() as u8;
+                }
+            });
 
-        let offset_y_in_pixels = scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
-        Some(UvRect {
-            offset: vec2(
-                bb.min.x as f32 / pixels_per_point,
-                offset_y_in_pixels / pixels_per_point,
-            ),
-            size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-            min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-            max: (
-                (glyph_pos.0 + glyph_width) as u16,
-                (glyph_pos.1 + glyph_height) as u16,
-            ),
-        })
+            let offset_y_in_pixels =
+                scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
+            Some(UvRect {
+                offset: vec2(
+                    bb.min.x as f32 / pixels_per_point,
+                    offset_y_in_pixels / pixels_per_point,
+                ),
+                size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+                min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
+                max: (
+                    (glyph_pos.0 + glyph_width) as u16,
+                    (glyph_pos.1 + glyph_height) as u16,
+                ),
+            })
+        }
     } else {
         // No bounding box. Maybe a space?
         None
@@ -416,9 +494,9 @@ fn allocate_glyph(
 
     let advance_width_in_points = glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
 
-    Some(GlyphInfo {
+    GlyphInfo {
         id: glyph.id(),
         advance_width: advance_width_in_points,
         uv_rect,
-    })
+    }
 }

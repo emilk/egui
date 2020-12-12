@@ -97,7 +97,7 @@ impl Default for DragAndDropDemo {
 
 impl Demo for DragAndDropDemo {
     fn name(&self) -> &str {
-        "Drag and Drop"
+        "✋ Drag and Drop"
     }
 
     fn show(&mut self, ctx: &std::sync::Arc<Context>, open: &mut bool) {
