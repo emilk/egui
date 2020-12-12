@@ -366,7 +366,7 @@ impl Widget for Button {
         let galley = font.layout_multiline(text, ui.available_width());
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
-            desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+            desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
         let rect = ui.allocate_space(desired_size);
 
