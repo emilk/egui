@@ -363,7 +363,14 @@ impl Widget for Button {
         }
 
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available_width());
+
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width())
+        };
+
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
@@ -436,8 +443,12 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_single_line(text);
-        // let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -526,7 +537,12 @@ impl Widget for RadioButton {
         let button_padding = ui.style().spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
