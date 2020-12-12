@@ -288,6 +288,7 @@ pub struct Button {
     fill: Option<Srgba>,
     sense: Sense,
     small: bool,
+    frame: bool,
 }
 
 impl Button {
@@ -299,6 +300,7 @@ impl Button {
             fill: Default::default(),
             sense: Sense::click(),
             small: false,
+            frame: true,
         }
     }
 
@@ -329,6 +331,12 @@ impl Button {
         self
     }
 
+    /// Turn off the frame
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     pub fn sense(mut self, sense: Sense) -> Self {
@@ -355,6 +363,7 @@ impl Widget for Button {
             fill,
             sense,
             small,
+            frame,
         } = self;
 
         let mut button_padding = ui.style().spacing.button_padding;
@@ -379,23 +388,29 @@ impl Widget for Button {
 
         let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
+
         let visuals = ui.style().interact(&response);
         let text_cursor = ui
             .layout()
             .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
             .min;
-        let fill = fill.unwrap_or(visuals.bg_fill);
-        ui.painter().rect(
-            response.rect,
-            visuals.corner_radius,
-            fill,
-            visuals.bg_stroke,
-        );
+
+        if frame {
+            let fill = fill.unwrap_or(visuals.bg_fill);
+            ui.painter().rect(
+                response.rect,
+                visuals.corner_radius,
+                fill,
+                visuals.bg_stroke,
+            );
+        }
+
         let text_color = text_color
             .or(ui.style().visuals.override_text_color)
             .unwrap_or_else(|| visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
+
         response
     }
 }
