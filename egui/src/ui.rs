@@ -372,14 +372,21 @@ impl Ui {
 /// # Interaction
 impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx()
-            .interact(self.layer_id(), self.clip_rect(), rect, Some(id), sense)
+        self.ctx().interact(
+            self.layer_id(),
+            self.clip_rect(),
+            self.style().spacing.item_spacing,
+            rect,
+            Some(id),
+            sense,
+        )
     }
 
     pub fn interact_hover(&self, rect: Rect) -> Response {
         self.ctx().interact(
             self.layer_id(),
             self.clip_rect(),
+            self.style().spacing.item_spacing,
             rect,
             None,
             Sense::nothing(),

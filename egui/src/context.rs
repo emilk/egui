@@ -427,11 +427,12 @@ impl Context {
         self: &Arc<Self>,
         layer_id: LayerId,
         clip_rect: Rect,
+        item_spacing: Vec2,
         rect: Rect,
         id: Option<Id>,
         sense: Sense,
     ) -> Response {
-        let interact_rect = rect.expand2(0.5 * self.style().spacing.item_spacing); // make it easier to click. TODO: nice way to do this
+        let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
         let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
         let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
 

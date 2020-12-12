@@ -179,6 +179,7 @@ impl Prepared {
         let move_response = ctx.interact(
             layer_id,
             Rect::everything(),
+            ctx.style().spacing.item_spacing,
             state.rect(),
             interact_id,
             Sense::click_and_drag(),
