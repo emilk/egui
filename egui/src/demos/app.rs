@@ -69,6 +69,10 @@ impl FrameHistory {
         self.frame_times.add(now, previus_frame_time); // projected
     }
 
+    fn mean_frame_time(&self) -> f32 {
+        self.frame_times.average().unwrap_or_default()
+    }
+
     fn fps(&self) -> f32 {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
@@ -81,7 +85,7 @@ impl FrameHistory {
 
         ui.label(format!(
             "Mean CPU usage per frame: {:.2} ms / frame",
-            1e3 * self.frame_times.average().unwrap_or_default()
+            1e3 * self.mean_frame_time()
         ))
         .on_hover_text(
             "Includes Egui layout and tesselation time.\n\
@@ -174,6 +178,8 @@ impl FrameHistory {
 pub struct DemoApp {
     demo_windows: demos::DemoWindows,
 
+    backend_window_open: bool,
+
     #[cfg_attr(feature = "serde", serde(skip))] // go back to `Reactive` mode each time we start
     run_mode: RunMode,
 
@@ -186,9 +192,6 @@ pub struct DemoApp {
 
 impl DemoApp {
     fn backend_ui(&mut self, ui: &mut Ui, integration_context: &mut app::IntegrationContext<'_>) {
-        self.frame_history
-            .on_new_frame(ui.input().time, integration_context.info.cpu_usage);
-
         let is_web = integration_context.info.web_info.is_some();
 
         if is_web {
@@ -280,6 +283,9 @@ impl app::App for DemoApp {
         ctx: &Arc<Context>,
         integration_context: &mut crate::app::IntegrationContext<'_>,
     ) {
+        self.frame_history
+            .on_new_frame(ctx.input().time, integration_context.info.cpu_usage);
+
         let web_location_hash = integration_context
             .info
             .web_info
@@ -298,18 +304,36 @@ impl app::App for DemoApp {
             link,
         };
 
-        self.demo_windows.ui(
+        let mean_frame_time = self.frame_history.mean_frame_time();
+
+        let Self {
+            demo_windows,
+            backend_window_open,
+            ..
+        } = self;
+
+        demo_windows.ui(
             ctx,
             &demo_environment,
             &mut integration_context.tex_allocator,
+            |ui| {
+                ui.separator();
+                ui.checkbox(backend_window_open, "💻 Backend");
+
+                ui.label(format!("{:.2} ms / frame", 1e3 * mean_frame_time))
+                    .on_hover_text("CPU usage.");
+            },
         );
 
+        let mut backend_window_open = self.backend_window_open;
         crate::Window::new("💻 Backend")
             .min_width(360.0)
             .scroll(false)
+            .open(&mut backend_window_open)
             .show(ctx, |ui| {
                 self.backend_ui(ui, integration_context);
             });
+        self.backend_window_open = backend_window_open;
 
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible

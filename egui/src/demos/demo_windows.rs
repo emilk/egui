@@ -84,11 +84,13 @@ pub struct DemoWindows {
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
+    /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(
         &mut self,
         ctx: &Arc<Context>,
         env: &DemoEnvironment,
         tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        sidebar_ui: impl FnOnce(&mut Ui),
     ) {
         if self.previous_link != env.link {
             match env.link {
@@ -125,6 +127,8 @@ impl DemoWindows {
                 self.open_windows.checkboxes(ui);
                 self.demos.checkboxes(ui);
             });
+
+            sidebar_ui(ui);
         });
 
         crate::TopPanel::top(Id::new("menu_bar")).show(ctx, |ui| {

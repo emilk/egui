@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_windows_minimal", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx, &Default::default(), &mut None);
+                demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
                 ctx.end_frame()
             })
         });
@@ -27,7 +27,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_windows_full", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx, &Default::default(), &mut None);
+                demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
                 ctx.end_frame()
             })
         });
@@ -38,7 +38,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
         let mut demo_windows = egui::demos::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx, &Default::default(), &mut None);
+        demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
         let (_, paint_commands) = ctx.end_frame();
 
         c.bench_function("tesselate", |b| {

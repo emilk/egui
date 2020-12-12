@@ -116,8 +116,18 @@ pub use {
     widgets::*,
 };
 
+#[cfg(debug_assertions)]
+pub(crate) fn has_debug_assertions() -> bool {
+    true
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn has_debug_assertions() -> bool {
+    false
+}
+
 #[test]
-pub fn text_egui_e2e() {
+fn test_egui_e2e() {
     let mut demo_windows = crate::demos::DemoWindows::default();
     let mut ctx = crate::Context::new();
     let raw_input = crate::RawInput {
@@ -128,19 +138,9 @@ pub fn text_egui_e2e() {
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx, &Default::default(), &mut None);
+        demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
         let (_output, paint_commands) = ctx.end_frame();
         let paint_jobs = ctx.tesselate(paint_commands);
         assert!(!paint_jobs.is_empty());
     }
-}
-
-#[cfg(debug_assertions)]
-pub(crate) fn has_debug_assertions() -> bool {
-    true
-}
-
-#[cfg(not(debug_assertions))]
-pub(crate) fn has_debug_assertions() -> bool {
-    false
 }
