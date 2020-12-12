@@ -45,7 +45,7 @@ pub trait Demo {
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if crate::has_debug_assertions() {
         ui.label(
-            crate::Label::new("[Debug build]")
+            crate::Label::new("‼ Debug build ‼")
                 .small()
                 .text_color(crate::color::RED),
         )

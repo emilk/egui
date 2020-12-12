@@ -5,7 +5,7 @@ pub struct Tests {}
 
 impl demos::Demo for Tests {
     fn name(&self) -> &str {
-        "Tests"
+        "📋 Tests"
     }
 
     fn show(&mut self, ctx: &std::sync::Arc<crate::Context>, open: &mut bool) {

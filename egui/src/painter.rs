@@ -139,11 +139,10 @@ impl Painter {
         self.text(rect.min, LEFT_TOP, text.into(), text_style, color);
     }
 
-    pub fn error(&self, pos: Pos2, text: impl Into<String>) {
-        let text = text.into();
+    pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) {
         let text_style = TextStyle::Monospace;
         let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text, f32::INFINITY);
+        let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
         let rect = anchor_rect(Rect::from_min_size(pos, galley.size), LEFT_TOP);
         self.add(PaintCmd::Rect {
             rect: rect.expand(2.0),

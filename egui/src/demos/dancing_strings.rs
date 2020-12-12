@@ -14,7 +14,7 @@ impl Default for DancingStrings {
 
 impl Demo for DancingStrings {
     fn name(&self) -> &str {
-        "Dancing Strings"
+        "♫ Dancing Strings"
     }
 
     fn show(&mut self, ctx: &Arc<Context>, open: &mut bool) {

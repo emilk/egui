@@ -587,13 +587,13 @@ impl Context {
     pub fn settings_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        CollapsingHeader::new("Style")
+        CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
                 self.style_ui(ui);
             });
 
-        CollapsingHeader::new("Fonts")
+        CollapsingHeader::new("🔠 Fonts")
             .default_open(false)
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
@@ -602,7 +602,7 @@ impl Context {
                 self.set_fonts(font_definitions);
             });
 
-        CollapsingHeader::new("Painting")
+        CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
                 let mut tesselation_options = self.options.lock().tesselation_options;
@@ -625,11 +625,11 @@ impl Context {
         .on_hover_text("Is Egui currently listening for text input");
         ui.advance_cursor(16.0);
 
-        CollapsingHeader::new("Input")
+        CollapsingHeader::new("📥 Input")
             .default_open(false)
             .show(ui, |ui| ui.input().clone().ui(ui));
 
-        CollapsingHeader::new("Paint stats")
+        CollapsingHeader::new("📊 Paint stats")
             .default_open(true)
             .show(ui, |ui| {
                 self.paint_stats.lock().ui(ui);

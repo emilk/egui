@@ -103,10 +103,12 @@ impl DemoWindows {
         }
 
         crate::SidePanel::left(Id::new("side_panel"), 200.0).show(ctx, |ui| {
-            ui.heading("Egui Demo");
+            ui.heading("✒ Egui Demo");
             crate::demos::warn_if_debug_build(ui);
             ui.label("Egui is an immediate mode GUI library written in Rust.");
-            ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
+            ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
+
+            ui.label("Egui can be run on the web, or natively on 🐧");
 
             ui.separator();
             ui.label(
@@ -117,7 +119,7 @@ impl DemoWindows {
             }
             ui.separator();
 
-            ui.heading("Windows:");
+            ui.heading("Ｓ Windows:");
             ui.indent("windows", |ui| {
                 self.open_windows.checkboxes(ui);
                 self.demos.checkboxes(ui);
@@ -147,34 +149,34 @@ impl DemoWindows {
             ..
         } = self;
 
-        Window::new("Demo")
+        Window::new("✨ Demo")
             .open(&mut open_windows.demo)
             .scroll(true)
             .show(ctx, |ui| {
                 demo_window.ui(ui);
             });
 
-        Window::new("Settings")
+        Window::new("🔧 Settings")
             .open(&mut open_windows.settings)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
-        Window::new("Inspection")
+        Window::new("🔍 Inspection")
             .open(&mut open_windows.inspection)
             .scroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
-        Window::new("Memory")
+        Window::new("📝 Memory")
             .open(&mut open_windows.memory)
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
 
-        Window::new("Color Test")
+        Window::new("🎨 Color Test")
             .default_size([800.0, 1024.0])
             .scroll(true)
             .open(&mut open_windows.color_test)
@@ -299,18 +301,18 @@ impl OpenWindows {
             color_test,
         } = self;
         ui.label("Egui:");
-        ui.checkbox(settings, "Settings");
-        ui.checkbox(inspection, "Inspection");
-        ui.checkbox(memory, "Memory");
+        ui.checkbox(settings, "🔧 Settings");
+        ui.checkbox(inspection, "🔍 Inspection");
+        ui.checkbox(memory, "📝 Memory");
         ui.separator();
-        ui.checkbox(demo, "Demo");
+        ui.checkbox(demo, "✨ Demo");
         ui.separator();
-        ui.checkbox(resize, "Resize examples");
-        ui.checkbox(color_test, "Color test")
+        ui.checkbox(resize, "↔ Resize examples");
+        ui.checkbox(color_test, "🎨 Color test")
             .on_hover_text("For testing the integrations painter");
         ui.separator();
         ui.label("Misc:");
-        ui.checkbox(fractal_clock, "Fractal Clock");
+        ui.checkbox(fractal_clock, "🕑 Fractal Clock");
     }
 }
 
@@ -333,7 +335,7 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
         menu::menu(ui, "Windows", |ui| windows.checkboxes(ui));
         menu::menu(ui, "About", |ui| {
             ui.label("This is Egui");
-            ui.add(Hyperlink::new("https://github.com/emilk/egui").text("Egui home page"));
+            ui.add(Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
         });
 
         if let Some(time) = seconds_since_midnight {

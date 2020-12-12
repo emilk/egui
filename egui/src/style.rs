@@ -355,9 +355,9 @@ impl Style {
                 ui.radio_value(body_text_style, value, format!("{:?}", value));
             }
         });
-        ui.collapsing("Spacing", |ui| spacing.ui(ui));
-        ui.collapsing("Interaction", |ui| interaction.ui(ui));
-        ui.collapsing("Visuals", |ui| visuals.ui(ui));
+        ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
+        ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
+        ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
         ui.add(Slider::f32(animation_time, 0.0..=1.0).text("animation_time"));
     }
 }

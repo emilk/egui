@@ -37,7 +37,7 @@ impl FractalClock {
         open: &mut bool,
         seconds_since_midnight: Option<f64>,
     ) {
-        Window::new("FractalClock")
+        Window::new("🕑 Fractal Clock")
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .scroll(false)

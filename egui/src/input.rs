@@ -410,7 +410,7 @@ impl InputState {
         ui.style_mut().body_text_style = crate::paint::TextStyle::Monospace;
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("mouse")
+        crate::containers::CollapsingHeader::new("🖱 Mouse")
             .default_open(true)
             .show(ui, |ui| {
                 mouse.ui(ui);
