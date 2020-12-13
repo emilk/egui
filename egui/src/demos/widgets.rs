@@ -49,19 +49,21 @@ impl Widgets {
         ui.add(__egui_github_link_file_line!());
 
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
-            ui.label("Long text will wrap, just as you would expect.");
             ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
             ui.colored_label(srgba(128, 140, 255, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
 
-            ui.label("You can mix in other widgets into text, like this");
-            let _ = ui.small_button("button");
+            ui.label("You can mix in other widgets into text, like");
+            let _ = ui.small_button("this button");
             ui.label(".");
 
-            ui.label("There is also (limited) non-ASCII support: Ευρηκα! τ = 2×π")
-                .on_hover_text("The current font supports only a few non-latin characters and Egui does not currently support right-to-left text.");
+            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+                .on_hover_text("There is currently no support for right-to-left languages.");
+            ui.label("See the 🔤 Font Book for more!");
+
+            ui.monospace("There is also a monospace font.");
         });
 
         let tooltip_ui = |ui: &mut Ui| {
@@ -97,7 +99,7 @@ impl Widgets {
             {
                 self.count += 1;
             }
-            ui.label(format!("The button has been clicked {} times", self.count));
+            ui.label(format!("The button has been clicked {} times.", self.count));
         });
 
         ui.separator();
@@ -119,15 +121,18 @@ impl Widgets {
                     self.sliders.ui(ui);
                 });
         }
+
         ui.separator();
-        {
-            ui.label("An angle stored as radians, but edited in degrees:");
-            ui.horizontal(|ui| {
-                ui.style_mut().spacing.item_spacing.x = 0.0;
-                ui.drag_angle(&mut self.angle);
-                ui.label(format!(" = {} radians", self.angle));
-            });
-        }
+
+        ui.horizontal_for_text(TextStyle::Body, |ui| {
+            ui.label("An angle:");
+            ui.drag_angle(&mut self.angle);
+            ui.label(format!("≈ {:.3}τ", self.angle / std::f32::consts::TAU))
+                .on_hover_text("Each τ represents one turn (τ = 2π)");
+        })
+        .1
+        .on_hover_text("The angle is stored in radians, but presented in degrees");
+
         ui.separator();
 
         ui.horizontal(|ui| {

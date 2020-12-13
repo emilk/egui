@@ -44,6 +44,7 @@ pub enum FontFamily {
     VariableWidth,
 }
 
+/// This is how you tell Egui which fonts and font sizes to use.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDefinitions {
     /// The dpi scale factor. Needed to get pixel perfect fonts.
@@ -59,8 +60,8 @@ pub struct FontDefinitions {
     /// Which fonts (names) to use for each `FontFamily`.
     ///
     /// The list should be a list of keys into `font_data`.
-    /// When looking for a character glyph,
-    /// Egui will start will the first font and then move to the second, and so on.
+    /// When looking for a character glyph Egui will start with
+    /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     pub fonts_for_family: BTreeMap<FontFamily, Vec<String>>,
 

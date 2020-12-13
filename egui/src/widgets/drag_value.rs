@@ -146,7 +146,7 @@ impl<'a> Widget for DragValue<'a> {
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace);
             let response = ui.add(button);
-            let response = response.on_hover_text("Drag to edit, click to enter a value");
+            let response = response.on_hover_text("Drag to edit or click to enter a value");
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame

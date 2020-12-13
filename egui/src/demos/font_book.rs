@@ -21,19 +21,20 @@ impl Default for FontBook {
 impl FontBook {
     fn characters_ui(&self, ui: &mut Ui, characters: &[(u32, char, &str)]) {
         for &(_, chr, name) in characters {
-            if !self.filter.is_empty() && !name.contains(&self.filter) {
-                continue;
-            }
+            if self.filter.is_empty()
+                || name.contains(&self.filter)
+                || self.filter == chr.to_string()
+            {
+                let button = Button::new(chr).text_style(self.text_style).frame(false);
 
-            let button = Button::new(chr).text_style(self.text_style).frame(false);
+                let tooltip_ui = |ui: &mut Ui| {
+                    ui.add(Label::new(chr).text_style(self.text_style));
+                    ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
+                };
 
-            let tooltip_ui = |ui: &mut Ui| {
-                ui.add(Label::new(chr).text_style(self.text_style));
-                ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
-            };
-
-            if ui.add(button).on_hover_ui(tooltip_ui).clicked {
-                ui.output().copied_text = chr.to_string();
+                if ui.add(button).on_hover_ui(tooltip_ui).clicked {
+                    ui.output().copied_text = chr.to_string();
+                }
             }
         }
     }

@@ -913,10 +913,10 @@ impl Ui {
         self.horizontal_with_main_wrap(true, add_contents)
     }
 
-    /// Like `horizontal_wrapped`, but will set up spacing so that
-    /// the line size and matches that for a normal label.
+    /// Like `horizontal_wrapped`, but will set up the spacing and
+    /// line size to match that of a normal label.
     ///
-    /// In particular, the space between widgets is the same with as the space character
+    /// In particular, the space between widgets is the same width as the space character
     /// and the line spacing is the same as that for text.
     ///
     /// You can still add any widgets to the layout (not only Labels).
