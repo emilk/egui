@@ -1,4 +1,4 @@
-# Egui
+# 🖌 Egui
 
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
