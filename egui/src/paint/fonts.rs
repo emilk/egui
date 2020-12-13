@@ -44,6 +44,17 @@ pub enum FontFamily {
     VariableWidth,
 }
 
+/// The data of a `.ttf` or `.otf` file.
+pub type FontData = std::borrow::Cow<'static, [u8]>;
+
+fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'static> {
+    match data {
+        std::borrow::Cow::Borrowed(bytes) => rusttype::Font::try_from_bytes(bytes),
+        std::borrow::Cow::Owned(bytes) => rusttype::Font::try_from_vec(bytes.clone()),
+    }
+    .unwrap_or_else(|| panic!("Error parsing {:?} TTF/OTF font file", name))
+}
+
 /// This is how you tell Egui which fonts and font sizes to use.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDefinitions {
@@ -55,7 +66,7 @@ pub struct FontDefinitions {
     ///
     /// Egui has built-in-default for these,
     /// but you can override them if you like.
-    pub font_data: BTreeMap<String, Vec<u8>>,
+    pub font_data: BTreeMap<String, FontData>,
 
     /// Which fonts (names) to use for each `FontFamily`.
     ///
@@ -78,26 +89,26 @@ impl Default for FontDefinitions {
 impl FontDefinitions {
     /// Default values for the fonts
     pub fn default_with_pixels_per_point(pixels_per_point: f32) -> Self {
-        let mut font_data: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+        let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
         // Use size 13 for this. NOTHING ELSE:
         font_data.insert(
             "ProggyClean".to_owned(),
-            include_bytes!("../../fonts/ProggyClean.ttf").to_vec(),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
         );
         font_data.insert(
             "Ubuntu-Light".to_owned(),
-            include_bytes!("../../fonts/Ubuntu-Light.ttf").to_vec(),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
         );
 
         // Few, but good looking. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
-            include_bytes!("../../fonts/NotoEmoji-Regular.ttf").to_vec(),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
         );
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
         font_data.insert(
             "emoji-icon-font".to_owned(),
-            include_bytes!("../../fonts/emoji-icon-font.ttf").to_vec(),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
         );
 
         // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
@@ -254,10 +265,7 @@ impl FontImplCache {
             .map(|(name, font_data)| {
                 (
                     name.clone(),
-                    Arc::new(
-                        rusttype::Font::try_from_vec(font_data.clone())
-                            .expect("Error parsing TTF/OTF font file"),
-                    ),
+                    Arc::new(rusttype_font_from_font_data(name, font_data)),
                 )
             })
             .collect();
