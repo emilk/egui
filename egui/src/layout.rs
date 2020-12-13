@@ -166,6 +166,11 @@ impl Layout {
         }
     }
 
+    /// Top-down layout justifed so that buttons etc fill the full available width.
+    pub fn top_down_justified(cross_align: Align) -> Self {
+        Self::top_down(cross_align).with_cross_justify(true)
+    }
+
     pub fn bottom_up(cross_align: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,

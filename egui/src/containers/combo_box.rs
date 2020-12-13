@@ -60,13 +60,10 @@ pub fn combo_box(
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
-                    ui.with_layout(
-                        Layout::top_down(Align::left()).with_cross_justify(true),
-                        |ui| {
-                            ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                            menu_contents(ui);
-                        },
-                    );
+                    ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
+                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
+                        menu_contents(ui);
+                    });
                 })
             });
 
