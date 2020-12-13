@@ -31,7 +31,7 @@ pub trait Widget {
 pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
-    pub(crate) multiline: bool,
+    pub(crate) multiline: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) text_color: Option<Srgba>,
 }
@@ -40,7 +40,7 @@ impl Label {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
-            multiline: true,
+            multiline: None,
             text_style: None,
             text_color: None,
         }
@@ -50,8 +50,14 @@ impl Label {
         &self.text
     }
 
+    /// If `true`, the text will wrap at the `max_width`.
+    /// By default `multiline` will be true in vertical layouts
+    /// and horizontal layouts with wrapping,
+    /// and false on non-wrapping horizontal layouts.
+    ///
+    /// If the text has any newlines (`\n`) in it, multiline will automatically turn on.
     pub fn multiline(mut self, multiline: bool) -> Self {
-        self.multiline = multiline;
+        self.multiline = Some(multiline);
         self
     }
 
@@ -86,7 +92,7 @@ impl Label {
     pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
         let text_style = self.text_style_or_default(ui.style());
         let font = &ui.fonts()[text_style];
-        if self.multiline {
+        if self.is_multiline(ui) {
             font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
         } else {
             font.layout_single_line(self.text.clone()) // TODO: avoid clone
@@ -118,11 +124,20 @@ impl Label {
     pub fn text_style_or_default(&self, style: &Style) -> TextStyle {
         self.text_style.unwrap_or(style.body_text_style)
     }
+
+    fn is_multiline(&self, ui: &Ui) -> bool {
+        self.multiline.unwrap_or_else(|| {
+            let layout = ui.layout();
+            layout.is_vertical()
+                || layout.is_horizontal() && layout.main_wrap()
+                || self.text.contains('\n')
+        })
+    }
 }
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        if self.multiline
+        if self.is_multiline(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
         {
