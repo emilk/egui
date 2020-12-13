@@ -850,6 +850,28 @@ impl Ui {
         self.horizontal_with_main_wrap(false, add_contents)
     }
 
+    /// Like `horizontal`, but will set up the spacing to match that of a normal label.
+    ///
+    /// In particular, the space between widgets is the same width as the space character.
+    ///
+    /// You can still add any widgets to the layout (not only Labels).
+    pub fn horizontal_for_text<R>(
+        &mut self,
+        text_style: TextStyle,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.wrap(|ui| {
+            let font = &ui.fonts()[text_style];
+            let row_height = font.row_height();
+            let space_width = font.glyph_width(' ');
+            let style = ui.style_mut();
+            style.spacing.interact_size.y = row_height;
+            style.spacing.item_spacing.x = space_width;
+            style.spacing.item_spacing.y = 0.0;
+            ui.horizontal(add_contents).0
+        })
+    }
+
     /// Start a ui with horizontal layout that wraps to a new row
     /// when it reaches the right edge of the `max_size`.
     /// After you have called this, the function registers the contents as any other widget.
