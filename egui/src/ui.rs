@@ -667,6 +667,27 @@ impl Ui {
         response
     }
 
+    /// Modify an angle. The given angle should be in radians,
+    /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
+    /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
+    pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
+        #![allow(clippy::float_cmp)]
+
+        use std::f32::consts::TAU;
+
+        let mut taus = *radians / TAU;
+        let response = self
+            .add(DragValue::f32(&mut taus).speed(0.01).suffix("τ"))
+            .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
+
+        // only touch `*radians` if we actually changed the value
+        if taus != *radians / TAU {
+            *radians = taus * TAU;
+        }
+
+        response
+    }
+
     /// Show an image here with the given size
     pub fn image(&mut self, texture_id: TextureId, desired_size: Vec2) -> Response {
         self.add(Image::new(texture_id, desired_size))

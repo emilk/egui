@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `ui.allocate_ui(size, |ui| ...)`: Easily create a child-`Ui` of a given size.
 * `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): A text-button that can be selected.
 * `ui.small_button`: A smaller button that looks good embedded in text.
+* `ui.drag_angle_tau`: For those who want to specify angles as fractions of τ (a full turn).
 * Add `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
 
 ### Changed 🔧
