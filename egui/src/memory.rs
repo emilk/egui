@@ -54,6 +54,12 @@ pub struct Memory {
     #[cfg_attr(feature = "serde", serde(skip))]
     popup: Option<Id>,
 
+    /// If a tooltip has been shown this frame, where was it?
+    /// This is used to prevent multiple tooltips to cover each other.
+    /// Initialized to `None` at the start of each frame.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) tooltip_rect: Option<Rect>,
+
     /// Useful for debugging, benchmarking etc.
     pub all_collpasing_are_open: bool,
     /// Useful for debugging, benchmarking etc.
@@ -162,6 +168,7 @@ impl Memory {
     ) {
         self.used_ids.clear();
         self.interaction.begin_frame(prev_input, new_input);
+        self.tooltip_rect = None;
 
         if !prev_input.mouse.down {
             self.window_interaction = None;
