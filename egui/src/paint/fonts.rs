@@ -49,48 +49,89 @@ pub struct FontDefinitions {
     /// The dpi scale factor. Needed to get pixel perfect fonts.
     pub pixels_per_point: f32,
 
-    pub fonts: BTreeMap<TextStyle, (FontFamily, f32)>,
-
-    /// The TTF data for each font family.
+    /// List of font names and their definitions.
+    /// The definition must be the contents of either a `.ttf` or `.otf` font file.
+    ///
     /// Egui has built-in-default for these,
     /// but you can override them if you like.
-    pub ttf_data: BTreeMap<FontFamily, &'static [u8]>,
+    pub font_data: BTreeMap<String, Vec<u8>>,
 
-    /// ttf data for emoji font(s), if any, in order of preference
-    pub emoji_ttf_data: Vec<&'static [u8]>,
+    /// Which fonts (names) to use for each `FontFamily`.
+    ///
+    /// The list should be a list of keys into `font_data`.
+    /// When looking for a character glyph,
+    /// Egui will start will the first font and then move to the second, and so on.
+    /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
+    pub fonts_for_family: BTreeMap<FontFamily, Vec<String>>,
+
+    /// The `FontFaily` and size you want to use for a specific `TextStyle`.
+    pub family_and_size: BTreeMap<TextStyle, (FontFamily, f32)>,
 }
 
 impl Default for FontDefinitions {
     fn default() -> Self {
-        Self::with_pixels_per_point(f32::NAN) // must be set later
+        Self::default_with_pixels_per_point(f32::NAN) // must be set later
     }
 }
 
 impl FontDefinitions {
-    pub fn with_pixels_per_point(pixels_per_point: f32) -> Self {
-        let mut fonts = BTreeMap::new();
-        fonts.insert(TextStyle::Small, (FontFamily::VariableWidth, 10.0));
-        fonts.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
-        fonts.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
-        fonts.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
-        fonts.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
+    /// Default values for the fonts
+    pub fn default_with_pixels_per_point(pixels_per_point: f32) -> Self {
+        let mut font_data: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+        // Use size 13 for this. NOTHING ELSE:
+        font_data.insert(
+            "ProggyClean".to_owned(),
+            include_bytes!("../../fonts/ProggyClean.ttf").to_vec(),
+        );
+        font_data.insert(
+            "Ubuntu-Light".to_owned(),
+            include_bytes!("../../fonts/Ubuntu-Light.ttf").to_vec(),
+        );
 
-        // TODO: figure out a way to make the WASM smaller despite including a font. Zip it?
-        let monospace_typeface_data = include_bytes!("../../fonts/ProggyClean.ttf"); // Use 13 for this. NOTHING ELSE.
-        let variable_typeface_data = include_bytes!("../../fonts/Ubuntu-Light.ttf");
+        // Few, but good looking. Use as first priority:
+        font_data.insert(
+            "NotoEmoji-Regular".to_owned(),
+            include_bytes!("../../fonts/NotoEmoji-Regular.ttf").to_vec(),
+        );
+        // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+        font_data.insert(
+            "emoji-icon-font".to_owned(),
+            include_bytes!("../../fonts/emoji-icon-font.ttf").to_vec(),
+        );
 
-        let mut ttf_data: BTreeMap<FontFamily, &'static [u8]> = BTreeMap::new();
-        ttf_data.insert(FontFamily::Monospace, monospace_typeface_data);
-        ttf_data.insert(FontFamily::VariableWidth, variable_typeface_data);
+        // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
+
+        let mut fonts_for_family = BTreeMap::new();
+        fonts_for_family.insert(
+            FontFamily::Monospace,
+            vec![
+                "ProggyClean".to_owned(),
+                "Ubuntu-Light".to_owned(), // fallback for √ etc
+                "NotoEmoji-Regular".to_owned(),
+                "emoji-icon-font".to_owned(),
+            ],
+        );
+        fonts_for_family.insert(
+            FontFamily::VariableWidth,
+            vec![
+                "Ubuntu-Light".to_owned(),
+                "NotoEmoji-Regular".to_owned(),
+                "emoji-icon-font".to_owned(),
+            ],
+        );
+
+        let mut family_and_size = BTreeMap::new();
+        family_and_size.insert(TextStyle::Small, (FontFamily::VariableWidth, 10.0));
+        family_and_size.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
+        family_and_size.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
+        family_and_size.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
+        family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
 
         Self {
             pixels_per_point,
-            fonts,
-            ttf_data,
-            emoji_ttf_data: vec![
-                include_bytes!("../../fonts/NotoEmoji-Regular.ttf"), // few, but good looking. Use as first priority
-                include_bytes!("../../fonts/emoji-icon-font.ttf"), // bigger and more: http://jslegers.github.io/emoji-icon-font/
-            ],
+            font_data,
+            fonts_for_family,
+            family_and_size,
         }
     }
 }
@@ -121,6 +162,7 @@ impl Fonts {
         if self.definitions == definitions {
             return;
         }
+        self.definitions = definitions;
 
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
@@ -135,31 +177,17 @@ impl Fonts {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        self.definitions = definitions;
-
         let mut font_impl_cache = FontImplCache::new(atlas.clone(), &self.definitions);
 
         self.fonts = self
             .definitions
-            .fonts
+            .family_and_size
             .iter()
-            .map(|(&text_style, &(family, size))| {
-                let mut fonts = vec![];
-
-                fonts.push(font_impl_cache.font_impl(FontSource::Family(family), size));
-
-                if family == FontFamily::Monospace {
-                    // monospace should have ubuntu as fallback (for √ etc):
-                    fonts.push(
-                        font_impl_cache
-                            .font_impl(FontSource::Family(FontFamily::VariableWidth), size),
-                    );
-                }
-
-                for index in 0..self.definitions.emoji_ttf_data.len() {
-                    let emoji_font_impl = font_impl_cache.font_impl(FontSource::Emoji(index), size);
-                    fonts.push(emoji_font_impl);
-                }
+            .map(|(&text_style, &(family, scale_in_points))| {
+                let fonts: Vec<Arc<FontImpl>> = self.definitions.fonts_for_family[&family]
+                    .iter()
+                    .map(|font_name| font_impl_cache.font_impl(font_name, scale_in_points))
+                    .collect();
 
                 (text_style, Font::new(fonts))
             })
@@ -210,54 +238,47 @@ pub enum FontSource {
 pub struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    font_families: std::collections::BTreeMap<FontFamily, Arc<rusttype::Font<'static>>>,
-    emoji_fonts: Vec<Arc<rusttype::Font<'static>>>,
+    rusttype_fonts: std::collections::BTreeMap<String, Arc<rusttype::Font<'static>>>,
 
-    /// can't have f32 in a HashMap or BTreeMap,
-    /// so let's do a linear search
-    cache: Vec<(FontSource, f32, Arc<FontImpl>)>,
+    /// Map font names and size to the cached `FontImpl`.
+    /// Can't have f32 in a HashMap or BTreeMap, so let's do a linear search
+    cache: Vec<(String, f32, Arc<FontImpl>)>,
 }
 
 impl FontImplCache {
     pub fn new(atlas: Arc<Mutex<TextureAtlas>>, definitions: &super::FontDefinitions) -> Self {
-        let font_families = definitions
-            .ttf_data
+        let rusttype_fonts = definitions
+            .font_data
             .iter()
-            .map(|(family, ttf_data)| {
+            .map(|(name, font_data)| {
                 (
-                    *family,
-                    Arc::new(rusttype::Font::try_from_bytes(ttf_data).expect("Error parsing TTF")),
+                    name.clone(),
+                    Arc::new(
+                        rusttype::Font::try_from_vec(font_data.clone())
+                            .expect("Error parsing TTF/OTF font file"),
+                    ),
                 )
-            })
-            .collect();
-
-        let emoji_fonts = definitions
-            .emoji_ttf_data
-            .iter()
-            .map(|ttf_data| {
-                Arc::new(rusttype::Font::try_from_bytes(ttf_data).expect("Error parsing TTF"))
             })
             .collect();
 
         Self {
             atlas,
             pixels_per_point: definitions.pixels_per_point,
-            font_families,
-            emoji_fonts,
+            rusttype_fonts,
             cache: Default::default(),
         }
     }
 
-    pub fn rusttype_font(&self, source: FontSource) -> Arc<rusttype::Font<'static>> {
-        match source {
-            FontSource::Family(family) => self.font_families.get(&family).unwrap().clone(),
-            FontSource::Emoji(index) => self.emoji_fonts[index].clone(),
-        }
+    pub fn rusttype_font(&self, font_name: &str) -> Arc<rusttype::Font<'static>> {
+        self.rusttype_fonts
+            .get(font_name)
+            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .clone()
     }
 
-    pub fn font_impl(&mut self, source: FontSource, scale_in_points: f32) -> Arc<FontImpl> {
+    pub fn font_impl(&mut self, font_name: &str, scale_in_points: f32) -> Arc<FontImpl> {
         for entry in &self.cache {
-            if (entry.0, entry.1) == (source, scale_in_points) {
+            if (entry.0.as_str(), entry.1) == (font_name, scale_in_points) {
                 return entry.2.clone();
             }
         }
@@ -265,11 +286,11 @@ impl FontImplCache {
         let font_impl = Arc::new(FontImpl::new(
             self.atlas.clone(),
             self.pixels_per_point,
-            self.rusttype_font(source),
+            self.rusttype_font(font_name),
             scale_in_points,
         ));
         self.cache
-            .push((source, scale_in_points, font_impl.clone()));
+            .push((font_name.to_owned(), scale_in_points, font_impl.clone()));
         font_impl
     }
 }

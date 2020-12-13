@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed 🔧
 
 * Changed default font to [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
+* Changed how to override fonts in `FontDefinitions`.
 * Remove minimum button width
 * Refactored `egui::Layout` substantially, changing its interface.
 * Calling `on_hover_text`/`on_hover_ui` multiple times will stack tooltips underneath the previous ones.

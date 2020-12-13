@@ -145,8 +145,8 @@ impl FontImpl {
 
 type FontIndex = usize;
 
-// TODO: rename Layouter ?
-/// Wrapper over multiple `FontImpl` (commonly two: primary + emoji fallback)
+// TODO: rename?
+/// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
     replacement_glyph: (FontIndex, GlyphInfo),

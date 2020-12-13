@@ -56,7 +56,7 @@ impl Texture {
 
 impl paint::FontDefinitions {
     pub fn ui(&mut self, ui: &mut Ui) {
-        for (text_style, (_family, size)) in self.fonts.iter_mut() {
+        for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
             // TODO: radio button for family
             ui.add(
                 Slider::f32(size, 4.0..=40.0)
@@ -65,7 +65,7 @@ impl paint::FontDefinitions {
             );
         }
         if ui.button("Reset fonts").clicked {
-            *self = paint::FontDefinitions::with_pixels_per_point(self.pixels_per_point);
+            *self = paint::FontDefinitions::default_with_pixels_per_point(self.pixels_per_point);
         }
     }
 }
