@@ -171,6 +171,7 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
         Back => Key::Backspace,
         Return => Key::Enter,
         Tab => Key::Tab,
+        Space => Key::Space,
 
         A => Key::A,
         K => Key::K,

@@ -201,6 +201,7 @@ pub enum Key {
     Delete,
     End,
     Enter,
+    Space,
     Escape,
     Home,
     Insert,
