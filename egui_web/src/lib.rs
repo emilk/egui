@@ -279,6 +279,7 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "Delete" => Some(egui::Key::Delete),
         "End" => Some(egui::Key::End),
         "Enter" => Some(egui::Key::Enter),
+        "Space" => Some(egui::Key::Space),
         "Esc" | "Escape" => Some(egui::Key::Escape),
         "Help" | "Insert" => Some(egui::Key::Insert),
         "Home" => Some(egui::Key::Home),
