@@ -13,8 +13,7 @@ keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
 include = [
   "**/*.rs",
   "Cargo.toml",
-  "fonts/ProggyClean.ttf",
-  "fonts/Comfortaa-Regular.ttf",
+  "fonts/*.ttf",
 ]
 
 [lib]
