@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## 0.5.0 - 2020-12-13
+
 ### Added ⭐
 
 * Emoji support: 1216 different emojis that work in any text.
