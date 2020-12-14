@@ -18,5 +18,5 @@ fn main() {
     // Restore `example_app` from file, or create new `ExampleApp`:
     let app: ExampleApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default();
 
-    egui_glium::run(title, Box::new(storage), app);
+    egui_glium::run(title, Box::new(storage), Box::new(app));
 }

@@ -64,11 +64,7 @@ fn create_display(
 }
 
 /// Run an egui app
-pub fn run(
-    title: &str,
-    mut storage: Box<dyn egui::app::Storage>,
-    mut app: impl App + 'static,
-) -> ! {
+pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
