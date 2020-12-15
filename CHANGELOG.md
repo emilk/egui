@@ -11,12 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
-* `ImageButton` - `ui.add(ImageButton::new(...))`
-* `ui.vertical_centered` and `ui.vertical_centered_justified`
+* `ImageButton` - `ui.add(ImageButton::new(...))`.
+* `ui.vertical_centered` and `ui.vertical_centered_justified`.
 
 ### Changed 🔧
 
-* `ui.image` now takes `impl Into<Vec2>` as a `size` argument
+* `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
+* `ui.image` now takes `impl Into<Vec2>` as a `size` argument.
 
 
 ## 0.5.0 - 2020-12-13

@@ -16,9 +16,13 @@ pub struct SidePanel {
 }
 
 impl SidePanel {
+    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
     /// The given `max_width` is a soft maximum (as always), and the actual panel may be smaller or larger.
-    pub fn left(id: Id, max_width: f32) -> Self {
-        Self { id, max_width }
+    pub fn left(id_source: impl std::hash::Hash, max_width: f32) -> Self {
+        Self {
+            id: Id::new(id_source),
+            max_width,
+        }
     }
 }
 
@@ -64,11 +68,12 @@ pub struct TopPanel {
 }
 
 impl TopPanel {
+    /// `id_source`: Something unique, e.g. `"my_top_panel"`.
     /// Default height is that of `interact_size.y` (i.e. a button),
     /// but the panel will expand as needed.
-    pub fn top(id: Id) -> Self {
+    pub fn top(id_source: impl std::hash::Hash) -> Self {
         Self {
-            id,
+            id: Id::new(id_source),
             max_height: None,
         }
     }
