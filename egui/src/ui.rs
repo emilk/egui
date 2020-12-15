@@ -963,6 +963,26 @@ impl Ui {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
+    /// Start a ui with vertical layout.
+    /// Widgets will be centered.
+    pub fn vertical_centered<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.with_layout(Layout::top_down(Align::Center), add_contents)
+    }
+    /// Start a ui with vertical layout.
+    /// Widgets will be centered and justified (fill full width).
+    pub fn vertical_centered_justified<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (R, Response) {
+        self.with_layout(
+            Layout::top_down(Align::Center).with_cross_justify(true),
+            add_contents,
+        )
+    }
+
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,

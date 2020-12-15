@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* `ui.vertical_centered` and `ui.vertical_centered_justified`
+
 ### Changed 🔧
 
 * `ui.image` now takes `impl Into<Vec2>` as a `size` argument
