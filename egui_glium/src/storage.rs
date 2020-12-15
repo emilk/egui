@@ -91,11 +91,12 @@ pub fn write_memory(
 use glium::glutin;
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
 pub struct WindowSettings {
     /// outer position of window in physical pixels
     pos: Option<egui::Pos2>,
-    /// inner size of window in physical pixels
-    size: Option<egui::Vec2>,
+    /// Inner size of window in logical pixels
+    inner_size_points: Option<egui::Vec2>,
 }
 
 impl WindowSettings {
@@ -106,6 +107,13 @@ impl WindowSettings {
     }
 
     pub fn from_display(display: &glium::Display) -> Self {
+        let scale_factor = display.gl_window().window().scale_factor();
+        let inner_size_points = display
+            .gl_window()
+            .window()
+            .inner_size()
+            .to_logical::<f32>(scale_factor);
+
         Self {
             pos: display
                 .gl_window()
@@ -114,9 +122,9 @@ impl WindowSettings {
                 .ok()
                 .map(|p| egui::pos2(p.x as f32, p.y as f32)),
 
-            size: Some(egui::vec2(
-                display.gl_window().window().inner_size().width as f32,
-                display.gl_window().window().inner_size().height as f32,
+            inner_size_points: Some(egui::vec2(
+                inner_size_points.width as f32,
+                inner_size_points.height as f32,
             )),
         }
     }
@@ -125,10 +133,10 @@ impl WindowSettings {
         &self,
         window: glutin::window::WindowBuilder,
     ) -> glutin::window::WindowBuilder {
-        if let Some(size) = self.size {
-            window.with_inner_size(glutin::dpi::PhysicalSize {
-                width: size.x as f64,
-                height: size.y as f64,
+        if let Some(inner_size_points) = self.inner_size_points {
+            window.with_inner_size(glutin::dpi::LogicalSize {
+                width: inner_size_points.x as f64,
+                height: inner_size_points.y as f64,
             })
         } else {
             window

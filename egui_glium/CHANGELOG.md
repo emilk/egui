@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * `egui_glium::run`: the parameter `app` now has signature `Box<dyn App>` (you need to add `Box::new(app)` to your code).
 
+### Fixed 🐛
+
+* Serialize window size in logical points instead of physical pixels
+
 
 ## 0.5.0 - 2020-12-13
 
