@@ -39,29 +39,40 @@ impl Image {
     }
 }
 
-impl Widget for Image {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl Image {
+    pub fn desired_size(&self) -> Vec2 {
+        self.desired_size
+    }
+
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         use paint::*;
         let Self {
             texture_id,
             uv,
-            desired_size,
+            desired_size: _,
             bg_fill,
             tint,
         } = self;
-        let rect = ui.allocate_space(desired_size);
-        if bg_fill != Default::default() {
+
+        if *bg_fill != Default::default() {
             let mut triangles = Triangles::default();
-            triangles.add_colored_rect(rect, bg_fill);
-            ui.painter().add(PaintCmd::triangles(triangles));
-        }
-        {
-            // TODO: builder pattern for Triangles
-            let mut triangles = Triangles::with_texture(texture_id);
-            triangles.add_rect_with_uv(rect, uv, tint);
+            triangles.add_colored_rect(rect, *bg_fill);
             ui.painter().add(PaintCmd::triangles(triangles));
         }
 
+        {
+            // TODO: builder pattern for Triangles
+            let mut triangles = Triangles::with_texture(*texture_id);
+            triangles.add_rect_with_uv(rect, *uv, *tint);
+            ui.painter().add(PaintCmd::triangles(triangles));
+        }
+    }
+}
+
+impl Widget for Image {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let rect = ui.allocate_space(self.desired_size);
+        self.paint_at(ui, rect);
         ui.interact_hover(rect)
     }
 }

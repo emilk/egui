@@ -8,13 +8,14 @@
 
 use crate::*;
 
+mod button;
 pub mod color_picker;
 mod drag_value;
 mod image;
 mod slider;
 pub(crate) mod text_edit;
 
-pub use {drag_value::DragValue, image::Image, slider::*, text_edit::*};
+pub use {button::*, drag_value::DragValue, image::Image, slider::*, text_edit::*};
 
 use paint::*;
 
@@ -380,12 +381,6 @@ impl Widget for Button {
             small,
             frame,
         } = self;
-
-        let mut button_padding = ui.style().spacing.button_padding;
-        if small {
-            button_padding.y = 0.0;
-        }
-
         let font = &ui.fonts()[text_style];
 
         let single_line = ui.layout().is_horizontal();
@@ -395,10 +390,16 @@ impl Widget for Button {
             font.layout_multiline(text, ui.available_width())
         };
 
+        let mut button_padding = ui.style().spacing.button_padding;
+        if small {
+            button_padding.y = 0.0;
+        }
+
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
+
         let rect = ui.allocate_space(desired_size);
 
         let id = ui.make_position_id();

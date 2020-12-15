@@ -159,7 +159,7 @@ impl Visuals {
 }
 
 /// Selected text, selected elements etc
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Selection {
     pub bg_fill: Srgba,
