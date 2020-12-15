@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed 🔧
+
+* `ui.image` now takes `impl Into<Vec2>` as a `size` argument
+
+
 ## 0.5.0 - 2020-12-13
 
 ### Added ⭐
