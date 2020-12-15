@@ -6,6 +6,7 @@ NOTE: `egui_web` and `egui_glium` has their own changelogs!
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+
 ## Unreleased
 
 ### Changed 🔧
@@ -42,6 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Removed the `label!` macro.
 
+
 ## 0.4.0 - 2020-11-28
 
 ### Added ⭐
@@ -66,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed 🐛
 
 * Fixed bug where a lost widget could still retain keyboard focus.
+
 
 ## 0.3.0 - 2020-11-07
 
@@ -93,6 +96,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed 🐛
 
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
+
 
 ## 0.2.0 - 2020-10-10
 
