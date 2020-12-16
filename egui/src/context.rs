@@ -342,7 +342,7 @@ impl Context {
     /// Call this for `Id`:s that need interaction or persistence.
     pub(crate) fn register_interaction_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
         if let Some(prev_pos) = self.memory().used_ids.insert(id, new_pos) {
-            if prev_pos == new_pos {
+            if prev_pos.distance(new_pos) < 0.1 {
                 // Likely same Widget being interacted with twice, which is fine.
                 return;
             }
