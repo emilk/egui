@@ -165,7 +165,10 @@ impl Resize {
             let default_size = self
                 .default_size
                 .at_least(self.min_size)
-                .at_most(self.max_size);
+                .at_most(self.max_size)
+                .at_most(
+                    ui.input().screen_rect().size() - 2.0 * ui.style().spacing.window_padding, // hack for windows
+                );
 
             State {
                 desired_size: default_size,
@@ -264,6 +267,11 @@ impl Resize {
         } else {
             // Probably a window.
             ui.allocate_space(state.last_content_size);
+        }
+
+        if ui.memory().resize.get(&id).is_none() {
+            // First frame.
+            state.desired_size = state.desired_size.at_least(state.last_content_size);
         }
 
         // ------------------------------
