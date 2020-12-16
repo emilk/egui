@@ -24,9 +24,18 @@ pub struct RawInput {
     /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
 
-    /// Size of the screen in points.
-    // TODO: this should be screen_rect for easy sandboxing.
+    #[deprecated = "Use screen_rect instead: `Some(Rect::from_pos_size(Default::default(), vec2(window_width, window_height)))`"]
     pub screen_size: Vec2,
+
+    /// Position and size of the area that Egui should use.
+    /// Usually you would set this to
+    ///
+    /// `Some(Rect::from_pos_size(Default::default(), vec2(window_width, window_height)))`.
+    ///
+    /// but you could also constrain Egui to some smaller portion of your window if you like.
+    ///
+    /// `None` will be treated as "same as last frame", with the default being a very big area.
+    pub screen_rect: Option<Rect>,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     /// If text looks blurry on high resolution screens, you probably forgot to set this.
@@ -50,11 +59,13 @@ pub struct RawInput {
 
 impl Default for RawInput {
     fn default() -> Self {
+        #![allow(deprecated)] // for screen_size
         Self {
             mouse_down: false,
             mouse_pos: None,
             scroll_delta: Vec2::zero(),
-            screen_size: Vec2::new(10_000.0, 10_000.0), // Difficult with a good default
+            screen_size: Default::default(),
+            screen_rect: None,
             pixels_per_point: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
@@ -67,11 +78,13 @@ impl Default for RawInput {
 impl RawInput {
     /// Helper: move volatile (deltas and events), clone the rest
     pub fn take(&mut self) -> RawInput {
+        #![allow(deprecated)] // for screen_size
         RawInput {
             mouse_down: self.mouse_down,
             mouse_pos: self.mouse_pos,
             scroll_delta: std::mem::take(&mut self.scroll_delta),
             screen_size: self.screen_size,
+            screen_rect: self.screen_rect,
             pixels_per_point: self.pixels_per_point,
             time: self.time,
             predicted_dt: self.predicted_dt,
@@ -82,7 +95,7 @@ impl RawInput {
 }
 
 /// What egui maintains
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct InputState {
     /// The raw input we got this frame
     pub raw: RawInput,
@@ -92,11 +105,11 @@ pub struct InputState {
     /// How many pixels the user scrolled
     pub scroll_delta: Vec2,
 
-    /// Size of the screen in points.
-    pub screen_size: Vec2,
+    /// Position and size of the Egui area.
+    pub screen_rect: Rect,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
-    pub pixels_per_point: Option<f32>,
+    pub pixels_per_point: f32,
 
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
@@ -114,6 +127,23 @@ pub struct InputState {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
+}
+
+impl Default for InputState {
+    fn default() -> Self {
+        Self {
+            raw: Default::default(),
+            mouse: Default::default(),
+            scroll_delta: Default::default(),
+            screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
+            pixels_per_point: 1.0,
+            time: 0.0,
+            unstable_dt: 1.0 / 6.0,
+            predicted_dt: 1.0 / 6.0,
+            modifiers: Default::default(),
+            events: Default::default(),
+        }
+    }
 }
 
 /// What egui maintains
@@ -244,16 +274,25 @@ pub enum Key {
 impl InputState {
     #[must_use]
     pub fn begin_frame(self, new: RawInput) -> InputState {
+        #![allow(deprecated)] // for screen_size
+
         let time = new
             .time
             .unwrap_or_else(|| self.time + new.predicted_dt as f64);
-        let mouse = self.mouse.begin_frame(time, &new);
         let unstable_dt = (time - self.time) as f32;
+        let screen_rect = new.screen_rect.unwrap_or_else(|| {
+            if new.screen_size != Default::default() {
+                Rect::from_min_size(Default::default(), new.screen_size) // backwards compatability
+            } else {
+                self.screen_rect
+            }
+        });
+        let mouse = self.mouse.begin_frame(time, &new);
         InputState {
             mouse,
             scroll_delta: new.scroll_delta,
-            screen_size: new.screen_size,
-            pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
+            screen_rect,
+            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
             time,
             unstable_dt,
             predicted_dt: new.predicted_dt,
@@ -264,7 +303,7 @@ impl InputState {
     }
 
     pub fn screen_rect(&self) -> Rect {
-        Rect::from_min_size(pos2(0.0, 0.0), self.screen_size)
+        self.screen_rect
     }
 
     pub fn wants_repaint(&self) -> bool {
@@ -305,7 +344,7 @@ impl InputState {
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point.unwrap_or(1.0)
+        self.pixels_per_point
     }
 
     /// Size of a physical pixel in logical gui coordinates (points).
@@ -393,11 +432,13 @@ impl MouseInput {
 
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
+        #![allow(deprecated)] // for screen_size
         let Self {
             mouse_down,
             mouse_pos,
             scroll_delta,
-            screen_size,
+            screen_size: _,
+            screen_rect,
             pixels_per_point,
             time,
             predicted_dt,
@@ -410,7 +451,7 @@ impl RawInput {
         ui.label(format!("mouse_down: {}", mouse_down));
         ui.label(format!("mouse_pos: {:.1?}", mouse_pos));
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("screen_size: {:?} points", screen_size));
+        ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
@@ -433,7 +474,7 @@ impl InputState {
             raw,
             mouse,
             scroll_delta,
-            screen_size,
+            screen_rect,
             pixels_per_point,
             time,
             unstable_dt,
@@ -452,7 +493,7 @@ impl InputState {
             });
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("screen_size: {:?} points", screen_size));
+        ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!(
             "{:?} physical pixels for each logical point",
             pixels_per_point

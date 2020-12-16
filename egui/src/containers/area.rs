@@ -150,7 +150,9 @@ impl Prepared {
 
     pub(crate) fn content_ui(&self, ctx: &Arc<Context>) -> Ui {
         let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
-        let clip_rect = max_rect.expand(ctx.style().visuals.clip_rect_margin);
+        let clip_rect = max_rect
+            .expand(ctx.style().visuals.clip_rect_margin)
+            .intersect(ctx.input().screen_rect);
         Ui::new(
             ctx.clone(),
             self.layer_id,

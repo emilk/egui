@@ -87,8 +87,10 @@ pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<d
         let mut redraw = || {
             let egui_start = Instant::now();
             input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
-            input_state.raw.screen_size =
-                screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap();
+            input_state.raw.screen_rect = Some(Rect::from_min_size(
+                Default::default(),
+                screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap(),
+            ));
 
             ctx.begin_frame(input_state.raw.take());
             let mut integration_context = egui::app::IntegrationContext {

@@ -130,10 +130,7 @@ pub(crate) fn has_debug_assertions() -> bool {
 fn test_egui_e2e() {
     let mut demo_windows = crate::demos::DemoWindows::default();
     let mut ctx = crate::Context::new();
-    let raw_input = crate::RawInput {
-        screen_size: crate::vec2(1280.0, 1024.0),
-        ..Default::default()
-    };
+    let raw_input = crate::RawInput::default();
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {

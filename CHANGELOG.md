@@ -14,12 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `ImageButton` - `ui.add(ImageButton::new(...))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
 * Mouse-over explanation to duplicate ID warning
+* You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
 
 ### Changed 🔧
 
 * `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
 * `ui.image` now takes `impl Into<Vec2>` as a `size` argument.
 * Made some more fields of `RawInput` optional.
+
+### Deprecated
+* Deprecated `RawInput::screen_size` - use `RawInput::screen_rect` instead.
 
 
 ## 0.5.0 - 2020-12-13

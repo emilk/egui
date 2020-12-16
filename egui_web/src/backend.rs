@@ -113,7 +113,10 @@ pub struct WebInput {
 impl WebInput {
     pub fn new_frame(&mut self) -> egui::RawInput {
         egui::RawInput {
-            screen_size: screen_size_in_native_points().unwrap(),
+            screen_rect: Some(egui::Rect::from_min_size(
+                Default::default(),
+                screen_size_in_native_points().unwrap(),
+            )),
             pixels_per_point: Some(native_pixels_per_point()),
             time: Some(now_sec()),
             ..self.raw.take()
