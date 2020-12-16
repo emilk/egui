@@ -13,7 +13,7 @@ impl Default for FontBook {
             standard: false,
             emojis: true,
             filter: Default::default(),
-            text_style: TextStyle::Heading,
+            text_style: TextStyle::Button,
         }
     }
 }
@@ -66,10 +66,9 @@ impl demos::View for FontBook {
 
         ui.separator();
 
-        ui.horizontal(|ui| {
-            ui.label("Text style:");
+        combo_box_with_label(ui, "Text style", format!("{:?}", self.text_style), |ui| {
             for style in TextStyle::all() {
-                ui.radio_value(&mut self.text_style, style, format!("{:?}", style));
+                ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
             }
         });
 

@@ -105,30 +105,36 @@ impl DemoWindows {
             self.previous_link = env.link;
         }
 
-        crate::SidePanel::left("side_panel", 200.0).show(ctx, |ui| {
+        crate::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
             crate::demos::warn_if_debug_build(ui);
-            ui.label("Egui is an immediate mode GUI library written in Rust.");
-            ui.add(crate::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
-
-            ui.label("Egui can be run on the web, or natively on 🐧");
 
             ui.separator();
-            ui.label(
-                "This is an example of a panel. Windows are constrained to the area that remain.",
-            );
-            if ui.button("Organize windows").clicked {
-                ui.ctx().memory().reset_areas();
-            }
-            ui.separator();
 
-            ui.heading("Ｓ Windows:");
-            ui.indent("windows", |ui| {
-                self.open_windows.checkboxes(ui);
-                self.demos.checkboxes(ui);
+            ScrollArea::auto_sized().show(ui, |ui| {
+                ui.label("Egui is an immediate mode GUI library written in Rust.");
+                ui.add(
+                    crate::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"),
+                );
+
+                ui.label("Egui can be run on the web, or natively on 🐧");
+
+                ui.separator();
+
+                ui.heading("Windows:");
+                ui.indent("windows", |ui| {
+                    self.open_windows.checkboxes(ui);
+                    self.demos.checkboxes(ui);
+                });
+
+                ui.separator();
+
+                if ui.button("Organize windows").clicked {
+                    ui.ctx().memory().reset_areas();
+                }
+
+                sidebar_ui(ui);
             });
-
-            sidebar_ui(ui);
         });
 
         crate::TopPanel::top("menu_bar").show(ctx, |ui| {
@@ -330,17 +336,12 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .button("Clear entire Egui memory")
+                .button("Clear Egui memory")
                 .on_hover_text("Forget scroll, collapsing headers etc")
                 .clicked
             {
                 *ui.ctx().memory() = Default::default();
             }
-        });
-        menu::menu(ui, "Windows", |ui| windows.checkboxes(ui));
-        menu::menu(ui, "About", |ui| {
-            ui.label("This is Egui");
-            ui.add(Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
         });
 
         if let Some(time) = seconds_since_midnight {
