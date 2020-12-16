@@ -136,7 +136,7 @@ impl FontDefinitions {
         family_and_size.insert(TextStyle::Small, (FontFamily::VariableWidth, 10.0));
         family_and_size.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
         family_and_size.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
-        family_and_size.insert(TextStyle::Heading, (FontFamily::VariableWidth, 24.0));
+        family_and_size.insert(TextStyle::Heading, (FontFamily::VariableWidth, 20.0));
         family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
 
         Self {

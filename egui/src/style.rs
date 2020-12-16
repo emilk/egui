@@ -232,7 +232,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 1.0 / 15.0,
+            animation_time: 1.0 / 12.0,
         }
     }
 }
@@ -241,11 +241,11 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_padding: vec2(6.0, 6.0),
+            window_padding: vec2(4.0, 4.0),
             button_padding: vec2(3.0, 1.0),
             indent: 25.0,
             interact_size: vec2(40.0, 20.0),
-            slider_width: 140.0,
+            slider_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 16.0,
             icon_spacing: 1.0,
@@ -294,7 +294,7 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             active: WidgetVisuals {
-                bg_fill: Srgba::black_alpha(128),
+                bg_fill: Rgba::luminance_alpha(0.10, 0.5).into(),
                 bg_stroke: Stroke::new(2.0, WHITE),
                 corner_radius: 4.0,
                 fg_fill: srgba(120, 120, 200, 255),
@@ -315,11 +315,11 @@ impl Default for Widgets {
                 fg_stroke: Stroke::new(1.0, Srgba::gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
-                bg_fill: TRANSPARENT,
+                bg_fill: Rgba::luminance_alpha(0.02, 0.5).into(),
                 bg_stroke: Stroke::new(0.5, Srgba::gray(70)),
                 corner_radius: 4.0,
                 fg_fill: srgba(50, 50, 50, 255),
-                fg_stroke: Stroke::new(1.0, Srgba::gray(128)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Srgba::gray(140)), // Should look grayed out
             },
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)),
