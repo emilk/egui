@@ -181,7 +181,19 @@ impl Context {
     /// Constraint the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
-        let screen = self.available_rect();
+        let mut screen = self.available_rect();
+
+        if window.width() > screen.width() {
+            // Allow overlapping side bars.
+            // This is important for small screens, e.g. mobiles running the web demo.
+            screen.max.x = self.input().screen_rect().max.x;
+            screen.min.x = self.input().screen_rect().min.x;
+        }
+        if window.height() > screen.height() {
+            // Allow overlapping top/bottom bars:
+            screen.max.y = self.input().screen_rect().max.y;
+            screen.min.y = self.input().screen_rect().min.y;
+        }
 
         let mut pos = window.min;
 
@@ -189,10 +201,10 @@ impl Context {
         let margin_x = (window.width() - screen.width()).at_least(0.0);
         let margin_y = (window.height() - screen.height()).at_least(0.0);
 
-        pos.x = pos.x.at_least(screen.left() - margin_x);
-        pos.x = pos.x.at_most(screen.right() + margin_x - window.width());
-        pos.y = pos.y.at_least(screen.top() - margin_y);
-        pos.y = pos.y.at_most(screen.bottom() + margin_y - window.height());
+        pos.x = pos.x.at_most(screen.right() + margin_x - window.width()); // move left if needed
+        pos.x = pos.x.at_least(screen.left() - margin_x); // move right if needed
+        pos.y = pos.y.at_most(screen.bottom() + margin_y - window.height()); // move right if needed
+        pos.y = pos.y.at_least(screen.top() - margin_y); // move down if needed
 
         pos = self.round_pos_to_pixels(pos);
 
