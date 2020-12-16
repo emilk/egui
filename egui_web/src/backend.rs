@@ -115,7 +115,7 @@ impl WebInput {
         egui::RawInput {
             screen_size: screen_size_in_native_points().unwrap(),
             pixels_per_point: Some(native_pixels_per_point()),
-            time: now_sec(),
+            time: Some(now_sec()),
             ..self.raw.take()
         }
     }

@@ -9,8 +9,10 @@ const MAX_CLICK_DELAY: f64 = 0.3;
 
 /// What the backend provides to Egui at the start of each frame.
 ///
+/// Set the values that make sense, leave the rest at their `Default::default()`.
+///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct RawInput {
     /// Is the button currently down?
     /// NOTE: Egui currently only supports the primary mouse button.
@@ -30,14 +32,36 @@ pub struct RawInput {
     /// If text looks blurry on high resolution screens, you probably forgot to set this.
     pub pixels_per_point: Option<f32>,
 
-    /// Time in seconds. Relative to whatever. Used for animations.
-    pub time: f64,
+    /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
+    /// If `None` is provided, Egui will assume a time delta of `predicted_dt` (default 1/60 seconds).
+    pub time: Option<f64>,
+
+    /// Should be set to the expected time between frames when painting at vsync speeds.
+    /// The default for this is 1/60.
+    /// Can safely be left at its default value.
+    pub predicted_dt: f32,
 
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
+}
+
+impl Default for RawInput {
+    fn default() -> Self {
+        Self {
+            mouse_down: false,
+            mouse_pos: None,
+            scroll_delta: Vec2::zero(),
+            screen_size: Vec2::new(10_000.0, 10_000.0), // Difficult with a good default
+            pixels_per_point: None,
+            time: None,
+            predicted_dt: 1.0 / 60.0,
+            modifiers: Modifiers::default(),
+            events: vec![],
+        }
+    }
 }
 
 impl RawInput {
@@ -50,6 +74,7 @@ impl RawInput {
             screen_size: self.screen_size,
             pixels_per_point: self.pixels_per_point,
             time: self.time,
+            predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
         }
@@ -219,16 +244,19 @@ pub enum Key {
 impl InputState {
     #[must_use]
     pub fn begin_frame(self, new: RawInput) -> InputState {
-        let mouse = self.mouse.begin_frame(&new);
-        let unstable_dt = (new.time - self.raw.time) as f32;
+        let time = new
+            .time
+            .unwrap_or_else(|| self.time + new.predicted_dt as f64);
+        let mouse = self.mouse.begin_frame(time, &new);
+        let unstable_dt = (time - self.time) as f32;
         InputState {
             mouse,
             scroll_delta: new.scroll_delta,
             screen_size: new.screen_size,
             pixels_per_point: new.pixels_per_point.or(self.pixels_per_point),
-            time: new.time,
+            time,
             unstable_dt,
-            predicted_dt: 1.0 / 60.0, // TODO: remove this hack
+            predicted_dt: new.predicted_dt,
             modifiers: new.modifiers,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
@@ -295,7 +323,7 @@ impl InputState {
 
 impl MouseInput {
     #[must_use]
-    pub fn begin_frame(mut self, new: &RawInput) -> MouseInput {
+    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> MouseInput {
         let delta = new
             .mouse_pos
             .and_then(|new| self.pos.map(|last| new - last))
@@ -304,12 +332,12 @@ impl MouseInput {
 
         let released = self.down && !new.mouse_down;
         let click = released && self.could_be_click;
-        let double_click = click && (new.time - self.last_click_time) < MAX_CLICK_DELAY;
+        let double_click = click && (time - self.last_click_time) < MAX_CLICK_DELAY;
         let mut press_origin = self.press_origin;
         let mut could_be_click = self.could_be_click;
         let mut last_click_time = self.last_click_time;
         if click {
-            last_click_time = new.time
+            last_click_time = time
         }
 
         if pressed {
@@ -332,14 +360,14 @@ impl MouseInput {
         }
 
         if let Some(mouse_pos) = new.mouse_pos {
-            self.pos_history.add(new.time, mouse_pos);
+            self.pos_history.add(time, mouse_pos);
         } else {
             // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
             // the user tried to throw
         }
 
-        self.pos_history.flush(new.time);
+        self.pos_history.flush(time);
         let velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
             self.pos_history.velocity().unwrap_or_default()
         } else {
@@ -372,6 +400,7 @@ impl RawInput {
             screen_size,
             pixels_per_point,
             time,
+            predicted_dt,
             modifiers,
             events,
         } = self;
@@ -386,7 +415,12 @@ impl RawInput {
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.label(format!("time: {:.3} s", time));
+        if let Some(time) = time {
+            ui.label(format!("time: {:.3} s", time));
+        } else {
+            ui.label("time: None");
+        }
+        ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
@@ -428,7 +462,7 @@ impl InputState {
             "time since previous frame: {:.1} ms",
             1e3 * unstable_dt
         ));
-        ui.label(format!("expected dt: {:.1} ms", 1e3 * predicted_dt));
+        ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");

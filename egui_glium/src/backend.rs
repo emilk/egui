@@ -86,7 +86,7 @@ pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<d
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let egui_start = Instant::now();
-            input_state.raw.time = start_time.elapsed().as_nanos() as f64 * 1e-9;
+            input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
             input_state.raw.screen_size =
                 screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap();
 
