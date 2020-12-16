@@ -139,18 +139,20 @@ impl Painter {
         self.text(rect.min, LEFT_TOP, text.into(), text_style, color);
     }
 
-    pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) {
+    pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
         let text_style = TextStyle::Monospace;
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
         let rect = anchor_rect(Rect::from_min_size(pos, galley.size), LEFT_TOP);
+        let frame_rect = rect.expand(2.0);
         self.add(PaintCmd::Rect {
-            rect: rect.expand(2.0),
+            rect: frame_rect,
             corner_radius: 0.0,
             fill: Srgba::black_alpha(240),
             stroke: Stroke::new(1.0, color::RED),
         });
         self.galley(rect.min, galley, text_style, color::RED);
+        frame_rect
     }
 
     pub fn debug_arrow(&self, origin: Pos2, dir: Vec2, stroke: Stroke) {

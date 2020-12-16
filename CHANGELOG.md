@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * `ImageButton` - `ui.add(ImageButton::new(...))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
+* Mouse-over explanation to duplicate ID warning
 
 ### Changed 🔧
 

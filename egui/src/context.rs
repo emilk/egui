@@ -341,20 +341,34 @@ impl Context {
     /// If the given `Id` is not unique, an error will be printed at the given position.
     /// Call this for `Id`:s that need interaction or persistence.
     pub(crate) fn register_interaction_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
-        if let Some(prev_pos) = self.memory().used_ids.insert(id, new_pos) {
+        let prev_pos = self.memory().used_ids.insert(id, new_pos);
+        if let Some(prev_pos) = prev_pos {
             if prev_pos.distance(new_pos) < 0.1 {
                 // Likely same Widget being interacted with twice, which is fine.
                 return;
             }
 
+            let show_error = |pos: Pos2, text: String| {
+                let painter = self.debug_painter();
+                let rect = painter.error(pos, text);
+                if let Some(mouse_pos) = self.input.mouse.pos {
+                    if rect.contains(mouse_pos) {
+                        painter.error(
+                            rect.left_bottom() + vec2(2.0, 4.0),
+                            "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
+                             or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
+                        );
+                    }
+                }
+            };
+
             let id_str = id.short_debug_format();
 
-            let painter = self.debug_painter();
             if prev_pos.distance(new_pos) < 4.0 {
-                painter.error(new_pos, format!("Double use of ID {}", id_str));
+                show_error(new_pos, format!("Double use of ID {}", id_str));
             } else {
-                painter.error(prev_pos, format!("First use of ID {}", id_str));
-                painter.error(new_pos, format!("Second use of ID {}", id_str));
+                show_error(prev_pos, format!("First use of ID {}", id_str));
+                show_error(new_pos, format!("Second use of ID {}", id_str));
             }
 
             // TODO: a tooltip explaining this.
