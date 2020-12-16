@@ -25,7 +25,7 @@ pub struct Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    // TODO: Into<Label>
+    /// The winodw title must be unique, and should not change.
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
         let area = Area::new(&title);
@@ -40,7 +40,7 @@ impl<'open> Window<'open> {
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
-                .default_size([420.0, 420.0]),
+                .default_size([420.0, 420.0]), // Default inner size of a winodw
             scroll: None,
             collapsible: true,
         }
@@ -219,10 +219,6 @@ impl<'open> Window<'open> {
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
-            let title_bar_height = title_label.font_height(ctx.fonts(), &ctx.style())
-                + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
-            let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
-
             window_interaction(
                 ctx,
                 possible,
@@ -231,6 +227,11 @@ impl<'open> Window<'open> {
                 last_frame_outer_rect,
             )
             .and_then(|window_interaction| {
+                // Calculate roughly how much larger the window size is compared to the inner rect
+                let title_bar_height = title_label.font_height(ctx.fonts(), &ctx.style())
+                    + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
+                let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
+
                 interact(
                     window_interaction,
                     ctx,
@@ -276,9 +277,9 @@ impl<'open> Window<'open> {
                         ui.allocate_space(ui.style().spacing.item_spacing);
 
                         if let Some(scroll) = scroll {
-                            scroll.show(ui, add_contents)
+                            scroll.show(ui, add_contents);
                         } else {
-                            add_contents(ui)
+                            add_contents(ui);
                         }
                     })
                 })
@@ -685,6 +686,7 @@ impl TitleBar {
             let left = outer_rect.left();
             let right = outer_rect.right();
             let y = content_response.rect.top() + ui.style().spacing.item_spacing.y * 0.5;
+            // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
                 ui.style().visuals.widgets.inactive.bg_stroke,

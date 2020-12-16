@@ -673,10 +673,10 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
 ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
 fn tessellate_paint_command(
-    clip_rect: Rect,
-    command: PaintCmd,
     options: TesselationOptions,
     fonts: &Fonts,
+    clip_rect: Rect,
+    command: PaintCmd,
     out: &mut Triangles,
     scratchpad_points: &mut Vec<Pos2>,
     scratchpad_path: &mut Path,
@@ -773,61 +773,75 @@ fn tessellate_paint_command(
             text_style,
             color,
         } => {
-            if color == TRANSPARENT {
-                return;
-            }
-            galley.sanity_check();
-
-            let num_chars = galley.text.chars().count();
-            out.reserve_triangles(num_chars * 2);
-            out.reserve_vertices(num_chars * 4);
-
-            let tex_w = fonts.texture().width as f32;
-            let tex_h = fonts.texture().height as f32;
-
-            let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
-
-            let clip_rect = clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
-
-            let font = &fonts[text_style];
-            let mut chars = galley.text.chars();
-            for line in &galley.rows {
-                let line_min_y = pos.y + line.y_min + text_offset.x;
-                let line_max_y = line_min_y + font.row_height();
-                let is_line_visible =
-                    line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
-
-                for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
-                    let c = chars.next().unwrap();
-
-                    if options.coarse_tessellation_culling && !is_line_visible {
-                        // culling individual lines of text is important, since a single `PaintCmd::Text`
-                        // can span hundreds of lines.
-                        continue;
-                    }
-
-                    if let Some(glyph) = font.uv_rect(c) {
-                        let mut left_top =
-                            pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset;
-                        left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
-                        left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
-
-                        let pos = Rect::from_min_max(left_top, left_top + glyph.size);
-                        let uv = Rect::from_min_max(
-                            pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
-                            pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
-                        );
-                        out.add_rect_with_uv(pos, uv, color);
-                    }
-                }
-                if line.ends_with_newline {
-                    let newline = chars.next().unwrap();
-                    debug_assert_eq!(newline, '\n');
-                }
-            }
-            assert_eq!(chars.next(), None);
+            tesselate_text(
+                options, fonts, clip_rect, pos, &galley, text_style, color, out,
+            );
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn tesselate_text(
+    options: TesselationOptions,
+    fonts: &Fonts,
+    clip_rect: Rect,
+    pos: Pos2,
+    galley: &super::Galley,
+    text_style: super::TextStyle,
+    color: Srgba,
+    out: &mut Triangles,
+) {
+    if color == TRANSPARENT {
+        return;
+    }
+    galley.sanity_check();
+
+    let num_chars = galley.text.chars().count();
+    out.reserve_triangles(num_chars * 2);
+    out.reserve_vertices(num_chars * 4);
+
+    let tex_w = fonts.texture().width as f32;
+    let tex_h = fonts.texture().height as f32;
+
+    let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
+
+    let clip_rect = clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
+
+    let font = &fonts[text_style];
+    let mut chars = galley.text.chars();
+    for line in &galley.rows {
+        let line_min_y = pos.y + line.y_min + text_offset.x;
+        let line_max_y = line_min_y + font.row_height();
+        let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
+
+        for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
+            let c = chars.next().unwrap();
+
+            if options.coarse_tessellation_culling && !is_line_visible {
+                // culling individual lines of text is important, since a single `PaintCmd::Text`
+                // can span hundreds of lines.
+                continue;
+            }
+
+            if let Some(glyph) = font.uv_rect(c) {
+                let mut left_top = pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset;
+                left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
+                left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
+
+                let pos = Rect::from_min_max(left_top, left_top + glyph.size);
+                let uv = Rect::from_min_max(
+                    pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
+                    pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
+                );
+                out.add_rect_with_uv(pos, uv, color);
+            }
+        }
+        if line.ends_with_newline {
+            let newline = chars.next().unwrap();
+            debug_assert_eq!(newline, '\n');
+        }
+    }
+    assert_eq!(chars.next(), None);
 }
 
 /// Turns `PaintCmd`:s into sets of triangles.
@@ -862,10 +876,10 @@ pub fn tessellate_paint_commands(
 
         let out = &mut jobs.last_mut().unwrap().1;
         tessellate_paint_command(
-            clip_rect,
-            cmd,
             options,
             fonts,
+            clip_rect,
+            cmd,
             out,
             &mut scratchpad_points,
             &mut scratchpad_path,
@@ -875,6 +889,8 @@ pub fn tessellate_paint_commands(
     if options.debug_paint_clip_rects {
         for (clip_rect, triangles) in &mut jobs {
             tessellate_paint_command(
+                options,
+                fonts,
                 Rect::everything(),
                 PaintCmd::Rect {
                     rect: *clip_rect,
@@ -882,8 +898,6 @@ pub fn tessellate_paint_commands(
                     fill: Default::default(),
                     stroke: Stroke::new(2.0, srgba(150, 255, 150, 255)),
                 },
-                options,
-                fonts,
                 triangles,
                 &mut scratchpad_points,
                 &mut scratchpad_path,

@@ -63,18 +63,15 @@ impl State {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<(R, Response)> {
         let openness = self.openness(ui.ctx(), id);
-        let animate = 0.0 < openness && openness < 1.0;
-        if animate {
+        if openness <= 0.0 {
+            None
+        } else if openness < 1.0 {
             Some(ui.wrap(|child_ui| {
-                let max_height = if self.open {
-                    if let Some(full_height) = self.open_height {
-                        remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
-                    } else {
-                        // First frame of expansion.
-                        // We don't know full height yet, but we will next frame.
-                        // Just use a placeholder value that shows some movement:
-                        10.0
-                    }
+                let max_height = if self.open && self.open_height.is_none() {
+                    // First frame of expansion.
+                    // We don't know full height yet, but we will next frame.
+                    // Just use a placeholder value that shows some movement:
+                    10.0
                 } else {
                     let full_height = self.open_height.unwrap_or_default();
                     remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
@@ -84,23 +81,21 @@ impl State {
                 clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
                 child_ui.set_clip_rect(clip_rect);
 
-                let r = add_contents(child_ui);
+                let ret = add_contents(child_ui);
 
-                self.open_height = Some(child_ui.min_size().y);
-
-                // Pretend children took up less space:
                 let mut min_rect = child_ui.min_rect();
-                min_rect.max.y = min_rect.max.y.min(min_rect.top() + max_height);
+                self.open_height = Some(min_rect.height());
+
+                // Pretend children took up at most `max_height` space:
+                min_rect.max.y = min_rect.max.y.at_most(min_rect.top() + max_height);
                 child_ui.force_set_min_rect(min_rect);
-                r
+                ret
             }))
-        } else if self.open || ui.memory().all_collpasing_are_open {
+        } else {
             let (ret, response) = ui.wrap(add_contents);
             let full_size = response.rect.size();
             self.open_height = Some(full_size.y);
             Some((ret, response))
-        } else {
-            None
         }
     }
 }
