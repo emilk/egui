@@ -22,10 +22,12 @@ pub struct Window<'open> {
     pub resize: Resize,
     pub scroll: Option<ScrollArea>,
     pub collapsible: bool,
+    pub with_title_bar: bool,
 }
 
 impl<'open> Window<'open> {
-    /// The winodw title must be unique, and should not change.
+    /// The window title is used as a unique Id and must be unique, and should not change.
+    /// This is true even if you disable the title bar with `.title_bar(false)`.
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
         let area = Area::new(&title);
@@ -40,9 +42,10 @@ impl<'open> Window<'open> {
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
-                .default_size([420.0, 420.0]), // Default inner size of a winodw
+                .default_size([420.0, 420.0]), // Default inner size of a window
             scroll: None,
             collapsible: true,
+            with_title_bar: true,
         }
     }
 
@@ -146,6 +149,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Show title bar on top of the window?
+    /// If `false`, the window will not be collapsible nor have a close-button.
+    pub fn title_bar(mut self, title_bar: bool) -> Self {
+        self.with_title_bar = title_bar;
+        self
+    }
+
     /// Not resizable, just takes the size of its contents.
     /// Also disabled scrolling.
     /// Text will not wrap, but will instead make your window width expand.
@@ -190,6 +200,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            with_title_bar,
         } = self;
 
         if matches!(open, Some(false)) && !ctx.memory().all_windows_are_open {
@@ -201,8 +212,8 @@ impl<'open> Window<'open> {
         let resize_id = window_id.with("resize");
         let collapsing_id = window_id.with("collapsing");
 
-        let is_maximized =
-            collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
+        let is_maximized = !with_title_bar
+            || collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions {
             movable: area.is_movable(),
             resizable: resize.is_resizable() && is_maximized,
@@ -228,8 +239,12 @@ impl<'open> Window<'open> {
             )
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = title_label.font_height(ctx.fonts(), &ctx.style())
-                    + 1.0 * ctx.style().spacing.item_spacing.y; // this could be better
+                let title_bar_height = if with_title_bar {
+                    title_label.font_height(ctx.fonts(), &ctx.style())
+                        + 1.0 * ctx.style().spacing.item_spacing.y // this could be better
+                } else {
+                    0.0
+                };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
 
                 interact(
@@ -260,21 +275,28 @@ impl<'open> Window<'open> {
                 default_expanded,
             );
             let show_close_button = open.is_some();
-            let title_bar = show_title_bar(
-                &mut frame.content_ui,
-                title_label,
-                show_close_button,
-                collapsing_id,
-                &mut collapsing,
-                collapsible,
-            );
-            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+            let title_bar = if with_title_bar {
+                let title_bar = show_title_bar(
+                    &mut frame.content_ui,
+                    title_label,
+                    show_close_button,
+                    collapsing_id,
+                    &mut collapsing,
+                    collapsible,
+                );
+                resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                Some(title_bar)
+            } else {
+                None
+            };
 
             let content_response = collapsing
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
-                        // Add some spacing between title and content:
-                        ui.allocate_space(ui.style().spacing.item_spacing);
+                        if title_bar.is_some() {
+                            // Add some spacing between title and content:
+                            ui.allocate_space(ui.style().spacing.item_spacing);
+                        }
 
                         if let Some(scroll) = scroll {
                             scroll.show(ui, add_contents);
@@ -293,14 +315,16 @@ impl<'open> Window<'open> {
 
             // END FRAME --------------------------------
 
-            title_bar.ui(
-                &mut area_content_ui,
-                outer_rect,
-                &content_response,
-                open,
-                &mut collapsing,
-                collapsible,
-            );
+            if let Some(title_bar) = title_bar {
+                title_bar.ui(
+                    &mut area_content_ui,
+                    outer_rect,
+                    &content_response,
+                    open,
+                    &mut collapsing,
+                    collapsible,
+                );
+            }
 
             area_content_ui
                 .memory()
