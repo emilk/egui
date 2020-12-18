@@ -1,6 +1,6 @@
 //! Example of how to use Egui
 #![forbid(unsafe_code)]
-#![deny(warnings)]
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![warn(clippy::all)]
 
 mod example_app;

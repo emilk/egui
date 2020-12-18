@@ -34,8 +34,8 @@
 //! }
 //! ```
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,

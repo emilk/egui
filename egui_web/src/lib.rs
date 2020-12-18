@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![deny(warnings)]
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![warn(clippy::all)]
 
 pub mod backend;
