@@ -39,6 +39,10 @@ impl Default for ExampleApp {
 }
 
 impl egui::app::App for ExampleApp {
+    fn name(&self) -> &str {
+        "Egui Fetch Example"
+    }
+
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn ui(

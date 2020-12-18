@@ -278,6 +278,10 @@ impl DemoApp {
 }
 
 impl app::App for DemoApp {
+    fn name(&self) -> &str {
+        "Egui Demo"
+    }
+
     fn ui(
         &mut self,
         ctx: &Arc<Context>,

@@ -64,11 +64,11 @@ fn create_display(
 }
 
 /// Run an egui app
-pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
+pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(title, window_settings, &event_loop);
+    let display = create_display(app.name(), window_settings, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 

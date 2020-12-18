@@ -12,6 +12,10 @@ use crate::Context;
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
+    /// The name of your App.
+    fn name(&self) -> &str;
+    }
+
     /// Called once before the first frame.
     /// Allows you to do setup code and to call `ctx.set_fonts()`.
     /// Optional.
