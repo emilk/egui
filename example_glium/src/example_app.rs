@@ -50,6 +50,6 @@ impl egui::app::App for ExampleApp {
     }
 
     fn on_exit(&mut self, storage: &mut dyn egui::app::Storage) {
-        egui::app::set_value(storage, true, egui::app::APP_KEY, self);
+        egui::app::set_value(storage, egui::app::APP_KEY, self);
     }
 }
