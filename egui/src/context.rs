@@ -10,8 +10,7 @@ use crate::{
     *,
 };
 
-#[derive(Clone, Copy, Default)]
-struct SliceStats<T>(usize, std::marker::PhantomData<T>);
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default)]
 struct Options {
@@ -22,6 +21,85 @@ struct Options {
     /// Font sizes etc.
     font_definitions: FontDefinitions,
 }
+
+// ----------------------------------------------------------------------------
+
+/// State that is collected during a frame and then cleared
+#[derive(Clone)]
+pub(crate) struct FrameState {
+    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// The `CentralPanel` does not change this.
+    /// This is the area avilable to Window's.
+    available_rect: Rect,
+
+    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// The `CentralPanel` retracts from this.
+    unused_rect: Rect,
+
+    /// How much space is used by panels.
+    used_by_panels: Rect,
+    // TODO: move some things from `Memory` to here
+}
+
+impl Default for FrameState {
+    fn default() -> Self {
+        Self {
+            available_rect: Rect::invalid(),
+            unused_rect: Rect::invalid(),
+            used_by_panels: Rect::invalid(),
+        }
+    }
+}
+
+impl FrameState {
+    pub fn begin_frame(&mut self, input: &InputState) {
+        self.available_rect = input.screen_rect();
+        self.unused_rect = input.screen_rect();
+        self.used_by_panels = Rect::nothing();
+    }
+
+    /// How much space is still available after panels has been added.
+    /// This is the "background" area, what Egui doesn't cover with panels (but may cover with windows).
+    /// This is also the area to which windows are constrained.
+    pub fn available_rect(&self) -> Rect {
+        debug_assert!(
+            self.available_rect.is_finite(),
+            "Called `available_rect()` before `begin_frame()`"
+        );
+        self.available_rect
+    }
+
+    /// Shrink `available_rect`.
+    pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
+        debug_assert!(
+            panel_rect.min == self.available_rect.min,
+            "Mismatching panels. You must not create a panel from within another panel."
+        );
+        self.available_rect.min.x = panel_rect.max.x;
+        self.unused_rect.min.x = panel_rect.max.x;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    /// Shrink `available_rect`.
+    pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
+        debug_assert!(
+            panel_rect.min == self.available_rect.min,
+            "Mismatching panels. You must not create a panel from within another panel."
+        );
+        self.available_rect.min.y = panel_rect.max.y;
+        self.unused_rect.min.y = panel_rect.max.y;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
+        // Note: we do not shrink `available_rect`, because
+        // we alllow windows to cover the CentralPanel.
+        self.unused_rect = Rect::nothing(); // Nothing left unused after this
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Thi is the first thing you need when working with Egui.
 ///
@@ -40,11 +118,8 @@ pub struct Context {
 
     input: InputState,
 
-    /// Starts off as the screen_rect, shrinks as panels are added.
-    /// Becomes `Rect::nothing()` after a `CentralPanel` is finished.
-    available_rect: Mutex<Option<Rect>>,
-    /// How much space is used by panels.
-    used_by_panels: Mutex<Option<Rect>>,
+    /// State that is collected during a frame and then cleared
+    frame_state: Mutex<FrameState>,
 
     // The output of a frame:
     graphics: Mutex<GraphicLayers>,
@@ -64,8 +139,7 @@ impl Clone for Context {
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
             input: self.input.clone(),
-            available_rect: self.available_rect.clone(),
-            used_by_panels: self.used_by_panels.clone(),
+            frame_state: self.frame_state.clone(),
             graphics: self.graphics.clone(),
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
@@ -88,9 +162,7 @@ impl Context {
     /// This is the "background" area, what Egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
-        self.available_rect
-            .lock()
-            .expect("Called `available_rect()` before `begin_frame()`")
+        self.frame_state.lock().available_rect()
     }
 
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
@@ -103,6 +175,10 @@ impl Context {
 
     pub fn output(&self) -> MutexGuard<'_, Output> {
         self.output.lock()
+    }
+
+    pub(crate) fn frame_state(&self) -> MutexGuard<'_, FrameState> {
+        self.frame_state.lock()
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -225,8 +301,7 @@ impl Context {
         self.memory().begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
-        *self.available_rect.lock() = Some(self.input.screen_rect());
-        *self.used_by_panels.lock() = Some(Rect::nothing());
+        self.frame_state.lock().begin_frame(&self.input);
 
         let mut font_definitions = self.options.lock().font_definitions.clone();
         font_definitions.pixels_per_point = self.input.pixels_per_point();
@@ -293,49 +368,9 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Shrink `available_rect()`.
-    pub(crate) fn allocate_left_panel(&self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min == self.available_rect().min,
-            "Mismatching panels. You must not create a panel from within another panel."
-        );
-        let mut remainder = self.available_rect();
-        remainder.min.x = panel_rect.max.x;
-        *self.available_rect.lock() = Some(remainder);
-        self.register_panel(panel_rect);
-    }
-
-    /// Shrink `available_rect()`.
-    pub(crate) fn allocate_top_panel(&self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min == self.available_rect().min,
-            "Mismatching panels. You must not create a panel from within another panel."
-        );
-        let mut remainder = self.available_rect();
-        remainder.min.y = panel_rect.max.y;
-        *self.available_rect.lock() = Some(remainder);
-        self.register_panel(panel_rect);
-    }
-
-    /// Shrink `available_rect()`.
-    pub(crate) fn allocate_central_panel(&self, panel_rect: Rect) {
-        let mut available_rect = self.available_rect.lock();
-        debug_assert!(
-            *available_rect != Some(Rect::nothing()),
-            "You already created a `CentralPanel` this frame!"
-        );
-        *available_rect = Some(Rect::nothing()); // Nothing left after this
-        self.register_panel(panel_rect);
-    }
-
-    fn register_panel(&self, panel_rect: Rect) {
-        let mut used = self.used_by_panels.lock();
-        *used = Some(used.unwrap_or(Rect::nothing()).union(panel_rect));
-    }
-
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
-        let mut used = self.used_by_panels.lock().unwrap_or(Rect::nothing());
+        let mut used = self.frame_state().used_by_panels;
         for window in self.memory().areas.visible_windows() {
             used = used.union(window.rect());
         }
@@ -394,12 +429,7 @@ impl Context {
         if let Some(mouse_pos) = self.input.mouse.pos {
             if let Some(layer) = self.layer_id_at(mouse_pos) {
                 if layer.order == Order::Background {
-                    if let Some(available_rect) = *self.available_rect.lock() {
-                        // "available_rect" is the area that Egui is NOT using.
-                        !available_rect.contains(mouse_pos)
-                    } else {
-                        false
-                    }
+                    !self.frame_state().unused_rect.contains(mouse_pos)
                 } else {
                     true
                 }

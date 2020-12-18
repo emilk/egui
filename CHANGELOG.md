@@ -22,10 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Slight tweak of the default `Style` and font sizes.
 * `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
+* A `Window` may now cover an existing `CentralPanel`.
 * `ui.image` now takes `impl Into<Vec2>` as a `size` argument.
 * Made some more fields of `RawInput` optional.
 * `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
-* `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`
+* `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
 
 ### Deprecated
 * Deprecated `RawInput::screen_size` - use `RawInput::screen_rect` instead.

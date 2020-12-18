@@ -51,7 +51,7 @@ impl SidePanel {
         let panel_rect = panel_ui.min_rect();
         let response = panel_ui.interact_hover(panel_rect);
 
-        ctx.allocate_left_panel(panel_rect);
+        ctx.frame_state().allocate_left_panel(panel_rect);
 
         (r, response)
     }
@@ -105,7 +105,7 @@ impl TopPanel {
         let panel_rect = panel_ui.min_rect();
         let response = panel_ui.interact_hover(panel_rect);
 
-        ctx.allocate_top_panel(panel_rect);
+        ctx.frame_state().allocate_top_panel(panel_rect);
 
         (r, response)
     }
@@ -143,7 +143,7 @@ impl CentralPanel {
         let panel_rect = panel_ui.min_rect();
         let response = panel_ui.interact_hover(panel_rect);
 
-        ctx.allocate_central_panel(panel_rect);
+        ctx.frame_state().allocate_central_panel(panel_rect);
 
         (r, response)
     }
