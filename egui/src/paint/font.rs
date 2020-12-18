@@ -16,10 +16,6 @@ use super::texture_atlas::TextureAtlas;
 
 // ----------------------------------------------------------------------------
 
-// const REPLACEMENT_CHAR: char = '\u{FFFD}'; // � REPLACEMENT CHARACTER
-// const REPLACEMENT_CHAR: char = '?';
-const REPLACEMENT_CHAR: char = '◻'; // white medium square
-
 #[derive(Clone, Copy, Debug)]
 pub struct UvRect {
     /// X/Y offset for nice rendering (unit: points).
@@ -168,12 +164,17 @@ impl Font {
             row_height,
             glyph_info_cache: Default::default(),
         };
+
+        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
+        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
+
         let replacement_glyph = slf
-            .glyph_info_no_cache(REPLACEMENT_CHAR)
+            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
+            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed to find replacement character {:?}",
-                    REPLACEMENT_CHAR
+                    "Failed to find replacement characters {:?} or {:?}",
+                    PRIMARY_REPLACEMENT_CHAR, FALLBACK_REPLACEMENT_CHAR
                 )
             });
         slf.replacement_glyph = replacement_glyph;
@@ -200,7 +201,7 @@ impl Font {
         self.glyph_info(c).1.advance_width
     }
 
-    /// `\n` will (intentionally) show up as `REPLACEMENT_CHAR`
+    /// `\n` will (intentionally) show up as the replacement character.
     fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
         {
             if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
@@ -208,7 +209,7 @@ impl Font {
             }
         }
 
-        let font_index_glyph_info = self.glyph_info_no_cache(c);
+        let font_index_glyph_info = self.glyph_info_no_cache_or_fallback(c);
         let font_index_glyph_info = font_index_glyph_info.unwrap_or(self.replacement_glyph);
         self.glyph_info_cache
             .write()
@@ -216,7 +217,7 @@ impl Font {
         font_index_glyph_info
     }
 
-    fn glyph_info_no_cache(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
+    fn glyph_info_no_cache_or_fallback(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
         for (font_index, font_impl) in self.fonts.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {
                 self.glyph_info_cache
@@ -256,7 +257,7 @@ impl Font {
     }
 
     /// Typeset the given text onto one row.
-    /// Any `\n` will show up as `REPLACEMENT_CHAR` ('?').
+    /// Any `\n` will show up as the replacement character.
     /// Always returns exactly one `Row` in the `Galley`.
     pub fn layout_single_line(&self, text: String) -> Galley {
         let x_offsets = self.layout_single_row_fragment(&text);
