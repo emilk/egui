@@ -23,6 +23,8 @@ pub struct DragValue<'a> {
     prefix: String,
     suffix: String,
     range: RangeInclusive<f64>,
+    min_decimals: usize,
+    max_decimals: Option<usize>,
 }
 
 impl<'a> DragValue<'a> {
@@ -33,51 +35,47 @@ impl<'a> DragValue<'a> {
             prefix: Default::default(),
             suffix: Default::default(),
             range: f64::NEG_INFINITY..=f64::INFINITY,
+            min_decimals: 0,
+            max_decimals: None,
         }
     }
 
     pub fn f32(value: &'a mut f32) -> Self {
-        Self {
-            ..Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v as f32
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v as f32
+            }
+            *value as f64
+        })
     }
 
     pub fn f64(value: &'a mut f64) -> Self {
-        Self {
-            ..Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v
-                }
-                *value
-            })
-        }
+        Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v
+            }
+            *value
+        })
     }
 
     pub fn u8(value: &'a mut u8) -> Self {
-        Self {
-            ..Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as u8;
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as u8;
+            }
+            *value as f64
+        })
+        .max_decimals(0)
     }
 
     pub fn i32(value: &'a mut i32) -> Self {
-        Self {
-            ..Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as i32;
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as i32;
+            }
+            *value as f64
+        })
+        .max_decimals(0)
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -103,6 +101,35 @@ impl<'a> DragValue<'a> {
         self.suffix = suffix.to_string();
         self
     }
+
+    // TODO: we should also have a "min precision".
+    /// Set a minimum number of decimals to display.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    pub fn min_decimals(mut self, min_decimals: usize) -> Self {
+        self.min_decimals = min_decimals;
+        self
+    }
+
+    // TODO: we should also have a "max precision".
+    /// Set a maximum number of decimals to display.
+    /// Values will also be rounded to this number of decimals.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    pub fn max_decimals(mut self, max_decimals: usize) -> Self {
+        self.max_decimals = Some(max_decimals);
+        self
+    }
+
+    /// Set an exact number of decimals to display.
+    /// Values will also be rounded to this number of decimals.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
+        self.min_decimals = num_decimals;
+        self.max_decimals = Some(num_decimals);
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
@@ -113,11 +140,16 @@ impl<'a> Widget for DragValue<'a> {
             range,
             prefix,
             suffix,
+            min_decimals,
+            max_decimals,
         } = self;
+
         let value = get(&mut value_function);
         let aim_rad = ui.input().physical_pixel_size(); // ui.input().aim_radius(); // TODO
-        let precision = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
-        let value_text = format_with_minimum_precision(value as f32, precision); //  TODO: full precision
+        let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
+        let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
+        let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
+        let value_text = format_with_decimals_in_range(value, auto_decimals..=max_decimals);
 
         let kb_edit_id = ui.make_position_id().with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
@@ -146,7 +178,12 @@ impl<'a> Widget for DragValue<'a> {
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace);
             let response = ui.add(button);
-            let response = response.on_hover_text("Drag to edit or click to enter a value");
+            let response = response.on_hover_text(format!(
+                " {}{}{}\nDrag to edit or click to enter a value.",
+                prefix,
+                value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
+                suffix
+            ));
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
@@ -156,7 +193,7 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_value = speed * delta_points;
                 if delta_value != 0.0 {
                     let new_value = value + delta_value as f64;
-                    let new_value = round_to_precision(new_value, precision);
+                    let new_value = round_to_decimals(new_value, auto_decimals);
                     let new_value = clamp(new_value, range);
                     set(&mut value_function, new_value);
                     // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,

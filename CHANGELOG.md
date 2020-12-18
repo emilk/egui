@@ -14,8 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Turn off `Window` title bars with `window.title_bar(false)`.
 * `ImageButton` - `ui.add(ImageButton::new(...))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
-* Mouse-over explanation to duplicate ID warning
+* Mouse-over explanation to duplicate ID warning.
 * You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
+* You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
 
 ### Changed 🔧
 
@@ -23,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
 * `ui.image` now takes `impl Into<Vec2>` as a `size` argument.
 * Made some more fields of `RawInput` optional.
+* `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
 
 ### Deprecated
 * Deprecated `RawInput::screen_size` - use `RawInput::screen_rect` instead.

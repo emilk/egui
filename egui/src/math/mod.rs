@@ -121,26 +121,41 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
 pub const TAU: f32 = 2.0 * std::f32::consts::PI;
 
 /// Round a value to the given number of decimal places.
-pub fn round_to_precision(value: f64, decimal_places: usize) -> f64 {
+pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
     format!("{:.*}", decimal_places, value)
         .parse()
         .unwrap_or(value)
 }
 
-pub fn format_with_minimum_precision(value: f32, precision: usize) -> String {
-    debug_assert!(precision < 100);
-    let precision = precision.min(16);
-    let text = format!("{:.*}", precision, value);
-    let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
-    if almost_equal(text.parse::<f32>().unwrap(), value, epsilon) {
-        // Enough precision to show the value accurately - good!
-        text
+pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
+    format_with_decimals_in_range(value, decimals..=6)
+}
+
+pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
+    let min_decimals = *decimal_range.start();
+    let max_decimals = *decimal_range.end();
+    debug_assert!(min_decimals <= max_decimals);
+    debug_assert!(max_decimals < 100);
+    let max_decimals = max_decimals.min(16);
+    let min_decimals = min_decimals.min(max_decimals);
+
+    if min_decimals == max_decimals {
+        format!("{:.*}", max_decimals, value)
     } else {
+        // Ugly/slow way of doing this. TODO: clean up precision.
+        for decimals in min_decimals..max_decimals {
+            let text = format!("{:.*}", decimals, value);
+            let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
+            if almost_equal(text.parse::<f32>().unwrap(), value as f32, epsilon) {
+                // Enough precision to show the value accurately - good!
+                return text;
+            }
+        }
         // The value has more precision than we expected.
         // Probably the value was set not by the slider, but from outside.
         // In any case: show the full value
-        value.to_string()
+        format!("{:.*}", max_decimals, value)
     }
 }
 
@@ -162,12 +177,13 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
 #[allow(clippy::approx_constant)]
 #[test]
 fn test_format() {
-    assert_eq!(format_with_minimum_precision(1_234_567.0, 0), "1234567");
-    assert_eq!(format_with_minimum_precision(1_234_567.0, 1), "1234567.0");
-    assert_eq!(format_with_minimum_precision(3.14, 2), "3.14");
+    assert_eq!(format_with_minimum_decimals(1_234_567.0, 0), "1234567");
+    assert_eq!(format_with_minimum_decimals(1_234_567.0, 1), "1234567.0");
+    assert_eq!(format_with_minimum_decimals(3.14, 2), "3.14");
+    assert_eq!(format_with_minimum_decimals(3.14, 3), "3.140");
     assert_eq!(
-        format_with_minimum_precision(std::f32::consts::PI, 2),
-        "3.1415927"
+        format_with_minimum_decimals(std::f64::consts::PI, 2),
+        "3.14159"
     );
 }
 

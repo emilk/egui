@@ -44,8 +44,9 @@ pub struct Slider<'a> {
     smart_aim: bool,
     // TODO: label: Option<Label>
     text: Option<String>,
-    precision: Option<usize>,
     text_color: Option<Srgba>,
+    min_decimals: usize,
+    max_decimals: Option<usize>,
 }
 
 impl<'a> Slider<'a> {
@@ -62,79 +63,68 @@ impl<'a> Slider<'a> {
             },
             smart_aim: true,
             text: None,
-            precision: None,
             text_color: None,
+            min_decimals: 0,
+            max_decimals: None,
         }
     }
 
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
-        Self {
-            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v as f32
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v as f32
+            }
+            *value as f64
+        })
     }
 
     pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
-        Self {
-            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v
-                }
-                *value
-            })
-        }
+        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v
+            }
+            *value
+        })
     }
 
     pub fn u8(value: &'a mut u8, range: RangeInclusive<u8>) -> Self {
-        Self {
-            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as u8
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as u8
+            }
+            *value as f64
+        })
         .integer()
     }
 
     pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
-        Self {
-            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as i32
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as i32
+            }
+            *value as f64
+        })
         .integer()
     }
 
     pub fn u32(value: &'a mut u32, range: RangeInclusive<u32>) -> Self {
-        Self {
-            ..Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as u32
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as u32
+            }
+            *value as f64
+        })
         .integer()
     }
 
     pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
         let range = (*range.start() as f64)..=(*range.end() as f64);
-        Self {
-            ..Self::from_get_set(range, move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as usize
-                }
-                *value as f64
-            })
-        }
+        Self::from_get_set(range, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v.round() as usize
+            }
+            *value as f64
+        })
         .integer()
     }
 
@@ -172,12 +162,37 @@ impl<'a> Slider<'a> {
         self
     }
 
-    /// Precision (number of decimals) used when displaying the value.
-    /// Values will also be rounded to this precision.
+    #[deprecated = "Use fixed_decimals instea"]
+    pub fn precision(self, precision: usize) -> Self {
+        self.max_decimals(precision)
+    }
+
+    // TODO: we should also have a "min precision".
+    /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
-    pub fn precision(mut self, precision: usize) -> Self {
-        self.precision = Some(precision);
+    pub fn min_decimals(mut self, min_decimals: usize) -> Self {
+        self.min_decimals = min_decimals;
+        self
+    }
+
+    // TODO: we should also have a "max precision".
+    /// Set a maximum number of decimals to display.
+    /// Values will also be rounded to this number of decimals.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    pub fn max_decimals(mut self, max_decimals: usize) -> Self {
+        self.max_decimals = Some(max_decimals);
+        self
+    }
+
+    /// Set an exact number of decimals to display.
+    /// Values will also be rounded to this number of decimals.
+    /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
+    /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
+        self.min_decimals = num_decimals;
+        self.max_decimals = Some(num_decimals);
         self
     }
 
@@ -185,7 +200,7 @@ impl<'a> Slider<'a> {
     /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
     /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
     pub fn integer(self) -> Self {
-        self.precision(0).smallest_positive(1.0)
+        self.fixed_decimals(0).smallest_positive(1.0)
     }
 
     fn get_value(&mut self) -> f64 {
@@ -193,8 +208,8 @@ impl<'a> Slider<'a> {
     }
 
     fn set_value(&mut self, mut value: f64) {
-        if let Some(precision) = self.precision {
-            value = round_to_precision(value, precision);
+        if let Some(max_decimals) = self.max_decimals {
+            value = round_to_decimals(value, max_decimals);
         }
         set(&mut self.get_set_value, value);
     }
@@ -325,7 +340,10 @@ impl<'a> Slider<'a> {
                     .text_style(TextStyle::Monospace)
                     .text_color_opt(self.text_color),
             );
-            let response = response.on_hover_text("Click to enter a value");
+            let response = response.on_hover_text(format!(
+                "{}\nClick to enter a value.",
+                self.get_value() as f32 // Show full precision value on-hover. TODO: figure out f64 vs f32
+            ));
             // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
             if response.clicked {
                 ui.memory().request_kb_focus(kb_edit_id);
@@ -337,23 +355,26 @@ impl<'a> Slider<'a> {
     fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
         let value = self.get_value();
 
-        if let Some(precision) = self.precision {
-            format_with_minimum_precision(value as f32, precision)
+        // pick precision based upon how much moving the slider would change the value:
+        let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
+        let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
+        let left_value = value_from_x(x_from_value(value) - aim_radius);
+        let right_value = value_from_x(x_from_value(value) + aim_radius);
+        let range = (left_value - right_value).abs();
+        let auto_decimals = ((-range.log10()).ceil().at_least(0.0) as usize).at_most(16);
+        let min_decimals = self.min_decimals;
+        let max_decimals = self.max_decimals.unwrap_or(auto_decimals + 2);
+
+        let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
+
+        if min_decimals == max_decimals {
+            format_with_minimum_decimals(value, max_decimals)
         } else if value == 0.0 {
             "0".to_owned()
+        } else if range == 0.0 {
+            value.to_string()
         } else {
-            // pick precision based upon how much moving the slider would change the value:
-            let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
-            let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
-            let left_value = value_from_x(x_from_value(value) - aim_radius);
-            let right_value = value_from_x(x_from_value(value) + aim_radius);
-            let range = (left_value - right_value).abs();
-            if range == 0.0 {
-                value.to_string()
-            } else {
-                let precision = ((-range.log10()).ceil().at_least(0.0) as usize).at_most(16);
-                format_with_minimum_precision(value as f32, precision)
-            }
+            format_with_decimals_in_range(value, auto_decimals..=max_decimals)
         }
     }
 }

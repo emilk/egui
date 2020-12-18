@@ -60,7 +60,7 @@ impl paint::FontDefinitions {
             // TODO: radio button for family
             ui.add(
                 Slider::f32(size, 4.0..=40.0)
-                    .precision(0)
+                    .max_decimals(0)
                     .text(format!("{:?}", text_style)),
             );
         }
