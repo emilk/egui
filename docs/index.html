@@ -14,7 +14,7 @@
         }
 
         body {
-            background: #101010;
+            background: #202020;
         }
 
         /* Allow canvas to fill entire web page: */
@@ -23,6 +23,17 @@
             overflow: hidden;
             margin: 0 !important;
             padding: 0 !important;
+        }
+
+        /* Center canvas vertically and horizontally: */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>

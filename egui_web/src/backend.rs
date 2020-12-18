@@ -114,12 +114,9 @@ pub struct WebInput {
 }
 
 impl WebInput {
-    pub fn new_frame(&mut self) -> egui::RawInput {
+    pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
         egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                Default::default(),
-                screen_size_in_native_points().unwrap(),
-            )),
+            screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
             pixels_per_point: Some(native_pixels_per_point()),
             time: Some(now_sec()),
             ..self.raw.take()
@@ -181,8 +178,8 @@ impl AppRunner {
 
     pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
-
-        let raw_input = self.input.new_frame();
+        let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
+        let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
 
         let mut integration_context = egui::app::IntegrationContext {
