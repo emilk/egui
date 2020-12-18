@@ -11,6 +11,6 @@ fn main() {
     // Alternative: store nowhere
     // let storage = egui::app::DummyStorage::default();
 
-    let app: egui::DemoApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default();        
+    let app: egui::DemoApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default();
     egui_glium::run(title, true, Box::new(storage), Box::new(app));
 }
