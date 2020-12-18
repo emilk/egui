@@ -311,7 +311,7 @@ impl Painter {
 
     pub fn paint_jobs(
         &mut self,
-        bg_color: Srgba,
+        clear_color: egui::Rgba,
         jobs: PaintJobs,
         egui_texture: &Texture,
         pixels_per_point: f32,
@@ -320,6 +320,21 @@ impl Painter {
         self.upload_user_textures();
 
         let gl = &self.gl;
+
+        gl.disable(Gl::SCISSOR_TEST);
+        gl.viewport(
+            0,
+            0,
+            self.canvas.width() as i32,
+            self.canvas.height() as i32,
+        );
+        gl.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
+        gl.clear(Gl::COLOR_BUFFER_BIT);
 
         gl.enable(Gl::SCISSOR_TEST);
         gl.disable(Gl::CULL_FACE); // Egui is not strict about winding order.
@@ -341,21 +356,6 @@ impl Painter {
 
         let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
         gl.uniform1i(Some(&u_sampler_loc), 0);
-
-        gl.viewport(
-            0,
-            0,
-            self.canvas.width() as i32,
-            self.canvas.height() as i32,
-        );
-        // TODO: sRGBA ?
-        gl.clear_color(
-            bg_color[0] as f32 / 255.0,
-            bg_color[1] as f32 / 255.0,
-            bg_color[2] as f32 / 255.0,
-            bg_color[3] as f32 / 255.0,
-        );
-        gl.clear(Gl::COLOR_BUFFER_BIT);
 
         for (clip_rect, triangles) in jobs {
             if let Some(gl_texture) = self.get_texture(triangles.texture_id) {
