@@ -55,10 +55,13 @@ impl WebBackend {
         Ok((output, paint_jobs))
     }
 
-    pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
-        let bg_color = egui::color::TRANSPARENT; // Use background css color.
+    pub fn paint(
+        &mut self,
+        clear_color: egui::Rgba,
+        paint_jobs: egui::PaintJobs,
+    ) -> Result<(), JsValue> {
         self.painter.paint_jobs(
-            bg_color,
+            clear_color,
             paint_jobs,
             &self.ctx.texture(),
             self.ctx.pixels_per_point(),
@@ -214,7 +217,7 @@ impl AppRunner {
     }
 
     pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
-        self.web_backend.paint(paint_jobs)
+        self.web_backend.paint(self.app.clear_color(), paint_jobs)
     }
 }
 

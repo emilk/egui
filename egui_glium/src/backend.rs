@@ -111,7 +111,13 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
 
             let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);
-            painter.paint_jobs(&display, ctx.pixels_per_point(), paint_jobs, &ctx.texture());
+            painter.paint_jobs(
+                &display,
+                ctx.pixels_per_point(),
+                app.clear_color(),
+                paint_jobs,
+                &ctx.texture(),
+            );
 
             {
                 let egui::app::AppOutput {

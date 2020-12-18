@@ -328,11 +328,12 @@ impl Painter {
             self.canvas.width() as i32,
             self.canvas.height() as i32,
         );
+        let clear_color: Srgba = clear_color.into();
         gl.clear_color(
-            clear_color[0],
-            clear_color[1],
-            clear_color[2],
-            clear_color[3],
+            clear_color[0] as f32 / 255.0,
+            clear_color[1] as f32 / 255.0,
+            clear_color[2] as f32 / 255.0,
+            clear_color[3] as f32 / 255.0,
         );
         gl.clear(Gl::COLOR_BUFFER_BIT);
 

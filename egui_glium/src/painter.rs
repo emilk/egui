@@ -126,6 +126,7 @@ impl Painter {
         &mut self,
         display: &glium::Display,
         pixels_per_point: f32,
+        clear_color: egui::Rgba,
         jobs: PaintJobs,
         egui_texture: &egui::Texture,
     ) {
@@ -133,7 +134,13 @@ impl Painter {
         self.upload_pending_user_textures(display);
 
         let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
+        // Verified to be gamma-correct.
+        target.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
         for (clip_rect, triangles) in jobs {
             self.paint_job(
                 &mut target,

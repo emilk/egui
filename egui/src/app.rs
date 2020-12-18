@@ -14,6 +14,11 @@ use crate::Context;
 pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
+
+    /// Background color for the app.
+    /// e.g. what is sent to `gl.clearColor`
+    fn clear_color(&self) -> crate::Rgba {
+        crate::Srgba::from_rgb(16, 16, 16).into()
     }
 
     /// Called once before the first frame.
