@@ -46,12 +46,12 @@ fn create_display(
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_decorations(true)        
+        .with_decorations(true)
         .with_resizable(is_resizable)
         .with_title(title)
         .with_transparent(false);
 
-    if let Some(window_settings) = &window_settings {        
+    if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
     }
 
