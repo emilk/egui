@@ -222,8 +222,16 @@ impl AppRunner {
 }
 
 /// Install event listeners to register different input events
+/// and starts running the given app.
+pub fn start(canvas_id: &str, app: Box<dyn App>) -> Result<AppRunnerRef, JsValue> {
+    let backend = WebBackend::new(canvas_id)?;
+    let runner = AppRunner::new(backend, app)?;
+    start_runner(runner)
+}
+
+/// Install event listeners to register different input events
 /// and starts running the given `AppRunner`.
-pub fn start(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
+fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let runner_ref = AppRunnerRef(Arc::new(Mutex::new(app_runner)));
     install_canvas_events(&runner_ref)?;
     install_document_events(&runner_ref)?;

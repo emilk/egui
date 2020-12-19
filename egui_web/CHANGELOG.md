@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed ⭐
 
 * Set a maximum canvas size to alleviate performance issues on some machines
+* Simplify `egui_web::start` arguments
 
 
 ## 0.4.0 - 2020-11-28
