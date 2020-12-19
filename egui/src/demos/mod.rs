@@ -11,6 +11,7 @@ mod font_book;
 pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
 mod fractal_clock;
+mod painting;
 mod sliders;
 mod tests;
 pub mod toggle_switch;
@@ -19,7 +20,7 @@ mod widgets;
 pub use {
     app::*, color_test::ColorTest, dancing_strings::DancingStrings, demo_window::DemoWindow,
     demo_windows::*, drag_and_drop::*, font_book::FontBook, fractal_clock::FractalClock,
-    sliders::Sliders, tests::Tests, widgets::Widgets,
+    painting::Painting, sliders::Sliders, tests::Tests, widgets::Widgets,
 };
 
 pub const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";

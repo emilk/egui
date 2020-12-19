@@ -11,7 +11,6 @@ pub struct DemoWindow {
     layout: LayoutDemo,
     tree: Tree,
     box_painting: BoxPainting,
-    painting: Painting,
 }
 
 impl Default for DemoWindow {
@@ -24,7 +23,6 @@ impl Default for DemoWindow {
             layout: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
-            painting: Default::default(),
         }
     }
 }
@@ -74,10 +72,6 @@ impl DemoWindow {
                     ui.label(LOREM_IPSUM_LONG);
                 });
             });
-
-        CollapsingHeader::new("Paint with your mouse")
-            .default_open(false)
-            .show(ui, |ui| self.painting.ui(ui));
 
         CollapsingHeader::new("Resize")
             .default_open(false)
@@ -227,72 +221,6 @@ impl BoxPainting {
             });
         }
         ui.painter().extend(cmds);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Painting {
-    lines: Vec<Vec<Vec2>>,
-    stroke: Stroke,
-}
-
-impl Default for Painting {
-    fn default() -> Self {
-        Self {
-            lines: Default::default(),
-            stroke: Stroke::new(1.0, LIGHT_BLUE),
-        }
-    }
-}
-
-impl Painting {
-    pub fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Draw with your mouse to paint");
-
-        ui.horizontal(|ui| {
-            self.stroke.ui(ui, "Stroke");
-            if ui.button("Clear").clicked {
-                self.lines.clear();
-            }
-        });
-
-        Resize::default()
-            .default_size([200.0, 200.0])
-            .show(ui, |ui| self.content(ui));
-    }
-
-    fn content(&mut self, ui: &mut Ui) {
-        let painter = ui.allocate_painter(ui.available_size_before_wrap_finite());
-        let rect = painter.clip_rect();
-        let id = ui.make_position_id();
-        let response = ui.interact(rect, id, Sense::drag());
-
-        if self.lines.is_empty() {
-            self.lines.push(vec![]);
-        }
-
-        let current_line = self.lines.last_mut().unwrap();
-
-        if response.active {
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                let canvas_pos = mouse_pos - rect.min;
-                if current_line.last() != Some(&canvas_pos) {
-                    current_line.push(canvas_pos);
-                }
-            }
-        } else if !current_line.is_empty() {
-            self.lines.push(vec![]);
-        }
-
-        for line in &self.lines {
-            if line.len() >= 2 {
-                let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                painter.add(paint::PaintCmd::line(points, self.stroke));
-            }
-        }
     }
 }
 

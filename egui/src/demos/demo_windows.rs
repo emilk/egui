@@ -36,6 +36,7 @@ impl Default for Demos {
         Self {
             demos: vec![
                 (false, Box::new(crate::demos::FontBook::default())),
+                (false, Box::new(crate::demos::Painting::default())),
                 (false, Box::new(crate::demos::DancingStrings::default())),
                 (false, Box::new(crate::demos::DragAndDropDemo::default())),
                 (false, Box::new(crate::demos::Tests::default())),
