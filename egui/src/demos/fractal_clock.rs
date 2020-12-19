@@ -58,17 +58,17 @@ impl FractalClock {
             ui.available_rect_before_wrap_finite(),
         );
         self.paint(&painter);
+        // Make sure we allocate what we used (everything)
+        ui.expand_to_include_rect(painter.clip_rect());
 
         Frame::popup(ui.style())
             .fill(Rgba::luminance_alpha(0.02, 0.5).into())
             .stroke(Stroke::none())
-            .show(&mut ui.left_column(320.0), |ui| {
+            .show(ui, |ui| {
+                ui.set_max_width(270.0);
                 CollapsingHeader::new("Settings")
                     .show(ui, |ui| self.options_ui(ui, seconds_since_midnight));
             });
-
-        // Make sure we allocate what we used (everything)
-        ui.allocate_space(painter.clip_rect().size());
     }
 
     fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {

@@ -834,19 +834,26 @@ impl Ui {
         (ret, self.interact_hover(rect))
     }
 
+    #[deprecated]
     pub fn left_column(&mut self, width: f32) -> Self {
+        #[allow(deprecated)]
         self.column(Align::Min, width)
     }
 
+    #[deprecated]
     pub fn centered_column(&mut self, width: f32) -> Self {
+        #[allow(deprecated)]
         self.column(Align::Center, width)
     }
 
+    #[deprecated]
     pub fn right_column(&mut self, width: f32) -> Self {
+        #[allow(deprecated)]
         self.column(Align::Max, width)
     }
 
     /// A column ui with a given width.
+    #[deprecated]
     pub fn column(&mut self, column_position: Align, width: f32) -> Self {
         let x = match column_position {
             Align::Min => 0.0,

@@ -30,7 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
 
 ### Deprecated
-* Deprecated `RawInput::screen_size` - use `RawInput::screen_rect` instead.
+* `RawInput::screen_size` - use `RawInput::screen_rect` instead.
+* left/centered/right column functions on `Ui`.
 
 
 ## 0.5.0 - 2020-12-13
