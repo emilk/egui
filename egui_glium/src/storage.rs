@@ -25,8 +25,8 @@ impl FileStorage {
 }
 
 impl egui::app::Storage for FileStorage {
-    fn get_string(&self, key: &str) -> Option<&str> {
-        self.kv.get(key).map(String::as_str)
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.kv.get(key).cloned()
     }
 
     fn set_string(&mut self, key: &str, value: String) {

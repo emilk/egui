@@ -172,6 +172,20 @@ pub fn save_memory(ctx: &egui::Context) {
     }
 }
 
+pub struct LocalStorage {}
+
+impl egui::app::Storage for LocalStorage {
+    fn get_string(&self, key: &str) -> Option<String> {
+        local_storage_get(key)
+    }
+    fn set_string(&mut self, key: &str, value: String) {
+        local_storage_set(key, &value);
+    }
+    fn flush(&mut self) {}
+}
+
+// ----------------------------------------------------------------------------
+
 pub fn handle_output(output: &egui::Output) {
     let egui::Output {
         cursor_icon,

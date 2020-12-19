@@ -108,7 +108,7 @@ pub trait RepaintSignal: Send {
 /// On the web this is backed by [local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 /// On desktop this is backed by the file system.
 pub trait Storage {
-    fn get_string(&self, key: &str) -> Option<&str>;
+    fn get_string(&self, key: &str) -> Option<String>;
     fn set_string(&mut self, key: &str, value: String);
 
     /// write-to-disk or similar
@@ -120,7 +120,7 @@ pub trait Storage {
 pub struct DummyStorage {}
 
 impl Storage for DummyStorage {
-    fn get_string(&self, _key: &str) -> Option<&str> {
+    fn get_string(&self, _key: &str) -> Option<String> {
         None
     }
     fn set_string(&mut self, _key: &str, _value: String) {}
@@ -131,7 +131,7 @@ impl Storage for DummyStorage {
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
         .get_string(key)
-        .and_then(|value| serde_json::from_str(value).ok())
+        .and_then(|value| serde_json::from_str(&value).ok())
 }
 
 #[cfg(feature = "serde_json")]
