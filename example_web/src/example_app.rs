@@ -45,11 +45,7 @@ impl egui::app::App for ExampleApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(
-        &mut self,
-        ctx: &std::sync::Arc<egui::Context>,
-        integration_context: &mut egui::app::IntegrationContext,
-    ) {
+    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut egui::app::IntegrationContext) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {

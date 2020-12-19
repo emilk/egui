@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed 🔧
 
+* `Arc<Context>` has been replaced with `CtxRef` everywhere.
 * Slight tweak of the default `Style` and font sizes.
 * `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
 * A `Window` may now cover an existing `CentralPanel`.

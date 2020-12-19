@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{containers::*, widgets::*, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,12 +29,7 @@ impl Default for FractalClock {
 }
 
 impl FractalClock {
-    pub fn window(
-        &mut self,
-        ctx: &Arc<Context>,
-        open: &mut bool,
-        seconds_since_midnight: Option<f64>,
-    ) {
+    pub fn window(&mut self, ctx: &CtxRef, open: &mut bool, seconds_since_midnight: Option<f64>) {
         Window::new("🕑 Fractal Clock")
             .open(open)
             .default_size(vec2(512.0, 512.0))

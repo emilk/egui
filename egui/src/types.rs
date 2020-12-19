@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use crate::{math::Rect, Context, Ui};
+use crate::{math::Rect, CtxRef, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -57,7 +55,7 @@ impl Default for CursorIcon {
 pub struct Response {
     // CONTEXT:
     /// Used for optionally showing a tooltip
-    pub ctx: Arc<Context>,
+    pub ctx: CtxRef,
 
     // IN:
     /// The area of the screen we are talking about
@@ -143,7 +141,7 @@ impl Response {
     /// A logical "or" operation.
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     pub fn union(&self, other: Self) -> Self {
-        assert!(Arc::ptr_eq(&self.ctx, &other.ctx));
+        assert!(self.ctx == other.ctx);
         Self {
             ctx: other.ctx,
             rect: self.rect.union(other.rect),

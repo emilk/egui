@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use crate::*;
 
 /// Show a tooltip at the current mouse position (if any).
-pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
+pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     let tooltip_rect = ctx.memory().tooltip_rect;
 
     let window_pos = if let Some(tooltip_rect) = tooltip_rect {
@@ -23,7 +21,7 @@ pub fn show_tooltip(ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) {
 }
 
 /// Show a tooltip at the current mouse position (if any).
-pub fn show_tooltip_text(ctx: &Arc<Context>, text: impl Into<String>) {
+pub fn show_tooltip_text(ctx: &CtxRef, text: impl Into<String>) {
     show_tooltip(ctx, |ui| {
         ui.add(crate::widgets::Label::new(text));
     })
@@ -31,7 +29,7 @@ pub fn show_tooltip_text(ctx: &Arc<Context>, text: impl Into<String>) {
 
 /// Show a pop-over window.
 fn show_popup(
-    ctx: &Arc<Context>,
+    ctx: &CtxRef,
     id: Id,
     window_pos: Pos2,
     add_contents: impl FnOnce(&mut Ui),

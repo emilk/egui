@@ -8,7 +8,7 @@ impl demos::Demo for Tests {
         "📋 Tests"
     }
 
-    fn show(&mut self, ctx: &std::sync::Arc<crate::Context>, open: &mut bool) {
+    fn show(&mut self, ctx: &crate::CtxRef, open: &mut bool) {
         Window::new(self.name()).open(open).show(ctx, |ui| {
             use demos::View;
             self.ui(ui);

@@ -21,11 +21,7 @@ impl egui::app::App for ExampleApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(
-        &mut self,
-        ctx: &std::sync::Arc<egui::Context>,
-        integration_context: &mut egui::app::IntegrationContext,
-    ) {
+    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut egui::app::IntegrationContext) {
         let ExampleApp { name, age } = self;
 
         // Example used in `README.md`.

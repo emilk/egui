@@ -4,7 +4,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let raw_input = egui::RawInput::default();
 
     {
-        let mut ctx = egui::Context::new();
+        let mut ctx = egui::CtxRef::default();
         let mut demo_windows = egui::demos::DemoWindows::default();
 
         c.bench_function("demo_windows_minimal", |b| {
@@ -17,7 +17,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let mut ctx = egui::Context::new();
+        let mut ctx = egui::CtxRef::default();
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
         let mut demo_windows = egui::demos::DemoWindows::default();
 
@@ -31,7 +31,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let mut ctx = egui::Context::new();
+        let mut ctx = egui::CtxRef::default();
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
         let mut demo_windows = egui::demos::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
@@ -44,7 +44,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let mut ctx = egui::Context::new();
+        let mut ctx = egui::CtxRef::default();
         ctx.begin_frame(raw_input);
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("label", |b| {

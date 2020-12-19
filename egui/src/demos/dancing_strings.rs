@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{containers::*, demos::*, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -17,7 +15,7 @@ impl Demo for DancingStrings {
         "♫ Dancing Strings"
     }
 
-    fn show(&mut self, ctx: &Arc<Context>, open: &mut bool) {
+    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))

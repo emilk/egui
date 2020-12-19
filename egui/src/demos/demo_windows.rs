@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use crate::{
     app,
     demos::{self, Demo},
-    Context, Resize, ScrollArea, Ui, Window,
+    CtxRef, Resize, ScrollArea, Ui, Window,
 };
 
 // ----------------------------------------------------------------------------
@@ -52,7 +50,7 @@ impl Demos {
         }
     }
 
-    pub fn show(&mut self, ctx: &Arc<Context>) {
+    pub fn show(&mut self, ctx: &CtxRef) {
         for (ref mut open, demo) in &mut self.demos {
             demo.show(ctx, open);
         }
@@ -87,7 +85,7 @@ impl DemoWindows {
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(
         &mut self,
-        ctx: &Arc<Context>,
+        ctx: &CtxRef,
         env: &DemoEnvironment,
         tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
         sidebar_ui: impl FnOnce(&mut Ui),
@@ -147,7 +145,7 @@ impl DemoWindows {
     /// Show the open windows.
     fn windows(
         &mut self,
-        ctx: &Arc<Context>,
+        ctx: &CtxRef,
         env: &DemoEnvironment,
         tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
     ) {
@@ -206,7 +204,7 @@ impl DemoWindows {
         self.resize_windows(ctx);
     }
 
-    fn resize_windows(&mut self, ctx: &Arc<Context>) {
+    fn resize_windows(&mut self, ctx: &CtxRef) {
         let open = &mut self.open_windows.resize;
 
         Window::new("resizable")

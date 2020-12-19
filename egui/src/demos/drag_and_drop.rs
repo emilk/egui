@@ -100,7 +100,7 @@ impl Demo for DragAndDropDemo {
         "✋ Drag and Drop"
     }
 
-    fn show(&mut self, ctx: &std::sync::Arc<Context>, open: &mut bool) {
+    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))

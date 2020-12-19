@@ -8,7 +8,7 @@
 //! Use one of `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`. For instace:
 //!
 //! ```
-//! # let mut ctx = egui::Context::new();
+//! # let mut ctx = egui::CtxRef::default();
 //! # ctx.begin_frame(Default::default());
 //! egui::CentralPanel::default().show(&ctx, |ui| {
 //!     ui.label("Hello");
@@ -19,7 +19,7 @@
 //! To write your own integration for Egui you need to do this:
 //!
 //! ``` ignore
-//! let mut egui_ctx = egui::Context::new();
+//! let mut egui_ctx = egui::CtxRef::default();
 //!
 //! // Game loop:
 //! loop {
@@ -96,7 +96,7 @@ pub mod widgets;
 pub use {
     align::Align,
     containers::*,
-    context::Context,
+    context::{Context, CtxRef},
     demos::DemoApp,
     id::Id,
     input::*,
@@ -129,7 +129,7 @@ pub(crate) fn has_debug_assertions() -> bool {
 #[test]
 fn test_egui_e2e() {
     let mut demo_windows = crate::demos::DemoWindows::default();
-    let mut ctx = crate::Context::new();
+    let mut ctx = crate::CtxRef::default();
     let raw_input = crate::RawInput::default();
 
     const NUM_FRAMES: usize = 5;

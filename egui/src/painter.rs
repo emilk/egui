@@ -1,19 +1,17 @@
-use std::sync::Arc;
-
 use crate::{
     align::{anchor_rect, Align, LEFT_TOP},
     color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
-    Context, LayerId, Srgba,
+    CtxRef, LayerId, Srgba,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of paint commands
-    ctx: Arc<Context>,
+    ctx: CtxRef,
 
     /// Where we paint
     layer_id: LayerId,
@@ -24,7 +22,7 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new(ctx: Arc<Context>, layer_id: LayerId, clip_rect: Rect) -> Self {
+    pub fn new(ctx: CtxRef, layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
             layer_id,
@@ -61,7 +59,7 @@ impl Painter {
 
 /// ## Accessors etc
 impl Painter {
-    pub(crate) fn ctx(&self) -> &Arc<Context> {
+    pub(crate) fn ctx(&self) -> &CtxRef {
         &self.ctx
     }
 

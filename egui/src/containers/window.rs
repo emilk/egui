@@ -1,7 +1,5 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use std::sync::Arc;
-
 use crate::{paint::*, widgets::*, *};
 
 use super::*;
@@ -183,13 +181,13 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
+    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
         self.show_impl(ctx, Box::new(add_contents))
     }
 
     fn show_impl<'c>(
         self,
-        ctx: &Arc<Context>,
+        ctx: &CtxRef,
         add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
     ) -> Option<Response> {
         let Window {

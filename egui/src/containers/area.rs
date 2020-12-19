@@ -2,7 +2,7 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use std::{fmt::Debug, hash::Hash, sync::Arc};
+use std::{fmt::Debug, hash::Hash};
 
 use crate::*;
 
@@ -103,7 +103,7 @@ pub(crate) struct Prepared {
 }
 
 impl Area {
-    pub(crate) fn begin(self, ctx: &Arc<Context>) -> Prepared {
+    pub(crate) fn begin(self, ctx: &CtxRef) -> Prepared {
         let Area {
             id,
             movable,
@@ -131,7 +131,7 @@ impl Area {
         }
     }
 
-    pub fn show(self, ctx: &Arc<Context>, add_contents: impl FnOnce(&mut Ui)) -> Response {
+    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Response {
         let prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         add_contents(&mut content_ui);
@@ -148,7 +148,7 @@ impl Prepared {
         &mut self.state
     }
 
-    pub(crate) fn content_ui(&self, ctx: &Arc<Context>) -> Ui {
+    pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
         let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
         let clip_rect = max_rect
             .expand(ctx.style().visuals.clip_rect_margin)
@@ -163,7 +163,7 @@ impl Prepared {
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
-    pub(crate) fn end(self, ctx: &Arc<Context>, content_ui: Ui) -> Response {
+    pub(crate) fn end(self, ctx: &CtxRef, content_ui: Ui) -> Response {
         let Prepared {
             layer_id,
             mut state,

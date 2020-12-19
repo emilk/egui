@@ -41,13 +41,7 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    pub fn new(
-        ctx: Arc<Context>,
-        layer_id: LayerId,
-        id: Id,
-        max_rect: Rect,
-        clip_rect: Rect,
-    ) -> Self {
+    pub fn new(ctx: CtxRef, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         let layout = Layout::default();
         let region = layout.region_from_max_rect(max_rect);
@@ -77,7 +71,7 @@ impl Ui {
 
     /// Empty `Ui` for use in tests.
     pub fn __test() -> Self {
-        let mut ctx = Context::new();
+        let mut ctx = CtxRef::default();
         ctx.begin_frame(Default::default());
         let id = Id::new("__test");
         let layer_id = LayerId::new(Order::Middle, id);
@@ -106,7 +100,7 @@ impl Ui {
         self.style = style.into();
     }
 
-    pub fn ctx(&self) -> &Arc<Context> {
+    pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
 

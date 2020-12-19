@@ -40,7 +40,7 @@ pub trait Demo {
     fn name(&self) -> &str;
 
     /// Show windows, etc
-    fn show(&mut self, ctx: &std::sync::Arc<crate::Context>, open: &mut bool);
+    fn show(&mut self, ctx: &crate::CtxRef, open: &mut bool);
 }
 
 // ----------------------------------------------------------------------------

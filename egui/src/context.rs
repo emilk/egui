@@ -101,6 +101,236 @@ impl FrameState {
 
 // ----------------------------------------------------------------------------
 
+/// A wrapper around `CtxRef`.
+/// This is how you will normally access a [`Context`].
+#[derive(Clone)]
+pub struct CtxRef(std::sync::Arc<Context>);
+
+impl std::ops::Deref for CtxRef {
+    type Target = Context;
+
+    fn deref(&self) -> &Context {
+        self.0.deref()
+    }
+}
+
+impl AsRef<Context> for CtxRef {
+    fn as_ref(&self) -> &Context {
+        self.0.as_ref()
+    }
+}
+
+impl std::borrow::Borrow<Context> for CtxRef {
+    fn borrow(&self) -> &Context {
+        self.0.borrow()
+    }
+}
+
+impl std::cmp::PartialEq for CtxRef {
+    fn eq(&self, other: &CtxRef) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Default for CtxRef {
+    fn default() -> Self {
+        Self(Arc::new(Context {
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: AtomicU32::new(1),
+            ..Context::default()
+        }))
+    }
+}
+
+impl CtxRef {
+    /// Call at the start of every frame.
+    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
+    pub fn begin_frame(&mut self, new_input: RawInput) {
+        let mut self_: Context = (*self.0).clone();
+        self_.begin_frame_mut(new_input);
+        *self = Self(Arc::new(self_));
+    }
+
+    // ---------------------------------------------------------------------
+
+    /// If the given `Id` is not unique, an error will be printed at the given position.
+    /// Call this for `Id`:s that need interaction or persistence.
+    pub(crate) fn register_interaction_id(&self, id: Id, new_pos: Pos2) {
+        let prev_pos = self.memory().used_ids.insert(id, new_pos);
+        if let Some(prev_pos) = prev_pos {
+            if prev_pos.distance(new_pos) < 0.1 {
+                // Likely same Widget being interacted with twice, which is fine.
+                return;
+            }
+
+            let show_error = |pos: Pos2, text: String| {
+                let painter = self.debug_painter();
+                let rect = painter.error(pos, text);
+                if let Some(mouse_pos) = self.input.mouse.pos {
+                    if rect.contains(mouse_pos) {
+                        painter.error(
+                            rect.left_bottom() + vec2(2.0, 4.0),
+                            "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
+                             or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
+                        );
+                    }
+                }
+            };
+
+            let id_str = id.short_debug_format();
+
+            if prev_pos.distance(new_pos) < 4.0 {
+                show_error(new_pos, format!("Double use of ID {}", id_str));
+            } else {
+                show_error(prev_pos, format!("First use of ID {}", id_str));
+                show_error(new_pos, format!("Second use of ID {}", id_str));
+            }
+
+            // TODO: a tooltip explaining this.
+        }
+    }
+
+    // ---------------------------------------------------------------------
+
+    /// Use `ui.interact` instead
+    pub(crate) fn interact(
+        &self,
+        layer_id: LayerId,
+        clip_rect: Rect,
+        item_spacing: Vec2,
+        rect: Rect,
+        id: Option<Id>,
+        sense: Sense,
+    ) -> Response {
+        let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
+        let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
+        let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
+
+        // If the the focus is lost after the call to interact,
+        // this will be `false`, so `TextEdit` also sets this manually.
+        let lost_kb_focus = id
+            .map(|id| self.memory().lost_kb_focus(id))
+            .unwrap_or(false);
+
+        if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
+            // Not interested or allowed input:
+            return Response {
+                ctx: self.clone(),
+                sense,
+                rect,
+                hovered,
+                clicked: false,
+                double_clicked: false,
+                active: false,
+                has_kb_focus,
+                lost_kb_focus,
+            };
+        }
+        let id = id.unwrap();
+
+        self.register_interaction_id(id, rect.min);
+
+        let mut memory = self.memory();
+
+        memory.interaction.click_interest |= hovered && sense.click;
+        memory.interaction.drag_interest |= hovered && sense.drag;
+
+        let active =
+            memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
+
+        if self.input.mouse.pressed {
+            if hovered {
+                let mut response = Response {
+                    ctx: self.clone(),
+                    sense,
+                    rect,
+                    hovered: true,
+                    clicked: false,
+                    double_clicked: false,
+                    active: false,
+                    has_kb_focus,
+                    lost_kb_focus,
+                };
+
+                if sense.click && memory.interaction.click_id.is_none() {
+                    // start of a click
+                    memory.interaction.click_id = Some(id);
+                    response.active = true;
+                }
+
+                if sense.drag
+                    && (memory.interaction.drag_id.is_none() || memory.interaction.drag_is_window)
+                {
+                    // start of a drag
+                    memory.interaction.drag_id = Some(id);
+                    memory.interaction.drag_is_window = false;
+                    memory.window_interaction = None; // HACK: stop moving windows (if any)
+                    response.active = true;
+                }
+
+                response
+            } else {
+                // miss
+                Response {
+                    ctx: self.clone(),
+                    sense,
+                    rect,
+                    hovered,
+                    clicked: false,
+                    double_clicked: false,
+                    active: false,
+                    has_kb_focus,
+                    lost_kb_focus,
+                }
+            }
+        } else if self.input.mouse.released {
+            let clicked = hovered && active && self.input.mouse.could_be_click;
+            Response {
+                ctx: self.clone(),
+                sense,
+                rect,
+                hovered,
+                clicked,
+                double_clicked: clicked && self.input.mouse.double_click,
+                active,
+                has_kb_focus,
+                lost_kb_focus,
+            }
+        } else if self.input.mouse.down {
+            Response {
+                ctx: self.clone(),
+                sense,
+                rect,
+                hovered: hovered && active,
+                clicked: false,
+                double_clicked: false,
+                active,
+                has_kb_focus,
+                lost_kb_focus,
+            }
+        } else {
+            Response {
+                ctx: self.clone(),
+                sense,
+                rect,
+                hovered,
+                clicked: false,
+                double_clicked: false,
+                active,
+                has_kb_focus,
+                lost_kb_focus,
+            }
+        }
+    }
+
+    pub fn debug_painter(&self) -> Painter {
+        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Thi is the first thing you need when working with Egui.
 ///
 /// Contains the input state, memory, options and output.
@@ -149,13 +379,10 @@ impl Clone for Context {
 }
 
 impl Context {
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: AtomicU32::new(1),
-            ..Self::default()
-        })
+    #[allow(clippy::new_ret_no_self)]
+    #[deprecated = "Use CtxRef::default() instead"]
+    pub fn new() -> CtxRef {
+        CtxRef::default()
     }
 
     /// How much space is still available after panels has been added.
@@ -289,14 +516,6 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Call at the start of every frame.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    pub fn begin_frame(self: &mut Arc<Self>, new_input: RawInput) {
-        let mut self_: Self = (**self).clone();
-        self_.begin_frame_mut(new_input);
-        *self = Arc::new(self_);
-    }
-
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory().begin_frame(&self.input, &new_raw_input);
 
@@ -385,45 +604,6 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// If the given `Id` is not unique, an error will be printed at the given position.
-    /// Call this for `Id`:s that need interaction or persistence.
-    pub(crate) fn register_interaction_id(self: &Arc<Self>, id: Id, new_pos: Pos2) {
-        let prev_pos = self.memory().used_ids.insert(id, new_pos);
-        if let Some(prev_pos) = prev_pos {
-            if prev_pos.distance(new_pos) < 0.1 {
-                // Likely same Widget being interacted with twice, which is fine.
-                return;
-            }
-
-            let show_error = |pos: Pos2, text: String| {
-                let painter = self.debug_painter();
-                let rect = painter.error(pos, text);
-                if let Some(mouse_pos) = self.input.mouse.pos {
-                    if rect.contains(mouse_pos) {
-                        painter.error(
-                            rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
-                             or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
-                        );
-                    }
-                }
-            };
-
-            let id_str = id.short_debug_format();
-
-            if prev_pos.distance(new_pos) < 4.0 {
-                show_error(new_pos, format!("Double use of ID {}", id_str));
-            } else {
-                show_error(prev_pos, format!("First use of ID {}", id_str));
-                show_error(new_pos, format!("Second use of ID {}", id_str));
-            }
-
-            // TODO: a tooltip explaining this.
-        }
-    }
-
-    // ---------------------------------------------------------------------
-
     /// Is the mouse over any Egui area?
     pub fn is_mouse_over_area(&self) -> bool {
         if let Some(mouse_pos) = self.input.mouse.pos {
@@ -477,137 +657,6 @@ impl Context {
             false
         }
     }
-
-    /// Use `ui.interact` instead
-    pub(crate) fn interact(
-        self: &Arc<Self>,
-        layer_id: LayerId,
-        clip_rect: Rect,
-        item_spacing: Vec2,
-        rect: Rect,
-        id: Option<Id>,
-        sense: Sense,
-    ) -> Response {
-        let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
-        let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
-        let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
-
-        // If the the focus is lost after the call to interact,
-        // this will be `false`, so `TextEdit` also sets this manually.
-        let lost_kb_focus = id
-            .map(|id| self.memory().lost_kb_focus(id))
-            .unwrap_or(false);
-
-        if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
-            // Not interested or allowed input:
-            return Response {
-                ctx: self.clone(),
-                sense,
-                rect,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active: false,
-                has_kb_focus,
-                lost_kb_focus,
-            };
-        }
-        let id = id.unwrap();
-
-        self.register_interaction_id(id, rect.min);
-
-        let mut memory = self.memory();
-
-        memory.interaction.click_interest |= hovered && sense.click;
-        memory.interaction.drag_interest |= hovered && sense.drag;
-
-        let active =
-            memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
-
-        if self.input.mouse.pressed {
-            if hovered {
-                let mut response = Response {
-                    ctx: self.clone(),
-                    sense,
-                    rect,
-                    hovered: true,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
-                };
-
-                if sense.click && memory.interaction.click_id.is_none() {
-                    // start of a click
-                    memory.interaction.click_id = Some(id);
-                    response.active = true;
-                }
-
-                if sense.drag
-                    && (memory.interaction.drag_id.is_none() || memory.interaction.drag_is_window)
-                {
-                    // start of a drag
-                    memory.interaction.drag_id = Some(id);
-                    memory.interaction.drag_is_window = false;
-                    memory.window_interaction = None; // HACK: stop moving windows (if any)
-                    response.active = true;
-                }
-
-                response
-            } else {
-                // miss
-                Response {
-                    ctx: self.clone(),
-                    sense,
-                    rect,
-                    hovered,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
-                }
-            }
-        } else if self.input.mouse.released {
-            let clicked = hovered && active && self.input.mouse.could_be_click;
-            Response {
-                ctx: self.clone(),
-                sense,
-                rect,
-                hovered,
-                clicked,
-                double_clicked: clicked && self.input.mouse.double_click,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        } else if self.input.mouse.down {
-            Response {
-                ctx: self.clone(),
-                sense,
-                rect,
-                hovered: hovered && active,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        } else {
-            Response {
-                ctx: self.clone(),
-                sense,
-                rect,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        }
-    }
 }
 
 /// ## Animation
@@ -630,13 +679,6 @@ impl Context {
             self.request_repaint();
         }
         animated_value
-    }
-}
-
-/// ## Painting
-impl Context {
-    pub fn debug_painter(self: &Arc<Self>) -> Painter {
-        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
     }
 }
 

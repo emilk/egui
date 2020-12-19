@@ -8,7 +8,7 @@ pub use egui::{
 // ----------------------------------------------------------------------------
 
 pub struct WebBackend {
-    ctx: Arc<egui::Context>,
+    ctx: egui::CtxRef,
     painter: webgl::Painter,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
@@ -17,7 +17,7 @@ pub struct WebBackend {
 
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
-        let ctx = egui::Context::new();
+        let ctx = egui::CtxRef::default();
         load_memory(&ctx);
         Ok(Self {
             ctx,

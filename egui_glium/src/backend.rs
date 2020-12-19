@@ -72,7 +72,7 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
-    let mut ctx = egui::Context::new();
+    let mut ctx = egui::CtxRef::default();
     *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
     app.setup(&ctx);
 

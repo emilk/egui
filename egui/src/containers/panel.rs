@@ -3,7 +3,6 @@
 //! the only places where you can put you widgets.
 
 use crate::*;
-use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 
@@ -27,11 +26,7 @@ impl SidePanel {
 }
 
 impl SidePanel {
-    pub fn show<R>(
-        self,
-        ctx: &Arc<Context>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let Self { id, max_width } = self;
 
         let mut panel_rect = ctx.available_rect();
@@ -80,11 +75,7 @@ impl TopPanel {
 }
 
 impl TopPanel {
-    pub fn show<R>(
-        self,
-        ctx: &Arc<Context>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let Self { id, max_height } = self;
         let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
@@ -122,11 +113,7 @@ impl TopPanel {
 pub struct CentralPanel {}
 
 impl CentralPanel {
-    pub fn show<R>(
-        self,
-        ctx: &Arc<Context>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let Self {} = self;
 
         let panel_rect = ctx.available_rect();
