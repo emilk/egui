@@ -1,13 +1,11 @@
 [workspace]
 members = [
-    "demo_glium",
-    "demo_web",
+    "egui_demo",
     "egui_glium",
     "egui_web",
     "egui",
     "example_web",
 ]
-
 
 [patch.crates-io]
 egui = { path = 'egui' }

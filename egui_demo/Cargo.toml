@@ -1,5 +1,5 @@
 [package]
-name = "demo_web"
+name = "egui_demo"
 version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -10,8 +10,14 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 egui = { path = "../egui", features = ["serde", "serde_json"] }
+serde = { version = "1", features = ["derive"] }
+
+# For compiling natively:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui_glium = { path = "../egui_glium" }
+
+# For compiling to web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { path = "../egui_web" }
 js-sys = "0.3"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 wasm-bindgen = "0.2"
