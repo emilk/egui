@@ -464,7 +464,7 @@ impl Default for TesselationOptions {
     fn default() -> Self {
         Self {
             aa_size: 1.0,
-            anti_alias: !crate::has_debug_assertions(),
+            anti_alias: true,
             coarse_tessellation_culling: true,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
