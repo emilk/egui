@@ -129,6 +129,9 @@ pub struct Visuals {
     /// needs to look different from other interactive stuff.
     pub dark_bg_color: Srgba, // TODO: remove, rename, or clarify what it is for
 
+    /// The color used for `Hyperlink`,
+    pub hyperlink_color: Srgba,
+
     pub window_corner_radius: f32,
 
     pub resize_corner_size: f32,
@@ -270,6 +273,7 @@ impl Default for Visuals {
             widgets: Default::default(),
             selection: Default::default(),
             dark_bg_color: Srgba::black_alpha(140),
+            hyperlink_color: Srgba::from_rgb(90, 170, 255),
             window_corner_radius: 10.0,
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
@@ -473,6 +477,7 @@ impl Visuals {
             widgets,
             selection,
             dark_bg_color,
+            hyperlink_color,
             window_corner_radius,
             resize_corner_size,
             text_cursor_width,
@@ -485,6 +490,7 @@ impl Visuals {
         ui.collapsing("widgets", |ui| widgets.ui(ui));
         ui.collapsing("selection", |ui| selection.ui(ui));
         ui_color(ui, dark_bg_color, "dark_bg_color");
+        ui_color(ui, hyperlink_color, "hyperlink_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));

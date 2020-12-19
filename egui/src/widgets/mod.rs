@@ -257,7 +257,6 @@ impl Widget for Hyperlink {
             text,
             text_style,
         } = self;
-        let color = color::LIGHT_BLUE;
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available_width());
@@ -272,6 +271,7 @@ impl Widget for Hyperlink {
             ui.ctx().output().open_url = Some(url.clone());
         }
 
+        let color = ui.style().visuals.hyperlink_color;
         let visuals = ui.style().interact(&response);
 
         if response.hovered {
