@@ -8,26 +8,34 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
-Highly portable immediate mode GUI library for Rust.
+Egui is a simple, fast, and highly portable immediate mode GUI library for Rust. Egui runs on the web, natively, and in your favorite game engine (or will soon).
 
-Simple, fast, work in progress
+Egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
 
-Made for games or for anyone who want to make their own GUI and share it easily on a web page or compile it natively.
-
-Egui can be used anywhere you can draw textured triangles.
+Egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
 Sections:
 
+* [Quick start](#quick-start)
 * [Demo](#demo)
 * [Goals](#goals)
+* [Who is Egui for?](#who-is-egui-for)
 * [State / features](#state)
 * [How it works](#how-it-works)
 * [Integrations](#integrations)
 * [Other](#other)
 
+## Quick start
+
+If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/egui_template/> and follow the instructions there!
+
+If you want to integrate Egui into an existing engine, go to the [Integrations](#integrations) section.
+
+If you have questions, use [Discussions](https://github.com/emilk/egui/discussions). If you want to contribute to Egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
+
 ## Demo
 
-[Click to run Egui web demo](https://emilk.github.io/egui/index.html). Partial demo source: <https://github.com/emilk/egui/blob/master/egui/src/demos/app.rs>
+[Click to run Egui web demo](https://emilk.github.io/egui/index.html).
 
 [Hobogo](https://emilk.github.io/hobogo/index.html): A small game I made using Egui. Source: <https://github.com/emilk/hobogo>
 
@@ -50,9 +58,9 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Goals
 
-* API: Simple and convenient (e.g. no lifetime arguments for [`Ui`](https://docs.rs/egui/latest/egui/struct.Ui.html)).
+* The easiest to use GUI libary
 * Responsive: target 60 Hz in debug build
-* Friendly: difficult to make mistakes
+* Friendly: difficult to make mistakes, and shouldn't panic
 * Portable: the same code works on the web and as a native app
 * Easy to integrate into any environment
 * A simple 2D graphics API for custom painting
@@ -68,11 +76,21 @@ Egui is *not* a framework. Egui is a library you call into, not an environment y
 
 **NOTE**: Egui does not claim to have reached all these goals yet! Egui is still work in progress.
 
-### Why Egui?
+### Non-goals
 
-Egui is written for Rust game engines. If you are not using Rust, Egui is not for you. If you want a GUI that looks native, Egui is not for you. If you want something stable that doesn't break when you upgrade it, Egui isn't for you (yet).
+* Become the most powerful GUI libary
+* Native looking interface
+* Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
+
+## Who is Egui for?
+
+Egui aims to be the best choice when you want a simple way to create a GUI, or you want to add a GUI to a game engine.
+
+If you are not using Rust, Egui is not for you. If you want a GUI that looks native, Egui is not for you. If you want something that doesn't break when you upgrade it, Egui isn't for you (yet).
 
 But if you are writing something interactive in Rust that needs a simple GUI, Egui may be for you.
+
+### Egui vs Dear ImGui
 
 The obvious alternative to Egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library, which a lot more features and polish compared to Egui. However, Egui provides some benefits for Rust users:
 
@@ -94,17 +112,18 @@ So in summary:
 
 ## State
 
-Alpha state. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+Egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
 
 ### Features
 
 * Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker
-* Layouts: horizontal, vertical, columns
-* Text input: very basic, multiline, copy/paste
+* Layouts: horizontal, vertical, columns, automatic wrapping
+* Text editing: multiline, copy/paste, undo, emoji supports
 * Windows: move, resize, name, minimize and close. Automatically sized and positioned.
 * Regions: resizing, vertical scrolling, collapsing headers (sections)
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
+* More
 
 ## How it works
 
@@ -118,7 +137,7 @@ Loop:
 ## Integrations
 
 Egui is build to be easy to integrate into any existing game engine or platform you are working on.
-Egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
+Egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the Egui integration.
 The integration needs to do two things:
 
 * **IO**: Supply Egui with input (mouse position, keyboard presses, ...) and handle Egui output (cursor changes, copy-paste integration, ...).
