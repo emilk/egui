@@ -7,7 +7,11 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     let window_pos = if let Some(tooltip_rect) = tooltip_rect {
         tooltip_rect.left_bottom()
     } else if let Some(mouse_pos) = ctx.input().mouse.pos {
-        mouse_pos + vec2(16.0, 16.0)
+        let expected_size = vec2(ctx.style().spacing.tooltip_width, 32.0);
+        let position = mouse_pos + vec2(16.0, 16.0);
+        let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
+        let position = position.max(ctx.input().screen_rect().left_top());
+        position
     } else {
         return; // No good place for a tooltip :(
     };
