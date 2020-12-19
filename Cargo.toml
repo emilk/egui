@@ -5,7 +5,6 @@ members = [
     "egui_glium",
     "egui_web",
     "egui",
-    "example_glium",
     "example_web",
 ]
 
