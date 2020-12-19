@@ -1,5 +1,6 @@
 use crate::*;
 
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
 pub struct ImageButton {
     image: widgets::Image,

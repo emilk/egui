@@ -22,6 +22,7 @@ use paint::*;
 // ----------------------------------------------------------------------------
 
 /// Anything implementing Widget can be added to a Ui with `Ui::add`
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub trait Widget {
     fn ui(self, ui: &mut Ui) -> Response;
 }
@@ -29,6 +30,7 @@ pub trait Widget {
 // ----------------------------------------------------------------------------
 
 /// Static text.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
@@ -213,6 +215,7 @@ impl Into<Label> for String {
 // ----------------------------------------------------------------------------
 
 /// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Hyperlink {
     // TODO: wrap Label
     url: String,
@@ -296,6 +299,7 @@ impl Widget for Hyperlink {
 // ----------------------------------------------------------------------------
 
 /// Clickable button with text
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: String,
     text_color: Option<Srgba>,
@@ -532,6 +536,7 @@ impl<'a> Widget for Checkbox<'a> {
 // ----------------------------------------------------------------------------
 
 /// One out of several alternatives, either selected or not.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct RadioButton {
     checked: bool,
@@ -628,6 +633,7 @@ impl Widget for RadioButton {
 /// One out of several alternatives, either selected or not.
 /// Will mark selected items with a different background color
 /// An alternative to `RadioButton` and `Checkbox`.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct SelectableLabel {
     selected: bool,
@@ -693,6 +699,7 @@ impl Widget for SelectableLabel {
 // ----------------------------------------------------------------------------
 
 /// A visual separator. A horizontal or vertical line (depending on `Layout`).
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
     spacing: f32,
 }
