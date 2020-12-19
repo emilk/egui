@@ -29,6 +29,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
 * `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
 
+### Fixed 🐛
+
+* The background for `CentralPanel` will now cover unused space too.
+
 ### Deprecated
 * `RawInput::screen_size` - use `RawInput::screen_rect` instead.
 * left/centered/right column functions on `Ui`.

@@ -138,7 +138,11 @@ impl CentralPanel {
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
         let frame = Frame::background(&ctx.style());
-        let r = frame.show(&mut panel_ui, |ui| add_contents(ui));
+        let r = frame.show(&mut panel_ui, |ui| {
+            let r = add_contents(ui);
+            ui.expand_to_include_rect(ui.max_rect()); // Use it all
+            r
+        });
 
         let panel_rect = panel_ui.min_rect();
         let response = panel_ui.interact_hover(panel_rect);
