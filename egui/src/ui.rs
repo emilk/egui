@@ -525,6 +525,13 @@ impl Ui {
         let response = self.interact_hover(final_child_rect);
         (ret, response)
     }
+
+    /// Convenience function to get a region to paint on
+    pub fn allocate_painter(&mut self, desired_size: Vec2) -> Painter {
+        let rect = self.allocate_space(desired_size);
+        let clip_rect = self.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
+        Painter::new(self.ctx().clone(), self.layer_id(), clip_rect)
+    }
 }
 
 /// # Adding widgets

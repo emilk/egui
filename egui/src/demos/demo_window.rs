@@ -243,7 +243,7 @@ impl Default for Painting {
     fn default() -> Self {
         Self {
             lines: Default::default(),
-            stroke: Stroke::new(1.0, LIGHT_GRAY),
+            stroke: Stroke::new(1.0, LIGHT_BLUE),
         }
     }
 }
@@ -265,11 +265,10 @@ impl Painting {
     }
 
     fn content(&mut self, ui: &mut Ui) {
-        let rect = ui.allocate_space(ui.available_size_before_wrap_finite());
-        let response = ui.interact(rect, ui.id(), Sense::drag());
-        let rect = response.rect;
-        let clip_rect = ui.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(ui.ctx().clone(), ui.layer_id(), clip_rect);
+        let painter = ui.allocate_painter(ui.available_size_before_wrap_finite());
+        let rect = painter.clip_rect();
+        let id = ui.make_position_id();
+        let response = ui.interact(rect, id, Sense::drag());
 
         if self.lines.is_empty() {
             self.lines.push(vec![]);
