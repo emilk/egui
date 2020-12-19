@@ -15,6 +15,7 @@ include = [ "**/*.rs", "Cargo.toml"]
 [dependencies]
 chrono = { version = "0.4" }
 clipboard = "0.5"
+directories-next = "2"
 egui = { version = "0.5.0", path = "../egui", features = ["serde", "serde_json"] }
 glium = "0.29"
 serde = "1"

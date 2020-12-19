@@ -63,18 +63,48 @@ fn create_display(
     glium::Display::new(window_builder, context_builder, &event_loop).unwrap()
 }
 
+fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
+    if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
+        let data_dir = proj_dirs.data_dir().to_path_buf();
+        if let Err(err) = std::fs::create_dir_all(&data_dir) {
+            eprintln!(
+                "Saving disabled: Failed to create app path at {:?}: {}",
+                data_dir, err
+            );
+            None
+        } else {
+            let mut config_dir = data_dir;
+            config_dir.push("app.json");
+            let storage = crate::storage::FileStorage::from_path(config_dir);
+            Some(Box::new(storage))
+        }
+    } else {
+        eprintln!("Saving disabled: Failed to find path to data_dir.");
+        None
+    }
+}
+
 /// Run an egui app
-pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
-    app.load(storage.as_ref());
-    let window_settings: Option<WindowSettings> =
-        egui::app::get_value(storage.as_ref(), WINDOW_KEY);
+pub fn run(mut app: Box<dyn App>) -> ! {
+    let mut storage = create_storage(app.name());
+
+    if let Some(storage) = &mut storage {
+        app.load(storage.as_ref());
+    }
+
+    let window_settings: Option<WindowSettings> = storage
+        .as_mut()
+        .and_then(|storage| egui::app::get_value(storage.as_ref(), WINDOW_KEY));
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(app.name(), window_settings, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
     let mut ctx = egui::CtxRef::default();
-    *ctx.memory() = egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY).unwrap_or_default();
+    *ctx.memory() = storage
+        .as_mut()
+        .and_then(|storage| egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY))
+        .unwrap_or_default();
     app.setup(&ctx);
 
     let mut input_state = GliumInputState::from_pixels_per_point(native_pixels_per_point(&display));
@@ -83,6 +113,8 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
     let mut previous_frame_time = None;
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
+
+    let mut last_auto_save = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -153,6 +185,21 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
             }
 
             handle_output(egui_output, &display, clipboard.as_mut());
+
+            if let Some(storage) = &mut storage {
+                let now = Instant::now();
+                if now - last_auto_save > app.auto_save_interval() {
+                    egui::app::set_value(
+                        storage.as_mut(),
+                        WINDOW_KEY,
+                        &WindowSettings::from_display(&display),
+                    );
+                    egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    app.save(storage.as_mut());
+                    storage.flush();
+                    last_auto_save = now;
+                }
+            }
         };
 
         match event {
@@ -167,15 +214,17 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
                 display.gl_window().window().request_redraw(); // TODO: ask Egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
-                egui::app::set_value(
-                    storage.as_mut(),
-                    WINDOW_KEY,
-                    &WindowSettings::from_display(&display),
-                );
-                egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
-                app.save(storage.as_mut());
                 app.on_exit();
-                storage.flush();
+                if let Some(storage) = &mut storage {
+                    egui::app::set_value(
+                        storage.as_mut(),
+                        WINDOW_KEY,
+                        &WindowSettings::from_display(&display),
+                    );
+                    egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    app.save(storage.as_mut());
+                    storage.flush();
+                }
             }
 
             glutin::event::Event::UserEvent(RequestRepaintEvent) => {
