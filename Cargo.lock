@@ -522,27 +522,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "demo_glium"
-version = "0.1.0"
-dependencies = [
- "egui",
- "egui_glium",
- "serde",
-]
-
-[[package]]
-name = "demo_web"
-version = "0.1.0"
-dependencies = [
- "egui",
- "egui_web",
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "derivative"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -605,6 +584,18 @@ dependencies = [
  "rusttype",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "egui_demo"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "egui_glium",
+ "egui_web",
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

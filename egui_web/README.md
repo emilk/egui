@@ -7,6 +7,6 @@
 
 This crates allows you to compile GUI code written with [Egui](https://crates.io/crates/egui) to [WASM](https://en.wikipedia.org/wiki/WebAssembly) to run on a web page.
 
-Check out [docs/index.html](https://github.com/emilk/egui/blob/master/docs/index.html), [demo_web](https://github.com/emilk/egui/tree/master/demo_web) and [build_web.sh](https://github.com/emilk/egui/blob/master/build_web.sh) for examples of how to set it up.
+Check out [docs/index.html](https://github.com/emilk/egui/blob/master/docs/index.html), [egui_demo](https://github.com/emilk/egui/tree/master/egui_demo) and [build_web.sh](https://github.com/emilk/egui/blob/master/build_web.sh) for examples of how to set it up.
 
 To use `egui_web`, you need to set the `RUSTFLAGS=--cfg=web_sys_unstable_apis` flag.

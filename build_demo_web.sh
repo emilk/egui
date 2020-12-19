@@ -1,30 +1,22 @@
 #!/bin/bash
 set -eu
 
-# Pre-requisites:
-rustup target add wasm32-unknown-unknown
-if ! wasm-bindgen --version; then
-	cargo clean
-	cargo install -f wasm-bindgen-cli
-	cargo update
-fi
-
-# BUILD=debug
-BUILD=release
+CRATE_NAME="egui_demo"
 
 export RUSTFLAGS=--cfg=web_sys_unstable_apis # required for the clipboard API
 
 # Clear output from old stuff:
-rm -rf docs/demo_web.wasm
+rm -rf docs/$CRATE_NAME.wasm
 
-echo "Build rust:"
-# cargo build -p demo_web --target wasm32-unknown-unknown
-cargo build --release -p demo_web --target wasm32-unknown-unknown
+echo "Building rust…"
+BUILD=release
+cargo build --release -p $CRATE_NAME --lib --target wasm32-unknown-unknown
 
-echo "Generate JS bindings for wasm:"
-FOLDER_NAME=${PWD##*/}
-TARGET_NAME="demo_web.wasm"
+echo "Generating JS bindings for wasm…"
+TARGET_NAME="$CRATE_NAME.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
+
+echo "Finished: docs/$CRATE_NAME.wasm"
 
 open http://localhost:8888/index.html
