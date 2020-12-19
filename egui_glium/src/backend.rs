@@ -65,6 +65,7 @@ fn create_display(
 
 /// Run an egui app
 pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
+    app.load(storage.as_ref());
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
@@ -85,7 +86,7 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
-            let egui_start = Instant::now();
+            let frame_start = Instant::now();
             input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
             input_state.raw.screen_rect = Some(Rect::from_min_size(
                 Default::default(),
@@ -109,7 +110,7 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
             let (egui_output, paint_commands) = ctx.end_frame();
             let paint_jobs = ctx.tesselate(paint_commands);
 
-            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+            let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);
             painter.paint_jobs(
                 &display,
@@ -172,7 +173,8 @@ pub fn run(mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> !
                     &WindowSettings::from_display(&display),
                 );
                 egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
-                app.on_exit(storage.as_mut());
+                app.save(storage.as_mut());
+                app.on_exit();
                 storage.flush();
             }
 

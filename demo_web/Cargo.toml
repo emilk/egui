@@ -9,7 +9,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { path = "../egui", features = ["serde"] }
+egui = { path = "../egui", features = ["serde", "serde_json"] }
 egui_web = { path = "../egui_web" }
 js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }

@@ -12,19 +12,16 @@ pub struct WebBackend {
     painter: webgl::Painter,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
-    last_save_time: Option<f64>,
 }
 
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
-        load_memory(&ctx);
         Ok(Self {
             ctx,
             painter: webgl::Painter::new(canvas_id)?,
             previous_frame_time: None,
             frame_start: None,
-            last_save_time: None,
         })
     }
 
@@ -47,8 +44,6 @@ impl WebBackend {
         let (output, paint_commands) = self.ctx.end_frame();
         let paint_jobs = self.ctx.tesselate(paint_commands);
 
-        self.auto_save();
-
         let now = now_sec();
         self.previous_frame_time = Some((now - frame_start) as f32);
 
@@ -66,16 +61,6 @@ impl WebBackend {
             &self.ctx.texture(),
             self.ctx.pixels_per_point(),
         )
-    }
-
-    pub fn auto_save(&mut self) {
-        let now = now_sec();
-        let time_since_last_save = now - self.last_save_time.unwrap_or(std::f64::NEG_INFINITY);
-        const AUTO_SAVE_INTERVAL: f64 = 5.0;
-        if time_since_last_save > AUTO_SAVE_INTERVAL {
-            self.last_save_time = Some(now);
-            save_memory(&self.ctx);
-        }
     }
 
     pub fn painter_debug_info(&self) -> String {
@@ -159,17 +144,35 @@ pub struct AppRunner {
     pub input: WebInput,
     pub app: Box<dyn App>,
     pub needs_repaint: std::sync::Arc<NeedRepaint>,
+    pub storage: LocalStorage,
+    pub last_save_time: f64,
 }
 
 impl AppRunner {
     pub fn new(web_backend: WebBackend, mut app: Box<dyn App>) -> Result<Self, JsValue> {
+        load_memory(&web_backend.ctx);
+        let storage = LocalStorage::default();
+        app.load(&storage);
         app.setup(&web_backend.ctx);
         Ok(Self {
             web_backend,
             input: Default::default(),
             app,
             needs_repaint: Default::default(),
+            storage,
+            last_save_time: now_sec(),
         })
+    }
+
+    pub fn auto_save(&mut self) {
+        let now = now_sec();
+        let time_since_last_save = now - self.last_save_time;
+
+        if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
+            save_memory(&self.web_backend.ctx);
+            self.app.save(&mut self.storage);
+            self.last_save_time = now;
+        }
     }
 
     pub fn canvas_id(&self) -> &str {

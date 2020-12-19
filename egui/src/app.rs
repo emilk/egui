@@ -19,6 +19,20 @@ pub trait App {
         crate::Srgba::from_rgb(16, 16, 16).into()
     }
 
+    /// Called once on start. Allows you to restore state.
+    fn load(&mut self, _storage: &dyn Storage) {}
+
+    /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    fn save(&mut self, _storage: &mut dyn Storage) {}
+
+    /// Time between automatic calls to `save()`
+    fn auto_save_interval(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(30)
+    }
+
+    /// Called once on shutdown (before or after `save()`)
+    fn on_exit(&mut self) {}
+
     /// Called once before the first frame.
     /// Allows you to do setup code and to call `ctx.set_fonts()`.
     /// Optional.
@@ -27,9 +41,6 @@ pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn ui(&mut self, ctx: &crate::CtxRef, integration_context: &mut IntegrationContext<'_>);
-
-    /// Called once on shutdown. Allows you to save state.
-    fn on_exit(&mut self, _storage: &mut dyn Storage) {}
 }
 
 pub struct IntegrationContext<'a> {

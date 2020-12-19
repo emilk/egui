@@ -152,7 +152,7 @@ pub fn load_memory(ctx: &egui::Context) {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_log(format!("ERROR: Failed to parse memory json: {}", err));
+                console_error(format!("Failed to parse memory json: {}", err));
             }
         }
     }
@@ -164,14 +164,12 @@ pub fn save_memory(ctx: &egui::Context) {
             local_storage_set("egui_memory_json", &json);
         }
         Err(err) => {
-            console_log(format!(
-                "ERROR: Failed to serialize memory as json: {}",
-                err
-            ));
+            console_error(format!("Failed to serialize memory as json: {}", err));
         }
     }
 }
 
+#[derive(Default)]
 pub struct LocalStorage {}
 
 impl egui::app::Storage for LocalStorage {
@@ -220,7 +218,7 @@ pub fn set_clipboard_text(s: &str) {
         let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
             if let Err(err) = future.await {
-                console_log(format!("Copy/cut action denied: {:?}", err));
+                console_error(format!("Copy/cut action denied: {:?}", err));
             }
         };
         wasm_bindgen_futures::spawn_local(future);
@@ -341,7 +339,9 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
             if output.needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
+            runner_lock.auto_save();
         }
+
         Ok(())
     }
 

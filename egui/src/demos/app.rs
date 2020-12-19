@@ -281,6 +281,16 @@ impl app::App for DemoApp {
         "Egui Demo"
     }
 
+    #[cfg(feature = "serde_json")]
+    fn load(&mut self, storage: &dyn crate::app::Storage) {
+        *self = crate::app::get_value(storage, crate::app::APP_KEY).unwrap_or_default()
+    }
+
+    #[cfg(feature = "serde_json")]
+    fn save(&mut self, storage: &mut dyn crate::app::Storage) {
+        crate::app::set_value(storage, crate::app::APP_KEY, self);
+    }
+
     fn ui(&mut self, ctx: &CtxRef, integration_context: &mut crate::app::IntegrationContext<'_>) {
         self.frame_history
             .on_new_frame(ctx.input().time, integration_context.info.cpu_usage);
@@ -338,10 +348,5 @@ impl app::App for DemoApp {
             // Tell the backend to repaint as soon as possible
             ctx.request_repaint();
         }
-    }
-
-    #[cfg(feature = "serde_json")]
-    fn on_exit(&mut self, storage: &mut dyn app::Storage) {
-        app::set_value(storage, app::APP_KEY, self);
     }
 }
