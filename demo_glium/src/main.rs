@@ -12,5 +12,5 @@ fn main() {
     // let storage = egui::app::DummyStorage::default();
 
     let app: egui::DemoApp = egui::app::get_value(&storage, egui::app::APP_KEY).unwrap_or_default();
-    egui_glium::run(title, true, Box::new(storage), Box::new(app));
+    egui_glium::run(title, Box::new(storage), Box::new(app));
 }

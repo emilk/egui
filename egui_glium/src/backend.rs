@@ -41,13 +41,12 @@ impl egui::app::RepaintSignal for GliumRepaintSignal {
 
 fn create_display(
     title: &str,
-    is_resizable: bool,
     window_settings: Option<WindowSettings>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_decorations(true)
-        .with_resizable(is_resizable)
+        .with_resizable(true)
         .with_title(title)
         .with_transparent(false);
 
@@ -92,16 +91,11 @@ fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
 }
 
 /// Run an egui app
-pub fn run(
-    title: &str,
-    is_resizable: bool,
-    mut storage: Box<dyn egui::app::Storage>,
-    mut app: Box<dyn App>,
-) -> ! {
+pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
     let window_settings: Option<WindowSettings> =
         egui::app::get_value(storage.as_ref(), WINDOW_KEY);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(title, is_resizable, window_settings, &event_loop);
+    let display = create_display(title, window_settings, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
