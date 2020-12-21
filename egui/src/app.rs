@@ -38,6 +38,9 @@ pub trait App {
     /// Optional.
     fn setup(&mut self, _ctx: &crate::CtxRef) {}
 
+    /// Returns true if this app window should be resizable.
+    fn is_resizable(&self) -> bool { true }
+
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn ui(&mut self, ctx: &crate::CtxRef, integration_context: &mut IntegrationContext<'_>);
