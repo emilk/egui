@@ -60,7 +60,13 @@ fn create_display(
         .with_stencil_buffer(0)
         .with_vsync(true);
 
-    glium::Display::new(window_builder, context_builder, &event_loop).unwrap()
+    let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
+
+    if let Some(window_settings) = &window_settings {
+        window_settings.restore_positions(&display);
+    }
+
+    display
 }
 
 fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
