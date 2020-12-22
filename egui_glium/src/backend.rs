@@ -92,9 +92,16 @@ fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
 }
 
 /// Run an egui app
-pub fn run(title: &str, mut storage: Box<dyn egui::app::Storage>, mut app: Box<dyn App>) -> ! {
-    let window_settings: Option<WindowSettings> =
-        egui::app::get_value(storage.as_ref(), WINDOW_KEY);
+pub fn run(mut app: Box<dyn App>) -> ! {
+    let mut storage = create_storage(app.name());
+
+    if let Some(storage) = &mut storage {
+        app.load(storage.as_ref());
+    }
+
+    let window_settings: Option<WindowSettings> = storage
+        .as_mut()
+        .and_then(|storage| egui::app::get_value(storage.as_ref(), WINDOW_KEY));
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(title, window_settings, app.is_resizable(), &event_loop);
 
