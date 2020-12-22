@@ -42,11 +42,12 @@ impl egui::app::RepaintSignal for GliumRepaintSignal {
 fn create_display(
     title: &str,
     window_settings: Option<WindowSettings>,
+    is_resizable: bool,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_decorations(true)
-        .with_resizable(true)
+        .with_resizable(is_resizable)
         .with_title(title)
         .with_transparent(false);
 
@@ -102,7 +103,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
         .as_mut()
         .and_then(|storage| egui::app::get_value(storage.as_ref(), WINDOW_KEY));
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(app.name(), window_settings, &event_loop);
+    let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
