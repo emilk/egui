@@ -103,7 +103,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
         .as_mut()
         .and_then(|storage| egui::app::get_value(storage.as_ref(), WINDOW_KEY));
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(title, window_settings, app.is_resizable(), &event_loop);
+    let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
 
