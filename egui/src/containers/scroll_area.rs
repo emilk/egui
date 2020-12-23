@@ -156,7 +156,7 @@ impl Prepared {
         let inner_rect = Rect::from_min_size(
             inner_rect.min,
             vec2(
-                inner_rect.width().max(content_size.x), // Expand width to fit content
+                inner_rect.width().min(content_size.x), // Expand width to fit content
                 inner_rect.height(),
             ),
         );

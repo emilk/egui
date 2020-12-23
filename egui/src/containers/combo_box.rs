@@ -61,12 +61,16 @@ pub fn combo_box(
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
                     ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        menu_contents(ui);
+                        let frame_width = button_response.rect.width() - 2.0 * frame_margin.x;
+                        ui.set_min_width(frame_width);
+                        ScrollArea::from_max_height(100f32)
+                        .show(ui, |ui| {
+                            menu_contents(ui);
+                        })
                     });
-                })
+                });
             });
-
+      
         if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked
         {
             ui.memory().close_popup();
