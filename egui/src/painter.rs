@@ -152,18 +152,6 @@ impl Painter {
         self.galley(rect.min, galley, text_style, color::RED);
         frame_rect
     }
-
-    pub fn debug_arrow(&self, origin: Pos2, dir: Vec2, stroke: Stroke) {
-        use crate::math::*;
-        let full_length = dir.length().at_least(64.0);
-        let tip_length = full_length / 3.0;
-        let dir = dir.normalized();
-        let tip = origin + dir * full_length;
-        let rot = Rot2::from_angle(TAU / 10.0);
-        self.line_segment([origin, tip], stroke);
-        self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
-        self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
-    }
 }
 
 /// # Paint different primitives
@@ -239,6 +227,18 @@ impl Painter {
             fill: Default::default(),
             stroke: stroke.into(),
         });
+    }
+
+    /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
+    pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: Stroke) {
+        use crate::math::*;
+        let rot = Rot2::from_angle(TAU / 10.0);
+        let tip_length = vec.length() / 4.0;
+        let tip = origin + vec;
+        let dir = vec.normalized();
+        self.line_segment([origin, tip], stroke);
+        self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
+        self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
     }
 }
 
