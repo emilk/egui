@@ -11,12 +11,14 @@ pub struct DemoWindow {
     layout: LayoutDemo,
     tree: Tree,
     box_painting: BoxPainting,
+    ratio: f32,
 }
 
 impl Default for DemoWindow {
     fn default() -> DemoWindow {
         DemoWindow {
             num_columns: 2,
+            ratio: 0.0,
 
             widgets: Default::default(),
             colors: Default::default(),
@@ -69,7 +71,28 @@ impl DemoWindow {
             .default_open(false)
             .show(ui, |ui| {
                 ScrollArea::from_max_height(200.0).show(ui, |ui| {
+                    let middle = ui.button("Go middle").clicked;
+                    let bottom = ui.button("Go bottom").clicked;
+                    let not_working = ui.button("Go middle (not working)").clicked;
+                    ui.add(Slider::f32(&mut self.ratio, 0.0..=1.0).text("ratio"));
                     ui.label(LOREM_IPSUM_LONG);
+                    ui.label(LOREM_IPSUM_LONG);
+                    if middle {
+                        ui.scroll_to_here(self.ratio);
+                    }
+
+                    // FIXME: inside the children Ui, scroll_to_here does not work.
+                    ui.horizontal(|ui| {
+                        if not_working {
+                            ui.scroll_to_here(0.5);
+                        }
+                    });
+                    ui.label("Middle");
+                    ui.label(LOREM_IPSUM_LONG);
+                    ui.label(LOREM_IPSUM_LONG);
+                    if bottom {
+                        ui.scroll_to_here(1.0);
+                    }
                 });
             });
 
