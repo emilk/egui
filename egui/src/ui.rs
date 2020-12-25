@@ -1044,24 +1044,26 @@ impl Ui {
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
-                self.child_ui(child_rect, self.layout)
+                let mut column_ui =
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::left()));
+                column_ui.set_width(column_width);
+                column_ui
             })
             .collect();
 
         let result = add_contents(&mut columns[..]);
 
-        let mut sum_width = total_spacing;
-        for column in &columns {
-            sum_width += column.min_rect().width();
-        }
-
+        let mut max_column_width = column_width;
         let mut max_height = 0.0;
-        for ui in columns {
-            let size = ui.min_size();
-            max_height = size.y.max(max_height);
+        for column in &columns {
+            max_column_width = max_column_width.max(column.min_rect().width());
+            max_height = column.min_size().y.max(max_height);
         }
 
-        let size = vec2(self.available_width().max(sum_width), max_height);
+        // Make sure we fit everything next frame:
+        let total_required_width = total_spacing + max_column_width * (num_columns as f32);
+
+        let size = vec2(self.available_width().max(total_required_width), max_height);
         self.allocate_space(size);
         result
     }

@@ -31,10 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
 * `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
 * Combo boxes has scroll bars when needed.
+* `ui.columns`: Columns now defaults to justified top-to-down layouts.
 
 ### Fixed 🐛
 
 * The background for `CentralPanel` will now cover unused space too.
+* `ui.columns`: Improve allocated size estimation.
 
 ### Deprecated
 * `RawInput::screen_size` - use `RawInput::screen_rect` instead.
