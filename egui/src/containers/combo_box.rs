@@ -63,9 +63,7 @@ pub fn combo_box(
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
                     ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        let width = button_response.rect.width() - 2.0 * frame_margin.x;
-                        ui.set_min_width(width);
-                        ui.set_max_width(width);
+                        ui.set_width(button_response.rect.width() - 2.0 * frame_margin.x);
                         ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents);
                     });
                 });

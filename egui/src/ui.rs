@@ -301,6 +301,18 @@ impl Ui {
         self.region.expand_to_include_rect(rect);
     }
 
+    /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
+    pub fn set_width_range(&mut self, width: std::ops::RangeInclusive<f32>) {
+        self.set_min_width(*width.start());
+        self.set_max_width(*width.end());
+    }
+
+    /// `ui.set_width_range(width);` is equivalent to `ui.set_min_width(width); ui.set_max_width(width);`.
+    pub fn set_width(&mut self, width: f32) {
+        self.set_min_width(width);
+        self.set_max_width(width);
+    }
+
     // ------------------------------------------------------------------------
     // Layout related measures:
 
