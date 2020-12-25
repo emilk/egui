@@ -102,13 +102,15 @@ impl ScrollArea {
             max_scroll_bar_width * ui.ctx().animate_bool(id, state.show_scroll)
         };
 
+        let available_outer = ui.available_rect_before_wrap();
+
         let outer_size = vec2(
-            ui.available_width(),
-            ui.available_size_before_wrap().y.at_most(max_height),
+            available_outer.width(),
+            available_outer.height().at_most(max_height),
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
-        let inner_rect = Rect::from_min_size(ui.available_rect_before_wrap().min, inner_size);
+        let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
 
         let mut content_ui = ui.child_ui(
             Rect::from_min_size(
@@ -153,13 +155,14 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let inner_rect = Rect::from_min_size(
-            inner_rect.min,
-            vec2(
-                inner_rect.width().max(content_size.x), // Expand width to fit content
-                inner_rect.height(),
-            ),
-        );
+        let width = if inner_rect.width().is_finite() {
+            inner_rect.width().max(content_size.x) // Expand width to fit content
+        } else {
+            // ScrollArea is in an infinitely wide parent
+            content_size.x
+        };
+
+        let inner_rect = Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
 
         let outer_rect = Rect::from_min_size(
             inner_rect.min,

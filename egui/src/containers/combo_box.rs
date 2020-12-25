@@ -23,6 +23,8 @@ pub fn combo_box(
     selected: impl Into<Label>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
+    const MAX_COMBO_HEIGHT: f32 = 128.0;
+
     let popup_id = button_id.with("popup");
     let selected = selected.into();
 
@@ -61,10 +63,12 @@ pub fn combo_box(
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
                     ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        menu_contents(ui);
+                        let width = button_response.rect.width() - 2.0 * frame_margin.x;
+                        ui.set_min_width(width);
+                        ui.set_max_width(width);
+                        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents);
                     });
-                })
+                });
             });
 
         if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked

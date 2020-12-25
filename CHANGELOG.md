@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Made some more fields of `RawInput` optional.
 * `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
 * `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
+* Combo boxes has scroll bars when needed.
 
 ### Fixed 🐛
 
