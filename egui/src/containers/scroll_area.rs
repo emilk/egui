@@ -153,6 +153,10 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
+        if let Some(offset_y) = content_ui.ctx().frame_state().scroll_offset_y() {
+            state.offset.y = offset_y;
+        }
+
         let inner_rect = Rect::from_min_size(
             inner_rect.min,
             vec2(

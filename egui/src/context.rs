@@ -39,6 +39,7 @@ pub(crate) struct FrameState {
     /// How much space is used by panels.
     used_by_panels: Rect,
     // TODO: move some things from `Memory` to here
+    scroll_offset: Option<f32>
 }
 
 impl Default for FrameState {
@@ -47,6 +48,7 @@ impl Default for FrameState {
             available_rect: Rect::invalid(),
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
+            scroll_offset: None
         }
     }
 }
@@ -56,6 +58,7 @@ impl FrameState {
         self.available_rect = input.screen_rect();
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
+        self.scroll_offset = None;
     }
 
     /// How much space is still available after panels has been added.
@@ -96,6 +99,14 @@ impl FrameState {
         // we alllow windows to cover the CentralPanel.
         self.unused_rect = Rect::nothing(); // Nothing left unused after this
         self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    pub(crate) fn set_scroll_offset_y(&mut self, offset: f32) {
+        self.scroll_offset = Some(offset);
+    }
+
+    pub(crate) fn scroll_offset_y(&self) -> Option<f32> {
+        self.scroll_offset
     }
 }
 

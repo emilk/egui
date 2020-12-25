@@ -526,6 +526,14 @@ impl Ui {
         let clip_rect = self.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
         Painter::new(self.ctx().clone(), self.layer_id(), clip_rect)
     }
+
+    pub fn scroll_to_here(&mut self, center_ratio: f32) {
+        // This is the imgui aproach to set the scroll relative to the position 
+        // 0.0: top of widget / 0.5: midle of widget / 1.0: bottom of widget
+        assert!(center_ratio >= 0.0 && center_ratio <= 1.0);
+        let offset = self.min_rect().height() - self.clip_rect().height() * center_ratio;
+        self.ctx().frame_state().set_scroll_offset_y(offset);
+    }
 }
 
 /// # Adding widgets
