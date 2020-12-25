@@ -159,22 +159,10 @@ impl Painter {
         let tip_length = full_length / 3.0;
         let dir = dir.normalized();
         let tip = origin + dir * full_length;
-        let angle = TAU / 10.0;
+        let rot = Rot2::from_angle(TAU / 10.0);
         self.line_segment([origin, tip], stroke);
-        self.line_segment(
-            [
-                tip,
-                tip - tip_length * Vec2::angled(angle).rotate_other(dir),
-            ],
-            stroke,
-        );
-        self.line_segment(
-            [
-                tip,
-                tip - tip_length * Vec2::angled(-angle).rotate_other(dir),
-            ],
-            stroke,
-        );
+        self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
+        self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
     }
 }
 

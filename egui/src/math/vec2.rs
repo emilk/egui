@@ -60,6 +60,8 @@ impl Vec2 {
         }
     }
 
+    /// Rotates the vector by 90°, i.e positive X to positive Y
+    /// (clockwise in Egui coordinates).
     #[inline(always)]
     pub fn rot90(self) -> Self {
         vec2(self.y, -self.x)
@@ -83,16 +85,6 @@ impl Vec2 {
 
     pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
-    }
-
-    /// Use this vector as a rotor, rotating something else.
-    /// Example: `Vec2::angled(angle).rotate_other(some_vec)`
-    #[must_use]
-    pub fn rotate_other(self, v: Vec2) -> Self {
-        Self {
-            x: v.x * self.x + v.y * -self.y,
-            y: v.x * self.y + v.y * self.x,
-        }
     }
 
     #[must_use]

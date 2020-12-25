@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Mouse-over explanation to duplicate ID warning.
 * You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
+* Add `egui::math::Rot2`: rotation helper.
 
 ### Changed 🔧
 

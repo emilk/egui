@@ -6,10 +6,11 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 mod pos2;
 mod rect;
+mod rot2;
 pub mod smart_aim;
 mod vec2;
 
-pub use {pos2::*, rect::*, vec2::*};
+pub use {pos2::*, rect::*, rot2::*, vec2::*};
 
 // ----------------------------------------------------------------------------
 
