@@ -44,7 +44,7 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> R
 
 fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
     let (id, rect) = ui.allocate_space(desired_size);
-    let response = ui.interact(rect, id, Sense::nothing());
+    let response = ui.interact(rect, id, Sense::hover());
     background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
         rect,

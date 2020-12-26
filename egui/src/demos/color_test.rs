@@ -268,7 +268,7 @@ impl ColorTest {
 fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response {
     use crate::paint::*;
     let (id, rect) = ui.allocate_space(GRADIENT_SIZE);
-    let response = ui.interact(rect, id, Sense::nothing());
+    let response = ui.interact(rect, id, Sense::hover());
     if bg_fill != Default::default() {
         let mut triangles = Triangles::default();
         triangles.add_colored_rect(rect, bg_fill);

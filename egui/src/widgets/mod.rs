@@ -187,7 +187,7 @@ impl Widget for Label {
         } else {
             let galley = self.layout(ui);
             let (id, rect) = ui.allocate_space(galley.size);
-            let response = ui.interact(rect, id, Sense::nothing());
+            let response = ui.interact(rect, id, Sense::hover());
             let rect = ui.layout().align_size_within_rect(galley.size, rect);
             self.paint_galley(ui, rect.min, galley);
             response
@@ -365,10 +365,10 @@ impl Button {
     }
 
     /// If you set this to `false`, the button will be grayed out and un-clickable.
-    /// `enabled(false)` has the same effect as calling `sense(Sense::nothing())`.
+    /// `enabled(false)` has the same effect as calling `sense(Sense::hover())`.
     pub fn enabled(mut self, enabled: bool) -> Self {
         if !enabled {
-            self.sense = Sense::nothing();
+            self.sense = Sense::hover();
         }
         self
     }
@@ -737,6 +737,6 @@ impl Widget for Separator {
         };
         let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
-        ui.interact(rect, id, Sense::nothing())
+        ui.interact(rect, id, Sense::hover())
     }
 }

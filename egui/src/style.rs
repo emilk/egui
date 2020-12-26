@@ -188,7 +188,7 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if response.active || response.has_kb_focus {
             &self.active
-        } else if response.sense == Sense::nothing() {
+        } else if response.sense == Sense::hover() {
             &self.disabled
         } else if response.hovered {
             &self.hovered

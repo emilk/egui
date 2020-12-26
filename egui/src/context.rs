@@ -213,7 +213,7 @@ impl CtxRef {
             .map(|id| self.memory().lost_kb_focus(id))
             .unwrap_or(false);
 
-        if id.is_none() || sense == Sense::nothing() || !layer_id.allow_interaction() {
+        if id.is_none() || sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return Response {
                 ctx: self.clone(),

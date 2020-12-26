@@ -398,7 +398,7 @@ impl Ui {
             self.style().spacing.item_spacing,
             rect,
             None,
-            Sense::nothing(),
+            Sense::hover(),
         )
     }
 
@@ -787,7 +787,7 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
         let (id, rect) = self.allocate_space(size);
-        (ret, self.interact(rect, id, Sense::nothing()))
+        (ret, self.interact(rect, id, Sense::hover()))
     }
 
     /// Redirect paint commands to another paint layer.
@@ -851,7 +851,7 @@ impl Ui {
         );
 
         let (id, rect) = self.allocate_space(indent + size);
-        (ret, self.interact(rect, id, Sense::nothing()))
+        (ret, self.interact(rect, id, Sense::hover()))
     }
 
     #[deprecated]

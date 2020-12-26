@@ -255,7 +255,7 @@ impl<'t> Widget for TextEdit<'t> {
         let sense = if enabled {
             Sense::click_and_drag()
         } else {
-            Sense::nothing()
+            Sense::hover()
         };
         let response = ui.interact(rect, id, sense);
 

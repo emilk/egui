@@ -203,12 +203,17 @@ pub struct Sense {
 }
 
 impl Sense {
-    /// Senses no clicks or drags (but everything senses mouse hover).
-    pub fn nothing() -> Self {
+    /// Senses no clicks or drags. Only senses mouse hover.
+    pub fn hover() -> Self {
         Self {
             click: false,
             drag: false,
         }
+    }
+
+    #[deprecated = "Use hover()"]
+    pub fn nothing() -> Self {
+        Sense::hover()
     }
 
     pub fn click() -> Self {

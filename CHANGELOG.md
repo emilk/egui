@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Combo boxes has scroll bars when needed.
 * Expand `Window` + `Resize` containers to be large enough for last frames content
 * `ui.columns`: Columns now defaults to justified top-to-down layouts.
+* Rename `Sense::nothing()` to  `Sense::hover()`.
 
 ### Fixed 🐛
 
