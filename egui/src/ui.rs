@@ -386,24 +386,19 @@ impl Ui {
             self.clip_rect(),
             self.style().spacing.item_spacing,
             rect,
-            Some(id),
+            id,
             sense,
         )
     }
 
+    #[deprecated = "Use: interact(rect, id, Sense::hover())"]
     pub fn interact_hover(&self, rect: Rect) -> Response {
-        self.ctx().interact(
-            self.layer_id(),
-            self.clip_rect(),
-            self.style().spacing.item_spacing,
-            rect,
-            None,
-            Sense::hover(),
-        )
+        self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
     }
 
+    #[deprecated = "Use: contains_mouse()"]
     pub fn hovered(&self, rect: Rect) -> bool {
-        self.interact_hover(rect).hovered
+        self.interact(rect, self.id, Sense::hover()).hovered
     }
 
     pub fn contains_mouse(&self, rect: Rect) -> bool {
@@ -477,7 +472,8 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id); // TODO: increment counter here
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        let id = Id::new(self.next_auto_id);
 
         (id, rect)
     }
@@ -499,15 +495,17 @@ impl Ui {
         );
         self.region.expand_to_include_rect(inner_child_rect);
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
         inner_child_rect
     }
 
-    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) {
+    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.style().spacing.item_spacing;
         self.layout
             .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
         self.region.expand_to_include_rect(rect);
+
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        Id::new(self.next_auto_id)
     }
 
     pub(crate) fn cursor(&self) -> Pos2 {
@@ -541,7 +539,7 @@ impl Ui {
         );
         self.region.expand_to_include_rect(final_child_rect);
 
-        let response = self.interact_hover(final_child_rect);
+        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         (ret, response)
     }
 
@@ -1029,7 +1027,7 @@ impl Ui {
         self.layout
             .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
         self.region.expand_to_include_rect(rect);
-        (ret, self.interact_hover(rect))
+        (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
     /// Temporarily split split an Ui into several columns.

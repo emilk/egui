@@ -200,25 +200,24 @@ impl CtxRef {
         clip_rect: Rect,
         item_spacing: Vec2,
         rect: Rect,
-        id: Option<Id>,
+        id: Id,
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
         let hovered = self.contains_mouse(layer_id, clip_rect, interact_rect);
-        let has_kb_focus = id.map(|id| self.memory().has_kb_focus(id)).unwrap_or(false);
+        let has_kb_focus = self.memory().has_kb_focus(id);
 
         // If the the focus is lost after the call to interact,
         // this will be `false`, so `TextEdit` also sets this manually.
-        let lost_kb_focus = id
-            .map(|id| self.memory().lost_kb_focus(id))
-            .unwrap_or(false);
+        let lost_kb_focus = self.memory().lost_kb_focus(id);
 
-        if id.is_none() || sense == Sense::hover() || !layer_id.allow_interaction() {
+        if sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return Response {
                 ctx: self.clone(),
-                sense,
+                id,
                 rect,
+                sense,
                 hovered,
                 clicked: false,
                 double_clicked: false,
@@ -227,7 +226,6 @@ impl CtxRef {
                 lost_kb_focus,
             };
         }
-        let id = id.unwrap();
 
         self.register_interaction_id(id, rect.min);
 
@@ -243,8 +241,9 @@ impl CtxRef {
             if hovered {
                 let mut response = Response {
                     ctx: self.clone(),
-                    sense,
+                    id,
                     rect,
+                    sense,
                     hovered: true,
                     clicked: false,
                     double_clicked: false,
@@ -274,8 +273,9 @@ impl CtxRef {
                 // miss
                 Response {
                     ctx: self.clone(),
-                    sense,
+                    id,
                     rect,
+                    sense,
                     hovered,
                     clicked: false,
                     double_clicked: false,
@@ -288,8 +288,9 @@ impl CtxRef {
             let clicked = hovered && active && self.input.mouse.could_be_click;
             Response {
                 ctx: self.clone(),
-                sense,
+                id,
                 rect,
+                sense,
                 hovered,
                 clicked,
                 double_clicked: clicked && self.input.mouse.double_click,
@@ -300,8 +301,9 @@ impl CtxRef {
         } else if self.input.mouse.down {
             Response {
                 ctx: self.clone(),
-                sense,
+                id,
                 rect,
+                sense,
                 hovered: hovered && active,
                 clicked: false,
                 double_clicked: false,
@@ -312,8 +314,9 @@ impl CtxRef {
         } else {
             Response {
                 ctx: self.clone(),
-                sense,
+                id,
                 rect,
+                sense,
                 hovered,
                 clicked: false,
                 double_clicked: false,

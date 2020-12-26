@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
 * Add `egui::math::Rot2`: rotation helper.
+* `Response` now contains the `Id` of the widget it pertains to.
 
 ### Changed 🔧
 
@@ -44,6 +45,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Deprecated
 * `RawInput::screen_size` - use `RawInput::screen_rect` instead.
 * left/centered/right column functions on `Ui`.
+* `ui.interact_hover` and `ui.hovered`.
 
 
 ## 0.5.0 - 2020-12-13

@@ -162,8 +162,8 @@ impl Widget for Label {
 
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
-            ui.advance_cursor_after_rect(rect);
-            let mut total_response = ui.interact_hover(rect);
+            let id = ui.advance_cursor_after_rect(rect);
+            let mut total_response = ui.interact(rect, id, Sense::hover());
 
             let mut y_translation = 0.0;
             if let Some(row) = galley.rows.get(1) {
@@ -179,7 +179,7 @@ impl Widget for Label {
                 row.y_max += y_translation;
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
                 ui.advance_cursor_after_rect(rect);
-                total_response |= ui.interact_hover(rect);
+                total_response |= ui.interact(rect, id, Sense::hover());
             }
 
             self.paint_galley(ui, pos, galley);

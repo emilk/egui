@@ -1,4 +1,4 @@
-use crate::{math::Rect, CtxRef, Ui};
+use crate::{math::Rect, CtxRef, Id, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -58,6 +58,9 @@ pub struct Response {
     pub ctx: CtxRef,
 
     // IN:
+    /// The `Id` of the widget/area this response pertains.
+    pub id: Id,
+
     /// The area of the screen we are talking about
     pub rect: Rect,
 
@@ -91,6 +94,7 @@ impl std::fmt::Debug for Response {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             ctx: _,
+            id,
             rect,
             sense,
             hovered,
@@ -101,6 +105,7 @@ impl std::fmt::Debug for Response {
             lost_kb_focus,
         } = self;
         f.debug_struct("Response")
+            .field("id", id)
             .field("rect", rect)
             .field("sense", sense)
             .field("hovered", hovered)
@@ -144,6 +149,7 @@ impl Response {
         assert!(self.ctx == other.ctx);
         Self {
             ctx: other.ctx,
+            id: self.id,
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
