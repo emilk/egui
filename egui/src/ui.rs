@@ -568,11 +568,11 @@ impl Ui {
     }
 
     /// Convenience function to get a region to paint on
-    pub fn allocate_painter(&mut self, desired_size: Vec2) -> (Id, Painter) {
-        let (id, rect) = self.allocate_space(desired_size);
-        let clip_rect = self.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
+    pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
+        let response = self.allocate_response(desired_size, sense);
+        let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
         let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
-        (id, painter)
+        (response, painter)
     }
 }
 
@@ -808,8 +808,8 @@ impl Ui {
         let mut child_ui = self.child_ui(child_rect, self.layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
-        let (id, rect) = self.allocate_space(size);
-        (ret, self.interact(rect, id, Sense::hover()))
+        let response = self.allocate_response(size, Sense::hover());
+        (ret, response)
     }
 
     /// Redirect paint commands to another paint layer.
@@ -872,8 +872,8 @@ impl Ui {
             self.style().visuals.widgets.noninteractive.bg_stroke,
         );
 
-        let (id, rect) = self.allocate_space(indent + size);
-        (ret, self.interact(rect, id, Sense::hover()))
+        let response = self.allocate_response(indent + size, Sense::hover());
+        (ret, response)
     }
 
     #[deprecated]
@@ -1071,11 +1071,11 @@ impl Ui {
         let spacing = self.style().spacing.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
+        let top_left = self.region.cursor;
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
-                let pos =
-                    self.region.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
                 let child_rect = Rect::from_min_max(
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
@@ -1100,7 +1100,7 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (num_columns as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.allocate_space(size);
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
     }
 }

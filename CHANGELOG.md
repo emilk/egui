@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
 * Add `egui::math::Rot2`: rotation helper.
 * `Response` now contains the `Id` of the widget it pertains to.
-* `ui.allocate_response` that allocated space and checks for interactions.
+* `ui.allocate_response` that allocates space and checks for interactions.
 
 ### Changed 🔧
 

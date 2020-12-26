@@ -28,9 +28,9 @@ impl Painting {
     }
 
     pub fn ui_content(&mut self, ui: &mut Ui) {
-        let (id, painter) = ui.allocate_painter(ui.available_size_before_wrap_finite());
-        let rect = painter.clip_rect();
-        let response = ui.interact(rect, id, Sense::drag());
+        let (response, painter) =
+            ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::drag());
+        let rect = response.rect;
 
         if self.lines.is_empty() {
             self.lines.push(vec![]);
