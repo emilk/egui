@@ -109,8 +109,9 @@ impl FrameHistory {
 
         // TODO: we should not use `slider_width` as default graph width.
         let height = ui.style().spacing.slider_width;
-        let (id, rect) = ui.allocate_space(vec2(ui.available_size_before_wrap_finite().x, height));
-        let response = ui.interact(rect, id, Sense::hover());
+        let size = vec2(ui.available_size_before_wrap_finite().x, height);
+        let response = ui.allocate_response(size, Sense::hover());
+        let rect = response.rect;
         let style = ui.style().noninteractive();
 
         let mut cmds = vec![PaintCmd::Rect {

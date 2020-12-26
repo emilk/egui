@@ -18,8 +18,8 @@ impl Texture {
         if size.x > ui.available_width() {
             size *= ui.available_width() / size.x;
         }
-        let (id, rect) = ui.allocate_space(size);
-        let response = ui.interact(rect, id, Sense::hover());
+        let response = ui.allocate_response(size, Sense::hover());
+        let rect = response.rect;
         let mut triangles = Triangles::default();
         triangles.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), WHITE);
         ui.painter().add(PaintCmd::triangles(triangles));

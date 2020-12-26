@@ -179,7 +179,7 @@ impl<'a> Widget for DragValue<'a> {
                 .text_style(TextStyle::Monospace);
             let response = ui.add(button);
             let response = response.on_hover_text(format!(
-                " {}{}{}\nDrag to edit or click to enter a value.",
+                "{}{}{}\nDrag to edit or click to enter a value.",
                 prefix,
                 value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                 suffix

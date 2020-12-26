@@ -50,8 +50,7 @@ pub fn drop_target<R>(
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     let ret = body(&mut content_ui);
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
-    let (id, outer_rect) = ui.allocate_space(outer_rect.size());
-    let response = ui.interact(outer_rect, id, Sense::hover());
+    let response = ui.allocate_response(outer_rect.size(), Sense::hover());
 
     let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered {
         ui.style().visuals.widgets.active
@@ -69,7 +68,7 @@ pub fn drop_target<R>(
             corner_radius: style.corner_radius,
             fill: style.bg_fill,
             stroke: style.bg_stroke,
-            rect: outer_rect,
+            rect: response.rect,
         },
     );
 

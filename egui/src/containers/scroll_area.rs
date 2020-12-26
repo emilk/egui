@@ -291,7 +291,7 @@ impl Prepared {
             outer_rect.size().x,
             outer_rect.size().y.min(content_size.y), // shrink if content is so small that we don't need scroll bars
         );
-        ui.allocate_space(size);
+        ui.advance_cursor_after_rect(Rect::from_min_size(outer_rect.min, size));
 
         if show_scroll_this_frame != state.show_scroll {
             ui.ctx().request_repaint();

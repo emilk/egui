@@ -225,6 +225,8 @@ impl<'open> Window<'open> {
 
         let mut area = area.begin(ctx);
 
+        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
@@ -238,8 +240,7 @@ impl<'open> Window<'open> {
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
-                    title_label.font_height(ctx.fonts(), &ctx.style())
-                        + 1.0 * ctx.style().spacing.item_spacing.y // this could be better
+                    title_label.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
                 } else {
                     0.0
                 };
@@ -292,8 +293,7 @@ impl<'open> Window<'open> {
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
-                            // Add some spacing between title and content:
-                            ui.allocate_space(ui.style().spacing.item_spacing);
+                            ui.advance_cursor(title_content_spacing);
                         }
 
                         if let Some(scroll) = scroll {

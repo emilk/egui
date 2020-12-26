@@ -87,10 +87,10 @@ impl DemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    let (_id, rect) = ui.allocate_space(Vec2::splat(16.0));
+                    let response = ui.allocate_response(Vec2::splat(16.0), Sense::hover());
                     let painter = ui.painter();
-                    let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
+                    let c = response.rect.center();
+                    let r = response.rect.width() / 2.0 - 1.0;
                     let color = Srgba::gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -206,9 +206,9 @@ impl BoxPainting {
 
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {
-                let (_id, rect) = ui.allocate_space(self.size);
+                let response = ui.allocate_response(self.size, Sense::hover());
                 ui.painter().rect(
-                    rect,
+                    response.rect,
                     self.corner_radius,
                     Srgba::gray(64),
                     Stroke::new(self.stroke_width, WHITE),

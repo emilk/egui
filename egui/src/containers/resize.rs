@@ -265,18 +265,19 @@ impl Resize {
 
         // ------------------------------
 
-        if self.with_stroke || self.resizable {
+        let size = if self.with_stroke || self.resizable {
             // We show how large we are,
             // so we must follow the contents:
 
             state.desired_size = state.desired_size.max(state.last_content_size);
 
             // We are as large as we look
-            ui.allocate_space(state.desired_size);
+            state.desired_size
         } else {
             // Probably a window.
-            ui.allocate_space(state.last_content_size);
-        }
+            state.last_content_size
+        };
+        ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
 
         // ------------------------------
 

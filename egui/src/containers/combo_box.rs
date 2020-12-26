@@ -108,7 +108,7 @@ fn button_frame(
         },
     );
 
-    ui.allocate_space(outer_rect.size());
+    ui.advance_cursor_after_rect(outer_rect);
 
     response
 }

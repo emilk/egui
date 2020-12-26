@@ -416,6 +416,30 @@ impl Ui {
         self.layout.advance_cursor(&mut self.region, amount);
     }
 
+    /// Allocate space for a widget and check for interaction in the space.
+    /// Returns a `Response` which contains a rectangle, id, and interaction info.
+    ///
+    /// ## How sizes are negotiated
+    /// Each widget should have a *minimum desired size* and a *desired size*.
+    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// If you want to fill the space, ask about `available().size()` and use that.
+    ///
+    /// You may get MORE space than you asked for, for instance
+    /// for justified layouts, like in menus.
+    ///
+    /// You will never get a rectangle that is smaller than the amount of space you asked for.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
+    /// if response.clicked { /* … */ }
+    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::color::WHITE));
+    /// ```
+    pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
+        let (id, rect) = self.allocate_space(desired_size);
+        self.interact(rect, id, sense)
+    }
+
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///
@@ -427,7 +451,7 @@ impl Ui {
     /// You may get MORE space than you asked for, for instance
     /// for justified layouts, like in menus.
     ///
-    /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
+    /// You will never get a rectangle that is smaller than the amount of space you asked for.
     ///
     /// Returns an automatic `Id` (which you can use for interaction) and the `Rect` of where to put your widget.
     ///

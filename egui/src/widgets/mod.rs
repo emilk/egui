@@ -186,9 +186,10 @@ impl Widget for Label {
             total_response
         } else {
             let galley = self.layout(ui);
-            let (id, rect) = ui.allocate_space(galley.size);
-            let response = ui.interact(rect, id, Sense::hover());
-            let rect = ui.layout().align_size_within_rect(galley.size, rect);
+            let response = ui.allocate_response(galley.size, Sense::click());
+            let rect = ui
+                .layout()
+                .align_size_within_rect(galley.size, response.rect);
             self.paint_galley(ui, rect.min, galley);
             response
         }
@@ -261,9 +262,8 @@ impl Widget for Hyperlink {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available_width());
-        let (id, rect) = ui.allocate_space(galley.size);
+        let response = ui.allocate_response(galley.size, Sense::click());
 
-        let response = ui.interact(rect, id, Sense::click());
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
@@ -404,11 +404,9 @@ impl Widget for Button {
             desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
 
-        let (id, rect) = ui.allocate_space(desired_size);
+        let response = ui.allocate_response(desired_size, sense);
 
-        let response = ui.interact(rect, id, sense);
-
-        if ui.clip_rect().intersects(rect) {
+        if ui.clip_rect().intersects(response.rect) {
             let visuals = ui.style().interact(&response);
             let text_cursor = ui
                 .layout()
@@ -489,20 +487,20 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let (id, rect) = ui.allocate_space(desired_size);
-        let rect = ui.layout().align_size_within_rect(desired_size, rect);
-
-        let response = ui.interact(rect, id, Sense::click());
+        let response = ui.allocate_response(desired_size, Sense::click());
+        let rect = ui
+            .layout()
+            .align_size_within_rect(desired_size, response.rect);
         if response.clicked {
             *checked = !*checked;
         }
 
         let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
-            response.rect.min.x + button_padding.x + icon_width + icon_spacing,
-            response.rect.center().y - 0.5 * galley.size.y,
+            rect.min.x + button_padding.x + icon_width + icon_spacing,
+            rect.center().y - 0.5 * galley.size.y,
         );
-        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
+        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
         ui.painter().add(PaintCmd::Rect {
             rect: big_icon_rect,
             corner_radius: visuals.corner_radius,
@@ -583,18 +581,19 @@ impl Widget for RadioButton {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let (id, rect) = ui.allocate_space(desired_size);
-        let rect = ui.layout().align_size_within_rect(desired_size, rect);
-        let response = ui.interact(rect, id, Sense::click());
+        let response = ui.allocate_response(desired_size, Sense::click());
+        let rect = ui
+            .layout()
+            .align_size_within_rect(desired_size, response.rect);
 
         let text_cursor = pos2(
-            response.rect.min.x + button_padding.x + icon_width + icon_spacing,
-            response.rect.center().y - 0.5 * galley.size.y,
+            rect.min.x + button_padding.x + icon_width + icon_spacing,
+            rect.center().y - 0.5 * galley.size.y,
         );
 
         let visuals = ui.style().interact(&response);
 
-        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(response.rect);
+        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
 
         let painter = ui.painter();
 
@@ -659,9 +658,7 @@ impl Widget for SelectableLabel {
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
-        let (id, rect) = ui.allocate_space(desired_size);
-
-        let response = ui.interact(rect, id, Sense::click());
+        let response = ui.allocate_response(desired_size, Sense::click());
 
         let text_cursor = pos2(
             response.rect.min.x + button_padding.x,
@@ -723,7 +720,8 @@ impl Widget for Separator {
             vec2(available_space.x, spacing)
         };
 
-        let (id, rect) = ui.allocate_space(size);
+        let response = ui.allocate_response(size, Sense::hover());
+        let rect = response.rect;
         let points = if ui.layout().main_dir().is_horizontal() {
             [
                 pos2(rect.center().x, rect.top()),
@@ -737,6 +735,6 @@ impl Widget for Separator {
         };
         let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
-        ui.interact(rect, id, Sense::hover())
+        response
     }
 }

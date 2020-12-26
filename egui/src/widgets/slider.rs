@@ -241,10 +241,9 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
+    fn allocate_slider_space(&self, ui: &mut Ui, height: f32) -> Response {
         let desired_size = vec2(ui.style().spacing.slider_width, height);
-        let (id, rect) = ui.allocate_space(desired_size);
-        ui.interact(rect, id, Sense::click_and_drag())
+        ui.allocate_response(desired_size, Sense::click_and_drag())
     }
 
     /// Just the slider, no text
@@ -388,7 +387,7 @@ impl<'a> Widget for Slider<'a> {
 
         if self.text.is_some() {
             ui.horizontal(|ui| {
-                let slider_response = self.allocate_slide_space(ui, height);
+                let slider_response = self.allocate_slider_space(ui, height);
                 self.slider_ui(ui, &slider_response);
                 let x_range = x_range(&slider_response.rect);
                 self.value_ui(ui, x_range);
@@ -397,7 +396,7 @@ impl<'a> Widget for Slider<'a> {
             })
             .0
         } else {
-            let response = self.allocate_slide_space(ui, height);
+            let response = self.allocate_slider_space(ui, height);
             self.slider_ui(ui, &response);
             response
         }
