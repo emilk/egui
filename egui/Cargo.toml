@@ -20,7 +20,7 @@ include = [
 
 [dependencies]
 ahash = { version = "0.6", features = ["std"], default-features = false }
-atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using Egui in a single thread. About as fast as parking_lot.
+atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using Egui in a single thread. About as fast as parking_lot. Panics on multi-threaded use of egui::Context.
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
@@ -30,8 +30,14 @@ serde_json = { version = "1", optional = true }
 criterion = { version = "0.3", default-features = false }
 
 [features]
-default = ["atomic_refcell"]  # Using the same egui::Context from multiple threads will result in a panic.
-multi_threaded = ["parking_lot"] # Only needed if you plan to use the same egui::Context from multiple threads.
+default = ["atomic_refcell", "default_fonts"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = []
+
+# Only needed if you plan to use the same egui::Context from multiple threads.
+multi_threaded = ["parking_lot"]
 
 [[bench]]
 name = "benchmark"

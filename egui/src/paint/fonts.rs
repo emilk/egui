@@ -89,48 +89,60 @@ impl Default for FontDefinitions {
 impl FontDefinitions {
     /// Default values for the fonts
     pub fn default_with_pixels_per_point(pixels_per_point: f32) -> Self {
+        #[allow(unused)]
         let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
-        // Use size 13 for this. NOTHING ELSE:
-        font_data.insert(
-            "ProggyClean".to_owned(),
-            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
-        );
-        font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
-        );
-
-        // Few, but good looking. Use as first priority:
-        font_data.insert(
-            "NotoEmoji-Regular".to_owned(),
-            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
-        );
-        // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
-        font_data.insert(
-            "emoji-icon-font".to_owned(),
-            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
-        );
-
-        // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
 
         let mut fonts_for_family = BTreeMap::new();
-        fonts_for_family.insert(
-            FontFamily::Monospace,
-            vec![
+
+        #[cfg(feature = "default_fonts")]
+        {
+            // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
+
+            // Use size 13 for this. NOTHING ELSE:
+            font_data.insert(
                 "ProggyClean".to_owned(),
-                "Ubuntu-Light".to_owned(), // fallback for √ etc
-                "NotoEmoji-Regular".to_owned(),
-                "emoji-icon-font".to_owned(),
-            ],
-        );
-        fonts_for_family.insert(
-            FontFamily::VariableWidth,
-            vec![
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
+            );
+            font_data.insert(
                 "Ubuntu-Light".to_owned(),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+            );
+
+            // Some good looking emojis. Use as first priority:
+            font_data.insert(
                 "NotoEmoji-Regular".to_owned(),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
+            );
+            // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+            font_data.insert(
                 "emoji-icon-font".to_owned(),
-            ],
-        );
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
+            );
+
+            fonts_for_family.insert(
+                FontFamily::Monospace,
+                vec![
+                    "ProggyClean".to_owned(),
+                    "Ubuntu-Light".to_owned(), // fallback for √ etc
+                    "NotoEmoji-Regular".to_owned(),
+                    "emoji-icon-font".to_owned(),
+                ],
+            );
+            fonts_for_family.insert(
+                FontFamily::VariableWidth,
+                vec![
+                    "Ubuntu-Light".to_owned(),
+                    "NotoEmoji-Regular".to_owned(),
+                    "emoji-icon-font".to_owned(),
+                ],
+            );
+        }
+
+        #[cfg(not(feature = "default_fonts"))]
+        {
+            fonts_for_family.insert(FontFamily::Monospace, vec![]);
+            fonts_for_family.insert(FontFamily::VariableWidth, vec![]);
+        }
 
         let mut family_and_size = BTreeMap::new();
         family_and_size.insert(TextStyle::Small, (FontFamily::VariableWidth, 10.0));
@@ -196,7 +208,11 @@ impl Fonts {
             .family_and_size
             .iter()
             .map(|(&text_style, &(family, scale_in_points))| {
-                let fonts: Vec<Arc<FontImpl>> = self.definitions.fonts_for_family[&family]
+                let fonts = &self.definitions.fonts_for_family.get(&family);
+                let fonts = fonts.unwrap_or_else(|| {
+                    panic!("FontFamily::{:?} is not bound to any fonts", family)
+                });
+                let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
                     .map(|font_name| font_impl_cache.font_impl(font_name, scale_in_points))
                     .collect();
