@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## 0.6.0 - 2020-12-26
+
 ### Added ⭐
 
 * Auto-save of app state to local storage
