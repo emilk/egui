@@ -1,4 +1,4 @@
-use crate::{math::Rect, CtxRef, Ui};
+use crate::{lerp, math::Rect, CtxRef, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -134,6 +134,14 @@ impl Response {
     #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
     pub fn tooltip_text(self, text: impl Into<String>) -> Self {
         self.on_hover_text(text)
+    }
+
+    pub fn scroll_to_me(&self, center_ratio: f32) {
+        let scroll_target = lerp(self.rect.y_range(), center_ratio);
+
+        let mut frame_state = self.ctx.frame_state();
+        frame_state.set_scroll_target(Some(scroll_target));
+        frame_state.set_scroll_target_center_ratio(center_ratio);
     }
 }
 
