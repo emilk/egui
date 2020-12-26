@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use {
     ahash::AHashMap,
-    parking_lot::RwLock,
     rusttype::{point, Scale},
 };
 
 use crate::{
     math::{vec2, Vec2},
-    mutex::Mutex,
+    mutex::{Mutex, RwLock},
     paint::{Galley, Row},
 };
 

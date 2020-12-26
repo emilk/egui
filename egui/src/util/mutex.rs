@@ -1,12 +1,15 @@
-//! Helper module for a Mutex that
-//! detects double-locking on the same thread in debug mode.
+//! Helper module that wraps some Mutex types with different implementations.
 
-// TODO: feature-flag for `parking_lot` vs `std::sync::Mutex`.
+// ----------------------------------------------------------------------------
+
+#[cfg(feature = "multi_threaded")]
 pub use parking_lot::MutexGuard;
 
+#[cfg(feature = "multi_threaded")]
 #[derive(Default)]
 pub struct Mutex<T>(parking_lot::Mutex<T>);
 
+#[cfg(feature = "multi_threaded")]
 impl<T> Mutex<T> {
     #[inline(always)]
     pub fn new(val: T) -> Self {
@@ -30,6 +33,89 @@ impl<T> Mutex<T> {
     }
 }
 
+// ---------------------
+
+#[cfg(feature = "multi_threaded")]
+pub use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+
+#[cfg(feature = "multi_threaded")]
+#[derive(Default)]
+pub struct RwLock<T>(parking_lot::RwLock<T>);
+
+#[cfg(feature = "multi_threaded")]
+impl<T> RwLock<T> {
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self(parking_lot::RwLock::new(val))
+    }
+
+    #[inline(always)]
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
+        self.0.read()
+    }
+
+    #[inline(always)]
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
+        self.0.write()
+    }
+}
+
+// ----------------------------------------------------------------------------
+// `atomic_refcell` will panic if multiple threads try to access the same value
+
+#[cfg(not(feature = "multi_threaded"))]
+pub use atomic_refcell::AtomicRefMut as MutexGuard;
+
+#[cfg(not(feature = "multi_threaded"))]
+#[derive(Default)]
+pub struct Mutex<T>(atomic_refcell::AtomicRefCell<T>);
+
+#[cfg(not(feature = "multi_threaded"))]
+impl<T> Mutex<T> {
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self(atomic_refcell::AtomicRefCell::new(val))
+    }
+
+    /// Panics if already locked.
+    #[inline(always)]
+    pub fn lock(&self) -> MutexGuard<'_, T> {
+        self.0.borrow_mut()
+    }
+}
+
+// ---------------------
+
+#[cfg(not(feature = "multi_threaded"))]
+pub use {
+    atomic_refcell::AtomicRef as RwLockReadGuard, atomic_refcell::AtomicRefMut as RwLockWriteGuard,
+};
+
+#[cfg(not(feature = "multi_threaded"))]
+#[derive(Default)]
+pub struct RwLock<T>(atomic_refcell::AtomicRefCell<T>);
+
+#[cfg(not(feature = "multi_threaded"))]
+impl<T> RwLock<T> {
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self(atomic_refcell::AtomicRefCell::new(val))
+    }
+
+    #[inline(always)]
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
+        self.0.borrow()
+    }
+
+    /// Panics if already locked.
+    #[inline(always)]
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
+        self.0.borrow_mut()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 impl<T> Clone for Mutex<T>
 where
     T: Clone,
@@ -38,12 +124,3 @@ where
         Self::new(self.lock().clone())
     }
 }
-
-// impl<T> PartialEq for Mutex<T>
-// where
-//     T: PartialEq,
-// {
-//     fn eq(&self, other: &Self) -> bool {
-//         std::ptr::eq(self, other) || self.lock().eq(&other.lock())
-//     }
-// }

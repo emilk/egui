@@ -70,7 +70,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Modular: You should be able to use small parts of Egui and combine them in new ways
 * Safe: there is no `unsafe` code in Egui
 * Minimal dependencies
-  * Egui uses [`rusttype`](https://crates.io/crates/rusttype) to render text and [`ahash`](https://crates.io/crates/ahash) + [`parking_lot`](https://crates.io/crates/parking_lot) for a speed boost.
+  * [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
 
 Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
 
