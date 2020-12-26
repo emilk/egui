@@ -31,7 +31,7 @@ impl View for DancingStrings {
             let time = ui.input().time;
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
-            let rect = ui.allocate_space(desired_size);
+            let (_id, rect) = ui.allocate_space(desired_size);
 
             let mut cmds = vec![];
 

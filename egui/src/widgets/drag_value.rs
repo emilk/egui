@@ -151,7 +151,7 @@ impl<'a> Widget for DragValue<'a> {
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
         let value_text = format_with_decimals_in_range(value, auto_decimals..=max_decimals);
 
-        let kb_edit_id = ui.make_position_id().with("edit");
+        let kb_edit_id = ui.auto_id_with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         if is_kb_editing {

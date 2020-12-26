@@ -365,13 +365,16 @@ impl Ui {
         self.id.with(&id_source)
     }
 
-    /// Make an Id that is unique to this position.
-    /// Can be used for widgets that do NOT persist state in Memory
-    /// but you still need to interact with (e.g. buttons, sliders).
-    /// Call AFTER allocating new space for your widget.
-    // TODO: return from `allocate_space` ?
+    #[deprecated = "This id now returned from ui.allocate_space"]
     pub fn make_position_id(&self) -> Id {
         Id::new(self.next_auto_id)
+    }
+
+    pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
+    where
+        IdSource: Hash + std::fmt::Debug,
+    {
+        Id::new(self.next_auto_id).with(id_source)
     }
 }
 
@@ -430,7 +433,15 @@ impl Ui {
     /// for justified layouts, like in menus.
     ///
     /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
+    ///
+    /// Returns an automatic `Id` (which you can use for interaction) and the `Rect` of where to put your widget.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// let (id, rect) = ui.allocate_space(egui::vec2(100.0, 200.0));
+    /// let response = ui.interact(rect, id, egui::Sense::click());
+    /// ```
+    pub fn allocate_space(&mut self, desired_size: Vec2) -> (Id, Rect) {
         // For debug rendering
         let original_available = self.available_size_before_wrap();
         let too_wide = desired_size.x > original_available.x;
@@ -466,7 +477,9 @@ impl Ui {
             }
         }
 
-        rect
+        let id = Id::new(self.next_auto_id); // TODO: increment counter here
+
+        (id, rect)
     }
 
     /// Reserve this much space and move the cursor.
@@ -533,10 +546,11 @@ impl Ui {
     }
 
     /// Convenience function to get a region to paint on
-    pub fn allocate_painter(&mut self, desired_size: Vec2) -> Painter {
-        let rect = self.allocate_space(desired_size);
+    pub fn allocate_painter(&mut self, desired_size: Vec2) -> (Id, Painter) {
+        let (id, rect) = self.allocate_space(desired_size);
         let clip_rect = self.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
-        Painter::new(self.ctx().clone(), self.layer_id(), clip_rect)
+        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        (id, painter)
     }
 }
 
@@ -772,8 +786,8 @@ impl Ui {
         let mut child_ui = self.child_ui(child_rect, self.layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
-        (ret, self.interact_hover(rect))
+        let (id, rect) = self.allocate_space(size);
+        (ret, self.interact(rect, id, Sense::nothing()))
     }
 
     /// Redirect paint commands to another paint layer.
@@ -836,8 +850,8 @@ impl Ui {
             self.style().visuals.widgets.noninteractive.bg_stroke,
         );
 
-        let rect = self.allocate_space(indent + size);
-        (ret, self.interact_hover(rect))
+        let (id, rect) = self.allocate_space(indent + size);
+        (ret, self.interact(rect, id, Sense::nothing()))
     }
 
     #[deprecated]

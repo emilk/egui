@@ -519,7 +519,7 @@ impl Stroke {
             ui.label(text);
 
             // stroke preview:
-            let stroke_rect = ui.allocate_space(ui.style().spacing.interact_size);
+            let (_id, stroke_rect) = ui.allocate_space(ui.style().spacing.interact_size);
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));

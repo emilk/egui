@@ -160,7 +160,7 @@ impl Widget for Label {
 
             let pos = pos2(ui.min_rect().left(), ui.cursor().y);
 
-            assert!(!galley.rows.is_empty(), "Gallyes are never empty");
+            assert!(!galley.rows.is_empty(), "Galleys are never empty");
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
             ui.advance_cursor_after_rect(rect);
             let mut total_response = ui.interact_hover(rect);
@@ -186,10 +186,11 @@ impl Widget for Label {
             total_response
         } else {
             let galley = self.layout(ui);
-            let rect = ui.allocate_space(galley.size);
+            let (id, rect) = ui.allocate_space(galley.size);
+            let response = ui.interact(rect, id, Sense::nothing());
             let rect = ui.layout().align_size_within_rect(galley.size, rect);
             self.paint_galley(ui, rect.min, galley);
-            ui.interact_hover(rect)
+            response
         }
     }
 }
@@ -260,9 +261,8 @@ impl Widget for Hyperlink {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available_width());
-        let rect = ui.allocate_space(galley.size);
+        let (id, rect) = ui.allocate_space(galley.size);
 
-        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -404,9 +404,8 @@ impl Widget for Button {
             desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
 
-        let rect = ui.allocate_space(desired_size);
+        let (id, rect) = ui.allocate_space(desired_size);
 
-        let id = ui.make_position_id();
         let response = ui.interact(rect, id, sense);
 
         if ui.clip_rect().intersects(rect) {
@@ -490,10 +489,9 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let rect = ui.allocate_space(desired_size);
+        let (id, rect) = ui.allocate_space(desired_size);
         let rect = ui.layout().align_size_within_rect(desired_size, rect);
 
-        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
         if response.clicked {
             *checked = !*checked;
@@ -585,10 +583,8 @@ impl Widget for RadioButton {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let rect = ui.allocate_space(desired_size);
+        let (id, rect) = ui.allocate_space(desired_size);
         let rect = ui.layout().align_size_within_rect(desired_size, rect);
-
-        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
 
         let text_cursor = pos2(
@@ -663,9 +659,8 @@ impl Widget for SelectableLabel {
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
-        let rect = ui.allocate_space(desired_size);
+        let (id, rect) = ui.allocate_space(desired_size);
 
-        let id = ui.make_position_id();
         let response = ui.interact(rect, id, Sense::click());
 
         let text_cursor = pos2(
@@ -722,27 +717,26 @@ impl Widget for Separator {
 
         let available_space = ui.available_size_before_wrap_finite();
 
-        let (points, rect) = if ui.layout().main_dir().is_horizontal() {
-            let rect = ui.allocate_space(vec2(spacing, available_space.y));
-            (
-                [
-                    pos2(rect.center().x, rect.top()),
-                    pos2(rect.center().x, rect.bottom()),
-                ],
-                rect,
-            )
+        let size = if ui.layout().main_dir().is_horizontal() {
+            vec2(spacing, available_space.y)
         } else {
-            let rect = ui.allocate_space(vec2(available_space.x, spacing));
-            (
-                [
-                    pos2(rect.left(), rect.center().y),
-                    pos2(rect.right(), rect.center().y),
-                ],
-                rect,
-            )
+            vec2(available_space.x, spacing)
+        };
+
+        let (id, rect) = ui.allocate_space(size);
+        let points = if ui.layout().main_dir().is_horizontal() {
+            [
+                pos2(rect.center().x, rect.top()),
+                pos2(rect.center().x, rect.bottom()),
+            ]
+        } else {
+            [
+                pos2(rect.left(), rect.center().y),
+                pos2(rect.right(), rect.center().y),
+            ]
         };
         let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
-        ui.interact_hover(rect)
+        ui.interact(rect, id, Sense::nothing())
     }
 }

@@ -62,8 +62,7 @@ impl Widget for ImageButton {
 
         let button_padding = ui.style().spacing.button_padding;
         let desired_size = image.desired_size() + 2.0 * button_padding;
-        let rect = ui.allocate_space(desired_size);
-        let id = ui.make_position_id();
+        let (id, rect) = ui.allocate_space(desired_size);
         let response = ui.interact(rect, id, sense);
 
         if ui.clip_rect().intersects(rect) {

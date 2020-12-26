@@ -72,8 +72,8 @@ impl Image {
 
 impl Widget for Image {
     fn ui(self, ui: &mut Ui) -> Response {
-        let rect = ui.allocate_space(self.desired_size);
+        let (id, rect) = ui.allocate_space(self.desired_size);
         self.paint_at(ui, rect);
-        ui.interact_hover(rect)
+        ui.interact(rect, id, Sense::nothing())
     }
 }

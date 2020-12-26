@@ -614,6 +614,7 @@ fn paint_frame_interaction(
 // ----------------------------------------------------------------------------
 
 struct TitleBar {
+    id: Id,
     title_label: Label,
     title_galley: Galley,
     title_rect: Rect,
@@ -637,7 +638,7 @@ fn show_title_bar(
         if collapsible {
             ui.advance_cursor(ui.style().spacing.item_spacing.x);
 
-            let rect = ui.allocate_space(Vec2::splat(button_size));
+            let (_id, rect) = ui.allocate_space(Vec2::splat(button_size));
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
             if collapse_button_response.clicked {
                 collapsing.toggle(ui);
@@ -647,7 +648,7 @@ fn show_title_bar(
         }
 
         let title_galley = title_label.layout(ui);
-        let title_rect = ui.allocate_space(title_galley.size);
+        let (id, title_rect) = ui.allocate_space(title_galley.size);
 
         if show_close_button {
             // Reserve space for close button which will be added later (once we know our full width):
@@ -664,6 +665,7 @@ fn show_title_bar(
         }
 
         TitleBar {
+            id,
             title_label,
             title_galley,
             title_rect,
@@ -715,9 +717,8 @@ impl TitleBar {
             );
         }
 
-        let title_bar_id = ui.make_position_id().with("title_bar");
         if ui
-            .interact(self.rect, title_bar_id, Sense::click())
+            .interact(self.rect, self.id, Sense::click())
             .double_clicked
             && collapsible
         {
@@ -740,7 +741,7 @@ impl TitleBar {
 }
 
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
-    let close_id = ui.make_position_id().with("window_close_button");
+    let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_rect(response.rect);
 

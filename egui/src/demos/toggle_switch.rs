@@ -24,14 +24,11 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 
     // 2. Allocating space:
     // This is where we get a region (`Rect`) of the screen assigned.
-    let rect = ui.allocate_space(desired_size);
+    // We also get an automatically generated `Id` which can be used for interactions and animations.
+    // (To get an `Id` that is persistent over long time, use `ui.make_persistent_id`).
+    let (id, rect) = ui.allocate_space(desired_size);
 
-    // 3. Interact: Time to check for clicks!
-    // To do that we need an `Id` for the button.
-    // Id's are best created from unique identifiers (like fixed labels)
-    // but since we have no label for the switch we here just generate an `Id` automatically
-    // (based on a rolling counter in the `Ui`).
-    let id = ui.make_position_id();
+    // 3. Interact: Time to check for clicks!.
     let response = ui.interact(rect, id, Sense::click());
     if response.clicked {
         *on = !*on;
@@ -67,9 +64,8 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 #[allow(dead_code)]
 fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
     let desired_size = ui.style().spacing.interact_size;
-    let rect = ui.allocate_space(desired_size);
+    let (id, rect) = ui.allocate_space(desired_size);
 
-    let id = ui.make_position_id();
     let response = ui.interact(rect, id, Sense::click());
     *on ^= response.clicked; // toggle if clicked
 

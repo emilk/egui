@@ -185,7 +185,7 @@ impl CollapsingHeader {
             galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
         );
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
-        let rect = ui.allocate_space(desired_size);
+        let (_, rect) = ui.allocate_space(desired_size);
 
         let header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
