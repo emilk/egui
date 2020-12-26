@@ -411,7 +411,7 @@ impl Ui {
         self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
     }
 
-    #[deprecated = "Use: ui_contains_mouse()"]
+    #[deprecated = "Use: rect_contains_mouse()"]
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact(rect, self.id, Sense::hover()).hovered
     }
