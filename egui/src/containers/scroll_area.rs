@@ -153,8 +153,19 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        if let Some(offset_y) = content_ui.ctx().frame_state().scroll_offset_y() {
+        let scroll_target = content_ui.ctx().frame_state().scroll_target();
+        if let Some(scroll_target) = scroll_target {
+            let center_ratio = content_ui.ctx().frame_state().scroll_target_center_ratio();
+            let height_offset = content_ui.clip_rect().height() * center_ratio;
+            let top = content_ui.min_rect().top();
+            let offset_y = scroll_target - top - height_offset;
             state.offset.y = offset_y;
+
+            // We need to clear/consume the offset
+            // or else all the ScrollAreas are gonna try to use this offset,
+            // this way only the innermost will use it.
+            // TODO: Is this ideal? How to set outer scrolls when inside another?
+            content_ui.ctx().frame_state().set_scroll_target(None);
         }
 
         let inner_rect = Rect::from_min_size(

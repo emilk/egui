@@ -38,8 +38,10 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
+    // TODO: Maybe turn this into an struct
+    scroll_target: Option<f32>,
+    scroll_target_center_ratio: f32,
     // TODO: move some things from `Memory` to here
-    scroll_offset: Option<f32>
 }
 
 impl Default for FrameState {
@@ -48,7 +50,8 @@ impl Default for FrameState {
             available_rect: Rect::invalid(),
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
-            scroll_offset: None
+            scroll_target: None,
+            scroll_target_center_ratio: 0.0,
         }
     }
 }
@@ -58,7 +61,8 @@ impl FrameState {
         self.available_rect = input.screen_rect();
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
-        self.scroll_offset = None;
+        self.scroll_target = None;
+        self.scroll_target_center_ratio = 0.0;
     }
 
     /// How much space is still available after panels has been added.
@@ -101,12 +105,23 @@ impl FrameState {
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 
-    pub(crate) fn set_scroll_offset_y(&mut self, offset: f32) {
-        self.scroll_offset = Some(offset);
+    pub(crate) fn set_scroll_target(&mut self, scroll_target: Option<f32>) {
+        self.scroll_target = scroll_target;
     }
 
-    pub(crate) fn scroll_offset_y(&self) -> Option<f32> {
-        self.scroll_offset
+    pub(crate) fn scroll_target(&self) -> Option<f32> {
+        self.scroll_target
+    }
+
+    pub(crate) fn set_scroll_target_center_ratio(&mut self, center_ratio: f32) {
+        // This is the imgui aproach to set the scroll relative to the position
+        // 0.0: top of widget / 0.5: midle of widget / 1.0: bottom of widget
+        assert!(center_ratio >= 0.0 && center_ratio <= 1.0);
+        self.scroll_target_center_ratio = center_ratio;
+    }
+
+    pub(crate) fn scroll_target_center_ratio(&self) -> f32 {
+        self.scroll_target_center_ratio
     }
 }
 

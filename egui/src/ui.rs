@@ -528,11 +528,11 @@ impl Ui {
     }
 
     pub fn scroll_to_here(&mut self, center_ratio: f32) {
-        // This is the imgui aproach to set the scroll relative to the position 
-        // 0.0: top of widget / 0.5: midle of widget / 1.0: bottom of widget
-        assert!(center_ratio >= 0.0 && center_ratio <= 1.0);
-        let offset = self.min_rect().height() - self.clip_rect().height() * center_ratio;
-        self.ctx().frame_state().set_scroll_offset_y(offset);
+        let scroll_target = self.min_rect().bottom();
+
+        let mut frame_state = self.ctx().frame_state();
+        frame_state.set_scroll_target(Some(scroll_target));
+        frame_state.set_scroll_target_center_ratio(center_ratio);
     }
 }
 
