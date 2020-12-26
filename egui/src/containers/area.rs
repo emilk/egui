@@ -180,11 +180,11 @@ impl Prepared {
         };
 
         let move_response = ctx.interact(
-            layer_id,
             Rect::everything(),
             ctx.style().spacing.item_spacing,
-            state.rect(),
+            layer_id,
             interact_id,
+            state.rect(),
             sense,
         );
 

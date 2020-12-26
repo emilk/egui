@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `egui::math::Rot2`: rotation helper.
 * `Response` now contains the `Id` of the widget it pertains to.
 * `ui.allocate_response` that allocates space and checks for interactions.
+* Add response.interact(sense), e.g. to check for clicks on labels.
 
 ### Changed 🔧
 

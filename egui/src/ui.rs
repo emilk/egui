@@ -382,13 +382,28 @@ impl Ui {
 impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
-            self.layer_id(),
             self.clip_rect(),
             self.style().spacing.item_spacing,
-            rect,
+            self.layer_id(),
             id,
+            rect,
             sense,
         )
+    }
+
+    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
+        self.ctx()
+            .rect_contains_mouse(self.layer_id(), self.clip_rect().intersect(rect))
+    }
+
+    /// Is the mouse above this `Ui`?
+    pub fn ui_contains_mouse(&self) -> bool {
+        if let Some(mouse_pos) = self.input().mouse.pos {
+            self.clip_rect().contains(mouse_pos)
+                && self.ctx().layer_id_at(mouse_pos) == Some(self.layer_id())
+        } else {
+            false
+        }
     }
 
     #[deprecated = "Use: interact(rect, id, Sense::hover())"]
@@ -396,14 +411,9 @@ impl Ui {
         self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
     }
 
-    #[deprecated = "Use: contains_mouse()"]
+    #[deprecated = "Use: ui_contains_mouse()"]
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact(rect, self.id, Sense::hover()).hovered
-    }
-
-    pub fn contains_mouse(&self, rect: Rect) -> bool {
-        self.ctx()
-            .contains_mouse(self.layer_id(), self.clip_rect(), rect)
     }
 
     // ------------------------------------------------------------------------
