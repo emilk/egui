@@ -38,7 +38,7 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
-    scroll_delta: Vec2, 
+    scroll_delta: Vec2,
     // TODO: move some things from `Memory` to here
 }
 
@@ -100,7 +100,7 @@ impl FrameState {
         self.unused_rect = Rect::nothing(); // Nothing left unused after this
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
-    
+
     pub(crate) fn scroll_delta(&self) -> Vec2 {
         self.scroll_delta
     }

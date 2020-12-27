@@ -201,7 +201,7 @@ impl Prepared {
         if ui.rect_contains_mouse(outer_rect) {
             let mut frame_state = ui.ctx().frame_state();
             let scroll_delta = frame_state.scroll_delta();
-            
+
             let scrolling_top = state.offset.y > 0.0 && scroll_delta.y > 0.0;
             let scrolling_bottom = state.offset.y < max_offset && scroll_delta.y < 0.0;
 
