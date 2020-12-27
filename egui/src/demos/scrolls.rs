@@ -34,10 +34,10 @@ impl Scrolls {
             scroll_offset
         });
 
-        let titles = ["Top", "25%", "Middle", "75%", "Bottom", "Custom"];
+        const TITLES: [&str; 6] = ["Top", "25%", "Middle", "75%", "Bottom", "Custom"];
         ui.columns(6, |cols| {
             for (i, col) in cols.iter_mut().enumerate() {
-                col.label(titles[i]);
+                col.colored_label(WHITE, TITLES[i]);
                 let mut scroll_area = ScrollArea::from_max_height(200.0).id_source(i);
                 if scroll_offset {
                     self.tracking = false;
@@ -67,7 +67,7 @@ impl Scrolls {
                         ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin,
                     )
                 });
-                col.label(format!("{:.0}/{:.0}", current_scroll, max_scroll));
+                col.colored_label(WHITE, format!("{:.0}/{:.0}", current_scroll, max_scroll));
             }
         });
     }
