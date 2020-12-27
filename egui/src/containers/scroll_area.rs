@@ -65,8 +65,8 @@ impl ScrollArea {
 
     /// Set the scroll offset position.
     ///
-    /// See also: [Ui::scroll_to_here](crate::ui::Ui::scroll_to_here) and
-    /// [Response::scroll_to_me](crate::types::Response::scroll_to_me)
+    /// See also: [`Ui::scroll_to_here`](crate::ui::Ui::scroll_to_here) and
+    /// [`Response::scroll_to_me`](crate::types::Response::scroll_to_me)
     pub fn scroll_offset(mut self, offset: Vec2) -> Self {
         self.offset = Some(offset);
         self
