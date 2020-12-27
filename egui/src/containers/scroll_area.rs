@@ -25,7 +25,7 @@ impl Default for State {
 }
 
 // TODO: rename VScroll
-/// Add vertical scrolling to a contained `Ui`.
+/// Add vertical scrolling to a contained [`Ui`].
 #[derive(Clone, Debug)]
 pub struct ScrollArea {
     max_height: f32,
@@ -34,7 +34,7 @@ pub struct ScrollArea {
 }
 
 impl ScrollArea {
-    /// Will make the area be as high as it is allowed to be (i.e. fill the ui it is in)
+    /// Will make the area be as high as it is allowed to be (i.e. fill the [`Ui`] it is in)
     pub fn auto_sized() -> Self {
         Self::from_max_height(f32::INFINITY)
     }

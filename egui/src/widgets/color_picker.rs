@@ -1,3 +1,5 @@
+//! Color picker widgets.
+
 use crate::{
     paint::{color::*, *},
     *,

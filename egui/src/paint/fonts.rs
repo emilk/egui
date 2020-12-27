@@ -12,14 +12,20 @@ use super::{
 };
 
 // TODO: rename
+/// One of a few categories of styles of text, e.g. body, button or heading.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum TextStyle {
+    /// Used when small text is needed.
     Small,
+    /// Normal labels. Easily readable, doesn't take up too much space.
     Body,
+    /// Buttons. Maybe slightly bigger than `Body`.
     Button,
+    /// Heading. Probably larger than `Body`.
     Heading,
+    /// Same size as `Body`, but used when monospace is important (for aligning number, code snippets, etc).
     Monospace,
 }
 
@@ -37,10 +43,13 @@ impl TextStyle {
     }
 }
 
+/// Which style of font: [`Monospace`][`FontFamily::Monospace`] or [`VariableWidth`][`FontFamily::VariableWidth`].
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
+    /// A font where each character is the same width (`w` is the same width as `i`).
     Monospace,
+    /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     VariableWidth,
 }
 
@@ -55,11 +64,25 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
     .unwrap_or_else(|| panic!("Error parsing {:?} TTF/OTF font file", name))
 }
 
-/// This is how you tell Egui which fonts and font sizes to use.
+/// Describes the font data and the sizes to use.
+///
+/// This is how you can tell Egui which fonts and font sizes to use.
+///
+/// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
+///
+/// ```
+/// # let mut ctx = egui::CtxRef::default();
+/// let mut fonts = egui::FontDefinitions::default();
+/// // Large button text:
+/// fonts.family_and_size.insert(
+///     egui::TextStyle::Button,
+///     (egui::FontFamily::VariableWidth, 32.0));
+/// ctx.set_fonts(fonts);
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDefinitions {
     /// The dpi scale factor. Needed to get pixel perfect fonts.
-    pub pixels_per_point: f32,
+    pub pixels_per_point: f32, // TODO: remove from here
 
     /// List of font names and their definitions.
     /// The definition must be the contents of either a `.ttf` or `.otf` font file.
@@ -68,15 +91,15 @@ pub struct FontDefinitions {
     /// but you can override them if you like.
     pub font_data: BTreeMap<String, FontData>,
 
-    /// Which fonts (names) to use for each `FontFamily`.
+    /// Which fonts (names) to use for each [`FontFamily`].
     ///
-    /// The list should be a list of keys into `font_data`.
+    /// The list should be a list of keys into [`Self::font_data`].
     /// When looking for a character glyph Egui will start with
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     pub fonts_for_family: BTreeMap<FontFamily, Vec<String>>,
 
-    /// The `FontFaily` and size you want to use for a specific `TextStyle`.
+    /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
     pub family_and_size: BTreeMap<TextStyle, (FontFamily, f32)>,
 }
 

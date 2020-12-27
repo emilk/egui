@@ -299,7 +299,7 @@ impl Widget for Hyperlink {
 
 // ----------------------------------------------------------------------------
 
-/// Clickable button with text
+/// Clickable button with text.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: String,
@@ -438,7 +438,7 @@ impl Widget for Button {
 // ----------------------------------------------------------------------------
 
 // TODO: allow checkbox without a text label
-/// Boolean on/off control with text label
+/// Boolean on/off control with text label.
 #[derive(Debug)]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,

@@ -1,5 +1,20 @@
 use crate::{paint::PaintCmd, style::WidgetVisuals, *};
 
+/// A drop-down selection menu with a descriptive label.
+///
+/// See also [`combo_box`].
+///
+/// ```
+/// # #[derive(Debug, PartialEq)]
+/// # enum Enum { First, Second, Third }
+/// # let mut selected = Enum::First;
+/// # let mut ui = &mut egui::Ui::__test();
+/// egui::combo_box_with_label(ui, "Select one!", format!("{:?}", selected), |ui| {
+///     ui.selectable_value(&mut selected, Enum::First, "First");
+///     ui.selectable_value(&mut selected, Enum::Second, "Second");
+///     ui.selectable_value(&mut selected, Enum::Third, "Third");
+/// });
+/// ```
 pub fn combo_box_with_label(
     ui: &mut Ui,
     label: impl Into<Label>,
@@ -17,6 +32,22 @@ pub fn combo_box_with_label(
     .0
 }
 
+/// A drop-down selection menu.
+///
+/// See also [`combo_box_with_label`].
+///
+/// ```
+/// # #[derive(Debug, PartialEq)]
+/// # enum Enum { First, Second, Third }
+/// # let mut selected = Enum::First;
+/// # let mut ui = &mut egui::Ui::__test();
+/// let id = ui.make_persistent_id("my_combo_box");
+/// egui::combo_box(ui, id, format!("{:?}", selected), |ui| {
+///     ui.selectable_value(&mut selected, Enum::First, "First");
+///     ui.selectable_value(&mut selected, Enum::Second, "Second");
+///     ui.selectable_value(&mut selected, Enum::Third, "Third");
+/// });
+/// ```
 pub fn combo_box(
     ui: &mut Ui,
     button_id: Id,

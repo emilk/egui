@@ -101,7 +101,7 @@ impl State {
 }
 
 /// Paint the arrow icon that indicated if the region is open or not
-pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
+pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
 
     let rect = response.rect;
@@ -118,7 +118,7 @@ pub fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
     ui.painter().add(PaintCmd::closed_line(points, stroke));
 }
 
-/// A header which can be collapsed/expanded, revealing a contained `Ui` region.
+/// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
@@ -269,6 +269,7 @@ impl CollapsingHeader {
     }
 }
 
+/// The response from showing a [`CollapsingHeader`].
 pub struct CollapsingResponse<R> {
     pub header_response: Response,
     /// None iff collapsed.

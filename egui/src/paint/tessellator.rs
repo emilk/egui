@@ -1,7 +1,7 @@
 //! Converts graphics primitives into textured triangles.
 //!
-//! This module converts lines, circles, text and more represented by `PaintCmd`
-//! into textured triangles represented by `Triangles`.
+//! This module converts lines, circles, text and more represented by [`PaintCmd`]
+//! into textured triangles represented by [`Triangles`].
 
 #![allow(clippy::identity_op)]
 
@@ -15,11 +15,11 @@ use {
     std::f32::consts::TAU,
 };
 
-/// What texture to use in a `Triangles` mesh.
+/// What texture to use in a [`Triangles`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextureId {
     /// The Egui font texture.
-    /// If you don't want to use a texture, pick this and the `WHITE_UV` for uv-coord.
+    /// If you don't want to use a texture, pick this and the [`WHITE_UV`] for uv-coord.
     Egui,
 
     /// Your own texture, defined in any which way you want.
@@ -665,7 +665,7 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 
 // ----------------------------------------------------------------------------
 
-/// Tesselate a single `PaintCmd` into a `Triangles`.
+/// Tesselate a single [`PaintCmd`] into a [`Triangles`].
 ///
 /// * `command`: the command to tesselate
 /// * `options`: tesselation quality
@@ -845,7 +845,7 @@ fn tesselate_text(
     assert_eq!(chars.next(), None);
 }
 
-/// Turns `PaintCmd`:s into sets of triangles.
+/// Turns [`PaintCmd`]:s into sets of triangles.
 ///
 /// The given commands will be painted back-to-front (painters algorithm).
 /// They will be batched together by clip rectangle.
@@ -855,7 +855,7 @@ fn tesselate_text(
 /// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
-/// A list of clip rectangles with matching `Triangles`.
+/// A list of clip rectangles with matching [`Triangles`].
 pub fn tessellate_paint_commands(
     commands: Vec<(Rect, PaintCmd)>,
     options: TesselationOptions,

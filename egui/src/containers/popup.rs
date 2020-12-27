@@ -1,6 +1,19 @@
 use crate::*;
 
 /// Show a tooltip at the current mouse position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_ui`].
+///
+/// See also [`show_tooltip_text`].
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// if ui.ui_contains_mouse() {
+///     egui::show_tooltip(ui.ctx(), |ui| {
+///         ui.label("Helpful text");
+///     });
+/// }
+/// ```
 pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     let tooltip_rect = ctx.memory().tooltip_rect;
 
@@ -24,7 +37,18 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     ctx.memory().tooltip_rect = Some(tooltip_rect.union(response.rect));
 }
 
-/// Show a tooltip at the current mouse position (if any).
+/// Show some text at the current mouse position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_text`].
+///
+/// See also [`show_tooltip`].
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// if ui.ui_contains_mouse() {
+///     egui::show_tooltip_text(ui.ctx(), "Helpful text");
+/// }
+/// ```
 pub fn show_tooltip_text(ctx: &CtxRef, text: impl Into<String>) {
     show_tooltip(ctx, |ui| {
         ui.add(crate::widgets::Label::new(text));
