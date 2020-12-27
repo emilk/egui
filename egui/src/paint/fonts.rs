@@ -256,13 +256,6 @@ impl std::ops::Index<TextStyle> for Fonts {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum FontSource {
-    Family(FontFamily),
-    /// Emoji fonts are numbered from hight priority (0) and onwards
-    Emoji(usize),
-}
-
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,

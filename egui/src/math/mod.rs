@@ -109,11 +109,6 @@ where
     }
 }
 
-/// For t=[0,1], returns [0,1] with a derivate of zero at both ends
-pub fn ease_in_ease_out(t: f32) -> f32 {
-    3.0 * t * t - 2.0 * t * t * t
-}
-
 /// Round a value to the given number of decimal places.
 pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.

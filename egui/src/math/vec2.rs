@@ -75,14 +75,6 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
-    pub fn distance(a: Self, b: Self) -> f32 {
-        (a - b).length()
-    }
-
-    pub fn distance_sq(a: Self, b: Self) -> f32 {
-        (a - b).length_sq()
-    }
-
     pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
     }
