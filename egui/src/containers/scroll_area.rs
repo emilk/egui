@@ -31,6 +31,7 @@ pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,
     id_source: Option<Id>,
+    offset: Option<Vec2>,
 }
 
 impl ScrollArea {
@@ -45,6 +46,7 @@ impl ScrollArea {
             max_height,
             always_show_scroll: false,
             id_source: None,
+            offset: None,
         }
     }
 
@@ -59,6 +61,11 @@ impl ScrollArea {
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
+    }
+
+    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
+       self.offset = Some(offset);
+       self
     }
 }
 
@@ -77,19 +84,24 @@ impl ScrollArea {
             max_height,
             always_show_scroll,
             id_source,
+            offset,
         } = self;
 
         let ctx = ui.ctx().clone();
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let state = ctx
+        let mut state = ctx
             .memory()
             .scroll_areas
             .get(&id)
             .cloned()
             .unwrap_or_default();
 
+        if let Some(offset) = offset {
+            state.offset = offset;
+        }
+        
         // content: size of contents (generally large; that's why we want scroll bars)
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
