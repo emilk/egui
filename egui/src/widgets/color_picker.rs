@@ -43,26 +43,24 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> R
 }
 
 fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
-    let rect = ui.allocate_space(desired_size);
-    background_checkers(ui.painter(), rect);
+    let response = ui.allocate_response(desired_size, Sense::hover());
+    background_checkers(ui.painter(), response.rect);
     ui.painter().add(PaintCmd::Rect {
-        rect,
+        rect: response.rect,
         corner_radius: 2.0,
         fill: srgba,
         stroke: Stroke::new(3.0, srgba.to_opaque()),
     });
-    ui.interact_hover(rect)
+    response
 }
 
 fn color_button(ui: &mut Ui, color: Srgba) -> Response {
     let desired_size = ui.style().spacing.interact_size;
-    let rect = ui.allocate_space(desired_size);
-    let id = ui.make_position_id();
-    let response = ui.interact(rect, id, Sense::click());
+    let response = ui.allocate_response(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
-    background_checkers(ui.painter(), rect);
+    background_checkers(ui.painter(), response.rect);
     ui.painter().add(PaintCmd::Rect {
-        rect,
+        rect: response.rect,
         corner_radius: visuals.corner_radius.at_most(2.0),
         fill: color,
         stroke: visuals.fg_stroke,
@@ -77,10 +75,9 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba
         ui.style().spacing.slider_width,
         ui.style().spacing.interact_size.y * 2.0,
     );
-    let rect = ui.allocate_space(desired_size);
+    let response = ui.allocate_response(desired_size, Sense::click_and_drag());
+    let rect = response.rect;
 
-    let id = ui.make_position_id();
-    let response = ui.interact(rect, id, Sense::click_and_drag());
     if response.active {
         if let Some(mpos) = ui.input().mouse.pos {
             *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
@@ -136,10 +133,9 @@ fn color_slider_2d(
     color_at: impl Fn(f32, f32) -> Srgba,
 ) -> Response {
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
-    let rect = ui.allocate_space(desired_size);
+    let response = ui.allocate_response(desired_size, Sense::click_and_drag());
+    let rect = response.rect;
 
-    let id = ui.make_position_id();
-    let response = ui.interact(rect, id, Sense::click_and_drag());
     if response.active {
         if let Some(mpos) = ui.input().mouse.pos {
             *x_value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
@@ -218,7 +214,7 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva) {
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
-    let pupup_id = ui.make_position_id().with("popup");
+    let pupup_id = ui.auto_id_with("popup");
     let button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
 
     if button_response.clicked {

@@ -44,7 +44,7 @@ impl SidePanel {
         });
 
         let panel_rect = panel_ui.min_rect();
-        let response = panel_ui.interact_hover(panel_rect);
+        let response = panel_ui.interact(panel_rect, id, Sense::hover());
 
         ctx.frame_state().allocate_left_panel(panel_rect);
 
@@ -94,7 +94,7 @@ impl TopPanel {
         });
 
         let panel_rect = panel_ui.min_rect();
-        let response = panel_ui.interact_hover(panel_rect);
+        let response = panel_ui.interact(panel_rect, id, Sense::hover());
 
         ctx.frame_state().allocate_top_panel(panel_rect);
 
@@ -132,7 +132,8 @@ impl CentralPanel {
         });
 
         let panel_rect = panel_ui.min_rect();
-        let response = panel_ui.interact_hover(panel_rect);
+        let id = Id::new("central_panel");
+        let response = panel_ui.interact(panel_rect, id, Sense::hover());
 
         ctx.frame_state().allocate_central_panel(panel_rect);
 

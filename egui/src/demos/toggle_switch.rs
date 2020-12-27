@@ -23,16 +23,11 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     let desired_size = ui.style().spacing.interact_size;
 
     // 2. Allocating space:
-    // This is where we get a region (`Rect`) of the screen assigned.
-    let rect = ui.allocate_space(desired_size);
+    // This is where we get a region of the screen assigned.
+    // We also tell the Ui to sense clicks in the allocated region.
+    let response = ui.allocate_response(desired_size, Sense::click());
 
-    // 3. Interact: Time to check for clicks!
-    // To do that we need an `Id` for the button.
-    // Id's are best created from unique identifiers (like fixed labels)
-    // but since we have no label for the switch we here just generate an `Id` automatically
-    // (based on a rolling counter in the `Ui`).
-    let id = ui.make_position_id();
-    let response = ui.interact(rect, id, Sense::click());
+    // 3. Interact: Time to check for clicks!.
     if response.clicked {
         *on = !*on;
     }
@@ -41,7 +36,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // First let's ask for a simple animation from Egui.
     // Egui keeps track of changes in the boolean associated with the id and
     // returns an animated value in the 0-1 range for how much "on" we are.
-    let how_on = ui.ctx().animate_bool(id, *on);
+    let how_on = ui.ctx().animate_bool(response.id, *on);
     // We will follow the current style by asking
     // "how should something that is being interacted with be painted?".
     // This will, for instance, give us different colors when the widget is hovered or clicked.
@@ -50,6 +45,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
     let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
+    let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
@@ -67,17 +63,15 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 #[allow(dead_code)]
 fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
     let desired_size = ui.style().spacing.interact_size;
-    let rect = ui.allocate_space(desired_size);
-
-    let id = ui.make_position_id();
-    let response = ui.interact(rect, id, Sense::click());
+    let response = ui.allocate_response(desired_size, Sense::click());
     *on ^= response.clicked; // toggle if clicked
 
-    let how_on = ui.ctx().animate_bool(id, *on);
+    let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact(&response);
     let off_bg_fill = Rgba::new(0.0, 0.0, 0.0, 0.0);
     let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
     let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
+    let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
@@ -91,7 +85,7 @@ fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
 pub fn demo(ui: &mut Ui, on: &mut bool) {
     ui.horizontal_wrapped_for_text(TextStyle::Button, |ui| {
         ui.label("It's easy to create your own widgets!");
-        ui.label("This toggle switch is just one function of 20 lines of code:");
+        ui.label("This toggle switch is just one function and 15 lines of code:");
         toggle(ui, on).on_hover_text("Click to toggle");
         ui.add(__egui_github_link_file!());
     });

@@ -188,7 +188,7 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if response.active || response.has_kb_focus {
             &self.active
-        } else if response.sense == Sense::nothing() {
+        } else if response.sense == Sense::hover() {
             &self.disabled
         } else if response.hovered {
             &self.hovered
@@ -519,7 +519,7 @@ impl Stroke {
             ui.label(text);
 
             // stroke preview:
-            let stroke_rect = ui.allocate_space(ui.style().spacing.interact_size);
+            let (_id, stroke_rect) = ui.allocate_space(ui.style().spacing.interact_size);
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));

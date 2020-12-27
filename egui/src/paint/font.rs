@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use {
     ahash::AHashMap,
-    parking_lot::RwLock,
     rusttype::{point, Scale},
 };
 
 use crate::{
     math::{vec2, Vec2},
-    mutex::Mutex,
+    mutex::{Mutex, RwLock},
     paint::{Galley, Row},
 };
 
@@ -143,6 +142,7 @@ type FontIndex = usize;
 
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
+#[derive(Default)]
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
     replacement_glyph: (FontIndex, GlyphInfo),
@@ -153,7 +153,10 @@ pub struct Font {
 
 impl Font {
     pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
-        assert!(!fonts.is_empty());
+        if fonts.is_empty() {
+            return Default::default();
+        }
+
         let pixels_per_point = fonts[0].pixels_per_point();
         let row_height = fonts[0].row_height();
 
@@ -240,15 +243,17 @@ impl Font {
         let mut last_glyph_id = None;
 
         for c in text.chars() {
-            let (font_index, glyph_info) = self.glyph_info(c);
-            let font_impl = &self.fonts[font_index];
+            if !self.fonts.is_empty() {
+                let (font_index, glyph_info) = self.glyph_info(c);
+                let font_impl = &self.fonts[font_index];
 
-            if let Some(last_glyph_id) = last_glyph_id {
-                cursor_x_in_points += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+                if let Some(last_glyph_id) = last_glyph_id {
+                    cursor_x_in_points += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+                }
+                cursor_x_in_points += glyph_info.advance_width;
+                cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
+                last_glyph_id = Some(glyph_info.id);
             }
-            cursor_x_in_points += glyph_info.advance_width;
-            cursor_x_in_points = self.round_to_pixel(cursor_x_in_points);
-            last_glyph_id = Some(glyph_info.id);
 
             x_offsets.push(cursor_x_in_points);
         }

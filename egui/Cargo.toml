@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -20,13 +20,24 @@ include = [
 
 [dependencies]
 ahash = { version = "0.6", features = ["std"], default-features = false }
-parking_lot = "0.11" # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
+atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using Egui in a single thread. About as fast as parking_lot. Panics on multi-threaded use of egui::Context.
+parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
+
+[features]
+default = ["atomic_refcell", "default_fonts"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = []
+
+# Only needed if you plan to use the same egui::Context from multiple threads.
+multi_threaded = ["parking_lot"]
 
 [[bench]]
 name = "benchmark"

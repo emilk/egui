@@ -23,6 +23,8 @@ pub fn combo_box(
     selected: impl Into<Label>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
+    const MAX_COMBO_HEIGHT: f32 = 128.0;
+
     let popup_id = button_id.with("popup");
     let selected = selected.into();
 
@@ -38,7 +40,7 @@ pub fn combo_box(
             let advance = full_minimum_width - icon_width - ui.min_rect().width();
             ui.advance_cursor(advance.at_least(0.0));
 
-            let icon_rect = ui.allocate_space(Vec2::splat(icon_width));
+            let (_, icon_rect) = ui.allocate_space(Vec2::splat(icon_width));
             let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
             let mut response = ui.interact(button_rect, button_id, Sense::click());
             response.active |= button_active;
@@ -61,10 +63,10 @@ pub fn combo_box(
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
                     ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        ui.set_min_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        menu_contents(ui);
+                        ui.set_width(button_response.rect.width() - 2.0 * frame_margin.x);
+                        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents);
                     });
-                })
+                });
             });
 
         if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked
@@ -106,7 +108,7 @@ fn button_frame(
         },
     );
 
-    ui.allocate_space(outer_rect.size());
+    ui.advance_cursor_after_rect(outer_rect);
 
     response
 }

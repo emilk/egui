@@ -1,4 +1,4 @@
-use crate::{lerp, math::Rect, CtxRef, Ui};
+use crate::{math::Rect, CtxRef, Id, LayerId, Ui, lerp};
 
 // ----------------------------------------------------------------------------
 
@@ -54,30 +54,36 @@ impl Default for CursorIcon {
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
-    /// Used for optionally showing a tooltip
+    /// Used for optionally showing a tooltip and checking for more interactions.
     pub ctx: CtxRef,
 
     // IN:
-    /// The area of the screen we are talking about
+    /// Which layer the widget is part of.
+    pub layer_id: LayerId,
+
+    /// The `Id` of the widget/area this response pertains.
+    pub id: Id,
+
+    /// The area of the screen we are talking about.
     pub rect: Rect,
 
     /// The senses (click or drag) that the widget is interested in (if any).
     pub sense: Sense,
 
     // OUT:
-    /// The mouse is hovering above this
+    /// The mouse is hovering above this.
     pub hovered: bool,
 
-    /// The mouse clicked this thing this frame
+    /// The mouse clicked this thing this frame.
     pub clicked: bool,
 
-    /// The thing was double-clicked
+    /// The thing was double-clicked.
     pub double_clicked: bool,
 
-    /// The mouse is interacting with this thing (e.g. dragging it)
+    /// The mouse is interacting with this thing (e.g. dragging it).
     pub active: bool,
 
-    /// This widget has the keyboard focus (i.e. is receiving key pressed)
+    /// This widget has the keyboard focus (i.e. is receiving key pressed).
     pub has_kb_focus: bool,
 
     /// The widget had keyboard focus and lost it,
@@ -91,6 +97,8 @@ impl std::fmt::Debug for Response {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             ctx: _,
+            layer_id,
+            id,
             rect,
             sense,
             hovered,
@@ -101,6 +109,8 @@ impl std::fmt::Debug for Response {
             lost_kb_focus,
         } = self;
         f.debug_struct("Response")
+            .field("layer_id", layer_id)
+            .field("id", id)
             .field("rect", rect)
             .field("sense", sense)
             .field("hovered", hovered)
@@ -136,6 +146,20 @@ impl Response {
         self.on_hover_text(text)
     }
 
+    /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// let response = ui.label("hello");
+    /// assert!(!response.clicked); // labels don't sense clicks
+    /// let response = response.interact(egui::Sense::click());
+    /// if response.clicked { /* … */ }
+    /// ```
+    pub fn interact(&self, sense: Sense) -> Self {
+        self.ctx
+            .interact_with_hovered(self.layer_id, self.id, self.rect, sense, self.hovered)
+    }
+
     /// Move the scroll to this UI.
     /// The scroll centering is based on the `center_factor`:
     /// 0.0f - at the top, 0.5f - at the middle, 1.0f - at the bottom.
@@ -153,8 +177,14 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
+        debug_assert_eq!(
+            self.layer_id, other.layer_id,
+            "It makes no sense to combine Responses from two different layers"
+        );
         Self {
             ctx: other.ctx,
+            layer_id: self.layer_id,
+            id: self.id,
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
@@ -214,12 +244,17 @@ pub struct Sense {
 }
 
 impl Sense {
-    /// Senses no clicks or drags (but everything senses mouse hover).
-    pub fn nothing() -> Self {
+    /// Senses no clicks or drags. Only senses mouse hover.
+    pub fn hover() -> Self {
         Self {
             click: false,
             drag: false,
         }
+    }
+
+    #[deprecated = "Use hover()"]
+    pub fn nothing() -> Self {
+        Sense::hover()
     }
 
     pub fn click() -> Self {

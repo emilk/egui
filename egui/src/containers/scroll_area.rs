@@ -118,13 +118,15 @@ impl ScrollArea {
             max_scroll_bar_width * ui.ctx().animate_bool(id, state.show_scroll)
         };
 
+        let available_outer = ui.available_rect_before_wrap();
+
         let outer_size = vec2(
-            ui.available_width(),
-            ui.available_size_before_wrap().y.at_most(max_height),
+            available_outer.width(),
+            available_outer.height().at_most(max_height),
         );
 
         let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
-        let inner_rect = Rect::from_min_size(ui.available_rect_before_wrap().min, inner_size);
+        let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
 
         let mut content_ui = ui.child_ui(
             Rect::from_min_size(
@@ -168,7 +170,7 @@ impl Prepared {
         } = self;
 
         let content_size = content_ui.min_size();
-
+        
         let scroll_target = content_ui.ctx().frame_state().scroll_target();
         if let Some(scroll_target) = scroll_target {
             let center_ratio = content_ui.ctx().frame_state().scroll_target_center_ratio();
@@ -191,6 +193,15 @@ impl Prepared {
                 inner_rect.height(),
             ),
         );
+        
+        let width = if inner_rect.width().is_finite() {
+            inner_rect.width().max(content_size.x) // Expand width to fit content
+        } else {
+            // ScrollArea is in an infinitely wide parent
+            content_size.x
+        };
+
+        let inner_rect = Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
 
         let outer_rect = Rect::from_min_size(
             inner_rect.min,
@@ -226,7 +237,7 @@ impl Prepared {
         }
 
         // TODO: check that nothing else is being interacted with
-        if ui.contains_mouse(outer_rect) {
+        if ui.rect_contains_mouse(outer_rect) {
             state.offset.y -= ui.input().scroll_delta.y;
         }
 
@@ -319,7 +330,7 @@ impl Prepared {
             outer_rect.size().x,
             outer_rect.size().y.min(content_size.y), // shrink if content is so small that we don't need scroll bars
         );
-        ui.allocate_space(size);
+        ui.advance_cursor_after_rect(Rect::from_min_size(outer_rect.min, size));
 
         if show_scroll_this_frame != state.show_scroll {
             ui.ctx().request_repaint();

@@ -1,4 +1,4 @@
-use crate::{app, demos, util::History, CtxRef, Ui};
+use crate::{app, demos, util::History, CtxRef, Response, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ impl FrameHistory {
             });
     }
 
-    fn graph(&mut self, ui: &mut Ui) {
+    fn graph(&mut self, ui: &mut Ui) -> Response {
         use crate::*;
 
         let graph_top_cpu_usage = 0.010;
@@ -109,7 +109,9 @@ impl FrameHistory {
 
         // TODO: we should not use `slider_width` as default graph width.
         let height = ui.style().spacing.slider_width;
-        let rect = ui.allocate_space(vec2(ui.available_size_before_wrap_finite().x, height));
+        let size = vec2(ui.available_size_before_wrap_finite().x, height);
+        let response = ui.allocate_response(size, Sense::hover());
+        let rect = response.rect;
         let style = ui.style().noninteractive();
 
         let mut cmds = vec![PaintCmd::Rect {
@@ -162,6 +164,8 @@ impl FrameHistory {
         }
 
         ui.painter().extend(cmds);
+
+        response
     }
 }
 

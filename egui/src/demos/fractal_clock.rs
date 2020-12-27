@@ -141,8 +141,8 @@ impl FractalClock {
         ];
 
         let hand_rotors = [
-            hands[0].length * Vec2::angled(hand_rotations[0]),
-            hands[1].length * Vec2::angled(hand_rotations[1]),
+            hands[0].length * Rot2::from_angle(hand_rotations[0]),
+            hands[1].length * Rot2::from_angle(hand_rotations[1]),
         ];
 
         #[derive(Clone, Copy)]
@@ -179,9 +179,9 @@ impl FractalClock {
 
             let luminance_u8 = (255.0 * luminance).round() as u8;
 
-            for rotor in &hand_rotors {
+            for &rotor in &hand_rotors {
                 for a in &nodes {
-                    let new_dir = rotor.rotate_other(a.dir);
+                    let new_dir = rotor * a.dir;
                     let b = Node {
                         pos: a.pos + new_dir,
                         dir: new_dir,

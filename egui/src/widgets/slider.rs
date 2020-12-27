@@ -241,11 +241,9 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slide_space(&self, ui: &mut Ui, height: f32) -> Response {
+    fn allocate_slider_space(&self, ui: &mut Ui, height: f32) -> Response {
         let desired_size = vec2(ui.style().spacing.slider_width, height);
-        let rect = ui.allocate_space(desired_size);
-        let id = ui.make_position_id();
-        ui.interact(rect, id, Sense::click_and_drag())
+        ui.allocate_response(desired_size, Sense::click_and_drag())
     }
 
     /// Just the slider, no text
@@ -310,7 +308,7 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let kb_edit_id = ui.make_position_id().with("edit");
+        let kb_edit_id = ui.auto_id_with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         let aim_radius = ui.input().aim_radius();
@@ -389,7 +387,7 @@ impl<'a> Widget for Slider<'a> {
 
         if self.text.is_some() {
             ui.horizontal(|ui| {
-                let slider_response = self.allocate_slide_space(ui, height);
+                let slider_response = self.allocate_slider_space(ui, height);
                 self.slider_ui(ui, &slider_response);
                 let x_range = x_range(&slider_response.rect);
                 self.value_ui(ui, x_range);
@@ -398,7 +396,7 @@ impl<'a> Widget for Slider<'a> {
             })
             .0
         } else {
-            let response = self.allocate_slide_space(ui, height);
+            let response = self.allocate_slider_space(ui, height);
             self.slider_ui(ui, &response);
             response
         }

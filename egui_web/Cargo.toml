@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling Egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
@@ -16,9 +16,8 @@ include = [ "**/*.rs", "Cargo.toml"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.5.0", path = "../egui", features = ["serde"] }
+egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
 js-sys = "0.3"
-parking_lot = { version = "0.11", features = ["wasm-bindgen"] }
 serde = "1"
 serde_json = "1"
 wasm-bindgen = "0.2"

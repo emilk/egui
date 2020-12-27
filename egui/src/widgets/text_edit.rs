@@ -241,14 +241,13 @@ impl<'t> Widget for TextEdit<'t> {
             galley.size.x.max(desired_width.min(available_width)),
             galley.size.y.max(desired_height),
         );
-        let rect = ui.allocate_space(desired_size);
+        let (auto_id, rect) = ui.allocate_space(desired_size);
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_source) = id_source {
                 ui.make_persistent_id(id_source)
             } else {
-                // Since we are only storing cursor, perfect persistence Id not super important
-                ui.make_position_id() // Must be after allocate_space!
+                auto_id // Since we are only storing the cursor, perfect persistence Id not super important
             }
         });
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
@@ -256,7 +255,7 @@ impl<'t> Widget for TextEdit<'t> {
         let sense = if enabled {
             Sense::click_and_drag()
         } else {
-            Sense::nothing()
+            Sense::hover()
         };
         let response = ui.interact(rect, id, sense);
 

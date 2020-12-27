@@ -182,6 +182,8 @@ impl Resize {
             .at_least(self.min_size)
             .at_most(self.max_size);
 
+        let mut user_requested_size = state.requested_size.take();
+
         let corner_response = if self.resizable {
             // Resize-corner:
             let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
@@ -191,7 +193,8 @@ impl Resize {
 
             if corner_response.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    state.desired_size = mouse_pos - position + 0.5 * corner_response.rect.size();
+                    user_requested_size =
+                        Some(mouse_pos - position + 0.5 * corner_response.rect.size());
                 }
             }
             Some(corner_response)
@@ -199,9 +202,15 @@ impl Resize {
             None
         };
 
-        if let Some(requested_size) = state.requested_size.take() {
-            state.desired_size = requested_size;
+        if let Some(user_requested_size) = user_requested_size {
+            state.desired_size = user_requested_size;
+        } else {
+            // We are not being actively resized, so auto-expand to include size of last frame.
+            // This prevents auto-shrinking if the contents contain width-filling widgets (separators etc)
+            // but it makes a lot of interactions with `Window`s nicer.
+            state.desired_size = state.desired_size.max(state.last_content_size);
         }
+
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
@@ -256,23 +265,19 @@ impl Resize {
 
         // ------------------------------
 
-        if self.with_stroke || self.resizable {
+        let size = if self.with_stroke || self.resizable {
             // We show how large we are,
             // so we must follow the contents:
 
             state.desired_size = state.desired_size.max(state.last_content_size);
 
             // We are as large as we look
-            ui.allocate_space(state.desired_size);
+            state.desired_size
         } else {
             // Probably a window.
-            ui.allocate_space(state.last_content_size);
-        }
-
-        if ui.memory().resize.get(&id).is_none() {
-            // First frame.
-            state.desired_size = state.desired_size.at_least(state.last_content_size);
-        }
+            state.last_content_size
+        };
+        ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
 
         // ------------------------------
 

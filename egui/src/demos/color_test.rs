@@ -267,10 +267,10 @@ impl ColorTest {
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response {
     use crate::paint::*;
-    let rect = ui.allocate_space(GRADIENT_SIZE);
+    let response = ui.allocate_response(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
         let mut triangles = Triangles::default();
-        triangles.add_colored_rect(rect, bg_fill);
+        triangles.add_colored_rect(response.rect, bg_fill);
         ui.painter().add(PaintCmd::triangles(triangles));
     }
     {
@@ -279,9 +279,9 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response
         let mut triangles = Triangles::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
-            let x = lerp(rect.x_range(), t);
-            triangles.colored_vertex(pos2(x, rect.top()), color);
-            triangles.colored_vertex(pos2(x, rect.bottom()), color);
+            let x = lerp(response.rect.x_range(), t);
+            triangles.colored_vertex(pos2(x, response.rect.top()), color);
+            triangles.colored_vertex(pos2(x, response.rect.bottom()), color);
             if i < n - 1 {
                 let i = i as u32;
                 triangles.add_triangle(2 * i, 2 * i + 1, 2 * i + 2);
@@ -290,7 +290,7 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response
         }
         ui.painter().add(PaintCmd::triangles(triangles));
     }
-    ui.interact_hover(rect)
+    response
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]

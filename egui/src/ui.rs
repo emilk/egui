@@ -301,6 +301,18 @@ impl Ui {
         self.region.expand_to_include_rect(rect);
     }
 
+    /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
+    pub fn set_width_range(&mut self, width: std::ops::RangeInclusive<f32>) {
+        self.set_min_width(*width.start());
+        self.set_max_width(*width.end());
+    }
+
+    /// `ui.set_width_range(width);` is equivalent to `ui.set_min_width(width); ui.set_max_width(width);`.
+    pub fn set_width(&mut self, width: f32) {
+        self.set_min_width(width);
+        self.set_max_width(width);
+    }
+
     // ------------------------------------------------------------------------
     // Layout related measures:
 
@@ -353,13 +365,16 @@ impl Ui {
         self.id.with(&id_source)
     }
 
-    /// Make an Id that is unique to this position.
-    /// Can be used for widgets that do NOT persist state in Memory
-    /// but you still need to interact with (e.g. buttons, sliders).
-    /// Call AFTER allocating new space for your widget.
-    // TODO: return from `allocate_space` ?
+    #[deprecated = "This id now returned from ui.allocate_space"]
     pub fn make_position_id(&self) -> Id {
         Id::new(self.next_auto_id)
+    }
+
+    pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
+    where
+        IdSource: Hash + std::fmt::Debug,
+    {
+        Id::new(self.next_auto_id).with(id_source)
     }
 }
 
@@ -367,33 +382,38 @@ impl Ui {
 impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
-            self.layer_id(),
             self.clip_rect(),
             self.style().spacing.item_spacing,
+            self.layer_id(),
+            id,
             rect,
-            Some(id),
             sense,
         )
     }
 
-    pub fn interact_hover(&self, rect: Rect) -> Response {
-        self.ctx().interact(
-            self.layer_id(),
-            self.clip_rect(),
-            self.style().spacing.item_spacing,
-            rect,
-            None,
-            Sense::nothing(),
-        )
-    }
-
-    pub fn hovered(&self, rect: Rect) -> bool {
-        self.interact_hover(rect).hovered
-    }
-
-    pub fn contains_mouse(&self, rect: Rect) -> bool {
+    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
         self.ctx()
-            .contains_mouse(self.layer_id(), self.clip_rect(), rect)
+            .rect_contains_mouse(self.layer_id(), self.clip_rect().intersect(rect))
+    }
+
+    /// Is the mouse above this `Ui`?
+    pub fn ui_contains_mouse(&self) -> bool {
+        if let Some(mouse_pos) = self.input().mouse.pos {
+            self.clip_rect().contains(mouse_pos)
+                && self.ctx().layer_id_at(mouse_pos) == Some(self.layer_id())
+        } else {
+            false
+        }
+    }
+
+    #[deprecated = "Use: interact(rect, id, Sense::hover())"]
+    pub fn interact_hover(&self, rect: Rect) -> Response {
+        self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
+    }
+
+    #[deprecated = "Use: rect_contains_mouse()"]
+    pub fn hovered(&self, rect: Rect) -> bool {
+        self.interact(rect, self.id, Sense::hover()).hovered
     }
 
     // ------------------------------------------------------------------------
@@ -404,6 +424,30 @@ impl Ui {
     /// This is useful for creating some extra space between widgets.
     pub fn advance_cursor(&mut self, amount: f32) {
         self.layout.advance_cursor(&mut self.region, amount);
+    }
+
+    /// Allocate space for a widget and check for interaction in the space.
+    /// Returns a `Response` which contains a rectangle, id, and interaction info.
+    ///
+    /// ## How sizes are negotiated
+    /// Each widget should have a *minimum desired size* and a *desired size*.
+    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// If you want to fill the space, ask about `available().size()` and use that.
+    ///
+    /// You may get MORE space than you asked for, for instance
+    /// for justified layouts, like in menus.
+    ///
+    /// You will never get a rectangle that is smaller than the amount of space you asked for.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
+    /// if response.clicked { /* … */ }
+    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::color::WHITE));
+    /// ```
+    pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
+        let (id, rect) = self.allocate_space(desired_size);
+        self.interact(rect, id, sense)
     }
 
     /// Reserve this much space and move the cursor.
@@ -417,8 +461,16 @@ impl Ui {
     /// You may get MORE space than you asked for, for instance
     /// for justified layouts, like in menus.
     ///
-    /// You may get LESS space than you asked for if the current layout won't fit what you asked for.
-    pub fn allocate_space(&mut self, desired_size: Vec2) -> Rect {
+    /// You will never get a rectangle that is smaller than the amount of space you asked for.
+    ///
+    /// Returns an automatic `Id` (which you can use for interaction) and the `Rect` of where to put your widget.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// let (id, rect) = ui.allocate_space(egui::vec2(100.0, 200.0));
+    /// let response = ui.interact(rect, id, egui::Sense::click());
+    /// ```
+    pub fn allocate_space(&mut self, desired_size: Vec2) -> (Id, Rect) {
         // For debug rendering
         let original_available = self.available_size_before_wrap();
         let too_wide = desired_size.x > original_available.x;
@@ -454,7 +506,10 @@ impl Ui {
             }
         }
 
-        rect
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        let id = Id::new(self.next_auto_id);
+
+        (id, rect)
     }
 
     /// Reserve this much space and move the cursor.
@@ -474,15 +529,17 @@ impl Ui {
         );
         self.region.expand_to_include_rect(inner_child_rect);
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
         inner_child_rect
     }
 
-    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) {
+    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.style().spacing.item_spacing;
         self.layout
             .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
         self.region.expand_to_include_rect(rect);
+
+        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        Id::new(self.next_auto_id)
     }
 
     pub(crate) fn cursor(&self) -> Pos2 {
@@ -516,15 +573,16 @@ impl Ui {
         );
         self.region.expand_to_include_rect(final_child_rect);
 
-        let response = self.interact_hover(final_child_rect);
+        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         (ret, response)
     }
 
     /// Convenience function to get a region to paint on
-    pub fn allocate_painter(&mut self, desired_size: Vec2) -> Painter {
-        let rect = self.allocate_space(desired_size);
-        let clip_rect = self.clip_rect().intersect(rect); // Make sure we don't paint out of bounds
-        Painter::new(self.ctx().clone(), self.layer_id(), clip_rect)
+    pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
+        let response = self.allocate_response(desired_size, sense);
+        let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
+        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        (response, painter)
     }
 
     /// Move the scroll to this position.
@@ -771,8 +829,8 @@ impl Ui {
         let mut child_ui = self.child_ui(child_rect, self.layout);
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
-        let rect = self.allocate_space(size);
-        (ret, self.interact_hover(rect))
+        let response = self.allocate_response(size, Sense::hover());
+        (ret, response)
     }
 
     /// Redirect paint commands to another paint layer.
@@ -835,8 +893,8 @@ impl Ui {
             self.style().visuals.widgets.noninteractive.bg_stroke,
         );
 
-        let rect = self.allocate_space(indent + size);
-        (ret, self.interact_hover(rect))
+        let response = self.allocate_response(indent + size, Sense::hover());
+        (ret, response)
     }
 
     #[deprecated]
@@ -1014,7 +1072,7 @@ impl Ui {
         self.layout
             .advance_after_outer_rect(&mut self.region, rect, rect, item_spacing);
         self.region.expand_to_include_rect(rect);
-        (ret, self.interact_hover(rect))
+        (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
     /// Temporarily split split an Ui into several columns.
@@ -1034,34 +1092,36 @@ impl Ui {
         let spacing = self.style().spacing.item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
+        let top_left = self.region.cursor;
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
-                let pos =
-                    self.region.cursor + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
                 let child_rect = Rect::from_min_max(
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
-                self.child_ui(child_rect, self.layout)
+                let mut column_ui =
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::left()));
+                column_ui.set_width(column_width);
+                column_ui
             })
             .collect();
 
         let result = add_contents(&mut columns[..]);
 
-        let mut sum_width = total_spacing;
-        for column in &columns {
-            sum_width += column.min_rect().width();
-        }
-
+        let mut max_column_width = column_width;
         let mut max_height = 0.0;
-        for ui in columns {
-            let size = ui.min_size();
-            max_height = size.y.max(max_height);
+        for column in &columns {
+            max_column_width = max_column_width.max(column.min_rect().width());
+            max_height = column.min_size().y.max(max_height);
         }
 
-        let size = vec2(self.available_width().max(sum_width), max_height);
-        self.allocate_space(size);
+        // Make sure we fit everything next frame:
+        let total_required_width = total_spacing + max_column_width * (num_columns as f32);
+
+        let size = vec2(self.available_width().max(total_required_width), max_height);
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
     }
 }

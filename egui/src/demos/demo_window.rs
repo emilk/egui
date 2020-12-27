@@ -87,10 +87,10 @@ impl DemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    let rect = ui.allocate_space(Vec2::splat(16.0));
+                    let response = ui.allocate_response(Vec2::splat(16.0), Sense::hover());
                     let painter = ui.painter();
-                    let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
+                    let c = response.rect.center();
+                    let r = response.rect.width() / 2.0 - 1.0;
                     let color = Srgba::gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -188,7 +188,7 @@ struct BoxPainting {
 impl Default for BoxPainting {
     fn default() -> Self {
         Self {
-            size: vec2(100.0, 50.0),
+            size: vec2(64.0, 32.0),
             corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
@@ -202,25 +202,19 @@ impl BoxPainting {
         ui.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
         ui.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
         ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
-        ui.add(Slider::usize(&mut self.num_boxes, 0..=5).text("num_boxes"));
+        ui.add(Slider::usize(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
-        let pos = ui
-            .allocate_space(vec2(self.size.x * (self.num_boxes as f32), self.size.y))
-            .min;
-
-        let mut cmds = vec![];
-        for i in 0..self.num_boxes {
-            cmds.push(paint::PaintCmd::Rect {
-                corner_radius: self.corner_radius,
-                fill: Srgba::gray(64),
-                rect: Rect::from_min_size(
-                    pos2(10.0 + pos.x + (i as f32) * (self.size.x * 1.1), pos.y),
-                    self.size,
-                ),
-                stroke: Stroke::new(self.stroke_width, WHITE),
-            });
-        }
-        ui.painter().extend(cmds);
+        ui.horizontal_wrapped(|ui| {
+            for _ in 0..self.num_boxes {
+                let response = ui.allocate_response(self.size, Sense::hover());
+                ui.painter().rect(
+                    response.rect,
+                    self.corner_radius,
+                    Srgba::gray(64),
+                    Stroke::new(self.stroke_width, WHITE),
+                );
+            }
+        });
     }
 }
 

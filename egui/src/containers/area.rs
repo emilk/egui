@@ -172,28 +172,29 @@ impl Prepared {
 
         state.size = content_ui.min_rect().size();
 
-        let interact_id = if movable {
-            Some(layer_id.id.with("move"))
+        let interact_id = layer_id.id.with("move");
+        let sense = if movable {
+            Sense::click_and_drag()
         } else {
-            None
+            Sense::click() // allow clicks to bring to front
         };
 
         let move_response = ctx.interact(
-            layer_id,
             Rect::everything(),
             ctx.style().spacing.item_spacing,
-            state.rect(),
+            layer_id,
             interact_id,
-            Sense::click_and_drag(),
+            state.rect(),
+            sense,
         );
 
-        if move_response.active {
+        if move_response.active && movable {
             state.pos += ctx.input().mouse.delta;
         }
 
         state.pos = ctx.constrain_window_rect(state.rect()).min;
 
-        if move_response.active
+        if (move_response.active || move_response.clicked)
             || mouse_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
         {

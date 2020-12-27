@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## 0.6.0 - 2020-12-26
+
 ### Added ⭐
 
 * Turn off `Window` title bars with `window.title_bar(false)`.
@@ -18,9 +20,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Mouse-over explanation to duplicate ID warning.
 * You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
+* Add `egui::math::Rot2`: rotation helper.
+* `Response` now contains the `Id` of the widget it pertains to.
+* `ui.allocate_response` that allocates space and checks for interactions.
+* Add `response.interact(sense)`, e.g. to check for clicks on labels.
 
 ### Changed 🔧
 
+* `ui.allocate_space` now returns an `(Id, Rect)` tuple.
 * `Arc<Context>` has been replaced with `CtxRef` everywhere.
 * Slight tweak of the default `Style` and font sizes.
 * `SidePanel::left` and `TopPanel::top` now takes `impl Hash` as first argument.
@@ -29,14 +36,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Made some more fields of `RawInput` optional.
 * `Slider` and `DragValue` uses fewer decimals by default. See the full precision by hovering over the value.
 * `egui::App`: added `fn name(&self)` and `fn clear_color(&self)`.
+* Combo boxes has scroll bars when needed.
+* Expand `Window` + `Resize` containers to be large enough for last frames content
+* `ui.columns`: Columns now defaults to justified top-to-down layouts.
+* Rename `Sense::nothing()` to  `Sense::hover()`.
+* Replaced `parking_lot` dependency with `atomic_refcell` by default.
 
 ### Fixed 🐛
 
 * The background for `CentralPanel` will now cover unused space too.
+* `ui.columns`: Improve allocated size estimation.
 
 ### Deprecated
 * `RawInput::screen_size` - use `RawInput::screen_rect` instead.
 * left/centered/right column functions on `Ui`.
+* `ui.interact_hover` and `ui.hovered`.
 
 
 ## 0.5.0 - 2020-12-13
