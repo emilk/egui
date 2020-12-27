@@ -122,11 +122,14 @@ pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
         .unwrap_or(value)
 }
 
-pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
+pub(crate) fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
     format_with_decimals_in_range(value, decimals..=6)
 }
 
-pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
+pub(crate) fn format_with_decimals_in_range(
+    value: f64,
+    decimal_range: RangeInclusive<usize>,
+) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
     debug_assert!(min_decimals <= max_decimals);

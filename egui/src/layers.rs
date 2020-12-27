@@ -116,7 +116,7 @@ impl PaintList {
 }
 
 #[derive(Clone, Default)]
-pub struct GraphicLayers([AHashMap<Id, PaintList>; Order::COUNT]);
+pub(crate) struct GraphicLayers([AHashMap<Id, PaintList>; Order::COUNT]);
 
 impl GraphicLayers {
     pub fn list(&mut self, layer_id: LayerId) -> &mut PaintList {

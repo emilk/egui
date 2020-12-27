@@ -417,7 +417,7 @@ impl Context {
         self.memory.lock()
     }
 
-    pub fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
+    pub(crate) fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
         self.graphics.lock()
     }
 
@@ -477,23 +477,23 @@ impl Context {
     }
 
     /// Useful for pixel-perfect rendering
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
+    pub(crate) fn round_to_pixel(&self, point: f32) -> f32 {
         let pixels_per_point = self.pixels_per_point();
         (point * pixels_per_point).round() / pixels_per_point
     }
 
     /// Useful for pixel-perfect rendering
-    pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
+    pub(crate) fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
     }
 
     /// Useful for pixel-perfect rendering
-    pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
+    pub(crate) fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
     /// Useful for pixel-perfect rendering
-    pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
+    pub(crate) fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
         Rect {
             min: self.round_pos_to_pixels(rect.min),
             max: self.round_pos_to_pixels(rect.max),

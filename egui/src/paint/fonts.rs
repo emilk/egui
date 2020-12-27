@@ -263,7 +263,7 @@ pub enum FontSource {
     Emoji(usize),
 }
 
-pub struct FontImplCache {
+struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
     rusttype_fonts: std::collections::BTreeMap<String, Arc<rusttype::Font<'static>>>,

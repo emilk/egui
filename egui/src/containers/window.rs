@@ -13,14 +13,14 @@ use super::*;
 /// * if the window can be collapsed (minimized) to just the title bar (yes, by default)
 /// * if there should be a close button (none by default)
 pub struct Window<'open> {
-    pub title_label: Label,
+    title_label: Label,
     open: Option<&'open mut bool>,
-    pub area: Area,
-    pub frame: Option<Frame>,
-    pub resize: Resize,
-    pub scroll: Option<ScrollArea>,
-    pub collapsible: bool,
-    pub with_title_bar: bool,
+    area: Area,
+    frame: Option<Frame>,
+    resize: Resize,
+    scroll: Option<ScrollArea>,
+    collapsible: bool,
+    with_title_bar: bool,
 }
 
 impl<'open> Window<'open> {
