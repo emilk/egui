@@ -59,9 +59,11 @@ impl Scrolls {
                             }
                         }
                     });
+
+                    let margin = ui.style().visuals.clip_rect_margin;
                     (
-                        ui.clip_rect().top() - ui.min_rect().top(),
-                        ui.min_rect().height() - ui.clip_rect().height(),
+                        ui.clip_rect().top() - ui.min_rect().top() + margin,
+                        ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin,
                     )
                 });
                 col.label(format!("{:.0}/{:.0}", current_scroll, max_scroll));
