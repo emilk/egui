@@ -31,11 +31,13 @@ impl egui::app::TextureAllocator for Painter {
 
 struct RequestRepaintEvent;
 
-struct GliumRepaintSignal(glutin::event_loop::EventLoopProxy<RequestRepaintEvent>);
+struct GliumRepaintSignal(
+    std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>,
+);
 
 impl egui::app::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
-        self.0.send_event(RequestRepaintEvent).ok();
+        self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
 }
 
@@ -105,7 +107,9 @@ pub fn run(mut app: Box<dyn App>) -> ! {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
 
-    let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(event_loop.create_proxy()));
+    let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
+        event_loop.create_proxy(),
+    )));
 
     let mut ctx = egui::CtxRef::default();
     *ctx.memory() = storage
