@@ -12,6 +12,8 @@ pub(crate) struct State {
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
     pub vel: Vec2,
+    /// Mouse position relative to the center of the handle when started moving the handle.
+    scroll_start_handle: Option<Vec2>,
 }
 
 impl Default for State {
@@ -20,6 +22,7 @@ impl Default for State {
             offset: Vec2::zero(),
             show_scroll: false,
             vel: Vec2::zero(),
+            scroll_start_handle: None,
         }
     }
 }
@@ -239,17 +242,21 @@ impl Prepared {
 
             if response.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    if handle_rect.contains(mouse_pos) {
-                        if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
-                            state.offset.y +=
-                                ui.input().mouse.delta.y * content_size.y / inner_rect.height();
-                        }
-                    } else {
-                        // Center scroll at mouse pos:
-                        let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
-                        state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
+                    let delta_y = ui.input().mouse.delta.y;
+                    let scroll_start_handle = state
+                        .scroll_start_handle
+                        .get_or_insert_with(|| mouse_pos - handle_rect.center());
+
+                    let mouse_offset_y = mouse_pos.y - handle_rect.center().y;
+                    let scrolling_bottom = mouse_offset_y > scroll_start_handle.y && delta_y > 0.0;
+                    let scrolling_top = mouse_offset_y < scroll_start_handle.y && delta_y < 0.0;
+
+                    if scrolling_top || scrolling_bottom {
+                        state.offset.y += delta_y * content_size.y / inner_rect.height();
                     }
                 }
+            } else {
+                state.scroll_start_handle = None;
             }
 
             state.offset.y = state.offset.y.max(0.0);
