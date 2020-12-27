@@ -8,6 +8,8 @@ use crate::{
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
+///
+/// All coordinates are screen coordinates in the unit points (one point can consist of many physical pixels).
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of paint commands

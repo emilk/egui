@@ -1,3 +1,5 @@
+//! One- and two-dimensional alignment ([`Align::Center`], [`LEFT_TOP`] etc).
+
 use crate::math::{pos2, Rect};
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
@@ -5,27 +7,30 @@ use crate::math::{pos2, Rect};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Align {
-    /// Left/Top
+    /// Left or top.
     Min,
 
-    /// Note: requires a bounded/known available_width.
+    /// Horizontal or vertical center.
     Center,
 
-    /// Right/Bottom
-    /// Note: requires a bounded/known available_width.
+    /// Right or bottom.
     Max,
 }
 
 impl Align {
+    /// Convenience for [`Self::Min`]
     pub fn left() -> Self {
         Self::Min
     }
+    /// Convenience for [`Self::Max`]
     pub fn right() -> Self {
         Self::Max
     }
+    /// Convenience for [`Self::Min`]
     pub fn top() -> Self {
         Self::Min
     }
+    /// Convenience for [`Self::Max`]
     pub fn bottom() -> Self {
         Self::Max
     }

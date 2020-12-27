@@ -162,7 +162,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    #[deprecated = "Use fixed_decimals instea"]
+    #[deprecated = "Use fixed_decimals instead"]
     pub fn precision(self, precision: usize) -> Self {
         self.max_decimals(precision)
     }

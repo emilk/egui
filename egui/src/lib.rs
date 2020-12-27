@@ -3,9 +3,9 @@
 //! To get started with Egui, you can use one of the available integrations
 //! such as [`egui_web`](https://crates.io/crates/egui_web) or  [`egui_glium`](https://crates.io/crates/egui_glium).
 //!
-//! Whatever you use, you need an `egui::Context` (by convention referred to by `ctx`).
-//! With it you can then get access to an `Ui` where you can put widgets.
-//! Use one of `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`. For instace:
+//! Whatever you use, you need an [`CtxRef`] (by convention referred to by `ctx`).
+//! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
+//! get access to an [`Ui`] where you can put widgets. For example:
 //!
 //! ```
 //! # let mut ctx = egui::CtxRef::default();
@@ -27,7 +27,7 @@
 //!     egui_ctx.begin_frame(raw_input);
 //!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
 //!     let (output, paint_commands) = egui_ctx.end_frame();
-//!     let paint_jobs = self.ctx.tesselate(paint_commands); // create triangles to paint
+//!     let paint_jobs = egui_ctx.tesselate(paint_commands); // create triangles to paint
 //!     my_integration.paint(paint_jobs);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
 //!     // Also see `egui::Output` for more
@@ -56,6 +56,8 @@
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
+    clippy::missing_errors_doc,
+    clippy::missing_safety_doc,
     clippy::needless_borrow,
     clippy::needless_continue,
     clippy::needless_pass_by_value,
@@ -67,8 +69,12 @@
     clippy::unnested_or_patterns,
     clippy::verbose_file_reads,
     future_incompatible,
+    missing_crate_level_docs,
+    missing_doc_code_examples,
+    // missing_docs,
     nonstandard_style,
-    rust_2018_idioms
+    rust_2018_idioms,
+    unused_doc_comments,
 )]
 
 pub mod align;

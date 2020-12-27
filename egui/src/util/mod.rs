@@ -1,4 +1,4 @@
-//! Tools used by Egui, but that doesn't depend on anything in Egui.
+//! Miscellaneous tools used by the rest of Egui.
 
 pub(crate) mod cache;
 mod history;

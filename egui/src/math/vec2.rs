@@ -2,9 +2,12 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, Su
 
 use crate::math::*;
 
-/// A size or direction in 2D space.
+/// A vector has a direction and length.
+/// A [`Vec2`] is often used to represent a size.
 ///
-/// Normally given in points, e.g. logical pixels.
+/// Egui represents positions using [`Pos2`].
+///
+/// Normally the units are points (logical pixels).
 #[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
@@ -12,6 +15,7 @@ pub struct Vec2 {
     pub y: f32,
 }
 
+/// `vec2(x,y) == Vec2::new(x, y)`
 #[inline(always)]
 pub const fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
@@ -75,6 +79,9 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
+    /// Create a unit vector with the given angle (in radians).
+    /// * An angle of zero gives the unit X axis.
+    /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
     pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
     }
@@ -94,6 +101,7 @@ impl Vec2 {
         vec2(self.x.ceil(), self.y.ceil())
     }
 
+    /// True if all members are also finite.
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }

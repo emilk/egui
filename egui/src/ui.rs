@@ -4,8 +4,19 @@ use std::{hash::Hash, sync::Arc};
 
 use crate::{color::*, containers::*, layout::*, mutex::MutexGuard, paint::*, widgets::*, *};
 
-/// Represents a region of the screen
-/// with a type of layout (horizontal or vertical).
+/// This is what you use to place widgets.
+///
+/// Represents a region of the screen with a type of layout (horizontal or vertical).
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// ui.add(egui::Label::new("Hello World!"));
+/// ui.label("A shorter and more convenient way to add a label.");
+/// ui.horizontal(|ui| {
+///     ui.label("Add widgets");
+///     ui.button("on the same row!");
+/// });
+/// ```
 pub struct Ui {
     /// ID of this ui.
     /// Generated based on id of parent ui together with
@@ -81,6 +92,7 @@ impl Ui {
 
     // -------------------------------------------------
 
+    /// A unique identity of this `Ui`.
     pub fn id(&self) -> Id {
         self.id
     }
@@ -96,10 +108,12 @@ impl Ui {
         Arc::make_mut(&mut self.style) // clone-on-write
     }
 
+    /// Changes apply to this `Ui` and its subsequent children.
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
+    /// Get a reference to the parent [`CtxRef`].
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
@@ -588,6 +602,17 @@ impl Ui {
 
 /// # Adding widgets
 impl Ui {
+    /// Add a widget to this `Ui` at a location dependent on the current [`Layout`].
+    ///
+    /// The returned [`Response`] can be used to check for interactions,
+    /// as well as adding tooltips using [`Response::on_hover_text`].
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// # let mut my_value = 42;
+    /// let response = ui.add(egui::Slider::i32(&mut my_value, 0..=100));
+    /// response.on_hover_text("Drag me!");
+    /// ```
     pub fn add(&mut self, widget: impl Widget) -> Response {
         widget.ui(self)
     }

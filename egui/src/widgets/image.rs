@@ -1,5 +1,6 @@
 use crate::*;
 
+/// An widget to show an image of a given size.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
 pub struct Image {

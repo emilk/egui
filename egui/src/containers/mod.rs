@@ -1,6 +1,6 @@
-//! Containers are pieces of the UI which wraps other pieces of UI. Examples: `Window`, `ScrollArea`, `Resize`, etc.
+//! Containers are pieces of the UI which wraps other pieces of UI. Examples: [`Window`], [`ScrollArea`], [`Resize`], etc.
 //!
-//! For instance, a `Frame` adds a frame and background to some contained UI.
+//! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
 pub(crate) mod area;
 pub(crate) mod collapsing_header;

@@ -59,7 +59,8 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 // ----------------------------------------------------------------------------
 
-/// Create a `Hyperlink` to this file (and line) on Github
+/// Create a [`Hyperlink`](crate::Hyperlink) to this file (and line) on Github
+///
 /// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
 #[macro_export]
 macro_rules! github_link_file_line {
@@ -69,7 +70,8 @@ macro_rules! github_link_file_line {
     }};
 }
 
-/// Create a `Hyperlink` to this file on github.
+/// Create a [`Hyperlink`](crate::Hyperlink) to this file on github.
+///
 /// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
 #[macro_export]
 macro_rules! github_link_file {
@@ -79,7 +81,7 @@ macro_rules! github_link_file {
     }};
 }
 
-/// Create a `Hyperlink` to this egui source code file on github.
+/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __egui_github_link_file {
@@ -91,7 +93,7 @@ macro_rules! __egui_github_link_file {
     };
 }
 
-/// Create a `Hyperlink` to this egui source code file and line on github.
+/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file and line on github.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __egui_github_link_file_line {

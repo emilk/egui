@@ -29,7 +29,17 @@ impl State {
 
 /// An area on the screen that can be moved by dragging.
 ///
-/// This forms the base of the `Window` container.
+/// This forms the base of the [`Window`] container.
+///
+/// ```
+/// # let mut ctx = egui::CtxRef::default();
+/// # ctx.begin_frame(Default::default());
+/// # let ctx = &ctx;
+/// egui::Area::new("my_area")
+///     .fixed_pos(egui::pos2(32.0, 32.0))
+///     .show(ctx, |ui| {
+///         ui.label("Floating text!");
+///     });
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     id: Id,

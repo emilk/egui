@@ -16,7 +16,7 @@ fn set(value_function: &mut GetSetValue<'_>, value: f64) {
     (value_function)(Some(value));
 }
 
-/// A floating point value that you can change by dragging the number. More compact than a slider.
+/// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
 pub struct DragValue<'a> {
     value_function: GetSetValue<'a>,
     speed: f32,

@@ -8,7 +8,7 @@ use super::Vec2;
 // `vec2(c,s)` represents where the X axis will end up after rotation.
 //
 /// Represents a rotation in the 2D plane.
-/// A rotation of 90° rotates the X axis to the Y axis.
+/// A rotation of 𝞃/4 = 90° rotates the X axis to the Y axis.
 /// Normally a `Rot2` is normalized (unit-length).
 /// If not, it will also scale vectors.
 #[derive(Clone, Copy, PartialEq)]
@@ -32,7 +32,7 @@ impl Rot2 {
         Self { s: 0.0, c: 1.0 }
     }
 
-    /// A `TAU / 4.0` rotation means rotating the X axis to the Y axis.
+    /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
     pub fn from_angle(angle: f32) -> Self {
         let (s, c) = angle.sin_cos();
         Self { s, c }

@@ -1,4 +1,8 @@
 //! Vectors, positions, rectangles etc.
+//!
+//! Conventions (unless otherwise specified):
+//! * All angles are in radians
+//! * All metrics are in points (logical pixels)
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -14,6 +18,7 @@ pub use {pos2::*, rect::*, rot2::*, vec2::*};
 
 // ----------------------------------------------------------------------------
 
+/// Helper trait to implement [`lerp`] and [`remap`].
 pub trait One {
     fn one() -> Self;
 }
@@ -28,6 +33,7 @@ impl One for f64 {
     }
 }
 
+/// Helper trait to implement [`lerp`] and [`remap`].
 pub trait Real:
     Copy
     + PartialEq
@@ -151,7 +157,8 @@ pub(crate) fn format_with_decimals_in_range(
     }
 }
 
-/// Should return true when arguments are the same within some rounding error.
+/// Return true when arguments are the same within some rounding error.
+///
 /// For instance `almost_equal(x, x.to_degrees().to_radians(), f32::EPSILON)` should hold true for all x.
 /// The `epsilon`  can be `f32::EPSILON` to handle simple transforms (like degrees -> radians)
 /// but should be higher to handle more complex transformations.
@@ -223,6 +230,7 @@ fn test_remap() {
 
 // ----------------------------------------------------------------------------
 
+/// Extends `f32`, `Vec2` etc with `at_least` and `at_most` as aliases for `max` and `min`.
 pub trait NumExt {
     /// More readable version of `self.max(lower_limit)`
     fn at_least(self, lower_limit: Self) -> Self;
@@ -231,62 +239,21 @@ pub trait NumExt {
     fn at_most(self, upper_limit: Self) -> Self;
 }
 
-impl NumExt for f32 {
-    /// More readable version of `self.max(lower_limit)`
-    fn at_least(self, lower_limit: Self) -> Self {
-        self.max(lower_limit)
-    }
-
-    /// More readable version of `self.min(upper_limit)`
-    fn at_most(self, upper_limit: Self) -> Self {
-        self.min(upper_limit)
-    }
+macro_rules! impl_num_ext {
+    ($t: ty) => {
+        impl NumExt for $t {
+            fn at_least(self, lower_limit: Self) -> Self {
+                self.max(lower_limit)
+            }
+            fn at_most(self, upper_limit: Self) -> Self {
+                self.min(upper_limit)
+            }
+        }
+    };
 }
 
-impl NumExt for f64 {
-    /// More readable version of `self.max(lower_limit)`
-    fn at_least(self, lower_limit: Self) -> Self {
-        self.max(lower_limit)
-    }
-
-    /// More readable version of `self.min(upper_limit)`
-    fn at_most(self, upper_limit: Self) -> Self {
-        self.min(upper_limit)
-    }
-}
-
-impl NumExt for usize {
-    /// More readable version of `self.max(lower_limit)`
-    fn at_least(self, lower_limit: Self) -> Self {
-        self.max(lower_limit)
-    }
-
-    /// More readable version of `self.min(upper_limit)`
-    fn at_most(self, upper_limit: Self) -> Self {
-        self.min(upper_limit)
-    }
-}
-
-impl NumExt for Vec2 {
-    /// More readable version of `self.max(lower_limit)`
-    fn at_least(self, lower_limit: Self) -> Self {
-        self.max(lower_limit)
-    }
-
-    /// More readable version of `self.min(upper_limit)`
-    fn at_most(self, upper_limit: Self) -> Self {
-        self.min(upper_limit)
-    }
-}
-
-impl NumExt for Pos2 {
-    /// More readable version of `self.max(lower_limit)`
-    fn at_least(self, lower_limit: Self) -> Self {
-        self.max(lower_limit)
-    }
-
-    /// More readable version of `self.min(upper_limit)`
-    fn at_most(self, upper_limit: Self) -> Self {
-        self.min(upper_limit)
-    }
-}
+impl_num_ext!(f32);
+impl_num_ext!(f64);
+impl_num_ext!(usize);
+impl_num_ext!(Vec2);
+impl_num_ext!(Pos2);

@@ -7,7 +7,7 @@ use {
     },
 };
 
-// TODO: rename, e.g. `paint::Cmd`?
+/// A paint primitive such as a circle or a piece of text.
 #[derive(Clone, Debug)]
 pub enum PaintCmd {
     /// Paint nothing. This can be useful as a placeholder.

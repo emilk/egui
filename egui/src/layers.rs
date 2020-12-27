@@ -38,7 +38,7 @@ impl Order {
 }
 
 /// An identifier for a paint layer.
-/// Also acts as an identifier for `Area`:s.
+/// Also acts as an identifier for [`Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {
@@ -70,11 +70,11 @@ impl LayerId {
     }
 }
 
-/// A unique identifier of a specific `PaintCmd` in a `PaintList`.
+/// A unique identifier of a specific [`PaintCmd`] in a [`PaintList`].
 #[derive(Clone, Copy, PartialEq)]
 pub struct PaintCmdIdx(usize);
 
-/// Each `PaintCmd` is paired with a clip rectangle.
+/// A list of [`PaintCmd`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
 pub struct PaintList(Vec<(Rect, PaintCmd)>);
 

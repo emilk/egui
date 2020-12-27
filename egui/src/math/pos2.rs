@@ -2,10 +2,12 @@ use std::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
 
 use crate::math::*;
 
-// Sometimes called a Point. I prefer the shorter `Pos2` so it is equal length to `Vec2`
 /// A position on screen.
 ///
-/// Normally given in points, e.g. logical pixels.
+/// Normally given in points (logical pixels).
+///
+/// Mathematically this is known as a "point", but the term position was chosen so not to
+/// conflict with the unit (one point = X physical pixels).
 #[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
@@ -14,6 +16,8 @@ pub struct Pos2 {
     // implicit w = 1
 }
 
+/// `pos2(x,y) == Pos2::new(x, y)`
+#[inline(always)]
 pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
 }
@@ -35,6 +39,8 @@ impl Pos2 {
         Self { x, y }
     }
 
+    /// The vector from origin to this position.
+    /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
     pub fn to_vec2(self) -> Vec2 {
         Vec2 {
             x: self.x,

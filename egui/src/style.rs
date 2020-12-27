@@ -7,7 +7,7 @@ use crate::{
     types::*,
 };
 
-/// Specifies the look and feel of a `Ui`.
+/// Specifies the look and feel of a [`Ui`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Style {

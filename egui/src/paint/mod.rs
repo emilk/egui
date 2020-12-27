@@ -1,6 +1,4 @@
-//! Graphics module.
-//!
-//! Handles fonts, textures, color, geometry and tesselation.
+//! 2D graphics/rendering. Fonts, textures, color, geometry, tesselation etc.
 
 pub mod color;
 pub mod command;

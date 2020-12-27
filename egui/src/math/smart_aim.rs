@@ -1,3 +1,5 @@
+//! Find "simple" numbers is some range. Used by sliders.
+
 #![allow(clippy::float_cmp)] // I know what I'm doing
 
 const NUM_DECIMALS: usize = 15;

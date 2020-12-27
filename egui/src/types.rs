@@ -22,6 +22,9 @@ pub struct Output {
     pub needs_repaint: bool,
 }
 
+/// A mouse cursor icon.
+///
+/// Egui emits a `CursorIcond` in [`Output`] each frame as a request to the integration.
 #[derive(Clone, Copy)]
 // #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 // #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -47,7 +50,7 @@ impl Default for CursorIcon {
 
 // ----------------------------------------------------------------------------
 
-/// The result of adding a widget to an `Ui`.
+/// The result of adding a widget to a [`Ui`].
 ///
 /// This lets you know whether or not a widget has been clicked this frame.
 /// It also lets you easily show a tooltip on hover.
@@ -67,7 +70,7 @@ pub struct Response {
     /// The area of the screen we are talking about.
     pub rect: Rect,
 
-    /// The senses (click or drag) that the widget is interested in (if any).
+    /// The senses (click and/or drag) that the widget was interested in (if any).
     pub sense: Sense,
 
     // OUT:
@@ -88,8 +91,17 @@ pub struct Response {
 
     /// The widget had keyboard focus and lost it,
     /// perhaps because the user pressed enter.
-    /// This is often a signal to the user to the application
-    /// to make use of the contents of the text field.
+    /// If you want to do an action when a user presses enter in a text field,
+    /// use this.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// # let mut my_text = String::new();
+    /// # fn do_request(_: &str) {}
+    /// if ui.text_edit_singleline(&mut my_text).lost_kb_focus {
+    ///     do_request(&my_text);
+    /// }
+    /// ```
     pub lost_kb_focus: bool,
 }
 
@@ -246,6 +258,7 @@ impl Sense {
         Sense::hover()
     }
 
+    /// Sense clicks and hover, but not drags.
     pub fn click() -> Self {
         Self {
             click: true,
@@ -253,6 +266,7 @@ impl Sense {
         }
     }
 
+    /// Sense drags and hover, but not clicks.
     pub fn drag() -> Self {
         Self {
             click: false,
@@ -260,7 +274,7 @@ impl Sense {
         }
     }
 
-    /// e.g. a slider or window
+    /// Sense both clicks, drags and hover (e.g. a slider or window).
     pub fn click_and_drag() -> Self {
         Self {
             click: true,
@@ -268,6 +282,7 @@ impl Sense {
         }
     }
 
+    /// The logical "or" of two `Sense`s.
     #[must_use]
     pub fn union(self, other: Self) -> Self {
         Self {

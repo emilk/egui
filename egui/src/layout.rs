@@ -2,8 +2,8 @@ use crate::{math::*, Align};
 
 // ----------------------------------------------------------------------------
 
-/// This describes the bounds and existing contents of an `Ui`.
-/// It is what is used and updated by `Layout` when adding new widgets.
+/// This describes the bounds and existing contents of an [`Ui`][`crate::Ui`].
+/// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
 pub struct Region {
     /// This is the minimal size of the `Ui`.
@@ -64,7 +64,7 @@ impl Region {
 
 // ----------------------------------------------------------------------------
 
-/// Main layout direction
+/// Layout direction, one of `LeftToRight`, `RightToLeft`, `TopDown`, `BottomUp`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -93,7 +93,7 @@ impl Direction {
 
 // ----------------------------------------------------------------------------
 
-/// The layout of a `Ui`, e.g. horizontal left-aligned.
+/// The layout of a [`Ui`][`crate::Ui`], e.g. "vertical & centered".
 #[derive(Clone, Copy, Debug, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
