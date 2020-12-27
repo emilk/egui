@@ -543,14 +543,20 @@ impl Context {
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        let mut font_definitions = self.options.lock().font_definitions.clone();
-        font_definitions.pixels_per_point = self.input.pixels_per_point();
+        let font_definitions = self.options.lock().font_definitions.clone();
+        let pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
             None => false,
-            Some(fonts) => *fonts.definitions() == font_definitions,
+            Some(fonts) => {
+                *fonts.definitions() == font_definitions
+                    && (fonts.pixels_per_point() - pixels_per_point).abs() < 1e-3
+            }
         };
         if !same_as_current {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions)));
+            self.fonts = Some(Arc::new(Fonts::from_definitions(
+                pixels_per_point,
+                font_definitions,
+            )));
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:

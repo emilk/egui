@@ -81,9 +81,6 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDefinitions {
-    /// The dpi scale factor. Needed to get pixel perfect fonts.
-    pub pixels_per_point: f32, // TODO: remove from here
-
     /// List of font names and their definitions.
     /// The definition must be the contents of either a `.ttf` or `.otf` font file.
     ///
@@ -105,13 +102,6 @@ pub struct FontDefinitions {
 
 impl Default for FontDefinitions {
     fn default() -> Self {
-        Self::default_with_pixels_per_point(f32::NAN) // must be set later
-    }
-}
-
-impl FontDefinitions {
-    /// Default values for the fonts
-    pub fn default_with_pixels_per_point(pixels_per_point: f32) -> Self {
         #[allow(unused)]
         let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
 
@@ -175,7 +165,6 @@ impl FontDefinitions {
         family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
 
         Self {
-            pixels_per_point,
             font_data,
             fonts_for_family,
             family_and_size,
@@ -183,9 +172,12 @@ impl FontDefinitions {
     }
 }
 
-/// Note: the `default()` fonts are invalid (missing `pixels_per_point`).
+/// The collection of fonts used by Egui.
+///
+/// Note: `Fonts::default()` is invalid (missing `pixels_per_point`).
 #[derive(Default)]
 pub struct Fonts {
+    pixels_per_point: f32,
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     atlas: Arc<Mutex<TextureAtlas>>,
@@ -195,22 +187,7 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    pub fn from_definitions(definitions: FontDefinitions) -> Fonts {
-        let mut fonts = Self::default();
-        fonts.set_definitions(definitions);
-        fonts
-    }
-
-    pub fn definitions(&self) -> &FontDefinitions {
-        &self.definitions
-    }
-
-    pub fn set_definitions(&mut self, definitions: FontDefinitions) {
-        if self.definitions == definitions {
-            return;
-        }
-        self.definitions = definitions;
-
+    pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
         let mut atlas = TextureAtlas::new(2048, 64);
@@ -224,14 +201,13 @@ impl Fonts {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        let mut font_impl_cache = FontImplCache::new(atlas.clone(), &self.definitions);
+        let mut font_impl_cache = FontImplCache::new(atlas.clone(), pixels_per_point, &definitions);
 
-        self.fonts = self
-            .definitions
+        let fonts = definitions
             .family_and_size
             .iter()
             .map(|(&text_style, &(family, scale_in_points))| {
-                let fonts = &self.definitions.fonts_for_family.get(&family);
+                let fonts = &definitions.fonts_for_family.get(&family);
                 let fonts = fonts.unwrap_or_else(|| {
                     panic!("FontFamily::{:?} is not bound to any fonts", family)
                 });
@@ -254,10 +230,24 @@ impl Fonts {
             texture.version = hasher.finish();
         }
 
-        self.buffered_texture = Default::default(); //atlas.lock().texture().clone();
-        self.atlas = atlas;
+        Self {
+            pixels_per_point,
+            definitions,
+            fonts,
+            atlas,
+            buffered_texture: Default::default(), //atlas.lock().texture().clone();
+        }
     }
 
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
+    }
+
+    pub fn definitions(&self) -> &FontDefinitions {
+        &self.definitions
+    }
+
+    /// Call each frame to get the latest available font texture data.
     pub fn texture(&self) -> Arc<Texture> {
         let atlas = self.atlas.lock();
         let mut buffered_texture = self.buffered_texture.lock();
@@ -290,7 +280,11 @@ struct FontImplCache {
 }
 
 impl FontImplCache {
-    pub fn new(atlas: Arc<Mutex<TextureAtlas>>, definitions: &super::FontDefinitions) -> Self {
+    pub fn new(
+        atlas: Arc<Mutex<TextureAtlas>>,
+        pixels_per_point: f32,
+        definitions: &super::FontDefinitions,
+    ) -> Self {
         let rusttype_fonts = definitions
             .font_data
             .iter()
@@ -304,7 +298,7 @@ impl FontImplCache {
 
         Self {
             atlas,
-            pixels_per_point: definitions.pixels_per_point,
+            pixels_per_point,
             rusttype_fonts,
             cache: Default::default(),
         }

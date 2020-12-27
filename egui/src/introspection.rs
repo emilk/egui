@@ -62,7 +62,7 @@ impl paint::FontDefinitions {
             );
         }
         if ui.button("Reset fonts").clicked {
-            *self = paint::FontDefinitions::default_with_pixels_per_point(self.pixels_per_point);
+            *self = Default::default();
         }
     }
 }

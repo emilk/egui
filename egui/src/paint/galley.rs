@@ -657,9 +657,7 @@ fn test_text_layout() {
     use crate::paint::*;
 
     let pixels_per_point = 1.0;
-    let fonts = Fonts::from_definitions(FontDefinitions::default_with_pixels_per_point(
-        pixels_per_point,
-    ));
+    let fonts = Fonts::from_definitions(pixels_per_point, FontDefinitions::default());
     let font = &fonts[TextStyle::Monospace];
 
     let galley = font.layout_multiline("".to_owned(), 1024.0);
