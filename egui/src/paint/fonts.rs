@@ -43,14 +43,14 @@ impl TextStyle {
     }
 }
 
-/// Which style of font: [`Monospace`][`FontFamily::Monospace`] or [`VariableWidth`][`FontFamily::VariableWidth`].
+/// Which style of font: [`Monospace`][`FontFamily::Monospace`] or [`Proportional`][`FontFamily::Proportional`].
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     /// A font where each character is the same width (`w` is the same width as `i`).
     Monospace,
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
-    VariableWidth,
+    Proportional,
 }
 
 /// The data of a `.ttf` or `.otf` file.
@@ -76,7 +76,7 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 /// // Large button text:
 /// fonts.family_and_size.insert(
 ///     egui::TextStyle::Button,
-///     (egui::FontFamily::VariableWidth, 32.0));
+///     (egui::FontFamily::Proportional, 32.0));
 /// ctx.set_fonts(fonts);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -152,7 +152,7 @@ impl FontDefinitions {
                 ],
             );
             fonts_for_family.insert(
-                FontFamily::VariableWidth,
+                FontFamily::Proportional,
                 vec![
                     "Ubuntu-Light".to_owned(),
                     "NotoEmoji-Regular".to_owned(),
@@ -164,14 +164,14 @@ impl FontDefinitions {
         #[cfg(not(feature = "default_fonts"))]
         {
             fonts_for_family.insert(FontFamily::Monospace, vec![]);
-            fonts_for_family.insert(FontFamily::VariableWidth, vec![]);
+            fonts_for_family.insert(FontFamily::Proportional, vec![]);
         }
 
         let mut family_and_size = BTreeMap::new();
-        family_and_size.insert(TextStyle::Small, (FontFamily::VariableWidth, 10.0));
-        family_and_size.insert(TextStyle::Body, (FontFamily::VariableWidth, 14.0));
-        family_and_size.insert(TextStyle::Button, (FontFamily::VariableWidth, 16.0));
-        family_and_size.insert(TextStyle::Heading, (FontFamily::VariableWidth, 20.0));
+        family_and_size.insert(TextStyle::Small, (FontFamily::Proportional, 10.0));
+        family_and_size.insert(TextStyle::Body, (FontFamily::Proportional, 14.0));
+        family_and_size.insert(TextStyle::Button, (FontFamily::Proportional, 16.0));
+        family_and_size.insert(TextStyle::Heading, (FontFamily::Proportional, 20.0));
         family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
 
         Self {

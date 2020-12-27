@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed 🔧
+
+* Renamed `FontFamily::VariableWidth` to `FontFamily::Proportional`.
+
 ### Fixed 🐛
 
 * `RepaintSignal` now implements `Sync` so it can be sent to a background thread.
