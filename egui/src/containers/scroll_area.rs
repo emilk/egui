@@ -63,13 +63,13 @@ impl ScrollArea {
         self
     }
 
-    /// Set the position where the scroll should be.
-    /// See also:
-    /// [scroll_to_here](crate::ui::Ui::scroll_to_here)
-    /// [scroll_to_me](crate::types::Response::scroll_to_me)
+    /// Set the scroll offset position.
+    ///
+    /// See also: [Ui::scroll_to_here](crate::ui::Ui::scroll_to_here) and
+    /// [Response::scroll_to_me](crate::types::Response::scroll_to_me)
     pub fn scroll_offset(mut self, offset: Vec2) -> Self {
-       self.offset = Some(offset);
-       self
+        self.offset = Some(offset);
+        self
     }
 }
 
@@ -105,7 +105,7 @@ impl ScrollArea {
         if let Some(offset) = offset {
             state.offset = offset;
         }
-        
+
         // content: size of contents (generally large; that's why we want scroll bars)
         // outer: size of scroll area including scroll bar(s)
         // inner: excluding scroll bar(s). The area we clip the contents to.
@@ -170,7 +170,7 @@ impl Prepared {
         } = self;
 
         let content_size = content_ui.min_size();
-        
+
         let scroll_target = content_ui.ctx().frame_state().scroll_target();
         if let Some(scroll_target) = scroll_target {
             let center_ratio = content_ui.ctx().frame_state().scroll_target_center_ratio();
@@ -193,7 +193,7 @@ impl Prepared {
                 inner_rect.height(),
             ),
         );
-        
+
         let width = if inner_rect.width().is_finite() {
             inner_rect.width().max(content_size.x) // Expand width to fit content
         } else {

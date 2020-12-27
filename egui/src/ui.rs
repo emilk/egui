@@ -587,7 +587,9 @@ impl Ui {
 
     /// Move the scroll to this position.
     /// The scroll centering is based on the `center_factor`:
-    /// 0.0f - at the top, 0.5f - at the middle, 1.0f - at the bottom.
+    /// * 0.0 - top  
+    /// * 0.5 - middle 
+    /// * 1.0 - bottom
     pub fn scroll_to_here(&mut self, center_factor: f32) {
         let scroll_target = self.min_rect().bottom();
 
