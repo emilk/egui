@@ -1,4 +1,4 @@
-use crate::{math::Rect, CtxRef, Id, LayerId, Ui, lerp};
+use crate::{lerp, math::Rect, CtxRef, Id, LayerId, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -160,10 +160,10 @@ impl Response {
             .interact_with_hovered(self.layer_id, self.id, self.rect, sense, self.hovered)
     }
 
-    /// Move the scroll to this UI. 
+    /// Move the scroll to this UI.
     /// The scroll centering is based on the `center_factor`:
     /// * 0.0 - top  
-    /// * 0.5 - middle 
+    /// * 0.5 - middle
     /// * 1.0 - bottom
     pub fn scroll_to_me(&self, center_factor: f32) {
         let scroll_target = lerp(self.rect.y_range(), center_factor);

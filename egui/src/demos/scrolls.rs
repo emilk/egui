@@ -23,7 +23,8 @@ impl Default for Scrolls {
 impl Scrolls {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.tracking, "Track").on_hover_text("The scroll position will track the selected item");
+            ui.checkbox(&mut self.tracking, "Track")
+                .on_hover_text("The scroll position will track the selected item");
             ui.add(Slider::usize(&mut self.track_item, 1..=50).text("Track Item"));
         });
         ui.add(Slider::f32(&mut self.center_factor, 0.0..=1.0).text("Custom scroll center factor"));
