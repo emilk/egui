@@ -7,19 +7,19 @@ pub struct DemoWindow {
     num_columns: usize,
 
     widgets: Widgets,
+    scrolls: Scrolls,
     colors: ColorWidgets,
     layout: LayoutDemo,
     tree: Tree,
     box_painting: BoxPainting,
-    center_ratio: f32,
 }
 
 impl Default for DemoWindow {
     fn default() -> DemoWindow {
         DemoWindow {
             num_columns: 2,
-            center_ratio: 0.0,
 
+            scrolls: Default::default(),
             widgets: Default::default(),
             colors: Default::default(),
             layout: Default::default(),
@@ -70,45 +70,7 @@ impl DemoWindow {
         CollapsingHeader::new("Scroll area")
             .default_open(false)
             .show(ui, |ui| {
-                ScrollArea::from_max_height(200.0).show(ui, |ui| {
-                    let bottom = ui.button("Go bottom").clicked;
-                    let scroll_to_ui = ui.button("Scroll to Ui").clicked;
-
-                    let somewhere = ui.button("Scroll to Somewhere").clicked;
-
-                    ui.add(Slider::f32(&mut self.center_ratio, 0.0..=1.0).text("ratio"));
-                    ui.label(LOREM_IPSUM_LONG);
-                    ui.label(LOREM_IPSUM_LONG);
-
-                    let (_, response) = ui.vertical(|ui| {
-                        ui.monospace("Ui Start  =========");
-                        ui.monospace("          =========");
-                        ui.monospace("          =========");
-                        ui.monospace("          =========");
-                        ui.monospace("Ui Middle =========");
-                        ui.monospace("          =========");
-                        ui.monospace("          =========");
-                        ui.monospace("          =========");
-                        ui.monospace("Ui End    =========");
-                    });
-
-                    if scroll_to_ui {
-                        response.scroll_to_me(self.center_ratio);
-                    }
-
-                    ui.horizontal(|ui| {
-                        if somewhere {
-                            ui.scroll_to_here(self.center_ratio);
-                        }
-                        ui.label("Somewhere");
-                    });
-
-                    ui.label(LOREM_IPSUM_LONG);
-                    ui.label(LOREM_IPSUM_LONG);
-                    if bottom {
-                        ui.scroll_to_here(1.0);
-                    }
-                });
+                self.scrolls.ui(ui);
             });
 
         CollapsingHeader::new("Resize")
