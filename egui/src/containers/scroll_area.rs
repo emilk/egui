@@ -179,10 +179,8 @@ impl Prepared {
             let offset_y = scroll_target - top - height_offset;
             state.offset.y = offset_y;
 
-            // We need to clear/consume the offset
-            // or else all the ScrollAreas are gonna try to use this offset,
-            // this way only the innermost will use it.
-            // TODO: How to set outer ScrollArea when inside another?
+            // We need to clear the offset
+            // or else all the ScrollAreas will use this offset
             content_ui.ctx().frame_state().set_scroll_target(None);
         }
 

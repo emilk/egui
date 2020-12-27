@@ -38,7 +38,6 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
-    // TODO: Maybe turn this into an struct
     scroll_target: Option<f32>,
     scroll_target_center_factor: f32,
     // TODO: move some things from `Memory` to here
