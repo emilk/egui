@@ -136,12 +136,15 @@ impl Response {
         self.on_hover_text(text)
     }
 
-    pub fn scroll_to_me(&self, center_ratio: f32) {
-        let scroll_target = lerp(self.rect.y_range(), center_ratio);
+    /// Move the scroll to this UI.
+    /// The scroll centering is based on the `center_factor`:
+    /// 0.0f - at the top, 0.5f - at the middle, 1.0f - at the bottom.
+    pub fn scroll_to_me(&self, center_factor: f32) {
+        let scroll_target = lerp(self.rect.y_range(), center_factor);
 
         let mut frame_state = self.ctx.frame_state();
         frame_state.set_scroll_target(Some(scroll_target));
-        frame_state.set_scroll_target_center_ratio(center_ratio);
+        frame_state.set_scroll_target_center_factor(center_factor);
     }
 }
 

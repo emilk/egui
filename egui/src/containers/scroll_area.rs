@@ -63,6 +63,10 @@ impl ScrollArea {
         self
     }
 
+    /// Set the position where the scroll should be.
+    /// See also:
+    /// [scroll_to_here](crate::ui::Ui::scroll_to_here)
+    /// [scroll_to_me](crate::types::Response::scroll_to_me)
     pub fn scroll_offset(mut self, offset: Vec2) -> Self {
        self.offset = Some(offset);
        self
@@ -176,7 +180,7 @@ impl Prepared {
             // We need to clear/consume the offset
             // or else all the ScrollAreas are gonna try to use this offset,
             // this way only the innermost will use it.
-            // TODO: Is this ideal? How to set outer scrolls when inside another?
+            // TODO: How to set outer ScrollArea when inside another?
             content_ui.ctx().frame_state().set_scroll_target(None);
         }
 

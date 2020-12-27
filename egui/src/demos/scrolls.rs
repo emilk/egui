@@ -6,7 +6,7 @@ pub struct Scrolls {
     track_item: usize,
     tracking: bool,
     offset: f32,
-    center_ratio: f32,
+    center_factor: f32,
 }
 
 impl Default for Scrolls {
@@ -15,7 +15,7 @@ impl Default for Scrolls {
             track_item: 25,
             tracking: true,
             offset: 0.0,
-            center_ratio: 0.3,
+            center_factor: 0.3,
         }
     }
 }
@@ -23,10 +23,10 @@ impl Default for Scrolls {
 impl Scrolls {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.tracking, "Track");
+            ui.checkbox(&mut self.tracking, "Track").on_hover_text("The scroll position will track the selected item");
             ui.add(Slider::usize(&mut self.track_item, 1..=50).text("Track Item"));
         });
-        ui.add(Slider::f32(&mut self.center_ratio, 0.0..=1.0).text("Custom scroll center ratio"));
+        ui.add(Slider::f32(&mut self.center_factor, 0.0..=1.0).text("Custom scroll center factor"));
         let (scroll_offset, _) = ui.horizontal(|ui| {
             let scroll_offset = ui.small_button("Scroll Offset").clicked;
             ui.add(DragValue::f32(&mut self.offset).speed(1.0).suffix("px"));
@@ -48,12 +48,12 @@ impl Scrolls {
                         for item in 1..=50 {
                             if self.tracking && item == self.track_item {
                                 let response = ui.colored_label(YELLOW, format!("Item {}", item));
-                                let scroll_center_ratio = if i == 5 {
-                                    self.center_ratio
+                                let scroll_center_factor = if i == 5 {
+                                    self.center_factor
                                 } else {
                                     0.25 * i as f32
                                 };
-                                response.scroll_to_me(scroll_center_ratio);
+                                response.scroll_to_me(scroll_center_factor);
                             } else {
                                 ui.label(format!("Item {}", item));
                             }
