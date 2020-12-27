@@ -87,6 +87,7 @@ impl DemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
+                    use std::f32::consts::TAU;
                     let response = ui.allocate_response(Vec2::splat(16.0), Sense::hover());
                     let painter = ui.painter();
                     let c = response.rect.center();

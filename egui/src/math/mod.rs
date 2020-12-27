@@ -114,13 +114,6 @@ pub fn ease_in_ease_out(t: f32) -> f32 {
     3.0 * t * t - 2.0 * t * t * t
 }
 
-/// The circumference of a circle divided by its radius.
-///
-/// Represents one turn in radian angles. Equal to `2 * pi`.
-///
-/// See <https://tauday.com/>
-pub const TAU: f32 = 2.0 * std::f32::consts::PI;
-
 /// Round a value to the given number of decimal places.
 pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.

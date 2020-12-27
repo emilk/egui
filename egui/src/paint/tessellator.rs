@@ -12,6 +12,7 @@ use {
         PaintCmd, Stroke,
     },
     crate::math::*,
+    std::f32::consts::TAU,
 };
 
 /// What texture to use in a `Triangles` mesh.

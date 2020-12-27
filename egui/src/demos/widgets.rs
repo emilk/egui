@@ -35,7 +35,7 @@ impl Default for Widgets {
             radio: Enum::First,
             count: 0,
             sliders: Default::default(),
-            angle: TAU / 3.0,
+            angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::new(0.0, 1.0, 0.5, 1.0) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
