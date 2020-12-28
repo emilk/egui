@@ -273,7 +273,7 @@ pub struct PathPoint {
 
 /// A connected line (without thickness or gaps) which can be tessellated
 /// to either to a stroke (with thickness) or a filled convex area.
-/// Used as a scratch-pad during tesselation.
+/// Used as a scratch-pad during tessellation.
 #[derive(Clone, Debug, Default)]
 struct Path(Vec<PathPoint>);
 
@@ -445,9 +445,9 @@ pub enum PathType {
 }
 use self::PathType::{Closed, Open};
 
-/// Tesselation quality options
+/// Tessellation quality options
 #[derive(Clone, Copy, Debug)]
-pub struct TesselationOptions {
+pub struct TessellationOptions {
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
@@ -461,7 +461,7 @@ pub struct TesselationOptions {
     pub debug_ignore_clip_rects: bool,
 }
 
-impl Default for TesselationOptions {
+impl Default for TessellationOptions {
     fn default() -> Self {
         Self {
             aa_size: 1.0,
@@ -473,11 +473,11 @@ impl Default for TesselationOptions {
     }
 }
 
-/// Tesselate the given convex area into a polygon.
+/// Tessellate the given convex area into a polygon.
 fn fill_closed_path(
     path: &[PathPoint],
     color: Srgba,
-    options: TesselationOptions,
+    options: TessellationOptions,
     out: &mut Triangles,
 ) {
     if color == color::TRANSPARENT {
@@ -518,12 +518,12 @@ fn fill_closed_path(
     }
 }
 
-/// Tesselate the given path as a stroke with thickness.
+/// Tessellate the given path as a stroke with thickness.
 fn stroke_path(
     path: &[PathPoint],
     path_type: PathType,
     stroke: Stroke,
-    options: TesselationOptions,
+    options: TessellationOptions,
     out: &mut Triangles,
 ) {
     if stroke.width <= 0.0 || stroke.color == color::TRANSPARENT {
@@ -665,16 +665,16 @@ fn mul_color(color: Srgba, factor: f32) -> Srgba {
 
 // ----------------------------------------------------------------------------
 
-/// Tesselate a single [`PaintCmd`] into a [`Triangles`].
+/// Tessellate a single [`PaintCmd`] into a [`Triangles`].
 ///
-/// * `command`: the command to tesselate
-/// * `options`: tesselation quality
+/// * `command`: the command to tessellate
+/// * `options`: tessellation quality
 /// * `fonts`: font source when tessellating text
 /// * `out`: where the triangles are put
 /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
 ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
 fn tessellate_paint_command(
-    options: TesselationOptions,
+    options: TessellationOptions,
     fonts: &Fonts,
     clip_rect: Rect,
     command: PaintCmd,
@@ -774,7 +774,7 @@ fn tessellate_paint_command(
             text_style,
             color,
         } => {
-            tesselate_text(
+            tessellate_text(
                 options, fonts, clip_rect, pos, &galley, text_style, color, out,
             );
         }
@@ -782,8 +782,8 @@ fn tessellate_paint_command(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn tesselate_text(
-    options: TesselationOptions,
+fn tessellate_text(
+    options: TessellationOptions,
     fonts: &Fonts,
     clip_rect: Rect,
     pos: Pos2,
@@ -850,15 +850,15 @@ fn tesselate_text(
 /// The given commands will be painted back-to-front (painters algorithm).
 /// They will be batched together by clip rectangle.
 ///
-/// * `commands`: the command to tesselate
-/// * `options`: tesselation quality
+/// * `commands`: the command to tessellate
+/// * `options`: tessellation quality
 /// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
 /// A list of clip rectangles with matching [`Triangles`].
 pub fn tessellate_paint_commands(
     commands: Vec<(Rect, PaintCmd)>,
-    options: TesselationOptions,
+    options: TessellationOptions,
     fonts: &Fonts,
 ) -> Vec<(Rect, Triangles)> {
     let mut scratchpad_points = Vec::new();
@@ -915,7 +915,7 @@ pub fn tessellate_paint_commands(
     for (_, triangles) in &jobs {
         debug_assert!(
             triangles.is_valid(),
-            "Tesselator generated invalid Triangles"
+            "Tessellator generated invalid Triangles"
         );
     }
 

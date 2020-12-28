@@ -17,7 +17,7 @@ struct Options {
     /// The default style for new `Ui`:s.
     style: Arc<Style>,
     /// Controls the tessellator.
-    tesselation_options: paint::TesselationOptions,
+    tessellation_options: paint::TessellationOptions,
     /// Font sizes etc.
     font_definitions: FontDefinitions,
 }
@@ -577,7 +577,7 @@ impl Context {
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
     /// You can transform the returned paint commands into triangles with a call to
-    /// `Context::tesselate`.
+    /// `Context::tessellate`.
     #[must_use]
     pub fn end_frame(&self) -> (Output, Vec<(Rect, PaintCmd)>) {
         if self.input.wants_repaint() {
@@ -601,14 +601,14 @@ impl Context {
         self.graphics().drain(memory.areas.order()).collect()
     }
 
-    /// Tesselate the given paint commands into triangle meshes.
-    pub fn tesselate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
-        let mut tesselation_options = self.options.lock().tesselation_options;
-        tesselation_options.aa_size = 1.0 / self.pixels_per_point();
+    /// Tessellate the given paint commands into triangle meshes.
+    pub fn tessellate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
+        let mut tessellation_options = self.options.lock().tessellation_options;
+        tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
         let paint_jobs = tessellator::tessellate_paint_commands(
             paint_commands,
-            tesselation_options,
+            tessellation_options,
             self.fonts(),
         );
         *self.paint_stats.lock() = paint_stats.with_paint_jobs(&paint_jobs);
@@ -732,9 +732,9 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tesselation_options = self.options.lock().tesselation_options;
-                tesselation_options.ui(ui);
-                self.options.lock().tesselation_options = tesselation_options;
+                let mut tessellation_options = self.options.lock().tessellation_options;
+                tessellation_options.ui(ui);
+                self.options.lock().tessellation_options = tessellation_options;
             });
     }
 
@@ -849,7 +849,7 @@ impl Context {
     }
 }
 
-impl paint::TesselationOptions {
+impl paint::TessellationOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
             aa_size: _,

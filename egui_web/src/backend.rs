@@ -42,7 +42,7 @@ impl WebBackend {
             .expect("unmatched calls to begin_frame/end_frame");
 
         let (output, paint_commands) = self.ctx.end_frame();
-        let paint_jobs = self.ctx.tesselate(paint_commands);
+        let paint_jobs = self.ctx.tessellate(paint_commands);
 
         let now = now_sec();
         self.previous_frame_time = Some((now - frame_start) as f32);

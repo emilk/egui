@@ -1,4 +1,4 @@
-//! 2D graphics/rendering. Fonts, textures, color, geometry, tesselation etc.
+//! 2D graphics/rendering. Fonts, textures, color, geometry, tessellation etc.
 
 pub mod color;
 pub mod command;
@@ -16,7 +16,7 @@ pub use {
     galley::*,
     stats::PaintStats,
     tessellator::{
-        PaintJob, PaintJobs, TesselationOptions, TextureId, Triangles, Vertex, WHITE_UV,
+        PaintJob, PaintJobs, TessellationOptions, TextureId, Triangles, Vertex, WHITE_UV,
     },
     texture_atlas::{Texture, TextureAtlas},
 };

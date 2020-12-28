@@ -151,7 +151,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
             app.ui(&ctx, &mut integration_context);
             let app_output = integration_context.output;
             let (egui_output, paint_commands) = ctx.end_frame();
-            let paint_jobs = ctx.tesselate(paint_commands);
+            let paint_jobs = ctx.tessellate(paint_commands);
 
             let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);

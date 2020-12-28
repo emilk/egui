@@ -135,7 +135,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
 * `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-* `Context::end_frame()` now returns paint commands that need to be converted to triangles with `Context::tesselate()`.
+* `Context::end_frame()` now returns paint commands that need to be converted to triangles with `Context::tessellate()`.
 * Anti-aliasing is now off by default in debug builds.
 
 ### Removed 🔥
@@ -153,7 +153,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Unicode characters in labels (limited by [what the default font supports](https://fonts.google.com/specimen/Comfortaa#glyphs))
 * Simple drop-down combo box menu
 * Logarithmic sliders
-* Optimization: coarse culling in the tesselator
+* Optimization: coarse culling in the tessellator
 * CHANGED: switch argument order of `ui.checkbox` and `ui.radio`
 
 ## 0.1.4 - 2020-09-08

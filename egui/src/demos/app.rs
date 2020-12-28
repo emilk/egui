@@ -87,7 +87,7 @@ impl FrameHistory {
             1e3 * self.mean_frame_time()
         ))
         .on_hover_text(
-            "Includes Egui layout and tesselation time.\n\
+            "Includes Egui layout and tessellation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
         crate::demos::warn_if_debug_build(ui);
