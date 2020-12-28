@@ -38,8 +38,7 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
-    scroll_target: Option<f32>,
-    scroll_target_center_factor: f32,
+    pub(crate) scroll_target: Option<(f32, Align)>,
     // TODO: move some things from `Memory` to here
 }
 
@@ -50,7 +49,6 @@ impl Default for FrameState {
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
             scroll_target: None,
-            scroll_target_center_factor: 0.0,
         }
     }
 }
@@ -61,7 +59,6 @@ impl FrameState {
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
         self.scroll_target = None;
-        self.scroll_target_center_factor = 0.0;
     }
 
     /// How much space is still available after panels has been added.
@@ -102,25 +99,6 @@ impl FrameState {
         // we allow windows to cover the CentralPanel.
         self.unused_rect = Rect::nothing(); // Nothing left unused after this
         self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    pub(crate) fn set_scroll_target(&mut self, scroll_target: Option<f32>) {
-        self.scroll_target = scroll_target;
-    }
-
-    pub(crate) fn scroll_target(&self) -> Option<f32> {
-        self.scroll_target
-    }
-
-    pub(crate) fn set_scroll_target_center_factor(&mut self, center_factor: f32) {
-        // This is the imgui aproach to set the scroll relative to the position
-        // 0.0: top of widget / 0.5: midle of widget / 1.0: bottom of widget
-        assert!(center_factor >= 0.0 && center_factor <= 1.0);
-        self.scroll_target_center_factor = center_factor;
-    }
-
-    pub(crate) fn scroll_target_center_ratio(&self) -> f32 {
-        self.scroll_target_center_factor
     }
 }
 

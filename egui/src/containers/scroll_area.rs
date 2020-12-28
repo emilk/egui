@@ -63,12 +63,12 @@ impl ScrollArea {
         self
     }
 
-    /// Set the scroll offset position.
+    /// Set the vertical scroll offset position.
     ///
-    /// See also: [`Ui::scroll_to_here`](crate::ui::Ui::scroll_to_here) and
+    /// See also: [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::types::Response::scroll_to_me)
-    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
-        self.offset = Some(offset);
+    pub fn scroll_offset(mut self, offset: f32) -> Self {
+        self.offset = Some(Vec2::new(0.0, offset));
         self
     }
 }
@@ -171,26 +171,22 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_target = content_ui.ctx().frame_state().scroll_target();
-        if let Some(scroll_target) = scroll_target {
-            let center_ratio = content_ui.ctx().frame_state().scroll_target_center_ratio();
-            let height_offset = content_ui.clip_rect().height() * center_ratio;
+        // We take the scroll target so only this ScrollArea will use it.
+        let scroll_target = content_ui.ctx().frame_state().scroll_target.take();
+        if let Some((scroll_y, align)) = scroll_target {
+            let center_factor = align.scroll_center_factor();
+
             let top = content_ui.min_rect().top();
-            let offset_y = scroll_target - top - height_offset;
-            state.offset.y = offset_y;
+            let visible_range = top..=top + content_ui.clip_rect().height();
+            let offset_y = scroll_y - lerp(visible_range, center_factor);
 
-            // We need to clear the offset
-            // or else all the ScrollAreas will use this offset
-            content_ui.ctx().frame_state().set_scroll_target(None);
+            let mut spacing = ui.style().spacing.item_spacing.y;
+
+            // Depending on the alignment we need to add or subtract the spacing
+            spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
+
+            state.offset.y = offset_y + spacing;
         }
-
-        let inner_rect = Rect::from_min_size(
-            inner_rect.min,
-            vec2(
-                inner_rect.width().max(content_size.x), // Expand width to fit content
-                inner_rect.height(),
-            ),
-        );
 
         let width = if inner_rect.width().is_finite() {
             inner_rect.width().max(content_size.x) // Expand width to fit content

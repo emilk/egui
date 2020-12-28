@@ -585,17 +585,25 @@ impl Ui {
         (response, painter)
     }
 
-    /// Move the scroll to this position.
-    /// The scroll centering is based on the `center_factor`:
-    /// * 0.0 - top  
-    /// * 0.5 - middle
-    /// * 1.0 - bottom
-    pub fn scroll_to_here(&mut self, center_factor: f32) {
-        let scroll_target = self.min_rect().bottom();
+    /// Move the scroll to this cursor position with the specified alignment.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked;
+    ///     for i in 0..1000 {
+    ///         ui.label(format!("Item {}", i));
+    ///     }
+    ///
+    ///     if scroll_bottom {
+    ///         ui.scroll_to_cursor(Align::bottom());
+    ///     }
+    /// });
+    /// ```
+    pub fn scroll_to_cursor(&mut self, align: Align) {
+        let scroll_y = self.region.cursor.y;
 
-        let mut frame_state = self.ctx().frame_state();
-        frame_state.set_scroll_target(Some(scroll_target));
-        frame_state.set_scroll_target_center_factor(center_factor);
+        self.ctx().frame_state().scroll_target = Some((scroll_y, align));
     }
 }
 
