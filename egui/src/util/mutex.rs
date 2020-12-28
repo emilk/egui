@@ -1,10 +1,14 @@
 //! Helper module that wraps some Mutex types with different implementations.
+//! By default, Egui Mutexes will panic when used in a multi-threaded environment.
+//! To use the same [`crate::Context`] from different threads, enable the `multi_threaded` feature.
 
 // ----------------------------------------------------------------------------
 
+/// The lock you get from [`Mutex`].
 #[cfg(feature = "multi_threaded")]
 pub use parking_lot::MutexGuard;
 
+/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
 #[cfg(feature = "multi_threaded")]
 #[derive(Default)]
 pub struct Mutex<T>(parking_lot::Mutex<T>);
@@ -35,9 +39,15 @@ impl<T> Mutex<T> {
 
 // ---------------------
 
+/// The lock you get from [`RwLock::read`].
 #[cfg(feature = "multi_threaded")]
-pub use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+pub use parking_lot::RwLockReadGuard;
 
+/// The lock you get from [`RwLock::write`].
+#[cfg(feature = "multi_threaded")]
+pub use parking_lot::RwLockWriteGuard;
+
+/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
 #[cfg(feature = "multi_threaded")]
 #[derive(Default)]
 pub struct RwLock<T>(parking_lot::RwLock<T>);
@@ -63,9 +73,11 @@ impl<T> RwLock<T> {
 // ----------------------------------------------------------------------------
 // `atomic_refcell` will panic if multiple threads try to access the same value
 
+/// The lock you get from [`Mutex`].
 #[cfg(not(feature = "multi_threaded"))]
 pub use atomic_refcell::AtomicRefMut as MutexGuard;
 
+/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
 #[cfg(not(feature = "multi_threaded"))]
 #[derive(Default)]
 pub struct Mutex<T>(atomic_refcell::AtomicRefCell<T>);
@@ -86,11 +98,15 @@ impl<T> Mutex<T> {
 
 // ---------------------
 
+/// The lock you get from [`RwLock::read`].
 #[cfg(not(feature = "multi_threaded"))]
-pub use {
-    atomic_refcell::AtomicRef as RwLockReadGuard, atomic_refcell::AtomicRefMut as RwLockWriteGuard,
-};
+pub use atomic_refcell::AtomicRef as RwLockReadGuard;
 
+/// The lock you get from [`RwLock::write`].
+#[cfg(not(feature = "multi_threaded"))]
+pub use atomic_refcell::AtomicRefMut as RwLockWriteGuard;
+
+/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
 #[cfg(not(feature = "multi_threaded"))]
 #[derive(Default)]
 pub struct RwLock<T>(atomic_refcell::AtomicRefCell<T>);
