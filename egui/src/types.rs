@@ -163,7 +163,8 @@ impl Response {
     /// Move the scroll to this UI with the specified alignment.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # use egui::Align;
+    /// # let mut ui = &mut egui::Ui::__test();
     /// egui::ScrollArea::auto_sized().show(ui, |ui| {
     ///     for i in 0..1000 {
     ///         let response = ui.button(format!("Button {}", i));

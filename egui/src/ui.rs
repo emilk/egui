@@ -588,7 +588,8 @@ impl Ui {
     /// Move the scroll to this cursor position with the specified alignment.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # use egui::Align;
+    /// # let mut ui = &mut egui::Ui::__test();
     /// egui::ScrollArea::auto_sized().show(ui, |ui| {
     ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked;
     ///     for i in 0..1000 {
