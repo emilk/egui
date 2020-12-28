@@ -38,7 +38,7 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
-    scroll_delta: Vec2,
+    pub(crate) scroll_delta: Vec2,
     // TODO: move some things from `Memory` to here
 }
 
@@ -99,14 +99,6 @@ impl FrameState {
         // we allow windows to cover the CentralPanel.
         self.unused_rect = Rect::nothing(); // Nothing left unused after this
         self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    pub(crate) fn scroll_delta(&self) -> Vec2 {
-        self.scroll_delta
-    }
-
-    pub(crate) fn clear_scroll_delta(&mut self) {
-        self.scroll_delta = Vec2::zero();
     }
 }
 

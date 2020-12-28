@@ -200,15 +200,15 @@ impl Prepared {
         let max_offset = content_size.y - inner_rect.height();
         if ui.rect_contains_mouse(outer_rect) {
             let mut frame_state = ui.ctx().frame_state();
-            let scroll_delta = frame_state.scroll_delta();
+            let scroll_delta = frame_state.scroll_delta;
 
-            let scrolling_top = state.offset.y > 0.0 && scroll_delta.y > 0.0;
-            let scrolling_bottom = state.offset.y < max_offset && scroll_delta.y < 0.0;
+            let scrolling_up = state.offset.y > 0.0 && scroll_delta.y > 0.0;
+            let scrolling_down = state.offset.y < max_offset && scroll_delta.y < 0.0;
 
-            if scrolling_top || scrolling_bottom {
+            if scrolling_up || scrolling_down {
                 state.offset.y -= scroll_delta.y;
                 // Clear scroll delta so no parent scroll will use it.
-                frame_state.clear_scroll_delta();
+                frame_state.scroll_delta = Vec2::zero();
             }
         }
 
