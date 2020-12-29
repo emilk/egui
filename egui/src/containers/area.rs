@@ -160,9 +160,21 @@ impl Prepared {
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
         let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
-        let clip_rect = max_rect
+        let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
+        let mut clip_rect = max_rect
             .expand(ctx.style().visuals.clip_rect_margin)
+            .expand(shadow_radius)
             .intersect(ctx.input().screen_rect);
+
+        // Windows are constrained to central area,
+        // (except in rare cases where they don't fit).
+        // Adjust clip rect so we don't cast shadows on side panels:
+        let central_area = ctx.available_rect();
+        let is_within_central_area = central_area.contains(self.state.pos);
+        if is_within_central_area {
+            clip_rect = clip_rect.intersect(central_area);
+        }
+
         Ui::new(
             ctx.clone(),
             self.layer_id,

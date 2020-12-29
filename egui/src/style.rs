@@ -3,7 +3,7 @@
 use crate::{
     color::*,
     math::*,
-    paint::{Stroke, TextStyle},
+    paint::{Shadow, Stroke, TextStyle},
     types::*,
 };
 
@@ -133,6 +133,7 @@ pub struct Visuals {
     pub hyperlink_color: Srgba,
 
     pub window_corner_radius: f32,
+    pub window_shadow: Shadow,
 
     pub resize_corner_size: f32,
 
@@ -275,6 +276,7 @@ impl Default for Visuals {
             dark_bg_color: Srgba::black_alpha(140),
             hyperlink_color: Srgba::from_rgb(90, 170, 255),
             window_corner_radius: 10.0,
+            window_shadow: Shadow::big(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             clip_rect_margin: 1.0, // should be half the size of the widest frame stroke
@@ -479,6 +481,7 @@ impl Visuals {
             dark_bg_color,
             hyperlink_color,
             window_corner_radius,
+            window_shadow,
             resize_corner_size,
             text_cursor_width,
             clip_rect_margin,
@@ -492,6 +495,7 @@ impl Visuals {
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
+        window_shadow.ui(ui, "Window shadow:");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
@@ -523,6 +527,18 @@ impl Stroke {
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));
+        });
+    }
+}
+
+impl Shadow {
+    pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
+        let Self { extrusion, color } = self;
+        ui.horizontal(|ui| {
+            ui.label(text);
+            ui.add(DragValue::f32(extrusion).speed(1.0).range(0.0..=100.0))
+                .on_hover_text("Extrusion");
+            ui.color_edit_button_srgba(color);
         });
     }
 }

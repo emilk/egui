@@ -8,10 +8,14 @@ use {
 };
 
 /// A paint primitive such as a circle or a piece of text.
+/// Coordinates are all screen space points (not physical pixels).
 #[derive(Clone, Debug)]
 pub enum PaintCmd {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
+    /// Recursively nest more paint commands - sometimes a convenience to be able to do.
+    /// For performance reasons it is better to avoid it.
+    Vec(Vec<PaintCmd>),
     Circle {
         center: Pos2,
         radius: f32,
@@ -159,6 +163,11 @@ impl PaintCmd {
     pub fn translate(&mut self, delta: Vec2) {
         match self {
             PaintCmd::Noop => {}
+            PaintCmd::Vec(commands) => {
+                for command in commands {
+                    command.translate(delta);
+                }
+            }
             PaintCmd::Circle { center, .. } => {
                 *center += delta;
             }

@@ -54,17 +54,18 @@ impl std::ops::AddAssign for AllocInfo {
 }
 
 impl AllocInfo {
-    pub fn from_paint_cmd(cmd: &PaintCmd) -> Self {
-        match cmd {
-            PaintCmd::Noop
-            | PaintCmd::Circle { .. }
-            | PaintCmd::LineSegment { .. }
-            | PaintCmd::Rect { .. } => Self::default(),
-            PaintCmd::Path { points, .. } => Self::from_slice(points),
-            PaintCmd::Text { galley, .. } => Self::from_galley(galley),
-            PaintCmd::Triangles(triangles) => Self::from_triangles(triangles),
-        }
-    }
+    // pub fn from_paint_cmd(cmd: &PaintCmd) -> Self {
+    //     match cmd {
+    //         PaintCmd::Noop
+    //         PaintCmd::Vec(commands) => Self::from_paint_commands(commands)
+    //         | PaintCmd::Circle { .. }
+    //         | PaintCmd::LineSegment { .. }
+    //         | PaintCmd::Rect { .. } => Self::default(),
+    //         PaintCmd::Path { points, .. } => Self::from_slice(points),
+    //         PaintCmd::Text { galley, .. } => Self::from_galley(galley),
+    //         PaintCmd::Triangles(triangles) => Self::from_triangles(triangles),
+    //     }
+    // }
 
     pub fn from_galley(galley: &Galley) -> Self {
         Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.rows)
@@ -136,6 +137,7 @@ pub struct PaintStats {
     cmd_text: AllocInfo,
     cmd_path: AllocInfo,
     cmd_mesh: AllocInfo,
+    cmd_vec: AllocInfo,
 
     /// Number of separate clip rectangles
     jobs: AllocInfo,
@@ -147,26 +149,39 @@ impl PaintStats {
     pub fn from_paint_commands(paint_commands: &[(Rect, PaintCmd)]) -> Self {
         let mut stats = Self::default();
         stats.cmd_path.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.cmd_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.primitives = AllocInfo::from_slice(paint_commands);
         for (_, cmd) in paint_commands {
-            match cmd {
-                PaintCmd::Noop
-                | PaintCmd::Circle { .. }
-                | PaintCmd::LineSegment { .. }
-                | PaintCmd::Rect { .. } => Default::default(),
-                PaintCmd::Path { points, .. } => {
-                    stats.cmd_path += AllocInfo::from_slice(points);
-                }
-                PaintCmd::Text { galley, .. } => {
-                    stats.cmd_text += AllocInfo::from_galley(galley);
-                }
-                PaintCmd::Triangles(triangles) => {
-                    stats.cmd_mesh += AllocInfo::from_triangles(triangles);
-                }
-            }
+            stats.add(cmd);
         }
         stats
+    }
+
+    fn add(&mut self, cmd: &PaintCmd) {
+        match cmd {
+            PaintCmd::Vec(paint_commands) => {
+                // self += PaintStats::from_paint_commands(&paint_commands); // TODO
+                self.primitives += AllocInfo::from_slice(paint_commands);
+                self.cmd_vec += AllocInfo::from_slice(paint_commands);
+                for cmd in paint_commands {
+                    self.add(cmd);
+                }
+            }
+            PaintCmd::Noop
+            | PaintCmd::Circle { .. }
+            | PaintCmd::LineSegment { .. }
+            | PaintCmd::Rect { .. } => Default::default(),
+            PaintCmd::Path { points, .. } => {
+                self.cmd_path += AllocInfo::from_slice(points);
+            }
+            PaintCmd::Text { galley, .. } => {
+                self.cmd_text += AllocInfo::from_galley(galley);
+            }
+            PaintCmd::Triangles(triangles) => {
+                self.cmd_mesh += AllocInfo::from_triangles(triangles);
+            }
+        }
     }
 
     pub fn with_paint_jobs(mut self, paint_jobs: &[crate::paint::PaintJob]) -> Self {
@@ -198,19 +213,32 @@ impl PaintStats {
         ui.advance_cursor(10.0);
 
         ui.style_mut().body_text_style = TextStyle::Monospace;
+
+        let Self {
+            primitives,
+            cmd_text,
+            cmd_path,
+            cmd_mesh,
+            cmd_vec,
+            jobs,
+            vertices,
+            indices,
+        } = self;
+
         ui.label("Intermediate:");
-        ui.label(self.primitives.format("primitives"))
+        ui.label(primitives.format("primitives"))
             .on_hover_text("Boxes, circles, etc");
-        ui.label(self.cmd_text.format("text"));
-        ui.label(self.cmd_path.format("paths"));
-        ui.label(self.cmd_mesh.format("meshes"));
+        ui.label(cmd_text.format("text"));
+        ui.label(cmd_path.format("paths"));
+        ui.label(cmd_mesh.format("meshes"));
+        ui.label(cmd_vec.format("nested"));
         ui.advance_cursor(10.0);
 
         ui.label("Tessellated:");
-        ui.label(self.jobs.format("jobs"))
+        ui.label(jobs.format("jobs"))
             .on_hover_text("Number of separate clip rectangles");
-        ui.label(self.vertices.format("vertices"));
-        ui.label(self.indices.format("indices"))
+        ui.label(vertices.format("vertices"));
+        ui.label(indices.format("indices"))
             .on_hover_text("Three 32-bit indices per triangles");
         ui.advance_cursor(10.0);
 

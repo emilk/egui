@@ -13,10 +13,11 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
-    /// Background color for the app.
-    /// e.g. what is sent to `gl.clearColor`
+    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
+    /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> crate::Rgba {
-        crate::Srgba::from_rgb(16, 16, 16).into()
+        // NOTE: a bright gray makes the shadows of the windows look weird.
+        crate::Srgba::from_rgb(12, 12, 12).into()
     }
 
     /// Called once on start. Allows you to restore state.
