@@ -242,9 +242,14 @@ impl Prepared {
 
             if response.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    let scroll_start_offset_from_top = state
-                        .scroll_start_offset_from_top
-                        .get_or_insert_with(|| mouse_pos.y - handle_rect.top());
+                    let scroll_start_offset_from_top =
+                        state.scroll_start_offset_from_top.get_or_insert_with(|| {
+                            if handle_rect.contains(mouse_pos) {
+                                mouse_pos.y - handle_rect.top()
+                            } else {
+                                0.5 * handle_rect.height() // center handle on mouse
+                            }
+                        });
 
                     let new_handle_top = mouse_pos.y - *scroll_start_offset_from_top;
                     state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
