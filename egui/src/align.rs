@@ -34,6 +34,14 @@ impl Align {
     pub fn bottom() -> Self {
         Self::Max
     }
+
+    pub(crate) fn scroll_center_factor(&self) -> f32 {
+        match self {
+            Self::Min => 0.0,
+            Self::Center => 0.5,
+            Self::Max => 1.0,
+        }
+    }
 }
 
 impl Default for Align {

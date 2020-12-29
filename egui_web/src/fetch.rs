@@ -67,7 +67,9 @@ async fn fetch_jsvalue(method: &str, url: &str) -> Result<Response, JsValue> {
         .flatten()
         .unwrap_or_default();
 
-    let text = if header_content_type.starts_with("text") {
+    let text = if header_content_type.starts_with("text")
+        || header_content_type == "application/javascript"
+    {
         String::from_utf8(bytes.clone()).ok()
     } else {
         None

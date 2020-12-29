@@ -14,7 +14,7 @@
         }
 
         body {
-            background: #101010;
+            background: #202020;
         }
 
         /* Allow canvas to fill entire web page: */
@@ -24,14 +24,22 @@
             margin: 0 !important;
             padding: 0 !important;
         }
+
+        /* Center canvas vertically and horizontally: */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
 
 <body>
-    <!--
-        THis is where the app will show up.
-        The WASM code will resize this to cover the entire screen.
-    -->
+    <!-- The WASM code will resize this dynamically -->
     <canvas id="the_canvas_id"></canvas>
 
     <script>
@@ -58,7 +66,7 @@
             .then(on_wasm_loaded)["catch"](console.error);
 
         function on_wasm_loaded() {
-            // This call installs a bunch of callbacks and then return
+            // This call installs a bunch of callbacks and then returns.
             wasm_bindgen.start("the_canvas_id");
         }
     </script>

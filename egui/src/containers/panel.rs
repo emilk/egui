@@ -151,7 +151,7 @@ impl CentralPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::background(&ctx.style());
+        let frame = Frame::central_panel(&ctx.style());
         let r = frame.show(&mut panel_ui, |ui| {
             let r = add_contents(ui);
             ui.expand_to_include_rect(ui.max_rect()); // Use it all

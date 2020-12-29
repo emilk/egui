@@ -14,6 +14,7 @@
         }
 
         body {
+            /* Background color for what is not covered by the canvas, and where the canvas is translucent. */
             background: #202020;
         }
 
@@ -39,7 +40,7 @@
 </head>
 
 <body>
-    <!-- The WASM code will resize this to cover the entire screen -->
+    <!-- The WASM code will resize this dynamically -->
     <canvas id="the_canvas_id"></canvas>
 
     <script>
@@ -66,7 +67,7 @@
             .then(on_wasm_loaded)["catch"](console.error);
 
         function on_wasm_loaded() {
-            // This call installs a bunch of callbacks and then return
+            // This call installs a bunch of callbacks and then returns.
             wasm_bindgen.start("the_canvas_id");
         }
     </script>

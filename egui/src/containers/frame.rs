@@ -3,22 +3,38 @@
 use crate::{layers::PaintCmdIdx, paint::*, *};
 
 /// Adds a rectangular frame and background to some [`Ui`].
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Frame {
     // On each side
     pub margin: Vec2,
     pub corner_radius: f32,
+    pub shadow: Shadow,
     pub fill: Srgba,
     pub stroke: Stroke,
 }
 
 impl Frame {
     pub fn none() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn panel(style: &Style) -> Self {
         Self {
-            margin: Vec2::zero(),
+            margin: Vec2::new(8.0, 2.0),
             corner_radius: 0.0,
-            fill: Default::default(),
-            stroke: Stroke::none(),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            ..Default::default()
+        }
+    }
+
+    pub fn central_panel(style: &Style) -> Self {
+        Self {
+            margin: Vec2::new(8.0, 8.0),
+            corner_radius: 0.0,
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: Default::default(),
+            ..Default::default()
         }
     }
 
@@ -26,8 +42,29 @@ impl Frame {
         Self {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.window_corner_radius,
+            shadow: style.visuals.window_shadow,
             fill: style.visuals.widgets.noninteractive.bg_fill,
             stroke: style.visuals.widgets.inactive.bg_stroke, // because we can resize windows
+        }
+    }
+
+    pub fn menu(style: &Style) -> Self {
+        Self {
+            margin: Vec2::splat(1.0),
+            corner_radius: 2.0,
+            shadow: Shadow::small(),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+        }
+    }
+
+    pub fn popup(style: &Style) -> Self {
+        Self {
+            margin: style.spacing.window_padding,
+            corner_radius: 5.0,
+            shadow: Shadow::small(),
+            fill: style.visuals.widgets.noninteractive.bg_fill,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 
@@ -38,46 +75,12 @@ impl Frame {
             corner_radius: 5.0,
             fill: Srgba::black_alpha(250),
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            ..Default::default()
         }
     }
+}
 
-    /// Suitable for a fullscreen app
-    pub fn background(style: &Style) -> Self {
-        Self {
-            margin: Vec2::new(8.0, 8.0),
-            corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: Default::default(),
-        }
-    }
-
-    pub(crate) fn panel(style: &Style) -> Self {
-        Self {
-            margin: Vec2::new(8.0, 2.0),
-            corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
-        }
-    }
-
-    pub fn menu(style: &Style) -> Self {
-        Self {
-            margin: Vec2::splat(1.0),
-            corner_radius: 2.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
-        }
-    }
-
-    pub fn popup(style: &Style) -> Self {
-        Self {
-            margin: style.spacing.window_padding,
-            corner_radius: 5.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
-        }
-    }
-
+impl Frame {
     pub fn fill(mut self, fill: Srgba) -> Self {
         self.fill = fill;
         self
@@ -138,15 +141,23 @@ impl Prepared {
             ..
         } = self;
 
-        ui.painter().set(
-            where_to_put_background,
-            PaintCmd::Rect {
-                corner_radius: frame.corner_radius,
-                fill: frame.fill,
-                stroke: frame.stroke,
-                rect: outer_rect,
-            },
-        );
+        let frame_cmd = PaintCmd::Rect {
+            rect: outer_rect,
+            corner_radius: frame.corner_radius,
+            fill: frame.fill,
+            stroke: frame.stroke,
+        };
+
+        if frame.shadow == Default::default() {
+            ui.painter().set(where_to_put_background, frame_cmd);
+        } else {
+            let shadow = frame.shadow.tessellate(outer_rect, frame.corner_radius);
+            let shadow = PaintCmd::Triangles(shadow);
+            ui.painter().set(
+                where_to_put_background,
+                PaintCmd::Vec(vec![shadow, frame_cmd]),
+            )
+        };
 
         ui.advance_cursor_after_rect(outer_rect);
 

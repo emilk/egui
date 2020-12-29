@@ -598,6 +598,28 @@ impl Ui {
         let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
         (response, painter)
     }
+
+    /// Move the scroll to this cursor position with the specified alignment.
+    ///
+    /// ```
+    /// # use egui::Align;
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked;
+    ///     for i in 0..1000 {
+    ///         ui.label(format!("Item {}", i));
+    ///     }
+    ///
+    ///     if scroll_bottom {
+    ///         ui.scroll_to_cursor(Align::bottom());
+    ///     }
+    /// });
+    /// ```
+    pub fn scroll_to_cursor(&mut self, align: Align) {
+        let scroll_y = self.region.cursor.y;
+
+        self.ctx().frame_state().scroll_target = Some((scroll_y, align));
+    }
 }
 
 /// # Adding widgets

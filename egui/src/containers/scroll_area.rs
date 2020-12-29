@@ -31,6 +31,7 @@ pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,
     id_source: Option<Id>,
+    offset: Option<Vec2>,
 }
 
 impl ScrollArea {
@@ -45,6 +46,7 @@ impl ScrollArea {
             max_height,
             always_show_scroll: false,
             id_source: None,
+            offset: None,
         }
     }
 
@@ -58,6 +60,15 @@ impl ScrollArea {
     /// A source for the unique `Id`, e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
+        self
+    }
+
+    /// Set the vertical scroll offset position.
+    ///
+    /// See also: [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// [`Response::scroll_to_me`](crate::types::Response::scroll_to_me)
+    pub fn scroll_offset(mut self, offset: f32) -> Self {
+        self.offset = Some(Vec2::new(0.0, offset));
         self
     }
 }
@@ -77,18 +88,23 @@ impl ScrollArea {
             max_height,
             always_show_scroll,
             id_source,
+            offset,
         } = self;
 
         let ctx = ui.ctx().clone();
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let state = ctx
+        let mut state = ctx
             .memory()
             .scroll_areas
             .get(&id)
             .cloned()
             .unwrap_or_default();
+
+        if let Some(offset) = offset {
+            state.offset = offset;
+        }
 
         // content: size of contents (generally large; that's why we want scroll bars)
         // outer: size of scroll area including scroll bar(s)
@@ -154,6 +170,23 @@ impl Prepared {
         } = self;
 
         let content_size = content_ui.min_size();
+
+        // We take the scroll target so only this ScrollArea will use it.
+        let scroll_target = content_ui.ctx().frame_state().scroll_target.take();
+        if let Some((scroll_y, align)) = scroll_target {
+            let center_factor = align.scroll_center_factor();
+
+            let top = content_ui.min_rect().top();
+            let visible_range = top..=top + content_ui.clip_rect().height();
+            let offset_y = scroll_y - lerp(visible_range, center_factor);
+
+            let mut spacing = ui.style().spacing.item_spacing.y;
+
+            // Depending on the alignment we need to add or subtract the spacing
+            spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
+
+            state.offset.y = offset_y + spacing;
+        }
 
         let width = if inner_rect.width().is_finite() {
             inner_rect.width().max(content_size.x) // Expand width to fit content

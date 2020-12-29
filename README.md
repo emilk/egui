@@ -131,7 +131,7 @@ Loop:
 
 * Gather input (mouse, touches, keyboard, screen size, etc) and give it to Egui
 * Run application code (Immediate Mode GUI)
-* Tell Egui to tesselate the frame graphics to a triangle mesh
+* Tell Egui to tessellate the frame graphics to a triangle mesh
 * Render the triangle mesh with your favorite graphics API (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs))
 
 ## Integrations
@@ -174,7 +174,7 @@ loop {
     egui_ctx.begin_frame(raw_input);
     my_app.ui(&mut egui_ctx); // add panels, windows and widgets to `egui_ctx` here
     let (output, paint_commands) = egui_ctx.end_frame();
-    let paint_jobs = egui_ctx.tesselate(paint_commands); // create triangles to paint
+    let paint_jobs = egui_ctx.tessellate(paint_commands); // create triangles to paint
     my_integration.paint(paint_jobs);
     my_integration.set_cursor_icon(output.cursor_icon);
     // Also see `egui::Output` for more

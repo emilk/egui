@@ -17,7 +17,7 @@ struct Options {
     /// The default style for new `Ui`:s.
     style: Arc<Style>,
     /// Controls the tessellator.
-    tesselation_options: paint::TesselationOptions,
+    tessellation_options: paint::TessellationOptions,
     /// Font sizes etc.
     font_definitions: FontDefinitions,
 }
@@ -39,6 +39,7 @@ pub(crate) struct FrameState {
     /// How much space is used by panels.
     used_by_panels: Rect,
     pub(crate) scroll_delta: Vec2,
+    pub(crate) scroll_target: Option<(f32, Align)>,
     // TODO: move some things from `Memory` to here
 }
 
@@ -49,6 +50,7 @@ impl Default for FrameState {
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
             scroll_delta: Vec2::zero(),
+            scroll_target: None,
         }
     }
 }
@@ -59,6 +61,7 @@ impl FrameState {
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
         self.scroll_delta = input.scroll_delta;
+        self.scroll_target = None;
     }
 
     /// How much space is still available after panels has been added.
@@ -546,14 +549,20 @@ impl Context {
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        let mut font_definitions = self.options.lock().font_definitions.clone();
-        font_definitions.pixels_per_point = self.input.pixels_per_point();
+        let font_definitions = self.options.lock().font_definitions.clone();
+        let pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
             None => false,
-            Some(fonts) => *fonts.definitions() == font_definitions,
+            Some(fonts) => {
+                *fonts.definitions() == font_definitions
+                    && (fonts.pixels_per_point() - pixels_per_point).abs() < 1e-3
+            }
         };
         if !same_as_current {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(font_definitions)));
+            self.fonts = Some(Arc::new(Fonts::from_definitions(
+                pixels_per_point,
+                font_definitions,
+            )));
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
@@ -571,7 +580,7 @@ impl Context {
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
     /// You can transform the returned paint commands into triangles with a call to
-    /// `Context::tesselate`.
+    /// `Context::tessellate`.
     #[must_use]
     pub fn end_frame(&self) -> (Output, Vec<(Rect, PaintCmd)>) {
         if self.input.wants_repaint() {
@@ -595,14 +604,14 @@ impl Context {
         self.graphics().drain(memory.areas.order()).collect()
     }
 
-    /// Tesselate the given paint commands into triangle meshes.
-    pub fn tesselate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
-        let mut tesselation_options = self.options.lock().tesselation_options;
-        tesselation_options.aa_size = 1.0 / self.pixels_per_point();
+    /// Tessellate the given paint commands into triangle meshes.
+    pub fn tessellate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
+        let mut tessellation_options = self.options.lock().tessellation_options;
+        tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
         let paint_jobs = tessellator::tessellate_paint_commands(
             paint_commands,
-            tesselation_options,
+            tessellation_options,
             self.fonts(),
         );
         *self.paint_stats.lock() = paint_stats.with_paint_jobs(&paint_jobs);
@@ -726,9 +735,9 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tesselation_options = self.options.lock().tesselation_options;
-                tesselation_options.ui(ui);
-                self.options.lock().tesselation_options = tesselation_options;
+                let mut tessellation_options = self.options.lock().tessellation_options;
+                tessellation_options.ui(ui);
+                self.options.lock().tessellation_options = tessellation_options;
             });
     }
 
@@ -843,7 +852,7 @@ impl Context {
     }
 }
 
-impl paint::TesselationOptions {
+impl paint::TessellationOptions {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
             aa_size: _,

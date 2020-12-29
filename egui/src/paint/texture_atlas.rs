@@ -1,3 +1,4 @@
+// TODO: `TextureData` or similar?
 /// An 8-bit texture containing font data.
 #[derive(Clone, Default)]
 pub struct Texture {

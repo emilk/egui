@@ -38,8 +38,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
         let (_, paint_commands) = ctx.end_frame();
 
-        c.bench_function("tesselate", |b| {
-            b.iter(|| ctx.tesselate(paint_commands.clone()))
+        c.bench_function("tessellate", |b| {
+            b.iter(|| ctx.tessellate(paint_commands.clone()))
         });
     }
 

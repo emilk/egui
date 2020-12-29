@@ -7,6 +7,7 @@ pub struct DemoWindow {
     num_columns: usize,
 
     widgets: Widgets,
+    scrolls: Scrolls,
     colors: ColorWidgets,
     layout: LayoutDemo,
     tree: Tree,
@@ -18,6 +19,7 @@ impl Default for DemoWindow {
         DemoWindow {
             num_columns: 2,
 
+            scrolls: Default::default(),
             widgets: Default::default(),
             colors: Default::default(),
             layout: Default::default(),
@@ -68,9 +70,7 @@ impl DemoWindow {
         CollapsingHeader::new("Scroll area")
             .default_open(false)
             .show(ui, |ui| {
-                ScrollArea::from_max_height(200.0).show(ui, |ui| {
-                    ui.label(LOREM_IPSUM_LONG);
-                });
+                self.scrolls.ui(ui);
             });
 
         CollapsingHeader::new("Resize")

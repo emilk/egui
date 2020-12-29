@@ -7,6 +7,9 @@ struct Resource {
 
     /// If set, the response was an image.
     image: Option<Image>,
+
+    /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
+    colored_text: Option<ColoredText>,
 }
 
 impl Resource {
@@ -16,7 +19,14 @@ impl Resource {
         } else {
             None
         };
-        Self { response, image }
+
+        let colored_text = syntax_highlighting(&response);
+
+        Self {
+            response,
+            image,
+            colored_text,
+        }
     }
 }
 
@@ -55,17 +65,16 @@ impl egui::app::App for ExampleApp {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Egui Example App");
+            ui.heading("Egui Fetch Example");
             ui.add(egui::github_link_file!(
                 "https://github.com/emilk/egui/blob/master/",
                 "(source code)"
             ));
 
-            if ui_url(ui, &mut self.url) {
+            if let Some(url) = ui_url(ui, &mut self.url) {
                 let repaint_signal = integration_context.repaint_signal.clone();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
-                let url = self.url.clone();
                 egui_web::spawn_future(async move {
                     sender.send(egui_web::fetch::get(&url).await).ok();
                     repaint_signal.request_repaint();
@@ -91,7 +100,7 @@ impl egui::app::App for ExampleApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, url: &mut String) -> Option<String> {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -99,6 +108,8 @@ fn ui_url(ui: &mut egui::Ui, url: &mut String) -> bool {
         trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus;
         trigger_fetch |= ui.button("GET").clicked;
     });
+
+    ui.label("HINT: paste the url of this page into the field above!");
 
     ui.horizontal(|ui| {
         if ui.button("Source code for this example").clicked {
@@ -117,7 +128,11 @@ fn ui_url(ui: &mut egui::Ui, url: &mut String) -> bool {
         }
     });
 
-    trigger_fetch
+    if trigger_fetch {
+        Some(url.clone())
+    } else {
+        None
+    }
 }
 
 fn ui_resouce(
@@ -126,7 +141,11 @@ fn ui_resouce(
     tex_mngr: &mut TexMngr,
     resource: &Resource,
 ) {
-    let Resource { response, image } = resource;
+    let Resource {
+        response,
+        image,
+        colored_text,
+    } = resource;
 
     ui.monospace(format!("url:          {}", response.url));
     ui.monospace(format!(
@@ -139,26 +158,89 @@ fn ui_resouce(
         response.bytes.len() as f32 / 1000.0
     ));
 
-    if let Some(image) = image {
-        if let Some(texture_id) = tex_mngr.texture(integration_context, &response.url, &image) {
-            let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
-            ui.image(texture_id, size);
+    if let Some(text) = &response.text {
+        let tooltip = "Click to copy the response body";
+        if ui.button("📋").on_hover_text(tooltip).clicked {
+            ui.output().copied_text = text.clone();
         }
-    } else if let Some(text) = &response.text {
-        ui.monospace("Body:");
-        ui.separator();
-        egui::ScrollArea::auto_sized().show(ui, |ui| {
+    }
+
+    ui.separator();
+
+    egui::ScrollArea::auto_sized().show(ui, |ui| {
+        if let Some(image) = image {
+            if let Some(texture_id) = tex_mngr.texture(integration_context, &response.url, &image) {
+                let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                ui.image(texture_id, size);
+            }
+        } else if let Some(colored_text) = colored_text {
+            colored_text.ui(ui);
+        } else if let Some(text) = &response.text {
             ui.monospace(text);
-        });
-    } else {
-        ui.monospace("[binary]");
+        } else {
+            ui.monospace("[binary]");
+        }
+    });
+}
+
+// ----------------------------------------------------------------------------
+// Syntax highlighting:
+
+fn syntax_highlighting(response: &Response) -> Option<ColoredText> {
+    let text = response.text.as_ref()?;
+    let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
+    let extension = extension_and_rest.get(0)?;
+    ColoredText::text_with_extension(text, extension)
+}
+
+/// Lines of text fragments
+struct ColoredText(Vec<Vec<(syntect::highlighting::Style, String)>>);
+
+impl ColoredText {
+    /// e.g. `text_with_extension("fn foo() {}", "rs")
+    pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
+        use syntect::easy::HighlightLines;
+        use syntect::highlighting::ThemeSet;
+        use syntect::parsing::SyntaxSet;
+        use syntect::util::LinesWithEndings;
+
+        let ps = SyntaxSet::load_defaults_newlines(); // should be cached and reused
+        let ts = ThemeSet::load_defaults(); // should be cached and reused
+
+        let syntax = ps.find_syntax_by_extension(extension)?;
+
+        let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
+
+        let lines = LinesWithEndings::from(&text)
+            .map(|line| {
+                h.highlight(line, &ps)
+                    .into_iter()
+                    .map(|(style, range)| (style, range.trim_end_matches('\n').to_owned()))
+                    .collect()
+            })
+            .collect();
+
+        Some(ColoredText(lines))
+    }
+
+    pub fn ui(&self, ui: &mut egui::Ui) {
+        for line in &self.0 {
+            ui.horizontal_wrapped_for_text(egui::TextStyle::Monospace, |ui| {
+                ui.style_mut().spacing.item_spacing.x = 0.0;
+                for (style, range) in line {
+                    let fg = style.foreground;
+                    let text_color = egui::Srgba::from_rgb(fg.r, fg.g, fg.b);
+                    ui.add(egui::Label::new(range).monospace().text_color(text_color));
+                }
+            });
+        }
     }
 }
 
 // ----------------------------------------------------------------------------
 // Texture/image handling is very manual at the moment.
 
-/// Immediate mode texture managers that supports at most one texture at the time :)
+/// Immediate mode texture manager that supports at most one texture at the time :)
 #[derive(Default)]
 struct TexMngr {
     loaded_url: String,
