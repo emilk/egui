@@ -1,4 +1,4 @@
-use crate::{math::Rect, CtxRef, Id, LayerId, Ui};
+use crate::{lerp, math::Rect, Align, CtxRef, Id, LayerId, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -170,6 +170,25 @@ impl Response {
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx
             .interact_with_hovered(self.layer_id, self.id, self.rect, sense, self.hovered)
+    }
+
+    /// Move the scroll to this UI with the specified alignment.
+    ///
+    /// ```
+    /// # use egui::Align;
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    ///     for i in 0..1000 {
+    ///         let response = ui.button(format!("Button {}", i));
+    ///         if response.clicked {
+    ///             response.scroll_to_me(Align::Center);
+    ///         }
+    ///     }
+    /// });
+    /// ```
+    pub fn scroll_to_me(&self, align: Align) {
+        let scroll_target = lerp(self.rect.y_range(), align.scroll_center_factor());
+        self.ctx.frame_state().scroll_target = Some((scroll_target, align));
     }
 }
 

@@ -38,6 +38,7 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
+    pub(crate) scroll_target: Option<(f32, Align)>,
     // TODO: move some things from `Memory` to here
 }
 
@@ -47,6 +48,7 @@ impl Default for FrameState {
             available_rect: Rect::invalid(),
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
+            scroll_target: None,
         }
     }
 }
@@ -56,6 +58,7 @@ impl FrameState {
         self.available_rect = input.screen_rect();
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
+        self.scroll_target = None;
     }
 
     /// How much space is still available after panels has been added.
