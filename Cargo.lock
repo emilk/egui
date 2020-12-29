@@ -642,7 +642,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_demo"
+name = "egui_demo_app"
 version = "0.1.0"
 dependencies = [
  "eframe",

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-CRATE_NAME="egui_demo"
+CRATE_NAME="egui_demo_app"
 
 # This is required to enable the web_sys clipboard API which egui_web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html

@@ -24,7 +24,7 @@ jobs:
           command: check
 
   check_egui_demo_web:
-    name: Check egui_demo (web)
+    name: Check egui_demo_app (web)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -37,7 +37,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: -p egui_demo --lib --target wasm32-unknown-unknown
+          args: -p egui_demo_app --lib --target wasm32-unknown-unknown
 
   test:
     name: Test Suite

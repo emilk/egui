@@ -1,7 +1,7 @@
 [workspace]
 members = [
+    "egui_demo_app",
     "egui_demo_lib",
-    "egui_demo",
     "egui_glium",
     "egui_web",
     "egui",
