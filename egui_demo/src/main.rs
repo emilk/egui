@@ -5,5 +5,5 @@
 // When compiling natively:
 fn main() {
     let app = egui_demo_lib::DemoApp::default();
-    egui_glium::run(Box::new(app));
+    eframe::run_native(Box::new(app));
 }

@@ -8,6 +8,9 @@ pub mod webgl;
 
 pub use backend::*;
 
+pub use wasm_bindgen;
+pub use web_sys;
+
 use egui::mutex::Mutex;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;

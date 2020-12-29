@@ -219,7 +219,7 @@ impl AppRunner {
 }
 
 /// Install event listeners to register different input events
-/// and starts running the given app.
+/// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
     let backend = WebBackend::new(canvas_id)?;
     let runner = AppRunner::new(backend, app)?;

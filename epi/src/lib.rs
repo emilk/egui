@@ -50,6 +50,8 @@
     unused_doc_comments,
 )]
 
+pub use egui; // Re-export for user convenience
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,

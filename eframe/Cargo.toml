@@ -1,0 +1,27 @@
+[package]
+name = "eframe"
+version = "0.6.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Egui Framework - write GUI apps that compiles to web and/or natively"
+edition = "2018"
+homepage = "https://github.com/emilk/egui"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "graphics"]
+keywords = ["egui", "gui", "gamedev"]
+include = [ "**/*.rs", "Cargo.toml"]
+
+[lib]
+
+[dependencies]
+egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
+epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
+
+# For compiling natively:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui_glium = { path = "../egui_glium" }
+
+# For compiling to web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+egui_web = { path = "../egui_web" }

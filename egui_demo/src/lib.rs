@@ -3,7 +3,7 @@
 #![warn(clippy::all)]
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use eframe::wasm_bindgen::{self, prelude::*};
 
 /// This is the entry-point for all the web-assembly.
 /// This is called once from the HTML.
@@ -13,6 +13,5 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn start(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
     let app = egui_demo_lib::DemoApp::default();
-    egui_web::start(canvas_id, Box::new(app))?;
-    Ok(())
+    eframe::start_web(canvas_id, Box::new(app))
 }

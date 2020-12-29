@@ -9,17 +9,6 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
-egui_demo_lib = { path = "../egui_demo_lib" }
-epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
+eframe = { version = "0.6.0", path = "../eframe"}
+egui_demo_lib = { version = "0.6.0", path = "../egui_demo_lib"}
 serde = { version = "1", features = ["derive"] }
-
-# For compiling natively:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { path = "../egui_glium" }
-
-# For compiling to web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { path = "../egui_web" }
-js-sys = "0.3"
-wasm-bindgen = "0.2"

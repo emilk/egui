@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "graphics"]
-keywords = ["glium", "egui", "gui", "gamedev"]
+keywords = ["egui", "gui", "gamedev"]
 include = [ "**/*.rs", "Cargo.toml"]
 
 [lib]
