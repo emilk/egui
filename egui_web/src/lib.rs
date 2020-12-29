@@ -197,9 +197,13 @@ pub fn handle_output(output: &egui::Output) {
         crate::open_url(url);
     }
 
+    #[cfg(web_sys_unstable_apis)]
     if !copied_text.is_empty() {
         set_clipboard_text(copied_text);
     }
+
+    #[cfg(not(web_sys_unstable_apis))]
+    let _ = copied_text;
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -211,6 +215,7 @@ pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
         .ok()
 }
 
+#[cfg(web_sys_unstable_apis)]
 pub fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         let clipboard = window.navigator().clipboard();
@@ -436,6 +441,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    #[cfg(web_sys_unstable_apis)]
     {
         // paste
         let runner_ref = runner_ref.clone();
@@ -452,6 +458,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    #[cfg(web_sys_unstable_apis)]
     {
         // cut
         let runner_ref = runner_ref.clone();
@@ -464,6 +471,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    #[cfg(web_sys_unstable_apis)]
     {
         // copy
         let runner_ref = runner_ref.clone();
