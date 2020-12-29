@@ -151,4 +151,4 @@ Ability to do a search for any widget. The search works even for collapsed regio
   * [x] Use HW clip rects
 * [x] Image support
   * [x] Show user textures
-  * [x] API for creating a texture managed by `egui::app::Backend`
+  * [x] API for creating a texture managed by `epi` backend

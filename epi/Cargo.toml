@@ -1,8 +1,8 @@
 [package]
-name = "egui_demo_lib"
+name = "epi"
 version = "0.6.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Example library for Egui"
+description = "Backend-agnostic interface for writing apps using Egui"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
@@ -16,11 +16,5 @@ include = [ "**/*.rs", "Cargo.toml"]
 
 [dependencies]
 egui = { version = "0.6.0", path = "../egui" }
-epi = { version = "0.6.0", path = "../epi" }
-
-[dev-dependencies]
-criterion = { version = "0.3", default-features = false }
-
-[[bench]]
-name = "benchmark"
-harness = false
+serde = { version = "1", optional = true }
+serde_json = { version = "1", optional = true }

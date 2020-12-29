@@ -171,7 +171,7 @@ impl FrameHistory {
 
 /// Demonstrates how to make an app using Egui.
 ///
-/// Implements `egui::app::App` so it can be used with
+/// Implements `epi::App` so it can be used with
 /// [`egui_glium`](https://crates.io/crates/egui_glium) and [`egui_web`](https://crates.io/crates/egui_web).
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -192,7 +192,7 @@ pub struct DemoApp {
 }
 
 impl DemoApp {
-    fn backend_ui(&mut self, ui: &mut Ui, integration_context: &mut app::IntegrationContext<'_>) {
+    fn backend_ui(&mut self, ui: &mut Ui, integration_context: &mut epi::IntegrationContext<'_>) {
         let is_web = integration_context.info.web_info.is_some();
 
         if is_web {
@@ -227,7 +227,7 @@ impl DemoApp {
         }
     }
 
-    fn pixels_per_point_ui(&mut self, ui: &mut Ui, info: &app::IntegrationInfo) -> Option<f32> {
+    fn pixels_per_point_ui(&mut self, ui: &mut Ui, info: &epi::IntegrationInfo) -> Option<f32> {
         self.pixels_per_point = self
             .pixels_per_point
             .or(info.native_pixels_per_point)
@@ -278,22 +278,22 @@ impl DemoApp {
     }
 }
 
-impl app::App for DemoApp {
+impl epi::App for DemoApp {
     fn name(&self) -> &str {
         "Egui Demo"
     }
 
     #[cfg(feature = "serde_json")]
-    fn load(&mut self, storage: &dyn egui::app::Storage) {
-        *self = egui::app::get_value(storage, egui::app::APP_KEY).unwrap_or_default()
+    fn load(&mut self, storage: &dyn epi::Storage) {
+        *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
     }
 
     #[cfg(feature = "serde_json")]
-    fn save(&mut self, storage: &mut dyn egui::app::Storage) {
-        egui::app::set_value(storage, egui::app::APP_KEY, self);
+    fn save(&mut self, storage: &mut dyn epi::Storage) {
+        epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn ui(&mut self, ctx: &CtxRef, integration_context: &mut egui::app::IntegrationContext<'_>) {
+    fn ui(&mut self, ctx: &CtxRef, integration_context: &mut epi::IntegrationContext<'_>) {
         self.frame_history
             .on_new_frame(ctx.input().time, integration_context.info.cpu_usage);
 

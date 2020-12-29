@@ -9,8 +9,9 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { path = "../egui", features = ["serde", "serde_json"] }
+egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
 egui_demo_lib = { path = "../egui_demo_lib" }
+epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
 serde = { version = "1", features = ["derive"] }
 
 # For compiling natively:

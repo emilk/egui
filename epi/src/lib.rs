@@ -1,11 +1,56 @@
-//! Traits and helper for writing Egui apps.
+//! Backend-agnostic interface for writing apps using Egui.
 //!
-//! This module is very experimental, and you don't need to use it.
+//! Egui is a GUI library, which can be plugged in to e.g. a game engine.
 //!
-//! Egui can be used as a library, but you can also use it as a framework to write apps in.
-//! This module defined the `App` trait that can be implemented and used with the `egui_web` and `egui_glium` crates.
+//! This crate provides a common interface for programming an app, using Egui,
+//! so you can then easily plug it in to a backend such as `egui_web` or `egui_glium`.
+//!
+//! This crate is primarily used by the `egui_web` and `egui_glium` crates.
 
-// TODO: move egui/src/app.rs to own crate, e.g. egui_framework ?
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![forbid(unsafe_code)]
+#![warn(
+    clippy::all,
+    clippy::await_holding_lock,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::empty_enum,
+    clippy::enum_glob_use,
+    clippy::exit,
+    clippy::filter_map_next,
+    clippy::fn_params_excessive_bools,
+    clippy::if_let_mutex,
+    clippy::imprecise_flops,
+    clippy::inefficient_to_string,
+    clippy::linkedlist,
+    clippy::lossy_float_literal,
+    clippy::macro_use_imports,
+    clippy::match_on_vec_items,
+    clippy::match_wildcard_for_single_variants,
+    clippy::mem_forget,
+    clippy::mismatched_target_os,
+    clippy::missing_errors_doc,
+    clippy::missing_safety_doc,
+    clippy::needless_borrow,
+    clippy::needless_continue,
+    clippy::needless_pass_by_value,
+    clippy::option_option,
+    clippy::pub_enum_variant_names,
+    clippy::rest_pat_in_fully_bound_structs,
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::unnested_or_patterns,
+    clippy::verbose_file_reads,
+    future_incompatible,
+    missing_crate_level_docs,
+    missing_doc_code_examples,
+    // missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unused_doc_comments,
+)]
+
+// ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
@@ -15,9 +60,9 @@ pub trait App {
 
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.
     /// This is the background of your windows if you don't set a central panel.
-    fn clear_color(&self) -> crate::Rgba {
+    fn clear_color(&self) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
-        crate::Srgba::from_rgb(12, 12, 12).into()
+        egui::Srgba::from_rgb(12, 12, 12).into()
     }
 
     /// Called once on start. Allows you to restore state.
@@ -37,7 +82,7 @@ pub trait App {
     /// Called once before the first frame.
     /// Allows you to do setup code and to call `ctx.set_fonts()`.
     /// Optional.
-    fn setup(&mut self, _ctx: &crate::CtxRef) {}
+    fn setup(&mut self, _ctx: &egui::CtxRef) {}
 
     /// Returns true if this app window should be resizable.
     fn is_resizable(&self) -> bool {
@@ -46,7 +91,7 @@ pub trait App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(&mut self, ctx: &crate::CtxRef, integration_context: &mut IntegrationContext<'_>);
+    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut IntegrationContext<'_>);
 }
 
 pub struct IntegrationContext<'a> {
@@ -92,7 +137,7 @@ pub struct AppOutput {
     pub quit: bool,
 
     /// Set to some size to resize the outer window (e.g. glium window) to this size.
-    pub window_size: Option<crate::Vec2>,
+    pub window_size: Option<egui::Vec2>,
 
     /// If the app sets this, change the `pixels_per_point` of Egui to this next frame.
     pub pixels_per_point: Option<f32>,
@@ -100,18 +145,18 @@ pub struct AppOutput {
 
 pub trait TextureAllocator {
     /// A.locate a new user texture.
-    fn alloc(&mut self) -> crate::TextureId;
+    fn alloc(&mut self) -> egui::TextureId;
 
     /// Set or change the pixels of a user texture.
     fn set_srgba_premultiplied(
         &mut self,
-        id: crate::TextureId,
+        id: egui::TextureId,
         size: (usize, usize),
-        srgba_pixels: &[crate::Srgba],
+        srgba_pixels: &[egui::Srgba],
     );
 
     /// Free the given texture.
-    fn free(&mut self, id: crate::TextureId);
+    fn free(&mut self, id: egui::TextureId);
 }
 
 pub trait RepaintSignal: Send + Sync {
@@ -119,6 +164,8 @@ pub trait RepaintSignal: Send + Sync {
     /// This is meant to be called when a background process finishes in an async context and/or background thread.
     fn request_repaint(&self);
 }
+
+// ----------------------------------------------------------------------------
 
 /// A place where you can store custom data in a way that persists when you restart the app.
 ///

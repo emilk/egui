@@ -24,7 +24,6 @@ atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
-serde_json = { version = "1", optional = true }
 
 [features]
 default = ["atomic_refcell", "default_fonts"]

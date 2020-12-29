@@ -1,9 +1,6 @@
 use crate::*;
 
-pub use egui::{
-    app::{App, WebInfo},
-    pos2, Srgba,
-};
+pub use egui::{pos2, Srgba};
 
 // ----------------------------------------------------------------------------
 
@@ -68,7 +65,7 @@ impl WebBackend {
     }
 }
 
-impl egui::app::TextureAllocator for webgl::Painter {
+impl epi::TextureAllocator for webgl::Painter {
     fn alloc(&mut self) -> egui::TextureId {
         self.alloc_user_texture()
     }
@@ -131,7 +128,7 @@ impl NeedRepaint {
     }
 }
 
-impl egui::app::RepaintSignal for NeedRepaint {
+impl epi::RepaintSignal for NeedRepaint {
     fn request_repaint(&self) {
         self.0.store(true, SeqCst);
     }
@@ -142,14 +139,14 @@ impl egui::app::RepaintSignal for NeedRepaint {
 pub struct AppRunner {
     pub web_backend: WebBackend,
     pub input: WebInput,
-    pub app: Box<dyn App>,
+    pub app: Box<dyn epi::App>,
     pub needs_repaint: std::sync::Arc<NeedRepaint>,
     pub storage: LocalStorage,
     pub last_save_time: f64,
 }
 
 impl AppRunner {
-    pub fn new(web_backend: WebBackend, mut app: Box<dyn App>) -> Result<Self, JsValue> {
+    pub fn new(web_backend: WebBackend, mut app: Box<dyn epi::App>) -> Result<Self, JsValue> {
         load_memory(&web_backend.ctx);
         let storage = LocalStorage::default();
         app.load(&storage);
@@ -185,9 +182,9 @@ impl AppRunner {
         let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
 
-        let mut integration_context = egui::app::IntegrationContext {
-            info: egui::app::IntegrationInfo {
-                web_info: Some(WebInfo {
+        let mut integration_context = epi::IntegrationContext {
+            info: epi::IntegrationInfo {
+                web_info: Some(epi::WebInfo {
                     web_location_hash: location_hash().unwrap_or_default(),
                 }),
                 cpu_usage: self.web_backend.previous_frame_time,
@@ -206,7 +203,7 @@ impl AppRunner {
         handle_output(&egui_output);
 
         {
-            let egui::app::AppOutput {
+            let epi::AppOutput {
                 quit: _,             // Can't quit a web page
                 window_size: _,      // Can't resize a web page
                 pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)
@@ -223,7 +220,7 @@ impl AppRunner {
 
 /// Install event listeners to register different input events
 /// and starts running the given app.
-pub fn start(canvas_id: &str, app: Box<dyn App>) -> Result<AppRunnerRef, JsValue> {
+pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
     let backend = WebBackend::new(canvas_id)?;
     let runner = AppRunner::new(backend, app)?;
     start_runner(runner)

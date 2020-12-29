@@ -2,15 +2,12 @@ use std::time::Instant;
 
 use crate::{storage::WindowSettings, *};
 
-pub use egui::{
-    app::{self, App, Storage},
-    Srgba,
-};
+pub use egui::Srgba;
 
 const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
 
-impl egui::app::TextureAllocator for Painter {
+impl epi::TextureAllocator for Painter {
     fn alloc(&mut self) -> egui::TextureId {
         self.alloc_user_texture()
     }
@@ -35,7 +32,7 @@ struct GliumRepaintSignal(
     std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>,
 );
 
-impl egui::app::RepaintSignal for GliumRepaintSignal {
+impl epi::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
         self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
@@ -72,7 +69,7 @@ fn create_display(
     display
 }
 
-fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
+fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
     if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
         let data_dir = proj_dirs.data_dir().to_path_buf();
         if let Err(err) = std::fs::create_dir_all(&data_dir) {
@@ -94,7 +91,7 @@ fn create_storage(app_name: &str) -> Option<Box<dyn egui::app::Storage>> {
 }
 
 /// Run an egui app
-pub fn run(mut app: Box<dyn App>) -> ! {
+pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut storage = create_storage(app.name());
 
     if let Some(storage) = &mut storage {
@@ -103,7 +100,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
 
     let window_settings: Option<WindowSettings> = storage
         .as_mut()
-        .and_then(|storage| egui::app::get_value(storage.as_ref(), WINDOW_KEY));
+        .and_then(|storage| epi::get_value(storage.as_ref(), WINDOW_KEY));
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
 
@@ -114,7 +111,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
     let mut ctx = egui::CtxRef::default();
     *ctx.memory() = storage
         .as_mut()
-        .and_then(|storage| egui::app::get_value(storage.as_ref(), EGUI_MEMORY_KEY))
+        .and_then(|storage| epi::get_value(storage.as_ref(), EGUI_MEMORY_KEY))
         .unwrap_or_default();
     app.setup(&ctx);
 
@@ -137,8 +134,8 @@ pub fn run(mut app: Box<dyn App>) -> ! {
             ));
 
             ctx.begin_frame(input_state.raw.take());
-            let mut integration_context = egui::app::IntegrationContext {
-                info: egui::app::IntegrationInfo {
+            let mut integration_context = epi::IntegrationContext {
+                info: epi::IntegrationInfo {
                     web_info: None,
                     cpu_usage: previous_frame_time,
                     seconds_since_midnight: Some(seconds_since_midnight()),
@@ -164,7 +161,7 @@ pub fn run(mut app: Box<dyn App>) -> ! {
             );
 
             {
-                let egui::app::AppOutput {
+                let epi::AppOutput {
                     quit,
                     window_size,
                     pixels_per_point,
@@ -200,12 +197,12 @@ pub fn run(mut app: Box<dyn App>) -> ! {
             if let Some(storage) = &mut storage {
                 let now = Instant::now();
                 if now - last_auto_save > app.auto_save_interval() {
-                    egui::app::set_value(
+                    epi::set_value(
                         storage.as_mut(),
                         WINDOW_KEY,
                         &WindowSettings::from_display(&display),
                     );
-                    egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
                     app.save(storage.as_mut());
                     storage.flush();
                     last_auto_save = now;
@@ -227,12 +224,12 @@ pub fn run(mut app: Box<dyn App>) -> ! {
             glutin::event::Event::LoopDestroyed => {
                 app.on_exit();
                 if let Some(storage) = &mut storage {
-                    egui::app::set_value(
+                    epi::set_value(
                         storage.as_mut(),
                         WINDOW_KEY,
                         &WindowSettings::from_display(&display),
                     );
-                    egui::app::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
                     app.save(storage.as_mut());
                     storage.flush();
                 }

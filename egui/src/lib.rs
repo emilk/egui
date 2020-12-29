@@ -79,7 +79,6 @@
 
 pub mod align;
 mod animation_manager;
-pub mod app;
 pub mod containers;
 mod context;
 mod id;

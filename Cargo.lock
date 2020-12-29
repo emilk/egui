@@ -629,7 +629,6 @@ dependencies = [
  "parking_lot",
  "rusttype",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -640,6 +639,7 @@ dependencies = [
  "egui_demo_lib",
  "egui_glium",
  "egui_web",
+ "epi",
  "js-sys",
  "serde",
  "wasm-bindgen",
@@ -651,6 +651,7 @@ version = "0.6.0"
 dependencies = [
  "criterion",
  "egui",
+ "epi",
 ]
 
 [[package]]
@@ -661,6 +662,7 @@ dependencies = [
  "clipboard",
  "directories-next",
  "egui",
+ "epi",
  "glium",
  "serde",
  "serde_json",
@@ -672,6 +674,7 @@ name = "egui_web"
 version = "0.6.0"
 dependencies = [
  "egui",
+ "epi",
  "js-sys",
  "serde",
  "serde_json",
@@ -687,11 +690,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
+name = "epi"
+version = "0.6.0"
+dependencies = [
+ "egui",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "example_web"
 version = "0.1.0"
 dependencies = [
  "egui",
  "egui_web",
+ "epi",
  "image",
  "js-sys",
  "serde",

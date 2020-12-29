@@ -48,14 +48,14 @@ impl Default for ExampleApp {
     }
 }
 
-impl egui::app::App for ExampleApp {
+impl epi::App for ExampleApp {
     fn name(&self) -> &str {
         "Egui Fetch Example"
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut egui::app::IntegrationContext) {
+    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut epi::IntegrationContext) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
@@ -137,7 +137,7 @@ fn ui_url(ui: &mut egui::Ui, url: &mut String) -> Option<String> {
 
 fn ui_resouce(
     ui: &mut egui::Ui,
-    integration_context: &mut egui::app::IntegrationContext,
+    integration_context: &mut epi::IntegrationContext,
     tex_mngr: &mut TexMngr,
     resource: &Resource,
 ) {
@@ -250,7 +250,7 @@ struct TexMngr {
 impl TexMngr {
     fn texture(
         &mut self,
-        integration_context: &mut egui::app::IntegrationContext,
+        integration_context: &mut epi::IntegrationContext,
         url: &str,
         image: &Image,
     ) -> Option<egui::TextureId> {

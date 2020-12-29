@@ -24,7 +24,7 @@ impl FileStorage {
     }
 }
 
-impl egui::app::Storage for FileStorage {
+impl epi::Storage for FileStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         self.kv.get(key).cloned()
     }

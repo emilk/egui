@@ -172,7 +172,7 @@ pub fn save_memory(ctx: &egui::Context) {
 #[derive(Default)]
 pub struct LocalStorage {}
 
-impl egui::app::Storage for LocalStorage {
+impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         local_storage_get(key)
     }

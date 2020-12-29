@@ -25,7 +25,7 @@ impl ColorTest {
     pub fn ui(
         &mut self,
         ui: &mut Ui,
-        mut tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
         ui.label("This is made to test if your Egui painter backend is set up correctly");
         ui.label("It is meant to ensure you do proper sRGBA decoding of both texture and vertex colors, and blend using premultiplied alpha.");
@@ -132,7 +132,7 @@ impl ColorTest {
     fn show_gradients(
         &mut self,
         ui: &mut Ui,
-        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
         bg_fill: Srgba,
         (left, right): (Srgba, Srgba),
     ) {
@@ -226,7 +226,7 @@ impl ColorTest {
     fn tex_gradient(
         &mut self,
         ui: &mut Ui,
-        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
         label: &str,
         bg_fill: Srgba,
         gradient: &Gradient,
@@ -358,7 +358,7 @@ struct TextureManager(HashMap<Gradient, TextureId>);
 impl TextureManager {
     fn get(
         &mut self,
-        tex_allocator: &mut dyn app::TextureAllocator,
+        tex_allocator: &mut dyn epi::TextureAllocator,
         gradient: &Gradient,
     ) -> TextureId {
         *self.0.entry(gradient.clone()).or_insert_with(|| {

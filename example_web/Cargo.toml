@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 egui = { path = "../egui", features = ["serde"] }
 egui_web = { path = "../egui_web" }
+epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
 image = { version = "0.23", default_features = false, features = ["jpeg", "png"] }
 js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }

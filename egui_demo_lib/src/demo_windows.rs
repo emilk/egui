@@ -1,4 +1,4 @@
-use egui::{app, CtxRef, Resize, ScrollArea, Ui, Window};
+use egui::{CtxRef, Resize, ScrollArea, Ui, Window};
 
 // ----------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ impl DemoWindows {
         &mut self,
         ctx: &CtxRef,
         env: &DemoEnvironment,
-        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
         sidebar_ui: impl FnOnce(&mut Ui),
     ) {
         if self.previous_link != env.link {
@@ -144,7 +144,7 @@ impl DemoWindows {
         &mut self,
         ctx: &CtxRef,
         env: &DemoEnvironment,
-        tex_allocator: &mut Option<&mut dyn app::TextureAllocator>,
+        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
         let Self {
             open_windows,
