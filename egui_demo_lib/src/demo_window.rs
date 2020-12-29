@@ -1,4 +1,5 @@
-use crate::{color::*, demos::*, *};
+use crate::*;
+use egui::{color::*, *};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -220,8 +221,6 @@ impl BoxPainting {
 }
 
 // ----------------------------------------------------------------------------
-
-use crate::layout::*;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

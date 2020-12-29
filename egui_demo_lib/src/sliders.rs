@@ -1,4 +1,4 @@
-use crate::*;
+use egui::*;
 use std::f64::INFINITY;
 
 /// Showcase sliders

@@ -1,4 +1,4 @@
-use crate::{app, demos, util::History, CtxRef, Response, Ui};
+use egui::{util::History, *};
 
 // ----------------------------------------------------------------------------
 
@@ -90,9 +90,9 @@ impl FrameHistory {
             "Includes Egui layout and tessellation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
-        crate::demos::warn_if_debug_build(ui);
+        egui::warn_if_debug_build(ui);
 
-        crate::CollapsingHeader::new("📊 CPU usage history")
+        egui::CollapsingHeader::new("📊 CPU usage history")
             .default_open(false)
             .show(ui, |ui| {
                 self.graph(ui);
@@ -100,8 +100,6 @@ impl FrameHistory {
     }
 
     fn graph(&mut self, ui: &mut Ui) -> Response {
-        use crate::*;
-
         let graph_top_cpu_usage = 0.010;
         ui.label("Egui CPU usage history");
 
@@ -179,7 +177,7 @@ impl FrameHistory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoApp {
-    demo_windows: demos::DemoWindows,
+    demo_windows: crate::DemoWindows,
 
     backend_window_open: bool,
 
@@ -236,7 +234,7 @@ impl DemoApp {
             .or_else(|| Some(ui.ctx().pixels_per_point()));
         if let Some(pixels_per_point) = &mut self.pixels_per_point {
             ui.add(
-                crate::Slider::f32(pixels_per_point, 0.5..=5.0)
+                egui::Slider::f32(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
                     .text("Scale (physical pixels per point)"),
             );
@@ -286,16 +284,16 @@ impl app::App for DemoApp {
     }
 
     #[cfg(feature = "serde_json")]
-    fn load(&mut self, storage: &dyn crate::app::Storage) {
-        *self = crate::app::get_value(storage, crate::app::APP_KEY).unwrap_or_default()
+    fn load(&mut self, storage: &dyn egui::app::Storage) {
+        *self = egui::app::get_value(storage, egui::app::APP_KEY).unwrap_or_default()
     }
 
     #[cfg(feature = "serde_json")]
-    fn save(&mut self, storage: &mut dyn crate::app::Storage) {
-        crate::app::set_value(storage, crate::app::APP_KEY, self);
+    fn save(&mut self, storage: &mut dyn egui::app::Storage) {
+        egui::app::set_value(storage, egui::app::APP_KEY, self);
     }
 
-    fn ui(&mut self, ctx: &CtxRef, integration_context: &mut crate::app::IntegrationContext<'_>) {
+    fn ui(&mut self, ctx: &CtxRef, integration_context: &mut egui::app::IntegrationContext<'_>) {
         self.frame_history
             .on_new_frame(ctx.input().time, integration_context.info.cpu_usage);
 
@@ -307,12 +305,12 @@ impl app::App for DemoApp {
             .unwrap_or_default();
 
         let link = if web_location_hash == "clock" {
-            Some(demos::DemoLink::Clock)
+            Some(crate::DemoLink::Clock)
         } else {
             None
         };
 
-        let demo_environment = demos::DemoEnvironment {
+        let demo_environment = crate::DemoEnvironment {
             seconds_since_midnight: integration_context.info.seconds_since_midnight,
             link,
         };
@@ -339,7 +337,7 @@ impl app::App for DemoApp {
         );
 
         let mut backend_window_open = self.backend_window_open;
-        crate::Window::new("💻 Backend")
+        egui::Window::new("💻 Backend")
             .min_width(360.0)
             .scroll(false)
             .open(&mut backend_window_open)

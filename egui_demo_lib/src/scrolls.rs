@@ -1,4 +1,5 @@
-use crate::{color::*, demos::LOREM_IPSUM_LONG, *};
+use crate::LOREM_IPSUM_LONG;
+use egui::{color::*, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

@@ -1,4 +1,4 @@
-use crate::{containers::*, demos::*, *};
+use egui::{containers::*, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -10,12 +10,13 @@ impl Default for DancingStrings {
     }
 }
 
-impl Demo for DancingStrings {
+impl crate::Demo for DancingStrings {
     fn name(&self) -> &str {
         "♫ Dancing Strings"
     }
 
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+        use crate::View;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))
@@ -24,7 +25,7 @@ impl Demo for DancingStrings {
     }
 }
 
-impl View for DancingStrings {
+impl crate::View for DancingStrings {
     fn ui(&mut self, ui: &mut Ui) {
         Frame::dark_canvas(ui.style()).show(ui, |ui| {
             ui.ctx().request_repaint();
@@ -62,6 +63,6 @@ impl View for DancingStrings {
 
             ui.painter().extend(cmds);
         });
-        ui.add(__egui_github_link_file!());
+        ui.add(crate::__egui_github_link_file!());
     }
 }

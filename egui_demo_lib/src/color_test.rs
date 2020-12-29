@@ -1,6 +1,4 @@
-use crate::widgets::color_picker::show_color;
-use crate::*;
-use color::*;
+use egui::{color::*, widgets::color_picker::show_color, *};
 use std::collections::HashMap;
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 24.0);
@@ -266,7 +264,7 @@ impl ColorTest {
 }
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response {
-    use crate::paint::*;
+    use egui::paint::*;
     let response = ui.allocate_response(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
         let mut triangles = Triangles::default();
@@ -324,12 +322,12 @@ impl Gradient {
             (0..=n)
                 .map(|i| {
                     let t = i as f32 / n as f32;
-                    Srgba([
+                    Srgba::from_rgba_premultiplied(
                         lerp((left[0] as f32)..=(right[0] as f32), t).round() as u8, // Don't ever do this please!
                         lerp((left[1] as f32)..=(right[1] as f32), t).round() as u8, // Don't ever do this please!
                         lerp((left[2] as f32)..=(right[2] as f32), t).round() as u8, // Don't ever do this please!
                         lerp((left[3] as f32)..=(right[3] as f32), t).round() as u8, // Don't ever do this please!
-                    ])
+                    )
                 })
                 .collect(),
         )

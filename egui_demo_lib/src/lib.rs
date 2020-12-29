@@ -1,6 +1,52 @@
 //! Demo-code for showing how Egui is used.
 //!
 //! The demo-code is also used in benchmarks and tests.
+
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![forbid(unsafe_code)]
+#![warn(
+    clippy::all,
+    clippy::await_holding_lock,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::empty_enum,
+    clippy::enum_glob_use,
+    clippy::exit,
+    clippy::filter_map_next,
+    clippy::fn_params_excessive_bools,
+    clippy::if_let_mutex,
+    clippy::imprecise_flops,
+    clippy::inefficient_to_string,
+    clippy::linkedlist,
+    clippy::lossy_float_literal,
+    clippy::macro_use_imports,
+    clippy::match_on_vec_items,
+    clippy::match_wildcard_for_single_variants,
+    clippy::mem_forget,
+    clippy::mismatched_target_os,
+    clippy::missing_errors_doc,
+    clippy::missing_safety_doc,
+    clippy::needless_borrow,
+    clippy::needless_continue,
+    clippy::needless_pass_by_value,
+    clippy::option_option,
+    clippy::pub_enum_variant_names,
+    clippy::rest_pat_in_fully_bound_structs,
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::unnested_or_patterns,
+    clippy::verbose_file_reads,
+    future_incompatible,
+    missing_crate_level_docs,
+    missing_doc_code_examples,
+    // missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unused_doc_comments,
+)]
+
+// ----------------------------------------------------------------------------
+
 mod app;
 mod color_test;
 mod dancing_strings;
@@ -34,7 +80,7 @@ Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, tur
 
 /// Something to view in the demo windows
 pub trait View {
-    fn ui(&mut self, ui: &mut crate::Ui);
+    fn ui(&mut self, ui: &mut egui::Ui);
 }
 
 /// Something to view
@@ -42,55 +88,20 @@ pub trait Demo {
     fn name(&self) -> &str;
 
     /// Show windows, etc
-    fn show(&mut self, ctx: &crate::CtxRef, open: &mut bool);
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool);
 }
 
 // ----------------------------------------------------------------------------
-
-pub fn warn_if_debug_build(ui: &mut crate::Ui) {
-    if crate::has_debug_assertions() {
-        ui.label(
-            crate::Label::new("‼ Debug build ‼")
-                .small()
-                .text_color(crate::color::RED),
-        )
-        .on_hover_text("Egui was compiled with debug assertions enabled.");
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Create a [`Hyperlink`](crate::Hyperlink) to this file (and line) on Github
-///
-/// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
-#[macro_export]
-macro_rules! github_link_file_line {
-    ($github_url:expr, $label:expr) => {{
-        let url = format!("{}{}#L{}", $github_url, file!(), line!());
-        $crate::Hyperlink::new(url).text($label)
-    }};
-}
-
-/// Create a [`Hyperlink`](crate::Hyperlink) to this file on github.
-///
-/// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
-#[macro_export]
-macro_rules! github_link_file {
-    ($github_url:expr, $label:expr) => {{
-        let url = format!("{}{}", $github_url, file!());
-        $crate::Hyperlink::new(url).text($label)
-    }};
-}
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __egui_github_link_file {
     () => {
-        __egui_github_link_file!("(source code)")
+        crate::__egui_github_link_file!("(source code)")
     };
     ($label:expr) => {
-        github_link_file!("https://github.com/emilk/egui/blob/master/", $label).small()
+        egui::github_link_file!("https://github.com/emilk/egui/blob/master/", $label).small()
     };
 }
 
@@ -99,9 +110,27 @@ macro_rules! __egui_github_link_file {
 #[macro_export]
 macro_rules! __egui_github_link_file_line {
     () => {
-        __egui_github_link_file_line!("(source code)")
+        crate::__egui_github_link_file_line!("(source code)")
     };
     ($label:expr) => {
-        github_link_file_line!("https://github.com/emilk/egui/blob/master/", $label).small()
+        egui::github_link_file_line!("https://github.com/emilk/egui/blob/master/", $label).small()
     };
+}
+
+// ----------------------------------------------------------------------------
+
+#[test]
+fn test_egui_e2e() {
+    let mut demo_windows = crate::DemoWindows::default();
+    let mut ctx = egui::CtxRef::default();
+    let raw_input = egui::RawInput::default();
+
+    const NUM_FRAMES: usize = 5;
+    for _ in 0..NUM_FRAMES {
+        ctx.begin_frame(raw_input.clone());
+        demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
+        let (_output, paint_commands) = ctx.end_frame();
+        let paint_jobs = ctx.tessellate(paint_commands);
+        assert!(!paint_jobs.is_empty());
+    }
 }

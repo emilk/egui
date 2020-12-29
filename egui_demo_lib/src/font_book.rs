@@ -1,10 +1,8 @@
-use crate::*;
-
 pub struct FontBook {
     standard: bool,
     emojis: bool,
     filter: String,
-    text_style: TextStyle,
+    text_style: egui::TextStyle,
 }
 
 impl Default for FontBook {
@@ -13,13 +11,14 @@ impl Default for FontBook {
             standard: false,
             emojis: true,
             filter: Default::default(),
-            text_style: TextStyle::Button,
+            text_style: egui::TextStyle::Button,
         }
     }
 }
 
 impl FontBook {
-    fn characters_ui(&self, ui: &mut Ui, characters: &[(u32, char, &str)]) {
+    fn characters_ui(&self, ui: &mut egui::Ui, characters: &[(u32, char, &str)]) {
+        use egui::{Button, Label};
         for &(_, chr, name) in characters {
             if self.filter.is_empty()
                 || name.contains(&self.filter)
@@ -27,7 +26,7 @@ impl FontBook {
             {
                 let button = Button::new(chr).text_style(self.text_style).frame(false);
 
-                let tooltip_ui = |ui: &mut Ui| {
+                let tooltip_ui = |ui: &mut egui::Ui| {
                     ui.add(Label::new(chr).text_style(self.text_style));
                     ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                 };
@@ -40,23 +39,23 @@ impl FontBook {
     }
 }
 
-impl demos::Demo for FontBook {
+impl crate::Demo for FontBook {
     fn name(&self) -> &str {
         "🔤 Font Book"
     }
 
-    fn show(&mut self, ctx: &crate::CtxRef, open: &mut bool) {
-        Window::new(self.name()).open(open).show(ctx, |ui| {
-            use demos::View;
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use crate::View;
             self.ui(ui);
         });
     }
 }
 
-impl demos::View for FontBook {
-    fn ui(&mut self, ui: &mut Ui) {
-        use crate::demos::font_contents_emoji::FULL_EMOJI_LIST;
-        use crate::demos::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
+impl crate::View for FontBook {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        use crate::font_contents_emoji::FULL_EMOJI_LIST;
+        use crate::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
 
         ui.label(format!(
             "Egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
@@ -66,8 +65,8 @@ impl demos::View for FontBook {
 
         ui.separator();
 
-        combo_box_with_label(ui, "Text style", format!("{:?}", self.text_style), |ui| {
-            for style in TextStyle::all() {
+        egui::combo_box_with_label(ui, "Text style", format!("{:?}", self.text_style), |ui| {
+            for style in egui::TextStyle::all() {
                 ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
             }
         });
@@ -89,9 +88,9 @@ impl demos::View for FontBook {
 
         ui.separator();
 
-        crate::ScrollArea::auto_sized().show(ui, |ui| {
+        egui::ScrollArea::auto_sized().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.style_mut().spacing.item_spacing = Vec2::splat(2.0);
+                ui.style_mut().spacing.item_spacing = egui::Vec2::splat(2.0);
 
                 if self.standard {
                     self.characters_ui(ui, UBUNTU_FONT_CHARACTERS);

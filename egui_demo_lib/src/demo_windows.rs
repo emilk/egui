@@ -1,8 +1,4 @@
-use crate::{
-    app,
-    demos::{self, Demo},
-    CtxRef, Resize, ScrollArea, Ui, Window,
-};
+use egui::{app, CtxRef, Resize, ScrollArea, Ui, Window};
 
 // ----------------------------------------------------------------------------
 
@@ -29,17 +25,17 @@ pub struct DemoEnvironment {
 struct Demos {
     /// open, view
     #[cfg_attr(feature = "serde", serde(skip))] // TODO: serialize the `open` state.
-    demos: Vec<(bool, Box<dyn Demo>)>,
+    demos: Vec<(bool, Box<dyn crate::Demo>)>,
 }
 impl Default for Demos {
     fn default() -> Self {
         Self {
             demos: vec![
-                (false, Box::new(crate::demos::FontBook::default())),
-                (false, Box::new(crate::demos::Painting::default())),
-                (false, Box::new(crate::demos::DancingStrings::default())),
-                (false, Box::new(crate::demos::DragAndDropDemo::default())),
-                (false, Box::new(crate::demos::Tests::default())),
+                (false, Box::new(crate::FontBook::default())),
+                (false, Box::new(crate::Painting::default())),
+                (false, Box::new(crate::DancingStrings::default())),
+                (false, Box::new(crate::DragAndDropDemo::default())),
+                (false, Box::new(crate::Tests::default())),
             ],
         }
     }
@@ -67,12 +63,12 @@ impl Demos {
 pub struct DemoWindows {
     open_windows: OpenWindows,
 
-    demo_window: demos::DemoWindow,
+    demo_window: crate::DemoWindow,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    color_test: demos::ColorTest,
+    color_test: crate::ColorTest,
 
-    fractal_clock: demos::FractalClock,
+    fractal_clock: crate::FractalClock,
 
     /// open, title, view
     demos: Demos,
@@ -104,16 +100,16 @@ impl DemoWindows {
             self.previous_link = env.link;
         }
 
-        crate::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
+        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
-            crate::demos::warn_if_debug_build(ui);
+            egui::warn_if_debug_build(ui);
 
             ui.separator();
 
             ScrollArea::auto_sized().show(ui, |ui| {
                 ui.label("Egui is an immediate mode GUI library written in Rust.");
                 ui.add(
-                    crate::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"),
+                    egui::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"),
                 );
 
                 ui.label("Egui can be run on the web, or natively on 🐧");
@@ -136,7 +132,7 @@ impl DemoWindows {
             });
         });
 
-        crate::TopPanel::top("menu_bar").show(ctx, |ui| {
+        egui::TopPanel::top("menu_bar").show(ctx, |ui| {
             show_menu_bar(ui, &mut self.open_windows, env.seconds_since_midnight);
         });
 
@@ -215,7 +211,7 @@ impl DemoWindows {
             .show(ctx, |ui| {
                 ui.label("scroll:    NO");
                 ui.label("resizable: YES");
-                ui.label(demos::LOREM_IPSUM);
+                ui.label(crate::LOREM_IPSUM);
             });
 
         Window::new("resizable + embedded scroll")
@@ -228,8 +224,8 @@ impl DemoWindows {
                 ui.label("resizable: YES");
                 ui.heading("We have a sub-region with scroll bar:");
                 ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.label(demos::LOREM_IPSUM_LONG);
-                    ui.label(demos::LOREM_IPSUM_LONG);
+                    ui.label(crate::LOREM_IPSUM_LONG);
+                    ui.label(crate::LOREM_IPSUM_LONG);
                 });
                 // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
             });
@@ -242,7 +238,7 @@ impl DemoWindows {
             .show(ctx, |ui| {
                 ui.label("scroll:    YES");
                 ui.label("resizable: YES");
-                ui.label(demos::LOREM_IPSUM_LONG);
+                ui.label(crate::LOREM_IPSUM_LONG);
             });
 
         Window::new("auto_sized")
@@ -252,7 +248,7 @@ impl DemoWindows {
                 ui.label("This window will auto-size based on its contents.");
                 ui.heading("Resize this area:");
                 Resize::default().show(ui, |ui| {
-                    ui.label(demos::LOREM_IPSUM);
+                    ui.label(crate::LOREM_IPSUM);
                 });
                 ui.heading("Resize the above area!");
             });
@@ -327,7 +323,7 @@ impl OpenWindows {
 }
 
 fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight: Option<f64>) {
-    use crate::*;
+    use egui::*;
 
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {

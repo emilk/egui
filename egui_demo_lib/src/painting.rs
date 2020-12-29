@@ -1,4 +1,5 @@
-use crate::{demos::*, *};
+use crate::*;
+use egui::*;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -58,7 +59,7 @@ impl Painting {
     }
 }
 
-impl demos::Demo for Painting {
+impl crate::Demo for Painting {
     fn name(&self) -> &str {
         "🖊 Painting"
     }
@@ -72,9 +73,9 @@ impl demos::Demo for Painting {
     }
 }
 
-impl demos::View for Painting {
+impl crate::View for Painting {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.add(__egui_github_link_file!("(source code)"));
+        ui.add(crate::__egui_github_link_file!("(source code)"));
         self.ui_control(ui);
         ui.label("Paint with your mouse/touch!");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {

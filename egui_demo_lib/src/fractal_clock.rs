@@ -1,4 +1,4 @@
-use crate::{containers::*, widgets::*, *};
+use egui::{containers::*, widgets::*, *};
 use std::f32::consts::TAU;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

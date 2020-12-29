@@ -7,7 +7,6 @@ CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --all-features --  -D
 cargo test --workspace --all-targets --all-features
 cargo test --workspace --doc
 
-cargo check -p egui --lib --target wasm32-unknown-unknown
 cargo check -p egui_web --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo --lib --target wasm32-unknown-unknown
 cargo check -p example_web --lib --target wasm32-unknown-unknown

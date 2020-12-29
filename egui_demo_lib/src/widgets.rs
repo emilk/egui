@@ -1,4 +1,4 @@
-use crate::{color::*, demos::Sliders, *};
+use egui::{color::*, *};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -20,7 +20,7 @@ pub struct Widgets {
     button_enabled: bool,
     count: usize,
     radio: Enum,
-    sliders: Sliders,
+    sliders: crate::Sliders,
     angle: f32,
     color: Srgba,
     single_line_text_input: String,
@@ -46,7 +46,7 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(__egui_github_link_file_line!());
+        ui.add(crate::__egui_github_link_file_line!());
 
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
             ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
@@ -83,7 +83,7 @@ impl Widgets {
             ui.radio_value(&mut self.radio, Enum::Third, "Third");
         });
 
-        combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
+        egui::combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
             ui.selectable_value(&mut self.radio, Enum::First, "First");
             ui.selectable_value(&mut self.radio, Enum::Second, "Second");
             ui.selectable_value(&mut self.radio, Enum::Third, "Third");
@@ -110,12 +110,12 @@ impl Widgets {
             });
 
             ui.add(
-                Slider::f64(&mut self.sliders.value, 1.0..=100.0)
+                egui::Slider::f64(&mut self.sliders.value, 1.0..=100.0)
                     .logarithmic(true)
                     .text("A slider"),
             );
 
-            CollapsingHeader::new("More sliders")
+            egui::CollapsingHeader::new("More sliders")
                 .default_open(false)
                 .show(ui, |ui| {
                     self.sliders.ui(ui);
@@ -136,7 +136,7 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.add(Label::new("Click to select a different text color: ").text_color(self.color));
+            ui.colored_label(self.color, "Click to select a different text color: ");
             ui.color_edit_button_srgba(&mut self.color);
         });
 
@@ -154,6 +154,6 @@ impl Widgets {
         ui.text_edit_multiline(&mut self.multiline_text_input);
 
         ui.separator();
-        super::toggle_switch::demo(ui, &mut self.toggle_switch);
+        crate::toggle_switch::demo(ui, &mut self.toggle_switch);
     }
 }

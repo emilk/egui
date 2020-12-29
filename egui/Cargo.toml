@@ -26,9 +26,6 @@ rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
-[dev-dependencies]
-criterion = { version = "0.3", default-features = false }
-
 [features]
 default = ["atomic_refcell", "default_fonts"]
 
@@ -38,7 +35,3 @@ default_fonts = []
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
 multi_threaded = ["parking_lot"]
-
-[[bench]]
-name = "benchmark"
-harness = false

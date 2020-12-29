@@ -82,7 +82,6 @@ mod animation_manager;
 pub mod app;
 pub mod containers;
 mod context;
-pub mod demos;
 mod id;
 mod input;
 mod introspection;
@@ -103,7 +102,6 @@ pub use {
     align::Align,
     containers::*,
     context::{Context, CtxRef},
-    demos::DemoApp,
     id::Id,
     input::*,
     layers::*,
@@ -122,28 +120,50 @@ pub use {
     widgets::*,
 };
 
+// ----------------------------------------------------------------------------
+
 #[cfg(debug_assertions)]
-pub(crate) fn has_debug_assertions() -> bool {
+pub(crate) const fn has_debug_assertions() -> bool {
     true
 }
 
 #[cfg(not(debug_assertions))]
-pub(crate) fn has_debug_assertions() -> bool {
+pub(crate) const fn has_debug_assertions() -> bool {
     false
 }
 
-#[test]
-fn test_egui_e2e() {
-    let mut demo_windows = crate::demos::DemoWindows::default();
-    let mut ctx = crate::CtxRef::default();
-    let raw_input = crate::RawInput::default();
-
-    const NUM_FRAMES: usize = 5;
-    for _ in 0..NUM_FRAMES {
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
-        let (_output, paint_commands) = ctx.end_frame();
-        let paint_jobs = ctx.tessellate(paint_commands);
-        assert!(!paint_jobs.is_empty());
+/// Helper function that adds a label when compiling with debug assertions enabled.
+pub fn warn_if_debug_build(ui: &mut crate::Ui) {
+    if crate::has_debug_assertions() {
+        ui.label(
+            crate::Label::new("‼ Debug build ‼")
+                .small()
+                .text_color(crate::color::RED),
+        )
+        .on_hover_text("Egui was compiled with debug assertions enabled.");
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Create a [`Hyperlink`](crate::Hyperlink) to this file (and line) on Github
+///
+/// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+#[macro_export]
+macro_rules! github_link_file_line {
+    ($github_url:expr, $label:expr) => {{
+        let url = format!("{}{}#L{}", $github_url, file!(), line!());
+        $crate::Hyperlink::new(url).text($label)
+    }};
+}
+
+/// Create a [`Hyperlink`](crate::Hyperlink) to this file on github.
+///
+/// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+#[macro_export]
+macro_rules! github_link_file {
+    ($github_url:expr, $label:expr) => {{
+        let url = format!("{}{}", $github_url, file!());
+        $crate::Hyperlink::new(url).text($label)
+    }};
 }

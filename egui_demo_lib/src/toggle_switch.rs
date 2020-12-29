@@ -1,6 +1,5 @@
 //! Source code example of how to create your own widget.
 //! This is meant to be read as a tutorial, hence the plethora of comments.
-use crate::*;
 
 /// iOS-style toggle switch:
 ///
@@ -10,7 +9,7 @@ use crate::*;
 ///    |       |.......|
 ///     \_______\_____/
 /// ```
-pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
+pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // Widget code can be broken up in four steps:
     //  1. Decide a size for the widget
     //  2. Allocate space for it
@@ -25,7 +24,7 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // 2. Allocating space:
     // This is where we get a region of the screen assigned.
     // We also tell the Ui to sense clicks in the allocated region.
-    let response = ui.allocate_response(desired_size, Sense::click());
+    let response = ui.allocate_response(desired_size, egui::Sense::click());
 
     // 3. Interact: Time to check for clicks!.
     if response.clicked {
@@ -41,16 +40,16 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
     // "how should something that is being interacted with be painted?".
     // This will, for instance, give us different colors when the widget is hovered or clicked.
     let visuals = ui.style().interact(&response);
-    let off_bg_fill = Rgba::new(0.0, 0.0, 0.0, 0.0);
-    let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
-    let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
+    let off_bg_fill = egui::Rgba::new(0.0, 0.0, 0.0, 0.0);
+    let on_bg_fill = egui::Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
     let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
-    let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-    let center = pos2(circle_x, rect.center().y);
+    let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+    let center = egui::pos2(circle_x, rect.center().y);
     ui.painter()
         .circle(center, 0.75 * radius, visuals.fg_fill, visuals.fg_stroke);
 
@@ -61,32 +60,32 @@ pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
 
 /// Here is the same code again, but a bit more compact:
 #[allow(dead_code)]
-fn toggle_compact(ui: &mut Ui, on: &mut bool) -> Response {
+fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.style().spacing.interact_size;
-    let response = ui.allocate_response(desired_size, Sense::click());
+    let response = ui.allocate_response(desired_size, egui::Sense::click());
     *on ^= response.clicked; // toggle if clicked
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact(&response);
-    let off_bg_fill = Rgba::new(0.0, 0.0, 0.0, 0.0);
-    let on_bg_fill = Rgba::new(0.0, 0.5, 0.25, 1.0);
-    let bg_fill = lerp(off_bg_fill..=on_bg_fill, how_on);
+    let off_bg_fill = egui::Rgba::new(0.0, 0.0, 0.0, 0.0);
+    let on_bg_fill = egui::Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
-    let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-    let center = pos2(circle_x, rect.center().y);
+    let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+    let center = egui::pos2(circle_x, rect.center().y);
     ui.painter()
         .circle(center, 0.75 * radius, visuals.fg_fill, visuals.fg_stroke);
 
     response
 }
 
-pub fn demo(ui: &mut Ui, on: &mut bool) {
-    ui.horizontal_wrapped_for_text(TextStyle::Button, |ui| {
+pub fn demo(ui: &mut egui::Ui, on: &mut bool) {
+    ui.horizontal_wrapped_for_text(egui::TextStyle::Button, |ui| {
         ui.label("It's easy to create your own widgets!");
         ui.label("This toggle switch is just one function and 15 lines of code:");
         toggle(ui, on).on_hover_text("Click to toggle");
-        ui.add(__egui_github_link_file!());
+        ui.add(crate::__egui_github_link_file!());
     });
 }

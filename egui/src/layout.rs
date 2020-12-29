@@ -130,15 +130,6 @@ impl Default for Layout {
 }
 
 impl Layout {
-    pub(crate) fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
-        Self {
-            main_dir,
-            main_wrap: false,
-            cross_align,
-            cross_justify: false,
-        }
-    }
-
     pub fn left_to_right() -> Self {
         Self {
             main_dir: Direction::LeftToRight,
@@ -174,6 +165,15 @@ impl Layout {
     pub fn bottom_up(cross_align: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,
+            main_wrap: false,
+            cross_align,
+            cross_justify: false,
+        }
+    }
+
+    pub fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
+        Self {
+            main_dir,
             main_wrap: false,
             cross_align,
             cross_justify: false,

@@ -4,6 +4,6 @@
 
 // When compiling natively:
 fn main() {
-    let app = egui::DemoApp::default();
+    let app = egui_demo_lib::DemoApp::default();
     egui_glium::run(Box::new(app));
 }

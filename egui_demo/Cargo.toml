@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 egui = { path = "../egui", features = ["serde", "serde_json"] }
+egui_demo_lib = { path = "../egui_demo_lib" }
 serde = { version = "1", features = ["derive"] }
 
 # For compiling natively:

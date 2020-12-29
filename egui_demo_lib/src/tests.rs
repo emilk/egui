@@ -1,23 +1,21 @@
-use crate::*;
-
 #[derive(Default)]
 pub struct Tests {}
 
-impl demos::Demo for Tests {
+impl crate::Demo for Tests {
     fn name(&self) -> &str {
         "📋 Tests"
     }
 
-    fn show(&mut self, ctx: &crate::CtxRef, open: &mut bool) {
-        Window::new(self.name()).open(open).show(ctx, |ui| {
-            use demos::View;
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use crate::View;
             self.ui(ui);
         });
     }
 }
 
-impl demos::View for Tests {
-    fn ui(&mut self, ui: &mut Ui) {
+impl crate::View for Tests {
+    fn ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Name collision example");
 
         ui.label("\
@@ -46,6 +44,6 @@ impl demos::View for Tests {
         let _ = ui.button("Button");
         let _ = ui.button("Button");
 
-        ui.add(__egui_github_link_file!());
+        ui.add(crate::__egui_github_link_file!());
     }
 }

@@ -1,7 +1,4 @@
-use crate::{
-    demos::{Demo, View},
-    *,
-};
+use egui::*;
 
 pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
     let is_being_dragged = ui.memory().is_being_dragged(id);
@@ -18,7 +15,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         ui.output().cursor_icon = CursorIcon::Grabbing;
 
         // Paint the body to a new layer:
-        let layer_id = LayerId::new(layers::Order::Tooltip, id);
+        let layer_id = LayerId::new(Order::Tooltip, id);
         let response = ui.with_layer_id(layer_id, body).1;
 
         // Now we move the visuals of the body to where the mouse is.
@@ -30,7 +27,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 
         if let Some(mouse_pos) = ui.input().mouse.pos {
             let delta = mouse_pos - response.rect.center();
-            ui.ctx().graphics().list(layer_id).translate(delta);
+            ui.ctx().translate_layer(layer_id, delta);
         }
     }
 }
@@ -92,12 +89,13 @@ impl Default for DragAndDropDemo {
     }
 }
 
-impl Demo for DragAndDropDemo {
+impl crate::Demo for DragAndDropDemo {
     fn name(&self) -> &str {
         "✋ Drag and Drop"
     }
 
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+        use crate::View;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
@@ -107,7 +105,7 @@ impl Demo for DragAndDropDemo {
     }
 }
 
-impl View for DragAndDropDemo {
+impl crate::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This is a proof-of-concept of drag-and-drop in Egui");
         ui.label("Drag items between columns.");
@@ -153,6 +151,6 @@ impl View for DragAndDropDemo {
             }
         }
 
-        ui.add(__egui_github_link_file!());
+        ui.add(crate::__egui_github_link_file!());
     }
 }

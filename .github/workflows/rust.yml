@@ -52,7 +52,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p egui # Only test egui due to weird build issues with the others
+          args: -p egui -p egui_demo_lib # TODO: fix weird build issues with the others
 
   fmt:
     name: Rustfmt

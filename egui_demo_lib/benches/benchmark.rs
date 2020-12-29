@@ -5,7 +5,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        let mut demo_windows = egui::demos::DemoWindows::default();
+        let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         c.bench_function("demo_windows_minimal", |b| {
             b.iter(|| {
@@ -19,7 +19,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let mut ctx = egui::CtxRef::default();
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
-        let mut demo_windows = egui::demos::DemoWindows::default();
+        let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         c.bench_function("demo_windows_full", |b| {
             b.iter(|| {
@@ -33,7 +33,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let mut ctx = egui::CtxRef::default();
         ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
-        let mut demo_windows = egui::demos::DemoWindows::default();
+        let mut demo_windows = egui_demo_lib::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx, &Default::default(), &mut None, |_ui| {});
         let (_, paint_commands) = ctx.end_frame();
@@ -49,7 +49,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("label", |b| {
                 b.iter(|| {
-                    ui.label(egui::demos::LOREM_IPSUM_LONG);
+                    ui.label(egui_demo_lib::LOREM_IPSUM_LONG);
                 })
             });
         });

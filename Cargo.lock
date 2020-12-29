@@ -626,7 +626,6 @@ version = "0.6.0"
 dependencies = [
  "ahash",
  "atomic_refcell",
- "criterion",
  "parking_lot",
  "rusttype",
  "serde",
@@ -638,11 +637,20 @@ name = "egui_demo"
 version = "0.1.0"
 dependencies = [
  "egui",
+ "egui_demo_lib",
  "egui_glium",
  "egui_web",
  "js-sys",
  "serde",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "egui_demo_lib"
+version = "0.6.0"
+dependencies = [
+ "criterion",
+ "egui",
 ]
 
 [[package]]
