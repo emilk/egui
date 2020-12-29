@@ -230,9 +230,19 @@ impl Prepared {
             }
         }
 
-        // TODO: check that nothing else is being interacted with
+        let max_offset = content_size.y - inner_rect.height();
         if ui.rect_contains_mouse(outer_rect) {
-            state.offset.y -= ui.input().scroll_delta.y;
+            let mut frame_state = ui.ctx().frame_state();
+            let scroll_delta = frame_state.scroll_delta;
+
+            let scrolling_up = state.offset.y > 0.0 && scroll_delta.y > 0.0;
+            let scrolling_down = state.offset.y < max_offset && scroll_delta.y < 0.0;
+
+            if scrolling_up || scrolling_down {
+                state.offset.y -= scroll_delta.y;
+                // Clear scroll delta so no parent scroll will use it.
+                frame_state.scroll_delta = Vec2::zero();
+            }
         }
 
         let show_scroll_this_frame = content_is_too_small || always_show_scroll;
@@ -286,7 +296,7 @@ impl Prepared {
             }
 
             state.offset.y = state.offset.y.max(0.0);
-            state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
+            state.offset.y = state.offset.y.min(max_offset);
 
             // Avoid frame-delay by calculating a new handle rect:
             let mut handle_rect = Rect::from_min_max(
