@@ -247,7 +247,13 @@ impl Prepared {
                             if handle_rect.contains(mouse_pos) {
                                 mouse_pos.y - handle_rect.top()
                             } else {
-                                0.5 * handle_rect.height() // center handle on mouse
+                                let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                                // Calculate the new handle top position, centering the handle on the mouse.
+                                let new_handle_top_pos = clamp(
+                                    mouse_pos.y - handle_rect.height() / 2.0,
+                                    top..=handle_top_pos_at_bottom,
+                                );
+                                mouse_pos.y - new_handle_top_pos
                             }
                         });
 
