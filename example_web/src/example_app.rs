@@ -1,5 +1,5 @@
 use eframe::{egui, epi};
-use egui_web::fetch::Response;
+use epi::http::Response;
 use std::sync::mpsc::Receiver;
 
 struct Resource {
@@ -76,8 +76,9 @@ impl epi::App for ExampleApp {
                 let repaint_signal = integration_context.repaint_signal.clone();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
-                egui_web::spawn_future(async move {
-                    sender.send(egui_web::fetch::get(&url).await).ok();
+
+                eframe::http::fetch(eframe::http::Request::get(url), move |response| {
+                    sender.send(response).ok();
                     repaint_signal.request_repaint();
                 });
             }

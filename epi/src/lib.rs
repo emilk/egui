@@ -207,3 +207,42 @@ pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, valu
 
 /// storage key used for app
 pub const APP_KEY: &str = "app";
+
+// ----------------------------------------------------------------------------
+
+pub mod http {
+    pub struct Request {
+        /// "GET", …
+        pub method: String,
+        /// https://…
+        pub url: String,
+    }
+
+    impl Request {
+        pub fn get(url: String) -> Self {
+            Self {
+                method: "GET".to_owned(),
+                url,
+            }
+        }
+    }
+
+    /// Response from an HTTP request for a very simple HTTP fetch API in `eframe`.
+    pub struct Response {
+        /// The URL we ended up at. This can differ from the request url when we have followed redirects.
+        pub url: String,
+        pub ok: bool,
+        pub status: u16,
+        pub status_text: String,
+
+        /// Content-Type header, or empty string if missing.
+        pub header_content_type: String,
+
+        /// The raw bytes.
+        pub bytes: Vec<u8>,
+
+        /// UTF-8 decoded version of bytes.
+        /// ONLY if `header_content_type` starts with "text" and bytes is UTF-8.
+        pub text: Option<String>,
+    }
+}

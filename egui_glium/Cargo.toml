@@ -21,4 +21,9 @@ epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
 glium = "0.29"
 serde = "1"
 serde_json = "1"
+ureq = { version = "1.5", optional = true }
 webbrowser = "0.5"
+
+[features]
+default = []
+http = ["ureq"]

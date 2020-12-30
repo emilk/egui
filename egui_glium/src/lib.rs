@@ -4,6 +4,8 @@
 #![allow(clippy::single_match)]
 
 mod backend;
+#[cfg(feature = "http")]
+pub mod http;
 mod painter;
 pub mod storage;
 

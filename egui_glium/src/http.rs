@@ -1,0 +1,44 @@
+pub use epi::http::{Request, Response};
+
+/// NOTE: Ok(..) is returned on network error.
+/// Err is only for failure to use the fetch api.
+pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
+    let Request { method, url } = request;
+
+    let resp = ureq::request(method, url).set("Accept", "*/*").call();
+    if let Some(error) = resp.synthetic_error() {
+        return Err(error.to_string());
+    }
+
+    let url = resp.get_url().to_owned();
+    let ok = resp.ok();
+    let status = resp.status();
+    let status_text = resp.status_text().to_owned();
+    let header_content_type = resp.header("Content-Type").unwrap_or_default().to_owned();
+
+    let mut reader = resp.into_reader();
+    let mut bytes = vec![];
+    use std::io::Read;
+    reader
+        .read_to_end(&mut bytes)
+        .map_err(|err| err.to_string())?;
+
+    let text = if header_content_type.starts_with("text")
+        || header_content_type == "application/javascript"
+    {
+        String::from_utf8(bytes.clone()).ok()
+    } else {
+        None
+    };
+
+    let response = Response {
+        url,
+        ok,
+        status,
+        status_text,
+        header_content_type,
+        bytes,
+        text,
+    };
+    Ok(response)
+}

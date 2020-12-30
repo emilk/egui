@@ -1,39 +1,20 @@
 use wasm_bindgen::prelude::*;
 
-pub struct Response {
-    pub url: String,
-    pub ok: bool,
-    pub status: u16,
-    pub status_text: String,
-
-    /// Content-Type header, or empty string if missing
-    pub header_content_type: String,
-
-    /// The raw bytes
-    pub bytes: Vec<u8>,
-
-    /// UTF-8 decoded version of bytes.
-    /// ONLY if `header_content_type` starts with "text" and bytes is UTF-8.
-    pub text: Option<String>,
-}
+pub use epi::http::{Request, Response};
 
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
-pub async fn fetch(method: &str, url: &str) -> Result<Response, String> {
-    fetch_jsvalue(method, url)
+pub async fn fetch_async(request: &Request) -> Result<Response, String> {
+    fetch_jsvalue(request)
         .await
         .map_err(|err| err.as_string().unwrap_or_default())
 }
 
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
-pub async fn get(url: &str) -> Result<Response, String> {
-    fetch("GET", url).await
-}
+async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
+    let Request { method, url } = request;
 
-/// NOTE: Ok(..) is returned on network error.
-/// Err is only for failure to use the fetch api.
-async fn fetch_jsvalue(method: &str, url: &str) -> Result<Response, JsValue> {
     // https://rustwasm.github.io/wasm-bindgen/examples/fetch.html
 
     use wasm_bindgen::JsCast;

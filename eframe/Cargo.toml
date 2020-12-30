@@ -20,7 +20,7 @@ epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { path = "../egui_glium" }
+egui_glium = { path = "../egui_glium", features = ["http"] }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

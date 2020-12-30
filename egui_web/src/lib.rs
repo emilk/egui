@@ -3,7 +3,7 @@
 #![warn(clippy::all)]
 
 pub mod backend;
-pub mod fetch;
+pub mod http;
 pub mod webgl;
 
 pub use backend::*;
