@@ -1,6 +1,8 @@
-//! Backend-agnostic interface for writing apps using Egui.
+//! Backend-agnostic interface for writing apps using [`egui`].
 //!
-//! Egui is a GUI library, which can be plugged in to e.g. a game engine.
+//! [`egui`] is a GUI library, which can be plugged in to e.g. a game engine.
+//!
+//! Start by looking at the [`App`] trait, and implement [`App::ui`].
 //!
 //! This crate provides a common interface for programming an app, using Egui,
 //! so you can then easily plug it in to a backend such as `egui_web` or `egui_glium`.
@@ -44,10 +46,9 @@
     future_incompatible,
     missing_crate_level_docs,
     missing_doc_code_examples,
-    // missing_docs,
-    nonstandard_style,
+    missing_docs,
     rust_2018_idioms,
-    unused_doc_comments,
+    unused_doc_comments
 )]
 
 pub use egui; // Re-export for user convenience
@@ -57,15 +58,14 @@ pub use egui; // Re-export for user convenience
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
-    /// The name of your App.
-    fn name(&self) -> &str;
+    /// Called each time the UI needs repainting, which may be many times per second.
+    /// Put your widgets into a [`egui::SidePanel`], [`egui::TopPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    fn ui(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
-    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
-    /// This is the background of your windows if you don't set a central panel.
-    fn clear_color(&self) -> egui::Rgba {
-        // NOTE: a bright gray makes the shadows of the windows look weird.
-        egui::Srgba::from_rgb(12, 12, 12).into()
-    }
+    /// Called once before the first frame.
+    /// Allows you to do setup code and to call `ctx.set_fonts()`.
+    /// Optional.
+    fn setup(&mut self, _ctx: &egui::CtxRef) {}
 
     /// Called once on start. Allows you to restore state.
     fn load(&mut self, _storage: &dyn Storage) {}
@@ -73,40 +73,88 @@ pub trait App {
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
+    /// Called once on shutdown (before or after `save()`)
+    fn on_exit(&mut self) {}
+
+    // ---------
+    // Settings:
+
+    /// The name of your App.
+    fn name(&self) -> &str;
+
     /// Time between automatic calls to `save()`
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
     }
-
-    /// Called once on shutdown (before or after `save()`)
-    fn on_exit(&mut self) {}
-
-    /// Called once before the first frame.
-    /// Allows you to do setup code and to call `ctx.set_fonts()`.
-    /// Optional.
-    fn setup(&mut self, _ctx: &egui::CtxRef) {}
 
     /// Returns true if this app window should be resizable.
     fn is_resizable(&self) -> bool {
         true
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut IntegrationContext<'_>);
+    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
+    /// This is the background of your windows if you don't set a central panel.
+    fn clear_color(&self) -> egui::Rgba {
+        // NOTE: a bright gray makes the shadows of the windows look weird.
+        egui::Srgba::from_rgb(12, 12, 12).into()
+    }
 }
 
-pub struct IntegrationContext<'a> {
+/// Represents the surroundings of your app.
+///
+/// It provides methods to inspect the surroundings (are we on the web?),
+/// allocate textures, do http requests, and change settings (e.g. window size).
+pub struct Frame<'a>(backend::FrameBuilder<'a>);
+
+impl<'a> Frame<'a> {
+    /// True if you are in a web environment.
+    pub fn is_web(&self) -> bool {
+        self.info().web_info.is_some()
+    }
+
     /// Information about the integration.
-    pub info: IntegrationInfo,
+    pub fn info(&self) -> &IntegrationInfo {
+        &self.0.info
+    }
+
     /// A way to allocate textures (on integrations that support it).
-    pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
-    /// Where the app can issue commands back to the integration.
-    pub output: AppOutput,
+    pub fn tex_allocator(&mut self) -> &mut Option<&'a mut dyn TextureAllocator> {
+        &mut self.0.tex_allocator
+    }
+
+    /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
+    /// The framework will NOT quick immediately, but at the end of the this frame.
+    pub fn quit(&mut self) {
+        self.0.output.quit = true;
+    }
+
+    /// Set the desired inner size of the window (in egui points).
+    pub fn set_window_size(&mut self, size: egui::Vec2) {
+        self.0.output.window_size = Some(size);
+    }
+
+    /// Change the `pixels_per_point` of [`egui`] to this next frame.
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
+        self.0.output.pixels_per_point = Some(pixels_per_point);
+    }
+
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
-    pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
+    pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
+        self.0.repaint_signal.clone()
+    }
+
+    /// Very simple Http fetch API.
+    /// Calls the given callback when done.
+    pub fn http_fetch(
+        &self,
+        request: http::Request,
+        on_done: impl 'static + Send + FnOnce(Result<http::Response, http::Error>),
+    ) {
+        self.0.http.fetch_dyn(request, Box::new(on_done))
+    }
 }
 
+/// Information about the web environment
 #[derive(Clone, Debug)]
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment"
@@ -131,22 +179,9 @@ pub struct IntegrationInfo {
     pub native_pixels_per_point: Option<f32>,
 }
 
-/// Action that can be taken by the user app.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct AppOutput {
-    /// Set to `true` to stop the app.
-    /// This does nothing for web apps.
-    pub quit: bool,
-
-    /// Set to some size to resize the outer window (e.g. glium window) to this size.
-    pub window_size: Option<egui::Vec2>,
-
-    /// If the app sets this, change the `pixels_per_point` of Egui to this next frame.
-    pub pixels_per_point: Option<f32>,
-}
-
+/// How to allocate textures (images) to use in [`egui`].
 pub trait TextureAllocator {
-    /// A.locate a new user texture.
+    /// Allocate a new user texture.
     fn alloc(&mut self) -> egui::TextureId;
 
     /// Set or change the pixels of a user texture.
@@ -161,8 +196,9 @@ pub trait TextureAllocator {
     fn free(&mut self, id: egui::TextureId);
 }
 
+/// How to signal the [`egui`] integration that a repaint is required.
 pub trait RepaintSignal: Send + Sync {
-    /// This signals the Egui integration that a repaint is required.
+    /// This signals the [`egui`] integration that a repaint is required.
     /// This is meant to be called when a background process finishes in an async context and/or background thread.
     fn request_repaint(&self);
 }
@@ -174,7 +210,9 @@ pub trait RepaintSignal: Send + Sync {
 /// On the web this is backed by [local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 /// On desktop this is backed by the file system.
 pub trait Storage {
+    /// Get the value for the given key.
     fn get_string(&self, key: &str) -> Option<String>;
+    /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
 
     /// write-to-disk or similar
@@ -193,6 +231,7 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
+/// Get an deserialize the JSON stored at the given key.
 #[cfg(feature = "serde_json")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
@@ -200,17 +239,20 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
         .and_then(|value| serde_json::from_str(&value).ok())
 }
 
+/// Serialize the given value as JSON and store with the given key.
 #[cfg(feature = "serde_json")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
     storage.set_string(key, serde_json::to_string(value).unwrap());
 }
 
-/// storage key used for app
+/// [`Storage`] key used for app
 pub const APP_KEY: &str = "app";
 
 // ----------------------------------------------------------------------------
 
+/// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
 pub mod http {
+    /// A simple http requests.
     pub struct Request {
         /// "GET", …
         pub method: String,
@@ -219,20 +261,24 @@ pub mod http {
     }
 
     impl Request {
-        pub fn get(url: String) -> Self {
+        /// Create a `GET` requests with the given url.
+        pub fn get(url: impl Into<String>) -> Self {
             Self {
                 method: "GET".to_owned(),
-                url,
+                url: url.into(),
             }
         }
     }
 
-    /// Response from an HTTP request for a very simple HTTP fetch API in `eframe`.
+    /// Response from a completed HTTP request.
     pub struct Response {
         /// The URL we ended up at. This can differ from the request url when we have followed redirects.
         pub url: String,
+        /// Did we get a 2xx response code?
         pub ok: bool,
+        /// Status code (e.g. `404` for "File not found").
         pub status: u16,
+        /// Status tex (e.g. "File not found" for status code `404`).
         pub status_text: String,
 
         /// Content-Type header, or empty string if missing.
@@ -244,5 +290,60 @@ pub mod http {
         /// UTF-8 decoded version of bytes.
         /// ONLY if `header_content_type` starts with "text" and bytes is UTF-8.
         pub text: Option<String>,
+    }
+
+    /// Possible errors does NOT include e.g. 404, which is NOT considered an error.
+    pub type Error = String;
+}
+
+// ----------------------------------------------------------------------------
+
+/// You only need to look here if you are writing a backend for `epi`.
+pub mod backend {
+    use super::*;
+
+    /// Implements `Http` requests.
+    pub trait Http {
+        /// Calls the given callback when done.
+        fn fetch_dyn(
+            &self,
+            request: http::Request,
+            on_done: Box<dyn FnOnce(Result<http::Response, http::Error>) + Send>,
+        );
+    }
+
+    /// The data required by [`Frame`] each frame.
+    pub struct FrameBuilder<'a> {
+        /// Information about the integration.
+        pub info: IntegrationInfo,
+        /// A way to allocate textures (on integrations that support it).
+        pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
+        /// Do http requests.
+        pub http: std::sync::Arc<dyn backend::Http>,
+        /// Where the app can issue commands back to the integration.
+        pub output: &'a mut AppOutput,
+        /// If you need to request a repaint from another thread, clone this and send it to that other thread.
+        pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
+    }
+
+    impl<'a> FrameBuilder<'a> {
+        /// Wrap us in a [`Frame`] to send to [`App::ui`].
+        pub fn build(self) -> Frame<'a> {
+            Frame(self)
+        }
+    }
+
+    /// Action that can be taken by the user app.
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    pub struct AppOutput {
+        /// Set to `true` to stop the app.
+        /// This does nothing for web apps.
+        pub quit: bool,
+
+        /// Set to some size to resize the outer window (e.g. glium window) to this size.
+        pub window_size: Option<egui::Vec2>,
+
+        /// If the app sets this, change the `pixels_per_point` of [`egui`] to this next frame.
+        pub pixels_per_point: Option<f32>,
     }
 }

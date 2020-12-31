@@ -192,8 +192,8 @@ pub struct DemoApp {
 }
 
 impl DemoApp {
-    fn backend_ui(&mut self, ui: &mut Ui, integration_context: &mut epi::IntegrationContext<'_>) {
-        let is_web = integration_context.info.web_info.is_some();
+    fn backend_ui(&mut self, ui: &mut Ui, frame: &mut epi::Frame<'_>) {
+        let is_web = frame.is_web();
 
         if is_web {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
@@ -217,13 +217,16 @@ impl DemoApp {
         if !is_web {
             // web browsers have their own way of zooming, which egui_web respects
             ui.separator();
-            integration_context.output.pixels_per_point =
-                self.pixels_per_point_ui(ui, &integration_context.info);
+            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
+                frame.set_pixels_per_point(new_pixels_per_point);
+            }
         }
 
         if !is_web {
             ui.separator();
-            integration_context.output.quit |= ui.button("Quit").clicked;
+            if ui.button("Quit").clicked {
+                frame.quit();
+            }
         }
     }
 
@@ -293,12 +296,12 @@ impl epi::App for DemoApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn ui(&mut self, ctx: &CtxRef, integration_context: &mut epi::IntegrationContext<'_>) {
+    fn ui(&mut self, ctx: &CtxRef, frame: &mut epi::Frame<'_>) {
         self.frame_history
-            .on_new_frame(ctx.input().time, integration_context.info.cpu_usage);
+            .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
-        let web_location_hash = integration_context
-            .info
+        let web_location_hash = frame
+            .info()
             .web_info
             .as_ref()
             .map(|info| info.web_location_hash.clone())
@@ -311,7 +314,7 @@ impl epi::App for DemoApp {
         };
 
         let demo_environment = crate::DemoEnvironment {
-            seconds_since_midnight: integration_context.info.seconds_since_midnight,
+            seconds_since_midnight: frame.info().seconds_since_midnight,
             link,
         };
 
@@ -323,18 +326,13 @@ impl epi::App for DemoApp {
             ..
         } = self;
 
-        demo_windows.ui(
-            ctx,
-            &demo_environment,
-            &mut integration_context.tex_allocator,
-            |ui| {
-                ui.separator();
-                ui.checkbox(backend_window_open, "💻 Backend");
+        demo_windows.ui(ctx, &demo_environment, frame.tex_allocator(), |ui| {
+            ui.separator();
+            ui.checkbox(backend_window_open, "💻 Backend");
 
-                ui.label(format!("{:.2} ms / frame", 1e3 * mean_frame_time))
-                    .on_hover_text("CPU usage.");
-            },
-        );
+            ui.label(format!("{:.2} ms / frame", 1e3 * mean_frame_time))
+                .on_hover_text("CPU usage.");
+        });
 
         let mut backend_window_open = self.backend_window_open;
         egui::Window::new("💻 Backend")
@@ -342,7 +340,7 @@ impl epi::App for DemoApp {
             .scroll(false)
             .open(&mut backend_window_open)
             .show(ctx, |ui| {
-                self.backend_ui(ui, integration_context);
+                self.backend_ui(ui, frame);
             });
         self.backend_window_open = backend_window_open;
 

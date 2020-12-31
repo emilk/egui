@@ -66,3 +66,20 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
         text,
     })
 }
+
+// ----------------------------------------------------------------------------
+
+pub(crate) struct WebHttp {}
+
+impl epi::backend::Http for WebHttp {
+    fn fetch_dyn(
+        &self,
+        request: Request,
+        on_done: Box<dyn FnOnce(Result<Response, String>) + Send>,
+    ) {
+        crate::spawn_future(async move {
+            let result = crate::http::fetch_async(&request).await;
+            on_done(result)
+        });
+    }
+}

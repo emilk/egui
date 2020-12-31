@@ -124,6 +124,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let mut last_auto_save = Instant::now();
 
+    let http = std::sync::Arc::new(crate::http::GliumHttp {});
+
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let frame_start = Instant::now();
@@ -134,7 +136,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             ));
 
             ctx.begin_frame(input_state.raw.take());
-            let mut integration_context = epi::IntegrationContext {
+            let mut app_output = epi::backend::AppOutput::default();
+            let mut frame = epi::backend::FrameBuilder {
                 info: epi::IntegrationInfo {
                     web_info: None,
                     cpu_usage: previous_frame_time,
@@ -142,11 +145,12 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                     native_pixels_per_point: Some(native_pixels_per_point(&display)),
                 },
                 tex_allocator: Some(&mut painter),
-                output: Default::default(),
+                http: http.clone(),
+                output: &mut app_output,
                 repaint_signal: repaint_signal.clone(),
-            };
-            app.ui(&ctx, &mut integration_context);
-            let app_output = integration_context.output;
+            }
+            .build();
+            app.ui(&ctx, &mut frame);
             let (egui_output, paint_commands) = ctx.end_frame();
             let paint_jobs = ctx.tessellate(paint_commands);
 
@@ -161,7 +165,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             );
 
             {
-                let epi::AppOutput {
+                let epi::backend::AppOutput {
                     quit,
                     window_size,
                     pixels_per_point,

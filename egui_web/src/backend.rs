@@ -1,6 +1,7 @@
 use crate::*;
 
 pub use egui::{pos2, Srgba};
+use http::WebHttp;
 
 // ----------------------------------------------------------------------------
 
@@ -137,12 +138,13 @@ impl epi::RepaintSignal for NeedRepaint {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
-    pub web_backend: WebBackend,
-    pub input: WebInput,
-    pub app: Box<dyn epi::App>,
-    pub needs_repaint: std::sync::Arc<NeedRepaint>,
-    pub storage: LocalStorage,
-    pub last_save_time: f64,
+    web_backend: WebBackend,
+    pub(crate) input: WebInput,
+    app: Box<dyn epi::App>,
+    pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
+    storage: LocalStorage,
+    last_save_time: f64,
+    http: Arc<WebHttp>,
 }
 
 impl AppRunner {
@@ -158,6 +160,7 @@ impl AppRunner {
             needs_repaint: Default::default(),
             storage,
             last_save_time: now_sec(),
+            http: Arc::new(WebHttp {}),
         })
     }
 
@@ -182,7 +185,8 @@ impl AppRunner {
         let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
 
-        let mut integration_context = epi::IntegrationContext {
+        let mut app_output = epi::backend::AppOutput::default();
+        let mut frame = epi::backend::FrameBuilder {
             info: epi::IntegrationInfo {
                 web_info: Some(epi::WebInfo {
                     web_location_hash: location_hash().unwrap_or_default(),
@@ -192,18 +196,19 @@ impl AppRunner {
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
             tex_allocator: Some(&mut self.web_backend.painter),
-            output: Default::default(),
+            http: self.http.clone(),
+            output: &mut app_output,
             repaint_signal: self.needs_repaint.clone(),
-        };
+        }
+        .build();
 
         let egui_ctx = &self.web_backend.ctx;
-        self.app.ui(egui_ctx, &mut integration_context);
-        let app_output = integration_context.output;
+        self.app.ui(egui_ctx, &mut frame);
         let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
         handle_output(&egui_output);
 
         {
-            let epi::AppOutput {
+            let epi::backend::AppOutput {
                 quit: _,             // Can't quit a web page
                 window_size: _,      // Can't resize a web page
                 pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)

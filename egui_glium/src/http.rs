@@ -42,3 +42,20 @@ pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
     };
     Ok(response)
 }
+
+// ----------------------------------------------------------------------------
+
+pub(crate) struct GliumHttp {}
+
+impl epi::backend::Http for GliumHttp {
+    fn fetch_dyn(
+        &self,
+        request: Request,
+        on_done: Box<dyn FnOnce(Result<Response, String>) + Send>,
+    ) {
+        std::thread::spawn(move || {
+            let result = crate::http::fetch_blocking(&request);
+            on_done(result)
+        });
+    }
+}

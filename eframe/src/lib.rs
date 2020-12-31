@@ -52,34 +52,3 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 pub fn run_native(app: Box<dyn epi::App>) {
     egui_glium::run(app)
 }
-
-// ----------------------------------------------------------------------------
-
-pub mod http {
-    pub use epi::http::*;
-
-    /// Do a HTTP request and call the callback when done.
-    pub fn fetch(
-        request: Request,
-        on_done: impl 'static + Send + FnOnce(Result<Response, String>),
-    ) {
-        fetch_dyn(request, Box::new(on_done))
-    }
-
-    fn fetch_dyn(request: Request, on_done: Box<dyn FnOnce(Result<Response, String>) + Send>) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            egui_web::spawn_future(async move {
-                let result = egui_web::http::fetch_async(&request).await;
-                on_done(result)
-            });
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            std::thread::spawn(move || {
-                let result = egui_glium::http::fetch_blocking(&request);
-                on_done(result)
-            });
-        }
-    }
-}

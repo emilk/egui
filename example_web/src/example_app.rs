@@ -56,7 +56,7 @@ impl epi::App for ExampleApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn ui(&mut self, ctx: &egui::CtxRef, integration_context: &mut epi::IntegrationContext) {
+    fn ui(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
@@ -73,11 +73,11 @@ impl epi::App for ExampleApp {
             ));
 
             if let Some(url) = ui_url(ui, &mut self.url) {
-                let repaint_signal = integration_context.repaint_signal.clone();
+                let repaint_signal = frame.repaint_signal();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
 
-                eframe::http::fetch(eframe::http::Request::get(url), move |response| {
+                frame.http_fetch(epi::http::Request::get(url), move |response| {
                     sender.send(response).ok();
                     repaint_signal.request_repaint();
                 });
@@ -90,7 +90,7 @@ impl epi::App for ExampleApp {
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
-                        ui_resouce(ui, integration_context, &mut self.tex_mngr, resource);
+                        ui_resouce(ui, frame, &mut self.tex_mngr, resource);
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
@@ -139,7 +139,7 @@ fn ui_url(ui: &mut egui::Ui, url: &mut String) -> Option<String> {
 
 fn ui_resouce(
     ui: &mut egui::Ui,
-    integration_context: &mut epi::IntegrationContext,
+    frame: &mut epi::Frame<'_>,
     tex_mngr: &mut TexMngr,
     resource: &Resource,
 ) {
@@ -171,7 +171,7 @@ fn ui_resouce(
 
     egui::ScrollArea::auto_sized().show(ui, |ui| {
         if let Some(image) = image {
-            if let Some(texture_id) = tex_mngr.texture(integration_context, &response.url, &image) {
+            if let Some(texture_id) = tex_mngr.texture(frame, &response.url, &image) {
                 let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
                 ui.image(texture_id, size);
             }
@@ -252,11 +252,11 @@ struct TexMngr {
 impl TexMngr {
     fn texture(
         &mut self,
-        integration_context: &mut epi::IntegrationContext,
+        frame: &mut epi::Frame<'_>,
         url: &str,
         image: &Image,
     ) -> Option<egui::TextureId> {
-        let tex_allocator = integration_context.tex_allocator.as_mut()?;
+        let tex_allocator = frame.tex_allocator().as_mut()?;
         let texture_id = self.texture_id.unwrap_or_else(|| tex_allocator.alloc());
         self.texture_id = Some(texture_id);
         if self.loaded_url != url {
