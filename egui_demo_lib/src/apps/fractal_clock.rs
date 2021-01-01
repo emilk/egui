@@ -29,17 +29,19 @@ impl Default for FractalClock {
     }
 }
 
-impl FractalClock {
-    pub fn window(&mut self, ctx: &CtxRef, open: &mut bool, seconds_since_midnight: Option<f64>) {
-        Window::new("🕑 Fractal Clock")
-            .open(open)
-            .default_size(vec2(512.0, 512.0))
-            .scroll(false)
-            // Dark background frame to make it pop:
-            .frame(Frame::window(&ctx.style()).fill(Srgba::black_alpha(250)))
-            .show(ctx, |ui| self.ui(ui, seconds_since_midnight));
+impl epi::App for FractalClock {
+    fn name(&self) -> &str {
+        "🕑 Fractal Clock"
     }
 
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        egui::CentralPanel::default()
+            .frame(Frame::dark_canvas(&ctx.style()))
+            .show(ctx, |ui| self.ui(ui, frame.info().seconds_since_midnight));
+    }
+}
+
+impl FractalClock {
     pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if !self.paused {
             self.time = seconds_since_midnight.unwrap_or_else(|| ui.input().time);

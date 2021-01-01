@@ -297,24 +297,6 @@ impl epi::App for DemoApp {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
-        let web_location_hash = frame
-            .info()
-            .web_info
-            .as_ref()
-            .map(|info| info.web_location_hash.clone())
-            .unwrap_or_default();
-
-        let link = if web_location_hash == "clock" {
-            Some(super::DemoLink::Clock)
-        } else {
-            None
-        };
-
-        let demo_environment = super::DemoEnvironment {
-            seconds_since_midnight: frame.info().seconds_since_midnight,
-            link,
-        };
-
         let mean_frame_time = self.frame_history.mean_frame_time();
 
         let Self {
@@ -323,7 +305,7 @@ impl epi::App for DemoApp {
             ..
         } = self;
 
-        demo_windows.ui(ctx, &demo_environment, frame.tex_allocator(), |ui| {
+        demo_windows.ui(ctx, frame.tex_allocator(), |ui| {
             ui.separator();
             ui.checkbox(backend_window_open, "💻 Backend");
 

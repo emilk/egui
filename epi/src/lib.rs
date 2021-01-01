@@ -159,6 +159,7 @@ impl<'a> Frame<'a> {
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
     /// Note that the leading `#` is included in the string.
+    /// Also known as "hash-link" or "anchor".
     pub web_location_hash: String,
 }
 

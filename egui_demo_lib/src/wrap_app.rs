@@ -2,10 +2,27 @@
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct WrapApp {
-    selectable_demo_name: String,
+    selected_anchor: String,
+    apps: Apps,
+}
 
+#[derive(Default, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct Apps {
     demo: crate::apps::DemoApp,
     http: crate::apps::HttpApp,
+    clock: crate::apps::FractalClock,
+}
+
+impl Apps {
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut dyn epi::App)> {
+        vec![
+            ("demo", &mut self.demo as &mut dyn epi::App),
+            ("http", &mut self.http as &mut dyn epi::App),
+            ("clock", &mut self.clock as &mut dyn epi::App),
+        ]
+        .into_iter()
+    }
 }
 
 impl epi::App for WrapApp {
@@ -22,46 +39,63 @@ impl epi::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        let web_location_hash = frame
-            .info()
-            .web_info
-            .as_ref()
-            .map(|info| info.web_location_hash.clone())
-            .unwrap_or_default();
+        if let Some(web_info) = frame.info().web_info.as_ref() {
+            if let Some(anchor) = web_info.web_location_hash.strip_prefix("#") {
+                self.selected_anchor = anchor.to_owned();
+            }
+        }
 
-        if web_location_hash == "#clock" {
-            // TODO
-        } else if web_location_hash == "#http" {
-            self.selectable_demo_name = self.http.name().to_owned();
+        if self.selected_anchor.is_empty() {
+            self.selected_anchor = self.apps.iter_mut().next().unwrap().0.to_owned();
         }
 
         egui::TopPanel::top("wrap_app").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!("web_location_hash: {:?}", web_location_hash));
-                ui.label("Demo Apps:");
-                ui.selectable_value(
-                    &mut self.selectable_demo_name,
-                    self.demo.name().to_owned(),
-                    self.demo.name(),
-                );
-                ui.selectable_value(
-                    &mut self.selectable_demo_name,
-                    self.http.name().to_owned(),
-                    self.http.name(),
-                );
+            // A menu-bar is a horizontal layout with some special styles applied.
+            egui::menu::bar(ui, |ui| {
+                for (anchor, app) in self.apps.iter_mut() {
+                    if ui
+                        .selectable_label(self.selected_anchor == anchor, app.name())
+                        .clicked
+                    {
+                        self.selected_anchor = anchor.to_owned();
+                        if frame.is_web() {
+                            ui.output().open_url = Some(format!("#{}", anchor));
+                        }
+                    }
+                }
 
                 ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                    if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
+                        if clock_button(ui, seconds_since_midnight).clicked {
+                            self.selected_anchor = "clock".to_owned();
+                            if frame.is_web() {
+                                ui.output().open_url = Some("#clock".to_owned());
+                            }
+                        }
+                    }
+
                     egui::warn_if_debug_build(ui);
                 });
             });
         });
 
-        if self.selectable_demo_name == self.demo.name() {
-            self.demo.update(ctx, frame);
-        } else if self.selectable_demo_name == self.http.name() {
-            self.http.update(ctx, frame);
-        } else {
-            self.selectable_demo_name = self.demo.name().to_owned();
+        for (anchor, app) in self.apps.iter_mut() {
+            if anchor == self.selected_anchor {
+                app.update(ctx, frame);
+            }
         }
     }
+}
+
+fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Response {
+    let time = seconds_since_midnight;
+    let time = format!(
+        "{:02}:{:02}:{:02}.{:02}",
+        (time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
+        (time % (60.0 * 60.0) / 60.0).floor(),
+        (time % 60.0).floor(),
+        (time % 1.0 * 100.0).floor()
+    );
+
+    ui.add(egui::Button::new(time).text_style(egui::TextStyle::Monospace))
 }

@@ -2,24 +2,6 @@ use egui::{CtxRef, Resize, ScrollArea, Ui, Window};
 
 // ----------------------------------------------------------------------------
 
-/// Link to show a specific part of the demo app.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum DemoLink {
-    Clock,
-}
-
-/// Special input to the demo-app.
-#[derive(Default)]
-pub struct DemoEnvironment {
-    /// Local time. Used for the clock in the demo app.
-    pub seconds_since_midnight: Option<f64>,
-
-    /// Set to `Some` to open a specific part of the demo app.
-    pub link: Option<DemoLink>,
-}
-
-// ----------------------------------------------------------------------------
-
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 struct Demos {
@@ -67,13 +49,8 @@ pub struct DemoWindows {
     #[serde(skip)]
     color_test: super::ColorTest,
 
-    fractal_clock: super::FractalClock,
-
     /// open, title, view
     demos: Demos,
-
-    #[serde(skip)]
-    previous_link: Option<DemoLink>,
 }
 
 impl DemoWindows {
@@ -82,26 +59,11 @@ impl DemoWindows {
     pub fn ui(
         &mut self,
         ctx: &CtxRef,
-        env: &DemoEnvironment,
         tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
         sidebar_ui: impl FnOnce(&mut Ui),
     ) {
-        if self.previous_link != env.link {
-            match env.link {
-                None => {}
-                Some(DemoLink::Clock) => {
-                    self.open_windows = OpenWindows {
-                        fractal_clock: true,
-                        ..OpenWindows::none()
-                    };
-                }
-            }
-            self.previous_link = env.link;
-        }
-
         egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
-            egui::warn_if_debug_build(ui);
 
             ui.separator();
 
@@ -132,24 +94,22 @@ impl DemoWindows {
         });
 
         egui::TopPanel::top("menu_bar").show(ctx, |ui| {
-            show_menu_bar(ui, &mut self.open_windows, env.seconds_since_midnight);
+            show_menu_bar(ui);
         });
 
-        self.windows(ctx, env, tex_allocator);
+        self.windows(ctx, tex_allocator);
     }
 
     /// Show the open windows.
     fn windows(
         &mut self,
         ctx: &CtxRef,
-        env: &DemoEnvironment,
         tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
         let Self {
             open_windows,
             demo_window,
             color_test,
-            fractal_clock,
             demos,
             ..
         } = self;
@@ -190,12 +150,6 @@ impl DemoWindows {
             });
 
         demos.show(ctx);
-
-        fractal_clock.window(
-            ctx,
-            &mut open_windows.fractal_clock,
-            env.seconds_since_midnight,
-        );
 
         self.resize_windows(ctx);
     }
@@ -259,7 +213,6 @@ impl DemoWindows {
 #[derive(serde::Deserialize, serde::Serialize)]
 struct OpenWindows {
     demo: bool,
-    fractal_clock: bool,
 
     // egui stuff:
     settings: bool,
@@ -284,7 +237,6 @@ impl OpenWindows {
     fn none() -> Self {
         Self {
             demo: false,
-            fractal_clock: false,
 
             settings: false,
             inspection: false,
@@ -298,7 +250,6 @@ impl OpenWindows {
     fn checkboxes(&mut self, ui: &mut Ui) {
         let Self {
             demo,
-            fractal_clock,
             settings,
             inspection,
             memory,
@@ -317,11 +268,10 @@ impl OpenWindows {
             .on_hover_text("For testing the integrations painter");
         ui.separator();
         ui.label("Misc:");
-        ui.checkbox(fractal_clock, "🕑 Fractal Clock");
     }
 }
 
-fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight: Option<f64>) {
+fn show_menu_bar(ui: &mut Ui) {
     use egui::*;
 
     menu::bar(ui, |ui| {
@@ -337,24 +287,5 @@ fn show_menu_bar(ui: &mut Ui, windows: &mut OpenWindows, seconds_since_midnight:
                 *ui.ctx().memory() = Default::default();
             }
         });
-
-        if let Some(time) = seconds_since_midnight {
-            let time = format!(
-                "{:02}:{:02}:{:02}.{:02}",
-                (time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
-                (time % (60.0 * 60.0) / 60.0).floor(),
-                (time % 60.0).floor(),
-                (time % 1.0 * 100.0).floor()
-            );
-
-            ui.with_layout(Layout::right_to_left(), |ui| {
-                if ui
-                    .add(Button::new(time).text_style(TextStyle::Monospace))
-                    .clicked
-                {
-                    windows.fractal_clock = !windows.fractal_clock;
-                }
-            });
-        }
     });
 }
