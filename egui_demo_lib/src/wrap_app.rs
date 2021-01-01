@@ -12,6 +12,7 @@ pub struct Apps {
     demo: crate::apps::DemoApp,
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
+    color_test: crate::apps::ColorTest,
 }
 
 impl Apps {
@@ -20,6 +21,7 @@ impl Apps {
             ("demo", &mut self.demo as &mut dyn epi::App),
             ("http", &mut self.http as &mut dyn epi::App),
             ("clock", &mut self.clock as &mut dyn epi::App),
+            ("colors", &mut self.color_test as &mut dyn epi::App),
         ]
         .into_iter()
     }

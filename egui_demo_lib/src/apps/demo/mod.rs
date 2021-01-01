@@ -5,7 +5,6 @@
 // ----------------------------------------------------------------------------
 
 mod app;
-mod color_test;
 mod dancing_strings;
 pub mod demo_window;
 mod demo_windows;
@@ -21,9 +20,9 @@ pub mod toggle_switch;
 mod widgets;
 
 pub use {
-    app::*, color_test::ColorTest, dancing_strings::DancingStrings, demo_window::DemoWindow,
-    demo_windows::*, drag_and_drop::*, font_book::FontBook, painting::Painting, scrolls::Scrolls,
-    sliders::Sliders, tests::Tests, widgets::Widgets,
+    app::*, dancing_strings::DancingStrings, demo_window::DemoWindow, demo_windows::*,
+    drag_and_drop::*, font_book::FontBook, painting::Painting, scrolls::Scrolls, sliders::Sliders,
+    tests::Tests, widgets::Widgets,
 };
 
 // ----------------------------------------------------------------------------

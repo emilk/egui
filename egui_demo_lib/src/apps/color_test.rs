@@ -3,7 +3,9 @@ use std::collections::HashMap;
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 24.0);
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct ColorTest {
+    #[serde(skip)]
     tex_mngr: TextureManager,
     vertex_gradients: bool,
     texture_gradients: bool,
@@ -18,6 +20,27 @@ impl Default for ColorTest {
             texture_gradients: true,
             srgb: false,
         }
+    }
+}
+
+impl epi::App for ColorTest {
+    fn name(&self) -> &str {
+        "🎨 Color test"
+    }
+
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if frame.is_web() {
+                ui.colored_label(
+                    egui::color::RED,
+                    "NOTE: The current WebGL backend does NOT pass the color test!",
+                );
+                ui.separator();
+            }
+            ScrollArea::auto_sized().show(ui, |ui| {
+                self.ui(ui, frame.tex_allocator());
+            });
+        });
     }
 }
 

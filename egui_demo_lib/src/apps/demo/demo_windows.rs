@@ -46,9 +46,6 @@ pub struct DemoWindows {
 
     demo_window: super::DemoWindow,
 
-    #[serde(skip)]
-    color_test: super::ColorTest,
-
     /// open, title, view
     demos: Demos,
 }
@@ -56,12 +53,7 @@ pub struct DemoWindows {
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
-    pub fn ui(
-        &mut self,
-        ctx: &CtxRef,
-        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
-        sidebar_ui: impl FnOnce(&mut Ui),
-    ) {
+    pub fn ui(&mut self, ctx: &CtxRef, sidebar_ui: impl FnOnce(&mut Ui)) {
         egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
 
@@ -97,19 +89,14 @@ impl DemoWindows {
             show_menu_bar(ui);
         });
 
-        self.windows(ctx, tex_allocator);
+        self.windows(ctx);
     }
 
     /// Show the open windows.
-    fn windows(
-        &mut self,
-        ctx: &CtxRef,
-        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
-    ) {
+    fn windows(&mut self, ctx: &CtxRef) {
         let Self {
             open_windows,
             demo_window,
-            color_test,
             demos,
             ..
         } = self;
@@ -139,14 +126,6 @@ impl DemoWindows {
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
-            });
-
-        Window::new("🎨 Color Test")
-            .default_size([800.0, 1024.0])
-            .scroll(true)
-            .open(&mut open_windows.color_test)
-            .show(ctx, |ui| {
-                color_test.ui(ui, tex_allocator);
             });
 
         demos.show(ctx);
@@ -219,9 +198,6 @@ struct OpenWindows {
     inspection: bool,
     memory: bool,
     resize: bool,
-
-    // debug stuff:
-    color_test: bool,
 }
 
 impl Default for OpenWindows {
@@ -242,8 +218,6 @@ impl OpenWindows {
             inspection: false,
             memory: false,
             resize: false,
-
-            color_test: false,
         }
     }
 
@@ -254,7 +228,6 @@ impl OpenWindows {
             inspection,
             memory,
             resize,
-            color_test,
         } = self;
         ui.label("Egui:");
         ui.checkbox(settings, "🔧 Settings");
@@ -264,8 +237,6 @@ impl OpenWindows {
         ui.checkbox(demo, "✨ Demo");
         ui.separator();
         ui.checkbox(resize, "↔ Resize examples");
-        ui.checkbox(color_test, "🎨 Color test")
-            .on_hover_text("For testing the integrations painter");
         ui.separator();
         ui.label("Misc:");
     }

@@ -57,7 +57,7 @@ impl Default for HttpApp {
 
 impl epi::App for HttpApp {
     fn name(&self) -> &str {
-        "HTTP Fetch"
+        "⬇ HTTP"
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.

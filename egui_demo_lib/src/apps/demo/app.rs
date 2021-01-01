@@ -282,7 +282,7 @@ impl DemoApp {
 
 impl epi::App for DemoApp {
     fn name(&self) -> &str {
-        "Egui Demo"
+        "✨ Egui Demo"
     }
 
     fn load(&mut self, storage: &dyn epi::Storage) {
@@ -305,7 +305,7 @@ impl epi::App for DemoApp {
             ..
         } = self;
 
-        demo_windows.ui(ctx, frame.tex_allocator(), |ui| {
+        demo_windows.ui(ctx, |ui| {
             ui.separator();
             ui.checkbox(backend_window_open, "💻 Backend");
 
