@@ -702,6 +702,10 @@ dependencies = [
  "criterion",
  "egui",
  "epi",
+ "image",
+ "serde",
+ "serde_json",
+ "syntect",
 ]
 
 [[package]]
@@ -756,17 +760,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d2f06b9cac1506ece98fe3231e3cc9c4410ec3d5b1f24ae1c8946f0742cdefc"
 dependencies = [
  "version_check",
-]
-
-[[package]]
-name = "example_web"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "image",
- "serde",
- "serde_json",
- "syntect",
 ]
 
 [[package]]

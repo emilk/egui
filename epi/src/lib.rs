@@ -157,7 +157,8 @@ impl<'a> Frame<'a> {
 /// Information about the web environment
 #[derive(Clone, Debug)]
 pub struct WebInfo {
-    /// e.g. "#fragment" part of "www.example.com/index.html#fragment"
+    /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
+    /// Note that the leading `#` is included in the string.
     pub web_location_hash: String,
 }
 
@@ -242,7 +243,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as JSON and store with the given key.
 #[cfg(feature = "serde_json")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(key, serde_json::to_string(value).unwrap());
+    storage.set_string(key, serde_json::to_string_pretty(value).unwrap());
 }
 
 /// [`Storage`] key used for app

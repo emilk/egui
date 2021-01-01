@@ -17,6 +17,12 @@ include = [ "**/*.rs", "Cargo.toml"]
 [dependencies]
 egui = { version = "0.6.0", path = "../egui" }
 epi = { version = "0.6.0", path = "../epi" }
+serde = "1"
+serde_json = "1"
+
+# Http fetch app:
+image = { version = "0.23", default_features = false, features = ["jpeg", "png"] }
+syntect = { version = "4", default_features = false, features = ["default-fancy"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }

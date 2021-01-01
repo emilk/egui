@@ -4,6 +4,6 @@
 
 // When compiling natively:
 fn main() {
-    let app = egui_demo_lib::DemoApp::default();
+    let app = egui_demo_lib::WrapApp::default();
     eframe::run_native(Box::new(app));
 }

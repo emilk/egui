@@ -9,7 +9,6 @@ cargo test --workspace --doc
 
 cargo check -p egui_web --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
-cargo check -p example_web --lib --target wasm32-unknown-unknown
 
 # For finding bloat:
 # cargo bloat --release --bin demo_glium -n 200 | rg egui

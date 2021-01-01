@@ -12,6 +12,6 @@ use eframe::wasm_bindgen::{self, prelude::*};
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn start(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
-    let app = egui_demo_lib::DemoApp::default();
+    let app = egui_demo_lib::WrapApp::default();
     eframe::start_web(canvas_id, Box::new(app))
 }
