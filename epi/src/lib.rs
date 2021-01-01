@@ -60,7 +60,7 @@ pub use egui; // Re-export for user convenience
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
-    fn ui(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
     /// Allows you to do setup code and to call `ctx.set_fonts()`.

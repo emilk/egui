@@ -293,7 +293,7 @@ impl epi::App for DemoApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn ui(&mut self, ctx: &CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &CtxRef, frame: &mut epi::Frame<'_>) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 

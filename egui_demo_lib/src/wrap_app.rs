@@ -21,7 +21,7 @@ impl epi::App for WrapApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn ui(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         let web_location_hash = frame
             .info()
             .web_info
@@ -57,9 +57,9 @@ impl epi::App for WrapApp {
         });
 
         if self.selectable_demo_name == self.demo.name() {
-            self.demo.ui(ctx, frame);
+            self.demo.update(ctx, frame);
         } else if self.selectable_demo_name == self.http.name() {
-            self.http.ui(ctx, frame);
+            self.http.update(ctx, frame);
         } else {
             self.selectable_demo_name = self.demo.name().to_owned();
         }

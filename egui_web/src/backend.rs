@@ -203,7 +203,7 @@ impl AppRunner {
         .build();
 
         let egui_ctx = &self.web_backend.ctx;
-        self.app.ui(egui_ctx, &mut frame);
+        self.app.update(egui_ctx, &mut frame);
         let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
         handle_output(&egui_output);
 

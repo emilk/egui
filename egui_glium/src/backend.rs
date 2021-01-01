@@ -150,7 +150,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 repaint_signal: repaint_signal.clone(),
             }
             .build();
-            app.ui(&ctx, &mut frame);
+            app.update(&ctx, &mut frame);
             let (egui_output, paint_commands) = ctx.end_frame();
             let paint_jobs = ctx.tessellate(paint_commands);
 
