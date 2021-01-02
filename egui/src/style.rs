@@ -40,6 +40,7 @@ impl Style {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Spacing {
     /// Horizontal and vertical spacing between widgets
     pub item_spacing: Vec2,
@@ -95,6 +96,7 @@ impl Spacing {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
     /// Mouse must be the close to the side of a window to resize
     pub resize_grab_radius_side: f32,
@@ -105,6 +107,7 @@ pub struct Interaction {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Visuals {
     /// Override default text color for all text.
     ///
@@ -166,6 +169,7 @@ impl Visuals {
 /// Selected text, selected elements etc
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Selection {
     pub bg_fill: Color32,
     pub stroke: Stroke,
@@ -173,6 +177,7 @@ pub struct Selection {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     /// For an interactive widget that is being interacted with
     pub active: WidgetVisuals,

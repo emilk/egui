@@ -6,8 +6,10 @@ use crate::{
     resize, scroll_area,
     util::Cache,
     widgets::text_edit,
-    window, Id, LayerId, Pos2, Rect,
+    window, Id, LayerId, Pos2, Rect, Style,
 };
+
+// ----------------------------------------------------------------------------
 
 /// The data that Egui persists between frames.
 ///
@@ -19,6 +21,8 @@ use crate::{
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
+    pub(crate) options: Options,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
@@ -52,6 +56,22 @@ pub struct Memory {
     #[cfg_attr(feature = "serde", serde(skip))]
     everything_is_visible: bool,
 }
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub(crate) struct Options {
+    /// The default style for new `Ui`:s.
+    pub(crate) style: std::sync::Arc<Style>,
+    /// Controls the tessellator.
+    pub(crate) tessellation_options: crate::paint::TessellationOptions,
+    /// Font sizes etc.
+    pub(crate) font_definitions: crate::paint::FontDefinitions,
+}
+
+// ----------------------------------------------------------------------------
 
 /// Say there is a button in a scroll area.
 /// If the user clicks the button, the button should click.

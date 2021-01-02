@@ -14,20 +14,6 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Options {
-    /// The default style for new `Ui`:s.
-    style: Arc<Style>,
-    /// Controls the tessellator.
-    tessellation_options: paint::TessellationOptions,
-    /// Font sizes etc.
-    font_definitions: FontDefinitions,
-}
-
-// ----------------------------------------------------------------------------
-
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
@@ -389,11 +375,10 @@ impl CtxRef {
 
 /// This is the first thing you need when working with Egui. Create using [`CtxRef`].
 ///
-/// Contains the [`InputState`], [`Memory`], [`Output`], options and more.
+/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 // TODO: too many mutexes. Maybe put it all behind one Mutex instead.
 #[derive(Default)]
 pub struct Context {
-    options: Mutex<Options>,
     /// None until first call to `begin_frame`.
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
@@ -417,7 +402,6 @@ pub struct Context {
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
-            options: self.options.clone(),
             fonts: self.fonts.clone(),
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
@@ -493,17 +477,17 @@ impl Context {
     /// Will become active at the start of the next frame.
     /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        self.options.lock().font_definitions = font_definitions;
+        self.memory().options.font_definitions = font_definitions;
     }
 
     /// The [`Style`] used by all new windows, panels etc.
     pub fn style(&self) -> Arc<Style> {
-        self.options.lock().style.clone()
+        self.memory().options.style.clone()
     }
 
     /// The [`Style`] used by all new windows, panels etc.
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        self.options.lock().style = style.into();
+        self.memory().options.style = style.into();
     }
 
     /// The number of physical pixels for each logical point.
@@ -578,7 +562,7 @@ impl Context {
         self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        let font_definitions = self.options.lock().font_definitions.clone();
+        let font_definitions = self.memory().options.font_definitions.clone();
         let pixels_per_point = self.input.pixels_per_point();
         let same_as_current = match &self.fonts {
             None => false,
@@ -635,7 +619,7 @@ impl Context {
 
     /// Tessellate the given paint commands into triangle meshes.
     pub fn tessellate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
-        let mut tessellation_options = self.options.lock().tessellation_options;
+        let mut tessellation_options = self.memory().options.tessellation_options;
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
         let paint_jobs = tessellator::tessellate_paint_commands(
@@ -775,9 +759,9 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tessellation_options = self.options.lock().tessellation_options;
+                let mut tessellation_options = self.memory().options.tessellation_options;
                 tessellation_options.ui(ui);
-                self.options.lock().tessellation_options = tessellation_options;
+                self.memory().options.tessellation_options = tessellation_options;
             });
     }
 
