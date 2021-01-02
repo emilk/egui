@@ -18,6 +18,7 @@ impl Default for Demos {
                 (false, Box::new(super::DancingStrings::default())),
                 (false, Box::new(super::DragAndDropDemo::default())),
                 (false, Box::new(super::Tests::default())),
+                (false, Box::new(super::WindowOptions::default())),
             ],
         }
     }
@@ -54,7 +55,7 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
+        egui::SidePanel::left("side_panel", 200.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
 
             ui.separator();
