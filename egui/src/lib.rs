@@ -76,6 +76,7 @@
     rust_2018_idioms,
     unused_doc_comments,
 )]
+#![allow(clippy::manual_range_contains)]
 
 pub mod align;
 mod animation_manager;

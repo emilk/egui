@@ -7,7 +7,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![warn(clippy::all, rust_2018_idioms)]
-#![allow(clippy::single_match)]
+#![allow(clippy::manual_range_contains, clippy::single_match)]
 
 mod backend;
 #[cfg(feature = "http")]

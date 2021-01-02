@@ -89,11 +89,11 @@ where
     /// `(time, value)` pairs
     /// Time difference between values can be zero, but never negative.
     // TODO: impl IntoIter
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (f64, T)> + 'a {
+    pub fn iter(&'_ self) -> impl Iterator<Item = (f64, T)> + '_ {
         self.values.iter().map(|(time, value)| (*time, *value))
     }
 
-    pub fn values<'a>(&'a self) -> impl Iterator<Item = T> + 'a {
+    pub fn values(&'_ self) -> impl Iterator<Item = T> + '_ {
         self.values.iter().map(|(_time, value)| *value)
     }
 

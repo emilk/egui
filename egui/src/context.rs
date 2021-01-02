@@ -1,3 +1,5 @@
+// #![warn(missing_docs)]
+
 use std::sync::{
     atomic::{AtomicU32, Ordering::SeqCst},
     Arc,

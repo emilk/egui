@@ -1,4 +1,4 @@
-#![allow(clippy::float_cmp)]
+// #![warn(missing_docs)]
 
 use std::{hash::Hash, sync::Arc};
 
@@ -231,6 +231,7 @@ impl Ui {
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_width(&mut self, width: f32) {
+        #![allow(clippy::float_cmp)]
         if self.layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(self.min_rect().max.x, self.max_rect().max.x);
             self.region.max_rect.min.x =
@@ -245,6 +246,7 @@ impl Ui {
     /// Set the maximum height of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub fn set_max_height(&mut self, height: f32) {
+        #![allow(clippy::float_cmp)]
         if self.layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(self.min_rect().max.y, self.region.max_rect.max.y);
             self.region.max_rect.min.y =
@@ -268,6 +270,7 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
+        #![allow(clippy::float_cmp)]
         if self.layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(self.region.min_rect.max.x, self.region.max_rect.max.x);
             let min_rect = &mut self.region.min_rect;
@@ -283,6 +286,7 @@ impl Ui {
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
+        #![allow(clippy::float_cmp)]
         if self.layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(self.region.min_rect.max.y, self.region.max_rect.max.y);
             let min_rect = &mut self.region.min_rect;

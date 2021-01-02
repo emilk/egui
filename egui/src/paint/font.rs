@@ -365,7 +365,7 @@ impl Font {
         mut first_row_indentation: f32,
         max_width_in_points: f32,
     ) -> Vec<Row> {
-        if text == "" {
+        if text.is_empty() {
             return vec![Row {
                 x_offsets: vec![first_row_indentation],
                 y_min: 0.0,

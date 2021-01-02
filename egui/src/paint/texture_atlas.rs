@@ -13,7 +13,7 @@ pub struct Texture {
 
 impl Texture {
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    pub fn srgba_pixels<'slf>(&'slf self) -> impl Iterator<Item = super::Srgba> + 'slf {
+    pub fn srgba_pixels(&'_ self) -> impl Iterator<Item = super::Srgba> + '_ {
         use super::Srgba;
         let srgba_from_luminance_lut: Vec<Srgba> = (0..=255).map(Srgba::white_alpha).collect();
         self.pixels
