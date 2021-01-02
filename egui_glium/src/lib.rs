@@ -27,7 +27,7 @@ use {
 pub use clipboard::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
-    raw: egui::RawInput,
+    pub raw: egui::RawInput,
 }
 
 impl GliumInputState {
