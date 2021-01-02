@@ -301,10 +301,10 @@ impl Default for Widgets {
         Self {
             active: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.10, 0.5).into(),
-                bg_stroke: Stroke::new(2.0, WHITE),
+                bg_stroke: Stroke::new(2.0, Color32::WHITE),
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(120, 120, 200),
-                fg_stroke: Stroke::new(2.0, WHITE),
+                fg_stroke: Stroke::new(2.0, Color32::WHITE),
             },
             hovered: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),

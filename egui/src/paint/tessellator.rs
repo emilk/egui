@@ -7,7 +7,7 @@
 
 use {
     super::{
-        color::{self, Color32, Rgba, TRANSPARENT},
+        color::{Color32, Rgba},
         *,
     },
     crate::math::*,
@@ -479,7 +479,7 @@ fn fill_closed_path(
     options: TessellationOptions,
     out: &mut Triangles,
 ) {
-    if color == color::TRANSPARENT {
+    if color == Color32::TRANSPARENT {
         return;
     }
 
@@ -487,7 +487,7 @@ fn fill_closed_path(
     if options.anti_alias {
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
-        let color_outer = color::TRANSPARENT;
+        let color_outer = Color32::TRANSPARENT;
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
         for i in 2..n {
@@ -525,7 +525,7 @@ fn stroke_path(
     options: TessellationOptions,
     out: &mut Triangles,
 ) {
-    if stroke.width <= 0.0 || stroke.color == color::TRANSPARENT {
+    if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
         return;
     }
 
@@ -534,7 +534,7 @@ fn stroke_path(
 
     if options.anti_alias {
         let color_inner = stroke.color;
-        let color_outer = color::TRANSPARENT;
+        let color_outer = Color32::TRANSPARENT;
 
         let thin_line = stroke.width <= options.aa_size;
         if thin_line {
@@ -547,7 +547,7 @@ fn stroke_path(
 
             // Fade out as it gets thinner:
             let color_inner = mul_color(color_inner, stroke.width / options.aa_size);
-            if color_inner == color::TRANSPARENT {
+            if color_inner == Color32::TRANSPARENT {
                 return;
             }
 
@@ -639,7 +639,7 @@ fn stroke_path(
             // Fade out thin lines rather than making them thinner
             let radius = options.aa_size / 2.0;
             let color = mul_color(stroke.color, stroke.width / options.aa_size);
-            if color == color::TRANSPARENT {
+            if color == Color32::TRANSPARENT {
                 return;
             }
             for p in path {
@@ -756,7 +756,7 @@ impl Tessellator {
                         path.add_open_points(&points);
                     }
 
-                    if fill != TRANSPARENT {
+                    if fill != Color32::TRANSPARENT {
                         debug_assert!(
                             closed,
                             "You asked to fill a path that is not closed. That makes no sense."
@@ -831,7 +831,7 @@ impl Tessellator {
         color: Color32,
         out: &mut Triangles,
     ) {
-        if color == TRANSPARENT {
+        if color == Color32::TRANSPARENT {
             return;
         }
         galley.sanity_check();

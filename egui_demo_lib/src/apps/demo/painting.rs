@@ -11,7 +11,7 @@ impl Default for Painting {
     fn default() -> Self {
         Self {
             lines: Default::default(),
-            stroke: Stroke::new(1.0, color::LIGHT_BLUE),
+            stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
         }
     }
 }

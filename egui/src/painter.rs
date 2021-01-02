@@ -1,6 +1,5 @@
 use crate::{
     align::{anchor_rect, Align, LEFT_TOP},
-    color,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
@@ -149,9 +148,9 @@ impl Painter {
             rect: frame_rect,
             corner_radius: 0.0,
             fill: Color32::black_alpha(240),
-            stroke: Stroke::new(1.0, color::RED),
+            stroke: Stroke::new(1.0, Color32::RED),
         });
-        self.galley(rect.min, galley, text_style, color::RED);
+        self.galley(rect.min, galley, text_style, Color32::RED);
         frame_rect
     }
 }

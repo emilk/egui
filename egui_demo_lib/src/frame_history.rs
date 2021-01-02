@@ -95,7 +95,7 @@ impl FrameHistory {
                     align::LEFT_BOTTOM,
                     text,
                     TextStyle::Monospace,
-                    color::WHITE,
+                    Color32::WHITE,
                 ));
             }
         }

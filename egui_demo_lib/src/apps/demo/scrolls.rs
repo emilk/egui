@@ -48,7 +48,7 @@ impl Scrolls {
         const ALIGNS: [Align; 3] = [Align::Min, Align::Center, Align::Max];
         ui.columns(3, |cols| {
             for (i, col) in cols.iter_mut().enumerate() {
-                col.colored_label(WHITE, TITLES[i]);
+                col.colored_label(Color32::WHITE, TITLES[i]);
                 let mut scroll_area = ScrollArea::from_max_height(200.0).id_source(i);
                 if scroll_offset {
                     self.tracking = false;
@@ -62,7 +62,8 @@ impl Scrolls {
                     ui.vertical(|ui| {
                         for item in 1..=50 {
                             if self.tracking && item == self.track_item {
-                                let response = ui.colored_label(YELLOW, format!("Item {}", item));
+                                let response =
+                                    ui.colored_label(Color32::YELLOW, format!("Item {}", item));
                                 response.scroll_to_me(ALIGNS[i]);
                             } else {
                                 ui.label(format!("Item {}", item));
@@ -80,7 +81,10 @@ impl Scrolls {
                         ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin,
                     )
                 });
-                col.colored_label(WHITE, format!("{:.0}/{:.0}", current_scroll, max_scroll));
+                col.colored_label(
+                    Color32::WHITE,
+                    format!("{:.0}/{:.0}", current_scroll, max_scroll),
+                );
             }
         });
     }

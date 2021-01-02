@@ -213,7 +213,7 @@ impl BoxPainting {
                     response.rect,
                     self.corner_radius,
                     Color32::gray(64),
-                    Stroke::new(self.stroke_width, WHITE),
+                    Stroke::new(self.stroke_width, Color32::WHITE),
                 );
             }
         });
@@ -388,7 +388,11 @@ impl Tree {
     }
 
     fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
-        if depth > 0 && ui.add(Button::new("delete").text_color(color::RED)).clicked {
+        if depth > 0
+            && ui
+                .add(Button::new("delete").text_color(Color32::RED))
+                .clicked
+        {
             return Action::Delete;
         }
 

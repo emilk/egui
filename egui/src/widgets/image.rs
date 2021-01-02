@@ -18,7 +18,7 @@ impl Image {
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             desired_size: desired_size.into(),
             bg_fill: Default::default(),
-            tint: color::WHITE,
+            tint: Color32::WHITE,
         }
     }
 

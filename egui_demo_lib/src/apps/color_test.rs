@@ -3,6 +3,12 @@ use std::collections::HashMap;
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 24.0);
 
+const BLACK: Color32 = Color32::BLACK;
+const GREEN: Color32 = Color32::GREEN;
+const RED: Color32 = Color32::RED;
+const TRANSPARENT: Color32 = Color32::TRANSPARENT;
+const WHITE: Color32 = Color32::WHITE;
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct ColorTest {
     #[serde(skip)]
@@ -32,7 +38,7 @@ impl epi::App for ColorTest {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.colored_label(
-                    egui::color::RED,
+                    RED,
                     "NOTE: The current WebGL backend does NOT pass the color test!",
                 );
                 ui.separator();

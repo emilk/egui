@@ -461,7 +461,7 @@ impl Ui {
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked { /* … */ }
-    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::color::WHITE));
+    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
         let (id, rect) = self.allocate_space(desired_size);
@@ -500,7 +500,8 @@ impl Ui {
         let debug_expand_height = self.style().visuals.debug_expand_height;
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-            self.painter.rect_stroke(rect, 0.0, (1.0, LIGHT_BLUE));
+            self.painter
+                .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let color = color::Color32::from_rgb(200, 0, 0);
             let width = 2.5;

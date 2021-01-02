@@ -305,12 +305,12 @@ impl Resize {
         if ui.ctx().style().visuals.debug_resize {
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
-                color::GREEN,
+                Color32::GREEN,
                 "desired_size",
             );
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
-                color::LIGHT_BLUE,
+                Color32::LIGHT_BLUE,
                 "last_content_size",
             );
         }

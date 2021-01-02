@@ -7,9 +7,9 @@ use crate::{
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {
-        color::WHITE
+        Color32::WHITE
     } else {
-        color::BLACK
+        Color32::BLACK
     }
 }
 

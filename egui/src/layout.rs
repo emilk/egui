@@ -501,7 +501,7 @@ impl Layout {
 
         let cursor = region.cursor;
 
-        let color = color::GREEN;
+        let color = Color32::GREEN;
         let stroke = Stroke::new(2.0, color);
 
         let align;

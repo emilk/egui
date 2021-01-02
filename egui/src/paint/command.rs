@@ -204,7 +204,7 @@ pub struct Stroke {
 
 impl Stroke {
     pub fn none() -> Self {
-        Self::new(0.0, crate::color::TRANSPARENT)
+        Self::new(0.0, Color32::TRANSPARENT)
     }
 
     pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {

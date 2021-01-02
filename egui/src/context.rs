@@ -816,7 +816,7 @@ impl Context {
                     {
                         ui.ctx()
                             .debug_painter()
-                            .debug_rect(area.rect(), color::RED, "");
+                            .debug_rect(area.rect(), Color32::RED, "");
                     }
                 }
             }

@@ -1,7 +1,7 @@
 //! uis for egui types.
 use crate::{
     math::*,
-    paint::{self, color::WHITE, PaintCmd, Texture, Triangles},
+    paint::{self, PaintCmd, Texture, Triangles},
     *,
 };
 
@@ -21,7 +21,11 @@ impl Texture {
         let response = ui.allocate_response(size, Sense::hover());
         let rect = response.rect;
         let mut triangles = Triangles::default();
-        triangles.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), WHITE);
+        triangles.add_rect_with_uv(
+            rect,
+            [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
+            Color32::WHITE,
+        );
         ui.painter().add(PaintCmd::triangles(triangles));
 
         let (tex_w, tex_h) = (self.width as f32, self.height as f32);
@@ -45,7 +49,7 @@ impl Texture {
                 pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
             );
             let mut triangles = Triangles::default();
-            triangles.add_rect_with_uv(zoom_rect, uv_rect, WHITE);
+            triangles.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
             ui.painter().add(PaintCmd::triangles(triangles));
         });
     }

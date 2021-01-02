@@ -100,7 +100,7 @@ impl epi::App for HttpApp {
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
-                        ui.add(egui::Label::new(error).text_color(egui::color::RED));
+                        ui.add(egui::Label::new(error).text_color(egui::Color32::RED));
                     }
                 }
             }
