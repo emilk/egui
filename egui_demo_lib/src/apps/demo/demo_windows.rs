@@ -108,6 +108,7 @@ impl DemoWindows {
 
         Window::new("🔧 Settings")
             .open(&mut open_windows.settings)
+            .scroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });

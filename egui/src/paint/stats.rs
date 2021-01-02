@@ -129,6 +129,10 @@ impl AllocInfo {
             )
         }
     }
+
+    pub fn label(&self, ui: &mut crate::Ui, what: &str) -> crate::Response {
+        ui.add(crate::Label::new(self.format(what)).multiline(false))
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -226,19 +230,21 @@ impl PaintStats {
         } = self;
 
         ui.label("Intermediate:");
-        ui.label(primitives.format("primitives"))
+        primitives
+            .label(ui, "primitives")
             .on_hover_text("Boxes, circles, etc");
-        ui.label(cmd_text.format("text"));
-        ui.label(cmd_path.format("paths"));
-        ui.label(cmd_mesh.format("meshes"));
-        ui.label(cmd_vec.format("nested"));
+        cmd_text.label(ui, "text");
+        cmd_path.label(ui, "paths");
+        cmd_mesh.label(ui, "meshes");
+        cmd_vec.label(ui, "nested");
         ui.advance_cursor(10.0);
 
         ui.label("Tessellated:");
-        ui.label(jobs.format("jobs"))
+        jobs.label(ui, "jobs")
             .on_hover_text("Number of separate clip rectangles");
-        ui.label(vertices.format("vertices"));
-        ui.label(indices.format("indices"))
+        vertices.label(ui, "vertices");
+        indices
+            .label(ui, "indices")
             .on_hover_text("Three 32-bit indices per triangles");
         ui.advance_cursor(10.0);
 

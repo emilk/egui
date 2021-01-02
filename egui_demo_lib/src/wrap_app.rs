@@ -92,7 +92,7 @@ impl epi::App for WrapApp {
 
         self.backend_panel.update(ctx, frame);
         if self.backend_panel.open {
-            egui::SidePanel::left("backend_panel", 0.0).show(ctx, |ui| {
+            egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
             });
         }
@@ -190,9 +190,9 @@ impl BackendPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
-        let is_web = frame.is_web();
+        ui.heading("💻 Backend");
 
-        if is_web {
+        if frame.is_web() {
             ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
                 "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
@@ -211,7 +211,7 @@ impl BackendPanel {
 
         self.frame_history.ui(ui);
 
-        if !is_web {
+        if !frame.is_web() {
             // web browsers have their own way of zooming, which egui_web respects
             ui.separator();
             if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
@@ -219,7 +219,7 @@ impl BackendPanel {
             }
         }
 
-        if !is_web {
+        if !frame.is_web() {
             ui.separator();
             if ui
                 .button("📱 Phone Size")
