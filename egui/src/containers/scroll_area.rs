@@ -12,6 +12,8 @@ pub(crate) struct State {
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
     pub vel: Vec2,
+    /// Mouse offset relative to the top of the handle when started moving the handle.
+    scroll_start_offset_from_top: Option<f32>,
 }
 
 impl Default for State {
@@ -20,6 +22,7 @@ impl Default for State {
             offset: Vec2::zero(),
             show_scroll: false,
             vel: Vec2::zero(),
+            scroll_start_offset_from_top: None,
         }
     }
 }
@@ -282,17 +285,26 @@ impl Prepared {
 
             if response.active {
                 if let Some(mouse_pos) = ui.input().mouse.pos {
-                    if handle_rect.contains(mouse_pos) {
-                        if inner_rect.top() <= mouse_pos.y && mouse_pos.y <= inner_rect.bottom() {
-                            state.offset.y +=
-                                ui.input().mouse.delta.y * content_size.y / inner_rect.height();
-                        }
-                    } else {
-                        // Center scroll at mouse pos:
-                        let mpos_top = mouse_pos.y - handle_rect.height() / 2.0;
-                        state.offset.y = remap(mpos_top, top..=bottom, 0.0..=content_size.y);
-                    }
+                    let scroll_start_offset_from_top =
+                        state.scroll_start_offset_from_top.get_or_insert_with(|| {
+                            if handle_rect.contains(mouse_pos) {
+                                mouse_pos.y - handle_rect.top()
+                            } else {
+                                let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                                // Calculate the new handle top position, centering the handle on the mouse.
+                                let new_handle_top_pos = clamp(
+                                    mouse_pos.y - handle_rect.height() / 2.0,
+                                    top..=handle_top_pos_at_bottom,
+                                );
+                                mouse_pos.y - new_handle_top_pos
+                            }
+                        });
+
+                    let new_handle_top = mouse_pos.y - *scroll_start_offset_from_top;
+                    state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
                 }
+            } else {
+                state.scroll_start_offset_from_top = None;
             }
 
             state.offset.y = state.offset.y.max(0.0);
