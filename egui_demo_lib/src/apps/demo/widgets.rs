@@ -48,8 +48,8 @@ impl Widgets {
         ui.add(crate::__egui_github_link_file_line!());
 
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
-            ui.add(Label::new("Text can have").text_color(srgba(110, 255, 110, 255)));
-            ui.colored_label(srgba(128, 140, 255, 255), "color"); // Shortcut version
+            ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
+            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );

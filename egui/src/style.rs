@@ -303,28 +303,28 @@ impl Default for Widgets {
                 bg_fill: Rgba::luminance_alpha(0.10, 0.5).into(),
                 bg_stroke: Stroke::new(2.0, WHITE),
                 corner_radius: 4.0,
-                fg_fill: srgba(120, 120, 200, 255),
+                fg_fill: Color32::from_rgb(120, 120, 200),
                 fg_stroke: Stroke::new(2.0, WHITE),
             },
             hovered: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.5)),
                 corner_radius: 4.0,
-                fg_fill: srgba(100, 100, 150, 255),
+                fg_fill: Color32::from_rgb(100, 100, 150),
                 fg_stroke: Stroke::new(1.5, Color32::gray(240)),
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)), // default window outline. Should be pretty readable
                 corner_radius: 4.0,
-                fg_fill: srgba(60, 60, 80, 255),
+                fg_fill: Color32::from_rgb(60, 60, 80),
                 fg_stroke: Stroke::new(1.0, Color32::gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.02, 0.5).into(),
                 bg_stroke: Stroke::new(0.5, Color32::gray(70)),
                 corner_radius: 4.0,
-                fg_fill: srgba(50, 50, 50, 255),
+                fg_fill: Color32::from_rgb(50, 50, 50),
                 fg_stroke: Stroke::new(1.0, Color32::gray(140)), // Should look grayed out
             },
             noninteractive: WidgetVisuals {

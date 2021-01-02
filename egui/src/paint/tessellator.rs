@@ -7,7 +7,7 @@
 
 use {
     super::{
-        color::{self, srgba, Color32, Rgba, TRANSPARENT},
+        color::{self, Color32, Rgba, TRANSPARENT},
         *,
     },
     crate::math::*,
@@ -929,7 +929,7 @@ pub fn tessellate_paint_commands(
                     rect: *clip_rect,
                     corner_radius: 0.0,
                     fill: Default::default(),
-                    stroke: Stroke::new(2.0, srgba(150, 255, 150, 255)),
+                    stroke: Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
                 },
                 triangles,
             )

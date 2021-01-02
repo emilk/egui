@@ -25,6 +25,7 @@ impl std::ops::IndexMut<usize> for Color32 {
 }
 
 // TODO: remove ?
+#[deprecated = "Replaced by Color32::from_rgb… family of functions."]
 pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
     Color32::from_rgba_premultiplied(r, g, b, a)
 }
@@ -108,16 +109,16 @@ impl Color32 {
 
 // ----------------------------------------------------------------------------
 
-pub const TRANSPARENT: Color32 = srgba(0, 0, 0, 0);
-pub const BLACK: Color32 = srgba(0, 0, 0, 255);
-pub const LIGHT_GRAY: Color32 = srgba(220, 220, 220, 255);
-pub const GRAY: Color32 = srgba(160, 160, 160, 255);
-pub const WHITE: Color32 = srgba(255, 255, 255, 255);
-pub const RED: Color32 = srgba(255, 0, 0, 255);
-pub const GREEN: Color32 = srgba(0, 255, 0, 255);
-pub const BLUE: Color32 = srgba(0, 0, 255, 255);
-pub const YELLOW: Color32 = srgba(255, 255, 0, 255);
-pub const LIGHT_BLUE: Color32 = srgba(140, 160, 255, 255);
+pub const TRANSPARENT: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
+pub const BLACK: Color32 = Color32::from_rgb(0, 0, 0);
+pub const LIGHT_GRAY: Color32 = Color32::from_rgb(220, 220, 220);
+pub const GRAY: Color32 = Color32::from_rgb(160, 160, 160);
+pub const WHITE: Color32 = Color32::from_rgb(255, 255, 255);
+pub const RED: Color32 = Color32::from_rgb(255, 0, 0);
+pub const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
+pub const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
+pub const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
+pub const LIGHT_BLUE: Color32 = Color32::from_rgb(140, 160, 255);
 
 // ----------------------------------------------------------------------------
 

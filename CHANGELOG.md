@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * `RepaintSignal` now implements `Sync` so it can be sent to a background thread.
 
+### Deprecated
+
+* Deprecated `color::srgba`.
+
 
 ## 0.6.0 - 2020-12-26
 
