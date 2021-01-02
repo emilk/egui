@@ -10,6 +10,7 @@ use crate::{
 /// Specifies the look and feel of a [`Ui`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
