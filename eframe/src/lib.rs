@@ -1,11 +1,11 @@
-//! Backend-agnostic interface for writing apps using Egui.
+//! eframe - the Egui Framework crate
 //!
-//! Egui is a GUI library, which can be plugged in to e.g. a game engine.
+//! You write your application code for [`epi`] (implementing [`epi::App`]) and then
+//! use eframe to either compile and run it natively, or compile it as a web app.
 //!
-//! This crate provides a common interface for programming an app, using Egui,
-//! so you can then easily plug it in to a backend such as `egui_web` or `egui_glium`.
+//! To get started, look at <https://github.com/emilk/egui_template>.
 //!
-//! This crate is primarily used by the `egui_web` and `egui_glium` crates.
+//! eframe is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
@@ -47,8 +47,8 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 // ----------------------------------------------------------------------------
 // When compiling natively
 
-/// Call from main as `eframe::run_native(Box::new(MyEguiApp::default()))`
+/// Call from `fn main` like this: `eframe::run_native(Box::new(MyEguiApp::default()))`
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(app: Box<dyn epi::App>) {
+pub fn run_native(app: Box<dyn epi::App>) -> ! {
     egui_glium::run(app)
 }

@@ -1,3 +1,9 @@
+//! [`egui`] bindings for web apps (compiling to WASM).
+//!
+//! This library is an [`epi`] backend.
+//!
+//! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
+
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![warn(clippy::all)]

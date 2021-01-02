@@ -1,9 +1,9 @@
 //! Egui core library
 //!
-//! To get started with Egui, you can use one of the available integrations
-//! such as [`egui_web`](https://crates.io/crates/egui_web) or  [`egui_glium`](https://crates.io/crates/egui_glium).
+//! To quickly get started with Egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
+//! which uses [`eframe`](https://docs.rs/eframe).
 //!
-//! Whatever you use, you need an [`CtxRef`] (by convention referred to by `ctx`).
+//! To create a GUI using Egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
 //! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!

@@ -1,13 +1,10 @@
 //! Backend-agnostic interface for writing apps using [`egui`].
 //!
-//! [`egui`] is a GUI library, which can be plugged in to e.g. a game engine.
+//! `epi` provides interfaces for window management, serialization and http requests.
+//! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
+//! the Egui framework crate.
 //!
-//! Start by looking at the [`App`] trait, and implement [`App::ui`].
-//!
-//! This crate provides a common interface for programming an app, using Egui,
-//! so you can then easily plug it in to a backend such as `egui_web` or `egui_glium`.
-//!
-//! This crate is primarily used by the `egui_web` and `egui_glium` crates.
+//! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![forbid(unsafe_code)]
@@ -329,7 +326,7 @@ pub mod backend {
     }
 
     impl<'a> FrameBuilder<'a> {
-        /// Wrap us in a [`Frame`] to send to [`App::ui`].
+        /// Wrap us in a [`Frame`] to send to [`App::update`].
         pub fn build(self) -> Frame<'a> {
             Frame(self)
         }

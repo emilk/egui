@@ -1,7 +1,5 @@
 # Egui app Programming Interface
 
-Backend-agnostic interface for writing apps using Egui.
+Backend-agnostic interface for writing apps using [`egui`](https://crates.io/crates/egui) (a platform agnostic GUI library).
 
-Egui is a GUI library, which can be plugged in to e.g. a game engine.
-
-This crate provides a common interface for programming an app, using Egui, so you can then easily plug it in to a backend such as `egui_web` or `egui_glium`.
+This crate provides a common interface for programming an app using Egui, which can then be easily plugged into [`egui_frame`](https://crates.io/crates/egui_frame) (which in a wrapper over  [`egui_web`](https://crates.io/crates/egui_web) or [`egui_glium`](https://crates.io/crates/egui_glium)).
