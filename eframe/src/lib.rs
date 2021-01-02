@@ -9,7 +9,7 @@
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![warn(clippy::all)]
+#![warn(clippy::all, missing_docs, rust_2018_idioms)]
 
 pub use {egui, epi};
 
