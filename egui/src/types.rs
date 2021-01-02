@@ -139,7 +139,7 @@ impl Response {
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.hovered {
+        if self.hovered || self.ctx.memory().everything_is_visible() {
             crate::containers::show_tooltip(&self.ctx, add_contents);
         }
         self

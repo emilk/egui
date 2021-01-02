@@ -35,7 +35,7 @@ impl State {
 
     // Helper
     pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
-        if ctx.memory().all_collpasing_are_open {
+        if ctx.memory().everything_is_visible() {
             Some(true)
         } else {
             ctx.memory()
@@ -52,7 +52,11 @@ impl State {
 
     /// 0 for closed, 1 for open, with tweening
     pub fn openness(&self, ctx: &Context, id: Id) -> f32 {
-        ctx.animate_bool(id, self.open || ctx.memory().all_collpasing_are_open)
+        if ctx.memory().everything_is_visible() {
+            1.0
+        } else {
+            ctx.animate_bool(id, self.open)
+        }
     }
 
     /// Show contents if we are open, with a nice animation between closed and open

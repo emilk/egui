@@ -90,6 +90,18 @@ fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
     }
 }
 
+fn integration_info(
+    display: &glium::Display,
+    previous_frame_time: Option<f32>,
+) -> epi::IntegrationInfo {
+    epi::IntegrationInfo {
+        web_info: None,
+        cpu_usage: previous_frame_time,
+        seconds_since_midnight: Some(seconds_since_midnight()),
+        native_pixels_per_point: Some(native_pixels_per_point(&display)),
+    }
+}
+
 /// Run an egui app
 pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut storage = create_storage(app.name());
@@ -113,6 +125,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         .as_mut()
         .and_then(|storage| epi::get_value(storage.as_ref(), EGUI_MEMORY_KEY))
         .unwrap_or_default();
+
     app.setup(&ctx);
 
     let mut input_state = GliumInputState::from_pixels_per_point(native_pixels_per_point(&display));
@@ -126,6 +139,36 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
+    if app.warm_up_enabled() {
+        // let warm_up_start = Instant::now();
+        input_state.raw.time = Some(0.0);
+        input_state.raw.screen_rect = Some(Rect::from_min_size(
+            Default::default(),
+            screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap(),
+        ));
+        ctx.begin_frame(input_state.raw.take());
+        let mut app_output = epi::backend::AppOutput::default();
+        let mut frame = epi::backend::FrameBuilder {
+            info: integration_info(&display, None),
+            tex_allocator: Some(&mut painter),
+            http: http.clone(),
+            output: &mut app_output,
+            repaint_signal: repaint_signal.clone(),
+        }
+        .build();
+
+        let saved_memory = ctx.memory().clone();
+        ctx.memory().set_everything_is_visible(true);
+        app.update(&ctx, &mut frame);
+        *ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+        ctx.clear_animations();
+
+        let (egui_output, _paint_commands) = ctx.end_frame();
+        handle_output(egui_output, &display, clipboard.as_mut());
+        // TODO: handle app_output
+        // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
+    }
+
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let frame_start = Instant::now();
@@ -138,12 +181,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             ctx.begin_frame(input_state.raw.take());
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
-                info: epi::IntegrationInfo {
-                    web_info: None,
-                    cpu_usage: previous_frame_time,
-                    seconds_since_midnight: Some(seconds_since_midnight()),
-                    native_pixels_per_point: Some(native_pixels_per_point(&display)),
-                },
+                info: integration_info(&display, previous_frame_time),
                 tex_allocator: Some(&mut painter),
                 http: http.clone(),
                 output: &mut app_output,

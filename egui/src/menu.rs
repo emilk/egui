@@ -94,7 +94,7 @@ fn menu_impl<'c>(
         bar_state.open_menu = Some(menu_id);
     }
 
-    if bar_state.open_menu == Some(menu_id) || ui.memory().all_menus_are_open {
+    if bar_state.open_menu == Some(menu_id) || ui.ctx().memory().everything_is_visible() {
         let area = Area::new(menu_id)
             .order(Order::Foreground)
             .fixed_pos(button_response.rect.left_bottom());

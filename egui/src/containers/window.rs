@@ -209,7 +209,7 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        if matches!(open, Some(false)) && !ctx.memory().all_windows_are_open {
+        if matches!(open, Some(false)) && !ctx.memory().everything_is_visible() {
             return None;
         }
 

@@ -179,6 +179,20 @@ impl AppRunner {
         self.web_backend.canvas_id()
     }
 
+    pub fn warm_up(&mut self) -> Result<(), JsValue> {
+        if self.app.warm_up_enabled() {
+            let saved_memory = self.web_backend.ctx.memory().clone();
+            self.web_backend
+                .ctx
+                .memory()
+                .set_everything_is_visible(true);
+            self.logic()?;
+            *self.web_backend.ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+            self.web_backend.ctx.clear_animations();
+        }
+        Ok(())
+    }
+
     pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
@@ -227,7 +241,8 @@ impl AppRunner {
 /// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
     let backend = WebBackend::new(canvas_id)?;
-    let runner = AppRunner::new(backend, app)?;
+    let mut runner = AppRunner::new(backend, app)?;
+    runner.warm_up()?;
     start_runner(runner)
 }
 

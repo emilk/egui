@@ -25,6 +25,8 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
         let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
         let position = position.max(ctx.input().screen_rect().left_top());
         position
+    } else if ctx.memory().everything_is_visible() {
+        Pos2::default()
     } else {
         return; // No good place for a tooltip :(
     };

@@ -60,12 +60,8 @@ pub struct Memory {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) tooltip_rect: Option<Rect>,
 
-    /// Useful for debugging, benchmarking etc.
-    pub all_collpasing_are_open: bool,
-    /// Useful for debugging, benchmarking etc.
-    pub all_menus_are_open: bool,
-    /// Useful for debugging, benchmarking etc.
-    pub all_windows_are_open: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    everything_is_visible: bool,
 }
 
 /// Say there is a button in a scroll area.
@@ -258,7 +254,7 @@ impl Memory {
 /// Only one can be be open at a time.
 impl Memory {
     pub fn is_popup_open(&mut self, popup_id: Id) -> bool {
-        self.popup == Some(popup_id)
+        self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
     pub fn open_popup(&mut self, popup_id: Id) {
@@ -275,6 +271,24 @@ impl Memory {
         } else {
             self.open_popup(popup_id);
         }
+    }
+
+    /// If true, all windows, menus, tooltips etc are to be visible at once.
+    ///
+    /// This is useful for testing, benchmarking, pre-caching, etc.
+    ///
+    /// Experimental feature!
+    pub fn everything_is_visible(&self) -> bool {
+        self.everything_is_visible
+    }
+
+    /// If true, all windows, menus, tooltips etc are to be visible at once.
+    ///
+    /// This is useful for testing, benchmarking, pre-caching, etc.
+    ///
+    /// Experimental feature!
+    pub fn set_everything_is_visible(&mut self, value: bool) {
+        self.everything_is_visible = value;
     }
 }
 

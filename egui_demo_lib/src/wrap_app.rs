@@ -42,6 +42,10 @@ impl epi::App for WrapApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
+    fn warm_up_enabled(&self) -> bool {
+        true // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open.
+    }
+
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.web_location_hash.strip_prefix("#") {
@@ -91,14 +95,14 @@ impl epi::App for WrapApp {
         });
 
         self.backend_panel.update(ctx, frame);
-        if self.backend_panel.open {
+        if self.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
             });
         }
 
         for (anchor, app) in self.apps.iter_mut() {
-            if anchor == self.selected_anchor {
+            if anchor == self.selected_anchor || ctx.memory().everything_is_visible() {
                 app.update(ctx, frame);
             }
         }
@@ -192,19 +196,6 @@ impl BackendPanel {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
         ui.heading("💻 Backend");
 
-        if frame.is_web() {
-            ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-            ui.label(
-                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
-                This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
-            ui.label("This is also work in progress, and not ready for production... yet :)");
-            ui.horizontal(|ui| {
-                ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/egui");
-            });
-            ui.separator();
-        }
-
         self.run_mode_ui(ui);
 
         ui.separator();
@@ -219,8 +210,19 @@ impl BackendPanel {
             }
         }
 
-        if !frame.is_web() {
-            ui.separator();
+        ui.separator();
+
+        if frame.is_web() {
+            ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+            ui.label(
+                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
+                This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
+            ui.label("This is also work in progress, and not ready for production... yet :)");
+            ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+                ui.label("Project home page:");
+                ui.hyperlink("https://github.com/emilk/egui");
+            });
+        } else {
             if ui
                 .button("📱 Phone Size")
                 .on_hover_text("Resize the window to be small like a phone.")

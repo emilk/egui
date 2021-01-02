@@ -18,7 +18,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
+        ctx.memory().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         c.bench_function("demo_windows_full", |b| {
@@ -32,7 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        ctx.memory().all_collpasing_are_open = true; // expand the demo window with everything
+        ctx.memory().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);

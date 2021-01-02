@@ -38,6 +38,7 @@ pub(crate) struct FrameState {
 
     /// How much space is used by panels.
     used_by_panels: Rect,
+
     pub(crate) scroll_delta: Vec2,
     pub(crate) scroll_target: Option<(f32, Align)>,
     // TODO: move some things from `Memory` to here
@@ -56,7 +57,7 @@ impl Default for FrameState {
 }
 
 impl FrameState {
-    pub fn begin_frame(&mut self, input: &InputState) {
+    fn begin_frame(&mut self, input: &InputState) {
         self.available_rect = input.screen_rect();
         self.unused_rect = input.screen_rect();
         self.used_by_panels = Rect::nothing();
@@ -716,6 +717,11 @@ impl Context {
             self.request_repaint();
         }
         animated_value
+    }
+
+    /// Clear memory of any animations.
+    pub fn clear_animations(&self) {
+        *self.animation_manager.lock() = Default::default();
     }
 }
 
