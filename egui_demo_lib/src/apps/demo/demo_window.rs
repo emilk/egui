@@ -100,6 +100,7 @@ struct ColorWidgets {
     srgba_premul: [u8; 4],
     rgba_unmul: [f32; 4],
     rgba_premul: [f32; 4],
+    lcha: egui::color::Lcha,
 }
 
 impl Default for ColorWidgets {
@@ -110,6 +111,7 @@ impl Default for ColorWidgets {
             srgba_premul: [0, 187, 140, 127],
             rgba_unmul: [0.0, 1.0, 0.5, 0.5],
             rgba_premul: [0.0, 0.5, 0.25, 0.5],
+            lcha: (Rgba::from(egui::Color32::BLUE) * 0.5).into(),
         }
     }
 }
@@ -125,7 +127,13 @@ impl ColorWidgets {
             srgba_premul,
             rgba_unmul,
             rgba_premul,
+            lcha,
         } = self;
+
+        ui.horizontal(|ui| {
+            ui.color_edit_button_lcha(lcha);
+            ui.label(format!("LCHA: {} {} {} {}", lcha.l, lcha.c, lcha.h, lcha.a));
+        });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_srgba_unmultiplied(srgba_unmul);

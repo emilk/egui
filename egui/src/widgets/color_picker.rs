@@ -13,10 +13,19 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     }
 }
 
+fn out_of_gamut_as_transparent(rgba: Rgba) -> Color32 {
+    let (r, g, b) = (rgba.r(), rgba.g(), rgba.b());
+    if r < 0.0 || g < 0.0 || b < 0.0 || r > 1.0 || g > 1.0 || b > 1.0 {
+        Color32::TRANSPARENT // out-of-gamut
+    } else {
+        Color32::from(rgba)
+    }
+}
+
 /// Number of vertices per dimension in the color sliders.
 /// We need at least 6 for hues, and more for smooth 2D areas.
 /// Should always be a multiple of 6 to hit the peak hues in HSV/HSL (every 60°).
-const N: u32 = 6 * 6;
+const N: u32 = 6 * 32;
 
 fn background_checkers(painter: &Painter, rect: Rect) {
     let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
@@ -85,7 +94,7 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
     response
 }
 
-fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
+fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Rgba) -> Response {
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(
@@ -107,7 +116,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
         let mut mesh = Mesh::default();
         for i in 0..=N {
             let t = i as f32 / (N as f32);
-            let color = color_at(t);
+            let color = out_of_gamut_as_transparent(color_at(t));
             let x = lerp(rect.left()..=rect.right(), t);
             mesh.colored_vertex(pos2(x, rect.top()), color);
             mesh.colored_vertex(pos2(x, rect.bottom()), color);
@@ -144,7 +153,7 @@ fn color_slider_2d(
     ui: &mut Ui,
     x_value: &mut f32,
     y_value: &mut f32,
-    color_at: impl Fn(f32, f32) -> Color32,
+    color_at: impl Fn(f32, f32) -> Rgba,
 ) -> Response {
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
@@ -161,7 +170,8 @@ fn color_slider_2d(
         for yi in 0..=N {
             let xt = xi as f32 / (N as f32);
             let yt = yi as f32 / (N as f32);
-            let color = color_at(xt, yt);
+            let color = out_of_gamut_as_transparent(color_at(xt, yt));
+
             let x = lerp(rect.left()..=rect.right(), xt);
             let y = lerp(rect.bottom()..=rect.top(), yt);
             mesh.colored_vertex(pos2(x, y), color);
@@ -186,7 +196,7 @@ fn color_slider_2d(
     ui.painter().add(Shape::Circle {
         center: pos2(x, y),
         radius: rect.width() / 12.0,
-        fill: picked_color,
+        fill: picked_color.into(),
         stroke: Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
     });
 
@@ -345,25 +355,149 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     button_response
 }
 
+fn color_picker_lcha_2d(ui: &mut Ui, lcha: &mut Lcha, alpha: Alpha) {
+    let current_color_size = vec2(
+        ui.style().spacing.slider_width,
+        ui.style().spacing.interact_size.y * 2.0,
+    );
+
+    ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+            let opaque = Lcha { a: 1.0, ..*lcha };
+
+            if alpha == Alpha::Opaque {
+                lcha.a = 1.0;
+                show_color(ui, *lcha, current_color_size).on_hover_text("Current color");
+            } else {
+                let a = &mut lcha.a;
+
+                // We signal additive blending by storing a negative alpha (a bit ironic).
+                let mut additive = *a < 0.0;
+
+                if alpha == Alpha::OnlyBlend {
+                    if additive {
+                        *a = 0.5;
+                    }
+
+                    color_slider_1d(ui, a, |a| Lcha { a, ..opaque }.into()).on_hover_text("Alpha");
+                } else {
+                    ui.horizontal(|ui| {
+                        ui.label("Blending:");
+                        ui.radio_value(&mut additive, false, "Normal");
+                        ui.radio_value(&mut additive, true, "Additive");
+
+                        if additive {
+                            *a = -a.abs();
+                        }
+
+                        if !additive {
+                            *a = a.abs();
+                        }
+                    });
+
+                    if !additive {
+                        color_slider_1d(ui, a, |a| Lcha { a, ..opaque }.into())
+                            .on_hover_text("Alpha");
+                    }
+                }
+
+                show_color(ui, *lcha, current_color_size).on_hover_text("Current color");
+                show_color(ui, opaque, current_color_size).on_hover_text("Current color (opaque)");
+            }
+
+            let opaque = Lcha { a: 1.0, ..*lcha };
+            let Lcha { l, c, h, a: _ } = lcha;
+
+            color_slider_1d(ui, h, |h| Lcha { h, ..opaque }.into()).on_hover_text("Hue");
+            color_slider_1d(ui, c, |c| Lcha { c, ..opaque }.into()).on_hover_text("Chroma");
+            color_slider_1d(ui, l, |l| Lcha { l, ..opaque }.into()).on_hover_text("Lightness");
+            color_slider_2d(ui, l, c, |l, c| Lcha { l, c, ..opaque }.into())
+                .on_hover_text("Lightness - Chroma");
+        });
+
+        ui.vertical(|ui| {
+            let opaque = Lcha { a: 1.0, ..*lcha };
+            let Lcha { l, c, h, a: _ } = lcha;
+            color_slider_2d(ui, h, l, |h, l| Lcha { h, l, ..opaque }.into())
+                .on_hover_text("Hue - Lightness");
+            color_slider_2d(ui, h, c, |h, c| Lcha { h, c, ..opaque }.into())
+                .on_hover_text("Hue - Chroma");
+        });
+    });
+}
+
+pub fn color_edit_button_lcha(ui: &mut Ui, lcha: &mut Lcha, alpha: Alpha) -> Response {
+    let pupup_id = ui.auto_id_with("popup");
+    let button_response = color_button(ui, (*lcha).into()).on_hover_text("Click to edit color");
+
+    if button_response.clicked() {
+        ui.memory().toggle_popup(pupup_id);
+    }
+    // TODO: make it easier to show a temporary popup that closes when you click outside it
+    if ui.memory().is_popup_open(pupup_id) {
+        let area_response = Area::new(pupup_id)
+            .order(Order::Foreground)
+            .default_pos(button_response.rect.max)
+            .show(ui.ctx(), |ui| {
+                Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.style_mut().spacing.slider_width = 256.0;
+                    color_picker_lcha_2d(ui, lcha, alpha);
+                })
+            });
+
+        if !button_response.clicked() {
+            let clicked_outside = ui.input().pointer.any_click() && !area_response.hovered;
+            if clicked_outside || ui.input().key_pressed(Key::Escape) {
+                ui.memory().close_popup();
+            }
+        }
+    }
+
+    button_response
+}
+
+// /// Shows a button with the given color.
+// /// If the user clicks the button, a full color picker is shown.
+// pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32) -> Response {
+//     // To ensure we keep hue slider when `srgba` is grey we store the
+//     // full `Hsva` in a cache:
+
+//     let mut hsva = ui
+//         .ctx()
+//         .memory()
+//         .color_cache
+//         .get(srgba)
+//         .cloned()
+//         .unwrap_or_else(|| Hsva::from(*srgba));
+
+//     let response = color_edit_button_hsva(ui, &mut hsva);
+
+//     *srgba = Color32::from(hsva);
+
+//     ui.ctx().memory().color_cache.set(*srgba, hsva);
+
+//     response
+// }
+
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
     // To ensure we keep hue slider when `srgba` is grey we store the
-    // full `Hsva` in a cache:
+    // full `Lcha` in a cache:
 
-    let mut hsva = ui
+    let mut lcha = ui
         .ctx()
         .memory()
         .color_cache
         .get(srgba)
         .cloned()
-        .unwrap_or_else(|| Hsva::from(*srgba));
+        .unwrap_or_else(|| Lcha::from(*srgba));
 
-    let response = color_edit_button_hsva(ui, &mut hsva, alpha);
+    let response = color_edit_button_lcha(ui, &mut lcha, alpha);
 
-    *srgba = Color32::from(hsva);
+    *srgba = Color32::from(lcha);
 
-    ui.ctx().memory().color_cache.set(*srgba, hsva);
+    ui.ctx().memory().color_cache.set(*srgba, lcha);
 
     response
 }

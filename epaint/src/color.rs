@@ -228,7 +228,8 @@ impl Rgba {
 
     /// How perceptually intense (bright) is the color?
     pub fn intensity(&self) -> f32 {
-        0.3 * self.r() + 0.59 * self.g() + 0.11 * self.b()
+        // 0.3 * self.r() + 0.59 * self.g() + 0.11 * self.b()
+        Lcha::from_rgb([self.r(), self.g(), self.b()]).l
     }
 
     /// Returns an opaque version of self
@@ -382,6 +383,19 @@ impl Hsva {
         Self { h, s, v, a }
     }
 
+    pub fn from_rgb(rgb: [f32; 3]) -> Self {
+        let (h, s, v) = hsv_from_rgb(rgb);
+        Hsva { h, s, v, a: 1.0 }
+    }
+
+    pub fn from_srgb([r, g, b]: [u8; 3]) -> Self {
+        Self::from_rgb([
+            linear_from_gamma_byte(r),
+            linear_from_gamma_byte(g),
+            linear_from_gamma_byte(b),
+        ])
+    }
+
     /// From `sRGBA` with premultiplied alpha
     pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
         Self::from_rgba_premultiplied([
@@ -432,19 +446,6 @@ impl Hsva {
             v,
             a: -0.5, // anything negative is treated as additive
         }
-    }
-
-    pub fn from_rgb(rgb: [f32; 3]) -> Self {
-        let (h, s, v) = hsv_from_rgb(rgb);
-        Hsva { h, s, v, a: 1.0 }
-    }
-
-    pub fn from_srgb([r, g, b]: [u8; 3]) -> Self {
-        Self::from_rgb([
-            linear_from_gamma_byte(r),
-            linear_from_gamma_byte(g),
-            linear_from_gamma_byte(b),
-        ])
     }
 
     // ------------------------------------------------------------------------
@@ -581,6 +582,317 @@ fn test_hsv_roundtrip() {
                 let srgba = Color32::from_rgb(r, g, b);
                 let hsva = Hsva::from(srgba);
                 assert_eq!(srgba, Color32::from(hsva));
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// /// A simple perceptual color space.
+// ///
+// /// https://bottosson.github.io/posts/oklab/
+// #[derive(Clone, Copy, Debug, Default, PartialEq)]
+// struct Oklab {
+//     /// Perceived lightness (0-1)
+//     pub l: f32,
+//     /// How green/red the color is ([-1, 1])
+//     pub a: f32,
+//     /// How blue/yellow the color is ([-1, 1])
+//     pub b: f32,
+// }
+
+// impl Oklab {
+//     pub fn from_linear_rgb(r: f32, g: f32, b: f32) -> Oklab {
+//         let (l, a, b) = lab_from_rgb([r, g, b]);
+//         Oklab { l, a, b }
+//     }
+
+//     pub fn to_linear_rgb(self) -> [f32; 3] {
+//         rgb_from_lab((self.l, self.a, self.b))
+//     }
+// }
+
+// /// Polar form of [`Oklab`], all coordinated in 0-1 range.
+// #[derive(Clone, Copy, Debug, Default, PartialEq)]
+// struct Oklch {
+//     /// Perceived lightness in [0, 1] range.
+//     pub l: f32,
+//     /// Chroma in [0, 1] range.
+//     pub c: f32,
+//     /// Hue in [0, 1] range.
+//     pub h: f32,
+// }
+
+// impl From<Oklab> for Oklch {
+//     fn from(i: Oklab) -> Oklch {
+//         use std::f32::consts::TAU;
+//         Oklch {
+//             l: i.l,
+//             c: i.a.hypot(i.b),
+//             h: (i.b.atan2(i.a) + TAU) % TAU / TAU,
+//         }
+//     }
+// }
+
+// impl From<Oklch> for Oklab {
+//     fn from(i: Oklch) -> Oklab {
+//         use std::f32::consts::TAU;
+//         let (sin_h, cos_h) = (i.h * TAU).sin_cos();
+//         Oklab {
+//             l: i.l,
+//             a: i.c * cos_h,
+//             b: i.c * sin_h,
+//         }
+//     }
+// }
+
+// impl From<Oklab> for Color32 {
+//     fn from(i: Oklab) -> Color32 {
+//         let [r, g, b] = i.to_linear_rgb();
+//         Rgba::from_rgb(r, g, b).into()
+//     }
+// }
+
+// impl From<Oklch> for Color32 {
+//     fn from(i: Oklch) -> Color32 {
+//         Oklab::from(i).into()
+//     }
+// }
+
+// #[test]
+// // #[ignore] // a bit expensive
+// fn test_oklab_roundtrip() {
+//     for r in 0..=255 {
+//         for g in 0..=255 {
+//             for b in 0..=255 {
+//                 let srgba = Color32::from_rgb(r, g, b);
+//                 let rgba = Rgba::from(srgba);
+//                 let oklab = Oklab::from_linear_rgb(rgba.r(), rgba.g(), rgba.b());
+//                 assert_eq!(srgba, Color32::from(oklab));
+//                 let oklch = Oklch::from(oklab);
+//                 assert_eq!(srgba, Color32::from(oklch),);
+//             }
+//         }
+//     }
+// }
+
+// ----------------------------------------------------------------------------
+
+/// oklab from linear rgb
+fn lab_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
+    let x = 0.4121656120 * r + 0.5362752080 * g + 0.0514575653 * b;
+    let y = 0.2118591070 * r + 0.6807189584 * g + 0.1074065790 * b;
+    let z = 0.0883097947 * r + 0.2818474174 * g + 0.6302613616 * b;
+
+    let x = x.cbrt();
+    let y = y.cbrt();
+    let z = z.cbrt();
+
+    (
+        0.2104542553 * x + 0.7936177850 * y - 0.0040720468 * z,
+        1.9779984951 * x - 2.4285922050 * y + 0.4505937099 * z,
+        0.0259040371 * x + 0.7827717662 * y - 0.8086757660 * z,
+    )
+}
+
+/// linear rgb from oklab
+pub fn rgb_from_lab((l, a, b): (f32, f32, f32)) -> [f32; 3] {
+    let x = l + 0.3963377774 * a + 0.2158037573 * b;
+    let y = l - 0.1055613458 * a - 0.0638541728 * b;
+    let z = l - 0.0894841775 * a - 1.2914855480 * b;
+
+    let x = x.powi(3);
+    let y = y.powi(3);
+    let z = z.powi(3);
+
+    [
+        4.0767245293 * x - 3.3072168827 * y + 0.2307590544 * z,
+        -1.2681437731 * x + 2.6093323231 * y - 0.3411344290 * z,
+        -0.0041119885 * x - 0.7034763098 * y + 1.7068625689 * z,
+    ]
+}
+
+/// 0-1 normalized lch from oklab.
+fn lch_from_lab((l, a, b): (f32, f32, f32)) -> (f32, f32, f32) {
+    use std::f32::consts::TAU;
+    let c = a.hypot(b);
+    let h = (b.atan2(a) + TAU) % TAU / TAU;
+    (l, c, h)
+}
+
+/// Oklab from 0-1 normalized lch.
+fn lab_from_lch((l, c, h): (f32, f32, f32)) -> (f32, f32, f32) {
+    use std::f32::consts::TAU;
+    let (sin_h, cos_h) = (h * TAU).sin_cos();
+    let a = c * cos_h;
+    let b = c * sin_h;
+    (l, a, b)
+}
+
+/// 0-1 normalized lch from linear rgb
+fn lch_from_rgb(rgb: [f32; 3]) -> (f32, f32, f32) {
+    lch_from_lab(lab_from_rgb(rgb))
+}
+/// linear rgb from 0-1 normalized lch
+fn rgb_from_lch(lch: (f32, f32, f32)) -> [f32; 3] {
+    rgb_from_lab(lab_from_lch(lch))
+}
+
+/// Lightness, chroma, hue and alpha. All in the range [0, 1].
+/// No premultiplied alpha.
+/// Based on the the perceptual color space Oklab (https://bottosson.github.io/posts/oklab/).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Lcha {
+    /// Perceived lightness in [0, 1] range.
+    pub l: f32,
+    /// Chroma in [0, 1] range.
+    pub c: f32,
+    /// Hue in [0, 1] range.
+    pub h: f32,
+    /// Alpha in [0, 1] range. A negative value signifies an additive color (and alpha is ignored).
+    pub a: f32,
+}
+
+impl Lcha {
+    pub fn new(l: f32, c: f32, h: f32, a: f32) -> Self {
+        Self { l, c, h, a }
+    }
+
+    /// From linear RGB.
+    pub fn from_rgb(rgb: [f32; 3]) -> Self {
+        let (l, c, h) = lch_from_rgb(rgb);
+        Lcha { l, c, h, a: 1.0 }
+    }
+
+    /// From `sRGBA` with premultiplied alpha
+    pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
+        Self::from_rgba_premultiplied([
+            linear_from_gamma_byte(srgba[0]),
+            linear_from_gamma_byte(srgba[1]),
+            linear_from_gamma_byte(srgba[2]),
+            linear_from_alpha_byte(srgba[3]),
+        ])
+    }
+
+    /// From `sRGBA` without premultiplied alpha
+    pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
+        Self::from_rgba_unmultiplied([
+            linear_from_gamma_byte(srgba[0]),
+            linear_from_gamma_byte(srgba[1]),
+            linear_from_gamma_byte(srgba[2]),
+            linear_from_alpha_byte(srgba[3]),
+        ])
+    }
+
+    /// From linear RGBA with premultiplied alpha
+    pub fn from_rgba_premultiplied(rgba: [f32; 4]) -> Self {
+        #![allow(clippy::many_single_char_names)]
+        let [r, g, b, a] = rgba;
+        if a == 0.0 {
+            if r == 0.0 && b == 0.0 && a == 0.0 {
+                Lcha::default()
+            } else {
+                Lcha::from_additive_rgb([r, g, b])
+            }
+        } else {
+            let (l, c, h) = lch_from_rgb([r / a, g / a, b / a]);
+            Lcha { l, c, h, a }
+        }
+    }
+
+    /// From linear RGBA without premultiplied alpha
+    pub fn from_rgba_unmultiplied(rgba: [f32; 4]) -> Self {
+        #![allow(clippy::many_single_char_names)]
+        let [r, g, b, a] = rgba;
+        let (l, c, h) = lch_from_rgb([r, g, b]);
+        Lcha { l, c, h, a }
+    }
+
+    pub fn from_additive_rgb(rgb: [f32; 3]) -> Self {
+        let (l, c, h) = lch_from_rgb(rgb);
+        Lcha {
+            l,
+            c,
+            h,
+            a: -0.5, // anything negative is treated as additive
+        }
+    }
+    // ------------------------------------------------------------------------
+
+    pub fn to_rgb(&self) -> [f32; 3] {
+        rgb_from_lch((self.l, self.c, self.h))
+    }
+
+    pub fn to_rgba_premultiplied(&self) -> [f32; 4] {
+        let [r, g, b, a] = self.to_rgba_unmultiplied();
+        let additive = a < 0.0;
+        if additive {
+            [r, g, b, 0.0]
+        } else {
+            [a * r, a * g, a * b, a]
+        }
+    }
+
+    pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
+        let Lcha { l, c, h, a } = *self;
+        let [r, g, b] = rgb_from_lch((l, c, h));
+        [r, g, b, a]
+    }
+
+    pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
+        let [r, g, b, a] = self.to_rgba_premultiplied();
+        [
+            gamma_byte_from_linear(r),
+            gamma_byte_from_linear(g),
+            gamma_byte_from_linear(b),
+            alpha_byte_from_linear(a),
+        ]
+    }
+
+    pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
+        let [r, g, b, a] = self.to_rgba_unmultiplied();
+        [
+            gamma_byte_from_linear(r),
+            gamma_byte_from_linear(g),
+            gamma_byte_from_linear(b),
+            alpha_byte_from_linear(a.abs()),
+        ]
+    }
+}
+
+impl From<Lcha> for Rgba {
+    fn from(hsva: Lcha) -> Rgba {
+        Rgba(hsva.to_rgba_premultiplied())
+    }
+}
+impl From<Rgba> for Lcha {
+    fn from(rgba: Rgba) -> Lcha {
+        Self::from_rgba_premultiplied(rgba.0)
+    }
+}
+
+impl From<Lcha> for Color32 {
+    fn from(hsva: Lcha) -> Color32 {
+        Color32::from(Rgba::from(hsva))
+    }
+}
+impl From<Color32> for Lcha {
+    fn from(srgba: Color32) -> Lcha {
+        Lcha::from(Rgba::from(srgba))
+    }
+}
+
+#[test]
+// #[ignore] // a bit expensive
+fn test_lcha_roundtrip() {
+    for r in 0..=255 {
+        for g in 0..=255 {
+            for b in 0..=255 {
+                let srgba = Color32::from_rgb(r, g, b);
+                let lcha = Lcha::from(srgba);
+                assert_eq!(srgba, Color32::from(lcha),);
             }
         }
     }
