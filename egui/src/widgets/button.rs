@@ -1,5 +1,332 @@
 use crate::*;
 
+/// Clickable button with text.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+pub struct Button {
+    text: String,
+    text_color: Option<Color32>,
+    text_style: TextStyle,
+    /// None means default for interact
+    fill: Option<Color32>,
+    sense: Sense,
+    small: bool,
+    frame: bool,
+}
+
+impl Button {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            text_color: None,
+            text_style: TextStyle::Button,
+            fill: Default::default(),
+            sense: Sense::click(),
+            small: false,
+            frame: true,
+        }
+    }
+
+    pub fn text_color(mut self, text_color: Color32) -> Self {
+        self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
+        self.text_color = text_color;
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
+        self
+    }
+
+    pub fn fill(mut self, fill: Option<Color32>) -> Self {
+        self.fill = fill;
+        self
+    }
+
+    /// Make this a small button, suitable for embedding into text.
+    pub fn small(mut self) -> Self {
+        self.text_style = TextStyle::Body;
+        self.small = true;
+        self
+    }
+
+    /// Turn off the frame
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
+    /// By default, buttons senses clicks.
+    /// Change this to a drag-button with `Sense::drag()`.
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
+
+    /// If you set this to `false`, the button will be grayed out and un-clickable.
+    /// `enabled(false)` has the same effect as calling `sense(Sense::hover())`.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        if !enabled {
+            self.sense = Sense::hover();
+        }
+        self
+    }
+}
+
+impl Widget for Button {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let Button {
+            text,
+            text_color,
+            text_style,
+            fill,
+            sense,
+            small,
+            frame,
+        } = self;
+        let font = &ui.fonts()[text_style];
+
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width())
+        };
+
+        let mut button_padding = ui.style().spacing.button_padding;
+        if small {
+            button_padding.y = 0.0;
+        }
+
+        let mut desired_size = galley.size + 2.0 * button_padding;
+        if !small {
+            desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
+        }
+
+        let response = ui.allocate_response(desired_size, sense);
+
+        if ui.clip_rect().intersects(response.rect) {
+            let visuals = ui.style().interact(&response);
+            let text_cursor = ui
+                .layout()
+                .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+                .min;
+
+            if frame {
+                let fill = fill.unwrap_or(visuals.bg_fill);
+                ui.painter().rect(
+                    response.rect,
+                    visuals.corner_radius,
+                    fill,
+                    visuals.bg_stroke,
+                );
+            }
+
+            let text_color = text_color
+                .or(ui.style().visuals.override_text_color)
+                .unwrap_or_else(|| visuals.text_color());
+            ui.painter()
+                .galley(text_cursor, galley, text_style, text_color);
+        }
+
+        response
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// TODO: allow checkbox without a text label
+/// Boolean on/off control with text label.
+#[derive(Debug)]
+pub struct Checkbox<'a> {
+    checked: &'a mut bool,
+    text: String,
+    text_color: Option<Color32>,
+}
+
+impl<'a> Checkbox<'a> {
+    pub fn new(checked: &'a mut bool, text: impl Into<String>) -> Self {
+        Checkbox {
+            checked,
+            text: text.into(),
+            text_color: None,
+        }
+    }
+
+    pub fn text_color(mut self, text_color: Color32) -> Self {
+        self.text_color = Some(text_color);
+        self
+    }
+}
+
+impl<'a> Widget for Checkbox<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let Checkbox {
+            checked,
+            text,
+            text_color,
+        } = self;
+
+        let text_style = TextStyle::Button;
+        let font = &ui.fonts()[text_style];
+
+        let spacing = &ui.style().spacing;
+        let icon_width = spacing.icon_width;
+        let icon_spacing = ui.style().spacing.icon_spacing;
+        let button_padding = spacing.button_padding;
+        let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
+
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
+
+        let mut desired_size = total_extra + galley.size;
+        desired_size = desired_size.at_least(spacing.interact_size);
+        desired_size.y = desired_size.y.max(icon_width);
+        let response = ui.allocate_response(desired_size, Sense::click());
+        let rect = ui
+            .layout()
+            .align_size_within_rect(desired_size, response.rect);
+        if response.clicked {
+            *checked = !*checked;
+        }
+
+        let visuals = ui.style().interact(&response);
+        let text_cursor = pos2(
+            rect.min.x + button_padding.x + icon_width + icon_spacing,
+            rect.center().y - 0.5 * galley.size.y,
+        );
+        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
+        ui.painter().add(PaintCmd::Rect {
+            rect: big_icon_rect,
+            corner_radius: visuals.corner_radius,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
+        });
+
+        if *checked {
+            // Check mark:
+            ui.painter().add(PaintCmd::line(
+                vec![
+                    pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                    pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                    pos2(small_icon_rect.right(), small_icon_rect.top()),
+                ],
+                visuals.fg_stroke,
+            ));
+        }
+
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
+        ui.painter()
+            .galley(text_cursor, galley, text_style, text_color);
+        response
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// One out of several alternatives, either selected or not.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[derive(Debug)]
+pub struct RadioButton {
+    checked: bool,
+    text: String,
+    text_color: Option<Color32>,
+}
+
+impl RadioButton {
+    pub fn new(checked: bool, text: impl Into<String>) -> Self {
+        Self {
+            checked,
+            text: text.into(),
+            text_color: None,
+        }
+    }
+
+    pub fn text_color(mut self, text_color: Color32) -> Self {
+        self.text_color = Some(text_color);
+        self
+    }
+}
+
+impl Widget for RadioButton {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let RadioButton {
+            checked,
+            text,
+            text_color,
+        } = self;
+
+        let text_style = TextStyle::Button;
+        let font = &ui.fonts()[text_style];
+
+        let icon_width = ui.style().spacing.icon_width;
+        let icon_spacing = ui.style().spacing.icon_spacing;
+        let button_padding = ui.style().spacing.button_padding;
+        let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
+
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
+
+        let mut desired_size = total_extra + galley.size;
+        desired_size = desired_size.at_least(ui.style().spacing.interact_size);
+        desired_size.y = desired_size.y.max(icon_width);
+        let response = ui.allocate_response(desired_size, Sense::click());
+        let rect = ui
+            .layout()
+            .align_size_within_rect(desired_size, response.rect);
+
+        let text_cursor = pos2(
+            rect.min.x + button_padding.x + icon_width + icon_spacing,
+            rect.center().y - 0.5 * galley.size.y,
+        );
+
+        let visuals = ui.style().interact(&response);
+
+        let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
+
+        let painter = ui.painter();
+
+        painter.add(PaintCmd::Circle {
+            center: big_icon_rect.center(),
+            radius: big_icon_rect.width() / 2.0,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
+        });
+
+        if checked {
+            painter.add(PaintCmd::Circle {
+                center: small_icon_rect.center(),
+                radius: small_icon_rect.width() / 3.0,
+                fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
+                stroke: Default::default(),
+                // fill: visuals.fg_fill,
+                // stroke: visuals.fg_stroke,
+            });
+        }
+
+        let text_color = text_color
+            .or(ui.style().visuals.override_text_color)
+            .unwrap_or_else(|| visuals.text_color());
+        painter.galley(text_cursor, galley, text_style, text_color);
+        response
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A clickable image within a frame.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
