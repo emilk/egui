@@ -46,6 +46,7 @@
 )]
 
 mod apps;
+pub(crate) mod frame_history;
 mod wrap_app;
 
 pub use apps::DemoWindows; // used for tests
@@ -96,7 +97,7 @@ fn test_egui_e2e() {
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx, |_ui| {});
+        demo_windows.ui(&ctx);
         let (_output, paint_commands) = ctx.end_frame();
         let paint_jobs = ctx.tessellate(paint_commands);
         assert!(!paint_jobs.is_empty());

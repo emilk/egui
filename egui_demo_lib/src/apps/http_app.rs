@@ -72,13 +72,13 @@ impl epi::App for HttpApp {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Egui Fetch Example");
+            ui.heading("HTTP Fetch Example");
             ui.add(egui::github_link_file!(
                 "https://github.com/emilk/egui/blob/master/",
                 "(source code)"
             ));
 
-            if let Some(url) = ui_url(ui, &mut self.url) {
+            if let Some(url) = ui_url(ui, frame, &mut self.url) {
                 let repaint_signal = frame.repaint_signal();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
@@ -108,7 +108,7 @@ impl epi::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, url: &mut String) -> Option<String> {
+fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Option<String> {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -117,7 +117,9 @@ fn ui_url(ui: &mut egui::Ui, url: &mut String) -> Option<String> {
         trigger_fetch |= ui.button("GET").clicked;
     });
 
-    ui.label("HINT: paste the url of this page into the field above!");
+    if frame.is_web() {
+        ui.label("HINT: paste the url of this page into the field above!");
+    }
 
     ui.horizontal(|ui| {
         if ui.button("Source code for this example").clicked {

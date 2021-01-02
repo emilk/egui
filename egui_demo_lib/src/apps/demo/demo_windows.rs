@@ -53,7 +53,7 @@ pub struct DemoWindows {
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
-    pub fn ui(&mut self, ctx: &CtxRef, sidebar_ui: impl FnOnce(&mut Ui)) {
+    pub fn ui(&mut self, ctx: &CtxRef) {
         egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ Egui Demo");
 
@@ -80,8 +80,6 @@ impl DemoWindows {
                 if ui.button("Organize windows").clicked {
                     ui.ctx().memory().reset_areas();
                 }
-
-                sidebar_ui(ui);
             });
         });
 
