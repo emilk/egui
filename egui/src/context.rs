@@ -26,9 +26,14 @@ struct Options {
 
 // ----------------------------------------------------------------------------
 
-/// State that is collected during a frame and then cleared
+/// State that is collected during a frame and then cleared.
+/// Short-term (single frame) memory.
 #[derive(Clone)]
 pub(crate) struct FrameState {
+    /// All `Id`s that were used this frame.
+    /// Used to debug `Id` clashes of widgets.
+    pub(crate) used_ids: ahash::AHashMap<Id, Pos2>,
+
     /// Starts off as the screen_rect, shrinks as panels are added.
     /// The `CentralPanel` does not change this.
     /// This is the area available to Window's.
@@ -41,17 +46,24 @@ pub(crate) struct FrameState {
     /// How much space is used by panels.
     used_by_panels: Rect,
 
+    /// If a tooltip has been shown this frame, where was it?
+    /// This is used to prevent multiple tooltips to cover each other.
+    /// Initialized to `None` at the start of each frame.
+    pub(crate) tooltip_rect: Option<Rect>,
+
+    /// Cleared by the first `ScrollArea` that makes use of it.
     pub(crate) scroll_delta: Vec2,
     pub(crate) scroll_target: Option<(f32, Align)>,
-    // TODO: move some things from `Memory` to here
 }
 
 impl Default for FrameState {
     fn default() -> Self {
         Self {
+            used_ids: Default::default(),
             available_rect: Rect::invalid(),
             unused_rect: Rect::invalid(),
             used_by_panels: Rect::invalid(),
+            tooltip_rect: None,
             scroll_delta: Vec2::zero(),
             scroll_target: None,
         }
@@ -60,11 +72,23 @@ impl Default for FrameState {
 
 impl FrameState {
     fn begin_frame(&mut self, input: &InputState) {
-        self.available_rect = input.screen_rect();
-        self.unused_rect = input.screen_rect();
-        self.used_by_panels = Rect::nothing();
-        self.scroll_delta = input.scroll_delta;
-        self.scroll_target = None;
+        let Self {
+            used_ids,
+            available_rect,
+            unused_rect,
+            used_by_panels,
+            tooltip_rect,
+            scroll_delta,
+            scroll_target,
+        } = self;
+
+        used_ids.clear();
+        *available_rect = input.screen_rect();
+        *unused_rect = input.screen_rect();
+        *used_by_panels = Rect::nothing();
+        *tooltip_rect = None;
+        *scroll_delta = input.scroll_delta;
+        *scroll_target = None;
     }
 
     /// How much space is still available after panels has been added.
@@ -166,7 +190,7 @@ impl CtxRef {
     /// If the given [`Id`] is not unique, an error will be printed at the given position.
     /// Call this for [`Id`]:s that need interaction or persistence.
     pub(crate) fn register_interaction_id(&self, id: Id, new_pos: Pos2) {
-        let prev_pos = self.memory().used_ids.insert(id, new_pos);
+        let prev_pos = self.frame_state().used_ids.insert(id, new_pos);
         if let Some(prev_pos) = prev_pos {
             if prev_pos.distance(new_pos) < 0.1 {
                 // Likely same Widget being interacted with twice, which is fine.
@@ -590,7 +614,7 @@ impl Context {
             self.request_repaint();
         }
 
-        self.memory().end_frame();
+        self.memory().end_frame(&self.frame_state().used_ids);
 
         let mut output: Output = std::mem::take(&mut self.output());
         if self.repaint_requests.load(SeqCst) > 0 {

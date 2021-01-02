@@ -19,11 +19,6 @@ use crate::{
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
-    /// All `Id`s that were used this frame.
-    /// Used to debug `Id` clashes of widgets.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) used_ids: ahash::AHashMap<Id, Pos2>,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
@@ -39,7 +34,7 @@ pub struct Memory {
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     /// For temporary edit of e.g. a slider value.
-    /// Couples with `kb_focus_id`.
+    /// Couples with [`Interaction::kb_focus_id`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) temp_edit_string: Option<String>,
 
@@ -53,12 +48,6 @@ pub struct Memory {
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "serde", serde(skip))]
     popup: Option<Id>,
-
-    /// If a tooltip has been shown this frame, where was it?
-    /// This is used to prevent multiple tooltips to cover each other.
-    /// Initialized to `None` at the start of each frame.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) tooltip_rect: Option<Rect>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     everything_is_visible: bool,
@@ -162,16 +151,14 @@ impl Memory {
         prev_input: &crate::input::InputState,
         new_input: &crate::input::RawInput,
     ) {
-        self.used_ids.clear();
         self.interaction.begin_frame(prev_input, new_input);
-        self.tooltip_rect = None;
 
         if !prev_input.mouse.down {
             self.window_interaction = None;
         }
     }
 
-    pub(crate) fn end_frame(&mut self) {
+    pub(crate) fn end_frame(&mut self, used_ids: &ahash::AHashMap<Id, Pos2>) {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {
@@ -179,8 +166,8 @@ impl Memory {
             let recently_gained_kb_focus =
                 self.interaction.kb_focus_id_previous_frame != Some(kb_focus_id);
 
-            if !recently_gained_kb_focus && !self.used_ids.contains_key(&kb_focus_id) {
-                // Dead-mans-switch: the widget with kb focus has dissappeared!
+            if !recently_gained_kb_focus && !used_ids.contains_key(&kb_focus_id) {
+                // Dead-mans-switch: the widget with kb focus has disappeared!
                 self.interaction.kb_focus_id = None;
             }
         }
