@@ -1,7 +1,7 @@
 use egui::{containers::*, widgets::*, *};
 use std::f32::consts::TAU;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct FractalClock {
     paused: bool,
@@ -87,9 +87,8 @@ impl FractalClock {
         ui.add(Slider::f32(&mut self.length_factor, 0.0..=1.0).text("length factor"));
         ui.add(Slider::f32(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
         ui.add(Slider::f32(&mut self.width_factor, 0.0..=1.0).text("width factor"));
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+
+        egui::reset_button(ui, self);
 
         ui.add(
             Hyperlink::new("http://www.dqd.com/~mayoff/programs/FractalClock/")

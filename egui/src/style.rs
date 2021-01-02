@@ -345,9 +345,7 @@ use crate::{widgets::*, Ui};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
 
         let Self {
             body_text_style,
@@ -371,9 +369,7 @@ impl Style {
 
 impl Spacing {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
 
         let Self {
             item_spacing,
@@ -404,15 +400,12 @@ impl Spacing {
 
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
 
         let Self {
             resize_grab_radius_side,
             resize_grab_radius_corner,
         } = self;
-
         ui.add(Slider::f32(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
@@ -422,9 +415,7 @@ impl Interaction {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
 
         let Self {
             active,
@@ -471,9 +462,7 @@ impl WidgetVisuals {
 
 impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
 
         let Self {
             override_text_color: _,

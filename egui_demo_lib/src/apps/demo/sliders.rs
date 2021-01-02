@@ -2,7 +2,7 @@ use egui::*;
 use std::f64::INFINITY;
 
 /// Showcase sliders
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct Sliders {
     pub min: f64,
@@ -108,8 +108,6 @@ impl Sliders {
         ui.checkbox(smart_aim, "Smart Aim");
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
 
-        if ui.button("Reset slider demo").clicked {
-            *self = Default::default();
-        }
+        egui::reset_button(ui, self);
     }
 }

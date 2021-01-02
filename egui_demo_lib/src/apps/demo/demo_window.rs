@@ -106,7 +106,7 @@ impl DemoWindow {
 
 // ----------------------------------------------------------------------------
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 struct ColorWidgets {
     srgba_unmul: [u8; 4],
@@ -129,9 +129,7 @@ impl Default for ColorWidgets {
 
 impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
-        if ui.button("Reset").clicked {
-            *self = Default::default();
-        }
+        egui::reset_button(ui, self);
 
         ui.label("Egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
 

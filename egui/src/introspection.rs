@@ -65,8 +65,6 @@ impl paint::FontDefinitions {
                     .text(format!("{:?}", text_style)),
             );
         }
-        if ui.button("Reset fonts").clicked {
-            *self = Default::default();
-        }
+        crate::reset_button(ui, self);
     }
 }

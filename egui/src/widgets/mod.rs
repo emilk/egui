@@ -739,3 +739,14 @@ impl Widget for Separator {
         response
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Show a button to reset a value to its default.
+/// The button is only enabled if the value does not already have its original value.
+pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
+    let def = T::default();
+    if ui.add(Button::new("Reset").enabled(*value != def)).clicked {
+        *value = def;
+    }
+}
