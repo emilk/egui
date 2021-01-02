@@ -1,6 +1,6 @@
 use crate::*;
 
-pub use egui::{pos2, Srgba};
+pub use egui::{pos2, Color32};
 use http::WebHttp;
 
 // ----------------------------------------------------------------------------
@@ -75,7 +75,7 @@ impl epi::TextureAllocator for webgl::Painter {
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
-        srgba_pixels: &[Srgba],
+        srgba_pixels: &[Color32],
     ) {
         self.set_user_texture(id, size, srgba_pixels);
     }

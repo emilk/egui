@@ -37,7 +37,7 @@ pub struct Label {
     pub(crate) text: String,
     pub(crate) multiline: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
-    pub(crate) text_color: Option<Srgba>,
+    pub(crate) text_color: Option<Color32>,
 }
 
 impl Label {
@@ -83,7 +83,7 @@ impl Label {
         self.text_style(TextStyle::Small)
     }
 
-    pub fn text_color(mut self, text_color: impl Into<Srgba>) -> Self {
+    pub fn text_color(mut self, text_color: impl Into<Color32>) -> Self {
         self.text_color = Some(text_color.into());
         self
     }
@@ -303,10 +303,10 @@ impl Widget for Hyperlink {
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: String,
-    text_color: Option<Srgba>,
+    text_color: Option<Color32>,
     text_style: TextStyle,
     /// None means default for interact
-    fill: Option<Srgba>,
+    fill: Option<Color32>,
     sense: Sense,
     small: bool,
     frame: bool,
@@ -325,12 +325,12 @@ impl Button {
         }
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
+    pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
-    pub fn text_color_opt(mut self, text_color: Option<Srgba>) -> Self {
+    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
         self
     }
@@ -340,7 +340,7 @@ impl Button {
         self
     }
 
-    pub fn fill(mut self, fill: Option<Srgba>) -> Self {
+    pub fn fill(mut self, fill: Option<Color32>) -> Self {
         self.fill = fill;
         self
     }
@@ -443,7 +443,7 @@ impl Widget for Button {
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
-    text_color: Option<Srgba>,
+    text_color: Option<Color32>,
 }
 
 impl<'a> Checkbox<'a> {
@@ -455,7 +455,7 @@ impl<'a> Checkbox<'a> {
         }
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
+    pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -538,7 +538,7 @@ impl<'a> Widget for Checkbox<'a> {
 pub struct RadioButton {
     checked: bool,
     text: String,
-    text_color: Option<Srgba>,
+    text_color: Option<Color32>,
 }
 
 impl RadioButton {
@@ -550,7 +550,7 @@ impl RadioButton {
         }
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
+    pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }

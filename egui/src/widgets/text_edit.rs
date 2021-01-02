@@ -121,7 +121,7 @@ pub struct TextEdit<'t> {
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
-    text_color: Option<Srgba>,
+    text_color: Option<Color32>,
     multiline: bool,
     enabled: bool,
     desired_width: Option<f32>,
@@ -180,12 +180,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
+    pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
-    pub fn text_color_opt(mut self, text_color: Option<Srgba>) -> Self {
+    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
         self
     }

@@ -7,8 +7,8 @@ pub struct Image {
     texture_id: TextureId,
     uv: Rect,
     desired_size: Vec2,
-    bg_fill: Srgba,
-    tint: Srgba,
+    bg_fill: Color32,
+    tint: Color32,
 }
 
 impl Image {
@@ -29,13 +29,13 @@ impl Image {
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: impl Into<Srgba>) -> Self {
+    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
         self.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Srgba>) -> Self {
+    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
         self.tint = tint.into();
         self
     }

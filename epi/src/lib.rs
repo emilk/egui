@@ -101,7 +101,7 @@ pub trait App {
     /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
-        egui::Srgba::from_rgb(12, 12, 12).into()
+        egui::Color32::from_rgb(12, 12, 12).into()
     }
 }
 
@@ -196,7 +196,7 @@ pub trait TextureAllocator {
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
-        srgba_pixels: &[egui::Srgba],
+        srgba_pixels: &[egui::Color32],
     );
 
     /// Free the given texture.

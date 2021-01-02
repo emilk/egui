@@ -93,7 +93,7 @@ impl DemoWindow {
                     let painter = ui.painter();
                     let c = response.rect.center();
                     let r = response.rect.width() / 2.0 - 1.0;
-                    let color = Srgba::gray(128);
+                    let color = Color32::gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
@@ -212,7 +212,7 @@ impl BoxPainting {
                 ui.painter().rect(
                     response.rect,
                     self.corner_radius,
-                    Srgba::gray(64),
+                    Color32::gray(64),
                     Stroke::new(self.stroke_width, WHITE),
                 );
             }

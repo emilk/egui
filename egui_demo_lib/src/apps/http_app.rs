@@ -239,7 +239,7 @@ impl ColoredText {
                 ui.style_mut().spacing.item_spacing.x = 0.0;
                 for (style, range) in line {
                     let fg = style.foreground;
-                    let text_color = egui::Srgba::from_rgb(fg.r, fg.g, fg.b);
+                    let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
                     ui.add(egui::Label::new(range).monospace().text_color(text_color));
                 }
             });
@@ -277,7 +277,7 @@ impl TexMngr {
 
 struct Image {
     size: (usize, usize),
-    pixels: Vec<egui::Srgba>,
+    pixels: Vec<egui::Color32>,
 }
 
 impl Image {
@@ -290,7 +290,7 @@ impl Image {
         assert_eq!(size.0 * size.1 * 4, pixels.len());
         let pixels = pixels
             .chunks(4)
-            .map(|p| egui::Srgba::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+            .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
 
         Some(Image { size, pixels })

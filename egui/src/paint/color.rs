@@ -1,35 +1,35 @@
 use crate::math::clamp;
 
-/// This format is used for space-efficient color representation.
+/// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better
-/// to first convert it to either `Rgba` or `Hsva`.
+/// to first convert it to either [`Rgba`] or [`Hsva`].
 ///
-/// 0-255 gamma space `sRGBA` color with premultiplied alpha.
+/// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Srgba(pub(crate) [u8; 4]);
+pub struct Color32(pub(crate) [u8; 4]);
 
-impl std::ops::Index<usize> for Srgba {
+impl std::ops::Index<usize> for Color32 {
     type Output = u8;
     fn index(&self, index: usize) -> &u8 {
         &self.0[index]
     }
 }
 
-impl std::ops::IndexMut<usize> for Srgba {
+impl std::ops::IndexMut<usize> for Color32 {
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         &mut self.0[index]
     }
 }
 
 // TODO: remove ?
-pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Srgba {
-    Srgba::from_rgba_premultiplied(r, g, b, a)
+pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
+    Color32::from_rgba_premultiplied(r, g, b, a)
 }
 
-impl Srgba {
+impl Color32 {
     #[deprecated = "Use from_rgb(..), from_rgba_premultiplied(..) or from_srgba_unmultiplied(..)"]
     pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self([r, g, b, a])
@@ -108,16 +108,16 @@ impl Srgba {
 
 // ----------------------------------------------------------------------------
 
-pub const TRANSPARENT: Srgba = srgba(0, 0, 0, 0);
-pub const BLACK: Srgba = srgba(0, 0, 0, 255);
-pub const LIGHT_GRAY: Srgba = srgba(220, 220, 220, 255);
-pub const GRAY: Srgba = srgba(160, 160, 160, 255);
-pub const WHITE: Srgba = srgba(255, 255, 255, 255);
-pub const RED: Srgba = srgba(255, 0, 0, 255);
-pub const GREEN: Srgba = srgba(0, 255, 0, 255);
-pub const BLUE: Srgba = srgba(0, 0, 255, 255);
-pub const YELLOW: Srgba = srgba(255, 255, 0, 255);
-pub const LIGHT_BLUE: Srgba = srgba(140, 160, 255, 255);
+pub const TRANSPARENT: Color32 = srgba(0, 0, 0, 0);
+pub const BLACK: Color32 = srgba(0, 0, 0, 255);
+pub const LIGHT_GRAY: Color32 = srgba(220, 220, 220, 255);
+pub const GRAY: Color32 = srgba(160, 160, 160, 255);
+pub const WHITE: Color32 = srgba(255, 255, 255, 255);
+pub const RED: Color32 = srgba(255, 0, 0, 255);
+pub const GREEN: Color32 = srgba(0, 255, 0, 255);
+pub const BLUE: Color32 = srgba(0, 0, 255, 255);
+pub const YELLOW: Color32 = srgba(255, 255, 0, 255);
+pub const LIGHT_BLUE: Color32 = srgba(140, 160, 255, 255);
 
 // ----------------------------------------------------------------------------
 
@@ -273,30 +273,30 @@ impl std::ops::Mul<Rgba> for f32 {
 // ----------------------------------------------------------------------------
 // Color conversion:
 
-impl From<Srgba> for Rgba {
-    fn from(srgba: Srgba) -> Rgba {
+impl From<Color32> for Rgba {
+    fn from(srgba: Color32) -> Rgba {
         Rgba([
-            linear_from_srgb_byte(srgba[0]),
-            linear_from_srgb_byte(srgba[1]),
-            linear_from_srgb_byte(srgba[2]),
+            linear_from_gamma_byte(srgba[0]),
+            linear_from_gamma_byte(srgba[1]),
+            linear_from_gamma_byte(srgba[2]),
             linear_from_alpha_byte(srgba[3]),
         ])
     }
 }
 
-impl From<Rgba> for Srgba {
-    fn from(rgba: Rgba) -> Srgba {
-        Srgba([
-            srgb_byte_from_linear(rgba[0]),
-            srgb_byte_from_linear(rgba[1]),
-            srgb_byte_from_linear(rgba[2]),
+impl From<Rgba> for Color32 {
+    fn from(rgba: Rgba) -> Color32 {
+        Color32([
+            gamma_byte_from_linear(rgba[0]),
+            gamma_byte_from_linear(rgba[1]),
+            gamma_byte_from_linear(rgba[2]),
             alpha_byte_from_linear(rgba[3]),
         ])
     }
 }
 
 /// [0, 255] -> [0, 1]
-fn linear_from_srgb_byte(s: u8) -> f32 {
+fn linear_from_gamma_byte(s: u8) -> f32 {
     if s <= 10 {
         s as f32 / 3294.6
     } else {
@@ -309,7 +309,7 @@ fn linear_from_alpha_byte(a: u8) -> f32 {
 }
 
 /// [0, 1] -> [0, 255]
-fn srgb_byte_from_linear(l: f32) -> u8 {
+fn gamma_byte_from_linear(l: f32) -> u8 {
     if l <= 0.0 {
         0
     } else if l <= 0.0031308 {
@@ -329,9 +329,9 @@ fn alpha_byte_from_linear(a: f32) -> u8 {
 fn test_srgba_conversion() {
     #![allow(clippy::float_cmp)]
     for b in 0..=255 {
-        let l = linear_from_srgb_byte(b);
+        let l = linear_from_gamma_byte(b);
         assert!(0.0 <= l && l <= 1.0);
-        assert_eq!(srgb_byte_from_linear(l), b);
+        assert_eq!(gamma_byte_from_linear(l), b);
     }
 }
 
@@ -359,9 +359,9 @@ impl Hsva {
     /// From `sRGBA` with premultiplied alpha
     pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
         Self::from_rgba_premultiplied([
-            linear_from_srgb_byte(srgba[0]),
-            linear_from_srgb_byte(srgba[1]),
-            linear_from_srgb_byte(srgba[2]),
+            linear_from_gamma_byte(srgba[0]),
+            linear_from_gamma_byte(srgba[1]),
+            linear_from_gamma_byte(srgba[2]),
             linear_from_alpha_byte(srgba[3]),
         ])
     }
@@ -369,9 +369,9 @@ impl Hsva {
     /// From `sRGBA` without premultiplied alpha
     pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
         Self::from_rgba_unmultiplied([
-            linear_from_srgb_byte(srgba[0]),
-            linear_from_srgb_byte(srgba[1]),
-            linear_from_srgb_byte(srgba[2]),
+            linear_from_gamma_byte(srgba[0]),
+            linear_from_gamma_byte(srgba[1]),
+            linear_from_gamma_byte(srgba[2]),
             linear_from_alpha_byte(srgba[3]),
         ])
     }
@@ -410,9 +410,9 @@ impl Hsva {
     pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_premultiplied();
         [
-            srgb_byte_from_linear(r),
-            srgb_byte_from_linear(g),
-            srgb_byte_from_linear(b),
+            gamma_byte_from_linear(r),
+            gamma_byte_from_linear(g),
+            gamma_byte_from_linear(b),
             alpha_byte_from_linear(a),
         ]
     }
@@ -420,9 +420,9 @@ impl Hsva {
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_unmultiplied();
         [
-            srgb_byte_from_linear(r),
-            srgb_byte_from_linear(g),
-            srgb_byte_from_linear(b),
+            gamma_byte_from_linear(r),
+            gamma_byte_from_linear(g),
+            gamma_byte_from_linear(b),
             alpha_byte_from_linear(a),
         ]
     }
@@ -439,13 +439,13 @@ impl From<Rgba> for Hsva {
     }
 }
 
-impl From<Hsva> for Srgba {
-    fn from(hsva: Hsva) -> Srgba {
-        Srgba::from(Rgba::from(hsva))
+impl From<Hsva> for Color32 {
+    fn from(hsva: Hsva) -> Color32 {
+        Color32::from(Rgba::from(hsva))
     }
 }
-impl From<Srgba> for Hsva {
-    fn from(srgba: Srgba) -> Hsva {
+impl From<Color32> for Hsva {
+    fn from(srgba: Color32) -> Hsva {
         Hsva::from(Rgba::from(srgba))
     }
 }
@@ -502,9 +502,9 @@ fn test_hsv_roundtrip() {
     for r in 0..=255 {
         for g in 0..=255 {
             for b in 0..=255 {
-                let srgba = Srgba::from_rgb(r, g, b);
+                let srgba = Color32::from_rgb(r, g, b);
                 let hsva = Hsva::from(srgba);
-                assert_eq!(srgba, Srgba::from(hsva));
+                assert_eq!(srgba, Color32::from(hsva));
             }
         }
     }

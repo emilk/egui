@@ -44,7 +44,7 @@ pub struct Slider<'a> {
     smart_aim: bool,
     // TODO: label: Option<Label>
     text: Option<String>,
-    text_color: Option<Srgba>,
+    text_color: Option<Color32>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -133,7 +133,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Srgba) -> Self {
+    pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }

@@ -129,7 +129,7 @@ impl FractalClock {
         ];
 
         let scale = self.zoom * rect.width().min(rect.height());
-        let paint_line = |points: [Pos2; 2], color: Srgba, width: f32| {
+        let paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
             let line = [
                 rect.center() + scale * points[0].to_vec2(),
                 rect.center() + scale * points[1].to_vec2(),
@@ -161,7 +161,7 @@ impl FractalClock {
         for (i, hand) in hands.iter().enumerate() {
             let center = pos2(0.0, 0.0);
             let end = center + hand.vec;
-            paint_line([center, end], Srgba::additive_luminance(255), width);
+            paint_line([center, end], Color32::additive_luminance(255), width);
             if i < 2 {
                 nodes.push(Node {
                     pos: end,
@@ -191,7 +191,7 @@ impl FractalClock {
                     };
                     paint_line(
                         [a.pos, b.pos],
-                        Srgba::additive_luminance(luminance_u8),
+                        Color32::additive_luminance(luminance_u8),
                         width,
                     );
                     new_nodes.push(b);

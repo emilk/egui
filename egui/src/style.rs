@@ -118,7 +118,7 @@ pub struct Visuals {
     /// so that `visuals.text_color` is always used,
     /// but its alpha may be different based on whether or not
     /// it is disabled, non-interactive, hovered etc.
-    pub override_text_color: Option<Srgba>,
+    pub override_text_color: Option<Color32>,
 
     /// Visual styles of widgets
     pub widgets: Widgets,
@@ -127,10 +127,10 @@ pub struct Visuals {
 
     /// e.g. the background of the slider or text edit,
     /// needs to look different from other interactive stuff.
-    pub dark_bg_color: Srgba, // TODO: remove, rename, or clarify what it is for
+    pub dark_bg_color: Color32, // TODO: remove, rename, or clarify what it is for
 
     /// The color used for `Hyperlink`,
-    pub hyperlink_color: Srgba,
+    pub hyperlink_color: Color32,
 
     pub window_corner_radius: f32,
     pub window_shadow: Shadow,
@@ -156,7 +156,7 @@ impl Visuals {
         &self.widgets.noninteractive
     }
 
-    pub fn text_color(&self) -> Srgba {
+    pub fn text_color(&self) -> Color32 {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
@@ -166,7 +166,7 @@ impl Visuals {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Selection {
-    pub bg_fill: Srgba,
+    pub bg_fill: Color32,
     pub stroke: Stroke,
 }
 
@@ -204,7 +204,7 @@ impl Widgets {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget
-    pub bg_fill: Srgba,
+    pub bg_fill: Color32,
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
@@ -215,14 +215,14 @@ pub struct WidgetVisuals {
 
     /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
     /// When you need a fill.
-    pub fg_fill: Srgba,
+    pub fg_fill: Color32,
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
     pub fg_stroke: Stroke,
 }
 
 impl WidgetVisuals {
-    pub fn text_color(&self) -> Srgba {
+    pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
 }
@@ -273,8 +273,8 @@ impl Default for Visuals {
             override_text_color: None,
             widgets: Default::default(),
             selection: Default::default(),
-            dark_bg_color: Srgba::black_alpha(140),
-            hyperlink_color: Srgba::from_rgb(90, 170, 255),
+            dark_bg_color: Color32::black_alpha(140),
+            hyperlink_color: Color32::from_rgb(90, 170, 255),
             window_corner_radius: 10.0,
             window_shadow: Shadow::big(),
             resize_corner_size: 12.0,
@@ -311,28 +311,28 @@ impl Default for Widgets {
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.5)),
                 corner_radius: 4.0,
                 fg_fill: srgba(100, 100, 150, 255),
-                fg_stroke: Stroke::new(1.5, Srgba::gray(240)),
+                fg_stroke: Stroke::new(1.5, Color32::gray(240)),
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)), // default window outline. Should be pretty readable
                 corner_radius: 4.0,
                 fg_fill: srgba(60, 60, 80, 255),
-                fg_stroke: Stroke::new(1.0, Srgba::gray(200)), // Should NOT look grayed out!
+                fg_stroke: Stroke::new(1.0, Color32::gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
                 bg_fill: Rgba::luminance_alpha(0.02, 0.5).into(),
-                bg_stroke: Stroke::new(0.5, Srgba::gray(70)),
+                bg_stroke: Stroke::new(0.5, Color32::gray(70)),
                 corner_radius: 4.0,
                 fg_fill: srgba(50, 50, 50, 255),
-                fg_stroke: Stroke::new(1.0, Srgba::gray(140)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Color32::gray(140)), // Should look grayed out
             },
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)),
                 bg_fill: Rgba::luminance_alpha(0.010, 0.975).into(), // window background
                 corner_radius: 4.0,
                 fg_fill: Default::default(),
-                fg_stroke: Stroke::new(1.0, Srgba::gray(160)), // text color
+                fg_stroke: Stroke::new(1.0, Color32::gray(160)), // text color
             },
         }
     }
@@ -577,7 +577,7 @@ fn ui_slider_vec2(
     .1
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Srgba, text: &str) {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: &str) {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(text);

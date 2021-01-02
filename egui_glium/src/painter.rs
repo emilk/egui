@@ -4,7 +4,7 @@ use {
     egui::{
         math::clamp,
         paint::{PaintJobs, Triangles},
-        Rect, Srgba,
+        Color32, Rect,
     },
     glium::{
         implement_vertex,
@@ -109,7 +109,7 @@ impl Painter {
             .chunks(texture.width as usize)
             .map(|row| {
                 row.iter()
-                    .map(|&a| Srgba::white_alpha(a).to_tuple())
+                    .map(|&a| Color32::white_alpha(a).to_tuple())
                     .collect()
             })
             .collect();
@@ -282,7 +282,7 @@ impl Painter {
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
-        pixels: &[Srgba],
+        pixels: &[Color32],
     ) {
         assert_eq!(size.0 * size.1, pixels.len());
 

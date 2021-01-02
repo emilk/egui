@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     area, collapsing_header, menu,
-    paint::color::{Hsva, Srgba},
+    paint::color::{Color32, Hsva},
     resize, scroll_area,
     util::Cache,
     widgets::text_edit,
@@ -47,7 +47,7 @@ pub struct Memory {
 
     /// Used by color picker
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) color_cache: Cache<Srgba, Hsva>,
+    pub(crate) color_cache: Cache<Color32, Hsva>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.

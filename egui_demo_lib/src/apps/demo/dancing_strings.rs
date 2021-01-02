@@ -57,7 +57,7 @@ impl super::View for DancingStrings {
                 let thickness = 10.0 / mode;
                 cmds.push(paint::PaintCmd::line(
                     points,
-                    Stroke::new(thickness, Srgba::additive_luminance(196)),
+                    Stroke::new(thickness, Color32::additive_luminance(196)),
                 ));
             }
 

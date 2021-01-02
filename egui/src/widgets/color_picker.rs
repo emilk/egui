@@ -5,7 +5,7 @@ use crate::{
     *,
 };
 
-fn contrast_color(color: impl Into<Rgba>) -> Srgba {
+fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {
         color::WHITE
     } else {
@@ -19,8 +19,8 @@ fn contrast_color(color: impl Into<Rgba>) -> Srgba {
 const N: u32 = 6 * 3;
 
 fn background_checkers(painter: &Painter, rect: Rect) {
-    let mut top_color = Srgba::gray(128);
-    let mut bottom_color = Srgba::gray(32);
+    let mut top_color = Color32::gray(128);
+    let mut bottom_color = Color32::gray(32);
     let checker_size = Vec2::splat(rect.height() / 2.0);
     let n = (rect.width() / checker_size.x).round() as u32;
 
@@ -40,11 +40,11 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     painter.add(PaintCmd::triangles(triangles));
 }
 
-pub fn show_color(ui: &mut Ui, color: impl Into<Srgba>, desired_size: Vec2) -> Response {
+pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) -> Response {
     show_srgba(ui, color.into(), desired_size)
 }
 
-fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
+fn show_srgba(ui: &mut Ui, srgba: Color32, desired_size: Vec2) -> Response {
     let response = ui.allocate_response(desired_size, Sense::hover());
     background_checkers(ui.painter(), response.rect);
     ui.painter().add(PaintCmd::Rect {
@@ -56,7 +56,7 @@ fn show_srgba(ui: &mut Ui, srgba: Srgba, desired_size: Vec2) -> Response {
     response
 }
 
-fn color_button(ui: &mut Ui, color: Srgba) -> Response {
+fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let desired_size = ui.style().spacing.interact_size;
     let response = ui.allocate_response(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
@@ -70,7 +70,7 @@ fn color_button(ui: &mut Ui, color: Srgba) -> Response {
     response
 }
 
-fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Srgba) -> Response {
+fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(
@@ -132,7 +132,7 @@ fn color_slider_2d(
     ui: &mut Ui,
     x_value: &mut f32,
     y_value: &mut f32,
-    color_at: impl Fn(f32, f32) -> Srgba,
+    color_at: impl Fn(f32, f32) -> Color32,
 ) -> Response {
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
     let response = ui.allocate_response(desired_size, Sense::click_and_drag());
@@ -246,7 +246,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva) -> Response {
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Srgba) -> Response {
+pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32) -> Response {
     // To ensure we keep hue slider when `srgba` is grey we store the
     // full `Hsva` in a cache:
 
@@ -260,7 +260,7 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Srgba) -> Response {
 
     let response = color_edit_button_hsva(ui, &mut hsva);
 
-    *srgba = Srgba::from(hsva);
+    *srgba = Color32::from(hsva);
 
     ui.ctx().memory().color_cache.set(*srgba, hsva);
 
@@ -297,8 +297,8 @@ impl From<HsvaGamma> for Rgba {
     }
 }
 
-impl From<HsvaGamma> for Srgba {
-    fn from(hsvag: HsvaGamma) -> Srgba {
+impl From<HsvaGamma> for Color32 {
+    fn from(hsvag: HsvaGamma) -> Color32 {
         Rgba::from(hsvag).into()
     }
 }

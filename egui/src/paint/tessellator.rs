@@ -7,7 +7,7 @@
 
 use {
     super::{
-        color::{self, srgba, Rgba, Srgba, TRANSPARENT},
+        color::{self, srgba, Color32, Rgba, TRANSPARENT},
         *,
     },
     crate::math::*,
@@ -54,7 +54,7 @@ pub struct Vertex {
     pub uv: Pos2, // 64 bit
 
     /// sRGBA with premultiplied alpha
-    pub color: Srgba, // 32 bit
+    pub color: Color32, // 32 bit
 }
 
 /// Textured triangles.
@@ -123,7 +123,7 @@ impl Triangles {
         }
     }
 
-    pub fn colored_vertex(&mut self, pos: Pos2, color: Srgba) {
+    pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
         debug_assert!(self.texture_id == TextureId::Egui);
         self.vertices.push(Vertex {
             pos,
@@ -152,7 +152,7 @@ impl Triangles {
     }
 
     /// Rectangle with a texture and color.
-    pub fn add_rect_with_uv(&mut self, pos: Rect, uv: Rect, color: Srgba) {
+    pub fn add_rect_with_uv(&mut self, pos: Rect, uv: Rect, color: Color32) {
         let idx = self.vertices.len() as u32;
         self.add_triangle(idx + 0, idx + 1, idx + 2);
         self.add_triangle(idx + 2, idx + 1, idx + 3);
@@ -184,7 +184,7 @@ impl Triangles {
     }
 
     /// Uniformly colored rectangle.
-    pub fn add_colored_rect(&mut self, rect: Rect, color: Srgba) {
+    pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
         debug_assert!(self.texture_id == TextureId::Egui);
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
     }
@@ -475,7 +475,7 @@ impl Default for TessellationOptions {
 /// Tessellate the given convex area into a polygon.
 fn fill_closed_path(
     path: &[PathPoint],
-    color: Srgba,
+    color: Color32,
     options: TessellationOptions,
     out: &mut Triangles,
 ) {
@@ -656,7 +656,7 @@ fn stroke_path(
     }
 }
 
-fn mul_color(color: Srgba, factor: f32) -> Srgba {
+fn mul_color(color: Color32, factor: f32) -> Color32 {
     debug_assert!(0.0 <= factor && factor <= 1.0);
     // sRGBA correct fading requires conversion to linear space and back again because of premultiplied alpha
     Rgba::from(color).multiply(factor).into()
@@ -828,7 +828,7 @@ impl Tessellator {
         pos: Pos2,
         galley: &super::Galley,
         text_style: super::TextStyle,
-        color: Srgba,
+        color: Color32,
         out: &mut Triangles,
     ) {
         if color == TRANSPARENT {

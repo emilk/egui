@@ -21,7 +21,7 @@ pub struct Widgets {
     radio: Enum,
     sliders: super::Sliders,
     angle: f32,
-    color: Srgba,
+    color: Color32,
     single_line_text_input: String,
     multiline_text_input: String,
     toggle_switch: bool,

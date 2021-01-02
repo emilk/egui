@@ -11,7 +11,7 @@ pub mod tessellator;
 mod texture_atlas;
 
 pub use {
-    color::{Rgba, Srgba},
+    color::{Color32, Rgba},
     command::{PaintCmd, Stroke},
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
     galley::*,
@@ -27,6 +27,6 @@ pub(crate) struct PaintRect {
     pub rect: crate::Rect,
     /// How rounded the corners are. Use `0.0` for no rounding.
     pub corner_radius: f32,
-    pub fill: Srgba,
+    pub fill: Color32,
     pub stroke: Stroke,
 }

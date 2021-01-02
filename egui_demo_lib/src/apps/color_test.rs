@@ -62,7 +62,7 @@ impl ColorTest {
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
         ui.wrap(|ui| {
             ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
-            let g = Gradient::one_color(Srgba::from_rgb(255, 165, 0));
+            let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
             self.tex_gradient(
                 ui,
@@ -91,13 +91,13 @@ impl ColorTest {
                 ui.label(" vertex color =");
             });
             {
-                let g = Gradient::one_color(Srgba::from(tex_color * vertex_color));
+                let g = Gradient::one_color(Color32::from(tex_color * vertex_color));
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
                 self.tex_gradient(ui, tex_allocator, "Ground truth (texture)", WHITE, &g);
             }
             if let Some(tex_allocator) = &mut tex_allocator {
                 ui.horizontal(|ui| {
-                    let g = Gradient::one_color(Srgba::from(tex_color));
+                    let g = Gradient::one_color(Color32::from(tex_color));
                     let tex = self.tex_mngr.get(*tex_allocator, &g);
                     let texel_offset = 0.5 / (g.0.len() as f32);
                     let uv =
@@ -146,7 +146,7 @@ impl ColorTest {
             ui,
             tex_allocator,
             RED,
-            (TRANSPARENT, Srgba::from_rgba_premultiplied(0, 0, 255, 0)),
+            (TRANSPARENT, Color32::from_rgba_premultiplied(0, 0, 255, 0)),
         );
 
         ui.separator();
@@ -156,8 +156,8 @@ impl ColorTest {
         &mut self,
         ui: &mut Ui,
         tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
-        bg_fill: Srgba,
-        (left, right): (Srgba, Srgba),
+        bg_fill: Color32,
+        (left, right): (Color32, Color32),
     ) {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
@@ -251,7 +251,7 @@ impl ColorTest {
         ui: &mut Ui,
         tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
         label: &str,
-        bg_fill: Srgba,
+        bg_fill: Color32,
         gradient: &Gradient,
     ) {
         if !self.texture_gradients {
@@ -272,7 +272,7 @@ impl ColorTest {
         }
     }
 
-    fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Srgba, gradient: &Gradient) {
+    fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
         if !self.vertex_gradients {
             return;
         }
@@ -286,7 +286,7 @@ impl ColorTest {
     }
 }
 
-fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response {
+fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
     use egui::paint::*;
     let response = ui.allocate_response(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
@@ -315,16 +315,16 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Srgba, gradient: &Gradient) -> Response
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
-struct Gradient(pub Vec<Srgba>);
+struct Gradient(pub Vec<Color32>);
 
 impl Gradient {
-    pub fn one_color(srgba: Srgba) -> Self {
+    pub fn one_color(srgba: Color32) -> Self {
         Self(vec![srgba, srgba])
     }
-    pub fn texture_gradient(left: Srgba, right: Srgba) -> Self {
+    pub fn texture_gradient(left: Color32, right: Color32) -> Self {
         Self(vec![left, right])
     }
-    pub fn ground_truth_linear_gradient(left: Srgba, right: Srgba) -> Self {
+    pub fn ground_truth_linear_gradient(left: Color32, right: Color32) -> Self {
         let left = Rgba::from(left);
         let right = Rgba::from(right);
 
@@ -333,19 +333,19 @@ impl Gradient {
             (0..=n)
                 .map(|i| {
                     let t = i as f32 / n as f32;
-                    Srgba::from(lerp(left..=right, t))
+                    Color32::from(lerp(left..=right, t))
                 })
                 .collect(),
         )
     }
     /// This is how a bad person blends `sRGBA`
-    pub fn ground_truth_bad_srgba_gradient(left: Srgba, right: Srgba) -> Self {
+    pub fn ground_truth_bad_srgba_gradient(left: Color32, right: Color32) -> Self {
         let n = 255;
         Self(
             (0..=n)
                 .map(|i| {
                     let t = i as f32 / n as f32;
-                    Srgba::from_rgba_premultiplied(
+                    Color32::from_rgba_premultiplied(
                         lerp((left[0] as f32)..=(right[0] as f32), t).round() as u8, // Don't ever do this please!
                         lerp((left[1] as f32)..=(right[1] as f32), t).round() as u8, // Don't ever do this please!
                         lerp((left[2] as f32)..=(right[2] as f32), t).round() as u8, // Don't ever do this please!
@@ -357,20 +357,20 @@ impl Gradient {
     }
 
     /// Do premultiplied alpha-aware blending of the gradient on top of the fill color
-    pub fn with_bg_fill(self, bg: Srgba) -> Self {
+    pub fn with_bg_fill(self, bg: Color32) -> Self {
         let bg = Rgba::from(bg);
         Self(
             self.0
                 .into_iter()
                 .map(|fg| {
                     let fg = Rgba::from(fg);
-                    Srgba::from(bg * (1.0 - fg.a()) + fg)
+                    Color32::from(bg * (1.0 - fg.a()) + fg)
                 })
                 .collect(),
         )
     }
 
-    pub fn to_pixel_row(&self) -> Vec<Srgba> {
+    pub fn to_pixel_row(&self) -> Vec<Color32> {
         self.0.clone()
     }
 }

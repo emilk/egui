@@ -27,7 +27,7 @@ impl ImageButton {
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Srgba>) -> Self {
+    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
         self.image = self.image.tint(tint);
         self
     }

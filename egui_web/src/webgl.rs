@@ -6,7 +6,7 @@ use {
 
 use egui::{
     math::clamp,
-    paint::{PaintJobs, Srgba, Texture, Triangles},
+    paint::{Color32, PaintJobs, Texture, Triangles},
     vec2,
 };
 
@@ -182,7 +182,7 @@ impl Painter {
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
-        srgba_pixels: &[Srgba],
+        srgba_pixels: &[Color32],
     ) {
         assert_eq!(size.0 * size.1, srgba_pixels.len());
 
@@ -328,7 +328,7 @@ impl Painter {
             self.canvas.width() as i32,
             self.canvas.height() as i32,
         );
-        let clear_color: Srgba = clear_color.into();
+        let clear_color: Color32 = clear_color.into();
         gl.clear_color(
             clear_color[0] as f32 / 255.0,
             clear_color[1] as f32 / 255.0,

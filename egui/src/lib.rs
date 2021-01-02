@@ -109,7 +109,7 @@ pub use {
     math::*,
     memory::Memory,
     paint::{
-        color, FontDefinitions, FontFamily, PaintCmd, PaintJobs, Rgba, Srgba, Stroke, TextStyle,
+        color, Color32, FontDefinitions, FontFamily, PaintCmd, PaintJobs, Rgba, Stroke, TextStyle,
         Texture, TextureId,
     },
     painter::Painter,

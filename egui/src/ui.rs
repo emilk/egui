@@ -502,7 +502,7 @@ impl Ui {
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter.rect_stroke(rect, 0.0, (1.0, LIGHT_BLUE));
 
-            let color = color::Srgba::from_rgb(200, 0, 0);
+            let color = color::Color32::from_rgb(200, 0, 0);
             let width = 2.5;
 
             let paint_line_seg = |a, b| self.painter().line_segment([a, b], (width, color));
@@ -649,7 +649,11 @@ impl Ui {
     }
 
     /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(&mut self, color: impl Into<Srgba>, label: impl Into<Label>) -> Response {
+    pub fn colored_label(
+        &mut self,
+        color: impl Into<Color32>,
+        label: impl Into<Label>,
+    ) -> Response {
         self.add(label.into().text_color(color))
     }
 
@@ -808,7 +812,7 @@ impl Ui {
 impl Ui {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_srgba(&mut self, srgba: &mut Srgba) -> Response {
+    pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
         widgets::color_picker::color_edit_button_srgba(self, srgba)
     }
 
@@ -822,7 +826,7 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
     pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
-        let mut color = Srgba(*srgba);
+        let mut color = Color32(*srgba);
         let response = self.color_edit_button_srgba(&mut color);
         *srgba = color.0;
         response

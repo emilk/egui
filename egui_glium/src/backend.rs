@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::{storage::WindowSettings, *};
 
-pub use egui::Srgba;
+pub use egui::Color32;
 
 const EGUI_MEMORY_KEY: &str = "egui";
 const WINDOW_KEY: &str = "window";
@@ -16,7 +16,7 @@ impl epi::TextureAllocator for Painter {
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
-        srgba_pixels: &[Srgba],
+        srgba_pixels: &[Color32],
     ) {
         self.set_user_texture(id, size, srgba_pixels);
     }

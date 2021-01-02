@@ -9,7 +9,7 @@ pub struct Frame {
     pub margin: Vec2,
     pub corner_radius: f32,
     pub shadow: Shadow,
-    pub fill: Srgba,
+    pub fill: Color32,
     pub stroke: Stroke,
 }
 
@@ -73,7 +73,7 @@ impl Frame {
         Self {
             margin: Vec2::new(10.0, 10.0),
             corner_radius: 5.0,
-            fill: Srgba::black_alpha(250),
+            fill: Color32::black_alpha(250),
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
         }
@@ -81,7 +81,7 @@ impl Frame {
 }
 
 impl Frame {
-    pub fn fill(mut self, fill: Srgba) -> Self {
+    pub fn fill(mut self, fill: Color32) -> Self {
         self.fill = fill;
         self
     }

@@ -1,5 +1,5 @@
 use {
-    super::{fonts::TextStyle, Fonts, Galley, Srgba, Triangles},
+    super::{fonts::TextStyle, Color32, Fonts, Galley, Triangles},
     crate::{
         align::{anchor_rect, Align},
         math::{Pos2, Rect},
@@ -19,7 +19,7 @@ pub enum PaintCmd {
     Circle {
         center: Pos2,
         radius: f32,
-        fill: Srgba,
+        fill: Color32,
         stroke: Stroke,
     },
     LineSegment {
@@ -31,14 +31,14 @@ pub enum PaintCmd {
         /// If true, connect the first and last of the points together.
         /// This is required if `fill != TRANSPARENT`.
         closed: bool,
-        fill: Srgba,
+        fill: Color32,
         stroke: Stroke,
     },
     Rect {
         rect: Rect,
         /// How rounded the corners are. Use `0.0` for no rounding.
         corner_radius: f32,
-        fill: Srgba,
+        fill: Color32,
         stroke: Stroke,
     },
     Text {
@@ -47,7 +47,7 @@ pub enum PaintCmd {
         /// The layed out text
         galley: Galley,
         text_style: TextStyle, // TODO: Font?
-        color: Srgba,
+        color: Color32,
     },
     Triangles(Triangles),
 }
@@ -79,7 +79,7 @@ impl PaintCmd {
         }
     }
 
-    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Srgba>, stroke: impl Into<Stroke>) -> Self {
+    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
             closed: true,
@@ -88,7 +88,7 @@ impl PaintCmd {
         }
     }
 
-    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Srgba>) -> Self {
+    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle {
             center,
             radius,
@@ -106,7 +106,7 @@ impl PaintCmd {
         }
     }
 
-    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Srgba>) -> Self {
+    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Rect {
             rect,
             corner_radius,
@@ -130,7 +130,7 @@ impl PaintCmd {
         anchor: (Align, Align),
         text: impl Into<String>,
         text_style: TextStyle,
-        color: Srgba,
+        color: Color32,
     ) -> Self {
         let font = &fonts[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
@@ -199,7 +199,7 @@ impl PaintCmd {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
     pub width: f32,
-    pub color: Srgba,
+    pub color: Color32,
 }
 
 impl Stroke {
@@ -207,7 +207,7 @@ impl Stroke {
         Self::new(0.0, crate::color::TRANSPARENT)
     }
 
-    pub fn new(width: impl Into<f32>, color: impl Into<Srgba>) -> Self {
+    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
         Self {
             width: width.into(),
             color: color.into(),
@@ -217,7 +217,7 @@ impl Stroke {
 
 impl<Color> From<(f32, Color)> for Stroke
 where
-    Color: Into<Srgba>,
+    Color: Into<Color32>,
 {
     fn from((width, color): (f32, Color)) -> Stroke {
         Stroke::new(width, color)
