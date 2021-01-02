@@ -34,6 +34,7 @@ pub struct Window<'open> {
 impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
+    /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
         let area = Area::new(&title);
@@ -53,6 +54,12 @@ impl<'open> Window<'open> {
             collapsible: true,
             with_title_bar: true,
         }
+    }
+
+    /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
+    pub fn id(mut self, id: Id) -> Self {
+        self.area = self.area.id(id);
+        self
     }
 
     /// Call this to add a close-button to the window title bar.
@@ -213,10 +220,10 @@ impl<'open> Window<'open> {
             return None;
         }
 
-        let window_id = Id::new(title_label.text());
+        let area_id = area.id;
         let area_layer_id = area.layer();
-        let resize_id = window_id.with("resize");
-        let collapsing_id = window_id.with("collapsing");
+        let resize_id = area_id.with("resize");
+        let collapsing_id = area_id.with("collapsing");
 
         let is_maximized = !with_title_bar
             || collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
@@ -242,7 +249,7 @@ impl<'open> Window<'open> {
                 ctx,
                 possible,
                 area_layer_id,
-                window_id.with("frame_resize"),
+                area_id.with("frame_resize"),
                 last_frame_outer_rect,
             )
             .and_then(|window_interaction| {

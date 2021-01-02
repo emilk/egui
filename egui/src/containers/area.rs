@@ -42,7 +42,7 @@ impl State {
 ///     });
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
-    id: Id,
+    pub(crate) id: Id,
     movable: bool,
     interactable: bool,
     order: Order,
@@ -60,6 +60,11 @@ impl Area {
             default_pos: None,
             fixed_pos: None,
         }
+    }
+
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = id;
+        self
     }
 
     pub fn layer(&self) -> LayerId {
