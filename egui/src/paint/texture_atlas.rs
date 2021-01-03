@@ -7,7 +7,7 @@ pub struct Texture {
     pub version: u64,
     pub width: usize,
     pub height: usize,
-    /// luminance and alpha, linear space 0-255
+    /// White color with the given alpha (linear space 0-255).
     pub pixels: Vec<u8>,
 }
 
@@ -15,7 +15,8 @@ impl Texture {
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
     pub fn srgba_pixels(&'_ self) -> impl Iterator<Item = super::Color32> + '_ {
         use super::Color32;
-        let srgba_from_luminance_lut: Vec<Color32> = (0..=255).map(Color32::white_alpha).collect();
+        let srgba_from_luminance_lut: Vec<Color32> =
+            (0..=255).map(Color32::from_white_alpha).collect();
         self.pixels
             .iter()
             .map(move |&l| srgba_from_luminance_lut[l as usize])
@@ -47,7 +48,7 @@ impl std::ops::IndexMut<(usize, usize)> for Texture {
 pub struct TextureAtlas {
     texture: Texture,
 
-    /// Used for when adding new rects
+    /// Used for when allocating new rectangles.
     cursor: (usize, usize),
     row_height: usize,
 }
@@ -78,7 +79,7 @@ impl TextureAtlas {
     pub fn allocate(&mut self, (w, h): (usize, usize)) -> (usize, usize) {
         /// On some low-precision GPUs (my old iPad) characters get muddled up
         /// if we don't add some empty pixels between the characters.
-        /// On modern high-precision GPUs this is not be needed.
+        /// On modern high-precision GPUs this is not needed.
         const PADDING: usize = 1;
 
         assert!(w <= self.texture.width);

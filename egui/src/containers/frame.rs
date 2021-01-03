@@ -73,7 +73,7 @@ impl Frame {
         Self {
             margin: Vec2::new(10.0, 10.0),
             corner_radius: 5.0,
-            fill: Color32::black_alpha(250),
+            fill: Color32::from_black_alpha(250),
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
         }

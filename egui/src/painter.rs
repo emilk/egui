@@ -147,7 +147,7 @@ impl Painter {
         self.add(PaintCmd::Rect {
             rect: frame_rect,
             corner_radius: 0.0,
-            fill: Color32::black_alpha(240),
+            fill: Color32::from_black_alpha(240),
             stroke: Stroke::new(1.0, Color32::RED),
         });
         self.galley(rect.min, galley, text_style, Color32::RED);

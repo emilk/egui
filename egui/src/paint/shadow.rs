@@ -13,7 +13,7 @@ impl Shadow {
     pub fn small() -> Self {
         Self {
             extrusion: 8.0,
-            color: Color32::black_alpha(64),
+            color: Color32::from_black_alpha(64),
         }
     }
 
@@ -21,7 +21,7 @@ impl Shadow {
     pub fn big() -> Self {
         Self {
             extrusion: 32.0,
-            color: Color32::black_alpha(96),
+            color: Color32::from_black_alpha(96),
         }
     }
 

@@ -279,7 +279,7 @@ impl Default for Visuals {
             override_text_color: None,
             widgets: Default::default(),
             selection: Default::default(),
-            dark_bg_color: Color32::black_alpha(140),
+            dark_bg_color: Color32::from_black_alpha(140),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             window_corner_radius: 10.0,
             window_shadow: Shadow::big(),
@@ -296,8 +296,11 @@ impl Default for Visuals {
 impl Default for Selection {
     fn default() -> Self {
         Self {
-            bg_fill: Rgba::new(0.0, 0.5, 1.0, 0.0).multiply(0.15).into(), // additive!
-            stroke: Stroke::new(1.0, Rgba::new(0.3, 0.6, 1.0, 1.0)),
+            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0)
+                .additive()
+                .multiply(0.10)
+                .into(),
+            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
         }
     }
 }
@@ -306,39 +309,39 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             active: WidgetVisuals {
-                bg_fill: Rgba::luminance_alpha(0.10, 0.5).into(),
+                bg_fill: Rgba::from_luminance_alpha(0.10, 0.5).into(),
                 bg_stroke: Stroke::new(2.0, Color32::WHITE),
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(120, 120, 200),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
             },
             hovered: WidgetVisuals {
-                bg_fill: Rgba::luminance_alpha(0.06, 0.5).into(),
-                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.5)),
+                bg_fill: Rgba::from_luminance_alpha(0.06, 0.5).into(),
+                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.5)),
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(100, 100, 150),
-                fg_stroke: Stroke::new(1.5, Color32::gray(240)),
+                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
             },
             inactive: WidgetVisuals {
-                bg_fill: Rgba::luminance_alpha(0.04, 0.5).into(),
-                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)), // default window outline. Should be pretty readable
+                bg_fill: Rgba::from_luminance_alpha(0.04, 0.5).into(),
+                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.06)), // default window outline. Should be pretty readable
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(60, 60, 80),
-                fg_stroke: Stroke::new(1.0, Color32::gray(200)), // Should NOT look grayed out!
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
             },
             disabled: WidgetVisuals {
-                bg_fill: Rgba::luminance_alpha(0.02, 0.5).into(),
-                bg_stroke: Stroke::new(0.5, Color32::gray(70)),
+                bg_fill: Rgba::from_luminance_alpha(0.02, 0.5).into(),
+                bg_stroke: Stroke::new(0.5, Color32::from_gray(70)),
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(50, 50, 50),
-                fg_stroke: Stroke::new(1.0, Color32::gray(140)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // Should look grayed out
             },
             noninteractive: WidgetVisuals {
-                bg_stroke: Stroke::new(1.0, Rgba::white_alpha(0.06)),
-                bg_fill: Rgba::luminance_alpha(0.010, 0.975).into(), // window background
+                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.06)),
+                bg_fill: Rgba::from_luminance_alpha(0.010, 0.975).into(), // window background
                 corner_radius: 4.0,
                 fg_fill: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::gray(160)), // text color
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
             },
         }
     }

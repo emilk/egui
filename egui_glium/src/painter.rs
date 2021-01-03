@@ -109,7 +109,7 @@ impl Painter {
             .chunks(texture.width as usize)
             .map(|row| {
                 row.iter()
-                    .map(|&a| Color32::white_alpha(a).to_tuple())
+                    .map(|&a| Color32::from_white_alpha(a).to_tuple())
                     .collect()
             })
             .collect();

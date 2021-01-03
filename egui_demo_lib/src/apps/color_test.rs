@@ -39,8 +39,9 @@ impl epi::App for ColorTest {
             if frame.is_web() {
                 ui.colored_label(
                     RED,
-                    "NOTE: The current WebGL backend does NOT pass the color test!",
+                    "NOTE: The WebGL backend does NOT pass the color test."
                 );
+                ui.small("This is because WebGL does not support a linear framebuffer blending (not even WebGL2!).\nMaybe when WebGL3 becomes mainstream in 2030 the web can finally get colors right?");
                 ui.separator();
             }
             ScrollArea::auto_sized().show(ui, |ui| {
@@ -56,8 +57,7 @@ impl ColorTest {
         ui: &mut Ui,
         mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
-        ui.label("This is made to test if your Egui painter backend is set up correctly");
-        ui.label("It is meant to ensure you do proper sRGBA decoding of both texture and vertex colors, and blend using premultiplied alpha.");
+        ui.label("This is made to test that the Egui painter backend is set up correctly, so that all colors are interpolated and blended in linear space with premultiplied alpha.");
         ui.label("If everything is set up correctly, all groups of gradients will look uniform");
 
         ui.checkbox(&mut self.vertex_gradients, "Vertex gradients");
@@ -85,8 +85,8 @@ impl ColorTest {
         ui.wrap(|ui| {
             ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
 
-            let tex_color = Rgba::new(1.0, 0.25, 0.25, 1.0);
-            let vertex_color = Rgba::new(0.5, 0.75, 0.75, 1.0);
+            let tex_color = Rgba::from_rgb(1.0, 0.25, 0.25);
+            let vertex_color = Rgba::from_rgb(0.5, 0.75, 0.75);
 
             ui.horizontal(|ui| {
                 let color_size = ui.style().spacing.interact_size;

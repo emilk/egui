@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed 🔧
 
 * Renamed `Srgba` to `Color32`.
+* All color contructions now starts with `from_`, e.g. `Color32::from_rgb`.
 * Renamed `FontFamily::VariableWidth` to `FontFamily::Proportional`.
 * Removed `pixels_per_point` from `FontDefinitions`.
 

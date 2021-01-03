@@ -78,7 +78,7 @@ impl FrameHistory {
         }];
 
         let rect = rect.shrink(4.0);
-        let line_stroke = Stroke::new(1.0, Color32::additive_luminance(128));
+        let line_stroke = Stroke::new(1.0, Color32::from_additive_luminance(128));
 
         if let Some(mouse_pos) = ui.input().mouse.pos {
             if rect.contains(mouse_pos) {
@@ -100,7 +100,7 @@ impl FrameHistory {
             }
         }
 
-        let circle_color = Color32::additive_luminance(196);
+        let circle_color = Color32::from_additive_luminance(196);
         let radius = 2.0;
         let right_side_time = ui.input().time; // Time at right side of screen
 

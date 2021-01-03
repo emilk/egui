@@ -40,8 +40,8 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // "how should something that is being interacted with be painted?".
     // This will, for instance, give us different colors when the widget is hovered or clicked.
     let visuals = ui.style().interact(&response);
-    let off_bg_fill = egui::Rgba::new(0.0, 0.0, 0.0, 0.0);
-    let on_bg_fill = egui::Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let off_bg_fill = egui::Rgba::TRANSPARENT;
+    let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
     let rect = response.rect;
@@ -67,8 +67,8 @@ fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact(&response);
-    let off_bg_fill = egui::Rgba::new(0.0, 0.0, 0.0, 0.0);
-    let on_bg_fill = egui::Rgba::new(0.0, 0.5, 0.25, 1.0);
+    let off_bg_fill = egui::Rgba::TRANSPARENT;
+    let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     let rect = response.rect;
     let radius = 0.5 * rect.height();

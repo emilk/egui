@@ -58,7 +58,7 @@ impl FractalClock {
         ui.expand_to_include_rect(painter.clip_rect());
 
         Frame::popup(ui.style())
-            .fill(Rgba::luminance_alpha(0.02, 0.5).into())
+            .fill(Rgba::from_luminance_alpha(0.02, 0.5).into())
             .stroke(Stroke::none())
             .show(ui, |ui| {
                 ui.set_max_width(270.0);
@@ -160,7 +160,7 @@ impl FractalClock {
         for (i, hand) in hands.iter().enumerate() {
             let center = pos2(0.0, 0.0);
             let end = center + hand.vec;
-            paint_line([center, end], Color32::additive_luminance(255), width);
+            paint_line([center, end], Color32::from_additive_luminance(255), width);
             if i < 2 {
                 nodes.push(Node {
                     pos: end,
@@ -190,7 +190,7 @@ impl FractalClock {
                     };
                     paint_line(
                         [a.pos, b.pos],
-                        Color32::additive_luminance(luminance_u8),
+                        Color32::from_additive_luminance(luminance_u8),
                         width,
                     );
                     new_nodes.push(b);
