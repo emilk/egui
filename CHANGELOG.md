@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed 🐛
 
 * `RepaintSignal` now implements `Sync` so it can be sent to a background thread.
+* `TextEdit` widgets are now slightly larger to accommodate their frames.
 
 ### Deprecated
 

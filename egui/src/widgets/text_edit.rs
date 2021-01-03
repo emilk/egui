@@ -213,6 +213,33 @@ impl<'t> TextEdit<'t> {
 
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let margin = Vec2::splat(2.0);
+        let frame_rect = ui.available_rect_before_wrap();
+        let content_rect = frame_rect.shrink2(margin);
+        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+        let response = self.content_ui(&mut content_ui);
+        let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
+        let response = response | ui.allocate_response(frame_rect.size(), Sense::click());
+
+        let visuals = ui.style().interact(&response);
+        let frame_rect = response.rect;
+        ui.painter().set(
+            where_to_put_background,
+            PaintCmd::Rect {
+                rect: frame_rect,
+                corner_radius: visuals.corner_radius,
+                fill: ui.style().visuals.dark_bg_color,
+                stroke: visuals.bg_stroke,
+            },
+        );
+
+        response
+    }
+}
+
+impl<'t> TextEdit<'t> {
+    fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
             id,
@@ -247,7 +274,7 @@ impl<'t> Widget for TextEdit<'t> {
             if let Some(id_source) = id_source {
                 ui.make_persistent_id(id_source)
             } else {
-                auto_id // Since we are only storing the cursor, perfect persistence Id not super important
+                auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
         let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
@@ -441,18 +468,6 @@ impl<'t> Widget for TextEdit<'t> {
             state
                 .undoer
                 .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
-        }
-
-        {
-            let visuals = ui.style().interact(&response);
-            let bg_rect = response.rect.expand(2.0); // breathing room for content
-            ui.painter().add(PaintCmd::Rect {
-                rect: bg_rect,
-                corner_radius: visuals.corner_radius,
-                fill: ui.style().visuals.dark_bg_color,
-                // fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            });
         }
 
         if ui.memory().has_kb_focus(id) {
