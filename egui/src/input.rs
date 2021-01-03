@@ -235,44 +235,95 @@ pub enum Event {
 /// State of the modifier keys. These must be fed to Egui.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Modifiers {
-    /// Either of the alt keys are down (option ⌥ on Mac)
+    /// Either of the alt keys are down (option ⌥ on Mac).
     pub alt: bool,
-    /// Either of the control keys are down
+    /// Either of the control keys are down.
+    /// When checking for keyboard shortcuts, consider using [`Self::command`] instead.
     pub ctrl: bool,
-    /// Either of the shift keys are down
+    /// Either of the shift keys are down.
     pub shift: bool,
     /// The Mac ⌘ Command key. Should always be set to `false` on other platforms.
     pub mac_cmd: bool,
-    /// On Mac, this should be set whenever one of the ⌘ Command keys are down (same as `mac_cmd`).
     /// On Windows and Linux, set this to the same value as `ctrl`.
+    /// On Mac, this should be set whenever one of the ⌘ Command keys are down (same as `mac_cmd`).
     /// This is so that Egui can, for instance, select all text by checking for `command + A`
     /// and it will work on both Mac and Windows.
     pub command: bool,
 }
 
-/// Keyboard key name. Only covers keys used by Egui (mostly for text editing).
+/// Keyboard keys.
+///
+/// Includes all keys Egui is interested in (such as `Home` and `End`)
+/// plus a few that are useful for detecting keyboard shortcuts.
+///
+/// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
+/// and are therefor unsuitable as keyboard shortcuts if you want your app to be portable.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Key {
     ArrowDown,
     ArrowLeft,
     ArrowRight,
     ArrowUp,
+
+    Escape,
+    Tab,
     Backspace,
-    Delete,
-    End,
     Enter,
     Space,
-    Escape,
-    Home,
+
     Insert,
-    PageDown,
+    Delete,
+    Home,
+    End,
     PageUp,
-    Tab,
+    PageDown,
+
+    /// Either from the main row or from the numpad.
+    Num0,
+    /// Either from the main row or from the numpad.
+    Num1,
+    /// Either from the main row or from the numpad.
+    Num2,
+    /// Either from the main row or from the numpad.
+    Num3,
+    /// Either from the main row or from the numpad.
+    Num4,
+    /// Either from the main row or from the numpad.
+    Num5,
+    /// Either from the main row or from the numpad.
+    Num6,
+    /// Either from the main row or from the numpad.
+    Num7,
+    /// Either from the main row or from the numpad.
+    Num8,
+    /// Either from the main row or from the numpad.
+    Num9,
 
     A, // Used for cmd+A (select All)
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
     K, // Used for ctrl+K (delete text after cursor)
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
     U, // Used for ctrl+U (delete text before cursor)
+    V,
     W, // Used for ctrl+W (delete previous word)
+    X,
+    Y,
     Z, // Used for cmd+Z (undo)
 }
 
