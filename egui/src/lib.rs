@@ -92,7 +92,7 @@ mod memory;
 pub mod menu;
 pub mod paint;
 mod painter;
-mod style;
+pub mod style;
 mod types;
 mod ui;
 pub mod util;
