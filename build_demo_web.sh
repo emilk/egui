@@ -13,7 +13,7 @@ rm -f docs/${CRATE_NAME}_bg.wasm
 
 echo "Building rust…"
 BUILD=release
-cargo build --release -p ${CRATE_NAME} --lib --target wasm32-unknown-unknown
+cargo build --release --all-features -p ${CRATE_NAME} --lib --target wasm32-unknown-unknown
 
 echo "Generating JS bindings for wasm…"
 TARGET_NAME="${CRATE_NAME}.wasm"
