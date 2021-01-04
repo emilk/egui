@@ -9,6 +9,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 pub mod backend;
+#[cfg(feature = "http")]
 pub mod http;
 pub mod webgl;
 
@@ -154,6 +155,7 @@ pub fn local_storage_remove(key: &str) {
     local_storage().map(|storage| storage.remove_item(key));
 }
 
+#[cfg(feature = "persistence")]
 pub fn load_memory(ctx: &egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_json") {
         match serde_json::from_str(&memory_string) {
@@ -167,6 +169,10 @@ pub fn load_memory(ctx: &egui::Context) {
     }
 }
 
+#[cfg(not(feature = "persistence"))]
+pub fn load_memory(_: &egui::Context) {}
+
+#[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {
     match serde_json::to_string(&*ctx.memory()) {
         Ok(json) => {
@@ -177,6 +183,9 @@ pub fn save_memory(ctx: &egui::Context) {
         }
     }
 }
+
+#[cfg(not(feature = "persistence"))]
+pub fn save_memory(_: &egui::Context) {}
 
 #[derive(Default)]
 pub struct LocalStorage {}

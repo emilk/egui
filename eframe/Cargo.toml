@@ -15,13 +15,19 @@ include = [ "**/*.rs", "Cargo.toml"]
 [lib]
 
 [dependencies]
-egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
-epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
+egui = { version = "0.6.0", path = "../egui" }
+epi = { version = "0.6.0", path = "../epi" }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { path = "../egui_glium", features = ["http"] }
+egui_glium = { path = "../egui_glium" }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { path = "../egui_web" }
+
+[features]
+default = []
+http = ["egui_glium/http", "egui_web/http"]
+persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
+time = ["egui_glium/time"] # for seconds_since_midnight

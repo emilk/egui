@@ -1,11 +1,31 @@
+use crate::{window_settings::WindowSettings, *};
+use egui::Color32;
 use std::time::Instant;
 
-use crate::{storage::WindowSettings, *};
-
-pub use egui::Color32;
-
+#[cfg(feature = "persistence")]
 const EGUI_MEMORY_KEY: &str = "egui";
+#[cfg(feature = "persistence")]
 const WINDOW_KEY: &str = "window";
+
+#[cfg(feature = "persistence")]
+fn deserialize_window_settings(storage: &Option<Box<dyn epi::Storage>>) -> Option<WindowSettings> {
+    epi::get_value(&**storage.as_ref()?, WINDOW_KEY)
+}
+
+#[cfg(not(feature = "persistence"))]
+fn deserialize_window_settings(_: &Option<Box<dyn epi::Storage>>) -> Option<WindowSettings> {
+    None
+}
+
+#[cfg(feature = "persistence")]
+fn deserialize_memory(storage: &Option<Box<dyn epi::Storage>>) -> Option<egui::Memory> {
+    epi::get_value(&**storage.as_ref()?, EGUI_MEMORY_KEY)
+}
+
+#[cfg(not(feature = "persistence"))]
+fn deserialize_memory(_: &Option<Box<dyn epi::Storage>>) -> Option<egui::Memory> {
+    None
+}
 
 impl epi::TextureAllocator for Painter {
     fn alloc(&mut self) -> egui::TextureId {
@@ -69,6 +89,12 @@ fn create_display(
     display
 }
 
+#[cfg(not(feature = "persistence"))]
+fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
+    None
+}
+
+#[cfg(feature = "persistence")]
 fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
     if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
         let data_dir = proj_dirs.data_dir().to_path_buf();
@@ -81,7 +107,7 @@ fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
         } else {
             let mut config_dir = data_dir;
             config_dir.push("app.json");
-            let storage = crate::storage::FileStorage::from_path(config_dir);
+            let storage = crate::persistence::FileStorage::from_path(config_dir);
             Some(Box::new(storage))
         }
     } else {
@@ -97,7 +123,7 @@ fn integration_info(
     epi::IntegrationInfo {
         web_info: None,
         cpu_usage: previous_frame_time,
-        seconds_since_midnight: Some(seconds_since_midnight()),
+        seconds_since_midnight: seconds_since_midnight(),
         native_pixels_per_point: Some(native_pixels_per_point(&display)),
     }
 }
@@ -110,9 +136,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         app.load(storage.as_ref());
     }
 
-    let window_settings: Option<WindowSettings> = storage
-        .as_mut()
-        .and_then(|storage| epi::get_value(storage.as_ref(), WINDOW_KEY));
+    let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
 
@@ -121,10 +145,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     )));
 
     let mut ctx = egui::CtxRef::default();
-    *ctx.memory() = storage
-        .as_mut()
-        .and_then(|storage| epi::get_value(storage.as_ref(), EGUI_MEMORY_KEY))
-        .unwrap_or_default();
+    *ctx.memory() = deserialize_memory(&storage).unwrap_or_default();
 
     app.setup(&ctx);
 
@@ -135,8 +156,10 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
 
+    #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
 
+    #[cfg(feature = "http")]
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     if app.warm_up_enabled() {
@@ -151,6 +174,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(&display, None),
             tex_allocator: Some(&mut painter),
+            #[cfg(feature = "http")]
             http: http.clone(),
             output: &mut app_output,
             repaint_signal: repaint_signal.clone(),
@@ -183,6 +207,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
                 tex_allocator: Some(&mut painter),
+                #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,
                 repaint_signal: repaint_signal.clone(),
@@ -236,6 +261,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
             handle_output(egui_output, &display, clipboard.as_mut());
 
+            #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {
                 let now = Instant::now();
                 if now - last_auto_save > app.auto_save_interval() {
@@ -265,6 +291,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             }
             glutin::event::Event::LoopDestroyed => {
                 app.on_exit();
+                #[cfg(feature = "persistence")]
                 if let Some(storage) = &mut storage {
                     epi::set_value(
                         storage.as_mut(),

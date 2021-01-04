@@ -150,6 +150,7 @@ impl<'a> Frame<'a> {
 
     /// Very simple Http fetch API.
     /// Calls the given callback when done.
+    #[cfg(feature = "http")]
     pub fn http_fetch(
         &self,
         request: http::Request,
@@ -257,6 +258,7 @@ pub const APP_KEY: &str = "app";
 
 // ----------------------------------------------------------------------------
 
+#[cfg(feature = "http")]
 /// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
 pub mod http {
     /// A simple http requests.
@@ -310,6 +312,7 @@ pub mod backend {
     use super::*;
 
     /// Implements `Http` requests.
+    #[cfg(feature = "http")]
     pub trait Http {
         /// Calls the given callback when done.
         fn fetch_dyn(
@@ -326,6 +329,7 @@ pub mod backend {
         /// A way to allocate textures (on integrations that support it).
         pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
         /// Do http requests.
+        #[cfg(feature = "http")]
         pub http: std::sync::Arc<dyn backend::Http>,
         /// Where the app can issue commands back to the integration.
         pub output: &'a mut AppOutput,

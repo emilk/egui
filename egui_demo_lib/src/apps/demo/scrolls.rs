@@ -1,7 +1,7 @@
 use egui::{color::*, *};
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Scrolls {
     track_item: usize,
     tracking: bool,

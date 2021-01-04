@@ -2,11 +2,11 @@ use egui::{CtxRef, Resize, ScrollArea, Ui, Window};
 
 // ----------------------------------------------------------------------------
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct Demos {
     /// open, view
-    #[serde(skip)] // TODO: serialize the `open` state.
+    #[cfg_attr(feature = "persistence", serde(skip))] // TODO: serialize the `open` state.
     demos: Vec<(bool, Box<dyn super::Demo>)>,
 }
 impl Default for Demos {
@@ -40,8 +40,9 @@ impl Demos {
 // ----------------------------------------------------------------------------
 
 /// A menu bar in which you can select different demo windows to show.
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoWindows {
     open_windows: OpenWindows,
 
@@ -189,7 +190,7 @@ impl DemoWindows {
 
 // ----------------------------------------------------------------------------
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct OpenWindows {
     demo: bool,
 

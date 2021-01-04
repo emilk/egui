@@ -692,7 +692,6 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_demo_lib",
- "serde",
 ]
 
 [[package]]
@@ -704,7 +703,6 @@ dependencies = [
  "epi",
  "image",
  "serde",
- "serde_json",
  "syntect",
 ]
 

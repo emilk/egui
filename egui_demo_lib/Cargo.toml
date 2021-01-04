@@ -15,17 +15,23 @@ include = [ "**/*.rs", "Cargo.toml"]
 [lib]
 
 [dependencies]
-egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
-epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+egui = { version = "0.6.0", path = "../egui" }
+epi = { version = "0.6.0", path = "../epi" }
 
-# Http fetch app:
-image = { version = "0.23", default_features = false, features = ["jpeg", "png"] }
-syntect = { version = "4", default_features = false, features = ["default-fancy"] }
+# feature "http":
+image = { version = "0.23", default_features = false, features = ["jpeg", "png"], optional = true }
+syntect = { version = "4", default_features = false, features = ["default-fancy"], optional = true }
+
+# feature "persistence":
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
+
+[features]
+default = []
+http = ["image", "syntect", "epi/http"]
+persistence = ["epi/persistence", "serde"]
 
 [[bench]]
 name = "benchmark"

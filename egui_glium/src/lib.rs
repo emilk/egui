@@ -13,7 +13,9 @@ mod backend;
 #[cfg(feature = "http")]
 pub mod http;
 mod painter;
-pub mod storage;
+#[cfg(feature = "persistence")]
+pub mod persistence;
+pub mod window_settings;
 
 pub use backend::*;
 pub use painter::Painter;
@@ -279,10 +281,17 @@ pub fn init_clipboard() -> Option<ClipboardContext> {
 // ----------------------------------------------------------------------------
 
 /// Time of day as seconds since midnight. Used for clock in demo app.
-pub fn seconds_since_midnight() -> f64 {
-    use chrono::Timelike;
-    let time = chrono::Local::now().time();
-    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
+pub fn seconds_since_midnight() -> Option<f64> {
+    #[cfg(feature = "time")]
+    {
+        use chrono::Timelike;
+        let time = chrono::Local::now().time();
+        let seconds_since_midnight =
+            time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
+        Some(seconds_since_midnight)
+    }
+    #[cfg(not(feature = "time"))]
+    None
 }
 
 pub fn screen_size_in_pixels(display: &glium::Display) -> Vec2 {

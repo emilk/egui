@@ -16,47 +16,54 @@ include = [ "**/*.rs", "Cargo.toml"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.6.0", path = "../egui", features = ["serde"] }
-epi = { version = "0.6.0", path = "../epi", features = ["serde", "serde_json"] }
+egui = { version = "0.6.0", path = "../egui" }
+epi = { version = "0.6.0", path = "../epi" }
 js-sys = "0.3"
-serde = "1"
-serde_json = "1"
+serde = { version = "1", optional = true }
+serde_json = { version = "1", optional = true }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+
+[features]
+default = []
+http = [
+  "epi/http",
+  "web-sys/Headers",
+  "web-sys/Request",
+  "web-sys/RequestInit",
+  "web-sys/RequestMode",
+  "web-sys/Response",
+]
+persistence = ["serde", "serde_json"]
 
 [dependencies.web-sys]
 version = "0.3"
 features = [
-  'Clipboard',
-  'ClipboardEvent',
-  'console',
-  'CssStyleDeclaration',
-  'DataTransfer',
-  'Document',
-  'DomRect',
-  'Element',
-  'Headers',
-  'HtmlCanvasElement',
-  'HtmlElement',
-  'KeyboardEvent',
-  'Location',
-  'MouseEvent',
-  'Navigator',
-  'Performance',
-  'Request',
-  'RequestInit',
-  'RequestMode',
-  'Response',
-  'Storage',
-  'Touch',
-  'TouchEvent',
-  'TouchList',
-  'WebGlBuffer',
-  'WebGlProgram',
-  'WebGlRenderingContext',
-  'WebGlShader',
-  'WebGlTexture',
-  'WebGlUniformLocation',
-  'WheelEvent',
-  'Window',
+  "Clipboard",
+  "ClipboardEvent",
+  "console",
+  "CssStyleDeclaration",
+  "DataTransfer",
+  "Document",
+  "DomRect",
+  "Element",
+  "HtmlCanvasElement",
+  "HtmlElement",
+  "KeyboardEvent",
+  "Location",
+  "MouseEvent",
+  "Navigator",
+  "Performance",
+  "Storage",
+  "Touch",
+  "TouchEvent",
+  "TouchList",
+  "WebGlBuffer",
+  "WebGlProgram",
+  "WebGlRenderingContext",
+  "WebGlShader",
+  "WebGlTexture",
+  "WebGlUniformLocation",
+  "WheelEvent",
+  "Window",
 ]

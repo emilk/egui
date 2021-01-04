@@ -18,3 +18,8 @@ include = [ "**/*.rs", "Cargo.toml"]
 egui = { version = "0.6.0", path = "../egui" }
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
+
+[features]
+default = []
+http = []
+persistence = ["serde", "serde_json"]

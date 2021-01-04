@@ -1,7 +1,6 @@
 use crate::*;
 
 pub use egui::{pos2, Color32};
-use http::WebHttp;
 
 // ----------------------------------------------------------------------------
 
@@ -144,7 +143,8 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
     last_save_time: f64,
-    http: Arc<WebHttp>,
+    #[cfg(feature = "http")]
+    http: Arc<http::WebHttp>,
 }
 
 impl AppRunner {
@@ -160,7 +160,8 @@ impl AppRunner {
             needs_repaint: Default::default(),
             storage,
             last_save_time: now_sec(),
-            http: Arc::new(WebHttp {}),
+            #[cfg(feature = "http")]
+            http: Arc::new(http::WebHttp {}),
         })
     }
 
@@ -210,6 +211,7 @@ impl AppRunner {
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
             tex_allocator: Some(&mut self.web_backend.painter),
+            #[cfg(feature = "http")]
             http: self.http.clone(),
             output: &mut app_output,
             repaint_signal: self.needs_repaint.clone(),

@@ -1,7 +1,7 @@
 use egui::*;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Painting {
     lines: Vec<Vec<Vec2>>,
     stroke: Stroke,

@@ -9,6 +9,10 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { version = "0.6.0", path = "../eframe"}
-egui_demo_lib = { version = "0.6.0", path = "../egui_demo_lib"}
-serde = { version = "1", features = ["derive"] }
+eframe = { version = "0.6.0", path = "../eframe", features = ["time"] }
+egui_demo_lib = { version = "0.6.0", path = "../egui_demo_lib" }
+
+[features]
+default = []
+http = ["eframe/http", "egui_demo_lib/http"]
+persistence = ["eframe/persistence", "egui_demo_lib/persistence"]

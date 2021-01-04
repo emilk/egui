@@ -1,6 +1,7 @@
 use egui::{color::*, *};
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
     First,
     Second,
@@ -13,8 +14,8 @@ impl Default for Enum {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Widgets {
     button_enabled: bool,
     count: usize,

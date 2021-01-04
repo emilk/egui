@@ -2,8 +2,9 @@
 ///
 /// Implements `epi::App` so it can be used with
 /// [`egui_glium`](https://crates.io/crates/egui_glium) and [`egui_web`](https://crates.io/crates/egui_web).
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoApp {
     demo_windows: super::DemoWindows,
 }
@@ -13,10 +14,12 @@ impl epi::App for DemoApp {
         "✨ Egui Demo"
     }
 
+    #[cfg(feature = "persistence")]
     fn load(&mut self, storage: &dyn epi::Storage) {
         *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
     }
 
+    #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
     }

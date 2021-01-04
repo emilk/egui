@@ -1,8 +1,10 @@
 /// All the different demo apps.
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
+    #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
     color_test: crate::apps::ColorTest,
@@ -12,6 +14,7 @@ impl Apps {
     fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut dyn epi::App)> {
         vec![
             ("demo", &mut self.demo as &mut dyn epi::App),
+            #[cfg(feature = "http")]
             ("http", &mut self.http as &mut dyn epi::App),
             ("clock", &mut self.clock as &mut dyn epi::App),
             ("colors", &mut self.color_test as &mut dyn epi::App),
@@ -21,8 +24,9 @@ impl Apps {
 }
 
 /// Wraps many demo/test apps into one.
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct WrapApp {
     selected_anchor: String,
     apps: Apps,
@@ -34,10 +38,12 @@ impl epi::App for WrapApp {
         "Egui Demo Apps"
     }
 
+    #[cfg(feature = "persistence")]
     fn load(&mut self, storage: &dyn epi::Storage) {
         *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
     }
 
+    #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
     }
@@ -167,18 +173,20 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct BackendPanel {
     open: bool,
 
-    #[serde(skip)] // go back to `Reactive` mode each time we start
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    // go back to `Reactive` mode each time we start
     run_mode: RunMode,
 
     /// current slider value for current gui scale
     pixels_per_point: Option<f32>,
 
-    #[serde(skip)]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 }
 

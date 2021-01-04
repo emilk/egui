@@ -30,17 +30,17 @@ impl Resource {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct HttpApp {
     url: String,
 
-    #[serde(skip)]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     in_progress: Option<Receiver<Result<Response, String>>>,
 
-    #[serde(skip)]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     result: Option<Result<Resource, String>>,
 
-    #[serde(skip)]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     tex_mngr: TexMngr,
 }
 

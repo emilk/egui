@@ -2,8 +2,8 @@ use super::*;
 use egui::{color::*, *};
 
 /// Showcase some ui code
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoWindow {
     num_columns: usize,
 
@@ -106,8 +106,9 @@ impl DemoWindow {
 
 // ----------------------------------------------------------------------------
 
-#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct ColorWidgets {
     srgba_unmul: [u8; 4],
     srgba_premul: [u8; 4],
@@ -176,8 +177,8 @@ impl ColorWidgets {
 
 // ----------------------------------------------------------------------------
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct BoxPainting {
     size: Vec2,
     corner_radius: f32,
@@ -220,8 +221,8 @@ impl BoxPainting {
 
 // ----------------------------------------------------------------------------
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct LayoutDemo {
     // Identical to contents of `egui::Layout`
     main_dir: Direction,
@@ -363,7 +364,8 @@ enum Action {
     Delete,
 }
 
-#[derive(Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct Tree(Vec<Tree>);
 
 impl Tree {

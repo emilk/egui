@@ -1,6 +1,7 @@
 use crate::__egui_github_link_file;
 
-#[derive(Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowOptions {
     title: String,
     title_bar: bool,
