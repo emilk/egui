@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+
+## 0.7.0 - 2021-01-04
+
+### Changed
+
+* `http` `persistence` and `time` are now optional (and opt-in) features.
+
+
 ## 0.6.0 - 2020-12-26
 
 ### Added

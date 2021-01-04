@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+
+## 0.7.0 - 2021-01-04
+
+### Changed
+
+* `http` and `persistence` are now optional (and opt-in) features.
+
+### Fixed ⭐
+
+* egui_web now compiled without `RUSTFLAGS=--cfg=web_sys_unstable_apis`, but copy/paste won't work.
+
+
 ## 0.6.0 - 2020-12-26
 
 ### Added ⭐
