@@ -6,12 +6,14 @@ pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
     let Request { method, url } = request;
 
     let resp = ureq::request(method, url).set("Accept", "*/*").call();
-    if let Some(error) = resp.synthetic_error() {
-        return Err(error.to_string());
-    }
+
+    let (ok, resp) = match resp {
+        Ok(resp) => (true, resp),
+        Err(ureq::Error::Status(_, resp)) => (false, resp), // Still read the body on e.g. 404
+        Err(ureq::Error::Transport(error)) => return Err(error.to_string()),
+    };
 
     let url = resp.get_url().to_owned();
-    let ok = resp.ok();
     let status = resp.status();
     let status_text = resp.status_text().to_owned();
     let header_content_type = resp.header("Content-Type").unwrap_or_default().to_owned();
