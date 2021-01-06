@@ -45,10 +45,10 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) ->
 }
 
 fn show_srgba(ui: &mut Ui, srgba: Color32, desired_size: Vec2) -> Response {
-    let response = ui.allocate_response(desired_size, Sense::hover());
-    background_checkers(ui.painter(), response.rect);
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
+    background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
-        rect: response.rect,
+        rect,
         corner_radius: 2.0,
         fill: srgba,
         stroke: Stroke::new(3.0, srgba.to_opaque()),
@@ -58,11 +58,11 @@ fn show_srgba(ui: &mut Ui, srgba: Color32, desired_size: Vec2) -> Response {
 
 fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let desired_size = ui.style().spacing.interact_size;
-    let response = ui.allocate_response(desired_size, Sense::click());
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
-    background_checkers(ui.painter(), response.rect);
+    background_checkers(ui.painter(), rect);
     ui.painter().add(PaintCmd::Rect {
-        rect: response.rect,
+        rect,
         corner_radius: visuals.corner_radius.at_most(2.0),
         fill: color,
         stroke: visuals.fg_stroke,
@@ -77,8 +77,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
         ui.style().spacing.slider_width,
         ui.style().spacing.interact_size.y * 2.0,
     );
-    let response = ui.allocate_response(desired_size, Sense::click_and_drag());
-    let rect = response.rect;
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
     if response.active {
         if let Some(mpos) = ui.input().mouse.pos {
@@ -135,8 +134,7 @@ fn color_slider_2d(
     color_at: impl Fn(f32, f32) -> Color32,
 ) -> Response {
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
-    let response = ui.allocate_response(desired_size, Sense::click_and_drag());
-    let rect = response.rect;
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
     if response.active {
         if let Some(mpos) = ui.input().mouse.pos {

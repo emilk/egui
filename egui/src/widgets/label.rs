@@ -157,10 +157,7 @@ impl Widget for Label {
             total_response
         } else {
             let galley = self.layout(ui);
-            let response = ui.allocate_response(galley.size, Sense::click());
-            let rect = ui
-                .layout()
-                .align_size_within_rect(galley.size, response.rect);
+            let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
             self.paint_galley(ui, rect.min, galley);
             response
         }

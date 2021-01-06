@@ -33,11 +33,11 @@ impl Widget for SelectableLabel {
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
-        let response = ui.allocate_response(desired_size, Sense::click());
+        let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
 
         let text_cursor = pos2(
-            response.rect.min.x + button_padding.x,
-            response.rect.center().y - 0.5 * galley.size.y,
+            rect.min.x + button_padding.x,
+            rect.center().y - 0.5 * galley.size.y,
         );
 
         let visuals = ui.style().interact(&response);
@@ -48,8 +48,7 @@ impl Widget for SelectableLabel {
             } else {
                 Default::default()
             };
-            ui.painter()
-                .rect(response.rect, 0.0, bg_fill, visuals.bg_stroke);
+            ui.painter().rect(rect, 0.0, bg_fill, visuals.bg_stroke);
         }
 
         let text_color = ui

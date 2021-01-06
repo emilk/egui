@@ -89,10 +89,10 @@ impl DemoWindow {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
                     use std::f32::consts::TAU;
-                    let response = ui.allocate_response(Vec2::splat(16.0), Sense::hover());
+                    let (rect, _response) = ui.allocate_at_least(Vec2::splat(16.0), Sense::hover());
                     let painter = ui.painter();
-                    let c = response.rect.center();
-                    let r = response.rect.width() / 2.0 - 1.0;
+                    let c = rect.center();
+                    let r = rect.width() / 2.0 - 1.0;
                     let color = Color32::from_gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -207,9 +207,9 @@ impl BoxPainting {
 
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {
-                let response = ui.allocate_response(self.size, Sense::hover());
+                let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
-                    response.rect,
+                    rect,
                     self.corner_radius,
                     Color32::from_gray(64),
                     Stroke::new(self.stroke_width, Color32::WHITE),

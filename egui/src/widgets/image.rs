@@ -73,8 +73,8 @@ impl Image {
 
 impl Widget for Image {
     fn ui(self, ui: &mut Ui) -> Response {
-        let response = ui.allocate_response(self.desired_size, Sense::hover());
-        self.paint_at(ui, response.rect);
+        let (rect, response) = ui.allocate_at_least(self.desired_size, Sense::hover());
+        self.paint_at(ui, rect);
         response
     }
 }

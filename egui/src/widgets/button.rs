@@ -106,23 +106,19 @@ impl Widget for Button {
             desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
         }
 
-        let response = ui.allocate_response(desired_size, sense);
+        let (rect, response) = ui.allocate_at_least(desired_size, sense);
 
-        if ui.clip_rect().intersects(response.rect) {
+        if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
             let text_cursor = ui
                 .layout()
-                .align_size_within_rect(galley.size, response.rect.shrink2(button_padding))
+                .align_size_within_rect(galley.size, rect.shrink2(button_padding))
                 .min;
 
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
-                ui.painter().rect(
-                    response.rect,
-                    visuals.corner_radius,
-                    fill,
-                    visuals.bg_stroke,
-                );
+                ui.painter()
+                    .rect(rect, visuals.corner_radius, fill, visuals.bg_stroke);
             }
 
             let text_color = text_color
@@ -189,10 +185,7 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let response = ui.allocate_response(desired_size, Sense::click());
-        let rect = ui
-            .layout()
-            .align_size_within_rect(desired_size, response.rect);
+        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
         if response.clicked {
             *checked = !*checked;
         }
@@ -283,10 +276,7 @@ impl Widget for RadioButton {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let response = ui.allocate_response(desired_size, Sense::click());
-        let rect = ui
-            .layout()
-            .align_size_within_rect(desired_size, response.rect);
+        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         let text_cursor = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
@@ -390,28 +380,27 @@ impl Widget for ImageButton {
 
         let button_padding = ui.style().spacing.button_padding;
         let desired_size = image.desired_size() + 2.0 * button_padding;
-        let response = ui.allocate_response(desired_size, sense);
+        let (rect, response) = ui.allocate_at_least(desired_size, sense);
 
-        if ui.clip_rect().intersects(response.rect) {
+        if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
 
             if selected {
                 let selection = ui.style().visuals.selection;
                 ui.painter()
-                    .rect(response.rect, 0.0, selection.bg_fill, selection.stroke);
+                    .rect(rect, 0.0, selection.bg_fill, selection.stroke);
             } else if frame {
                 ui.painter().rect(
-                    response.rect,
+                    rect,
                     visuals.corner_radius,
                     visuals.bg_fill,
                     visuals.bg_stroke,
                 );
             }
 
-            let image_rect = ui.layout().align_size_within_rect(
-                image.desired_size(),
-                response.rect.shrink2(button_padding),
-            );
+            let image_rect = ui
+                .layout()
+                .align_size_within_rect(image.desired_size(), rect.shrink2(button_padding));
             image.paint_at(ui, image_rect);
         }
 

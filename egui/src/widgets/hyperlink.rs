@@ -46,7 +46,7 @@ impl Widget for Hyperlink {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let galley = font.layout_multiline(text, ui.available_width());
-        let response = ui.allocate_response(galley.size, Sense::click());
+        let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
 
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -61,7 +61,7 @@ impl Widget for Hyperlink {
         if response.hovered {
             // Underline:
             for line in &galley.rows {
-                let pos = response.rect.min;
+                let pos = rect.min;
                 let y = pos.y + line.y_max;
                 let y = ui.painter().round_to_pixel(y);
                 let min_x = pos.x + line.min_x();
@@ -73,8 +73,7 @@ impl Widget for Hyperlink {
             }
         }
 
-        ui.painter()
-            .galley(response.rect.min, galley, text_style, color);
+        ui.painter().galley(rect.min, galley, text_style, color);
 
         response.on_hover_text(url)
     }

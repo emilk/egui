@@ -7,6 +7,7 @@ use crate::{
 
 impl Texture {
     pub fn ui(&self, ui: &mut Ui) {
+        // Show font texture in demo Ui
         ui.label(format!(
             "Texture size: {} x {} (hover to zoom)",
             self.width, self.height
@@ -18,8 +19,7 @@ impl Texture {
         if size.x > ui.available_width() {
             size *= ui.available_width() / size.x;
         }
-        let response = ui.allocate_response(size, Sense::hover());
-        let rect = response.rect;
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let mut triangles = Triangles::default();
         triangles.add_rect_with_uv(
             rect,

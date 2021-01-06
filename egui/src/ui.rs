@@ -468,6 +468,27 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
+    /// Returns a `Rect` with exactly what you asked for.
+    ///
+    /// The response rect will be larger if this is part of a justified layout or similar.
+    /// This means that iof this is a narrow widget in a wide justified layout, then
+    /// the widget will react to interactions outside the returned `Rect`.
+    pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
+        let response = self.allocate_response(desired_size, sense);
+        let rect = self
+            .layout()
+            .align_size_within_rect(desired_size, response.rect);
+        (rect, response)
+    }
+
+    /// Allocate at least as much space as needed, and interact with that rect.
+    ///
+    /// The returned `Rect` will be the same size as `Response::rect`.
+    pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
+        let response = self.allocate_response(desired_size, sense);
+        (response.rect, response)
+    }
+
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     ///

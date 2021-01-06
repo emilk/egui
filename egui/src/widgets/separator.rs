@@ -30,8 +30,7 @@ impl Widget for Separator {
             vec2(available_space.x, spacing)
         };
 
-        let response = ui.allocate_response(size, Sense::hover());
-        let rect = response.rect;
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let points = if ui.layout().main_dir().is_horizontal() {
             [
                 pos2(rect.center().x, rect.top()),

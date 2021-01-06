@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* Add `ui.allocate_at_least` and `ui.allocate_exact_size`.
 
 ## 0.7.0 - 2021-01-04
 

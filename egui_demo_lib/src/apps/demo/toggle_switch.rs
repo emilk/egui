@@ -24,7 +24,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // 2. Allocating space:
     // This is where we get a region of the screen assigned.
     // We also tell the Ui to sense clicks in the allocated region.
-    let response = ui.allocate_response(desired_size, egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
     // 3. Interact: Time to check for clicks!.
     if response.clicked {
@@ -44,7 +44,6 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
-    let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
@@ -62,7 +61,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 #[allow(dead_code)]
 fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.style().spacing.interact_size;
-    let response = ui.allocate_response(desired_size, egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     *on ^= response.clicked; // toggle if clicked
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
@@ -70,7 +69,6 @@ fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let off_bg_fill = egui::Rgba::TRANSPARENT;
     let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
-    let rect = response.rect;
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
