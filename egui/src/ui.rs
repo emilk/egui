@@ -349,7 +349,7 @@ impl Ui {
 
     /// In case of a wrapping layout, how much space is left on this row/column?
     pub fn available_size_before_wrap(&self) -> Vec2 {
-        self.layout.available_size_before_wrap(&self.region)
+        self.layout.available_rect_before_wrap(&self.region).size()
     }
 
     /// This is like `available_size_before_wrap()`, but will never be infinite.

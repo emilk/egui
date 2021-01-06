@@ -5,7 +5,7 @@ use crate::{math::*, Align};
 /// This describes the bounds and existing contents of an [`Ui`][`crate::Ui`].
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
-pub struct Region {
+pub(crate) struct Region {
     /// This is the minimal size of the `Ui`.
     /// When adding new widgets, this will generally expand.
     ///
@@ -129,6 +129,7 @@ impl Default for Layout {
     }
 }
 
+/// ## Constructors
 impl Layout {
     pub fn left_to_right() -> Self {
         Self {
@@ -207,39 +208,40 @@ impl Layout {
             ..self
         }
     }
+}
 
-    // ------------------------------------------------------------------------
-
-    pub fn main_dir(self) -> Direction {
+/// ## Inspectors
+impl Layout {
+    pub fn main_dir(&self) -> Direction {
         self.main_dir
     }
 
-    pub fn main_wrap(self) -> bool {
+    pub fn main_wrap(&self) -> bool {
         self.main_wrap
     }
 
-    pub fn cross_align(self) -> Align {
+    pub fn cross_align(&self) -> Align {
         self.cross_align
     }
 
-    pub fn cross_justify(self) -> bool {
+    pub fn cross_justify(&self) -> bool {
         self.cross_justify
     }
 
-    pub fn is_horizontal(self) -> bool {
+    pub fn is_horizontal(&self) -> bool {
         self.main_dir().is_horizontal()
     }
 
-    pub fn is_vertical(self) -> bool {
+    pub fn is_vertical(&self) -> bool {
         self.main_dir().is_vertical()
     }
 
-    pub fn prefer_right_to_left(self) -> bool {
+    pub fn prefer_right_to_left(&self) -> bool {
         self.main_dir == Direction::RightToLeft
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
     }
 
-    fn horizontal_align(self) -> Align {
+    fn horizontal_align(&self) -> Align {
         match self.main_dir {
             // Direction::LeftToRight => Align::left(),
             // Direction::RightToLeft => Align::right(),
@@ -249,7 +251,7 @@ impl Layout {
         }
     }
 
-    fn vertical_align(self) -> Align {
+    fn vertical_align(&self) -> Align {
         match self.main_dir {
             // Direction::TopDown => Align::top(),
             // Direction::BottomUp => Align::bottom(),
@@ -258,7 +260,10 @@ impl Layout {
             Direction::LeftToRight | Direction::RightToLeft => self.cross_align,
         }
     }
+}
 
+/// ## Doing layout
+impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
         let x = match self.horizontal_align() {
             Align::Min => outer.left(),
@@ -274,9 +279,7 @@ impl Layout {
         Rect::from_min_size(Pos2::new(x, y), size)
     }
 
-    // ------------------------------------------------------------------------
-
-    fn initial_cursor(self, max_rect: Rect) -> Pos2 {
+    fn initial_cursor(&self, max_rect: Rect) -> Pos2 {
         match self.main_dir {
             Direction::LeftToRight => max_rect.left_top(),
             Direction::RightToLeft => max_rect.right_top(),
@@ -285,7 +288,7 @@ impl Layout {
         }
     }
 
-    pub fn region_from_max_rect(&self, max_rect: Rect) -> Region {
+    pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
         let cursor = self.initial_cursor(max_rect);
         let min_rect = Rect::from_min_size(cursor, Vec2::zero());
         Region {
@@ -299,7 +302,7 @@ impl Layout {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect)
     }
 
-    pub(crate) fn available_size_before_wrap(&self, region: &Region) -> Vec2 {
+    fn available_size_before_wrap(&self, region: &Region) -> Vec2 {
         self.available_rect_before_wrap(region).size()
     }
 
@@ -307,13 +310,13 @@ impl Layout {
         self.available_from_cursor_max_rect(region.cursor, region.max_rect_finite())
     }
 
-    pub(crate) fn available_size_before_wrap_finite(&self, region: &Region) -> Vec2 {
+    fn available_size_before_wrap_finite(&self, region: &Region) -> Vec2 {
         self.available_rect_before_wrap_finite(region).size()
     }
 
     /// Amount of space available for a widget.
-    /// Wor wrapping layouts, this is the maximum (after wrap)
-    pub fn available_size(&self, r: &Region) -> Vec2 {
+    /// For wrapping layouts, this is the maximum (after wrap).
+    pub(crate) fn available_size(&self, r: &Region) -> Vec2 {
         if self.main_wrap {
             if self.main_dir.is_horizontal() {
                 vec2(r.max_rect.width(), r.max_rect.bottom() - r.cursor.y)
@@ -328,7 +331,7 @@ impl Layout {
 
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    fn available_from_cursor_max_rect(self, cursor: Pos2, max_rect: Rect) -> Rect {
+    fn available_from_cursor_max_rect(&self, cursor: Pos2, max_rect: Rect) -> Rect {
         let mut rect = max_rect;
 
         match self.main_dir {
@@ -358,7 +361,12 @@ impl Layout {
     /// This is what you then pass to `advance_after_outer_rect`.
     /// Use `justify_or_align` to get the inner `Rect`.
     #[allow(clippy::collapsible_if)]
-    pub fn next_space(self, region: &Region, mut child_size: Vec2, item_spacing: Vec2) -> Rect {
+    pub(crate) fn next_space(
+        &self,
+        region: &Region,
+        mut child_size: Vec2,
+        item_spacing: Vec2,
+    ) -> Rect {
         let mut cursor = region.cursor;
 
         if self.main_wrap {
@@ -423,7 +431,7 @@ impl Layout {
     }
 
     /// Apply justify or alignment after calling `next_space`.
-    pub fn justify_or_align(self, mut rect: Rect, child_size: Vec2) -> Rect {
+    pub(crate) fn justify_or_align(&self, mut rect: Rect, child_size: Vec2) -> Rect {
         if self.main_dir.is_horizontal() {
             debug_assert!((rect.width() - child_size.x).abs() < 0.1);
             if self.cross_justify {
@@ -454,7 +462,7 @@ impl Layout {
     }
 
     /// Advance the cursor by this many points.
-    pub fn advance_cursor(self, region: &mut Region, amount: f32) {
+    pub(crate) fn advance_cursor(&self, region: &mut Region, amount: f32) {
         match self.main_dir {
             Direction::LeftToRight => region.cursor.x += amount,
             Direction::RightToLeft => region.cursor.x -= amount,
@@ -463,20 +471,11 @@ impl Layout {
         }
     }
 
-    /// Advance the cursor by this spacing
-    pub fn advance_cursor2(self, region: &mut Region, amount: Vec2) {
-        if self.main_dir.is_horizontal() {
-            self.advance_cursor(region, amount.x)
-        } else {
-            self.advance_cursor(region, amount.y)
-        }
-    }
-
     /// Advance cursor after a widget was added to a specific rectangle.
     /// `outer_rect` is a hack needed because the Vec2 cursor is not quite sufficient to keep track
     /// of what is happening when we are doing wrapping layouts.
-    pub fn advance_after_outer_rect(
-        self,
+    pub(crate) fn advance_after_outer_rect(
+        &self,
         region: &mut Region,
         outer_rect: Rect,
         inner_rect: Rect,
@@ -496,7 +495,7 @@ impl Layout {
 /// ## Debug stuff
 impl Layout {
     /// Shows where the next widget is going to be placed
-    pub fn debug_paint_cursor(&self, region: &Region, painter: &crate::Painter) {
+    pub(crate) fn debug_paint_cursor(&self, region: &Region, painter: &crate::Painter) {
         use crate::paint::*;
 
         let cursor = region.cursor;
