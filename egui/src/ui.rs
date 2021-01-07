@@ -415,13 +415,9 @@ impl Ui {
     }
 
     /// Is the mouse above this `Ui`?
+    /// Equivalent to `ui.rect_contains_mouse(ui.min_rect())`
     pub fn ui_contains_mouse(&self) -> bool {
-        if let Some(mouse_pos) = self.input().mouse.pos {
-            self.clip_rect().contains(mouse_pos)
-                && self.ctx().layer_id_at(mouse_pos) == Some(self.layer_id())
-        } else {
-            false
-        }
+        self.rect_contains_mouse(self.min_rect())
     }
 
     #[deprecated = "Use: interact(rect, id, Sense::hover())"]
