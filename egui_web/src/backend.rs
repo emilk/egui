@@ -66,17 +66,14 @@ impl WebBackend {
 }
 
 impl epi::TextureAllocator for webgl::Painter {
-    fn alloc(&mut self) -> egui::TextureId {
-        self.alloc_user_texture()
-    }
-
-    fn set_srgba_premultiplied(
+    fn alloc_srgba_premultiplied(
         &mut self,
-        id: egui::TextureId,
         size: (usize, usize),
         srgba_pixels: &[Color32],
-    ) {
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
         self.set_user_texture(id, size, srgba_pixels);
+        id
     }
 
     fn free(&mut self, id: egui::TextureId) {

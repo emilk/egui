@@ -265,13 +265,16 @@ impl TexMngr {
         image: &Image,
     ) -> Option<egui::TextureId> {
         let tex_allocator = frame.tex_allocator().as_mut()?;
-        let texture_id = self.texture_id.unwrap_or_else(|| tex_allocator.alloc());
-        self.texture_id = Some(texture_id);
         if self.loaded_url != url {
+            if let Some(texture_id) = self.texture_id.take() {
+                tex_allocator.free(texture_id);
+            }
+
+            self.texture_id =
+                Some(tex_allocator.alloc_srgba_premultiplied(image.size, &image.pixels));
             self.loaded_url = url.to_owned();
-            tex_allocator.set_srgba_premultiplied(texture_id, image.size, &image.pixels);
         }
-        Some(texture_id)
+        self.texture_id
     }
 }
 

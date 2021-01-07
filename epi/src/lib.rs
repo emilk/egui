@@ -190,15 +190,11 @@ pub struct IntegrationInfo {
 /// How to allocate textures (images) to use in [`egui`].
 pub trait TextureAllocator {
     /// Allocate a new user texture.
-    fn alloc(&mut self) -> egui::TextureId;
-
-    /// Set or change the pixels of a user texture.
-    fn set_srgba_premultiplied(
+    fn alloc_srgba_premultiplied(
         &mut self,
-        id: egui::TextureId,
         size: (usize, usize),
         srgba_pixels: &[egui::Color32],
-    );
+    ) -> egui::TextureId;
 
     /// Free the given texture.
     fn free(&mut self, id: egui::TextureId);

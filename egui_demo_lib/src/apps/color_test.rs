@@ -394,9 +394,7 @@ impl TextureManager {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            let id = tex_allocator.alloc();
-            tex_allocator.set_srgba_premultiplied(id, (width, height), &pixels);
-            id
+            tex_allocator.alloc_srgba_premultiplied((width, height), &pixels)
         })
     }
 }
