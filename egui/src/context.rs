@@ -93,8 +93,8 @@ impl FrameState {
     /// Shrink `available_rect`.
     pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
-            panel_rect.min == self.available_rect.min,
-            "Mismatching panels. You must not create a panel from within another panel."
+            panel_rect.min.distance(self.available_rect.min) < 0.1,
+            "Mismatching left panel. You must not create a panel from within another panel."
         );
         self.available_rect.min.x = panel_rect.max.x;
         self.unused_rect.min.x = panel_rect.max.x;
@@ -104,8 +104,8 @@ impl FrameState {
     /// Shrink `available_rect`.
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
-            panel_rect.min == self.available_rect.min,
-            "Mismatching panels. You must not create a panel from within another panel."
+            panel_rect.min.distance(self.available_rect.min) < 0.1,
+            "Mismatching top panel. You must not create a panel from within another panel."
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
