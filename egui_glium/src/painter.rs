@@ -154,7 +154,7 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    fn paint_job(
+    pub fn paint_job(
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
