@@ -57,11 +57,20 @@ impl Color32 {
     /// From `sRGBA` WITHOUT premultiplied alpha.
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         if a == 255 {
-            Self::from_rgba_premultiplied(r, g, b, a) // common-case optimization
+            Self::from_rgba_premultiplied(r, g, b, 255) // common-case optimization
+        } else if a == 0 {
+            Self::TRANSPARENT // common-case optimization
         } else {
-            Rgba::from(Self::from_rgb(r, g, b))
-                .multiply(a as f32 / 255.0)
-                .into()
+            let r_lin = linear_from_gamma_byte(r);
+            let g_lin = linear_from_gamma_byte(g);
+            let b_lin = linear_from_gamma_byte(b);
+            let a_lin = linear_from_alpha_byte(a);
+
+            let r = gamma_byte_from_linear(r_lin * a_lin);
+            let g = gamma_byte_from_linear(g_lin * a_lin);
+            let b = gamma_byte_from_linear(b_lin * a_lin);
+
+            Self::from_rgba_premultiplied(r, g, b, a)
         }
     }
 
