@@ -156,6 +156,8 @@ impl ColorTest {
         );
 
         ui.separator();
+
+        pixel_test(ui);
     }
 
     fn show_gradients(
@@ -396,5 +398,35 @@ impl TextureManager {
             let height = 1;
             tex_allocator.alloc_srgba_premultiplied((width, height), &pixels)
         })
+    }
+}
+
+fn pixel_test(ui: &mut Ui) {
+    ui.label("Each subsequent square should be one physical pixel larger than the previous. They should be exactly one physical pixel apart. They should be perfectly aligned to the pixel grid.");
+
+    let pixels_per_point = ui.ctx().pixels_per_point();
+    let num_squares: u32 = 8;
+    let size_pixels = Vec2::new(
+        ((num_squares + 1) * (num_squares + 2) / 2) as f32,
+        num_squares as f32,
+    );
+    let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+    let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
+
+    let mut cursor_pixel = Pos2::new(
+        response.rect.min.x * pixels_per_point,
+        response.rect.min.y * pixels_per_point,
+    )
+    .ceil();
+    for size in 1..=num_squares {
+        let rect_points = Rect::from_min_size(
+            Pos2::new(
+                cursor_pixel.x / pixels_per_point,
+                cursor_pixel.y / pixels_per_point,
+            ),
+            Vec2::splat(size as f32) / pixels_per_point,
+        );
+        painter.rect_filled(rect_points, 0.0, egui::Color32::WHITE);
+        cursor_pixel.x += (1 + size) as f32;
     }
 }
