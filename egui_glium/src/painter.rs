@@ -11,7 +11,7 @@ use {
         index::PrimitiveType,
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
-        uniforms::SamplerWrapFunction,
+        uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
         Frame, Surface,
     },
 };
@@ -198,9 +198,13 @@ impl Painter {
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
         if let Some(texture) = self.get_texture(triangles.texture_id) {
+            // The texture coordinates for text are so that both nearest and linear should work with the Egui font texture.
+            // For user textures linear sampling is more likely to be the right choice.
+            let filter = MagnifySamplerFilter::Linear;
+
             let uniforms = uniform! {
                 u_screen_size: [width_in_points, height_in_points],
-                u_sampler: texture.sampled().wrap_function(SamplerWrapFunction::Clamp),
+                u_sampler: texture.sampled().magnify_filter(filter).wrap_function(SamplerWrapFunction::Clamp),
             };
 
             // Egui outputs colors with premultiplied alpha:
