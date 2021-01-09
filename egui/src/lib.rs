@@ -89,6 +89,7 @@ mod layout;
 mod memory;
 pub mod menu;
 mod painter;
+pub(crate) mod placer;
 pub mod style;
 mod types;
 mod ui;
