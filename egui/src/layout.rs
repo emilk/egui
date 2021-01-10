@@ -496,7 +496,6 @@ impl Layout {
 impl Layout {
     /// Shows where the next widget is going to be placed
     pub(crate) fn debug_paint_cursor(&self, region: &Region, painter: &crate::Painter) {
-        use crate::align::Align2;
         use crate::paint::*;
 
         let cursor = region.cursor;

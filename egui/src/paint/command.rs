@@ -1,10 +1,6 @@
 use {
     super::{fonts::TextStyle, Color32, Fonts, Galley, Triangles},
-    crate::{
-        align::Align2,
-        math::{Pos2, Rect},
-        *,
-    },
+    crate::*,
 };
 
 /// A paint primitive such as a circle or a piece of text.

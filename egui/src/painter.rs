@@ -1,7 +1,6 @@
 use crate::{
-    align::Align2,
     layers::PaintCmdIdx,
-    math::{Pos2, Rect, Vec2},
+    math::{Align2, Pos2, Rect, Vec2},
     paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
     Color32, CtxRef, LayerId,
 };

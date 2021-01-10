@@ -78,7 +78,6 @@
 )]
 #![allow(clippy::manual_range_contains)]
 
-pub mod align;
 mod animation_manager;
 pub mod containers;
 mod context;
@@ -99,7 +98,6 @@ pub mod util;
 pub mod widgets;
 
 pub use {
-    align::Align,
     containers::*,
     context::{Context, CtxRef},
     id::Id,
