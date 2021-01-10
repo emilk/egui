@@ -446,8 +446,8 @@ use self::PathType::{Closed, Open};
 
 /// Tessellation quality options
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct TessellationOptions {
     /// Size of a pixel in points, e.g. 0.5
     pub aa_size: f32,

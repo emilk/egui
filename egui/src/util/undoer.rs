@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Settings {
     /// Maximum number of undos.
     /// If your state is resource intensive, you should keep this low.
@@ -48,7 +48,7 @@ impl Default for Settings {
 /// Rule 1) will make sure an undo point is not created until you _stop_ dragging that slider.
 /// Rule 2) will make sure that you will get some undo points even if you are constantly changing the state.
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Undoer<State> {
     settings: Settings,
 
@@ -57,7 +57,7 @@ pub struct Undoer<State> {
     /// The latest undo point may (often) be the current state.
     undos: VecDeque<State>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     flux: Option<Flux<State>>,
 }
 

@@ -1,6 +1,6 @@
-//! One- and two-dimensional alignment ([`Align::Center`], [`LEFT_TOP`] etc).
+//! One- and two-dimensional alignment ([`Align::Center`], [`Align2::LEFT_TOP`] etc).
 
-use crate::math::*;
+use crate::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -35,7 +35,8 @@ impl Align {
         Self::Max
     }
 
-    pub(crate) fn scroll_center_factor(&self) -> f32 {
+    /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.
+    pub fn to_factor(&self) -> f32 {
         match self {
             Self::Min => 0.0,
             Self::Center => 0.5,
@@ -52,6 +53,7 @@ impl Default for Align {
 
 // ----------------------------------------------------------------------------
 
+/// Two-dimension alignment, e.g. [`Align2::LEFT_TOP`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -79,7 +81,7 @@ impl Align2 {
 
     /// Used e.g. to anchor a piece of text to a part of the rectangle.
     /// Give a position within the rect, specified by the aligns
-    pub(crate) fn anchor_rect(self, rect: Rect) -> Rect {
+    pub fn anchor_rect(self, rect: Rect) -> Rect {
         let x = match self.x() {
             Align::Min => rect.left(),
             Align::Center => rect.left() - 0.5 * rect.width(),

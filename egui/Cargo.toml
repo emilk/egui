@@ -19,6 +19,8 @@ include = [
 [lib]
 
 [dependencies]
+emath = { path = "../emath" }
+
 ahash = { version = "0.6", features = ["std"], default-features = false }
 atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using Egui in a single thread. About as fast as parking_lot. Panics on multi-threaded use of egui::Context.
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
@@ -27,6 +29,7 @@ serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
 default = ["atomic_refcell", "default_fonts"]
+persistence = ["serde", "emath/serde"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.

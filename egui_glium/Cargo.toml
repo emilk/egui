@@ -35,7 +35,7 @@ default = []
 http = ["ureq"]
 persistence = [
     "directories-next",
-    "egui/serde",
+    "egui/persistence",
     "epi/serde_json",
     "epi/serde",
     "serde_json",

@@ -86,7 +86,6 @@ mod input;
 mod introspection;
 mod layers;
 mod layout;
-pub mod math;
 mod memory;
 pub mod menu;
 pub mod paint;
@@ -97,6 +96,8 @@ mod ui;
 pub mod util;
 pub mod widgets;
 
+pub use emath as math;
+
 pub use {
     containers::*,
     context::{Context, CtxRef},
@@ -104,7 +105,7 @@ pub use {
     input::*,
     layers::*,
     layout::*,
-    math::*,
+    math::{clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2},
     memory::Memory,
     paint::{
         color, Color32, FontDefinitions, FontFamily, PaintCmd, PaintJobs, Rgba, Stroke, TextStyle,

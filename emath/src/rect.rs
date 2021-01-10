@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use crate::math::*;
+use crate::*;
 
 /// A rectangular region of space.
 ///

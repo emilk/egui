@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{math::NumExt, paint::*, widgets::Label, *};
+use crate::{paint::*, widgets::Label, *};
 
 // ----------------------------------------------------------------------------
 
@@ -209,7 +209,7 @@ impl<'a> Slider<'a> {
 
     fn set_value(&mut self, mut value: f64) {
         if let Some(max_decimals) = self.max_decimals {
-            value = round_to_decimals(value, max_decimals);
+            value = math::round_to_decimals(value, max_decimals);
         }
         set(&mut self.get_set_value, value);
     }
@@ -366,13 +366,13 @@ impl<'a> Slider<'a> {
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
 
         if min_decimals == max_decimals {
-            format_with_minimum_decimals(value, max_decimals)
+            math::format_with_minimum_decimals(value, max_decimals)
         } else if value == 0.0 {
             "0".to_owned()
         } else if range == 0.0 {
             value.to_string()
         } else {
-            format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+            math::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
         }
     }
 }

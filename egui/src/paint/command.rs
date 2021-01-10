@@ -192,7 +192,7 @@ impl PaintCmd {
 
 /// Describes the width and color of a line.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
     pub width: f32,
     pub color: Color32,

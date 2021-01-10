@@ -28,7 +28,7 @@ use std::hash::Hash;
 /// Then there are widgets that need no identifiers at all, like labels,
 /// because they have no state nor are interacted with.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(u64);
 
 impl Id {

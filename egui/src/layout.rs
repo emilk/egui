@@ -66,8 +66,8 @@ impl Region {
 
 /// Layout direction, one of `LeftToRight`, `RightToLeft`, `TopDown`, `BottomUp`.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(rename_all = "snake_case"))]
 pub enum Direction {
     LeftToRight,
     RightToLeft,
@@ -95,7 +95,7 @@ impl Direction {
 
 /// The layout of a [`Ui`][`crate::Ui`], e.g. "vertical & centered".
 #[derive(Clone, Copy, Debug, PartialEq)]
-// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+// #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Main axis direction
     main_dir: Direction,

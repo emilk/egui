@@ -1,6 +1,5 @@
 //! uis for egui types.
 use crate::{
-    math::*,
     paint::{self, PaintCmd, Texture, Triangles},
     *,
 };

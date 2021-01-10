@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
 
-use crate::math::*;
+use crate::*;
 
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
