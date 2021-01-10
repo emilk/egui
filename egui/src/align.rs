@@ -1,6 +1,6 @@
 //! One- and two-dimensional alignment ([`Align::Center`], [`LEFT_TOP`] etc).
 
-use crate::math::{pos2, Rect};
+use crate::math::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -76,4 +76,24 @@ pub(crate) fn anchor_rect(rect: Rect, anchor: (Align, Align)) -> Rect {
         Align::Max => rect.top() - rect.height(),
     };
     Rect::from_min_size(pos2(x, y), rect.size())
+}
+
+/// e.g. center a size within a given frame
+pub fn align_size_within_rect(align: (Align, Align), size: Vec2, frame: Rect) -> Rect {
+    let x = match align.0 {
+        Align::Min => frame.left(),
+        Align::Center => frame.center().x - size.x / 2.0,
+        Align::Max => frame.right() - size.x,
+    };
+    let y = match align.1 {
+        Align::Min => frame.top(),
+        Align::Center => frame.center().y - size.y / 2.0,
+        Align::Max => frame.bottom() - size.y,
+    };
+
+    Rect::from_min_size(Pos2::new(x, y), size)
+}
+
+pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
+    align_size_within_rect(CENTER_CENTER, size, frame)
 }

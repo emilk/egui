@@ -56,6 +56,13 @@ impl Rect {
         }
     }
 
+    pub fn from_x_y_ranges(x_range: RangeInclusive<f32>, y_range: RangeInclusive<f32>) -> Self {
+        Rect {
+            min: pos2(*x_range.start(), *y_range.start()),
+            max: pos2(*x_range.end(), *y_range.end()),
+        }
+    }
+
     /// Expand by this much in each direction, keeping the center
     #[must_use]
     pub fn expand(self, amnt: f32) -> Self {
