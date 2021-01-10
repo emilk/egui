@@ -54,7 +54,7 @@ impl Texture {
     }
 }
 
-impl paint::FontDefinitions {
+impl paint::text::FontDefinitions {
     pub fn ui(&mut self, ui: &mut Ui) {
         for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
             // TODO: radio button for family

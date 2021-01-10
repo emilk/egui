@@ -2,7 +2,15 @@
 
 use std::{hash::Hash, sync::Arc};
 
-use crate::{color::*, containers::*, layout::*, mutex::MutexGuard, paint::*, widgets::*, *};
+use crate::{
+    color::*,
+    containers::*,
+    layout::*,
+    mutex::MutexGuard,
+    paint::{text::Fonts, *},
+    widgets::*,
+    *,
+};
 
 /// This is what you use to place widgets.
 ///

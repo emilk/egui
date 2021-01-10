@@ -1,4 +1,8 @@
-use crate::{paint::*, util::undoer::Undoer, *};
+use crate::{
+    paint::{text::cursor::*, *},
+    util::undoer::Undoer,
+    *,
+};
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]

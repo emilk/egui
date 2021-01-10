@@ -73,7 +73,7 @@ impl Label {
         }
     }
 
-    pub fn font_height(&self, fonts: &paint::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &paint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
         fonts[text_style].row_height()
     }

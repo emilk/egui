@@ -8,7 +8,7 @@ use std::sync::{
 use crate::{
     animation_manager::AnimationManager,
     mutex::{Mutex, MutexGuard},
-    paint::{stats::*, *},
+    paint::{stats::*, text::Fonts, *},
     *,
 };
 

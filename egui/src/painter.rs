@@ -1,7 +1,10 @@
 use crate::{
     layers::ShapeIdx,
     math::{Align2, Pos2, Rect, Vec2},
-    paint::{Fonts, Galley, Shape, Stroke, TextStyle},
+    paint::{
+        text::{Fonts, Galley, TextStyle},
+        Shape, Stroke,
+    },
     Color32, CtxRef, LayerId,
 };
 

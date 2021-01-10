@@ -4,12 +4,9 @@ use std::{
     sync::Arc,
 };
 
+use super::font::{Font, FontImpl};
 use crate::mutex::Mutex;
-
-use super::{
-    font::{Font, FontImpl},
-    texture_atlas::{Texture, TextureAtlas},
-};
+use crate::paint::{Texture, TextureAtlas};
 
 // TODO: rename
 /// One of a few categories of styles of text, e.g. body, button or heading.
@@ -118,22 +115,22 @@ impl Default for FontDefinitions {
             // Use size 13 for this. NOTHING ELSE:
             font_data.insert(
                 "ProggyClean".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/ProggyClean.ttf")),
             );
             font_data.insert(
                 "Ubuntu-Light".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/Ubuntu-Light.ttf")),
             );
 
             // Some good looking emojis. Use as first priority:
             font_data.insert(
                 "NotoEmoji-Regular".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/NotoEmoji-Regular.ttf")),
             );
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
             font_data.insert(
                 "emoji-icon-font".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/emoji-icon-font.ttf")),
             );
 
             fonts_for_family.insert(

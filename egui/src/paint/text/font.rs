@@ -8,10 +8,11 @@ use {
 use crate::{
     math::{vec2, Vec2},
     mutex::{Mutex, RwLock},
-    paint::{Galley, Row},
+    paint::{
+        text::galley::{Galley, Row},
+        TextureAtlas,
+    },
 };
-
-use super::texture_atlas::TextureAtlas;
 
 // ----------------------------------------------------------------------------
 

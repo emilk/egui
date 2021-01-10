@@ -108,8 +108,9 @@ pub use {
     math::{clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2},
     memory::Memory,
     paint::{
-        color, Color32, FontDefinitions, FontFamily, PaintJobs, Rgba, Shape, Stroke, TextStyle,
-        Texture, TextureId,
+        color,
+        text::{FontDefinitions, FontFamily, TextStyle},
+        Color32, PaintJobs, Rgba, Shape, Stroke, Texture, TextureId,
     },
     painter::Painter,
     style::Style,

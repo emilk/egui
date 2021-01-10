@@ -68,7 +68,7 @@ pub(crate) struct Options {
     /// Controls the tessellator.
     pub(crate) tessellation_options: crate::paint::TessellationOptions,
     /// Font sizes etc.
-    pub(crate) font_definitions: crate::paint::FontDefinitions,
+    pub(crate) font_definitions: crate::paint::text::FontDefinitions,
 }
 
 // ----------------------------------------------------------------------------
