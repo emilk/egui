@@ -1,6 +1,6 @@
 //! Helper module that wraps some Mutex types with different implementations.
-//! By default, Egui Mutexes will panic when used in a multi-threaded environment.
-//! To use the same [`crate::Context`] from different threads, enable the `multi_threaded` feature.
+//!
+//! When the `single_threaded` feature is on the mutexes will panic when locked from different threads.
 
 // ----------------------------------------------------------------------------
 

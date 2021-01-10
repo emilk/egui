@@ -1,5 +1,5 @@
-use super::*;
 use crate::*;
+use emath::*;
 
 /// The vertex type.
 ///

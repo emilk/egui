@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{paint::*, *};
+use crate::*;
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.

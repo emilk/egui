@@ -88,7 +88,6 @@ mod layers;
 mod layout;
 mod memory;
 pub mod menu;
-pub mod paint;
 mod painter;
 pub mod style;
 mod types;
@@ -97,6 +96,17 @@ pub mod util;
 pub mod widgets;
 
 pub use emath as math;
+pub use epaint as paint;
+pub use epaint::emath;
+
+pub use emath::{
+    clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2,
+};
+pub use epaint::{
+    color, mutex,
+    text::{FontDefinitions, FontFamily, TextStyle},
+    Color32, PaintJobs, Rgba, Shape, Stroke, Texture, TextureId,
+};
 
 pub use {
     containers::*,
@@ -105,18 +115,11 @@ pub use {
     input::*,
     layers::*,
     layout::*,
-    math::{clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2},
     memory::Memory,
-    paint::{
-        color,
-        text::{FontDefinitions, FontFamily, TextStyle},
-        Color32, PaintJobs, Rgba, Shape, Stroke, Texture, TextureId,
-    },
     painter::Painter,
     style::Style,
     types::*,
     ui::Ui,
-    util::mutex,
     widgets::*,
 };
 

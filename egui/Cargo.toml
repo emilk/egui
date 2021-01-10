@@ -13,27 +13,22 @@ keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
 include = [
   "**/*.rs",
   "Cargo.toml",
-  "fonts/*.ttf",
 ]
 
 [lib]
 
 [dependencies]
-emath = { path = "../emath" }
-
-ahash = { version = "0.6", features = ["std"], default-features = false }
-atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using Egui in a single thread. About as fast as parking_lot. Panics on multi-threaded use of egui::Context.
-parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios
-rusttype = "0.9"
+epaint = { path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
-default = ["atomic_refcell", "default_fonts"]
-persistence = ["serde", "emath/serde"]
+default = ["default_fonts", "single_threaded"]
+persistence = ["serde", "epaint/persistence"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
-default_fonts = []
+default_fonts = ["epaint/default_fonts"]
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
-multi_threaded = ["parking_lot"]
+single_threaded = ["epaint/single_threaded"]
+multi_threaded = ["epaint/multi_threaded"]

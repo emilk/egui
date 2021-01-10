@@ -6,13 +6,11 @@ use {
 };
 
 use crate::{
-    math::{vec2, Vec2},
     mutex::{Mutex, RwLock},
-    paint::{
-        text::galley::{Galley, Row},
-        TextureAtlas,
-    },
+    text::galley::{Galley, Row},
+    TextureAtlas,
 };
+use emath::{vec2, Vec2};
 
 // ----------------------------------------------------------------------------
 

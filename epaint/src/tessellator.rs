@@ -5,11 +5,9 @@
 
 #![allow(clippy::identity_op)]
 
-use {
-    super::{text::Fonts, *},
-    crate::math::*,
-    std::f32::consts::TAU,
-};
+use crate::{text::Fonts, *};
+use emath::*;
+use std::f32::consts::TAU;
 
 /// A clip triangle and some textured triangles.
 pub type PaintJob = (Rect, Triangles);
@@ -133,7 +131,7 @@ impl Path {
     }
 }
 
-pub(crate) mod path {
+pub mod path {
     //! Helpers for constructing paths
     use super::*;
 

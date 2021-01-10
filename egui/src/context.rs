@@ -871,24 +871,3 @@ impl Context {
         self.set_style(style);
     }
 }
-
-impl paint::TessellationOptions {
-    pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            aa_size: _,
-            anti_alias,
-            coarse_tessellation_culling,
-            debug_paint_clip_rects,
-            debug_paint_text_rects,
-            debug_ignore_clip_rects,
-        } = self;
-        ui.checkbox(anti_alias, "Antialias");
-        ui.checkbox(
-            coarse_tessellation_culling,
-            "Do coarse culling in the tessellator",
-        );
-        ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
-        ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
-        ui.checkbox(debug_paint_text_rects, "Paint text bounds (debug)");
-    }
-}

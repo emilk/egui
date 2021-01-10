@@ -1,10 +1,8 @@
-use {
-    super::{
-        text::{Fonts, Galley, TextStyle},
-        Color32, Triangles,
-    },
-    crate::*,
+use crate::{
+    text::{Fonts, Galley, TextStyle},
+    Color32, Stroke, Triangles,
 };
+use emath::*;
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).

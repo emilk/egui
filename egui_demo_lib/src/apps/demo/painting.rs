@@ -19,7 +19,7 @@ impl Default for Painting {
 impl Painting {
     pub fn ui_control(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            self.stroke.ui(ui, "Stroke");
+            egui::stroke_ui(ui, &mut self.stroke, "Stroke");
             ui.separator();
             if ui.button("Clear Painting").clicked {
                 self.lines.clear();

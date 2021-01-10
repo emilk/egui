@@ -44,3 +44,31 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
         *value = def;
     }
 }
+
+// ----------------------------------------------------------------------------
+
+pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
+    let epaint::Stroke { width, color } = stroke;
+    ui.horizontal(|ui| {
+        ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
+            .on_hover_text("Width");
+        ui.color_edit_button_srgba(color);
+        ui.label(text);
+
+        // stroke preview:
+        let (_id, stroke_rect) = ui.allocate_space(ui.style().spacing.interact_size);
+        let left = stroke_rect.left_center();
+        let right = stroke_rect.right_center();
+        ui.painter().line_segment([left, right], (*width, *color));
+    });
+}
+
+pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
+    let epaint::Shadow { extrusion, color } = shadow;
+    ui.horizontal(|ui| {
+        ui.label(text);
+        ui.add(DragValue::f32(extrusion).speed(1.0).range(0.0..=100.0))
+            .on_hover_text("Extrusion");
+        ui.color_edit_button_srgba(color);
+    });
+}

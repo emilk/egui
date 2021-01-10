@@ -1,4 +1,4 @@
-use crate::{paint::*, Rect};
+use {crate::*, emath::*};
 
 #[derive(Clone, Copy, PartialEq)]
 enum ElementSize {
@@ -129,24 +129,20 @@ impl AllocInfo {
             )
         }
     }
-
-    pub fn label(&self, ui: &mut crate::Ui, what: &str) -> crate::Response {
-        ui.add(crate::Label::new(self.format(what)).multiline(false))
-    }
 }
 
 #[derive(Clone, Copy, Default)]
 pub struct PaintStats {
-    shapes: AllocInfo,
-    shape_text: AllocInfo,
-    shape_path: AllocInfo,
-    shape_mesh: AllocInfo,
-    shape_vec: AllocInfo,
+    pub shapes: AllocInfo,
+    pub shape_text: AllocInfo,
+    pub shape_path: AllocInfo,
+    pub shape_mesh: AllocInfo,
+    pub shape_vec: AllocInfo,
 
     /// Number of separate clip rectangles
-    jobs: AllocInfo,
-    vertices: AllocInfo,
-    indices: AllocInfo,
+    pub jobs: AllocInfo,
+    pub vertices: AllocInfo,
+    pub indices: AllocInfo,
 }
 
 impl PaintStats {
@@ -187,7 +183,7 @@ impl PaintStats {
         }
     }
 
-    pub fn with_paint_jobs(mut self, paint_jobs: &[crate::paint::PaintJob]) -> Self {
+    pub fn with_paint_jobs(mut self, paint_jobs: &[crate::PaintJob]) -> Self {
         self.jobs += AllocInfo::from_slice(paint_jobs);
         for (_, indices) in paint_jobs {
             self.vertices += AllocInfo::from_slice(&indices.vertices);
@@ -205,51 +201,6 @@ impl PaintStats {
     //         + self.vertices
     //         + self.indices
     // }
-}
-
-impl PaintStats {
-    pub fn ui(&self, ui: &mut crate::Ui) {
-        ui.label(
-            "Egui generates intermediate level shapes like circles and text. \
-            These are later tessellated into triangles.",
-        );
-        ui.advance_cursor(10.0);
-
-        ui.style_mut().body_text_style = TextStyle::Monospace;
-
-        let Self {
-            shapes,
-            shape_text,
-            shape_path,
-            shape_mesh,
-            shape_vec,
-            jobs,
-            vertices,
-            indices,
-        } = self;
-
-        ui.label("Intermediate:");
-        shapes
-            .label(ui, "shapes")
-            .on_hover_text("Boxes, circles, etc");
-        shape_text.label(ui, "text");
-        shape_path.label(ui, "paths");
-        shape_mesh.label(ui, "meshes");
-        shape_vec.label(ui, "nested");
-        ui.advance_cursor(10.0);
-
-        ui.label("Tessellated:");
-        jobs.label(ui, "jobs")
-            .on_hover_text("Number of separate clip rectangles");
-        vertices.label(ui, "vertices");
-        indices
-            .label(ui, "indices")
-            .on_hover_text("Three 32-bit indices per triangles");
-        ui.advance_cursor(10.0);
-
-        // ui.label("Total:");
-        // ui.label(self.total().format(""));
-    }
 }
 
 fn megabytes(size: usize) -> String {

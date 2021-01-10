@@ -20,7 +20,7 @@
 //! [`CCursor::prefer_next_row`] etc selects which.
 
 use super::cursor::*;
-use crate::math::{pos2, NumExt, Rect, Vec2};
+use emath::{pos2, NumExt, Rect, Vec2};
 
 /// A collection of text locked into place.
 #[derive(Clone, Debug, Default)]
@@ -551,7 +551,7 @@ fn test_text_layout() {
         }
     }
 
-    use crate::paint::*;
+    use crate::*;
 
     let pixels_per_point = 1.0;
     let fonts = text::Fonts::from_definitions(pixels_per_point, text::FontDefinitions::default());

@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{paint::*, widgets::Label, *};
+use crate::{widgets::Label, *};
 
 // ----------------------------------------------------------------------------
 

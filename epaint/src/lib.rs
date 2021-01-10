@@ -1,6 +1,51 @@
 //! 2D graphics/rendering. Fonts, textures, color, geometry, tessellation etc.
 
+#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![forbid(unsafe_code)]
+#![warn(
+    clippy::all,
+    clippy::await_holding_lock,
+    clippy::dbg_macro,
+    clippy::doc_markdown,
+    clippy::empty_enum,
+    clippy::enum_glob_use,
+    clippy::exit,
+    clippy::filter_map_next,
+    clippy::fn_params_excessive_bools,
+    clippy::if_let_mutex,
+    clippy::imprecise_flops,
+    clippy::inefficient_to_string,
+    clippy::linkedlist,
+    clippy::lossy_float_literal,
+    clippy::macro_use_imports,
+    clippy::match_on_vec_items,
+    clippy::match_wildcard_for_single_variants,
+    clippy::mem_forget,
+    clippy::mismatched_target_os,
+    clippy::missing_errors_doc,
+    clippy::missing_safety_doc,
+    clippy::needless_borrow,
+    clippy::needless_continue,
+    clippy::needless_pass_by_value,
+    clippy::option_option,
+    clippy::pub_enum_variant_names,
+    clippy::rest_pat_in_fully_bound_structs,
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::unnested_or_patterns,
+    clippy::verbose_file_reads,
+    future_incompatible,
+    missing_crate_level_docs,
+    missing_doc_code_examples,
+    // missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unused_doc_comments,
+)]
+#![allow(clippy::manual_range_contains)]
+
 pub mod color;
+pub mod mutex;
 mod shadow;
 pub mod shape;
 pub mod stats;
@@ -22,11 +67,14 @@ pub use {
     triangles::{Triangles, Vertex},
 };
 
+pub use ahash;
+pub use emath;
+
 /// The UV coordinate of a white region of the texture mesh.
 /// The default Egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
-pub const WHITE_UV: crate::Pos2 = crate::pos2(0.0, 0.0);
+pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
 /// What texture to use in a [`Triangles`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -47,7 +95,7 @@ impl Default for TextureId {
 }
 
 pub(crate) struct PaintRect {
-    pub rect: crate::Rect,
+    pub rect: emath::Rect,
     /// How rounded the corners are. Use `0.0` for no rounding.
     pub corner_radius: f32,
     pub fill: Color32,

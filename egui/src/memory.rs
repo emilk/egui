@@ -178,7 +178,7 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {

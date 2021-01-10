@@ -3,13 +3,7 @@
 use std::{hash::Hash, sync::Arc};
 
 use crate::{
-    color::*,
-    containers::*,
-    layout::*,
-    mutex::MutexGuard,
-    paint::{text::Fonts, *},
-    widgets::*,
-    *,
+    color::*, containers::*, layout::*, mutex::MutexGuard, paint::text::Fonts, widgets::*, *,
 };
 
 /// This is what you use to place widgets.
@@ -874,9 +868,9 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
     pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
-        let mut color = Color32(*srgba);
+        let mut color = Color32::from_rgba_premultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response = self.color_edit_button_srgba(&mut color);
-        *srgba = color.0;
+        *srgba = color.to_array();
         response
     }
 

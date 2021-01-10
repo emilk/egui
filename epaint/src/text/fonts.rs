@@ -4,9 +4,11 @@ use std::{
     sync::Arc,
 };
 
-use super::font::{Font, FontImpl};
-use crate::mutex::Mutex;
-use crate::paint::{Texture, TextureAtlas};
+use crate::{
+    mutex::Mutex,
+    text::font::{Font, FontImpl},
+    Texture, TextureAtlas,
+};
 
 // TODO: rename
 /// One of a few categories of styles of text, e.g. body, button or heading.
@@ -68,7 +70,7 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 ///
 /// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
 ///
-/// ```
+/// ``` ignore
 /// # let mut ctx = egui::CtxRef::default();
 /// let mut fonts = egui::FontDefinitions::default();
 /// // Large button text:
@@ -115,22 +117,22 @@ impl Default for FontDefinitions {
             // Use size 13 for this. NOTHING ELSE:
             font_data.insert(
                 "ProggyClean".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/ProggyClean.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
             );
             font_data.insert(
                 "Ubuntu-Light".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/Ubuntu-Light.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
             );
 
             // Some good looking emojis. Use as first priority:
             font_data.insert(
                 "NotoEmoji-Regular".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/NotoEmoji-Regular.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
             );
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
             font_data.insert(
                 "emoji-icon-font".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../../fonts/emoji-icon-font.ttf")),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
             );
 
             fonts_for_family.insert(

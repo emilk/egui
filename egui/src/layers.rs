@@ -1,4 +1,4 @@
-use ahash::AHashMap;
+use epaint::ahash::AHashMap;
 
 use crate::{math::Rect, paint::Shape, Id, *};
 
