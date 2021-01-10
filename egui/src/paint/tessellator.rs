@@ -845,14 +845,12 @@ impl Tessellator {
         let tex_w = fonts.texture().width as f32;
         let tex_h = fonts.texture().height as f32;
 
-        let text_offset = vec2(0.0, 1.0); // Eye-balled for buttons. TODO: why is this needed?
-
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
         let font = &fonts[text_style];
         let mut chars = galley.text.chars();
         for line in &galley.rows {
-            let line_min_y = pos.y + line.y_min + text_offset.x;
+            let line_min_y = pos.y + line.y_min;
             let line_max_y = line_min_y + font.row_height();
             let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
 
@@ -866,8 +864,7 @@ impl Tessellator {
                 }
 
                 if let Some(glyph) = font.uv_rect(c) {
-                    let mut left_top =
-                        pos + glyph.offset + vec2(*x_offset, line.y_min) + text_offset;
+                    let mut left_top = pos + glyph.offset + vec2(*x_offset, line.y_min);
                     left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
                     left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
 

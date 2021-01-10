@@ -322,11 +322,24 @@ impl FontImplCache {
             }
         }
 
+        let y_offset = if font_name == "emoji-icon-font" {
+            1.0 // TODO: remove font alignment hack
+        } else {
+            -3.0 // TODO: remove font alignment hack
+        };
+
+        let scale_in_points = if font_name == "emoji-icon-font" {
+            scale_in_points - 2.0 // TODO: remove HACK!
+        } else {
+            scale_in_points
+        };
+
         let font_impl = Arc::new(FontImpl::new(
             self.atlas.clone(),
             self.pixels_per_point,
             self.rusttype_font(font_name),
             scale_in_points,
+            y_offset,
         ));
         self.cache
             .push((font_name.to_owned(), scale_in_points, font_impl.clone()));

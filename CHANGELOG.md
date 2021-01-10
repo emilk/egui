@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Add `ui.allocate_at_least` and `ui.allocate_exact_size`.
 
+### Changed 🔧
+
+* Tweak size and alignment of some emojis to match other text.
+
 ### Fixed 🐛
 
 * Fixed a bug that would sometimes trigger a "Mismatching panels" panic in debug builds.
