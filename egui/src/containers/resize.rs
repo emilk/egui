@@ -284,7 +284,7 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(paint::PaintCmd::Rect {
+            ui.painter().add(paint::Shape::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),

@@ -59,14 +59,14 @@ impl Image {
         if *bg_fill != Default::default() {
             let mut triangles = Triangles::default();
             triangles.add_colored_rect(rect, *bg_fill);
-            ui.painter().add(PaintCmd::triangles(triangles));
+            ui.painter().add(Shape::triangles(triangles));
         }
 
         {
             // TODO: builder pattern for Triangles
             let mut triangles = Triangles::with_texture(*texture_id);
             triangles.add_rect_with_uv(rect, *uv, *tint);
-            ui.painter().add(PaintCmd::triangles(triangles));
+            ui.painter().add(Shape::triangles(triangles));
         }
     }
 }

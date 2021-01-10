@@ -923,7 +923,7 @@ impl Ui {
         (ret, response)
     }
 
-    /// Redirect paint commands to another paint layer.
+    /// Redirect shapes to another paint layer.
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,

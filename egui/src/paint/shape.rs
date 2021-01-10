@@ -6,12 +6,12 @@ use {
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
 #[derive(Clone, Debug)]
-pub enum PaintCmd {
+pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
-    /// Recursively nest more paint commands - sometimes a convenience to be able to do.
+    /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
-    Vec(Vec<PaintCmd>),
+    Vec(Vec<Shape>),
     Circle {
         center: Pos2,
         radius: f32,
@@ -49,7 +49,7 @@ pub enum PaintCmd {
 }
 
 /// ## Constructors
-impl PaintCmd {
+impl Shape {
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -141,14 +141,14 @@ impl PaintCmd {
 }
 
 /// ## Operations
-impl PaintCmd {
+impl Shape {
     pub fn triangles(triangles: Triangles) -> Self {
         debug_assert!(triangles.is_valid());
         Self::Triangles(triangles)
     }
 
     pub fn texture_id(&self) -> super::TextureId {
-        if let PaintCmd::Triangles(triangles) = self {
+        if let Shape::Triangles(triangles) = self {
             triangles.texture_id
         } else {
             super::TextureId::Egui
@@ -158,32 +158,32 @@ impl PaintCmd {
     /// Translate location by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
         match self {
-            PaintCmd::Noop => {}
-            PaintCmd::Vec(commands) => {
-                for command in commands {
-                    command.translate(delta);
+            Shape::Noop => {}
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    shape.translate(delta);
                 }
             }
-            PaintCmd::Circle { center, .. } => {
+            Shape::Circle { center, .. } => {
                 *center += delta;
             }
-            PaintCmd::LineSegment { points, .. } => {
+            Shape::LineSegment { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            PaintCmd::Path { points, .. } => {
+            Shape::Path { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            PaintCmd::Rect { rect, .. } => {
+            Shape::Rect { rect, .. } => {
                 *rect = rect.translate(delta);
             }
-            PaintCmd::Text { pos, .. } => {
+            Shape::Text { pos, .. } => {
                 *pos += delta;
             }
-            PaintCmd::Triangles(triangles) => {
+            Shape::Triangles(triangles) => {
                 triangles.translate(delta);
             }
         }

@@ -52,7 +52,7 @@ impl Painting {
         for line in &self.lines {
             if line.len() >= 2 {
                 let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                painter.add(PaintCmd::line(points, self.stroke));
+                painter.add(Shape::line(points, self.stroke));
             }
         }
     }

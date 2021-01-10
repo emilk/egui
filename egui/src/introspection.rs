@@ -1,6 +1,6 @@
 //! uis for egui types.
 use crate::{
-    paint::{self, PaintCmd, Texture, Triangles},
+    paint::{self, Shape, Texture, Triangles},
     *,
 };
 
@@ -25,7 +25,7 @@ impl Texture {
             [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
             Color32::WHITE,
         );
-        ui.painter().add(PaintCmd::triangles(triangles));
+        ui.painter().add(Shape::triangles(triangles));
 
         let (tex_w, tex_h) = (self.width as f32, self.height as f32);
 
@@ -49,7 +49,7 @@ impl Texture {
             );
             let mut triangles = Triangles::default();
             triangles.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-            ui.painter().add(PaintCmd::triangles(triangles));
+            ui.painter().add(Shape::triangles(triangles));
         });
     }
 }

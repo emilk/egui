@@ -277,14 +277,14 @@ impl<'a> Slider<'a> {
             );
             let marker_center_x = self.x_from_value(value, x_range);
 
-            ui.painter().add(PaintCmd::Rect {
+            ui.painter().add(Shape::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
                 fill: ui.style().visuals.widgets.inactive.bg_fill,
                 stroke: ui.style().visuals.widgets.inactive.bg_stroke,
             });
 
-            ui.painter().add(PaintCmd::Circle {
+            ui.painter().add(Shape::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect),
                 fill: ui.style().interact(response).fg_fill,

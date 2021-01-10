@@ -1,6 +1,6 @@
 //! Converts graphics primitives into textured triangles.
 //!
-//! This module converts lines, circles, text and more represented by [`PaintCmd`]
+//! This module converts lines, circles, text and more represented by [`Shape`]
 //! into textured triangles represented by [`Triangles`].
 
 #![allow(clippy::identity_op)]
@@ -687,31 +687,26 @@ impl Tessellator {
         }
     }
 
-    /// Tessellate a single [`PaintCmd`] into a [`Triangles`].
+    /// Tessellate a single [`Shape`] into a [`Triangles`].
     ///
-    /// * `command`: the command to tessellate
+    /// * `shape`: the shape to tessellate
     /// * `options`: tessellation quality
     /// * `fonts`: font source when tessellating text
     /// * `out`: where the triangles are put
-    /// * `scratchpad_path`: if you plan to run `tessellate_paint_command`
+    /// * `scratchpad_path`: if you plan to run `tessellate_shape`
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-    pub fn tessellate_paint_command(
-        &mut self,
-        fonts: &Fonts,
-        command: PaintCmd,
-        out: &mut Triangles,
-    ) {
+    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Triangles) {
         let clip_rect = self.clip_rect;
         let options = self.options;
 
-        match command {
-            PaintCmd::Noop => {}
-            PaintCmd::Vec(vec) => {
-                for command in vec {
-                    self.tessellate_paint_command(fonts, command, out)
+        match shape {
+            Shape::Noop => {}
+            Shape::Vec(vec) => {
+                for shape in vec {
+                    self.tessellate_shape(fonts, shape, out)
                 }
             }
-            PaintCmd::Circle {
+            Shape::Circle {
                 center,
                 radius,
                 fill,
@@ -733,20 +728,20 @@ impl Tessellator {
                 fill_closed_path(&path.0, fill, options, out);
                 stroke_path(&path.0, Closed, stroke, options, out);
             }
-            PaintCmd::Triangles(triangles) => {
+            Shape::Triangles(triangles) => {
                 if triangles.is_valid() {
                     out.append(triangles);
                 } else {
-                    debug_assert!(false, "Invalid Triangles in PaintCmd::Triangles");
+                    debug_assert!(false, "Invalid Triangles in Shape::Triangles");
                 }
             }
-            PaintCmd::LineSegment { points, stroke } => {
+            Shape::LineSegment { points, stroke } => {
                 let path = &mut self.scratchpad_path;
                 path.clear();
                 path.add_line_segment(points);
                 stroke_path(&path.0, Open, stroke, options, out);
             }
-            PaintCmd::Path {
+            Shape::Path {
                 points,
                 closed,
                 fill,
@@ -772,7 +767,7 @@ impl Tessellator {
                     stroke_path(&path.0, typ, stroke, options, out);
                 }
             }
-            PaintCmd::Rect {
+            Shape::Rect {
                 rect,
                 corner_radius,
                 fill,
@@ -786,7 +781,7 @@ impl Tessellator {
                 };
                 self.tessellate_rect(&rect, out);
             }
-            PaintCmd::Text {
+            Shape::Text {
                 pos,
                 galley,
                 text_style,
@@ -872,7 +867,7 @@ impl Tessellator {
                 let c = chars.next().unwrap();
 
                 if self.options.coarse_tessellation_culling && !is_line_visible {
-                    // culling individual lines of text is important, since a single `PaintCmd::Text`
+                    // culling individual lines of text is important, since a single `Shape::Text`
                     // can span hundreds of lines.
                     continue;
                 }
@@ -899,29 +894,29 @@ impl Tessellator {
     }
 }
 
-/// Turns [`PaintCmd`]:s into sets of triangles.
+/// Turns [`Shape`]:s into sets of triangles.
 ///
-/// The given commands will be painted back-to-front (painters algorithm).
+/// The given shapes will be painted back-to-front (painters algorithm).
 /// They will be batched together by clip rectangle.
 ///
-/// * `commands`: the command to tessellate
+/// * `shapes`: the shape to tessellate
 /// * `options`: tessellation quality
 /// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
 /// A list of clip rectangles with matching [`Triangles`].
-pub fn tessellate_paint_commands(
-    commands: Vec<(Rect, PaintCmd)>,
+pub fn tessellate_shapes(
+    shapes: Vec<(Rect, Shape)>,
     options: TessellationOptions,
     fonts: &Fonts,
 ) -> Vec<(Rect, Triangles)> {
     let mut tessellator = Tessellator::from_options(options);
 
     let mut jobs = PaintJobs::default();
-    for (clip_rect, cmd) in commands {
+    for (clip_rect, shape) in shapes {
         let start_new_job = match jobs.last() {
             None => true,
-            Some(job) => job.0 != clip_rect || job.1.texture_id != cmd.texture_id(),
+            Some(job) => job.0 != clip_rect || job.1.texture_id != shape.texture_id(),
         };
 
         if start_new_job {
@@ -930,15 +925,15 @@ pub fn tessellate_paint_commands(
 
         let out = &mut jobs.last_mut().unwrap().1;
         tessellator.clip_rect = clip_rect;
-        tessellator.tessellate_paint_command(fonts, cmd, out);
+        tessellator.tessellate_shape(fonts, shape, out);
     }
 
     if options.debug_paint_clip_rects {
         for (clip_rect, triangles) in &mut jobs {
             tessellator.clip_rect = Rect::everything();
-            tessellator.tessellate_paint_command(
+            tessellator.tessellate_shape(
                 fonts,
-                PaintCmd::Rect {
+                Shape::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,
                     fill: Default::default(),

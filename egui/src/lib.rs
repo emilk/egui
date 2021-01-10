@@ -26,8 +26,8 @@
 //!     let raw_input: egui::RawInput = my_integration.gather_input();
 //!     egui_ctx.begin_frame(raw_input);
 //!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-//!     let (output, paint_commands) = egui_ctx.end_frame();
-//!     let paint_jobs = egui_ctx.tessellate(paint_commands); // create triangles to paint
+//!     let (output, shapes) = egui_ctx.end_frame();
+//!     let paint_jobs = egui_ctx.tessellate(shapes); // create triangles to paint
 //!     my_integration.paint(paint_jobs);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
 //!     // Also see `egui::Output` for more
@@ -108,7 +108,7 @@ pub use {
     math::{clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2},
     memory::Memory,
     paint::{
-        color, Color32, FontDefinitions, FontFamily, PaintCmd, PaintJobs, Rgba, Stroke, TextStyle,
+        color, Color32, FontDefinitions, FontFamily, PaintJobs, Rgba, Shape, Stroke, TextStyle,
         Texture, TextureId,
     },
     painter::Painter,

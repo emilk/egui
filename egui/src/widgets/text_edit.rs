@@ -216,7 +216,7 @@ impl<'t> Widget for TextEdit<'t> {
         let margin = Vec2::splat(2.0);
         let frame_rect = ui.available_rect_before_wrap();
         let content_rect = frame_rect.shrink2(margin);
-        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+        let where_to_put_background = ui.painter().add(Shape::Noop);
         let mut content_ui = ui.child_ui(content_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
         let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
@@ -226,7 +226,7 @@ impl<'t> Widget for TextEdit<'t> {
         let frame_rect = response.rect;
         ui.painter().set(
             where_to_put_background,
-            PaintCmd::Rect {
+            Shape::Rect {
                 rect: frame_rect,
                 corner_radius: visuals.corner_radius,
                 fill: ui.style().visuals.dark_bg_color,

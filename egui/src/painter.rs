@@ -1,7 +1,7 @@
 use crate::{
-    layers::PaintCmdIdx,
+    layers::ShapeIdx,
     math::{Align2, Pos2, Rect, Vec2},
-    paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
+    paint::{Fonts, Galley, Shape, Stroke, TextStyle},
     Color32, CtxRef, LayerId,
 };
 
@@ -10,7 +10,7 @@ use crate::{
 /// All coordinates are screen coordinates in the unit points (one point can consist of many physical pixels).
 #[derive(Clone)]
 pub struct Painter {
-    /// Source of fonts and destination of paint commands
+    /// Source of fonts and destination of shapes
     ctx: CtxRef,
 
     /// Where we paint
@@ -106,26 +106,26 @@ impl Painter {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add(&self, paint_cmd: PaintCmd) -> PaintCmdIdx {
+    pub fn add(&self, shape: Shape) -> ShapeIdx {
         self.ctx
             .graphics()
             .list(self.layer_id)
-            .add(self.clip_rect, paint_cmd)
+            .add(self.clip_rect, shape)
     }
 
-    pub fn extend(&self, cmds: Vec<PaintCmd>) {
+    pub fn extend(&self, shapes: Vec<Shape>) {
         self.ctx
             .graphics()
             .list(self.layer_id)
-            .extend(self.clip_rect, cmds);
+            .extend(self.clip_rect, shapes);
     }
 
-    /// Modify an existing command.
-    pub fn set(&self, idx: PaintCmdIdx, cmd: PaintCmd) {
+    /// Modify an existing [`Shape`].
+    pub fn set(&self, idx: ShapeIdx, shape: Shape) {
         self.ctx
             .graphics()
             .list(self.layer_id)
-            .set(idx, self.clip_rect, cmd)
+            .set(idx, self.clip_rect, shape)
     }
 }
 
@@ -143,7 +143,7 @@ impl Painter {
         let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
         let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
-        self.add(PaintCmd::Rect {
+        self.add(Shape::Rect {
             rect: frame_rect,
             corner_radius: 0.0,
             fill: Color32::from_black_alpha(240),
@@ -157,7 +157,7 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
-        self.add(PaintCmd::LineSegment {
+        self.add(Shape::LineSegment {
             points,
             stroke: stroke.into(),
         });
@@ -170,7 +170,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(PaintCmd::Circle {
+        self.add(Shape::Circle {
             center,
             radius,
             fill: fill_color.into(),
@@ -179,7 +179,7 @@ impl Painter {
     }
 
     pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
-        self.add(PaintCmd::Circle {
+        self.add(Shape::Circle {
             center,
             radius,
             fill: fill_color.into(),
@@ -188,7 +188,7 @@ impl Painter {
     }
 
     pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
-        self.add(PaintCmd::Circle {
+        self.add(Shape::Circle {
             center,
             radius,
             fill: Default::default(),
@@ -203,7 +203,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(PaintCmd::Rect {
+        self.add(Shape::Rect {
             rect,
             corner_radius,
             fill: fill_color.into(),
@@ -212,7 +212,7 @@ impl Painter {
     }
 
     pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) {
-        self.add(PaintCmd::Rect {
+        self.add(Shape::Rect {
             rect,
             corner_radius,
             fill: fill_color.into(),
@@ -221,7 +221,7 @@ impl Painter {
     }
 
     pub fn rect_stroke(&self, rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) {
-        self.add(PaintCmd::Rect {
+        self.add(Shape::Rect {
             rect,
             corner_radius,
             fill: Default::default(),
@@ -266,7 +266,7 @@ impl Painter {
 
     /// Paint text that has already been layed out in a `Galley`.
     pub fn galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color: Color32) {
-        self.add(PaintCmd::Text {
+        self.add(Shape::Text {
             pos,
             galley,
             text_style,

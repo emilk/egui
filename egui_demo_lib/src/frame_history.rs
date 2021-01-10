@@ -69,7 +69,7 @@ impl FrameHistory {
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let style = ui.style().noninteractive();
 
-        let mut cmds = vec![PaintCmd::Rect {
+        let mut shapes = vec![Shape::Rect {
             rect,
             corner_radius: style.corner_radius,
             fill: ui.style().visuals.dark_bg_color,
@@ -82,13 +82,13 @@ impl FrameHistory {
         if let Some(mouse_pos) = ui.input().mouse.pos {
             if rect.contains(mouse_pos) {
                 let y = mouse_pos.y;
-                cmds.push(PaintCmd::line_segment(
+                shapes.push(Shape::line_segment(
                     [pos2(rect.left(), y), pos2(rect.right(), y)],
                     line_stroke,
                 ));
                 let cpu_usage = remap(y, rect.bottom_up_range(), 0.0..=graph_top_cpu_usage);
                 let text = format!("{:.1} ms", 1e3 * cpu_usage);
-                cmds.push(PaintCmd::text(
+                shapes.push(Shape::text(
                     ui.fonts(),
                     pos2(rect.left(), y),
                     egui::Align2::LEFT_BOTTOM,
@@ -108,17 +108,17 @@ impl FrameHistory {
             let x = remap(age, history.max_age()..=0.0, rect.x_range());
             let y = remap_clamp(cpu_usage, 0.0..=graph_top_cpu_usage, rect.bottom_up_range());
 
-            cmds.push(PaintCmd::line_segment(
+            shapes.push(Shape::line_segment(
                 [pos2(x, rect.bottom()), pos2(x, y)],
                 line_stroke,
             ));
 
             if cpu_usage < graph_top_cpu_usage {
-                cmds.push(PaintCmd::circle_filled(pos2(x, y), radius, circle_color));
+                shapes.push(Shape::circle_filled(pos2(x, y), radius, circle_color));
             }
         }
 
-        ui.painter().extend(cmds);
+        ui.painter().extend(shapes);
 
         response
     }

@@ -1,21 +1,21 @@
 //! 2D graphics/rendering. Fonts, textures, color, geometry, tessellation etc.
 
 pub mod color;
-pub mod command;
 pub mod font;
 pub mod fonts;
 mod galley;
 mod shadow;
+pub mod shape;
 pub mod stats;
 pub mod tessellator;
 mod texture_atlas;
 
 pub use {
     color::{Color32, Rgba},
-    command::{PaintCmd, Stroke},
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
     galley::*,
     shadow::Shadow,
+    shape::{Shape, Stroke},
     stats::PaintStats,
     tessellator::{
         PaintJob, PaintJobs, TessellationOptions, TextureId, Triangles, Vertex, WHITE_UV,

@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::{
-    paint::{PaintCmd, TextStyle},
+    paint::{Shape, TextStyle},
     widgets::Label,
     *,
 };
@@ -119,7 +119,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter().add(PaintCmd::closed_line(points, stroke));
+    ui.painter().add(Shape::closed_line(points, stroke));
 }
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
@@ -203,7 +203,7 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
-        let bg_index = ui.painter().add(PaintCmd::Noop);
+        let bg_index = ui.painter().add(Shape::Noop);
 
         {
             let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(header_response.rect);
@@ -229,7 +229,7 @@ impl CollapsingHeader {
 
         painter.set(
             bg_index,
-            PaintCmd::Rect {
+            Shape::Rect {
                 rect: header_response.rect,
                 corner_radius: ui.style().interact(&header_response).corner_radius,
                 fill: ui.style().interact(&header_response).bg_fill,

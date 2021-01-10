@@ -196,7 +196,7 @@ impl<'a> Widget for Checkbox<'a> {
             rect.center().y - 0.5 * galley.size.y,
         );
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
-        ui.painter().add(PaintCmd::Rect {
+        ui.painter().add(Shape::Rect {
             rect: big_icon_rect,
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
@@ -205,7 +205,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         if *checked {
             // Check mark:
-            ui.painter().add(PaintCmd::line(
+            ui.painter().add(Shape::line(
                 vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
@@ -289,7 +289,7 @@ impl Widget for RadioButton {
 
         let painter = ui.painter();
 
-        painter.add(PaintCmd::Circle {
+        painter.add(Shape::Circle {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0,
             fill: visuals.bg_fill,
@@ -297,7 +297,7 @@ impl Widget for RadioButton {
         });
 
         if checked {
-            painter.add(PaintCmd::Circle {
+            painter.add(Shape::Circle {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill

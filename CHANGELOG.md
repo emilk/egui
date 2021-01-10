@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Center window titles.
 * Tweak size and alignment of some emojis to match other text.
+* Rename `PaintCmd` to `Shape`.
 * Rename feature "serde" to "persistence".
 
 ### Fixed 🐛
@@ -163,7 +164,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
 * `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-* `Context::end_frame()` now returns paint commands that need to be converted to triangles with `Context::tessellate()`.
+* `Context::end_frame()` now returns shapes that need to be converted to triangles with `Context::tessellate()`.
 * Anti-aliasing is now off by default in debug builds.
 
 ### Removed 🔥

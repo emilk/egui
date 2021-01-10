@@ -54,16 +54,16 @@ impl std::ops::AddAssign for AllocInfo {
 }
 
 impl AllocInfo {
-    // pub fn from_paint_cmd(cmd: &PaintCmd) -> Self {
-    //     match cmd {
-    //         PaintCmd::Noop
-    //         PaintCmd::Vec(commands) => Self::from_paint_commands(commands)
-    //         | PaintCmd::Circle { .. }
-    //         | PaintCmd::LineSegment { .. }
-    //         | PaintCmd::Rect { .. } => Self::default(),
-    //         PaintCmd::Path { points, .. } => Self::from_slice(points),
-    //         PaintCmd::Text { galley, .. } => Self::from_galley(galley),
-    //         PaintCmd::Triangles(triangles) => Self::from_triangles(triangles),
+    // pub fn from_shape(shape: &Shape) -> Self {
+    //     match shape {
+    //         Shape::Noop
+    //         Shape::Vec(shapes) => Self::from_shapes(shapes)
+    //         | Shape::Circle { .. }
+    //         | Shape::LineSegment { .. }
+    //         | Shape::Rect { .. } => Self::default(),
+    //         Shape::Path { points, .. } => Self::from_slice(points),
+    //         Shape::Text { galley, .. } => Self::from_galley(galley),
+    //         Shape::Triangles(triangles) => Self::from_triangles(triangles),
     //     }
     // }
 
@@ -137,11 +137,11 @@ impl AllocInfo {
 
 #[derive(Clone, Copy, Default)]
 pub struct PaintStats {
-    primitives: AllocInfo,
-    cmd_text: AllocInfo,
-    cmd_path: AllocInfo,
-    cmd_mesh: AllocInfo,
-    cmd_vec: AllocInfo,
+    shapes: AllocInfo,
+    shape_text: AllocInfo,
+    shape_path: AllocInfo,
+    shape_mesh: AllocInfo,
+    shape_vec: AllocInfo,
 
     /// Number of separate clip rectangles
     jobs: AllocInfo,
@@ -150,40 +150,39 @@ pub struct PaintStats {
 }
 
 impl PaintStats {
-    pub fn from_paint_commands(paint_commands: &[(Rect, PaintCmd)]) -> Self {
+    pub fn from_shapes(shapes: &[(Rect, Shape)]) -> Self {
         let mut stats = Self::default();
-        stats.cmd_path.element_size = ElementSize::Heterogenous; // nicer display later
-        stats.cmd_vec.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.shape_path.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
-        stats.primitives = AllocInfo::from_slice(paint_commands);
-        for (_, cmd) in paint_commands {
-            stats.add(cmd);
+        stats.shapes = AllocInfo::from_slice(shapes);
+        for (_, shape) in shapes {
+            stats.add(shape);
         }
         stats
     }
 
-    fn add(&mut self, cmd: &PaintCmd) {
-        match cmd {
-            PaintCmd::Vec(paint_commands) => {
-                // self += PaintStats::from_paint_commands(&paint_commands); // TODO
-                self.primitives += AllocInfo::from_slice(paint_commands);
-                self.cmd_vec += AllocInfo::from_slice(paint_commands);
-                for cmd in paint_commands {
-                    self.add(cmd);
+    fn add(&mut self, shape: &Shape) {
+        match shape {
+            Shape::Vec(shapes) => {
+                // self += PaintStats::from_shapes(&shapes); // TODO
+                self.shapes += AllocInfo::from_slice(shapes);
+                self.shape_vec += AllocInfo::from_slice(shapes);
+                for shape in shapes {
+                    self.add(shape);
                 }
             }
-            PaintCmd::Noop
-            | PaintCmd::Circle { .. }
-            | PaintCmd::LineSegment { .. }
-            | PaintCmd::Rect { .. } => Default::default(),
-            PaintCmd::Path { points, .. } => {
-                self.cmd_path += AllocInfo::from_slice(points);
+            Shape::Noop | Shape::Circle { .. } | Shape::LineSegment { .. } | Shape::Rect { .. } => {
+                Default::default()
             }
-            PaintCmd::Text { galley, .. } => {
-                self.cmd_text += AllocInfo::from_galley(galley);
+            Shape::Path { points, .. } => {
+                self.shape_path += AllocInfo::from_slice(points);
             }
-            PaintCmd::Triangles(triangles) => {
-                self.cmd_mesh += AllocInfo::from_triangles(triangles);
+            Shape::Text { galley, .. } => {
+                self.shape_text += AllocInfo::from_galley(galley);
+            }
+            Shape::Triangles(triangles) => {
+                self.shape_mesh += AllocInfo::from_triangles(triangles);
             }
         }
     }
@@ -198,10 +197,10 @@ impl PaintStats {
     }
 
     // pub fn total(&self) -> AllocInfo {
-    //     self.primitives
-    //         + self.cmd_text
-    //         + self.cmd_path
-    //         + self.cmd_mesh
+    //     self.shapes
+    //         + self.shape_text
+    //         + self.shape_path
+    //         + self.shape_mesh
     //         + self.jobs
     //         + self.vertices
     //         + self.indices
@@ -211,7 +210,7 @@ impl PaintStats {
 impl PaintStats {
     pub fn ui(&self, ui: &mut crate::Ui) {
         ui.label(
-            "Egui generates intermediate level primitives like circles and text. \
+            "Egui generates intermediate level shapes like circles and text. \
             These are later tessellated into triangles.",
         );
         ui.advance_cursor(10.0);
@@ -219,24 +218,24 @@ impl PaintStats {
         ui.style_mut().body_text_style = TextStyle::Monospace;
 
         let Self {
-            primitives,
-            cmd_text,
-            cmd_path,
-            cmd_mesh,
-            cmd_vec,
+            shapes,
+            shape_text,
+            shape_path,
+            shape_mesh,
+            shape_vec,
             jobs,
             vertices,
             indices,
         } = self;
 
         ui.label("Intermediate:");
-        primitives
-            .label(ui, "primitives")
+        shapes
+            .label(ui, "shapes")
             .on_hover_text("Boxes, circles, etc");
-        cmd_text.label(ui, "text");
-        cmd_path.label(ui, "paths");
-        cmd_mesh.label(ui, "meshes");
-        cmd_vec.label(ui, "nested");
+        shape_text.label(ui, "text");
+        shape_path.label(ui, "paths");
+        shape_mesh.label(ui, "meshes");
+        shape_vec.label(ui, "nested");
         ui.advance_cursor(10.0);
 
         ui.label("Tessellated:");

@@ -623,7 +623,7 @@ fn paint_frame_interaction(
         points.push(pos2(max.x, min.y + cr));
         points.push(pos2(max.x, max.y - cr));
     }
-    ui.painter().add(PaintCmd::line(points, visuals.bg_stroke));
+    ui.painter().add(Shape::line(points, visuals.bg_stroke));
 }
 
 // ----------------------------------------------------------------------------

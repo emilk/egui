@@ -1,4 +1,4 @@
-use crate::{paint::PaintCmd, style::WidgetVisuals, *};
+use crate::{paint::Shape, style::WidgetVisuals, *};
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -119,7 +119,7 @@ fn button_frame(
     let margin = ui.style().spacing.button_padding;
     let outer_rect_bounds = ui.available_rect_before_wrap();
     let inner_rect = outer_rect_bounds.shrink2(margin);
-    let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+    let where_to_put_background = ui.painter().add(Shape::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     add_contents(&mut content_ui);
 
@@ -131,7 +131,7 @@ fn button_frame(
 
     ui.painter().set(
         where_to_put_background,
-        PaintCmd::Rect {
+        Shape::Rect {
             rect: outer_rect,
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
@@ -149,7 +149,7 @@ fn paint_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
-    painter.add(PaintCmd::closed_line(
+    painter.add(Shape::closed_line(
         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
         visuals.fg_stroke,
     ));
