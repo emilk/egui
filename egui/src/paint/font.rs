@@ -426,7 +426,10 @@ impl Font {
             }
 
             const NON_BREAKING_SPACE: char = '\u{A0}';
-            if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+            let is_ch = |c|{
+                (c >= '\u{4E00}' && c <= '\u{9FA5}') || (c >= '\u{3400}' && c <= '\u{4DB5}') //Chinese
+            };
+            if (chr.is_whitespace() && chr != NON_BREAKING_SPACE) || is_ch(chr) {
                 last_space = Some(i);
             }
         }
