@@ -458,6 +458,8 @@ pub struct TessellationOptions {
     pub coarse_tessellation_culling: bool,
     /// Output the clip rectangles to be painted?
     pub debug_paint_clip_rects: bool,
+    /// Output the text-containing rectangles
+    pub debug_paint_text_rects: bool,
     /// If true, no clipping will be done
     pub debug_ignore_clip_rects: bool,
 }
@@ -468,6 +470,7 @@ impl Default for TessellationOptions {
             aa_size: 1.0,
             anti_alias: true,
             coarse_tessellation_culling: true,
+            debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
         }
@@ -789,6 +792,17 @@ impl Tessellator {
                 text_style,
                 color,
             } => {
+                if options.debug_paint_text_rects {
+                    self.tessellate_rect(
+                        &PaintRect {
+                            rect: Rect::from_min_size(pos, galley.size).expand(0.5),
+                            corner_radius: 2.0,
+                            fill: Default::default(),
+                            stroke: (0.5, color).into(),
+                        },
+                        out,
+                    );
+                }
                 self.tessellate_text(fonts, pos, &galley, text_style, color, out);
             }
         }
