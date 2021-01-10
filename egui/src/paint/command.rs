@@ -1,7 +1,7 @@
 use {
     super::{fonts::TextStyle, Color32, Fonts, Galley, Triangles},
     crate::{
-        align::{anchor_rect, Align},
+        align::Align2,
         math::{Pos2, Rect},
         *,
     },
@@ -127,14 +127,14 @@ impl PaintCmd {
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,
-        anchor: (Align, Align),
+        anchor: Align2,
         text: impl Into<String>,
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
         let font = &fonts[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,
             galley,

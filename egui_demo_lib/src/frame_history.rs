@@ -91,7 +91,7 @@ impl FrameHistory {
                 cmds.push(PaintCmd::text(
                     ui.fonts(),
                     pos2(rect.left(), y),
-                    align::LEFT_BOTTOM,
+                    egui::align::Align2::LEFT_BOTTOM,
                     text,
                     TextStyle::Monospace,
                     Color32::WHITE,

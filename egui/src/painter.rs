@@ -1,5 +1,5 @@
 use crate::{
-    align::{anchor_rect, Align, LEFT_TOP},
+    align::Align2,
     layers::PaintCmdIdx,
     math::{Pos2, Rect, Vec2},
     paint::{Fonts, Galley, PaintCmd, Stroke, TextStyle},
@@ -135,14 +135,14 @@ impl Painter {
     pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl Into<String>) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
-        self.text(rect.min, LEFT_TOP, text.into(), text_style, color);
+        self.text(rect.min, Align2::LEFT_TOP, text.into(), text_style, color);
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
         let text_style = TextStyle::Monospace;
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), LEFT_TOP);
+        let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(PaintCmd::Rect {
             rect: frame_rect,
@@ -253,14 +253,14 @@ impl Painter {
     pub fn text(
         &self,
         pos: Pos2,
-        anchor: (Align, Align),
+        anchor: Align2,
         text: impl Into<String>,
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
         let font = &self.fonts()[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley, text_style, text_color);
         rect
     }

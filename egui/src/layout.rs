@@ -496,6 +496,7 @@ impl Layout {
 impl Layout {
     /// Shows where the next widget is going to be placed
     pub(crate) fn debug_paint_cursor(&self, region: &Region, painter: &crate::Painter) {
+        use crate::align::Align2;
         use crate::paint::*;
 
         let cursor = region.cursor;
@@ -510,19 +511,19 @@ impl Layout {
         match self.main_dir {
             Direction::LeftToRight => {
                 painter.arrow(cursor, vec2(l, 0.0), stroke);
-                align = (Align::Min, Align::Min);
+                align = Align2::LEFT_TOP;
             }
             Direction::RightToLeft => {
                 painter.arrow(cursor, vec2(-l, 0.0), stroke);
-                align = (Align::Max, Align::Min);
+                align = Align2::RIGHT_TOP;
             }
             Direction::TopDown => {
                 painter.arrow(cursor, vec2(0.0, l), stroke);
-                align = (Align::Min, Align::Min);
+                align = Align2::LEFT_TOP;
             }
             Direction::BottomUp => {
                 painter.arrow(cursor, vec2(0.0, -l), stroke);
-                align = (Align::Min, Align::Max);
+                align = Align2::LEFT_BOTTOM;
             }
         }
 
