@@ -74,23 +74,13 @@ impl FontImpl {
 
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let font = Self {
+        Self {
             rusttype_font,
             scale_in_pixels,
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
-        };
-
-        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
-        const FIRST_ASCII: usize = 32; // 32 == space
-        const LAST_ASCII: usize = 126;
-        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
-            font.glyph_info(c);
         }
-        font.glyph_info('°');
-
-        font
     }
 
     /// `\n` will result in `None`
@@ -181,6 +171,15 @@ impl Font {
                 )
             });
         slf.replacement_glyph = replacement_glyph;
+
+        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
+        const FIRST_ASCII: usize = 32; // 32 == space
+        const LAST_ASCII: usize = 126;
+        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
+            slf.glyph_info(c);
+        }
+        slf.glyph_info('°');
+
         slf
     }
 
