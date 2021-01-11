@@ -203,7 +203,12 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
-        let bg_index = ui.painter().add(Shape::Noop);
+        ui.painter().add(Shape::Rect {
+            rect: header_response.rect,
+            corner_radius: ui.style().interact(&header_response).corner_radius,
+            fill: ui.style().interact(&header_response).bg_fill,
+            stroke: Default::default(),
+        });
 
         {
             let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(header_response.rect);
@@ -219,22 +224,11 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        let painter = ui.painter();
-        painter.galley(
+        ui.painter().galley(
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
             ui.style().interact(&header_response).text_color(),
-        );
-
-        painter.set(
-            bg_index,
-            Shape::Rect {
-                rect: header_response.rect,
-                corner_radius: ui.style().interact(&header_response).corner_radius,
-                fill: ui.style().interact(&header_response).bg_fill,
-                stroke: Default::default(),
-            },
         );
 
         Prepared {
