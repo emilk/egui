@@ -6,17 +6,17 @@ use crate::*;
 pub struct Image {
     texture_id: TextureId,
     uv: Rect,
-    desired_size: Vec2,
+    size: Vec2,
     bg_fill: Color32,
     tint: Color32,
 }
 
 impl Image {
-    pub fn new(texture_id: TextureId, desired_size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
         Self {
             texture_id,
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
-            desired_size: desired_size.into(),
+            size: size.into(),
             bg_fill: Default::default(),
             tint: Color32::WHITE,
         }
@@ -42,8 +42,8 @@ impl Image {
 }
 
 impl Image {
-    pub fn desired_size(&self) -> Vec2 {
-        self.desired_size
+    pub fn size(&self) -> Vec2 {
+        self.size
     }
 
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
@@ -51,7 +51,7 @@ impl Image {
         let Self {
             texture_id,
             uv,
-            desired_size: _,
+            size: _,
             bg_fill,
             tint,
         } = self;
@@ -73,7 +73,7 @@ impl Image {
 
 impl Widget for Image {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_at_least(self.desired_size, Sense::hover());
+        let (rect, response) = ui.allocate_exact_size(self.size, Sense::hover());
         self.paint_at(ui, rect);
         response
     }

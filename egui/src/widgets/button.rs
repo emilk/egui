@@ -328,9 +328,9 @@ pub struct ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(texture_id: TextureId, desired_size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
         Self {
-            image: widgets::Image::new(texture_id, desired_size),
+            image: widgets::Image::new(texture_id, size),
             sense: Sense::click(),
             frame: true,
             selected: false,
@@ -379,8 +379,8 @@ impl Widget for ImageButton {
         } = self;
 
         let button_padding = ui.style().spacing.button_padding;
-        let desired_size = image.desired_size() + 2.0 * button_padding;
-        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        let size = image.size() + 2.0 * button_padding;
+        let (rect, response) = ui.allocate_exact_size(size, sense);
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
@@ -400,7 +400,7 @@ impl Widget for ImageButton {
 
             let image_rect = ui
                 .layout()
-                .align_size_within_rect(image.desired_size(), rect.shrink2(button_padding));
+                .align_size_within_rect(image.size(), rect.shrink2(button_padding));
             image.paint_at(ui, image_rect);
         }
 

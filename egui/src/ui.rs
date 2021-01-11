@@ -822,9 +822,9 @@ impl Ui {
         response
     }
 
-    /// Show an image here with the given size
-    pub fn image(&mut self, texture_id: TextureId, desired_size: impl Into<Vec2>) -> Response {
-        self.add(Image::new(texture_id, desired_size))
+    /// Show an image here with the given size.
+    pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
+        self.add(Image::new(texture_id, size))
     }
 }
 
