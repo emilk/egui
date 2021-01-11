@@ -131,9 +131,9 @@ impl Placer {
 
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
-    pub(crate) fn end_row(&mut self, item_spacing: Vec2) {
+    pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {
         if let Some(grid) = &mut self.grid {
-            grid.end_row(&mut self.region.cursor)
+            grid.end_row(&mut self.region.cursor, painter)
         } else {
             self.layout.end_row(&mut self.region, item_spacing)
         }

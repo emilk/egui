@@ -50,7 +50,7 @@ impl super::View for WidgetGallery {
             color,
         } = self;
 
-        egui::Grid::new("my_grid").show(ui, |ui| {
+        egui::Grid::new("my_grid").striped(true).show(ui, |ui| {
             ui.label("Label:");
             ui.label("Welcome to the widget gallery!");
             ui.end_row();

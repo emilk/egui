@@ -1116,7 +1116,8 @@ impl Ui {
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {
-        self.placer.end_row(self.style().spacing.item_spacing);
+        self.placer
+            .end_row(self.style().spacing.item_spacing, &self.painter().clone());
     }
 
     /// Temporarily split split an Ui into several columns.
