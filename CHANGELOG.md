@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
+* Add a simple grid layout (`Grid`).
 * Add `ui.allocate_at_least` and `ui.allocate_exact_size`.
 
 ### Changed 🔧

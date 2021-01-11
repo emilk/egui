@@ -75,7 +75,7 @@ impl super::Demo for Painting {
 
 impl super::View for Painting {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.add(crate::__egui_github_link_file!("(source code)"));
+        ui.add(crate::__egui_github_link_file!());
         self.ui_control(ui);
         ui.label("Paint with your mouse/touch!");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {

@@ -13,6 +13,7 @@ struct Demos {
 impl Default for Demos {
     fn default() -> Self {
         let demos: Vec<Box<dyn super::Demo>> = vec![
+            Box::new(super::WidgetGallery::default()),
             Box::new(super::FontBook::default()),
             Box::new(super::Painting::default()),
             Box::new(super::DancingStrings::default()),

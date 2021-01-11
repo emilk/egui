@@ -203,7 +203,12 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
-        let bg_index = ui.painter().add(Shape::Noop);
+        ui.painter().add(Shape::Rect {
+            rect: header_response.rect,
+            corner_radius: ui.style().interact(&header_response).corner_radius,
+            fill: ui.style().interact(&header_response).bg_fill,
+            stroke: Default::default(),
+        });
 
         {
             let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(header_response.rect);
@@ -219,22 +224,11 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        let painter = ui.painter();
-        painter.galley(
+        ui.painter().galley(
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
             ui.style().interact(&header_response).text_color(),
-        );
-
-        painter.set(
-            bg_index,
-            Shape::Rect {
-                rect: header_response.rect,
-                corner_radius: ui.style().interact(&header_response).corner_radius,
-                fill: ui.style().interact(&header_response).bg_fill,
-                stroke: Default::default(),
-            },
         );
 
         Prepared {
@@ -249,27 +243,32 @@ impl CollapsingHeader {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        let Prepared {
-            id,
-            header_response,
-            mut state,
-        } = self.begin(ui);
-        let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
-        ui.memory().collapsing_headers.insert(id, state);
+        // Make sure contents are bellow header,
+        // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
+        ui.vertical(|ui| {
+            let Prepared {
+                id,
+                header_response,
+                mut state,
+            } = self.begin(ui);
+            let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
+            ui.memory().collapsing_headers.insert(id, state);
 
-        if let Some((ret, response)) = ret_response {
-            CollapsingResponse {
-                header_response,
-                body_response: Some(response),
-                body_returned: Some(ret),
+            if let Some((ret, response)) = ret_response {
+                CollapsingResponse {
+                    header_response,
+                    body_response: Some(response),
+                    body_returned: Some(ret),
+                }
+            } else {
+                CollapsingResponse {
+                    header_response,
+                    body_response: None,
+                    body_returned: None,
+                }
             }
-        } else {
-            CollapsingResponse {
-                header_response,
-                body_response: None,
-                body_returned: None,
-            }
-        }
+        })
+        .0
     }
 }
 

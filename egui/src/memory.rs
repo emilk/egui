@@ -28,6 +28,7 @@ pub struct Memory {
 
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
+    pub(crate) grid: HashMap<Id, crate::grid::State>,
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) menu_bar: HashMap<Id, menu::BarState>,
     pub(crate) resize: HashMap<Id, resize::State>,
