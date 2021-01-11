@@ -649,12 +649,14 @@ fn show_title_bar(
         ui.set_min_height(height);
 
         let item_spacing = ui.style().spacing.item_spacing;
-        let button_size = ui.style().spacing.icon_width;
+        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+
+        let window_pad_x = ui.style().spacing.window_padding.x;
 
         if collapsible {
-            ui.advance_cursor(ui.style().spacing.item_spacing.x);
+            ui.advance_cursor(window_pad_x);
 
-            let (_id, rect) = ui.allocate_space(Vec2::splat(button_size));
+            let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
             if collapse_button_response.clicked {
                 collapsing.toggle(ui);
@@ -666,11 +668,10 @@ fn show_title_bar(
         let title_galley = title_label.layout(ui);
 
         let minimum_width = if collapsible || show_close_button {
-            // If at least one button is shown we make room for both buttons (since title is centered)
-            let space_x = item_spacing.x;
-            space_x + button_size + space_x + title_galley.size.x + space_x + button_size + space_x
+            // If at least one button is shown we make room for both buttons (since title is centered):
+            2.0 * (window_pad_x + button_size.x + item_spacing.x) + title_galley.size.x
         } else {
-            item_spacing.x + title_galley.size.x + item_spacing.x
+            window_pad_x + title_galley.size.x + window_pad_x
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);
@@ -747,13 +748,14 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let button_size = ui.style().spacing.icon_width;
+        let window_pad_x = ui.style().spacing.window_padding.x;
+        let button_size = Vec2::splat(ui.style().spacing.icon_width);
         let button_rect = Rect::from_min_size(
             pos2(
-                self.rect.right() - ui.style().spacing.item_spacing.x - button_size,
-                self.rect.center().y - 0.5 * button_size,
+                self.rect.right() - window_pad_x - button_size.x,
+                self.rect.center().y - 0.5 * button_size.y,
             ),
-            Vec2::splat(button_size),
+            button_size,
         );
 
         close_button(ui, button_rect)
