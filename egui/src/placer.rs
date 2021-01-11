@@ -1,6 +1,8 @@
 use crate::*;
 
 pub(crate) struct Placer {
+    /// If set this will take precedence over [`layout`].
+    grid: Option<grid::GridLayout>,
     layout: Layout,
     region: Region,
 }
@@ -8,7 +10,15 @@ pub(crate) struct Placer {
 impl Placer {
     pub(crate) fn new(max_rect: Rect, layout: Layout) -> Self {
         let region = layout.region_from_max_rect(max_rect);
-        Self { layout, region }
+        Self {
+            grid: None,
+            layout,
+            region,
+        }
+    }
+
+    pub(crate) fn set_grid(&mut self, grid: grid::GridLayout) {
+        self.grid = Some(grid);
     }
 
     pub(crate) fn layout(&self) -> &Layout {
@@ -46,17 +56,29 @@ impl Placer {
     }
 
     pub(crate) fn available_rect_before_wrap(&self) -> Rect {
-        self.layout.available_rect_before_wrap(&self.region)
+        if let Some(grid) = &self.grid {
+            grid.available_rect(&self.region)
+        } else {
+            self.layout.available_rect_before_wrap(&self.region)
+        }
     }
 
     pub(crate) fn available_rect_before_wrap_finite(&self) -> Rect {
-        self.layout.available_rect_before_wrap_finite(&self.region)
+        if let Some(grid) = &self.grid {
+            grid.available_rect(&self.region)
+        } else {
+            self.layout.available_rect_before_wrap_finite(&self.region)
+        }
     }
 
     /// Amount of space available for a widget.
     /// For wrapping layouts, this is the maximum (after wrap).
     pub(crate) fn available_size(&self) -> Vec2 {
-        self.layout.available_size(&self.region)
+        if let Some(grid) = &self.grid {
+            grid.available_rect(&self.region).size()
+        } else {
+            self.layout.available_size(&self.region)
+        }
     }
 
     /// Returns where to put the next widget that is of the given size.
@@ -64,8 +86,12 @@ impl Placer {
     /// This is what you then pass to `advance_after_outer_rect`.
     /// Use `justify_or_align` to get the inner `Rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
-        self.layout
-            .next_space(&self.region, child_size, item_spacing)
+        if let Some(grid) = &self.grid {
+            grid.next_cell(self.region.cursor, child_size)
+        } else {
+            self.layout
+                .next_space(&self.region, child_size, item_spacing)
+        }
     }
 
     /// Apply justify or alignment after calling `next_space`.
@@ -75,6 +101,10 @@ impl Placer {
 
     /// Advance the cursor by this many points.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
+        debug_assert!(
+            self.grid.is_none(),
+            "You cannot advance the cursor when in a grid layout"
+        );
         self.layout.advance_cursor(&mut self.region, amount)
     }
 
@@ -87,8 +117,26 @@ impl Placer {
         inner_rect: Rect,
         item_spacing: Vec2,
     ) {
-        self.layout
-            .advance_after_outer_rect(&mut self.region, outer_rect, inner_rect, item_spacing)
+        if let Some(grid) = &mut self.grid {
+            grid.advance(&mut self.region.cursor, outer_rect)
+        } else {
+            self.layout.advance_after_outer_rect(
+                &mut self.region,
+                outer_rect,
+                inner_rect,
+                item_spacing,
+            )
+        }
+    }
+
+    /// Move to the next row in a grid layout or wrapping layout.
+    /// Otherwise does nothing.
+    pub(crate) fn end_row(&mut self, item_spacing: Vec2) {
+        if let Some(grid) = &mut self.grid {
+            grid.end_row(&mut self.region.cursor)
+        } else {
+            self.layout.end_row(&mut self.region, item_spacing)
+        }
     }
 }
 
@@ -102,7 +150,7 @@ impl Placer {
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_width(&mut self, width: f32) {
         #![allow(clippy::float_cmp)]
-        let Self { layout, region } = self;
+        let Self { layout, region, .. } = self;
         if layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(region.min_rect.max.x, region.max_rect.max.x);
             region.max_rect.min.x = region.max_rect.max.x - width.at_least(region.min_rect.width());
@@ -116,7 +164,7 @@ impl Placer {
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_height(&mut self, height: f32) {
         #![allow(clippy::float_cmp)]
-        let Self { layout, region } = self;
+        let Self { layout, region, .. } = self;
         if layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(region.min_rect.max.y, region.max_rect.max.y);
             region.max_rect.min.y =
@@ -132,7 +180,7 @@ impl Placer {
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_width(&mut self, width: f32) {
         #![allow(clippy::float_cmp)]
-        let Self { layout, region } = self;
+        let Self { layout, region, .. } = self;
         if layout.main_dir() == Direction::RightToLeft {
             debug_assert_eq!(region.min_rect.max.x, region.max_rect.max.x);
             let min_rect = &mut region.min_rect;
@@ -149,7 +197,7 @@ impl Placer {
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_height(&mut self, height: f32) {
         #![allow(clippy::float_cmp)]
-        let Self { layout, region } = self;
+        let Self { layout, region, .. } = self;
         if layout.main_dir() == Direction::BottomUp {
             debug_assert_eq!(region.min_rect.max.y, region.max_rect.max.y);
             let min_rect = &mut region.min_rect;
@@ -165,6 +213,14 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter) {
-        self.layout.debug_paint_cursor(&self.region, painter)
+        let color = Color32::GREEN;
+        let stroke = Stroke::new(2.0, color);
+
+        if let Some(grid) = &self.grid {
+            painter.rect_stroke(grid.next_cell(self.cursor(), Vec2::splat(0.0)), 1.0, stroke)
+        } else {
+            self.layout
+                .debug_paint_cursor(&self.region, stroke, painter)
+        }
     }
 }
