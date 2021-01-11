@@ -55,6 +55,10 @@ impl super::View for WidgetGallery {
             ui.label("Welcome to the widget gallery!");
             ui.end_row();
 
+            ui.label("Hyperlink:");
+            ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
+            ui.end_row();
+
             ui.label("Text Input:");
             ui.text_edit_singleline(string);
             ui.end_row();
@@ -68,6 +72,14 @@ impl super::View for WidgetGallery {
                 ui.radio_value(radio, Enum::First, "First");
                 ui.radio_value(radio, Enum::Second, "Second");
                 ui.radio_value(radio, Enum::Third, "Third");
+            });
+            ui.end_row();
+
+            ui.label("SelectableLabel:");
+            ui.horizontal(|ui| {
+                ui.selectable_value(radio, Enum::First, "First");
+                ui.selectable_value(radio, Enum::Second, "Second");
+                ui.selectable_value(radio, Enum::Third, "Third");
             });
             ui.end_row();
 
@@ -109,6 +121,10 @@ impl super::View for WidgetGallery {
             {
                 *boolean = !*boolean;
             }
+            ui.end_row();
+
+            ui.label("Separator:");
+            ui.separator();
             ui.end_row();
         });
 
