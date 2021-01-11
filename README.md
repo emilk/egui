@@ -125,6 +125,8 @@ Egui is in active development. It works well for what it does, but it lacks many
 * Tooltips on hover
 * More
 
+<img src="media/widget_gallery.png" width="60%">
+
 ## How it works
 
 Loop:
