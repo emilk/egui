@@ -243,27 +243,32 @@ impl CollapsingHeader {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        let Prepared {
-            id,
-            header_response,
-            mut state,
-        } = self.begin(ui);
-        let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
-        ui.memory().collapsing_headers.insert(id, state);
+        // Make sure contents are bellow header,
+        // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
+        ui.vertical(|ui| {
+            let Prepared {
+                id,
+                header_response,
+                mut state,
+            } = self.begin(ui);
+            let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
+            ui.memory().collapsing_headers.insert(id, state);
 
-        if let Some((ret, response)) = ret_response {
-            CollapsingResponse {
-                header_response,
-                body_response: Some(response),
-                body_returned: Some(ret),
+            if let Some((ret, response)) = ret_response {
+                CollapsingResponse {
+                    header_response,
+                    body_response: Some(response),
+                    body_returned: Some(ret),
+                }
+            } else {
+                CollapsingResponse {
+                    header_response,
+                    body_response: None,
+                    body_returned: None,
+                }
             }
-        } else {
-            CollapsingResponse {
-                header_response,
-                body_response: None,
-                body_returned: None,
-            }
-        }
+        })
+        .0
     }
 }
 
