@@ -63,6 +63,8 @@ impl super::View for DancingStrings {
 
             ui.painter().extend(shapes);
         });
-        ui.add(crate::__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

@@ -1,5 +1,3 @@
-use crate::__egui_github_link_file;
-
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowOptions {
@@ -76,6 +74,8 @@ impl super::View for WindowOptions {
         ui.checkbox(collapsible, "collapsible");
         ui.checkbox(resizable, "resizable");
         ui.checkbox(scroll, "scroll");
-        ui.add(__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

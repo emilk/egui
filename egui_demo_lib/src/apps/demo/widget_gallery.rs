@@ -128,6 +128,8 @@ impl super::View for WidgetGallery {
             ui.end_row();
         });
 
-        ui.add(crate::__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

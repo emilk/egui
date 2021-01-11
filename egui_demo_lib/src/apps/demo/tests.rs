@@ -44,6 +44,8 @@ impl super::View for Tests {
         let _ = ui.button("Button");
         let _ = ui.button("Button");
 
-        ui.add(crate::__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }
