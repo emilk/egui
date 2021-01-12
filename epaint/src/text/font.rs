@@ -142,6 +142,13 @@ impl FontImpl {
 
 type FontIndex = usize;
 
+#[inline]
+fn is_chinese(c: char) -> bool {
+    (c >= '\u{4E00}' && c <= '\u{9FFF}')
+        || (c >= '\u{3400}' && c <= '\u{4DBF}')
+        || (c >= '\u{2B740}' && c <= '\u{2B81F}')
+}
+
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 #[derive(Default)]
@@ -392,8 +399,8 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut row_start_idx = 0;
 
-        // start index of the last space. A candidate for a new row.
-        let mut last_space = None;
+        // start index of the last space or hieroglyphs. A candidate for a new row.
+        let mut newline_mark = None;
 
         let mut out_rows = vec![];
 
@@ -402,7 +409,7 @@ impl Font {
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
-                if let Some(last_space_idx) = last_space {
+                if let Some(last_space_idx) = newline_mark {
                     // We include the trailing space in the row:
                     let row = Row {
                         x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
@@ -418,7 +425,7 @@ impl Font {
 
                     row_start_idx = last_space_idx + 1;
                     row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
-                    last_space = None;
+                    newline_mark = None;
                     cursor_y = self.round_to_pixel(cursor_y + self.row_height());
                 } else if out_rows.is_empty() && first_row_indentation > 0.0 {
                     assert_eq!(row_start_idx, 0);
@@ -437,8 +444,8 @@ impl Font {
             }
 
             const NON_BREAKING_SPACE: char = '\u{A0}';
-            if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
-                last_space = Some(i);
+            if (chr.is_whitespace() && chr != NON_BREAKING_SPACE) || is_chinese(chr) {
+                newline_mark = Some(i);
             }
         }
 
