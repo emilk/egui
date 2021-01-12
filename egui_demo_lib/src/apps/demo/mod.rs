@@ -17,13 +17,14 @@ mod scrolls;
 mod sliders;
 mod tests;
 pub mod toggle_switch;
+mod widget_gallery;
 mod widgets;
 mod window_options;
 
 pub use {
     app::*, dancing_strings::DancingStrings, demo_window::DemoWindow, demo_windows::*,
     drag_and_drop::*, font_book::FontBook, painting::Painting, scrolls::Scrolls, sliders::Sliders,
-    tests::Tests, widgets::Widgets, window_options::WindowOptions,
+    tests::Tests, widget_gallery::*, widgets::Widgets, window_options::WindowOptions,
 };
 
 // ----------------------------------------------------------------------------

@@ -11,11 +11,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
+* Add a simple grid layout (`Grid`).
 * Add `ui.allocate_at_least` and `ui.allocate_exact_size`.
+
+### Changed 🔧
+
+* Center window titles.
+* Tweak size and alignment of some emojis to match other text.
+* Rename `PaintCmd` to `Shape`.
+* Rename feature "serde" to "persistence".
+* Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 
 ### Fixed 🐛
 
 * Fixed a bug that would sometimes trigger a "Mismatching panels" panic in debug builds.
+* `Image` and `ImageButton` will no longer stretch to fill a justified layout.
 
 ## 0.7.0 - 2021-01-04
 
@@ -157,7 +167,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
 * `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-* `Context::end_frame()` now returns paint commands that need to be converted to triangles with `Context::tessellate()`.
+* `Context::end_frame()` now returns shapes that need to be converted to triangles with `Context::tessellate()`.
 * Anti-aliasing is now off by default in debug builds.
 
 ### Removed 🔥

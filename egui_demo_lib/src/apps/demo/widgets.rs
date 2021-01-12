@@ -46,7 +46,9 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(crate::__egui_github_link_file_line!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file_line!());
+        });
 
         ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
             ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));

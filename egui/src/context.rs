@@ -8,7 +8,7 @@ use std::sync::{
 use crate::{
     animation_manager::AnimationManager,
     mutex::{Mutex, MutexGuard},
-    paint::{stats::*, *},
+    paint::{stats::*, text::Fonts, *},
     *,
 };
 
@@ -592,10 +592,10 @@ impl Context {
 
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
-    /// You can transform the returned paint commands into triangles with a call to
+    /// You can transform the returned shapes into triangles with a call to
     /// `Context::tessellate`.
     #[must_use]
-    pub fn end_frame(&self) -> (Output, Vec<(Rect, PaintCmd)>) {
+    pub fn end_frame(&self) -> (Output, Vec<(Rect, Shape)>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
@@ -608,25 +608,21 @@ impl Context {
             output.needs_repaint = true;
         }
 
-        let paint_commands = self.drain_paint_lists();
-        (output, paint_commands)
+        let shapes = self.drain_paint_lists();
+        (output, shapes)
     }
 
-    fn drain_paint_lists(&self) -> Vec<(Rect, PaintCmd)> {
+    fn drain_paint_lists(&self) -> Vec<(Rect, Shape)> {
         let memory = self.memory();
         self.graphics().drain(memory.areas.order()).collect()
     }
 
-    /// Tessellate the given paint commands into triangle meshes.
-    pub fn tessellate(&self, paint_commands: Vec<(Rect, PaintCmd)>) -> PaintJobs {
+    /// Tessellate the given shapes into triangle meshes.
+    pub fn tessellate(&self, shapes: Vec<(Rect, Shape)>) -> PaintJobs {
         let mut tessellation_options = self.memory().options.tessellation_options;
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
-        let paint_stats = PaintStats::from_paint_commands(&paint_commands); // TODO: internal allocations
-        let paint_jobs = tessellator::tessellate_paint_commands(
-            paint_commands,
-            tessellation_options,
-            self.fonts(),
-        );
+        let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations
+        let paint_jobs = tessellator::tessellate_shapes(shapes, tessellation_options, self.fonts());
         *self.paint_stats.lock() = paint_stats.with_paint_jobs(&paint_jobs);
         paint_jobs
     }
@@ -873,24 +869,5 @@ impl Context {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
-    }
-}
-
-impl paint::TessellationOptions {
-    pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            aa_size: _,
-            anti_alias,
-            coarse_tessellation_culling,
-            debug_paint_clip_rects,
-            debug_ignore_clip_rects,
-        } = self;
-        ui.checkbox(anti_alias, "Antialias");
-        ui.checkbox(
-            coarse_tessellation_culling,
-            "Do coarse culling in the tessellator",
-        );
-        ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
-        ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
     }
 }

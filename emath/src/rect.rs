@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use crate::math::*;
+use crate::*;
 
 /// A rectangular region of space.
 ///
@@ -53,6 +53,13 @@ impl Rect {
         Rect {
             min: center - size * 0.5,
             max: center + size * 0.5,
+        }
+    }
+
+    pub fn from_x_y_ranges(x_range: RangeInclusive<f32>, y_range: RangeInclusive<f32>) -> Self {
+        Rect {
+            min: pos2(*x_range.start(), *y_range.start()),
+            max: pos2(*x_range.end(), *y_range.end()),
         }
     }
 

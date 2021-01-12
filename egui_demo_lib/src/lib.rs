@@ -98,8 +98,8 @@ fn test_egui_e2e() {
     for _ in 0..NUM_FRAMES {
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);
-        let (_output, paint_commands) = ctx.end_frame();
-        let paint_jobs = ctx.tessellate(paint_commands);
+        let (_output, shapes) = ctx.end_frame();
+        let paint_jobs = ctx.tessellate(shapes);
         assert!(!paint_jobs.is_empty());
     }
 }

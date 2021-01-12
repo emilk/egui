@@ -4,18 +4,17 @@ use std::{
     sync::Arc,
 };
 
-use crate::mutex::Mutex;
-
-use super::{
-    font::{Font, FontImpl},
-    texture_atlas::{Texture, TextureAtlas},
+use crate::{
+    mutex::Mutex,
+    text::font::{Font, FontImpl},
+    Texture, TextureAtlas,
 };
 
 // TODO: rename
 /// One of a few categories of styles of text, e.g. body, button or heading.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(rename_all = "snake_case"))]
 pub enum TextStyle {
     /// Used when small text is needed.
     Small,
@@ -45,8 +44,8 @@ impl TextStyle {
 
 /// Which style of font: [`Monospace`][`FontFamily::Monospace`] or [`Proportional`][`FontFamily::Proportional`].
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(rename_all = "snake_case"))]
 pub enum FontFamily {
     /// A font where each character is the same width (`w` is the same width as `i`).
     Monospace,
@@ -71,7 +70,7 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 ///
 /// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
 ///
-/// ```
+/// ``` ignore
 /// # let mut ctx = egui::CtxRef::default();
 /// let mut fonts = egui::FontDefinitions::default();
 /// // Large button text:
@@ -81,15 +80,15 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 /// ctx.set_fonts(fonts);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct FontDefinitions {
     /// List of font names and their definitions.
     /// The definition must be the contents of either a `.ttf` or `.otf` font file.
     ///
     /// Egui has built-in-default for these,
     /// but you can override them if you like.
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub font_data: BTreeMap<String, FontData>,
 
     /// Which fonts (names) to use for each [`FontFamily`].
@@ -322,11 +321,24 @@ impl FontImplCache {
             }
         }
 
+        let y_offset = if font_name == "emoji-icon-font" {
+            1.0 // TODO: remove font alignment hack
+        } else {
+            -3.0 // TODO: remove font alignment hack
+        };
+
+        let scale_in_points = if font_name == "emoji-icon-font" {
+            scale_in_points - 2.0 // TODO: remove HACK!
+        } else {
+            scale_in_points
+        };
+
         let font_impl = Arc::new(FontImpl::new(
             self.atlas.clone(),
             self.pixels_per_point,
             self.rusttype_font(font_name),
             scale_in_points,
+            y_offset,
         ));
         self.cache
             .push((font_name.to_owned(), scale_in_points, font_impl.clone()));

@@ -184,7 +184,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         *ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         ctx.clear_animations();
 
-        let (egui_output, _paint_commands) = ctx.end_frame();
+        let (egui_output, _shapes) = ctx.end_frame();
         handle_output(egui_output, &display, clipboard.as_mut());
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
@@ -211,8 +211,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             }
             .build();
             app.update(&ctx, &mut frame);
-            let (egui_output, paint_commands) = ctx.end_frame();
-            let paint_jobs = ctx.tessellate(paint_commands);
+            let (egui_output, shapes) = ctx.end_frame();
+            let paint_jobs = ctx.tessellate(shapes);
 
             let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);

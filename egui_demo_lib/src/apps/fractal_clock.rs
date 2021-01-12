@@ -144,8 +144,8 @@ impl FractalClock {
         ];
 
         let hand_rotors = [
-            hands[0].length * Rot2::from_angle(hand_rotations[0]),
-            hands[1].length * Rot2::from_angle(hand_rotations[1]),
+            hands[0].length * math::Rot2::from_angle(hand_rotations[0]),
+            hands[1].length * math::Rot2::from_angle(hand_rotations[1]),
         ];
 
         #[derive(Clone, Copy)]

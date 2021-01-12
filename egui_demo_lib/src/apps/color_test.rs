@@ -300,7 +300,7 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     if bg_fill != Default::default() {
         let mut triangles = Triangles::default();
         triangles.add_colored_rect(rect, bg_fill);
-        ui.painter().add(PaintCmd::triangles(triangles));
+        ui.painter().add(Shape::triangles(triangles));
     }
     {
         let n = gradient.0.len();
@@ -317,7 +317,7 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
                 triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(PaintCmd::triangles(triangles));
+        ui.painter().add(Shape::triangles(triangles));
     }
     response
 }

@@ -18,57 +18,58 @@ use crate::{
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub(crate) options: Options,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 
     // states of various types of widgets
     pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
-    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) grid: HashMap<Id, crate::grid::State>,
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) menu_bar: HashMap<Id, menu::BarState>,
     pub(crate) resize: HashMap<Id, resize::State>,
     pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
     pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     /// For temporary edit of e.g. a slider value.
     /// Couples with [`Interaction::kb_focus_id`].
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) temp_edit_string: Option<String>,
 
     pub(crate) areas: Areas,
 
     /// Used by color picker
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) color_cache: Cache<Color32, Hsva>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<Id>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 }
 
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct Options {
     /// The default style for new `Ui`:s.
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
     pub(crate) tessellation_options: crate::paint::TessellationOptions,
     /// Font sizes etc.
-    pub(crate) font_definitions: crate::paint::FontDefinitions,
+    pub(crate) font_definitions: crate::paint::text::FontDefinitions,
 }
 
 // ----------------------------------------------------------------------------
@@ -178,7 +179,7 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {
@@ -304,8 +305,8 @@ impl Memory {
 /// Keeps track of `Area`s, which are free-floating `Ui`s.
 /// These `Area`s can be in any `Order`.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Areas {
     areas: HashMap<Id, area::State>,
     /// Top is last

@@ -6,12 +6,11 @@ use {
 };
 
 use crate::{
-    math::{vec2, Vec2},
     mutex::{Mutex, RwLock},
-    paint::{Galley, Row},
+    text::galley::{Galley, Row},
+    TextureAtlas,
 };
-
-use super::texture_atlas::TextureAtlas;
+use emath::{vec2, Vec2};
 
 // ----------------------------------------------------------------------------
 
@@ -57,6 +56,9 @@ pub struct FontImpl {
     rusttype_font: Arc<rusttype::Font<'static>>,
     /// Maximum character height
     scale_in_pixels: f32,
+    height_in_points: f32,
+    // move each character by this much (hack)
+    y_offset: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
@@ -68,29 +70,28 @@ impl FontImpl {
         pixels_per_point: f32,
         rusttype_font: Arc<rusttype::Font<'static>>,
         scale_in_points: f32,
+        y_offset: f32,
     ) -> FontImpl {
         assert!(scale_in_points > 0.0);
         assert!(pixels_per_point > 0.0);
 
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
-        let font = Self {
+        let height_in_points = scale_in_points;
+        // TODO: use v_metrics for line spacing ?
+        // let v = rusttype_font.v_metrics(Scale::uniform(scale_in_pixels));
+        // let height_in_pixels = v.ascent - v.descent + v.line_gap;
+        // let height_in_points = height_in_pixels / pixels_per_point;
+
+        Self {
             rusttype_font,
             scale_in_pixels,
+            height_in_points,
+            y_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
-        };
-
-        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
-        const FIRST_ASCII: usize = 32; // 32 == space
-        const LAST_ASCII: usize = 126;
-        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
-            font.glyph_info(c);
         }
-        font.glyph_info('°');
-
-        font
     }
 
     /// `\n` will result in `None`
@@ -110,6 +111,7 @@ impl FontImpl {
                 &mut self.atlas.lock(),
                 glyph,
                 self.scale_in_pixels,
+                self.y_offset,
                 self.pixels_per_point,
             );
             self.glyph_info_cache.write().insert(c, glyph_info);
@@ -130,7 +132,7 @@ impl FontImpl {
 
     /// Height of one row of text. In points
     pub fn row_height(&self) -> f32 {
-        self.scale_in_pixels / self.pixels_per_point
+        self.height_in_points
     }
 
     pub fn pixels_per_point(&self) -> f32 {
@@ -188,6 +190,15 @@ impl Font {
                 )
             });
         slf.replacement_glyph = replacement_glyph;
+
+        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
+        const FIRST_ASCII: usize = 32; // 32 == space
+        const LAST_ASCII: usize = 126;
+        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
+            slf.glyph_info(c);
+        }
+        slf.glyph_info('°');
+
         slf
     }
 
@@ -460,6 +471,7 @@ fn allocate_glyph(
     atlas: &mut TextureAtlas,
     glyph: rusttype::Glyph<'static>,
     scale_in_pixels: f32,
+    y_offset: f32,
     pixels_per_point: f32,
 ) -> GlyphInfo {
     assert!(glyph.id().0 != 0);
@@ -485,13 +497,10 @@ fn allocate_glyph(
                 }
             });
 
-            let offset_y_in_pixels =
-                scale_in_pixels as f32 + bb.min.y as f32 - 4.0 * pixels_per_point; // TODO: use font.v_metrics
+            let offset_in_pixels = vec2(bb.min.x as f32, scale_in_pixels as f32 + bb.min.y as f32);
+            let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
             Some(UvRect {
-                offset: vec2(
-                    bb.min.x as f32 / pixels_per_point,
-                    offset_y_in_pixels / pixels_per_point,
-                ),
+                offset,
                 size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
                 min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
                 max: (

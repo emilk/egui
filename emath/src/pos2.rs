@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
 
-use crate::math::*;
+use crate::*;
 
 /// A position on screen.
 ///

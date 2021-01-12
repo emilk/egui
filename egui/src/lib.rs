@@ -26,8 +26,8 @@
 //!     let raw_input: egui::RawInput = my_integration.gather_input();
 //!     egui_ctx.begin_frame(raw_input);
 //!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-//!     let (output, paint_commands) = egui_ctx.end_frame();
-//!     let paint_jobs = egui_ctx.tessellate(paint_commands); // create triangles to paint
+//!     let (output, shapes) = egui_ctx.end_frame();
+//!     let paint_jobs = egui_ctx.tessellate(shapes); // create triangles to paint
 //!     my_integration.paint(paint_jobs);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
 //!     // Also see `egui::Output` for more
@@ -78,45 +78,51 @@
 )]
 #![allow(clippy::manual_range_contains)]
 
-pub mod align;
 mod animation_manager;
 pub mod containers;
 mod context;
+pub(crate) mod grid;
 mod id;
 mod input;
 mod introspection;
 mod layers;
 mod layout;
-pub mod math;
 mod memory;
 pub mod menu;
-pub mod paint;
 mod painter;
+pub(crate) mod placer;
 pub mod style;
 mod types;
 mod ui;
 pub mod util;
 pub mod widgets;
 
+pub use emath as math;
+pub use epaint as paint;
+pub use epaint::emath;
+
+pub use emath::{
+    clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2,
+};
+pub use epaint::{
+    color, mutex,
+    text::{FontDefinitions, FontFamily, TextStyle},
+    Color32, PaintJobs, Rgba, Shape, Stroke, Texture, TextureId,
+};
+
 pub use {
-    align::Align,
     containers::*,
     context::{Context, CtxRef},
+    grid::Grid,
     id::Id,
     input::*,
     layers::*,
     layout::*,
-    math::*,
     memory::Memory,
-    paint::{
-        color, Color32, FontDefinitions, FontFamily, PaintCmd, PaintJobs, Rgba, Stroke, TextStyle,
-        Texture, TextureId,
-    },
     painter::Painter,
     style::Style,
     types::*,
     ui::Ui,
-    util::mutex,
     widgets::*,
 };
 

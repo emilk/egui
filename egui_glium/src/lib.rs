@@ -123,13 +123,15 @@ pub fn input_to_egui(
                                 }
                             }
                         }
-                    } else if let Some(key) = translate_virtual_key_code(keycode) {
-                        input_state.raw.events.push(Event::Key {
-                            key,
-                            pressed,
-                            modifiers: input_state.raw.modifiers,
-                        });
                     }
+                }
+
+                if let Some(key) = translate_virtual_key_code(keycode) {
+                    input_state.raw.events.push(Event::Key {
+                        key,
+                        pressed,
+                        modifiers: input_state.raw.modifiers,
+                    });
                 }
             }
         }

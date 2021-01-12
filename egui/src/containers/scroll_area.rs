@@ -1,8 +1,8 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,
@@ -10,7 +10,7 @@ pub(crate) struct State {
     show_scroll: bool,
 
     /// Momentum, used for kinetic scrolling
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub vel: Vec2,
     /// Mouse offset relative to the top of the handle when started moving the handle.
     scroll_start_offset_from_top: Option<f32>,
@@ -177,7 +177,7 @@ impl Prepared {
         // We take the scroll target so only this ScrollArea will use it.
         let scroll_target = content_ui.ctx().frame_state().scroll_target.take();
         if let Some((scroll_y, align)) = scroll_target {
-            let center_factor = align.scroll_center_factor();
+            let center_factor = align.to_factor();
 
             let top = content_ui.min_rect().top();
             let visible_range = top..=top + content_ui.clip_rect().height();
@@ -325,7 +325,7 @@ impl Prepared {
 
             let visuals = ui.style().interact(&response);
 
-            ui.painter().add(paint::PaintCmd::Rect {
+            ui.painter().add(paint::Shape::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill: ui.style().visuals.dark_bg_color,
@@ -334,7 +334,7 @@ impl Prepared {
                 // stroke: visuals.bg_stroke,
             });
 
-            ui.painter().add(paint::PaintCmd::Rect {
+            ui.painter().add(paint::Shape::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill: visuals.fg_fill,

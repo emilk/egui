@@ -37,7 +37,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         );
         std::mem::swap(&mut top_color, &mut bottom_color);
     }
-    painter.add(PaintCmd::triangles(triangles));
+    painter.add(Shape::triangles(triangles));
 }
 
 pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) -> Response {
@@ -47,7 +47,7 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) ->
 fn show_srgba(ui: &mut Ui, srgba: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     background_checkers(ui.painter(), rect);
-    ui.painter().add(PaintCmd::Rect {
+    ui.painter().add(Shape::Rect {
         rect,
         corner_radius: 2.0,
         fill: srgba,
@@ -61,7 +61,7 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
     background_checkers(ui.painter(), rect);
-    ui.painter().add(PaintCmd::Rect {
+    ui.painter().add(Shape::Rect {
         rect,
         corner_radius: visuals.corner_radius.at_most(2.0),
         fill: color,
@@ -103,7 +103,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
                 triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(PaintCmd::triangles(triangles));
+        ui.painter().add(Shape::triangles(triangles));
     }
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
@@ -113,7 +113,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
         let x = lerp(rect.left()..=rect.right(), *value);
         let r = rect.height() / 4.0;
         let picked_color = color_at(*value);
-        ui.painter().add(PaintCmd::polygon(
+        ui.painter().add(Shape::polygon(
             vec![
                 pos2(x - r, rect.bottom()),
                 pos2(x + r, rect.bottom()),
@@ -164,7 +164,7 @@ fn color_slider_2d(
             }
         }
     }
-    ui.painter().add(PaintCmd::triangles(triangles)); // fill
+    ui.painter().add(Shape::triangles(triangles)); // fill
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
 
@@ -172,7 +172,7 @@ fn color_slider_2d(
     let x = lerp(rect.left()..=rect.right(), *x_value);
     let y = lerp(rect.bottom()..=rect.top(), *y_value);
     let picked_color = color_at(*x_value, *y_value);
-    ui.painter().add(PaintCmd::Circle {
+    ui.painter().add(Shape::Circle {
         center: pos2(x, y),
         radius: rect.width() / 12.0,
         fill: picked_color,

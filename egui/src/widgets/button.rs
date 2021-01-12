@@ -196,7 +196,7 @@ impl<'a> Widget for Checkbox<'a> {
             rect.center().y - 0.5 * galley.size.y,
         );
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
-        ui.painter().add(PaintCmd::Rect {
+        ui.painter().add(Shape::Rect {
             rect: big_icon_rect,
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
@@ -205,7 +205,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         if *checked {
             // Check mark:
-            ui.painter().add(PaintCmd::line(
+            ui.painter().add(Shape::line(
                 vec![
                     pos2(small_icon_rect.left(), small_icon_rect.center().y),
                     pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
@@ -289,7 +289,7 @@ impl Widget for RadioButton {
 
         let painter = ui.painter();
 
-        painter.add(PaintCmd::Circle {
+        painter.add(Shape::Circle {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0,
             fill: visuals.bg_fill,
@@ -297,7 +297,7 @@ impl Widget for RadioButton {
         });
 
         if checked {
-            painter.add(PaintCmd::Circle {
+            painter.add(Shape::Circle {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
@@ -328,9 +328,9 @@ pub struct ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(texture_id: TextureId, desired_size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
         Self {
-            image: widgets::Image::new(texture_id, desired_size),
+            image: widgets::Image::new(texture_id, size),
             sense: Sense::click(),
             frame: true,
             selected: false,
@@ -379,8 +379,8 @@ impl Widget for ImageButton {
         } = self;
 
         let button_padding = ui.style().spacing.button_padding;
-        let desired_size = image.desired_size() + 2.0 * button_padding;
-        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        let size = image.size() + 2.0 * button_padding;
+        let (rect, response) = ui.allocate_exact_size(size, sense);
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
@@ -400,7 +400,7 @@ impl Widget for ImageButton {
 
             let image_rect = ui
                 .layout()
-                .align_size_within_rect(image.desired_size(), rect.shrink2(button_padding));
+                .align_size_within_rect(image.size(), rect.shrink2(button_padding));
             image.paint_at(ui, image_rect);
         }
 

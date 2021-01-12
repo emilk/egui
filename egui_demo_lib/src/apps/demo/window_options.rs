@@ -1,10 +1,9 @@
-use crate::__egui_github_link_file;
-
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowOptions {
     title: String,
     title_bar: bool,
+    closable: bool,
     collapsible: bool,
     resizable: bool,
     scroll: bool,
@@ -15,6 +14,7 @@ impl Default for WindowOptions {
         Self {
             title: "🗖 Window Options".to_owned(),
             title_bar: true,
+            closable: true,
             collapsible: true,
             resizable: true,
             scroll: false,
@@ -32,20 +32,23 @@ impl super::Demo for WindowOptions {
         let Self {
             title,
             title_bar,
+            closable,
             collapsible,
             resizable,
             scroll,
         } = self.clone();
 
         use super::View;
-        egui::Window::new(title)
+        let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
-            .open(open)
             .resizable(resizable)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll(scroll)
-            .show(ctx, |ui| self.ui(ui));
+            .scroll(scroll);
+        if closable {
+            window = window.open(open);
+        }
+        window.show(ctx, |ui| self.ui(ui));
     }
 }
 
@@ -56,6 +59,7 @@ impl super::View for WindowOptions {
         let Self {
             title,
             title_bar,
+            closable,
             collapsible,
             resizable,
             scroll,
@@ -66,9 +70,12 @@ impl super::View for WindowOptions {
             ui.text_edit_singleline(title);
         });
         ui.checkbox(title_bar, "title_bar");
+        ui.checkbox(closable, "closable");
         ui.checkbox(collapsible, "collapsible");
         ui.checkbox(resizable, "resizable");
         ui.checkbox(scroll, "scroll");
-        ui.add(__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

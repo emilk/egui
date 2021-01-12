@@ -1,21 +1,18 @@
-use {
-    super::{fonts::TextStyle, Color32, Fonts, Galley, Triangles},
-    crate::{
-        align::{anchor_rect, Align},
-        math::{Pos2, Rect},
-        *,
-    },
+use crate::{
+    text::{Fonts, Galley, TextStyle},
+    Color32, Stroke, Triangles,
 };
+use emath::*;
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
 #[derive(Clone, Debug)]
-pub enum PaintCmd {
+pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
-    /// Recursively nest more paint commands - sometimes a convenience to be able to do.
+    /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
-    Vec(Vec<PaintCmd>),
+    Vec(Vec<Shape>),
     Circle {
         center: Pos2,
         radius: f32,
@@ -53,7 +50,7 @@ pub enum PaintCmd {
 }
 
 /// ## Constructors
-impl PaintCmd {
+impl Shape {
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -127,14 +124,14 @@ impl PaintCmd {
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,
-        anchor: (Align, Align),
+        anchor: Align2,
         text: impl Into<String>,
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
         let font = &fonts[text_style];
         let galley = font.layout_multiline(text.into(), f32::INFINITY);
-        let rect = anchor_rect(Rect::from_min_size(pos, galley.size), anchor);
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,
             galley,
@@ -145,14 +142,14 @@ impl PaintCmd {
 }
 
 /// ## Operations
-impl PaintCmd {
+impl Shape {
     pub fn triangles(triangles: Triangles) -> Self {
         debug_assert!(triangles.is_valid());
         Self::Triangles(triangles)
     }
 
     pub fn texture_id(&self) -> super::TextureId {
-        if let PaintCmd::Triangles(triangles) = self {
+        if let Shape::Triangles(triangles) = self {
             triangles.texture_id
         } else {
             super::TextureId::Egui
@@ -162,64 +159,34 @@ impl PaintCmd {
     /// Translate location by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
         match self {
-            PaintCmd::Noop => {}
-            PaintCmd::Vec(commands) => {
-                for command in commands {
-                    command.translate(delta);
+            Shape::Noop => {}
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    shape.translate(delta);
                 }
             }
-            PaintCmd::Circle { center, .. } => {
+            Shape::Circle { center, .. } => {
                 *center += delta;
             }
-            PaintCmd::LineSegment { points, .. } => {
+            Shape::LineSegment { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            PaintCmd::Path { points, .. } => {
+            Shape::Path { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            PaintCmd::Rect { rect, .. } => {
+            Shape::Rect { rect, .. } => {
                 *rect = rect.translate(delta);
             }
-            PaintCmd::Text { pos, .. } => {
+            Shape::Text { pos, .. } => {
                 *pos += delta;
             }
-            PaintCmd::Triangles(triangles) => {
+            Shape::Triangles(triangles) => {
                 triangles.translate(delta);
             }
         }
-    }
-}
-
-/// Describes the width and color of a line.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Stroke {
-    pub width: f32,
-    pub color: Color32,
-}
-
-impl Stroke {
-    pub fn none() -> Self {
-        Self::new(0.0, Color32::TRANSPARENT)
-    }
-
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
-        Self {
-            width: width.into(),
-            color: color.into(),
-        }
-    }
-}
-
-impl<Color> From<(f32, Color)> for Stroke
-where
-    Color: Into<Color32>,
-{
-    fn from((width, color): (f32, Color)) -> Stroke {
-        Stroke::new(width, color)
     }
 }

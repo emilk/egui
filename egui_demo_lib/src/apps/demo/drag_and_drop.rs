@@ -43,7 +43,7 @@ pub fn drop_target<R>(
 
     let outer_rect_bounds = ui.available_rect_before_wrap();
     let inner_rect = outer_rect_bounds.shrink2(margin);
-    let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+    let where_to_put_background = ui.painter().add(Shape::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     let ret = body(&mut content_ui);
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
@@ -61,7 +61,7 @@ pub fn drop_target<R>(
 
     ui.painter().set(
         where_to_put_background,
-        PaintCmd::Rect {
+        Shape::Rect {
             corner_radius: style.corner_radius,
             fill: style.bg_fill,
             stroke: style.bg_stroke,
@@ -151,6 +151,8 @@ impl super::View for DragAndDropDemo {
             }
         }
 
-        ui.add(crate::__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

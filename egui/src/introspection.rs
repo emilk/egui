@@ -1,70 +1,145 @@
 //! uis for egui types.
-use crate::{
-    math::*,
-    paint::{self, PaintCmd, Texture, Triangles},
-    *,
-};
+use crate::*;
 
-impl Texture {
-    pub fn ui(&self, ui: &mut Ui) {
-        // Show font texture in demo Ui
-        ui.label(format!(
-            "Texture size: {} x {} (hover to zoom)",
-            self.width, self.height
-        ));
-        if self.width <= 1 || self.height <= 1 {
-            return;
-        }
-        let mut size = vec2(self.width as f32, self.height as f32);
-        if size.x > ui.available_width() {
-            size *= ui.available_width() / size.x;
-        }
-        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-        let mut triangles = Triangles::default();
-        triangles.add_rect_with_uv(
-            rect,
-            [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
-            Color32::WHITE,
-        );
-        ui.painter().add(PaintCmd::triangles(triangles));
+impl Widget for &epaint::Texture {
+    fn ui(self, ui: &mut Ui) -> Response {
+        use epaint::Triangles;
 
-        let (tex_w, tex_h) = (self.width as f32, self.height as f32);
-
-        response.on_hover_ui(|ui| {
-            let pos = ui
-                .input()
-                .mouse
-                .pos
-                .unwrap_or_else(|| ui.min_rect().left_top());
-            let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
-            let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
-            let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
-
-            let texel_radius = 32.0;
-            let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
-            let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
-
-            let uv_rect = Rect::from_min_max(
-                pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
-                pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
-            );
+        ui.vertical(|ui| {
+            // Show font texture in demo Ui
+            ui.label(format!(
+                "Texture size: {} x {} (hover to zoom)",
+                self.width, self.height
+            ));
+            if self.width <= 1 || self.height <= 1 {
+                return;
+            }
+            let mut size = vec2(self.width as f32, self.height as f32);
+            if size.x > ui.available_width() {
+                size *= ui.available_width() / size.x;
+            }
+            let (rect, response) = ui.allocate_at_least(size, Sense::hover());
             let mut triangles = Triangles::default();
-            triangles.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-            ui.painter().add(PaintCmd::triangles(triangles));
-        });
+            triangles.add_rect_with_uv(
+                rect,
+                [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
+                Color32::WHITE,
+            );
+            ui.painter().add(Shape::triangles(triangles));
+
+            let (tex_w, tex_h) = (self.width as f32, self.height as f32);
+
+            response.on_hover_ui(|ui| {
+                let pos = ui
+                    .input()
+                    .mouse
+                    .pos
+                    .unwrap_or_else(|| ui.min_rect().left_top());
+                let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
+                let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
+                let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
+
+                let texel_radius = 32.0;
+                let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
+                let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
+
+                let uv_rect = Rect::from_min_max(
+                    pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
+                    pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
+                );
+                let mut triangles = Triangles::default();
+                triangles.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
+                ui.painter().add(Shape::triangles(triangles));
+            });
+        })
+        .1
     }
 }
 
-impl paint::FontDefinitions {
-    pub fn ui(&mut self, ui: &mut Ui) {
-        for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
-            // TODO: radio button for family
-            ui.add(
-                Slider::f32(size, 4.0..=40.0)
-                    .max_decimals(0)
-                    .text(format!("{:?}", text_style)),
+impl Widget for &mut epaint::text::FontDefinitions {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.vertical(|ui| {
+            for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
+                // TODO: radio button for family
+                ui.add(
+                    Slider::f32(size, 4.0..=40.0)
+                        .max_decimals(0)
+                        .text(format!("{:?}", text_style)),
+                );
+            }
+            crate::reset_button(ui, self);
+        })
+        .1
+    }
+}
+
+impl Widget for &epaint::stats::PaintStats {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.vertical(|ui| {
+            ui.label(
+                "Egui generates intermediate level shapes like circles and text. \
+            These are later tessellated into triangles.",
             );
-        }
-        crate::reset_button(ui, self);
+            ui.advance_cursor(10.0);
+
+            ui.style_mut().body_text_style = TextStyle::Monospace;
+
+            let epaint::stats::PaintStats {
+                shapes,
+                shape_text,
+                shape_path,
+                shape_mesh,
+                shape_vec,
+                jobs,
+                vertices,
+                indices,
+            } = self;
+
+            ui.label("Intermediate:");
+            label(ui, shapes, "shapes").on_hover_text("Boxes, circles, etc");
+            label(ui, shape_text, "text");
+            label(ui, shape_path, "paths");
+            label(ui, shape_mesh, "meshes");
+            label(ui, shape_vec, "nested");
+            ui.advance_cursor(10.0);
+
+            ui.label("Tessellated:");
+            label(ui, jobs, "jobs").on_hover_text("Number of separate clip rectangles");
+            label(ui, vertices, "vertices");
+            label(ui, indices, "indices").on_hover_text("Three 32-bit indices per triangles");
+            ui.advance_cursor(10.0);
+
+            // ui.label("Total:");
+            // ui.label(self.total().format(""));
+        })
+        .1
+    }
+}
+
+pub fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
+    ui.add(Label::new(alloc_info.format(what)).multiline(false))
+}
+
+impl Widget for &mut epaint::TessellationOptions {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.vertical(|ui| {
+            let epaint::TessellationOptions {
+                aa_size: _,
+                anti_alias,
+                coarse_tessellation_culling,
+                debug_paint_clip_rects,
+                debug_paint_text_rects,
+                debug_ignore_clip_rects,
+            } = self;
+            ui.checkbox(anti_alias, "Antialias");
+            ui.checkbox(
+                coarse_tessellation_culling,
+                "Do coarse culling in the tessellator",
+            );
+            ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
+            ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
+            ui.checkbox(debug_paint_text_rects, "Paint text bounds (debug)");
+        })
+        .1
     }
 }

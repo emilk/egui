@@ -5,33 +5,40 @@ use egui::{CtxRef, Resize, ScrollArea, Ui, Window};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 struct Demos {
-    /// open, view
-    #[cfg_attr(feature = "persistence", serde(skip))] // TODO: serialize the `open` state.
-    demos: Vec<(bool, Box<dyn super::Demo>)>,
+    open: Vec<bool>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    demos: Vec<Box<dyn super::Demo>>,
 }
 impl Default for Demos {
     fn default() -> Self {
+        let demos: Vec<Box<dyn super::Demo>> = vec![
+            Box::new(super::WidgetGallery::default()),
+            Box::new(super::FontBook::default()),
+            Box::new(super::Painting::default()),
+            Box::new(super::DancingStrings::default()),
+            Box::new(super::DragAndDropDemo::default()),
+            Box::new(super::Tests::default()),
+            Box::new(super::WindowOptions::default()),
+        ];
         Self {
-            demos: vec![
-                (false, Box::new(super::FontBook::default())),
-                (false, Box::new(super::Painting::default())),
-                (false, Box::new(super::DancingStrings::default())),
-                (false, Box::new(super::DragAndDropDemo::default())),
-                (false, Box::new(super::Tests::default())),
-                (false, Box::new(super::WindowOptions::default())),
-            ],
+            open: vec![false; demos.len()],
+            demos,
         }
     }
 }
 impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
-        for (ref mut open, demo) in &mut self.demos {
+        let Self { open, demos } = self;
+        for (ref mut open, demo) in open.iter_mut().zip(demos.iter()) {
             ui.checkbox(open, demo.name());
         }
     }
 
     pub fn show(&mut self, ctx: &CtxRef) {
-        for (ref mut open, demo) in &mut self.demos {
+        let Self { open, demos } = self;
+        open.resize(demos.len(), false); // Handle deserialization of old data.
+        for (ref mut open, demo) in open.iter_mut().zip(demos.iter_mut()) {
             demo.show(ctx, open);
         }
     }

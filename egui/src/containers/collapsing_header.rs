@@ -1,14 +1,14 @@
 use std::hash::Hash;
 
 use crate::{
-    paint::{PaintCmd, TextStyle},
+    paint::{Shape, TextStyle},
     widgets::Label,
     *,
 };
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct State {
     open: bool,
 
@@ -114,12 +114,12 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     use std::f32::consts::TAU;
-    let rotation = Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
+    let rotation = math::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
     for p in &mut points {
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter().add(PaintCmd::closed_line(points, stroke));
+    ui.painter().add(Shape::closed_line(points, stroke));
 }
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
@@ -203,7 +203,12 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
-        let bg_index = ui.painter().add(PaintCmd::Noop);
+        ui.painter().add(Shape::Rect {
+            rect: header_response.rect,
+            corner_radius: ui.style().interact(&header_response).corner_radius,
+            fill: ui.style().interact(&header_response).bg_fill,
+            stroke: Default::default(),
+        });
 
         {
             let (mut icon_rect, _) = ui.style().spacing.icon_rectangles(header_response.rect);
@@ -219,22 +224,11 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        let painter = ui.painter();
-        painter.galley(
+        ui.painter().galley(
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
             ui.style().interact(&header_response).text_color(),
-        );
-
-        painter.set(
-            bg_index,
-            PaintCmd::Rect {
-                rect: header_response.rect,
-                corner_radius: ui.style().interact(&header_response).corner_radius,
-                fill: ui.style().interact(&header_response).bg_fill,
-                stroke: Default::default(),
-            },
         );
 
         Prepared {
@@ -249,27 +243,32 @@ impl CollapsingHeader {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        let Prepared {
-            id,
-            header_response,
-            mut state,
-        } = self.begin(ui);
-        let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
-        ui.memory().collapsing_headers.insert(id, state);
+        // Make sure contents are bellow header,
+        // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
+        ui.vertical(|ui| {
+            let Prepared {
+                id,
+                header_response,
+                mut state,
+            } = self.begin(ui);
+            let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
+            ui.memory().collapsing_headers.insert(id, state);
 
-        if let Some((ret, response)) = ret_response {
-            CollapsingResponse {
-                header_response,
-                body_response: Some(response),
-                body_returned: Some(ret),
+            if let Some((ret, response)) = ret_response {
+                CollapsingResponse {
+                    header_response,
+                    body_response: Some(response),
+                    body_returned: Some(ret),
+                }
+            } else {
+                CollapsingResponse {
+                    header_response,
+                    body_response: None,
+                    body_returned: None,
+                }
             }
-        } else {
-            CollapsingResponse {
-                header_response,
-                body_response: None,
-                body_returned: None,
-            }
-        }
+        })
+        .0
     }
 }
 

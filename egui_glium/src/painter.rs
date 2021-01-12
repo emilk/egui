@@ -95,7 +95,7 @@ impl Painter {
         }
     }
 
-    fn upload_egui_texture(
+    pub fn upload_egui_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
         texture: &egui::Texture,
@@ -154,7 +154,7 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    fn paint_job(
+    pub fn paint_job(
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
@@ -328,7 +328,7 @@ impl Painter {
         }
     }
 
-    fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
+    pub fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
         for user_texture in &mut self.user_textures {
             if let Some(user_texture) = user_texture {
                 if user_texture.gl_texture.is_none() {

@@ -19,7 +19,7 @@ impl Default for Painting {
 impl Painting {
     pub fn ui_control(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            self.stroke.ui(ui, "Stroke");
+            egui::stroke_ui(ui, &mut self.stroke, "Stroke");
             ui.separator();
             if ui.button("Clear Painting").clicked {
                 self.lines.clear();
@@ -52,7 +52,7 @@ impl Painting {
         for line in &self.lines {
             if line.len() >= 2 {
                 let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                painter.add(PaintCmd::line(points, self.stroke));
+                painter.add(Shape::line(points, self.stroke));
             }
         }
     }
@@ -75,7 +75,9 @@ impl super::Demo for Painting {
 
 impl super::View for Painting {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.add(crate::__egui_github_link_file!("(source code)"));
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
         self.ui_control(ui);
         ui.label("Paint with your mouse/touch!");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {

@@ -67,7 +67,7 @@ pub trait App {
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
     ///
-    /// In this warm-up call, all paint commands will be ignored.
+    /// In this warm-up call, all painted shapes will be ignored.
     fn warm_up_enabled(&self) -> bool {
         false
     }

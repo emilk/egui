@@ -1,17 +1,21 @@
-use crate::{paint::*, util::undoer::Undoer, *};
+use crate::{
+    paint::{text::cursor::*, *},
+    util::undoer::Undoer,
+    *,
+};
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct State {
     cursorp: Option<CursorPair>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     undoer: Undoer<(CCursorPair, String)>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct CursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
@@ -75,7 +79,7 @@ impl CursorPair {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct CCursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
@@ -216,7 +220,7 @@ impl<'t> Widget for TextEdit<'t> {
         let margin = Vec2::splat(2.0);
         let frame_rect = ui.available_rect_before_wrap();
         let content_rect = frame_rect.shrink2(margin);
-        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+        let where_to_put_background = ui.painter().add(Shape::Noop);
         let mut content_ui = ui.child_ui(content_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
         let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
@@ -226,7 +230,7 @@ impl<'t> Widget for TextEdit<'t> {
         let frame_rect = response.rect;
         ui.painter().set(
             where_to_put_background,
-            PaintCmd::Rect {
+            Shape::Rect {
                 rect: frame_rect,
                 corner_radius: visuals.corner_radius,
                 fill: ui.style().visuals.dark_bg_color,

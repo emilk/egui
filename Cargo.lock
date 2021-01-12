@@ -640,10 +640,7 @@ dependencies = [
 name = "egui"
 version = "0.7.0"
 dependencies = [
- "ahash",
- "atomic_refcell",
- "parking_lot",
- "rusttype",
+ "epaint",
  "serde",
 ]
 
@@ -702,6 +699,25 @@ name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+
+[[package]]
+name = "emath"
+version = "0.7.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "epaint"
+version = "0.7.0"
+dependencies = [
+ "ahash",
+ "atomic_refcell",
+ "emath",
+ "parking_lot",
+ "rusttype",
+ "serde",
+]
 
 [[package]]
 name = "epi"

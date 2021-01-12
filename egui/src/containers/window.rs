@@ -623,7 +623,7 @@ fn paint_frame_interaction(
         points.push(pos2(max.x, min.y + cr));
         points.push(pos2(max.x, max.y - cr));
     }
-    ui.painter().add(PaintCmd::line(points, visuals.bg_stroke));
+    ui.painter().add(Shape::line(points, visuals.bg_stroke));
 }
 
 // ----------------------------------------------------------------------------
@@ -632,7 +632,7 @@ struct TitleBar {
     id: Id,
     title_label: Label,
     title_galley: Galley,
-    title_rect: Rect,
+    min_rect: Rect,
     rect: Rect,
 }
 
@@ -645,15 +645,18 @@ fn show_title_bar(
     collapsible: bool,
 ) -> TitleBar {
     let (title_bar, response) = ui.horizontal(|ui| {
-        ui.set_min_height(title_label.font_height(ui.fonts(), ui.style()));
+        let height = title_label.font_height(ui.fonts(), ui.style());
+        ui.set_min_height(height);
 
         let item_spacing = ui.style().spacing.item_spacing;
-        let button_size = ui.style().spacing.icon_width;
+        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+
+        let window_pad_x = ui.style().spacing.window_padding.x;
 
         if collapsible {
-            ui.advance_cursor(ui.style().spacing.item_spacing.x);
+            ui.advance_cursor(window_pad_x);
 
-            let (_id, rect) = ui.allocate_space(Vec2::splat(button_size));
+            let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
             if collapse_button_response.clicked {
                 collapsing.toggle(ui);
@@ -663,27 +666,21 @@ fn show_title_bar(
         }
 
         let title_galley = title_label.layout(ui);
-        let (id, title_rect) = ui.allocate_space(title_galley.size);
 
-        if show_close_button {
-            // Reserve space for close button which will be added later (once we know our full width):
-            let close_max_x = title_rect.right() + item_spacing.x + button_size + item_spacing.x;
-            let close_max_x = close_max_x.max(ui.max_rect_finite().right());
-            let close_rect = Rect::from_min_size(
-                pos2(
-                    close_max_x - button_size,
-                    title_rect.center().y - 0.5 * button_size,
-                ),
-                Vec2::splat(button_size),
-            );
-            ui.expand_to_include_rect(close_rect);
-        }
+        let minimum_width = if collapsible || show_close_button {
+            // If at least one button is shown we make room for both buttons (since title is centered):
+            2.0 * (window_pad_x + button_size.x + item_spacing.x) + title_galley.size.x
+        } else {
+            window_pad_x + title_galley.size.x + window_pad_x
+        };
+        let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
+        let id = ui.advance_cursor_after_rect(min_rect);
 
         TitleBar {
             id,
             title_label,
             title_galley,
-            title_rect,
+            min_rect,
             rect: Rect::invalid(), // Will be filled in later
         }
     });
@@ -716,9 +713,18 @@ impl TitleBar {
             }
         }
 
-        // TODO: pick style for title based on move interaction
+        let style = if ui.ui_contains_mouse() {
+            ui.style().visuals.widgets.hovered
+        } else {
+            ui.style().visuals.widgets.inactive
+        };
+        self.title_label = self.title_label.text_color(style.fg_stroke.color);
+
+        let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
+        let text_pos = math::align::center_size_in_rect(self.title_galley.size, full_top_rect);
+        let text_pos = text_pos.left_top() - 2.0 * Vec2::Y; // HACK: center on x-height of text (looks better)
         self.title_label
-            .paint_galley(ui, self.title_rect.min, self.title_galley);
+            .paint_galley(ui, text_pos, self.title_galley);
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
@@ -742,13 +748,14 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let button_size = ui.style().spacing.icon_width;
+        let window_pad_x = ui.style().spacing.window_padding.x;
+        let button_size = Vec2::splat(ui.style().spacing.icon_width);
         let button_rect = Rect::from_min_size(
             pos2(
-                self.rect.right() - ui.style().spacing.item_spacing.x - button_size,
-                self.rect.center().y - 0.5 * button_size,
+                self.rect.right() - window_pad_x - button_size.x,
+                self.rect.center().y - 0.5 * button_size.y,
             ),
-            Vec2::splat(button_size),
+            button_size,
         );
 
         close_button(ui, button_rect)
@@ -759,6 +766,8 @@ fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_rect(response.rect);
+
+    let rect = rect.shrink(2.0);
 
     let stroke = ui.style().interact(&response).fg_stroke;
     ui.painter()

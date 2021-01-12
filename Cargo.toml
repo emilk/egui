@@ -5,6 +5,8 @@ members = [
     "egui_glium",
     "egui_web",
     "egui",
+    "emath",
+    "epaint",
     "epi",
 ]
 

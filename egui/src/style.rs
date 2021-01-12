@@ -1,3 +1,5 @@
+//! Egui theme (spacing, colors, etc).
+
 #![allow(clippy::if_same_then_else)]
 
 use crate::{
@@ -9,8 +11,8 @@ use crate::{
 
 /// Specifies the look and feel of a [`Ui`].
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
@@ -39,8 +41,8 @@ impl Style {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Spacing {
     /// Horizontal and vertical spacing between widgets
     pub item_spacing: Vec2,
@@ -95,8 +97,8 @@ impl Spacing {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Interaction {
     /// Mouse must be the close to the side of a window to resize
     pub resize_grab_radius_side: f32,
@@ -106,8 +108,8 @@ pub struct Interaction {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Visuals {
     /// Override default text color for all text.
     ///
@@ -168,16 +170,16 @@ impl Visuals {
 
 /// Selected text, selected elements etc
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Selection {
     pub bg_fill: Color32,
     pub stroke: Stroke,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Widgets {
     /// For an interactive widget that is being interacted with
     pub active: WidgetVisuals,
@@ -207,7 +209,7 @@ impl Widgets {
 
 /// bg = background, fg = foreground.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget
     pub bg_fill: Color32,
@@ -446,7 +448,7 @@ impl Selection {
         let Self { bg_fill, stroke } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
-        stroke.ui(ui, "stroke");
+        stroke_ui(ui, stroke, "stroke");
     }
 }
 
@@ -461,10 +463,10 @@ impl WidgetVisuals {
         } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
-        bg_stroke.ui(ui, "bg_stroke");
+        stroke_ui(ui, bg_stroke, "bg_stroke");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, fg_fill, "fg_fill");
-        fg_stroke.ui(ui, "fg_stroke (text)");
+        stroke_ui(ui, fg_stroke, "fg_stroke (text)");
     }
 }
 
@@ -493,7 +495,7 @@ impl Visuals {
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
-        window_shadow.ui(ui, "Window shadow:");
+        shadow_ui(ui, window_shadow, "Window shadow:");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
@@ -508,36 +510,6 @@ impl Visuals {
             "Show which widgets make their parent higher",
         );
         ui.checkbox(debug_resize, "Debug Resize");
-    }
-}
-
-impl Stroke {
-    pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
-        let Self { width, color } = self;
-        ui.horizontal(|ui| {
-            ui.add(DragValue::f32(width).speed(0.1).range(0.0..=5.0))
-                .on_hover_text("Width");
-            ui.color_edit_button_srgba(color);
-            ui.label(text);
-
-            // stroke preview:
-            let (_id, stroke_rect) = ui.allocate_space(ui.style().spacing.interact_size);
-            let left = stroke_rect.left_center();
-            let right = stroke_rect.right_center();
-            ui.painter().line_segment([left, right], (*width, *color));
-        });
-    }
-}
-
-impl Shadow {
-    pub fn ui(&mut self, ui: &mut crate::Ui, text: &str) {
-        let Self { extrusion, color } = self;
-        ui.horizontal(|ui| {
-            ui.label(text);
-            ui.add(DragValue::f32(extrusion).speed(1.0).range(0.0..=100.0))
-                .on_hover_text("Extrusion");
-            ui.color_edit_button_srgba(color);
-        });
     }
 }
 

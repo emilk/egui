@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// This is the size that the user has picked by dragging the resize handles.
     /// This may be smaller and/or larger than the actual size.
@@ -284,7 +284,7 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(paint::PaintCmd::Rect {
+            ui.painter().add(paint::Shape::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),

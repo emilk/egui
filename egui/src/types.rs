@@ -5,7 +5,7 @@ use crate::{lerp, math::Rect, Align, CtxRef, Id, LayerId, Ui};
 /// What Egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
 pub struct Output {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -26,8 +26,8 @@ pub struct Output {
 ///
 /// Egui emits a `CursorIcond` in [`Output`] each frame as a request to the integration.
 #[derive(Clone, Copy)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-// #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
+// #[cfg_attr(feature = "persistence", serde(rename_all = "snake_case"))]
 pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
@@ -187,7 +187,7 @@ impl Response {
     /// });
     /// ```
     pub fn scroll_to_me(&self, align: Align) {
-        let scroll_target = lerp(self.rect.y_range(), align.scroll_center_factor());
+        let scroll_target = lerp(self.rect.y_range(), align.to_factor());
         self.ctx.frame_state().scroll_target = Some((scroll_target, align));
     }
 }
@@ -254,7 +254,7 @@ impl std::ops::BitOrAssign for Response {
 
 /// What sort of interaction is a widget sensitive to?
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
 pub struct Sense {
     /// buttons, sliders, windows ...
     pub click: bool,

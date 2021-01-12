@@ -34,7 +34,7 @@ impl super::View for DancingStrings {
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
             let (_id, rect) = ui.allocate_space(desired_size);
 
-            let mut cmds = vec![];
+            let mut shapes = vec![];
 
             for &mode in &[2, 3, 5] {
                 let mode = mode as f32;
@@ -55,14 +55,16 @@ impl super::View for DancingStrings {
                     .collect();
 
                 let thickness = 10.0 / mode;
-                cmds.push(paint::PaintCmd::line(
+                shapes.push(paint::Shape::line(
                     points,
                     Stroke::new(thickness, Color32::from_additive_luminance(196)),
                 ));
             }
 
-            ui.painter().extend(cmds);
+            ui.painter().extend(shapes);
         });
-        ui.add(crate::__egui_github_link_file!());
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

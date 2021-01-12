@@ -1,6 +1,6 @@
 //! Frame container
 
-use crate::{layers::PaintCmdIdx, paint::*, *};
+use crate::{layers::ShapeIdx, paint::*, *};
 
 /// Adds a rectangular frame and background to some [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -95,13 +95,13 @@ impl Frame {
 pub struct Prepared {
     pub frame: Frame,
     outer_rect_bounds: Rect,
-    where_to_put_background: PaintCmdIdx,
+    where_to_put_background: ShapeIdx,
     pub content_ui: Ui,
 }
 
 impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
-        let where_to_put_background = ui.painter().add(PaintCmd::Noop);
+        let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
         let inner_rect = outer_rect_bounds.shrink2(self.margin);
         let content_ui = ui.child_ui(inner_rect, *ui.layout());
@@ -141,7 +141,7 @@ impl Prepared {
             ..
         } = self;
 
-        let frame_cmd = PaintCmd::Rect {
+        let frame_shape = Shape::Rect {
             rect: outer_rect,
             corner_radius: frame.corner_radius,
             fill: frame.fill,
@@ -149,13 +149,13 @@ impl Prepared {
         };
 
         if frame.shadow == Default::default() {
-            ui.painter().set(where_to_put_background, frame_cmd);
+            ui.painter().set(where_to_put_background, frame_shape);
         } else {
             let shadow = frame.shadow.tessellate(outer_rect, frame.corner_radius);
-            let shadow = PaintCmd::Triangles(shadow);
+            let shadow = Shape::Triangles(shadow);
             ui.painter().set(
                 where_to_put_background,
-                PaintCmd::Vec(vec![shadow, frame_cmd]),
+                Shape::Vec(vec![shadow, frame_shape]),
             )
         };
 

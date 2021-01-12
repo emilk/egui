@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{paint::*, *};
+use crate::*;
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
@@ -149,7 +149,7 @@ impl<'a> Widget for DragValue<'a> {
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
-        let value_text = format_with_decimals_in_range(value, auto_decimals..=max_decimals);
+        let value_text = math::format_with_decimals_in_range(value, auto_decimals..=max_decimals);
 
         let kb_edit_id = ui.auto_id_with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
@@ -193,7 +193,7 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_value = speed * delta_points;
                 if delta_value != 0.0 {
                     let new_value = value + delta_value as f64;
-                    let new_value = round_to_decimals(new_value, auto_decimals);
+                    let new_value = math::round_to_decimals(new_value, auto_decimals);
                     let new_value = clamp(new_value, range);
                     set(&mut value_function, new_value);
                     // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,

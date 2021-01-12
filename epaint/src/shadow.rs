@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Shadow {
     // The shadow extends this much outside the rect.
     pub extrusion: f32,
@@ -25,12 +25,12 @@ impl Shadow {
         }
     }
 
-    pub fn tessellate(&self, rect: crate::Rect, corner_radius: f32) -> Triangles {
+    pub fn tessellate(&self, rect: emath::Rect, corner_radius: f32) -> Triangles {
         // tessellator.clip_rect = clip_rect; // TODO: culling
 
         let Self { extrusion, color } = *self;
 
-        use crate::paint::tessellator::*;
+        use crate::tessellator::*;
         let rect = PaintRect {
             rect: rect.expand(0.5 * extrusion),
             corner_radius: corner_radius + 0.5 * extrusion,
