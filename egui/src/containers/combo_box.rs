@@ -79,7 +79,7 @@ pub fn combo_box(
 
         let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
         let visuals = ui.style().interact(&response);
-        paint_icon(ui.painter(), icon_rect, visuals);
+        paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
         ui.painter()
@@ -145,7 +145,7 @@ fn button_frame(
     ui.painter().set(
         where_to_put_background,
         Shape::Rect {
-            rect: outer_rect,
+            rect: outer_rect.expand(visuals.expansion),
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
             stroke: visuals.bg_stroke,

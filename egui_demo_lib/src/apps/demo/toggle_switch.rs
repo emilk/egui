@@ -44,6 +44,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
+    let rect = rect.expand(visuals.expansion);
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
@@ -69,6 +70,7 @@ fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let off_bg_fill = egui::Rgba::TRANSPARENT;
     let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.25);
     let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
+    let rect = rect.expand(visuals.expansion);
     let radius = 0.5 * rect.height();
     ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
     let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);

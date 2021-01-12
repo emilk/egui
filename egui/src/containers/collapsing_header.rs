@@ -106,12 +106,14 @@ impl State {
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
-    let stroke = ui.style().interact(response).fg_stroke;
+    let visuals = ui.style().interact(response);
+    let stroke = visuals.fg_stroke;
 
     let rect = response.rect;
 
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
+    let rect = rect.expand(visuals.expansion);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     use std::f32::consts::TAU;
     let rotation = math::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
@@ -203,10 +205,12 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
+        let visuals = ui.style().interact(&header_response);
+        let text_color = visuals.text_color();
         ui.painter().add(Shape::Rect {
-            rect: header_response.rect,
-            corner_radius: ui.style().interact(&header_response).corner_radius,
-            fill: ui.style().interact(&header_response).bg_fill,
+            rect: header_response.rect.expand(visuals.expansion),
+            corner_radius: visuals.corner_radius,
+            fill: visuals.bg_fill,
             stroke: Default::default(),
         });
 
@@ -228,7 +232,7 @@ impl CollapsingHeader {
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
-            ui.style().interact(&header_response).text_color(),
+            text_color,
         );
 
         Prepared {

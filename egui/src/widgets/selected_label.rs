@@ -43,6 +43,7 @@ impl Widget for SelectableLabel {
         let visuals = ui.style().interact(&response);
 
         if selected || response.hovered {
+            let rect = rect.expand(visuals.expansion);
             let bg_fill = if selected {
                 ui.style().visuals.selection.bg_fill
             } else {

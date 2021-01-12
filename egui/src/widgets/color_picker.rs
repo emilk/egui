@@ -60,6 +60,7 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let desired_size = ui.style().spacing.interact_size;
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
+    let rect = rect.expand(visuals.expansion);
     background_checkers(ui.painter(), rect);
     ui.painter().add(Shape::Rect {
         rect,

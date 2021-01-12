@@ -228,7 +228,7 @@ impl<'t> Widget for TextEdit<'t> {
         let response = response | ui.allocate_response(frame_rect.size(), Sense::click());
 
         let visuals = ui.style().interact(&response);
-        let frame_rect = response.rect;
+        let frame_rect = response.rect.expand(visuals.expansion);
         ui.painter().set(
             where_to_put_background,
             Shape::Rect {

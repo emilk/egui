@@ -117,8 +117,12 @@ impl Widget for Button {
 
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
-                ui.painter()
-                    .rect(rect, visuals.corner_radius, fill, visuals.bg_stroke);
+                ui.painter().rect(
+                    rect.expand(visuals.expansion),
+                    visuals.corner_radius,
+                    fill,
+                    visuals.bg_stroke,
+                );
             }
 
             let text_color = text_color
@@ -198,7 +202,7 @@ impl<'a> Widget for Checkbox<'a> {
         );
         let (small_icon_rect, big_icon_rect) = ui.style().spacing.icon_rectangles(rect);
         ui.painter().add(Shape::Rect {
-            rect: big_icon_rect,
+            rect: big_icon_rect.expand(visuals.expansion),
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
             stroke: visuals.bg_stroke,
@@ -292,7 +296,7 @@ impl Widget for RadioButton {
 
         painter.add(Shape::Circle {
             center: big_icon_rect.center(),
-            radius: big_icon_rect.width() / 2.0,
+            radius: big_icon_rect.width() / 2.0 + visuals.expansion,
             fill: visuals.bg_fill,
             stroke: visuals.bg_stroke,
         });
@@ -392,7 +396,7 @@ impl Widget for ImageButton {
                     .rect(rect, 0.0, selection.bg_fill, selection.stroke);
             } else if frame {
                 ui.painter().rect(
-                    rect,
+                    rect.expand(visuals.expansion),
                     visuals.corner_radius,
                     visuals.bg_fill,
                     visuals.bg_stroke,

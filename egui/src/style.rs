@@ -227,6 +227,9 @@ pub struct WidgetVisuals {
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
     pub fg_stroke: Stroke,
+
+    /// Make the frame this much larger
+    pub expansion: f32,
 }
 
 impl WidgetVisuals {
@@ -287,7 +290,7 @@ impl Default for Visuals {
             window_shadow: Shadow::big(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
-            clip_rect_margin: 1.0, // should be half the size of the widest frame stroke
+            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             debug_expand_width: false,
             debug_expand_height: false,
             debug_resize: false,
@@ -316,6 +319,7 @@ impl Default for Widgets {
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(120, 120, 200),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                expansion: 2.0,
             },
             hovered: WidgetVisuals {
                 bg_fill: Rgba::from_luminance_alpha(0.06, 0.5).into(),
@@ -323,6 +327,7 @@ impl Default for Widgets {
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(100, 100, 150),
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
+                expansion: 1.0,
             },
             inactive: WidgetVisuals {
                 bg_fill: Rgba::from_luminance_alpha(0.04, 0.5).into(),
@@ -330,6 +335,7 @@ impl Default for Widgets {
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(60, 60, 80),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
+                expansion: 0.0,
             },
             disabled: WidgetVisuals {
                 bg_fill: Rgba::from_luminance_alpha(0.02, 0.5).into(),
@@ -337,6 +343,7 @@ impl Default for Widgets {
                 corner_radius: 4.0,
                 fg_fill: Color32::from_rgb(50, 50, 50),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // Should look grayed out
+                expansion: 0.0,
             },
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.06)),
@@ -344,6 +351,7 @@ impl Default for Widgets {
                 corner_radius: 4.0,
                 fg_fill: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
+                expansion: 0.0,
             },
         }
     }
@@ -460,6 +468,7 @@ impl WidgetVisuals {
             corner_radius,
             fg_fill,
             fg_stroke,
+            expansion,
         } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
@@ -467,6 +476,7 @@ impl WidgetVisuals {
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
         ui_color(ui, fg_fill, "fg_fill");
         stroke_ui(ui, fg_stroke, "fg_stroke (text)");
+        ui.add(Slider::f32(expansion, -5.0..=5.0).text("expansion"));
     }
 }
 
