@@ -322,13 +322,14 @@ impl FontImplCache {
         }
 
         let y_offset = if font_name == "emoji-icon-font" {
-            1.0 // TODO: remove font alignment hack
+            scale_in_points * 0.235 // TODO: remove font alignment hack
         } else {
-            -3.0 // TODO: remove font alignment hack
+            0.0
         };
+        let y_offset = y_offset - 3.0; // Tweaked to make text look centered in buttons and text edit fields
 
         let scale_in_points = if font_name == "emoji-icon-font" {
-            scale_in_points - 2.0 // TODO: remove HACK!
+            scale_in_points * 0.8 // TODO: remove HACK!
         } else {
             scale_in_points
         };
