@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Added a simple grid layout (`Grid`).
 * Added `ui.allocate_at_least` and `ui.allocate_exact_size`.
 * Added function `InputState::key_down`.
+* Added `Window::current_pos` to position a window.
 
 ### Changed 🔧
 

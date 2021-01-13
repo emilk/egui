@@ -104,6 +104,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set current position of the window.
+    /// If the window is movable it is up to you to keep track of where it moved to!
+    pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
+        self.area = self.area.current_pos(current_pos);
+        self
+    }
+
     /// Set initial position of the window.
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
@@ -196,6 +203,7 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
+    /// Returns `None` if the windows is not open (if [`Window::open`] was called with `&mut false`.
     pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
         self.show_impl(ctx, Box::new(add_contents))
     }
