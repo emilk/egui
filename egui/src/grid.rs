@@ -51,8 +51,15 @@ impl State {
 pub(crate) struct GridLayout {
     ctx: CtxRef,
     id: Id,
-    state: State,
+
+    /// State previous frame (if any).
+    /// This can be used to predict future sizes of cells.
+    prev_state: State,
+    /// State accumulated during the current frame.
+    curr_state: State,
+
     spacing: Vec2,
+
     striped: bool,
     initial_x: f32,
     default_row_height: f32,
@@ -62,10 +69,13 @@ pub(crate) struct GridLayout {
 
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id) -> Self {
+        let prev_state = ui.memory().grid.get(&id).cloned().unwrap_or_default();
+
         Self {
             ctx: ui.ctx().clone(),
             id,
-            state: ui.memory().grid.get(&id).cloned().unwrap_or_default(),
+            prev_state,
+            curr_state: State::default(),
             spacing: ui.style().spacing.item_spacing,
             striped: false,
             initial_x: ui.cursor().x,
@@ -74,20 +84,11 @@ impl GridLayout {
             row: 0,
         }
     }
-
-    /// If `true`, add a subtle background color to every other row.
-    ///
-    /// This can make a table easier to read.
-    /// Default: `false`.
-    pub(crate) fn striped(mut self, striped: bool) -> Self {
-        self.striped = striped;
-        self
-    }
 }
 
 impl GridLayout {
-    fn row_height(&self, row: usize) -> f32 {
-        self.state
+    fn prev_row_height(&self, row: usize) -> f32 {
+        self.prev_state
             .row_height(row)
             .unwrap_or(self.default_row_height)
     }
@@ -101,25 +102,33 @@ impl GridLayout {
     }
 
     pub(crate) fn next_cell(&self, cursor: Pos2, child_size: Vec2) -> Rect {
-        let width = self.state.col_width(self.col).unwrap_or(0.0);
-        let height = self.row_height(self.row);
+        let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
+        let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
         Rect::from_min_size(cursor, size)
     }
 
-    pub(crate) fn advance(&mut self, cursor: &mut Pos2, rect: Rect) {
-        let dirty = self.state.set_min_col_width(self.col, rect.width());
-        let dirty = self.state.set_min_row_height(self.row, rect.height()) || dirty;
+    pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
+        let dirty = self
+            .curr_state
+            .set_min_col_width(self.col, widget_rect.width());
+        let dirty = self
+            .curr_state
+            .set_min_row_height(self.row, widget_rect.height())
+            || dirty;
         if dirty {
-            self.ctx.memory().grid.insert(self.id, self.state.clone());
+            self.ctx
+                .memory()
+                .grid
+                .insert(self.id, self.curr_state.clone());
             self.ctx.request_repaint();
         }
         self.col += 1;
-        cursor.x += rect.width() + self.spacing.x;
+        cursor.x += frame_rect.width() + self.spacing.x;
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Pos2, painter: &Painter) {
-        let row_height = self.row_height(self.row);
+        let row_height = self.prev_row_height(self.row);
 
         cursor.x = self.initial_x;
         cursor.y += row_height + self.spacing.y;
@@ -127,9 +136,9 @@ impl GridLayout {
         self.row += 1;
 
         if self.striped && self.row % 2 == 1 {
-            if let Some(height) = self.state.row_height(self.row) {
+            if let Some(height) = self.prev_state.row_height(self.row) {
                 // Paint background for coming row:
-                let size = Vec2::new(self.state.full_width(self.spacing.x), height);
+                let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
                 let rect = Rect::from_min_size(*cursor, size);
                 let color = Rgba::from_white_alpha(0.0075);
                 // let color = Rgba::from_black_alpha(0.2);
@@ -184,7 +193,10 @@ impl Grid {
 
         ui.wrap(|ui| {
             let id = ui.make_persistent_id(id_source);
-            let grid = GridLayout::new(ui, id).striped(striped);
+            let grid = GridLayout {
+                striped,
+                ..GridLayout::new(ui, id)
+            };
             ui.set_grid(grid);
             add_contents(ui)
         })

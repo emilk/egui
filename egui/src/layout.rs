@@ -357,9 +357,9 @@ impl Layout {
     }
 
     /// Returns where to put the next widget that is of the given size.
-    /// The returned "outer" `Rect` will always be justified along the cross axis.
-    /// This is what you then pass to `advance_after_outer_rect`.
-    /// Use `justify_or_align` to get the inner `Rect`.
+    /// The returned `frame_rect` `Rect` will always be justified along the cross axis.
+    /// This is what you then pass to `advance_after_rects`.
+    /// Use `justify_or_align` to get the inner `widget_rect`.
     #[allow(clippy::collapsible_if)]
     pub(crate) fn next_space(
         &self,
@@ -456,20 +456,21 @@ impl Layout {
     }
 
     /// Advance cursor after a widget was added to a specific rectangle.
-    /// `outer_rect` is a hack needed because the Vec2 cursor is not quite sufficient to keep track
-    /// of what is happening when we are doing wrapping layouts.
-    pub(crate) fn advance_after_outer_rect(
+    ///
+    /// * `frame_rect`: the frame inside which a widget was e.g. centered
+    /// * `widget_rect`: the actual rect used by the widget
+    pub(crate) fn advance_after_rects(
         &self,
         region: &mut Region,
-        outer_rect: Rect,
-        inner_rect: Rect,
+        frame_rect: Rect,
+        widget_rect: Rect,
         item_spacing: Vec2,
     ) {
         region.cursor = match self.main_dir {
-            Direction::LeftToRight => pos2(inner_rect.right() + item_spacing.x, outer_rect.top()),
-            Direction::RightToLeft => pos2(inner_rect.left() - item_spacing.x, outer_rect.top()),
-            Direction::TopDown => pos2(outer_rect.left(), inner_rect.bottom() + item_spacing.y),
-            Direction::BottomUp => pos2(outer_rect.left(), inner_rect.top() - item_spacing.y),
+            Direction::LeftToRight => pos2(widget_rect.right() + item_spacing.x, frame_rect.top()),
+            Direction::RightToLeft => pos2(widget_rect.left() - item_spacing.x, frame_rect.top()),
+            Direction::TopDown => pos2(frame_rect.left(), widget_rect.bottom() + item_spacing.y),
+            Direction::BottomUp => pos2(frame_rect.left(), widget_rect.top() - item_spacing.y),
         };
     }
 
