@@ -22,7 +22,7 @@ impl Default for WidgetGallery {
             radio: Enum::First,
             scalar: 42.0,
             string: "Hello World!".to_owned(),
-            color: egui::Color32::LIGHT_BLUE,
+            color: (egui::Rgba::from(egui::Color32::LIGHT_BLUE) * 0.5).into(),
         }
     }
 }

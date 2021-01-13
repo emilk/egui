@@ -436,6 +436,10 @@ impl Hsva {
 
     // ------------------------------------------------------------------------
 
+    pub fn to_opaque(self) -> Self {
+        Self { a: 1.0, ..self }
+    }
+
     pub fn to_rgb(&self) -> [f32; 3] {
         rgb_from_hsv((self.h, self.s, self.v))
     }
