@@ -127,6 +127,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
     text_color: Option<Color32>,
+    frame: bool,
     multiline: bool,
     enabled: bool,
     desired_width: Option<f32>,
@@ -147,6 +148,7 @@ impl<'t> TextEdit<'t> {
             id_source: None,
             text_style: None,
             text_color: None,
+            frame: true,
             multiline: false,
             enabled: true,
             desired_width: None,
@@ -161,6 +163,7 @@ impl<'t> TextEdit<'t> {
             id: None,
             id_source: None,
             text_style: None,
+            frame: true,
             text_color: None,
             multiline: true,
             enabled: true,
@@ -201,6 +204,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
     /// Set to 0.0 to keep as small as possible
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
@@ -218,6 +227,7 @@ impl<'t> TextEdit<'t> {
 
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let frame = self.frame;
         let margin = Vec2::splat(2.0);
         let frame_rect = ui.available_rect_before_wrap();
         let content_rect = frame_rect.shrink2(margin);
@@ -227,17 +237,19 @@ impl<'t> Widget for TextEdit<'t> {
         let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
         let response = response | ui.allocate_response(frame_rect.size(), Sense::click());
 
-        let visuals = ui.style().interact(&response);
-        let frame_rect = response.rect.expand(visuals.expansion);
-        ui.painter().set(
-            where_to_put_background,
-            Shape::Rect {
-                rect: frame_rect,
-                corner_radius: visuals.corner_radius,
-                fill: ui.style().visuals.dark_bg_color,
-                stroke: visuals.bg_stroke,
-            },
-        );
+        if frame {
+            let visuals = ui.style().interact(&response);
+            let frame_rect = response.rect.expand(visuals.expansion);
+            ui.painter().set(
+                where_to_put_background,
+                Shape::Rect {
+                    rect: frame_rect,
+                    corner_radius: visuals.corner_radius,
+                    fill: ui.style().visuals.dark_bg_color,
+                    stroke: visuals.bg_stroke,
+                },
+            );
+        }
 
         response
     }
@@ -251,6 +263,7 @@ impl<'t> TextEdit<'t> {
             id_source,
             text_style,
             text_color,
+            frame: _,
             multiline,
             enabled,
             desired_width,
