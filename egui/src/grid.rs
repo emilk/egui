@@ -96,6 +96,10 @@ impl GridLayout {
         Rect::from_min_max(region.cursor, region.max_rect.max)
     }
 
+    pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
+        Rect::from_min_max(region.cursor, region.max_rect_finite().max)
+    }
+
     pub(crate) fn next_cell(&self, cursor: Pos2, child_size: Vec2) -> Rect {
         let width = self.state.col_width(self.col).unwrap_or(0.0);
         let height = self.row_height(self.row);

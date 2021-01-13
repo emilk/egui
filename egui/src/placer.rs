@@ -65,7 +65,7 @@ impl Placer {
 
     pub(crate) fn available_rect_before_wrap_finite(&self) -> Rect {
         if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region)
+            grid.available_rect_finite(&self.region)
         } else {
             self.layout.available_rect_before_wrap_finite(&self.region)
         }
