@@ -37,6 +37,7 @@ struct SliderSpec {
 
 /// Control a number by a horizontal slider.
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,

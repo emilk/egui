@@ -119,6 +119,7 @@ impl CCursorPair {
 ///     // use my_string
 /// }
 /// ```
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
