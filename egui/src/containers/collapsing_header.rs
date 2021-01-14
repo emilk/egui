@@ -179,18 +179,16 @@ impl CollapsingHeader {
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
+        let button_padding = ui.style().spacing.button_padding;
 
         let available = ui.available_rect_before_wrap_finite();
         let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);
         let galley = label.layout_width(ui, available.right() - text_pos.x);
         let text_max_x = text_pos.x + galley.size.x;
-        let desired_width = text_max_x - available.left();
+        let desired_width = text_max_x + button_padding.x - available.left();
         let desired_width = desired_width.max(available.width());
 
-        let mut desired_size = vec2(
-            desired_width,
-            galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
-        );
+        let mut desired_size = vec2(desired_width, galley.size.y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
