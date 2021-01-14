@@ -653,16 +653,18 @@ fn show_title_bar(
     collapsible: bool,
 ) -> TitleBar {
     let (title_bar, response) = ui.horizontal(|ui| {
-        let height = title_label.font_height(ui.fonts(), ui.style());
+        let height = title_label
+            .font_height(ui.fonts(), ui.style())
+            .max(ui.style().spacing.interact_size.y);
         ui.set_min_height(height);
 
         let item_spacing = ui.style().spacing.item_spacing;
         let button_size = Vec2::splat(ui.style().spacing.icon_width);
 
-        let window_pad_x = ui.style().spacing.window_padding.x;
+        let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
         if collapsible {
-            ui.advance_cursor(window_pad_x);
+            ui.advance_cursor(pad);
 
             let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
@@ -677,9 +679,9 @@ fn show_title_bar(
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
-            2.0 * (window_pad_x + button_size.x + item_spacing.x) + title_galley.size.x
+            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size.x
         } else {
-            window_pad_x + title_galley.size.x + window_pad_x
+            pad + title_galley.size.x + pad
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);
@@ -756,11 +758,11 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let window_pad_x = ui.style().spacing.window_padding.x;
         let button_size = Vec2::splat(ui.style().spacing.icon_width);
+        let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
             pos2(
-                self.rect.right() - window_pad_x - button_size.x,
+                self.rect.right() - pad - button_size.x,
                 self.rect.center().y - 0.5 * button_size.y,
             ),
             button_size,
