@@ -21,6 +21,12 @@ impl Placer {
         self.grid = Some(grid);
     }
 
+    pub(crate) fn save_grid(&mut self) {
+        if let Some(grid) = &mut self.grid {
+            grid.save();
+        }
+    }
+
     pub(crate) fn layout(&self) -> &Layout {
         &self.layout
     }

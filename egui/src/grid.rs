@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     col_widths: Vec<f32>,
@@ -8,28 +8,16 @@ pub(crate) struct State {
 }
 
 impl State {
-    /// Returns `true` if this made the column wider.
-    fn set_min_col_width(&mut self, col: usize, width: f32) -> bool {
+    fn set_min_col_width(&mut self, col: usize, width: f32) {
         self.col_widths
             .resize(self.col_widths.len().max(col + 1), 0.0);
-        if self.col_widths[col] < width {
-            self.col_widths[col] = width;
-            true
-        } else {
-            false
-        }
+        self.col_widths[col] = self.col_widths[col].max(width);
     }
 
-    /// Returns `true` if this made the row higher.
-    fn set_min_row_height(&mut self, row: usize, height: f32) -> bool {
+    fn set_min_row_height(&mut self, row: usize, height: f32) {
         self.row_heights
             .resize(self.row_heights.len().max(row + 1), 0.0);
-        if self.row_heights[row] < height {
-            self.row_heights[row] = height;
-            true
-        } else {
-            false
-        }
+        self.row_heights[row] = self.row_heights[row].max(height);
     }
 
     fn col_width(&self, col: usize) -> Option<f32> {
@@ -109,20 +97,10 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
-        let dirty = self
-            .curr_state
+        self.curr_state
             .set_min_col_width(self.col, widget_rect.width());
-        let dirty = self
-            .curr_state
-            .set_min_row_height(self.row, widget_rect.height())
-            || dirty;
-        if dirty {
-            self.ctx
-                .memory()
-                .grid
-                .insert(self.id, self.curr_state.clone());
-            self.ctx.request_repaint();
-        }
+        self.curr_state
+            .set_min_row_height(self.row, widget_rect.height());
         self.col += 1;
         cursor.x += frame_rect.width() + self.spacing.x;
     }
@@ -144,6 +122,16 @@ impl GridLayout {
                 // let color = Rgba::from_black_alpha(0.2);
                 painter.rect_filled(rect, 2.0, color);
             }
+        }
+    }
+
+    pub(crate) fn save(&self) {
+        if self.curr_state != self.prev_state {
+            self.ctx
+                .memory()
+                .grid
+                .insert(self.id, self.curr_state.clone());
+            self.ctx.request_repaint();
         }
     }
 }
@@ -198,7 +186,9 @@ impl Grid {
                 ..GridLayout::new(ui, id)
             };
             ui.set_grid(grid);
-            add_contents(ui)
+            let r = add_contents(ui);
+            ui.save_grid();
+            r
         })
         .0
     }

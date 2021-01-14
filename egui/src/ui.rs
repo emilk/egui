@@ -1112,6 +1112,10 @@ impl Ui {
         self.placer.set_grid(grid);
     }
 
+    pub(crate) fn save_grid(&mut self) {
+        self.placer.save_grid();
+    }
+
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {
