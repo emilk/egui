@@ -50,7 +50,7 @@ pub(crate) struct GridLayout {
 
     striped: bool,
     initial_x: f32,
-    default_row_height: f32,
+    min_row_height: f32,
     col: usize,
     row: usize,
 }
@@ -67,7 +67,7 @@ impl GridLayout {
             spacing: ui.style().spacing.item_spacing,
             striped: false,
             initial_x: ui.cursor().x,
-            default_row_height: 0.0,
+            min_row_height: 0.0,
             col: 0,
             row: 0,
         }
@@ -78,15 +78,19 @@ impl GridLayout {
     fn prev_row_height(&self, row: usize) -> f32 {
         self.prev_state
             .row_height(row)
-            .unwrap_or(self.default_row_height)
+            .unwrap_or(self.min_row_height)
     }
 
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
-        Rect::from_min_max(region.cursor, region.max_rect.max)
+        let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
+        rect.set_height(rect.height().at_least(self.min_row_height));
+        rect
     }
 
     pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
-        Rect::from_min_max(region.cursor, region.max_rect_finite().max)
+        let mut rect = Rect::from_min_max(region.cursor, region.max_rect_finite().max);
+        rect.set_height(rect.height().at_least(self.min_row_height));
+        rect
     }
 
     pub(crate) fn next_cell(&self, cursor: Pos2, child_size: Vec2) -> Rect {
@@ -100,7 +104,7 @@ impl GridLayout {
         self.curr_state
             .set_min_col_width(self.col, widget_rect.width());
         self.curr_state
-            .set_min_row_height(self.row, widget_rect.height());
+            .set_min_row_height(self.row, widget_rect.height().at_least(self.min_row_height));
         self.col += 1;
         cursor.x += frame_rect.width() + self.spacing.x;
     }
@@ -155,6 +159,7 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     striped: bool,
+    min_row_height: f32,
 }
 
 impl Grid {
@@ -162,6 +167,7 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             striped: false,
+            min_row_height: 0.0,
         }
     }
 
@@ -173,16 +179,27 @@ impl Grid {
         self.striped = striped;
         self
     }
+
+    /// Set minimum height of each row. Default: 0.
+    pub fn min_row_height(mut self, min_row_height: f32) -> Self {
+        self.min_row_height = min_row_height;
+        self
+    }
 }
 
 impl Grid {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        let Self { id_source, striped } = self;
+        let Self {
+            id_source,
+            striped,
+            min_row_height,
+        } = self;
 
         ui.wrap(|ui| {
             let id = ui.make_persistent_id(id_source);
             let grid = GridLayout {
                 striped,
+                min_row_height,
                 ..GridLayout::new(ui, id)
             };
             ui.set_grid(grid);
