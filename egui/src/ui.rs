@@ -512,7 +512,6 @@ impl Ui {
 
         self.placer
             .advance_after_rects(frame_rect, widget_rect, item_spacing);
-        self.expand_to_include_rect(widget_rect);
 
         widget_rect
     }
@@ -520,7 +519,6 @@ impl Ui {
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.style().spacing.item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
-        self.expand_to_include_rect(rect);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         Id::new(self.next_auto_id)
@@ -552,7 +550,6 @@ impl Ui {
             final_child_rect,
             item_spacing,
         );
-        self.expand_to_include_rect(final_child_rect);
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         (ret, response)
@@ -1104,7 +1101,6 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.style().spacing.item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
-        self.expand_to_include_rect(rect);
         (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
 

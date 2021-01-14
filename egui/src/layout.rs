@@ -446,12 +446,12 @@ impl Layout {
     }
 
     /// Advance the cursor by this many points.
-    pub(crate) fn advance_cursor(&self, region: &mut Region, amount: f32) {
+    pub(crate) fn advance_cursor(&self, cursor: &mut Pos2, amount: f32) {
         match self.main_dir {
-            Direction::LeftToRight => region.cursor.x += amount,
-            Direction::RightToLeft => region.cursor.x -= amount,
-            Direction::TopDown => region.cursor.y += amount,
-            Direction::BottomUp => region.cursor.y -= amount,
+            Direction::LeftToRight => cursor.x += amount,
+            Direction::RightToLeft => cursor.x -= amount,
+            Direction::TopDown => cursor.y += amount,
+            Direction::BottomUp => cursor.y -= amount,
         }
     }
 
@@ -461,12 +461,12 @@ impl Layout {
     /// * `widget_rect`: the actual rect used by the widget
     pub(crate) fn advance_after_rects(
         &self,
-        region: &mut Region,
+        cursor: &mut Pos2,
         frame_rect: Rect,
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
-        region.cursor = match self.main_dir {
+        *cursor = match self.main_dir {
             Direction::LeftToRight => pos2(widget_rect.right() + item_spacing.x, frame_rect.top()),
             Direction::RightToLeft => pos2(widget_rect.left() - item_spacing.x, frame_rect.top()),
             Direction::TopDown => pos2(frame_rect.left(), widget_rect.bottom() + item_spacing.y),

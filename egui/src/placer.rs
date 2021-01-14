@@ -111,10 +111,11 @@ impl Placer {
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
-        self.layout.advance_cursor(&mut self.region, amount)
+        self.layout.advance_cursor(&mut self.region.cursor, amount)
     }
 
-    /// Advance cursor after a widget was added to a specific rectangle.
+    /// Advance cursor after a widget was added to a specific rectangle
+    /// and expand the region min_rect.
     ///
     /// * `frame_rect`: the frame inside which a widget was e.g. centered
     /// * `widget_rect`: the actual rect used by the widget
@@ -127,9 +128,14 @@ impl Placer {
         if let Some(grid) = &mut self.grid {
             grid.advance(&mut self.region.cursor, frame_rect, widget_rect)
         } else {
-            self.layout
-                .advance_after_rects(&mut self.region, frame_rect, widget_rect, item_spacing)
+            self.layout.advance_after_rects(
+                &mut self.region.cursor,
+                frame_rect,
+                widget_rect,
+                item_spacing,
+            )
         }
+        self.region.expand_to_include_rect(widget_rect);
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
