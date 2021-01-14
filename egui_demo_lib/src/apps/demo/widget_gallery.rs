@@ -33,10 +33,14 @@ impl super::Demo for WidgetGallery {
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open(open)
+            .default_width(200.0)
+            .resizable(false)
+            .show(ctx, |ui| {
+                use super::View;
+                self.ui(ui);
+            });
     }
 }
 
@@ -126,8 +130,20 @@ impl super::View for WidgetGallery {
             ui.label("Separator:");
             ui.separator();
             ui.end_row();
+
+            ui.label("CollapsingHeader:");
+            ui.collapsing("Click to see what is hidden!", |ui| {
+                ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+                    ui.label(
+                        "Not much, as it turns out, but here is a gold star for you for checking:",
+                    );
+                    ui.colored_label(egui::Color32::GOLD, "☆");
+                });
+            });
+            ui.end_row();
         });
 
+        ui.separator();
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());
         });
