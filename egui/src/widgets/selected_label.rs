@@ -44,12 +44,18 @@ impl Widget for SelectableLabel {
 
         if selected || response.hovered {
             let rect = rect.expand(visuals.expansion);
-            let bg_fill = if selected {
+            let fill = if selected {
                 ui.style().visuals.selection.bg_fill
             } else {
                 Default::default()
             };
-            ui.painter().rect(rect, 0.0, bg_fill, visuals.bg_stroke);
+            let stroke = if selected {
+                ui.style().visuals.selection.stroke
+            } else {
+                visuals.bg_stroke
+            };
+            let corner_radius = 2.0;
+            ui.painter().rect(rect, corner_radius, fill, stroke);
         }
 
         let text_color = ui

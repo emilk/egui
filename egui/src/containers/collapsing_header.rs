@@ -209,7 +209,8 @@ impl CollapsingHeader {
             rect: header_response.rect.expand(visuals.expansion),
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
-            stroke: Default::default(),
+            stroke: visuals.bg_stroke,
+            // stroke: Default::default(),
         });
 
         {

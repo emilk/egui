@@ -78,7 +78,7 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
         ui.painter().rect_filled(left, 0.0, color);
         ui.painter().rect_filled(right, 0.0, color.to_opaque());
         ui.painter()
-            .rect_stroke(rect, corner_radius, visuals.fg_stroke);
+            .rect_stroke(rect, corner_radius, visuals.bg_stroke);
     } else {
         ui.painter().add(Shape::Rect {
             rect,

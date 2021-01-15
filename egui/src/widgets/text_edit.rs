@@ -240,15 +240,24 @@ impl<'t> Widget for TextEdit<'t> {
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
-            ui.painter().set(
-                where_to_put_background,
+            let shape = if response.has_kb_focus {
+                Shape::Rect {
+                    rect: frame_rect,
+                    corner_radius: visuals.corner_radius,
+                    // fill: ui.style().visuals.selection.bg_fill,
+                    fill: ui.style().visuals.dark_bg_color,
+                    stroke: ui.style().visuals.selection.stroke,
+                }
+            } else {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
                     fill: ui.style().visuals.dark_bg_color,
-                    stroke: visuals.bg_stroke,
-                },
-            );
+                    stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                }
+            };
+
+            ui.painter().set(where_to_put_background, shape);
         }
 
         response

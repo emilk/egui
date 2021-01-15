@@ -744,7 +744,7 @@ impl TitleBar {
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.widgets.inactive.bg_stroke,
+                ui.style().visuals.widgets.noninteractive.bg_stroke,
             );
         }
 

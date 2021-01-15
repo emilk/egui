@@ -282,16 +282,19 @@ impl<'a> Slider<'a> {
             ui.painter().add(Shape::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
-                // fill: visuals.bg_fill,
+
                 fill: ui.style().visuals.widgets.inactive.bg_fill,
+                // fill: visuals.bg_fill,
+                // fill: ui.style().visuals.dark_bg_color,
+                stroke: Default::default(),
                 // stroke: visuals.bg_stroke,
-                stroke: ui.style().visuals.widgets.inactive.bg_stroke,
+                // stroke: ui.style().visuals.widgets.inactive.bg_stroke,
             });
 
             ui.painter().add(Shape::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect) + visuals.expansion,
-                fill: visuals.fg_fill,
+                fill: visuals.bg_fill,
                 stroke: visuals.fg_stroke,
             });
         }

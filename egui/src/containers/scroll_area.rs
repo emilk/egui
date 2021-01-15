@@ -337,8 +337,8 @@ impl Prepared {
             ui.painter().add(paint::Shape::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
-                fill: visuals.fg_fill,
-                stroke: visuals.fg_stroke,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
             });
         }
 

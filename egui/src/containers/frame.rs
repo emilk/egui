@@ -44,7 +44,7 @@ impl Frame {
             corner_radius: style.visuals.window_corner_radius,
             shadow: style.visuals.window_shadow,
             fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.inactive.bg_stroke, // because we can resize windows
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 

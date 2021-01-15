@@ -217,6 +217,7 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 visuals.fg_stroke,
+                // ui.style().visuals.selection.stroke, // too much color
             ));
         }
 
@@ -306,9 +307,8 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
+                // fill: ui.style().visuals.selection.stroke.color, // too much color
                 stroke: Default::default(),
-                // fill: visuals.fg_fill,
-                // stroke: visuals.fg_stroke,
             });
         }
 
