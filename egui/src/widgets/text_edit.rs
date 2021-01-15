@@ -228,14 +228,14 @@ impl<'t> TextEdit<'t> {
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
         let frame = self.frame;
-        let margin = Vec2::splat(2.0);
-        let frame_rect = ui.available_rect_before_wrap();
-        let content_rect = frame_rect.shrink2(margin);
         let where_to_put_background = ui.painter().add(Shape::Noop);
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+
+        let margin = Vec2::new(4.0, 2.0);
+        let max_rect = ui.available_rect_before_wrap().shrink2(margin);
+        let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
-        let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
-        let response = response | ui.allocate_response(frame_rect.size(), Sense::click());
+        let frame_rect = response.rect.expand2(margin);
+        let response = response | ui.allocate_rect(frame_rect, Sense::click());
 
         if frame {
             let visuals = ui.style().interact(&response);

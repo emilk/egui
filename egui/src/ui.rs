@@ -516,6 +516,12 @@ impl Ui {
         widget_rect
     }
 
+    /// Allocate a specific part of the ui.
+    pub(crate) fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+        let id = self.advance_cursor_after_rect(rect);
+        self.interact(rect, id, sense)
+    }
+
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.style().spacing.item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
