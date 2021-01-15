@@ -54,9 +54,7 @@ impl super::View for WidgetGallery {
             color,
         } = self;
 
-        let grid = egui::Grid::new("my_grid")
-            .striped(true)
-            .min_row_height(ui.style().spacing.interact_size.y);
+        let grid = egui::Grid::new("my_grid").striped(true);
         grid.show(ui, |ui| {
             ui.label("Label:");
             ui.label("Welcome to the widget gallery!");

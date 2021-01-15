@@ -67,7 +67,7 @@ impl GridLayout {
             spacing: ui.style().spacing.item_spacing,
             striped: false,
             initial_x: ui.cursor().x,
-            min_row_height: 0.0,
+            min_row_height: ui.style().spacing.interact_size.y,
             col: 0,
             row: 0,
         }
@@ -173,7 +173,7 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     striped: bool,
-    min_row_height: f32,
+    min_row_height: Option<f32>,
 }
 
 impl Grid {
@@ -181,7 +181,7 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             striped: false,
-            min_row_height: 0.0,
+            min_row_height: None,
         }
     }
 
@@ -194,9 +194,9 @@ impl Grid {
         self
     }
 
-    /// Set minimum height of each row. Default: 0.
+    /// Set minimum height of each row. Default: [`Spacing::interact_size.y`].
     pub fn min_row_height(mut self, min_row_height: f32) -> Self {
-        self.min_row_height = min_row_height;
+        self.min_row_height = Some(min_row_height);
         self
     }
 }
@@ -208,6 +208,7 @@ impl Grid {
             striped,
             min_row_height,
         } = self;
+        let min_row_height = min_row_height.unwrap_or_else(|| ui.style().spacing.interact_size.y);
 
         // Each grid cell is aligned LEFT_CENTER.
         // If somebody wants to wrap more things inside a cell,
