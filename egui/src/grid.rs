@@ -122,6 +122,7 @@ impl GridLayout {
                 // Paint background for coming row:
                 let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
                 let rect = Rect::from_min_size(*cursor, size);
+                let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
                 let color = Rgba::from_white_alpha(0.0075);
                 // let color = Rgba::from_black_alpha(0.2);
                 painter.rect_filled(rect, 2.0, color);
