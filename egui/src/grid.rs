@@ -100,6 +100,15 @@ impl GridLayout {
         Rect::from_min_size(cursor, size)
     }
 
+    pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
+        // TODO: allow this alignment to be customized
+        Align2::LEFT_CENTER.align_size_within_rect(size, frame)
+    }
+
+    pub(crate) fn justify_or_align(&self, frame: Rect, size: Vec2) -> Rect {
+        self.align_size_within_rect(size, frame)
+    }
+
     pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
         self.curr_state
             .set_min_col_width(self.col, widget_rect.width());
@@ -144,6 +153,10 @@ impl GridLayout {
 // ----------------------------------------------------------------------------
 
 /// A simple `Grid` layout.
+///
+/// The contents of each cell be aligned to the left and center.
+/// If you want to add multiple widgets to a cell you need to group them with
+/// [`Ui::horizontal`], [`Ui::vertical`] etc.
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
@@ -196,7 +209,11 @@ impl Grid {
             min_row_height,
         } = self;
 
-        ui.wrap(|ui| {
+        // Each grid cell is aligned LEFT_CENTER.
+        // If somebody wants to wrap more things inside a cell,
+        // then we should pick a default layout that matches that alignment,
+        // which we do here:
+        ui.horizontal(|ui| {
             let id = ui.make_persistent_id(id_source);
             let grid = GridLayout {
                 striped,

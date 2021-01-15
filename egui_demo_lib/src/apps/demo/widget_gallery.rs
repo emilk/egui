@@ -131,7 +131,9 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Separator:");
-            ui.separator();
+            // Putting a separator in a grid is kind of meaningless since there is no well-defined direction.
+            // Normally you'd just do ui.separator(), but here we need to explicitly pick a dimension:
+            ui.add(egui::Separator::new().horizontal());
             ui.end_row();
 
             ui.label("CollapsingHeader:");

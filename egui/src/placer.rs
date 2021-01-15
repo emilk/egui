@@ -58,7 +58,11 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        self.layout.align_size_within_rect(size, outer)
+        if let Some(grid) = &self.grid {
+            grid.align_size_within_rect(size, outer)
+        } else {
+            self.layout.align_size_within_rect(size, outer)
+        }
     }
 
     pub(crate) fn available_rect_before_wrap(&self) -> Rect {
@@ -102,7 +106,11 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_or_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        self.layout.justify_or_align(rect, child_size)
+        if let Some(grid) = &self.grid {
+            grid.justify_or_align(rect, child_size)
+        } else {
+            self.layout.justify_or_align(rect, child_size)
+        }
     }
 
     /// Advance the cursor by this many points.
@@ -115,7 +123,7 @@ impl Placer {
     }
 
     /// Advance cursor after a widget was added to a specific rectangle
-    /// and expand the region min_rect.
+    /// and expand the region `min_rect`.
     ///
     /// * `frame_rect`: the frame inside which a widget was e.g. centered
     /// * `widget_rect`: the actual rect used by the widget

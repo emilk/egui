@@ -432,16 +432,27 @@ impl Layout {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_or_align(&self, rect: Rect, mut child_size: Vec2) -> Rect {
-        if self.main_dir.is_horizontal() {
-            if self.cross_justify {
+        if self.cross_justify {
+            if self.main_dir.is_horizontal() {
                 child_size.y = rect.height(); // fill full height
-            }
-            Align2([Align::Center, self.cross_align]).align_size_within_rect(child_size, rect)
-        } else {
-            if self.cross_justify {
+            } else {
                 child_size.x = rect.width(); //  fill full width
             }
-            Align2([self.cross_align, Align::Center]).align_size_within_rect(child_size, rect)
+        }
+
+        match self.main_dir {
+            Direction::LeftToRight => {
+                Align2([Align::Min, self.cross_align]).align_size_within_rect(child_size, rect)
+            }
+            Direction::RightToLeft => {
+                Align2([Align::Max, self.cross_align]).align_size_within_rect(child_size, rect)
+            }
+            Direction::TopDown => {
+                Align2([self.cross_align, Align::Min]).align_size_within_rect(child_size, rect)
+            }
+            Direction::BottomUp => {
+                Align2([self.cross_align, Align::Max]).align_size_within_rect(child_size, rect)
+            }
         }
     }
 
