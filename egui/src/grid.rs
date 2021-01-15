@@ -174,6 +174,7 @@ pub struct Grid {
     id_source: Id,
     striped: bool,
     min_row_height: Option<f32>,
+    spacing: Option<Vec2>,
 }
 
 impl Grid {
@@ -182,6 +183,7 @@ impl Grid {
             id_source: Id::new(id_source),
             striped: false,
             min_row_height: None,
+            spacing: None,
         }
     }
 
@@ -199,6 +201,13 @@ impl Grid {
         self.min_row_height = Some(min_row_height);
         self
     }
+
+    /// Set spacing between columns/rows.
+    /// Default: [`Spacing::item_spacing`].
+    pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
+        self.spacing = Some(spacing.into());
+        self
+    }
 }
 
 impl Grid {
@@ -207,8 +216,10 @@ impl Grid {
             id_source,
             striped,
             min_row_height,
+            spacing,
         } = self;
         let min_row_height = min_row_height.unwrap_or_else(|| ui.style().spacing.interact_size.y);
+        let spacing = spacing.unwrap_or_else(|| ui.style().spacing.item_spacing);
 
         // Each grid cell is aligned LEFT_CENTER.
         // If somebody wants to wrap more things inside a cell,
@@ -219,6 +230,7 @@ impl Grid {
             let grid = GridLayout {
                 striped,
                 min_row_height,
+                spacing,
                 ..GridLayout::new(ui, id)
             };
             ui.set_grid(grid);

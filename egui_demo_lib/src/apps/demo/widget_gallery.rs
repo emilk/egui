@@ -54,7 +54,9 @@ impl super::View for WidgetGallery {
             color,
         } = self;
 
-        let grid = egui::Grid::new("my_grid").striped(true);
+        let grid = egui::Grid::new("my_grid")
+            .striped(true)
+            .spacing([40.0, 4.0]);
         grid.show(ui, |ui| {
             ui.label("Label:");
             ui.label("Welcome to the widget gallery!");
@@ -138,7 +140,7 @@ impl super::View for WidgetGallery {
             ui.collapsing("Click to see what is hidden!", |ui| {
                 ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
                     ui.label(
-                        "Not much, as it turns out, but here is a gold star for you for checking:",
+                        "Not much, as it turns out - but here is a gold star for you for checking:",
                     );
                     ui.colored_label(egui::Color32::GOLD, "☆");
                 });
