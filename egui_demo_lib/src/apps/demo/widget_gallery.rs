@@ -35,7 +35,6 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .default_width(200.0)
             .resizable(false)
             .show(ctx, |ui| {
                 use super::View;
@@ -131,9 +130,7 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Separator:");
-            // Putting a separator in a grid is kind of meaningless since there is no well-defined direction.
-            // Normally you'd just do ui.separator(), but here we need to explicitly pick a dimension:
-            ui.add(egui::Separator::new().horizontal());
+            ui.separator();
             ui.end_row();
 
             ui.label("CollapsingHeader:");

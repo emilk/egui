@@ -1118,6 +1118,10 @@ impl Ui {
         self.placer.save_grid();
     }
 
+    pub(crate) fn is_grid(&self) -> bool {
+        self.placer.is_grid()
+    }
+
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {

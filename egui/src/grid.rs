@@ -82,15 +82,25 @@ impl GridLayout {
     }
 
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
-        let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
-        rect.set_height(rect.height().at_least(self.min_row_height));
-        rect
+        // let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
+        // rect.set_height(rect.height().at_least(self.min_row_height));
+        // rect
+        self.available_rect_finite(region)
     }
 
     pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
-        let mut rect = Rect::from_min_max(region.cursor, region.max_rect_finite().max);
-        rect.set_height(rect.height().at_least(self.min_row_height));
-        rect
+        // If we want to allow width-filling widgets like `Separator` in one of the first cells
+        // then we need to make sure they don't spill out of the first cell:
+        let width = self
+            .prev_state
+            .col_width(self.col)
+            .or_else(|| self.curr_state.col_width(self.col))
+            .unwrap_or_default();
+        let height = region
+            .max_rect_finite()
+            .height()
+            .at_least(self.min_row_height);
+        Rect::from_min_size(region.cursor, vec2(width, height))
     }
 
     pub(crate) fn next_cell(&self, cursor: Pos2, child_size: Vec2) -> Rect {

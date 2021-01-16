@@ -27,6 +27,10 @@ impl Placer {
         }
     }
 
+    pub(crate) fn is_grid(&self) -> bool {
+        self.grid.is_some()
+    }
+
     pub(crate) fn layout(&self) -> &Layout {
         &self.layout
     }
