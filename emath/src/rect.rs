@@ -131,6 +131,14 @@ impl Rect {
             && p.y <= self.min.y + self.size().y
     }
 
+    /// Return the given points clamped to be inside the rectangle
+    #[must_use]
+    pub fn clamp(&self, mut p: Pos2) -> Pos2 {
+        p.x = clamp(p.x, self.x_range());
+        p.y = clamp(p.y, self.y_range());
+        p
+    }
+
     pub fn extend_with(&mut self, p: Pos2) {
         self.min = self.min.min(p);
         self.max = self.max.max(p);

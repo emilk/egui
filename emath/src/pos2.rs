@@ -35,6 +35,13 @@ impl From<&[f32; 2]> for Pos2 {
 }
 
 impl Pos2 {
+    /// The zero position, the origin.
+    /// The top left corner in a GUI.
+    /// Same as `Pos2::default()`.
+    pub const fn zero() -> Self {
+        Self { x: 0.0, y: 0.0 }
+    }
+
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
