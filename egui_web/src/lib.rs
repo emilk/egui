@@ -11,14 +11,17 @@
 pub mod backend;
 #[cfg(feature = "http")]
 pub mod http;
-pub mod webgl;
+mod painter;
+pub mod webgl1;
+pub mod webgl2;
 
 pub use backend::*;
 
+use egui::mutex::Mutex;
 pub use wasm_bindgen;
 pub use web_sys;
 
-use egui::mutex::Mutex;
+pub use painter::Painter;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 

@@ -6,7 +6,7 @@ pub use egui::{pos2, Color32};
 
 pub struct WebBackend {
     ctx: egui::CtxRef,
-    painter: webgl::Painter,
+    painter: Box<dyn Painter>,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
 }
@@ -14,9 +14,19 @@ pub struct WebBackend {
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
+
+        let painter: Box<dyn Painter> =
+            if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
+                console_log("Using WebGL2 backend");
+                Box::new(webgl2_painter)
+            } else {
+                console_log("Falling back to WebGL1 backend");
+                Box::new(webgl1::WebGlPainter::new(canvas_id)?)
+            };
+
         Ok(Self {
             ctx,
-            painter: webgl::Painter::new(canvas_id)?,
+            painter,
             previous_frame_time: None,
             frame_start: None,
         })
@@ -52,32 +62,14 @@ impl WebBackend {
         clear_color: egui::Rgba,
         paint_jobs: egui::PaintJobs,
     ) -> Result<(), JsValue> {
-        self.painter.paint_jobs(
-            clear_color,
-            paint_jobs,
-            &self.ctx.texture(),
-            self.ctx.pixels_per_point(),
-        )
+        self.painter.upload_egui_texture(&self.ctx.texture());
+        self.painter.clear(clear_color);
+        self.painter
+            .paint_jobs(paint_jobs, self.ctx.pixels_per_point())
     }
 
     pub fn painter_debug_info(&self) -> String {
         self.painter.debug_info()
-    }
-}
-
-impl epi::TextureAllocator for webgl::Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
     }
 }
 
@@ -207,7 +199,7 @@ impl AppRunner {
                 seconds_since_midnight: Some(seconds_since_midnight()),
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
-            tex_allocator: Some(&mut self.web_backend.painter),
+            tex_allocator: Some(self.web_backend.painter.as_tex_allocator()),
             #[cfg(feature = "http")]
             http: self.http.clone(),
             output: &mut app_output,

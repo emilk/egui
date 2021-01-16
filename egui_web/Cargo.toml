@@ -58,6 +58,7 @@ features = [
   "Touch",
   "TouchEvent",
   "TouchList",
+  "WebGl2RenderingContext",
   "WebGlBuffer",
   "WebGlProgram",
   "WebGlRenderingContext",

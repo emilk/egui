@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* WebGL2 is now supported, with improved texture sampler. WebGL1 will be used as a fallback.
+
+### Changed
+
+* Slightly improved alpha-blending (work-around for non-existing linear-space blending).
+
 
 ## 0.7.0 - 2021-01-04
 

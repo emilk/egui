@@ -1,7 +1,9 @@
+//! Mostly a carbon-copy of `webgl1.rs`.
+
 use {
     js_sys::WebAssembly,
     wasm_bindgen::{prelude::*, JsCast},
-    web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
+    web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlShader, WebGlTexture},
 };
 
 use egui::{
@@ -10,7 +12,7 @@ use egui::{
     vec2,
 };
 
-type Gl = WebGlRenderingContext;
+type Gl = WebGl2RenderingContext;
 
 const VERTEX_SHADER_SOURCE: &str = r#"
     precision mediump float;
@@ -62,28 +64,21 @@ const FRAGMENT_SHADER_SOURCE: &str = r#"
         return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
     }
 
-    // 0-1 linear  from  0-255 sRGB
-    vec3 linear_from_srgb(vec3 srgb) {
-        bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-        vec3 lower = srgb / vec3(3294.6);
-        vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-        return mix(higher, lower, vec3(cutoff));
-    }
-
-    vec4 linear_from_srgba(vec4 srgba) {
-        return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-    }
-
     void main() {
-        vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
+        vec4 texture_rgba = texture2D(u_sampler, v_tc);
+        // gl_FragColor = v_rgba * texture_rgba;
         gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
+
+        // WebGL doesn't support linear blending in the framebuffer,
+        // so we apply this hack to at least get a bit closer to the desired blending:
+        gl_FragColor.a = pow(gl_FragColor.a, 1.6); // Empiric nonsense
     }
 "#;
 
-pub struct Painter {
+pub struct WebGl2Painter {
     canvas_id: String,
     canvas: web_sys::HtmlCanvasElement,
-    gl: WebGlRenderingContext,
+    gl: WebGl2RenderingContext,
     program: WebGlProgram,
     index_buffer: WebGlBuffer,
     pos_buffer: WebGlBuffer,
@@ -108,25 +103,14 @@ struct UserTexture {
     gl_texture: Option<WebGlTexture>,
 }
 
-impl Painter {
-    pub fn debug_info(&self) -> String {
-        format!(
-            "Stored canvas size: {} x {}\n\
-             gl context size: {} x {}",
-            self.canvas.width(),
-            self.canvas.height(),
-            self.gl.drawing_buffer_width(),
-            self.gl.drawing_buffer_height(),
-        )
-    }
-
-    pub fn new(canvas_id: &str) -> Result<Painter, JsValue> {
+impl WebGl2Painter {
+    pub fn new(canvas_id: &str) -> Result<WebGl2Painter, JsValue> {
         let canvas = crate::canvas_element_or_die(canvas_id);
 
         let gl = canvas
-            .get_context("webgl")?
-            .unwrap()
-            .dyn_into::<WebGlRenderingContext>()?;
+            .get_context("webgl2")?
+            .ok_or_else(|| JsValue::from("Failed to get WebGl2 context"))?
+            .dyn_into::<WebGl2RenderingContext>()?;
 
         // --------------------------------------------------------------------
 
@@ -146,7 +130,7 @@ impl Painter {
         let tc_buffer = gl.create_buffer().ok_or("failed to create tc_buffer")?;
         let color_buffer = gl.create_buffer().ok_or("failed to create color_buffer")?;
 
-        Ok(Painter {
+        Ok(WebGl2Painter {
             canvas_id: canvas_id.to_owned(),
             canvas,
             gl,
@@ -161,53 +145,48 @@ impl Painter {
         })
     }
 
-    /// id of the canvas html element containing the rendering
-    pub fn canvas_id(&self) -> &str {
-        &self.canvas_id
-    }
-
-    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
-        for (i, tex) in self.user_textures.iter_mut().enumerate() {
+    fn alloc_user_texture_index(&mut self) -> usize {
+        for (index, tex) in self.user_textures.iter_mut().enumerate() {
             if tex.is_none() {
                 *tex = Some(Default::default());
-                return egui::TextureId::User(i as u64);
+                return index;
             }
         }
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
+        let index = self.user_textures.len();
         self.user_textures.push(Some(Default::default()));
-        id
+        index
     }
 
-    pub fn set_user_texture(
+    fn alloc_user_texture(
         &mut self,
-        id: egui::TextureId,
         size: (usize, usize),
         srgba_pixels: &[Color32],
-    ) {
+    ) -> egui::TextureId {
+        let index = self.alloc_user_texture_index();
         assert_eq!(size.0 * size.1, srgba_pixels.len());
 
-        if let egui::TextureId::User(id) = id {
-            if let Some(user_texture) = self.user_textures.get_mut(id as usize) {
-                if let Some(user_texture) = user_texture {
-                    let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
-                    for srgba in srgba_pixels {
-                        pixels.push(srgba.r());
-                        pixels.push(srgba.g());
-                        pixels.push(srgba.b());
-                        pixels.push(srgba.a());
-                    }
-
-                    *user_texture = UserTexture {
-                        size,
-                        pixels,
-                        gl_texture: None,
-                    };
+        if let Some(user_texture) = self.user_textures.get_mut(index) {
+            if let Some(user_texture) = user_texture {
+                let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
+                for srgba in srgba_pixels {
+                    pixels.push(srgba.r());
+                    pixels.push(srgba.g());
+                    pixels.push(srgba.b());
+                    pixels.push(srgba.a());
                 }
+
+                *user_texture = UserTexture {
+                    size,
+                    pixels,
+                    gl_texture: None,
+                };
             }
         }
+
+        egui::TextureId::User(index as u64)
     }
 
-    pub fn free_user_texture(&mut self, id: egui::TextureId) {
+    fn free_user_texture(&mut self, id: egui::TextureId) {
         if let egui::TextureId::User(id) = id {
             let index = id as usize;
             if index < self.user_textures.len() {
@@ -228,45 +207,6 @@ impl Painter {
         }
     }
 
-    fn upload_egui_texture(&mut self, texture: &Texture) {
-        if self.egui_texture_version == Some(texture.version) {
-            return; // No change
-        }
-
-        let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        for srgba in texture.srgba_pixels() {
-            pixels.push(srgba.r());
-            pixels.push(srgba.g());
-            pixels.push(srgba.b());
-            pixels.push(srgba.a());
-        }
-
-        let gl = &self.gl;
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
-
-        // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
-        // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
-        let level = 0;
-        let internal_format = Gl::RGBA;
-        let border = 0;
-        let src_format = Gl::RGBA;
-        let src_type = Gl::UNSIGNED_BYTE;
-        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            Gl::TEXTURE_2D,
-            level,
-            internal_format as i32,
-            texture.width as i32,
-            texture.height as i32,
-            border,
-            src_format,
-            src_type,
-            Some(&pixels),
-        )
-        .unwrap();
-
-        self.egui_texture_version = Some(texture.version);
-    }
-
     fn upload_user_textures(&mut self) {
         let gl = &self.gl;
 
@@ -284,12 +224,12 @@ impl Painter {
 
                     gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
-                    // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
                     let level = 0;
-                    let internal_format = Gl::RGBA;
+                    let internal_format = Gl::SRGB8_ALPHA8;
                     let border = 0;
                     let src_format = Gl::RGBA;
                     let src_type = Gl::UNSIGNED_BYTE;
+                    gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
                     gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
                         Gl::TEXTURE_2D,
                         level,
@@ -307,93 +247,6 @@ impl Painter {
                 }
             }
         }
-    }
-
-    pub fn paint_jobs(
-        &mut self,
-        clear_color: egui::Rgba,
-        jobs: PaintJobs,
-        egui_texture: &Texture,
-        pixels_per_point: f32,
-    ) -> Result<(), JsValue> {
-        self.upload_egui_texture(egui_texture);
-        self.upload_user_textures();
-
-        let gl = &self.gl;
-
-        gl.disable(Gl::SCISSOR_TEST);
-        gl.viewport(
-            0,
-            0,
-            self.canvas.width() as i32,
-            self.canvas.height() as i32,
-        );
-        let clear_color: Color32 = clear_color.into();
-        gl.clear_color(
-            clear_color[0] as f32 / 255.0,
-            clear_color[1] as f32 / 255.0,
-            clear_color[2] as f32 / 255.0,
-            clear_color[3] as f32 / 255.0,
-        );
-        gl.clear(Gl::COLOR_BUFFER_BIT);
-
-        gl.enable(Gl::SCISSOR_TEST);
-        gl.disable(Gl::CULL_FACE); // Egui is not strict about winding order.
-        gl.enable(Gl::BLEND);
-        gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
-        gl.use_program(Some(&self.program));
-        gl.active_texture(Gl::TEXTURE0);
-
-        let u_screen_size_loc = gl
-            .get_uniform_location(&self.program, "u_screen_size")
-            .unwrap();
-        let screen_size_pixels = vec2(self.canvas.width() as f32, self.canvas.height() as f32);
-        let screen_size_points = screen_size_pixels / pixels_per_point;
-        gl.uniform2f(
-            Some(&u_screen_size_loc),
-            screen_size_points.x,
-            screen_size_points.y,
-        );
-
-        let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
-        gl.uniform1i(Some(&u_sampler_loc), 0);
-
-        for (clip_rect, triangles) in jobs {
-            if let Some(gl_texture) = self.get_texture(triangles.texture_id) {
-                gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
-
-                let clip_min_x = pixels_per_point * clip_rect.min.x;
-                let clip_min_y = pixels_per_point * clip_rect.min.y;
-                let clip_max_x = pixels_per_point * clip_rect.max.x;
-                let clip_max_y = pixels_per_point * clip_rect.max.y;
-                let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
-                let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
-                let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
-                let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
-                let clip_min_x = clip_min_x.round() as i32;
-                let clip_min_y = clip_min_y.round() as i32;
-                let clip_max_x = clip_max_x.round() as i32;
-                let clip_max_y = clip_max_y.round() as i32;
-
-                // scissor Y coordinate is from the bottom
-                gl.scissor(
-                    clip_min_x,
-                    self.canvas.height() as i32 - clip_max_y,
-                    clip_max_x - clip_min_x,
-                    clip_max_y - clip_min_y,
-                );
-
-                for triangles in triangles.split_to_u16() {
-                    self.paint_triangles(&triangles)?;
-                }
-            } else {
-                crate::console_warn(format!(
-                    "WebGL: Failed to find texture {:?}",
-                    triangles.texture_id
-                ));
-            }
-        }
-        Ok(())
     }
 
     fn paint_triangles(&self, triangles: &Triangles) -> Result<(), JsValue> {
@@ -516,8 +369,168 @@ impl Painter {
     }
 }
 
+impl epi::TextureAllocator for WebGl2Painter {
+    fn alloc_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        srgba_pixels: &[egui::Color32],
+    ) -> egui::TextureId {
+        self.alloc_user_texture(size, srgba_pixels)
+    }
+
+    fn free(&mut self, id: egui::TextureId) {
+        self.free_user_texture(id)
+    }
+}
+
+impl crate::Painter for WebGl2Painter {
+    fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator {
+        self
+    }
+
+    fn debug_info(&self) -> String {
+        format!(
+            "Stored canvas size: {} x {}\n\
+             gl context size: {} x {}",
+            self.canvas.width(),
+            self.canvas.height(),
+            self.gl.drawing_buffer_width(),
+            self.gl.drawing_buffer_height(),
+        )
+    }
+
+    /// id of the canvas html element containing the rendering
+    fn canvas_id(&self) -> &str {
+        &self.canvas_id
+    }
+
+    fn upload_egui_texture(&mut self, texture: &Texture) {
+        if self.egui_texture_version == Some(texture.version) {
+            return; // No change
+        }
+
+        let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
+        for srgba in texture.srgba_pixels() {
+            pixels.push(srgba.r());
+            pixels.push(srgba.g());
+            pixels.push(srgba.b());
+            pixels.push(srgba.a());
+        }
+
+        let gl = &self.gl;
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
+
+        // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+        // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
+        let level = 0;
+        let internal_format = Gl::SRGB8_ALPHA8;
+        let border = 0;
+        let src_format = Gl::RGBA;
+        let src_type = Gl::UNSIGNED_BYTE;
+        gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+            Gl::TEXTURE_2D,
+            level,
+            internal_format as i32,
+            texture.width as i32,
+            texture.height as i32,
+            border,
+            src_format,
+            src_type,
+            Some(&pixels),
+        )
+        .unwrap();
+
+        self.egui_texture_version = Some(texture.version);
+    }
+
+    fn clear(&mut self, clear_color: egui::Rgba) {
+        let gl = &self.gl;
+
+        gl.disable(Gl::SCISSOR_TEST);
+        gl.viewport(
+            0,
+            0,
+            self.canvas.width() as i32,
+            self.canvas.height() as i32,
+        );
+        let clear_color: Color32 = clear_color.into();
+        gl.clear_color(
+            clear_color[0] as f32 / 255.0,
+            clear_color[1] as f32 / 255.0,
+            clear_color[2] as f32 / 255.0,
+            clear_color[3] as f32 / 255.0,
+        );
+        gl.clear(Gl::COLOR_BUFFER_BIT);
+    }
+
+    fn paint_jobs(&mut self, jobs: PaintJobs, pixels_per_point: f32) -> Result<(), JsValue> {
+        self.upload_user_textures();
+
+        let gl = &self.gl;
+
+        gl.enable(Gl::SCISSOR_TEST);
+        gl.disable(Gl::CULL_FACE); // Egui is not strict about winding order.
+        gl.enable(Gl::BLEND);
+        gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
+        gl.use_program(Some(&self.program));
+        gl.active_texture(Gl::TEXTURE0);
+
+        let u_screen_size_loc = gl
+            .get_uniform_location(&self.program, "u_screen_size")
+            .unwrap();
+        let screen_size_pixels = vec2(self.canvas.width() as f32, self.canvas.height() as f32);
+        let screen_size_points = screen_size_pixels / pixels_per_point;
+        gl.uniform2f(
+            Some(&u_screen_size_loc),
+            screen_size_points.x,
+            screen_size_points.y,
+        );
+
+        let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
+        gl.uniform1i(Some(&u_sampler_loc), 0);
+
+        for (clip_rect, triangles) in jobs {
+            if let Some(gl_texture) = self.get_texture(triangles.texture_id) {
+                gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
+
+                let clip_min_x = pixels_per_point * clip_rect.min.x;
+                let clip_min_y = pixels_per_point * clip_rect.min.y;
+                let clip_max_x = pixels_per_point * clip_rect.max.x;
+                let clip_max_y = pixels_per_point * clip_rect.max.y;
+                let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
+                let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
+                let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
+                let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
+                let clip_min_x = clip_min_x.round() as i32;
+                let clip_min_y = clip_min_y.round() as i32;
+                let clip_max_x = clip_max_x.round() as i32;
+                let clip_max_y = clip_max_y.round() as i32;
+
+                // scissor Y coordinate is from the bottom
+                gl.scissor(
+                    clip_min_x,
+                    self.canvas.height() as i32 - clip_max_y,
+                    clip_max_x - clip_min_x,
+                    clip_max_y - clip_min_y,
+                );
+
+                for triangles in triangles.split_to_u16() {
+                    self.paint_triangles(&triangles)?;
+                }
+            } else {
+                crate::console_warn(format!(
+                    "WebGL: Failed to find texture {:?}",
+                    triangles.texture_id
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 fn compile_shader(
-    gl: &WebGlRenderingContext,
+    gl: &WebGl2RenderingContext,
     shader_type: u32,
     source: &str,
 ) -> Result<WebGlShader, String> {
@@ -541,7 +554,7 @@ fn compile_shader(
 }
 
 fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
-    gl: &WebGlRenderingContext,
+    gl: &WebGl2RenderingContext,
     shaders: T,
 ) -> Result<WebGlProgram, String> {
     let program = gl
