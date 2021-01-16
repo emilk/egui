@@ -324,7 +324,7 @@ impl<'t> TextEdit<'t> {
 
                 let cursor_at_mouse = galley.cursor_from_pos(mouse_pos - response.rect.min);
 
-                if response.hovered {
+                if response.hovered && ui.input().mouse.is_moving() {
                     // preview:
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_mouse);
                 }

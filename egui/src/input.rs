@@ -506,6 +506,10 @@ impl MouseInput {
             pos_history: self.pos_history,
         }
     }
+
+    pub fn is_moving(&self) -> bool {
+        self.velocity != Vec2::zero()
+    }
 }
 
 impl RawInput {
