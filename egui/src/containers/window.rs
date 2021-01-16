@@ -341,7 +341,6 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     &content_response,
-                    &interaction,
                     open,
                     &mut collapsing,
                     collapsible,
@@ -703,13 +702,11 @@ fn show_title_bar(
 }
 
 impl TitleBar {
-    #[allow(clippy::too_many_arguments)] // TODO
     fn ui(
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
         content_response: &Option<Response>,
-        interaction: &Option<WindowInteraction>,
         open: Option<&mut bool>,
         collapsing: &mut collapsing_header::State,
         collapsible: bool,
@@ -726,14 +723,9 @@ impl TitleBar {
             }
         }
 
-        let is_moving_window = interaction
-            .map(|interaction| !interaction.is_resize())
-            .unwrap_or(false);
-        let style = if is_moving_window {
-            ui.style().visuals.widgets.hovered
-        } else {
-            ui.style().visuals.widgets.inactive
-        };
+        // Always have inactive style for the window.
+        // It is VERY annoying to e.g. change it when moving the window.
+        let style = ui.style().visuals.widgets.inactive;
 
         self.title_label = self.title_label.text_color(style.fg_stroke.color);
 
