@@ -203,8 +203,7 @@ impl Ui {
     }
 
     /// This is like `max_rect()`, but will never be infinite.
-    /// If the desired rect is infinite ("be as big as you want")
-    /// this will be bounded by `min_rect` instead.
+    /// This can be useful for widgets that expand to fit the available space.
     pub fn max_rect_finite(&self) -> Rect {
         self.placer.max_rect_finite()
     }
@@ -310,7 +309,7 @@ impl Ui {
     }
 
     /// This is like `available_size_before_wrap()`, but will never be infinite.
-    /// Use this for components that want to grow without bounds (but shouldn't).
+    /// This can be useful for widgets that expand to fit the available space.
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available_size_before_wrap_finite(&self) -> Vec2 {
         self.placer.available_rect_before_wrap_finite().size()
@@ -321,7 +320,7 @@ impl Ui {
     }
 
     /// This is like `available_rect_before_wrap()`, but will never be infinite.
-    /// Use this for components that want to grow without bounds (but shouldn't).
+    /// This can be useful for widgets that expand to fit the available space.
     /// In most layouts the next widget will be put in the top left corner of this `Rect`.
     pub fn available_rect_before_wrap_finite(&self) -> Rect {
         self.placer.available_rect_before_wrap_finite()
@@ -475,10 +474,8 @@ impl Ui {
             self.painter
                 .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
-            let color = color::Color32::from_rgb(200, 0, 0);
-            let width = 2.5;
-
-            let paint_line_seg = |a, b| self.painter().line_segment([a, b], (width, color));
+            let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+            let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
 
             if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());

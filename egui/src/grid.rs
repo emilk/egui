@@ -50,7 +50,7 @@ pub(crate) struct GridLayout {
 
     striped: bool,
     initial_x: f32,
-    min_row_height: f32,
+    min_cell_size: Vec2,
     col: usize,
     row: usize,
 }
@@ -67,7 +67,7 @@ impl GridLayout {
             spacing: ui.style().spacing.item_spacing,
             striped: false,
             initial_x: ui.cursor().x,
-            min_row_height: ui.style().spacing.interact_size.y,
+            min_cell_size: ui.style().spacing.interact_size,
             col: 0,
             row: 0,
         }
@@ -75,31 +75,36 @@ impl GridLayout {
 }
 
 impl GridLayout {
+    fn prev_col_width(&self, col: usize) -> f32 {
+        self.prev_state
+            .col_width(col)
+            .unwrap_or(self.min_cell_size.x)
+    }
     fn prev_row_height(&self, row: usize) -> f32 {
         self.prev_state
             .row_height(row)
-            .unwrap_or(self.min_row_height)
+            .unwrap_or(self.min_cell_size.y)
     }
 
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
         // let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
-        // rect.set_height(rect.height().at_least(self.min_row_height));
+        // rect.set_height(rect.height().at_least(self.min_cell_size.y));
         // rect
+
+        // required for putting CollapsingHeader in anything but the last column:
         self.available_rect_finite(region)
     }
 
     pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
         // If we want to allow width-filling widgets like `Separator` in one of the first cells
         // then we need to make sure they don't spill out of the first cell:
-        let width = self
-            .prev_state
-            .col_width(self.col)
-            .or_else(|| self.curr_state.col_width(self.col))
-            .unwrap_or_default();
-        let height = region
-            .max_rect_finite()
-            .height()
-            .at_least(self.min_row_height);
+        let width = self.prev_state.col_width(self.col);
+        let width = width.or_else(|| self.curr_state.col_width(self.col));
+        let width = width.unwrap_or_default().at_least(self.min_cell_size.x);
+
+        let height = region.max_rect_finite().max.y - region.cursor.y;
+        let height = height.at_least(self.min_cell_size.y);
+
         Rect::from_min_size(region.cursor, vec2(width, height))
     }
 
@@ -120,10 +125,35 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
+        let debug_expand_width = self.ctx.style().visuals.debug_expand_width;
+        let debug_expand_height = self.ctx.style().visuals.debug_expand_height;
+        if debug_expand_width || debug_expand_height {
+            let rect = widget_rect;
+            let too_wide = rect.width() > self.prev_col_width(self.col);
+            let too_high = rect.height() > self.prev_row_height(self.row);
+
+            if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
+                let painter = self.ctx.debug_painter();
+                painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+
+                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
+
+                if debug_expand_width && too_wide {
+                    paint_line_seg(rect.left_top(), rect.left_bottom());
+                    paint_line_seg(rect.left_center(), rect.right_center());
+                    paint_line_seg(rect.right_top(), rect.right_bottom());
+                }
+            }
+        }
+
         self.curr_state
-            .set_min_col_width(self.col, widget_rect.width());
-        self.curr_state
-            .set_min_row_height(self.row, widget_rect.height().at_least(self.min_row_height));
+            .set_min_col_width(self.col, widget_rect.width().at_least(self.min_cell_size.x));
+        self.curr_state.set_min_row_height(
+            self.row,
+            widget_rect.height().at_least(self.min_cell_size.y),
+        );
+
         self.col += 1;
         cursor.x += frame_rect.width() + self.spacing.x;
     }
@@ -184,6 +214,7 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     striped: bool,
+    min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     spacing: Option<Vec2>,
 }
@@ -193,6 +224,7 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             striped: false,
+            min_col_width: None,
             min_row_height: None,
             spacing: None,
         }
@@ -204,6 +236,12 @@ impl Grid {
     /// Default: `false`.
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = striped;
+        self
+    }
+
+    /// Set minimum width of each column. Default: [`Spacing::interact_size.x`].
+    pub fn min_col_width(mut self, min_col_width: f32) -> Self {
+        self.min_col_width = Some(min_col_width);
         self
     }
 
@@ -226,9 +264,11 @@ impl Grid {
         let Self {
             id_source,
             striped,
+            min_col_width,
             min_row_height,
             spacing,
         } = self;
+        let min_col_width = min_col_width.unwrap_or_else(|| ui.style().spacing.interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.style().spacing.item_spacing);
 
@@ -240,10 +280,11 @@ impl Grid {
             let id = ui.make_persistent_id(id_source);
             let grid = GridLayout {
                 striped,
-                min_row_height,
                 spacing,
+                min_cell_size: vec2(min_col_width, min_row_height),
                 ..GridLayout::new(ui, id)
             };
+
             ui.set_grid(grid);
             let r = add_contents(ui);
             ui.save_grid();
