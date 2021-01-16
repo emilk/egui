@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{math::remap_clamp, Id, InputState};
+use crate::{
+    math::{clamp, remap_clamp},
+    Id, InputState,
+};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {
@@ -50,12 +53,26 @@ impl AnimationManager {
                 // so we extrapolate forwards:
                 let time_since_toggle = time_since_toggle + input.predicted_dt;
 
-                if value {
+                ease_in_out_cubic(if value {
                     remap_clamp(time_since_toggle, 0.0..=animation_time, 0.0..=1.0)
                 } else {
                     remap_clamp(time_since_toggle, 0.0..=animation_time, 1.0..=0.0)
-                }
+                })
             }
         }
     }
+}
+
+/// Maps `x` in the range [0, 1] to the cubic easing function. Clamps outside of this range.
+///
+/// See: https://www.desmos.com/calculator/tdvd2vd4f1
+fn ease_in_out_cubic(x: f32) -> f32 {
+    clamp(
+        if x < 0.5 {
+            0.5 * (2.0 * x).powi(3)
+        } else {
+            0.5 * ((2.0 * x - 2.0).powi(3) + 2.0)
+        },
+        0.0..=1.0,
+    )
 }
