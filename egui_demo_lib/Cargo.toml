@@ -22,6 +22,10 @@ epi = { version = "0.9.0", path = "../epi" }
 image = { version = "0.23", default_features = false, features = ["jpeg", "png"], optional = true }
 syntect = { version = "4", default_features = false, features = ["default-fancy"], optional = true } # optional syntax highlighting
 
+# feature "node_graph":
+slotmap = { version = "1", default_features = false, features = ["serde"] } # TODO: optional
+# petgraph = { version = "0.5", default_features = false, features = [] } # TODO: optional
+
 # feature "persistence":
 serde = { version = "1", features = ["derive"], optional = true }
 

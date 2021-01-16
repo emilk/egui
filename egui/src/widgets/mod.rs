@@ -48,6 +48,17 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
     }
 }
 
+/// Show a button to reset a value to its default.
+/// The button is only enabled if the value does not already have its original value.
+pub fn reset_button_with<T: Default + PartialEq>(ui: &mut Ui, value: &mut T, def: T) {
+    if ui
+        .add(Button::new("Reset").enabled(*value != def))
+        .clicked()
+    {
+        *value = def;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {

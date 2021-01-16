@@ -9,6 +9,7 @@ pub struct Apps {
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
     color_test: crate::apps::ColorTest,
+    node_graph: crate::apps::node_graph::NodeGraph,
 }
 
 impl Apps {
@@ -20,6 +21,7 @@ impl Apps {
             ("http", &mut self.http as &mut dyn epi::App),
             ("clock", &mut self.clock as &mut dyn epi::App),
             ("colors", &mut self.color_test as &mut dyn epi::App),
+            ("node_graph", &mut self.node_graph as &mut dyn epi::App),
         ]
         .into_iter()
     }
@@ -43,11 +45,17 @@ impl epi::App for WrapApp {
     #[cfg(feature = "persistence")]
     fn load(&mut self, storage: &dyn epi::Storage) {
         *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+        // for (_, app) in self.iter_mut() {  // less brittle!
+        //     app.load(storage);  // less brittle!
+        // }  // less brittle!
     }
 
     #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
+        // for (_, app) in self.iter_mut() {
+        //     app.save(storage);
+        // }
     }
 
     fn warm_up_enabled(&self) -> bool {
