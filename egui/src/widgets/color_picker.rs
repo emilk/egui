@@ -66,27 +66,22 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
 }
 
 fn color_button(ui: &mut Ui, color: Color32) -> Response {
-    let desired_size = ui.style().spacing.interact_size;
-    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
+    let size = ui.style().spacing.interact_size;
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let visuals = ui.style().interact(&response);
     let rect = rect.expand(visuals.expansion);
+
     background_checkers(ui.painter(), rect);
+
+    let left_half = Rect::from_min_max(rect.left_top(), rect.center_bottom());
+    let right_half = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+    ui.painter().rect_filled(left_half, 0.0, color);
+    ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
+
     let corner_radius = visuals.corner_radius.at_most(2.0);
-    if true {
-        let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
-        let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-        ui.painter().rect_filled(left, 0.0, color);
-        ui.painter().rect_filled(right, 0.0, color.to_opaque());
-        ui.painter()
-            .rect_stroke(rect, corner_radius, visuals.bg_stroke);
-    } else {
-        ui.painter().add(Shape::Rect {
-            rect,
-            corner_radius,
-            fill: color,
-            stroke: visuals.fg_stroke,
-        });
-    }
+    ui.painter()
+        .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional!
+
     response
 }
 
