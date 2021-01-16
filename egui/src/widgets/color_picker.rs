@@ -19,6 +19,8 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
 const N: u32 = 6 * 6;
 
 fn background_checkers(painter: &Painter, rect: Rect) {
+    let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
+
     let mut top_color = Color32::from_gray(128);
     let mut bottom_color = Color32::from_gray(32);
     let checker_size = Vec2::splat(rect.height() / 2.0);
@@ -40,19 +42,26 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     painter.add(Shape::triangles(triangles));
 }
 
-pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) -> Response {
-    show_srgba(ui, color.into(), desired_size)
+pub fn show_color(ui: &mut Ui, color: impl Into<Hsva>, desired_size: Vec2) -> Response {
+    show_hsva(ui, color.into(), desired_size)
 }
 
-fn show_srgba(ui: &mut Ui, srgba: Color32, desired_size: Vec2) -> Response {
+fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     background_checkers(ui.painter(), rect);
-    ui.painter().add(Shape::Rect {
-        rect,
-        corner_radius: 2.0,
-        fill: srgba,
-        stroke: Stroke::new(3.0, srgba.to_opaque()),
-    });
+    if true {
+        let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
+        let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+        ui.painter().rect_filled(left, 0.0, color);
+        ui.painter().rect_filled(right, 0.0, color.to_opaque());
+    } else {
+        ui.painter().add(Shape::Rect {
+            rect,
+            corner_radius: 2.0,
+            fill: color.into(),
+            stroke: Stroke::new(3.0, color.to_opaque()),
+        });
+    }
     response
 }
 
@@ -60,13 +69,24 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let desired_size = ui.style().spacing.interact_size;
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
     let visuals = ui.style().interact(&response);
+    let rect = rect.expand(visuals.expansion);
     background_checkers(ui.painter(), rect);
-    ui.painter().add(Shape::Rect {
-        rect,
-        corner_radius: visuals.corner_radius.at_most(2.0),
-        fill: color,
-        stroke: visuals.fg_stroke,
-    });
+    let corner_radius = visuals.corner_radius.at_most(2.0);
+    if true {
+        let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
+        let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+        ui.painter().rect_filled(left, 0.0, color);
+        ui.painter().rect_filled(right, 0.0, color.to_opaque());
+        ui.painter()
+            .rect_stroke(rect, corner_radius, visuals.bg_stroke);
+    } else {
+        ui.painter().add(Shape::Rect {
+            rect,
+            corner_radius,
+            fill: color,
+            stroke: visuals.fg_stroke,
+        });
+    }
     response
 }
 
@@ -194,7 +214,37 @@ pub enum Alpha {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
-    ui.vertical(|ui| {
+    if alpha == Alpha::BlendOrAdditive {
+        // We signal additive blending by storing a negative alpha (a bit ironic).
+        let a = &mut hsva.a;
+        let mut additive = *a < 0.0;
+        ui.horizontal(|ui| {
+            ui.label("Blending:");
+            ui.radio_value(&mut additive, false, "Normal");
+            ui.radio_value(&mut additive, true, "Additive");
+
+            if additive {
+                *a = -a.abs();
+            }
+
+            if !additive {
+                *a = a.abs();
+            }
+        });
+    }
+    let additive = hsva.a < 0.0;
+
+    // Using different grid ids avoid some flickering when switching between
+    // (the grid remembers the sizes of its contents).
+    let grid_id = if alpha == Alpha::Opaque {
+        "hsva_color_picker_opaque"
+    } else if additive {
+        "hsva_color_picker_additive"
+    } else {
+        "hsva_color_picker_normal"
+    };
+
+    crate::Grid::new(grid_id).show(ui, |ui| {
         let current_color_size = vec2(
             ui.style().spacing.slider_width,
             ui.style().spacing.interact_size.y * 2.0,
@@ -204,53 +254,51 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         if alpha == Alpha::Opaque {
             hsva.a = 1.0;
-            show_color(ui, *hsva, current_color_size).on_hover_text("Current color");
+            show_color(ui, *hsva, current_color_size);
+            ui.label("Current color");
+            ui.end_row();
         } else {
             let a = &mut hsva.a;
 
-            // We signal additive blending by storing a negative alpha (a bit ironic).
-            let mut additive = *a < 0.0;
-
             if alpha == Alpha::OnlyBlend {
-                if additive {
-                    *a = 0.5;
+                if *a < 0.0 {
+                    *a = 0.5; // was additive, but isn't allowed to be
                 }
-
-                color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
-            } else {
-                ui.horizontal(|ui| {
-                    ui.label("Blending:");
-                    ui.radio_value(&mut additive, false, "Normal");
-                    ui.radio_value(&mut additive, true, "Additive");
-
-                    if additive {
-                        *a = -a.abs();
-                    }
-
-                    if !additive {
-                        *a = a.abs();
-                    }
-                });
-
-                if !additive {
-                    color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into())
-                        .on_hover_text("Alpha");
-                }
+                color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into());
+                ui.label("Alpha");
+                ui.end_row();
+            } else if !additive {
+                color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into());
+                ui.label("Alpha");
+                ui.end_row();
             }
 
-            show_color(ui, *hsva, current_color_size).on_hover_text("Current color");
-            show_color(ui, opaque, current_color_size).on_hover_text("Current color (opaque)");
+            show_color(ui, *hsva, current_color_size);
+            ui.label("Current color");
+            ui.end_row();
         }
 
         let HsvaGamma { h, s, v, a: _ } = hsva;
 
-        color_slider_2d(ui, h, s, |h, s| HsvaGamma::new(h, s, 1.0, 1.0).into())
-            .on_hover_text("Hue - Saturation");
-        color_slider_2d(ui, v, s, |v, s| HsvaGamma { v, s, ..opaque }.into())
-            .on_hover_text("Value - Saturation");
-        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into()).on_hover_text("Hue");
-        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
-        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
+        color_slider_2d(ui, h, s, |h, s| HsvaGamma::new(h, s, 1.0, 1.0).into());
+        ui.label("Hue / Saturation");
+        ui.end_row();
+
+        color_slider_2d(ui, v, s, |v, s| HsvaGamma { v, s, ..opaque }.into());
+        ui.label("Value / Saturation");
+        ui.end_row();
+
+        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into());
+        ui.label("Hue");
+        ui.end_row();
+
+        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into());
+        ui.label("Saturation");
+        ui.end_row();
+
+        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into());
+        ui.label("Value");
+        ui.end_row();
     });
 }
 

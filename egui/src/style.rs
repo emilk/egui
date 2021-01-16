@@ -56,7 +56,7 @@ pub struct Spacing {
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Minimum size of e.g. a button.
+    /// Minimum size of e.g. a button (including padding).
     /// `interact_size.y` is the default height of button, slider, etc.
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
@@ -181,16 +181,16 @@ pub struct Selection {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Widgets {
-    /// For an interactive widget that is being interacted with
-    pub active: WidgetVisuals,
-    /// For an interactive widget that is being hovered
-    pub hovered: WidgetVisuals,
-    /// For an interactive widget that is "resting"
-    pub inactive: WidgetVisuals,
-    /// For an otherwise interactive widget that has been disabled
-    pub disabled: WidgetVisuals,
     /// For a non-interactive widget
     pub noninteractive: WidgetVisuals,
+    /// For an otherwise interactive widget that has been disabled
+    pub disabled: WidgetVisuals,
+    /// For an interactive widget that is "resting"
+    pub inactive: WidgetVisuals,
+    /// For an interactive widget that is being hovered
+    pub hovered: WidgetVisuals,
+    /// For an interactive widget that is being interacted with
+    pub active: WidgetVisuals,
 }
 
 impl Widgets {
@@ -216,17 +216,17 @@ pub struct WidgetVisuals {
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
+    /// Should maybe be called `frame_stroke`.
     pub bg_stroke: Stroke,
 
     /// Button frames etc
     pub corner_radius: f32,
 
-    /// Fill color of the interactive part of a component (slider grab, checkbox, ...)
-    /// When you need a fill.
-    pub fg_fill: Color32,
-
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
     pub fg_stroke: Stroke,
+
+    /// Make the frame this much larger
+    pub expansion: f32,
 }
 
 impl WidgetVisuals {
@@ -253,14 +253,14 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_padding: vec2(4.0, 4.0),
-            button_padding: vec2(3.0, 1.0),
+            window_padding: Vec2::splat(6.0),
+            button_padding: vec2(4.0, 1.0),
             indent: 25.0,
             interact_size: vec2(40.0, 20.0),
             slider_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 16.0,
-            icon_spacing: 1.0,
+            icon_spacing: 0.0,
             tooltip_width: 400.0,
         }
     }
@@ -281,13 +281,13 @@ impl Default for Visuals {
             override_text_color: None,
             widgets: Default::default(),
             selection: Default::default(),
-            dark_bg_color: Color32::from_black_alpha(140),
+            dark_bg_color: Color32::from_gray(10),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             window_corner_radius: 10.0,
             window_shadow: Shadow::big(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
-            clip_rect_margin: 1.0, // should be half the size of the widest frame stroke
+            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             debug_expand_width: false,
             debug_expand_height: false,
             debug_resize: false,
@@ -310,40 +310,45 @@ impl Default for Selection {
 impl Default for Widgets {
     fn default() -> Self {
         Self {
-            active: WidgetVisuals {
-                bg_fill: Rgba::from_luminance_alpha(0.10, 0.5).into(),
-                bg_stroke: Stroke::new(2.0, Color32::WHITE),
+            noninteractive: WidgetVisuals {
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(65)), // window outline
+                bg_fill: Color32::from_gray(30),                     // window background
                 corner_radius: 4.0,
-                fg_fill: Color32::from_rgb(120, 120, 200),
-                fg_stroke: Stroke::new(2.0, Color32::WHITE),
-            },
-            hovered: WidgetVisuals {
-                bg_fill: Rgba::from_luminance_alpha(0.06, 0.5).into(),
-                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.5)),
-                corner_radius: 4.0,
-                fg_fill: Color32::from_rgb(100, 100, 150),
-                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-            },
-            inactive: WidgetVisuals {
-                bg_fill: Rgba::from_luminance_alpha(0.04, 0.5).into(),
-                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.06)), // default window outline. Should be pretty readable
-                corner_radius: 4.0,
-                fg_fill: Color32::from_rgb(60, 60, 80),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
+
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
+                expansion: 0.0,
             },
             disabled: WidgetVisuals {
-                bg_fill: Rgba::from_luminance_alpha(0.02, 0.5).into(),
-                bg_stroke: Stroke::new(0.5, Color32::from_gray(70)),
+                bg_fill: Color32::from_gray(40), // Should look grayed out
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(70)),
                 corner_radius: 4.0,
-                fg_fill: Color32::from_rgb(50, 50, 50),
+
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // Should look grayed out
+                expansion: 0.0,
             },
-            noninteractive: WidgetVisuals {
-                bg_stroke: Stroke::new(1.0, Rgba::from_white_alpha(0.06)),
-                bg_fill: Rgba::from_luminance_alpha(0.010, 0.975).into(), // window background
+            inactive: WidgetVisuals {
+                bg_fill: Color32::from_gray(70),
+                bg_stroke: Default::default(),
                 corner_radius: 4.0,
-                fg_fill: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
+
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
+                expansion: 0.0,
+            },
+            hovered: WidgetVisuals {
+                bg_fill: Color32::from_gray(80),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
+                corner_radius: 4.0,
+
+                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
+                expansion: 1.0,
+            },
+            active: WidgetVisuals {
+                bg_fill: Color32::from_gray(90),
+                bg_stroke: Stroke::new(1.0, Color32::WHITE),
+                corner_radius: 4.0,
+
+                fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                expansion: 2.0,
             },
         }
     }
@@ -435,11 +440,26 @@ impl Widgets {
             noninteractive,
         } = self;
 
-        ui.collapsing("noninteractive", |ui| noninteractive.ui(ui));
-        ui.collapsing("interactive & disabled", |ui| disabled.ui(ui));
-        ui.collapsing("interactive & inactive", |ui| inactive.ui(ui));
-        ui.collapsing("interactive & hovered", |ui| hovered.ui(ui));
-        ui.collapsing("interactive & active", |ui| active.ui(ui));
+        ui.collapsing("noninteractive", |ui| {
+            ui.label("The style of something that you cannot interact with.");
+            noninteractive.ui(ui)
+        });
+        ui.collapsing("interactive & disabled", |ui| {
+            ui.label("The style of a disabled button.");
+            disabled.ui(ui)
+        });
+        ui.collapsing("interactive & inactive", |ui| {
+            ui.label("The style of a widget, such as a button, at rest.");
+            inactive.ui(ui)
+        });
+        ui.collapsing("interactive & hovered", |ui| {
+            ui.label("The style of a widget while you hover it.");
+            hovered.ui(ui)
+        });
+        ui.collapsing("interactive & active", |ui| {
+            ui.label("The style of a widget as you are clicking or dragging it.");
+            active.ui(ui)
+        });
     }
 }
 
@@ -458,15 +478,15 @@ impl WidgetVisuals {
             bg_fill,
             bg_stroke,
             corner_radius,
-            fg_fill,
             fg_stroke,
+            expansion,
         } = self;
 
         ui_color(ui, bg_fill, "bg_fill");
         stroke_ui(ui, bg_stroke, "bg_stroke");
         ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
-        ui_color(ui, fg_fill, "fg_fill");
         stroke_ui(ui, fg_stroke, "fg_stroke (text)");
+        ui.add(Slider::f32(expansion, -5.0..=5.0).text("expansion"));
     }
 }
 

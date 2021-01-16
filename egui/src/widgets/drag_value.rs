@@ -17,6 +17,7 @@ fn set(value_function: &mut GetSetValue<'_>, value: f64) {
 }
 
 /// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
     value_function: GetSetValue<'a>,
     speed: f32,

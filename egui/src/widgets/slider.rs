@@ -37,6 +37,7 @@ struct SliderSpec {
 
 /// Control a number by a horizontal slider.
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,
@@ -277,18 +278,24 @@ impl<'a> Slider<'a> {
             );
             let marker_center_x = self.x_from_value(value, x_range);
 
+            let visuals = ui.style().interact(response);
             ui.painter().add(Shape::Rect {
                 rect: rail_rect,
                 corner_radius: rail_radius,
+
                 fill: ui.style().visuals.widgets.inactive.bg_fill,
-                stroke: ui.style().visuals.widgets.inactive.bg_stroke,
+                // fill: visuals.bg_fill,
+                // fill: ui.style().visuals.dark_bg_color,
+                stroke: Default::default(),
+                // stroke: visuals.bg_stroke,
+                // stroke: ui.style().visuals.widgets.inactive.bg_stroke,
             });
 
             ui.painter().add(Shape::Circle {
                 center: pos2(marker_center_x, rail_rect.center().y),
-                radius: handle_radius(rect),
-                fill: ui.style().interact(response).fg_fill,
-                stroke: ui.style().interact(response).fg_stroke,
+                radius: handle_radius(rect) + visuals.expansion,
+                fill: visuals.bg_fill,
+                stroke: visuals.fg_stroke,
             });
         }
     }

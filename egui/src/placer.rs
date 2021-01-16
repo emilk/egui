@@ -21,6 +21,12 @@ impl Placer {
         self.grid = Some(grid);
     }
 
+    pub(crate) fn save_grid(&mut self) {
+        if let Some(grid) = &mut self.grid {
+            grid.save();
+        }
+    }
+
     pub(crate) fn layout(&self) -> &Layout {
         &self.layout
     }
@@ -52,7 +58,11 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        self.layout.align_size_within_rect(size, outer)
+        if let Some(grid) = &self.grid {
+            grid.align_size_within_rect(size, outer)
+        } else {
+            self.layout.align_size_within_rect(size, outer)
+        }
     }
 
     pub(crate) fn available_rect_before_wrap(&self) -> Rect {
@@ -65,7 +75,7 @@ impl Placer {
 
     pub(crate) fn available_rect_before_wrap_finite(&self) -> Rect {
         if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region)
+            grid.available_rect_finite(&self.region)
         } else {
             self.layout.available_rect_before_wrap_finite(&self.region)
         }
@@ -82,9 +92,9 @@ impl Placer {
     }
 
     /// Returns where to put the next widget that is of the given size.
-    /// The returned "outer" `Rect` will always be justified along the cross axis.
-    /// This is what you then pass to `advance_after_outer_rect`.
-    /// Use `justify_or_align` to get the inner `Rect`.
+    /// The returned `frame_rect` will always be justified along the cross axis.
+    /// This is what you then pass to `advance_after_rects`.
+    /// Use `justify_or_align` to get the inner `widget_rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
         if let Some(grid) = &self.grid {
             grid.next_cell(self.region.cursor, child_size)
@@ -96,7 +106,11 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_or_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        self.layout.justify_or_align(rect, child_size)
+        if let Some(grid) = &self.grid {
+            grid.justify_or_align(rect, child_size)
+        } else {
+            self.layout.justify_or_align(rect, child_size)
+        }
     }
 
     /// Advance the cursor by this many points.
@@ -105,28 +119,31 @@ impl Placer {
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
-        self.layout.advance_cursor(&mut self.region, amount)
+        self.layout.advance_cursor(&mut self.region.cursor, amount)
     }
 
-    /// Advance cursor after a widget was added to a specific rectangle.
-    /// `outer_rect` is a hack needed because the Vec2 cursor is not quite sufficient to keep track
-    /// of what is happening when we are doing wrapping layouts.
-    pub(crate) fn advance_after_outer_rect(
+    /// Advance cursor after a widget was added to a specific rectangle
+    /// and expand the region `min_rect`.
+    ///
+    /// * `frame_rect`: the frame inside which a widget was e.g. centered
+    /// * `widget_rect`: the actual rect used by the widget
+    pub(crate) fn advance_after_rects(
         &mut self,
-        outer_rect: Rect,
-        inner_rect: Rect,
+        frame_rect: Rect,
+        widget_rect: Rect,
         item_spacing: Vec2,
     ) {
         if let Some(grid) = &mut self.grid {
-            grid.advance(&mut self.region.cursor, outer_rect)
+            grid.advance(&mut self.region.cursor, frame_rect, widget_rect)
         } else {
-            self.layout.advance_after_outer_rect(
-                &mut self.region,
-                outer_rect,
-                inner_rect,
+            self.layout.advance_after_rects(
+                &mut self.region.cursor,
+                frame_rect,
+                widget_rect,
                 item_spacing,
             )
         }
+        self.region.expand_to_include_rect(widget_rect);
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

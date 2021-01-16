@@ -106,12 +106,14 @@ impl State {
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
-    let stroke = ui.style().interact(response).fg_stroke;
+    let visuals = ui.style().interact(response);
+    let stroke = visuals.fg_stroke;
 
     let rect = response.rect;
 
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
+    let rect = rect.expand(visuals.expansion);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     use std::f32::consts::TAU;
     let rotation = math::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
@@ -177,18 +179,16 @@ impl CollapsingHeader {
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
+        let button_padding = ui.style().spacing.button_padding;
 
         let available = ui.available_rect_before_wrap_finite();
         let text_pos = available.min + vec2(ui.style().spacing.indent, 0.0);
         let galley = label.layout_width(ui, available.right() - text_pos.x);
         let text_max_x = text_pos.x + galley.size.x;
-        let desired_width = text_max_x - available.left();
+        let desired_width = text_max_x + button_padding.x - available.left();
         let desired_width = desired_width.max(available.width());
 
-        let mut desired_size = vec2(
-            desired_width,
-            galley.size.y + 2.0 * ui.style().spacing.button_padding.y,
-        );
+        let mut desired_size = vec2(desired_width, galley.size.y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.style().spacing.interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
@@ -203,11 +203,14 @@ impl CollapsingHeader {
             state.toggle(ui);
         }
 
+        let visuals = ui.style().interact(&header_response);
+        let text_color = visuals.text_color();
         ui.painter().add(Shape::Rect {
-            rect: header_response.rect,
-            corner_radius: ui.style().interact(&header_response).corner_radius,
-            fill: ui.style().interact(&header_response).bg_fill,
-            stroke: Default::default(),
+            rect: header_response.rect.expand(visuals.expansion),
+            corner_radius: visuals.corner_radius,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
+            // stroke: Default::default(),
         });
 
         {
@@ -228,7 +231,7 @@ impl CollapsingHeader {
             text_pos,
             galley,
             label.text_style_or_default(ui.style()),
-            ui.style().interact(&header_response).text_color(),
+            text_color,
         );
 
         Prepared {

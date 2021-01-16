@@ -11,15 +11,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
-* Add a simple grid layout (`Grid`).
-* Add `ui.allocate_at_least` and `ui.allocate_exact_size`.
+* Added a simple grid layout (`Grid`).
+* Added `ui.allocate_at_least` and `ui.allocate_exact_size`.
+* Added function `InputState::key_down`.
+* Added `Window::current_pos` to position a window.
 
 ### Changed 🔧
 
+* New simpler and sleeker look!
 * Center window titles.
 * Tweak size and alignment of some emojis to match other text.
 * Rename `PaintCmd` to `Shape`.
-* Rename feature "serde" to "persistence".
+* Rename feature `"serde"` to `"persistence"`.
 * Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 
 ### Fixed 🐛

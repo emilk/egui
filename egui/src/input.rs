@@ -1,5 +1,7 @@
 //! The input needed by Egui.
 
+use std::collections::HashSet;
+
 use crate::{math::*, util::History};
 
 /// If mouse moves more than this, it is no longer a click (but maybe a drag)
@@ -125,6 +127,9 @@ pub struct InputState {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
+    // The keys that are currently being held down.
+    pub keys_down: HashSet<Key>,
+
     /// In-order events received this frame
     pub events: Vec<Event>,
 }
@@ -141,6 +146,7 @@ impl Default for InputState {
             unstable_dt: 1.0 / 6.0,
             predicted_dt: 1.0 / 6.0,
             modifiers: Default::default(),
+            keys_down: Default::default(),
             events: Default::default(),
         }
     }
@@ -258,7 +264,7 @@ pub struct Modifiers {
 ///
 /// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
 /// and are therefor unsuitable as keyboard shortcuts if you want your app to be portable.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum Key {
     ArrowDown,
     ArrowLeft,
@@ -344,6 +350,16 @@ impl InputState {
             }
         });
         let mouse = self.mouse.begin_frame(time, &new);
+        let mut keys_down = self.keys_down;
+        for event in &new.events {
+            if let Event::Key { key, pressed, .. } = event {
+                if *pressed {
+                    keys_down.insert(*key);
+                } else {
+                    keys_down.remove(key);
+                }
+            }
+        }
         InputState {
             mouse,
             scroll_delta: new.scroll_delta,
@@ -353,6 +369,7 @@ impl InputState {
             unstable_dt,
             predicted_dt: new.predicted_dt,
             modifiers: new.modifiers,
+            keys_down,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
         }
@@ -382,6 +399,11 @@ impl InputState {
                 } if *key == desired_key
             )
         })
+    }
+
+    /// Is the given key currently held down?
+    pub fn key_down(&self, desired_key: Key) -> bool {
+        self.keys_down.contains(&desired_key)
     }
 
     /// Was the given key released this frame?
@@ -536,6 +558,7 @@ impl InputState {
             unstable_dt,
             predicted_dt,
             modifiers,
+            keys_down,
             events,
         } = self;
 
@@ -561,6 +584,7 @@ impl InputState {
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
+        ui.label(format!("keys_down: {:?}", keys_down));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
     }

@@ -507,21 +507,24 @@ impl Ui {
     /// Returns where to put the widget.
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.style().spacing.item_spacing;
-        let outer_child_rect = self.placer.next_space(desired_size, item_spacing);
-        let inner_child_rect = self.placer.justify_or_align(outer_child_rect, desired_size);
+        let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        let widget_rect = self.placer.justify_or_align(frame_rect, desired_size);
 
         self.placer
-            .advance_after_outer_rect(outer_child_rect, inner_child_rect, item_spacing);
-        self.expand_to_include_rect(inner_child_rect);
+            .advance_after_rects(frame_rect, widget_rect, item_spacing);
 
-        inner_child_rect
+        widget_rect
+    }
+
+    /// Allocate a specific part of the ui.
+    pub(crate) fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+        let id = self.advance_cursor_after_rect(rect);
+        self.interact(rect, id, sense)
     }
 
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.style().spacing.item_spacing;
-        self.placer
-            .advance_after_outer_rect(rect, rect, item_spacing);
-        self.expand_to_include_rect(rect);
+        self.placer.advance_after_rects(rect, rect, item_spacing);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         Id::new(self.next_auto_id)
@@ -548,12 +551,11 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
-        self.placer.advance_after_outer_rect(
+        self.placer.advance_after_rects(
             outer_child_rect.union(final_child_rect),
             final_child_rect,
             item_spacing,
         );
-        self.expand_to_include_rect(final_child_rect);
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         (ret, response)
@@ -1075,15 +1077,16 @@ impl Ui {
     }
 
     /// Start a ui with vertical layout.
-    /// Widgets will be centered.
+    /// Widgets will be horizontally centered.
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (R, Response) {
         self.with_layout(Layout::top_down(Align::Center), add_contents)
     }
+
     /// Start a ui with vertical layout.
-    /// Widgets will be centered and justified (fill full width).
+    /// Widgets will be horizontally centered and justified (fill full width).
     pub fn vertical_centered_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1103,14 +1106,16 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.style().spacing.item_spacing;
-        self.placer
-            .advance_after_outer_rect(rect, rect, item_spacing);
-        self.expand_to_include_rect(rect);
+        self.placer.advance_after_rects(rect, rect, item_spacing);
         (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
     pub(crate) fn set_grid(&mut self, grid: grid::GridLayout) {
         self.placer.set_grid(grid);
+    }
+
+    pub(crate) fn save_grid(&mut self) {
+        self.placer.save_grid();
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

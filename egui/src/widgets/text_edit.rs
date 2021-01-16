@@ -119,6 +119,7 @@ impl CCursorPair {
 ///     // use my_string
 /// }
 /// ```
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
@@ -126,6 +127,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
     text_color: Option<Color32>,
+    frame: bool,
     multiline: bool,
     enabled: bool,
     desired_width: Option<f32>,
@@ -146,6 +148,7 @@ impl<'t> TextEdit<'t> {
             id_source: None,
             text_style: None,
             text_color: None,
+            frame: true,
             multiline: false,
             enabled: true,
             desired_width: None,
@@ -160,6 +163,7 @@ impl<'t> TextEdit<'t> {
             id: None,
             id_source: None,
             text_style: None,
+            frame: true,
             text_color: None,
             multiline: true,
             enabled: true,
@@ -200,6 +204,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
     /// Set to 0.0 to keep as small as possible
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
@@ -217,26 +227,38 @@ impl<'t> TextEdit<'t> {
 
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let margin = Vec2::splat(2.0);
-        let frame_rect = ui.available_rect_before_wrap();
-        let content_rect = frame_rect.shrink2(margin);
+        let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
-        let response = self.content_ui(&mut content_ui);
-        let frame_rect = Rect::from_min_max(frame_rect.min, content_ui.min_rect().max + margin);
-        let response = response | ui.allocate_response(frame_rect.size(), Sense::click());
 
-        let visuals = ui.style().interact(&response);
-        let frame_rect = response.rect;
-        ui.painter().set(
-            where_to_put_background,
-            Shape::Rect {
-                rect: frame_rect,
-                corner_radius: visuals.corner_radius,
-                fill: ui.style().visuals.dark_bg_color,
-                stroke: visuals.bg_stroke,
-            },
-        );
+        let margin = Vec2::new(4.0, 2.0);
+        let max_rect = ui.available_rect_before_wrap().shrink2(margin);
+        let mut content_ui = ui.child_ui(max_rect, *ui.layout());
+        let response = self.content_ui(&mut content_ui);
+        let frame_rect = response.rect.expand2(margin);
+        let response = response | ui.allocate_rect(frame_rect, Sense::click());
+
+        if frame {
+            let visuals = ui.style().interact(&response);
+            let frame_rect = response.rect.expand(visuals.expansion);
+            let shape = if response.has_kb_focus {
+                Shape::Rect {
+                    rect: frame_rect,
+                    corner_radius: visuals.corner_radius,
+                    // fill: ui.style().visuals.selection.bg_fill,
+                    fill: ui.style().visuals.dark_bg_color,
+                    stroke: ui.style().visuals.selection.stroke,
+                }
+            } else {
+                Shape::Rect {
+                    rect: frame_rect,
+                    corner_radius: visuals.corner_radius,
+                    fill: ui.style().visuals.dark_bg_color,
+                    stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                }
+            };
+
+            ui.painter().set(where_to_put_background, shape);
+        }
 
         response
     }
@@ -250,6 +272,7 @@ impl<'t> TextEdit<'t> {
             id_source,
             text_style,
             text_color,
+            frame: _,
             multiline,
             enabled,
             desired_width,

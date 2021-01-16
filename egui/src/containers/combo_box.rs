@@ -18,7 +18,7 @@ use crate::{paint::Shape, style::WidgetVisuals, *};
 pub fn combo_box_with_label(
     ui: &mut Ui,
     label: impl Into<Label>,
-    selected: impl Into<Label>,
+    selected: impl Into<String>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let label = label.into();
@@ -51,32 +51,39 @@ pub fn combo_box_with_label(
 pub fn combo_box(
     ui: &mut Ui,
     button_id: Id,
-    selected: impl Into<Label>,
+    selected: impl Into<String>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     const MAX_COMBO_HEIGHT: f32 = 128.0;
 
     let popup_id = button_id.with("popup");
-    let selected = selected.into();
 
     let button_active = ui.memory().is_popup_open(popup_id);
     let button_response = button_frame(ui, button_id, button_active, Sense::click(), |ui| {
-        ui.horizontal(|ui| {
-            // We don't want to change width when user selects something new
-            let full_minimum_width = ui.style().spacing.slider_width;
-            let icon_width = ui.style().spacing.icon_width;
+        // We don't want to change width when user selects something new
+        let full_minimum_width = ui.style().spacing.slider_width;
+        let icon_size = Vec2::splat(ui.style().spacing.icon_width);
 
-            selected.ui(ui);
+        let text_style = TextStyle::Button;
+        let font = &ui.fonts()[text_style];
+        let galley = font.layout_single_line(selected.into());
 
-            let advance = full_minimum_width - icon_width - ui.min_rect().width();
-            ui.advance_cursor(advance.at_least(0.0));
+        let width = galley.size.x + ui.style().spacing.item_spacing.x + icon_size.x;
+        let width = width.at_least(full_minimum_width);
+        let height = galley.size.y.max(icon_size.y);
 
-            let (_, icon_rect) = ui.allocate_space(Vec2::splat(icon_width));
-            let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
-            let mut response = ui.interact(button_rect, button_id, Sense::click());
-            response.active |= button_active;
-            paint_icon(ui.painter(), icon_rect, ui.style().interact(&response));
-        });
+        let (_, rect) = ui.allocate_space(Vec2::new(width, height));
+        let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
+        let response = ui.interact(button_rect, button_id, Sense::click());
+        // response.active |= button_active;
+
+        let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
+        let visuals = ui.style().interact(&response);
+        paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+
+        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
+        ui.painter()
+            .galley(text_rect.min, galley, text_style, visuals.text_color());
     });
     if button_response.clicked {
         ui.memory().toggle_popup(popup_id);
@@ -116,14 +123,20 @@ fn button_frame(
     sense: Sense,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Response {
-    let margin = ui.style().spacing.button_padding;
-    let outer_rect_bounds = ui.available_rect_before_wrap();
-    let inner_rect = outer_rect_bounds.shrink2(margin);
     let where_to_put_background = ui.painter().add(Shape::Noop);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
+
+    let margin = ui.style().spacing.button_padding;
+    let interact_size = ui.style().spacing.interact_size;
+
+    let mut outer_rect = ui.available_rect_before_wrap();
+    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
+
+    let inner_rect = outer_rect.shrink2(margin);
+    let mut content_ui = ui.child_ui(inner_rect, Layout::left_to_right());
     add_contents(&mut content_ui);
 
-    let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
+    let mut outer_rect = content_ui.min_rect().expand2(margin);
+    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let mut response = ui.interact(outer_rect, id, sense);
     response.active |= button_active;
@@ -132,7 +145,7 @@ fn button_frame(
     ui.painter().set(
         where_to_put_background,
         Shape::Rect {
-            rect: outer_rect,
+            rect: outer_rect.expand(visuals.expansion),
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,
             stroke: visuals.bg_stroke,

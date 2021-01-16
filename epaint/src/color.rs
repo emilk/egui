@@ -36,10 +36,11 @@ impl Color32 {
     pub const GRAY: Color32 = Color32::from_rgb(160, 160, 160);
     pub const WHITE: Color32 = Color32::from_rgb(255, 255, 255);
     pub const RED: Color32 = Color32::from_rgb(255, 0, 0);
+    pub const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
     pub const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
     pub const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
-    pub const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
     pub const LIGHT_BLUE: Color32 = Color32::from_rgb(140, 160, 255);
+    pub const GOLD: Color32 = Color32::from_rgb(255, 215, 0);
 
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 255])
@@ -117,10 +118,12 @@ impl Color32 {
         Rgba::from(self).to_opaque().into()
     }
 
+    /// Premultiplied RGBA
     pub fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
+    /// Premultiplied RGBA
     pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
@@ -435,6 +438,10 @@ impl Hsva {
     }
 
     // ------------------------------------------------------------------------
+
+    pub fn to_opaque(self) -> Self {
+        Self { a: 1.0, ..self }
+    }
 
     pub fn to_rgb(&self) -> [f32; 3] {
         rgb_from_hsv((self.h, self.s, self.v))

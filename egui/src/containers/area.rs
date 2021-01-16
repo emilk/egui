@@ -47,7 +47,7 @@ pub struct Area {
     interactable: bool,
     order: Order,
     default_pos: Option<Pos2>,
-    fixed_pos: Option<Pos2>,
+    new_pos: Option<Pos2>,
 }
 
 impl Area {
@@ -58,7 +58,7 @@ impl Area {
             interactable: true,
             order: Order::Middle,
             default_pos: None,
-            fixed_pos: None,
+            new_pos: None,
         }
     }
 
@@ -104,9 +104,15 @@ impl Area {
     /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
         let fixed_pos = fixed_pos.into();
-        self.default_pos = Some(fixed_pos);
-        self.fixed_pos = Some(fixed_pos);
+        self.new_pos = Some(fixed_pos);
         self.movable = false;
+        self
+    }
+
+    /// Positions the window but you can still move it.
+    pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
+        let current_pos = current_pos.into();
+        self.new_pos = Some(current_pos);
         self
     }
 }
@@ -125,7 +131,7 @@ impl Area {
             order,
             interactable,
             default_pos,
-            fixed_pos,
+            new_pos,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -136,7 +142,7 @@ impl Area {
             size: Vec2::zero(),
             interactable,
         });
-        state.pos = fixed_pos.unwrap_or(state.pos);
+        state.pos = new_pos.unwrap_or(state.pos);
         state.pos = ctx.round_pos_to_pixels(state.pos);
 
         Prepared {

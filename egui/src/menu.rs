@@ -79,7 +79,7 @@ fn menu_impl<'c>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill(Some(ui.style().visuals.widgets.active.fg_fill));
+        button = button.fill(Some(ui.style().visuals.selection.bg_fill));
     }
 
     let button_response = ui.add(button);
