@@ -341,6 +341,7 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     &content_response,
+                    &interaction,
                     open,
                     &mut collapsing,
                     collapsible,
@@ -702,11 +703,13 @@ fn show_title_bar(
 }
 
 impl TitleBar {
+    #[allow(clippy::too_many_arguments)] // TODO
     fn ui(
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
         content_response: &Option<Response>,
+        interaction: &Option<WindowInteraction>,
         open: Option<&mut bool>,
         collapsing: &mut collapsing_header::State,
         collapsible: bool,
@@ -723,11 +726,15 @@ impl TitleBar {
             }
         }
 
-        let style = if ui.ui_contains_mouse() {
+        let is_moving_window = interaction
+            .map(|interaction| !interaction.is_resize())
+            .unwrap_or(false);
+        let style = if is_moving_window {
             ui.style().visuals.widgets.hovered
         } else {
             ui.style().visuals.widgets.inactive
         };
+
         self.title_label = self.title_label.text_color(style.fg_stroke.color);
 
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
