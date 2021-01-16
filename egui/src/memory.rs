@@ -130,8 +130,8 @@ impl Interaction {
 
     fn begin_frame(
         &mut self,
-        prev_input: &crate::input::InputState,
-        new_input: &crate::input::RawInput,
+        prev_input: &crate::input_state::InputState,
+        new_input: &crate::data::input::RawInput,
     ) {
         self.kb_focus_id_previous_frame = self.kb_focus_id;
         self.click_interest = false;
@@ -150,8 +150,8 @@ impl Interaction {
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
-            if let crate::input::Event::Key {
-                key: crate::input::Key::Tab,
+            if let crate::Event::Key {
+                key: crate::Key::Tab,
                 pressed: true,
                 modifiers,
             } = event
@@ -169,8 +169,8 @@ impl Interaction {
 impl Memory {
     pub(crate) fn begin_frame(
         &mut self,
-        prev_input: &crate::input::InputState,
-        new_input: &crate::input::RawInput,
+        prev_input: &crate::input_state::InputState,
+        new_input: &crate::data::input::RawInput,
     ) {
         self.interaction.begin_frame(prev_input, new_input);
 

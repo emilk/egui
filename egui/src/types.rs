@@ -2,54 +2,6 @@ use crate::{lerp, math::Rect, Align, CtxRef, Id, LayerId, Ui};
 
 // ----------------------------------------------------------------------------
 
-/// What Egui emits each frame.
-/// The backend should use this.
-#[derive(Clone, Default)]
-// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
-pub struct Output {
-    /// Set the cursor to this icon.
-    pub cursor_icon: CursorIcon,
-
-    /// If set, open this url.
-    pub open_url: Option<String>,
-
-    /// Response to Event::Copy or Event::Cut. Ignore if empty.
-    pub copied_text: String,
-
-    /// If `true`, Egui or a user is indicating that the UI needs immediate repaint (e.g. on the next frame).
-    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
-    /// Don't set this manually, but call `Context::request_repaint()` instead.
-    pub needs_repaint: bool,
-}
-
-/// A mouse cursor icon.
-///
-/// Egui emits a `CursorIcond` in [`Output`] each frame as a request to the integration.
-#[derive(Clone, Copy)]
-// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
-// #[cfg_attr(feature = "persistence", serde(rename_all = "snake_case"))]
-pub enum CursorIcon {
-    Default,
-    /// Pointing hand, used for e.g. web links
-    PointingHand,
-    ResizeHorizontal,
-    ResizeNeSw,
-    ResizeNwSe,
-    ResizeVertical,
-    Text,
-    /// Used when moving
-    Grab,
-    Grabbing,
-}
-
-impl Default for CursorIcon {
-    fn default() -> Self {
-        Self::Default
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// The result of adding a widget to a [`Ui`].
 ///
 /// This lets you know whether or not a widget has been clicked this frame.

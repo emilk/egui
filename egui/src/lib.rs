@@ -81,9 +81,10 @@
 mod animation_manager;
 pub mod containers;
 mod context;
+mod data;
 pub(crate) mod grid;
 mod id;
-mod input;
+mod input_state;
 mod introspection;
 mod layers;
 mod layout;
@@ -113,9 +114,10 @@ pub use epaint::{
 pub use {
     containers::*,
     context::{Context, CtxRef},
+    data::{input::*, output::*},
     grid::Grid,
     id::Id,
-    input::*,
+    input_state::*,
     layers::*,
     layout::*,
     memory::Memory,
