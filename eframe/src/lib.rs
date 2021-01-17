@@ -1,7 +1,7 @@
-//! eframe - the Egui Framework crate
+//! eframe - the egui framework crate
 //!
 //! If you are planning to write an app for web or native,
-//! and are happy with just using Egui for all visuals,
+//! and are happy with just using egui for all visuals,
 //! Then `eframe` is for you!
 //!
 //! To get started, look at <https://github.com/emilk/egui_template>.

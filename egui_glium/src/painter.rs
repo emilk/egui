@@ -43,7 +43,7 @@ const VERTEX_SHADER_SOURCE: &str = r#"
             1.0 - 2.0 * a_pos.y / u_screen_size.y,
             0.0,
             1.0);
-        // Egui encodes vertex colors in gamma spaces, so we must decode the colors here:
+        // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
         v_rgba = linear_from_srgba(a_srgba);
         v_tc = a_tc;
     }
@@ -199,7 +199,7 @@ impl Painter {
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
         if let Some(texture) = self.get_texture(triangles.texture_id) {
-            // The texture coordinates for text are so that both nearest and linear should work with the Egui font texture.
+            // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
             let filter = MagnifySamplerFilter::Linear;
 
@@ -208,7 +208,7 @@ impl Painter {
                 u_sampler: texture.sampled().magnify_filter(filter).wrap_function(SamplerWrapFunction::Clamp),
             };
 
-            // Egui outputs colors with premultiplied alpha:
+            // egui outputs colors with premultiplied alpha:
             let color_blend_func = glium::BlendingFunction::Addition {
                 source: glium::LinearBlendingFactor::One,
                 destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
@@ -227,7 +227,7 @@ impl Painter {
                 ..Default::default()
             };
 
-            // Egui outputs triangles in both winding orders:
+            // egui outputs triangles in both winding orders:
             let backface_culling = glium::BackfaceCullingMode::CullingDisabled;
 
             // Transform clip rect to physical pixels:
@@ -273,7 +273,7 @@ impl Painter {
 
     // ------------------------------------------------------------------------
     // user textures: this is an experimental feature.
-    // No need to implement this in your Egui integration!
+    // No need to implement this in your egui integration!
 
     pub fn alloc_user_texture(&mut self) -> egui::TextureId {
         for (i, tex) in self.user_textures.iter_mut().enumerate() {

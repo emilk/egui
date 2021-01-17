@@ -2,7 +2,7 @@
 name = "eframe"
 version = "0.7.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Egui Framework - write GUI apps that compiles to web and/or natively"
+description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"

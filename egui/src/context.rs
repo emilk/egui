@@ -82,7 +82,7 @@ impl FrameState {
     }
 
     /// How much space is still available after panels has been added.
-    /// This is the "background" area, what Egui doesn't cover with panels (but may cover with windows).
+    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
         debug_assert!(
@@ -375,7 +375,7 @@ impl CtxRef {
 
 // ----------------------------------------------------------------------------
 
-/// This is the first thing you need when working with Egui. Create using [`CtxRef`].
+/// This is the first thing you need when working with egui. Create using [`CtxRef`].
 ///
 /// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 // TODO: too many mutexes. Maybe put it all behind one Mutex instead.
@@ -425,7 +425,7 @@ impl Context {
     }
 
     /// How much space is still available after panels has been added.
-    /// This is the "background" area, what Egui doesn't cover with panels (but may cover with windows).
+    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
         self.frame_state.lock().available_rect()
@@ -469,7 +469,7 @@ impl Context {
             .expect("No fonts available until first call to CtxRef::begin_frame()")
     }
 
-    /// The Egui texture, containing font characters etc.
+    /// The egui texture, containing font characters etc.
     /// Not valid until first call to [`CtxRef::begin_frame()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn texture(&self) -> Arc<paint::Texture> {
@@ -641,14 +641,14 @@ impl Context {
     }
 
     /// How much space is used by panels and windows.
-    /// You can shrink your Egui area to this size and still fit all Egui components.
+    /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
         self.used_rect().max - Pos2::new(0.0, 0.0)
     }
 
     // ---------------------------------------------------------------------
 
-    /// Is the mouse over any Egui area?
+    /// Is the mouse over any egui area?
     pub fn is_mouse_over_area(&self) -> bool {
         if let Some(mouse_pos) = self.input.mouse.pos {
             if let Some(layer) = self.layer_id_at(mouse_pos) {
@@ -665,22 +665,22 @@ impl Context {
         }
     }
 
-    /// True if Egui is currently interested in the mouse.
+    /// True if egui is currently interested in the mouse.
     /// Could be the mouse is hovering over a [`Window`] or the user is dragging a widget.
-    /// If `false`, the mouse is outside of any Egui area and so
+    /// If `false`, the mouse is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
-    /// Returns `false` if a drag started outside of Egui and then moved over an Egui area.
+    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
     pub fn wants_mouse_input(&self) -> bool {
         self.is_using_mouse() || (self.is_mouse_over_area() && !self.input().mouse.down)
     }
 
-    /// Is Egui currently using the mouse position (e.g. dragging a slider).
-    /// NOTE: this will return `false` if the mouse is just hovering over an Egui area.
+    /// Is egui currently using the mouse position (e.g. dragging a slider).
+    /// NOTE: this will return `false` if the mouse is just hovering over an egui area.
     pub fn is_using_mouse(&self) -> bool {
         self.memory().interaction.is_using_mouse()
     }
 
-    /// If `true`, Egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
+    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory().interaction.kb_focus_id.is_some()
     }
@@ -767,14 +767,14 @@ impl Context {
         use crate::containers::*;
 
         ui.label(format!("Is using mouse: {}", self.is_using_mouse()))
-            .on_hover_text("Is Egui currently using the mouse actively (e.g. dragging a slider)?");
+            .on_hover_text("Is egui currently using the mouse actively (e.g. dragging a slider)?");
         ui.label(format!("Wants mouse input: {}", self.wants_mouse_input()))
-            .on_hover_text("Is Egui currently interested in the location of the mouse (either because it is in use, or because it is hovering over a window).");
+            .on_hover_text("Is egui currently interested in the location of the mouse (either because it is in use, or because it is hovering over a window).");
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
         ))
-        .on_hover_text("Is Egui currently listening for text input");
+        .on_hover_text("Is egui currently listening for text input");
         ui.advance_cursor(16.0);
 
         CollapsingHeader::new("📥 Input")
@@ -791,7 +791,7 @@ impl Context {
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
         if ui
             .button("Reset all")
-            .on_hover_text("Reset all Egui state")
+            .on_hover_text("Reset all egui state")
             .clicked
         {
             *self.memory() = Default::default();

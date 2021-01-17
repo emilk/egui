@@ -2,7 +2,7 @@
 name = "epi"
 version = "0.7.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Backend-agnostic interface for writing apps using Egui"
+description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"

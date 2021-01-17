@@ -1,4 +1,4 @@
-# emath - Egui Math Library
+# emath - egui math library
 
 A bare-bones 2D math library with types and functions useful for GUI building.
 

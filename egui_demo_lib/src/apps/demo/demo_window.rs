@@ -132,7 +132,7 @@ impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
         egui::reset_button(ui, self);
 
-        ui.label("Egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
+        ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
 
         let Self {
             srgba_unmul,

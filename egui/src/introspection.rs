@@ -77,7 +77,7 @@ impl Widget for &epaint::stats::PaintStats {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             ui.label(
-                "Egui generates intermediate level shapes like circles and text. \
+                "egui generates intermediate level shapes like circles and text. \
             These are later tessellated into triangles.",
             );
             ui.advance_cursor(10.0);

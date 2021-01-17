@@ -2,7 +2,7 @@
 name = "egui_demo_lib"
 version = "0.7.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Example library for Egui"
+description = "Example library for egui"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"

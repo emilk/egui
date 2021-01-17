@@ -1529,7 +1529,7 @@ pub const NOTO_EMOJI_LIST: &[(u32, char, &str)] = &[
     (0xFE837, '󾠷', "digit zero in square"),
 ];
 
-/// All emojis supported by Egui.
+/// All emojis supported by egui.
 /// The union of `emoji-icon-font.ttf` and `NotoEmoji-Regular.ttf`.
 #[rustfmt::skip]
 pub const FULL_EMOJI_LIST: &[(u32, char, &str)] = &[

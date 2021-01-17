@@ -35,7 +35,7 @@ pub struct WrapApp {
 
 impl epi::App for WrapApp {
     fn name(&self) -> &str {
-        "Egui Demo Apps"
+        "egui demo apps"
     }
 
     #[cfg(feature = "persistence")]
@@ -135,7 +135,7 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
 enum RunMode {
     /// This is the default for the demo.
     ///
-    /// If this is selected, Egui is only updated if are input events
+    /// If this is selected, egui is only updated if are input events
     /// (like mouse movements) or there are some animations in the GUI.
     ///
     /// Reactive mode saves CPU.
@@ -151,13 +151,13 @@ enum RunMode {
     /// This will call `egui::Context::request_repaint()` at the end of each frame
     /// to request the backend to repaint as soon as possible.
     ///
-    /// On most platforms this will mean that Egui will run at the display refresh rate of e.g. 60 Hz.
+    /// On most platforms this will mean that egui will run at the display refresh rate of e.g. 60 Hz.
     ///
     /// For this demo it is not any reason to do so except to
-    /// demonstrate how quickly Egui runs.
+    /// demonstrate how quickly egui runs.
     ///
     /// For games or other interactive apps, this is probably what you want to do.
-    /// It will guarantee that Egui is always up-to-date.
+    /// It will guarantee that egui is always up-to-date.
     Continuous,
 }
 
@@ -221,7 +221,7 @@ impl BackendPanel {
         ui.separator();
 
         if frame.is_web() {
-            ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
                 "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
                 This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");

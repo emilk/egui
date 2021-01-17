@@ -1,4 +1,4 @@
-# 🖌 Egui: an easy-to-use GUI in pure Rust
+# 🖌 egui: an easy-to-use GUI in pure Rust
 
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
@@ -8,18 +8,19 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
-Egui is a simple, fast, and highly portable immediate mode GUI library for Rust. Egui runs on the web, natively, and in your favorite game engine (or will soon).
 
-Egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
+egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and in your favorite game engine (or will soon).
 
-Egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
+egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
+
+egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
 Sections:
 
 * [Quick start](#quick-start)
 * [Demo](#demo)
 * [Goals](#goals)
-* [Who is Egui for?](#who-is-egui-for)
+* [Who is egui for?](#who-is-egui-for)
 * [State / features](#state)
 * [How it works](#how-it-works)
 * [Integrations](#integrations)
@@ -29,20 +30,20 @@ Sections:
 
 If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/egui_template/> and follow the instructions there!
 
-If you want to integrate Egui into an existing engine, go to the [Integrations](#integrations) section.
+If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
-If you have questions, use [Discussions](https://github.com/emilk/egui/discussions). If you want to contribute to Egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
+If you have questions, use [Discussions](https://github.com/emilk/egui/discussions). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
 
 ## Demo
 
-[Click to run Egui web demo](https://emilk.github.io/egui/index.html).
+[Click to run egui web demo](https://emilk.github.io/egui/index.html).
 
-[Hobogo](https://emilk.github.io/hobogo/index.html): A small game I made using Egui. Source: <https://github.com/emilk/hobogo>
+[Hobogo](https://emilk.github.io/hobogo/index.html): A small game I made using egui. Source: <https://github.com/emilk/hobogo>
 
 ### Example
 
 ``` rust
-ui.heading("My Egui Application");
+ui.heading("My egui Application");
 ui.horizontal(|ui| {
     ui.label("Your name: ");
     ui.text_edit_singleline(&mut name);
@@ -54,7 +55,7 @@ if ui.button("Click each year").clicked {
 ui.label(format!("Hello '{}', age {}", name, age));
 ```
 
-<img src="media/demo-2021-01-02.png" width="60%">
+<img src="media/demo-2021-01-17.gif">
 
 ## Goals
 
@@ -66,15 +67,15 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * A simple 2D graphics API for custom painting
 * No callbacks
 * Pure immediate mode
-* Extensible: [easy to write your own widgets for Egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
-* Modular: You should be able to use small parts of Egui and combine them in new ways
-* Safe: there is no `unsafe` code in Egui
+* Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
+* Modular: You should be able to use small parts of egui and combine them in new ways
+* Safe: there is no `unsafe` code in egui
 * Minimal dependencies
   * [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
 
-Egui is *not* a framework. Egui is a library you call into, not an environment you program for.
+egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
-**NOTE**: Egui does not claim to have reached all these goals yet! Egui is still work in progress.
+**NOTE**: egui does not claim to have reached all these goals yet! egui is still work in progress.
 
 ### Non-goals
 
@@ -82,37 +83,37 @@ Egui is *not* a framework. Egui is a library you call into, not an environment y
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
-## Who is Egui for?
+## Who is egui for?
 
-Egui aims to be the best choice when you want a simple way to create a GUI, or you want to add a GUI to a game engine.
+egui aims to be the best choice when you want a simple way to create a GUI, or you want to add a GUI to a game engine.
 
-If you are not using Rust, Egui is not for you. If you want a GUI that looks native, Egui is not for you. If you want something that doesn't break when you upgrade it, Egui isn't for you (yet).
+If you are not using Rust, egui is not for you. If you want a GUI that looks native, egui is not for you. If you want something that doesn't break when you upgrade it, egui isn't for you (yet).
 
-But if you are writing something interactive in Rust that needs a simple GUI, Egui may be for you.
+But if you are writing something interactive in Rust that needs a simple GUI, egui may be for you.
 
-### Egui vs Dear ImGui
+### egui vs Dear ImGui
 
-The obvious alternative to Egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library, which a lot more features and polish compared to Egui. However, Egui provides some benefits for Rust users:
+The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library, which a lot more features and polish compared to egui. However, egui provides some benefits for Rust users:
 
-* Egui is pure Rust
-* Egui is easily compiled to WASM
-* Egui lets you use native Rust String types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
-* [Writing your own widgets in Egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
+* egui is pure Rust
+* egui is easily compiled to WASM
+* egui lets you use native Rust String types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
+* [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 
-Egui also tries to improve your experience in other small ways:
+egui also tries to improve your experience in other small ways:
 
 * Windows are automatically sized based on their contents
 * Windows are automatically positioned to not overlap with each other
-* Some subtle animations make Egui come alive
+* Some subtle animations make egui come alive
 
 So in summary:
 
-* Egui: pure Rust, new, exciting, work in progress
+* egui: pure Rust, new, exciting, work in progress
 * Dear ImGui: feature rich, well tested, cumbersome Rust integration
 
 ## State
 
-Egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
 
 ### Features
 
@@ -125,31 +126,31 @@ Egui is in active development. It works well for what it does, but it lacks many
 * Tooltips on hover
 * More
 
-<img src="media/widget_gallery.png" width="60%">
+<img src="media/widget_gallery.gif" width="50%">
 
 ## How it works
 
 Loop:
 
-* Gather input (mouse, touches, keyboard, screen size, etc) and give it to Egui
+* Gather input (mouse, touches, keyboard, screen size, etc) and give it to egui
 * Run application code (Immediate Mode GUI)
-* Tell Egui to tessellate the frame graphics to a triangle mesh
+* Tell egui to tessellate the frame graphics to a triangle mesh
 * Render the triangle mesh with your favorite graphics API (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs))
 
 ## Integrations
 
-Egui is build to be easy to integrate into any existing game engine or platform you are working on.
-Egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the Egui integration.
+egui is build to be easy to integrate into any existing game engine or platform you are working on.
+egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
 The integration needs to do two things:
 
-* **IO**: Supply Egui with input (mouse position, keyboard presses, ...) and handle Egui output (cursor changes, copy-paste integration, ...).
-* **Painting**: Render the textured triangles that Egui outputs.
+* **IO**: Supply egui with input (mouse position, keyboard presses, ...) and handle egui output (cursor changes, copy-paste integration, ...).
+* **Painting**: Render the textured triangles that egui outputs.
 
 ### Official
 
-I maintain two official Egui integrations:
+I maintain two official egui integrations:
 
-* [egui_web](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the Egui demo](https://emilk.github.io/egui/index.html).
+* [egui_web](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
 * [egui_glium](https://crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 
 The same code can be compiled to a native app or a web app.
@@ -161,9 +162,9 @@ The same code can be compiled to a native app or a web app.
   * Alternative: [egui_winit_wgpu](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
 * [egui_sdl2_gl](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
 * [emigui-miniquad](https://github.com/not-fl3/emigui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad). [Web demo](https://not-fl3.github.io/miniquad-samples/emigui.html) and [demo source](https://github.com/not-fl3/good-web-game/blob/master/examples/emigui.rs).
-* [egui_winit_platform](https://github.com/hasenbanck/egui_winit_platform) provides bindings between [winit](https://crates.io/crates/winit) and Egui. It only provides the first half of an Egui integration (IO). Painting can be done with e.g. [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend).
+* [egui_winit_platform](https://github.com/hasenbanck/egui_winit_platform) provides bindings between [winit](https://crates.io/crates/winit) and egui. It only provides the first half of an egui integration (IO). Painting can be done with e.g. [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend).
 
-### Writing your own Egui integration
+### Writing your own egui integration
 
 You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::PaintJobs`](https://docs.rs/egui/latest/egui/paint/tessellator/type.PaintJobs.html) and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
 
@@ -193,12 +194,12 @@ For a reference OpenGL backend, see [the `egui_glium` painter](https://github.co
 
 #### My text is blurry
 
-* Make sure you set the proper `pixels_per_point` in the input to Egui.
+* Make sure you set the proper `pixels_per_point` in the input to egui.
 * Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
 
 #### My windows are too transparent or too dark
 
-* Egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
+* egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
 * Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
 * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
   * Otherwise: remember to decode gamma in the fragment shader.
@@ -216,9 +217,9 @@ All coordinates are in locial "points" which may consist of many physical pixels
 
 All colors have premultiplied alpha.
 
-Egui uses the builder pattern for construction widgets. For instance: `ui.add(Label::new("Hello").text_color(RED));` I am not a big fan of the builder pattern (it is quite verbose both in implementation and in use) but until Rust has named, default arguments it is the best we can do. To alleviate some of the verbosity there are common-case helper functions, like `ui.label("Hello");`.
+egui uses the builder pattern for construction widgets. For instance: `ui.add(Label::new("Hello").text_color(RED));` I am not a big fan of the builder pattern (it is quite verbose both in implementation and in use) but until Rust has named, default arguments it is the best we can do. To alleviate some of the verbosity there are common-case helper functions, like `ui.label("Hello");`.
 
-Instead of using matching `begin/end` style function calls (which can be error prone) Egui prefers to use `FnOnce` closures passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this.
+Instead of using matching `begin/end` style function calls (which can be error prone) egui prefers to use `FnOnce` closures passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this.
 
 ### Inspiration
 
@@ -226,15 +227,15 @@ The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immed
 
 ### Name
 
-The name of the library and the project is "Egui" and pronounced as "e-gooey".
+The name of the library and the project is "egui" and pronounced as "e-gooey".
 
-The library was originally called "Emigui", but was renamed to Egui in 2020.
+The library was originally called "Emigui", but was renamed to "egui" in 2020.
 
 ### Credits / Licenses
 
-Egui author: Emil Ernerfeldt
+egui author: Emil Ernerfeldt
 
-Egui is under MIT OR Apache-2.0 license.
+egui is under MIT OR Apache-2.0 license.
 
 Fonts:
 

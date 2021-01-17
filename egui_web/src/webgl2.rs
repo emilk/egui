@@ -41,7 +41,7 @@ const VERTEX_SHADER_SOURCE: &str = r#"
             1.0 - 2.0 * a_pos.y / u_screen_size.y,
             0.0,
             1.0);
-        // Egui encodes vertex colors in gamma spaces, so we must decode the colors here:
+        // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
         v_rgba = linear_from_srgba(a_srgba);
         v_tc = a_tc;
     }
@@ -473,7 +473,7 @@ impl crate::Painter for WebGl2Painter {
         let gl = &self.gl;
 
         gl.enable(Gl::SCISSOR_TEST);
-        gl.disable(Gl::CULL_FACE); // Egui is not strict about winding order.
+        gl.disable(Gl::CULL_FACE); // egui is not strict about winding order.
         gl.enable(Gl::BLEND);
         gl.blend_func(Gl::ONE, Gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
         gl.use_program(Some(&self.program));

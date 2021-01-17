@@ -11,7 +11,7 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
-/// The data that Egui persists between frames.
+/// The data that egui persists between frames.
 ///
 /// This includes window positions and sizes,
 /// how far the user has scrolled in a `ScrollArea` etc.

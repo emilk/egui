@@ -456,7 +456,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
 
             let prevent_default = if matches!(event.key().as_str(), "Tab") {
                 // Always prevent moving cursor to url bar.
-                // Egui wants to use tab to move to the next text field.
+                // egui wants to use tab to move to the next text field.
                 true
             } else if egui_wants_keyboard {
                 matches!(

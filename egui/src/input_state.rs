@@ -10,7 +10,7 @@ const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
 /// The new mouse press must come within this many seconds from previous mouse release
 const MAX_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 
-/// Input state that Egui updates each frame.
+/// Input state that egui updates each frame.
 #[derive(Clone, Debug)]
 pub struct InputState {
     /// The raw input we got this frame
@@ -21,7 +21,7 @@ pub struct InputState {
     /// How many pixels the user scrolled
     pub scroll_delta: Vec2,
 
-    /// Position and size of the Egui area.
+    /// Position and size of the egui area.
     pub screen_rect: Rect,
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.

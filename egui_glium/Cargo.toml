@@ -2,7 +2,7 @@
 name = "egui_glium"
 version = "0.7.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Bindings for using Egui natively using the glium library"
+description = "Bindings for using egui natively using the glium library"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"

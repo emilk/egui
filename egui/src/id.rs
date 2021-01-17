@@ -2,7 +2,7 @@
 
 use std::hash::Hash;
 
-/// Egui tracks widgets frame-to-frame using `Id`s.
+/// egui tracks widgets frame-to-frame using `Id`s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
 /// the sliders `Id` as the current active id so that next frame when

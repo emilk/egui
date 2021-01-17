@@ -1,6 +1,6 @@
-# Egui Changelog
+# egui changelog
 
-All notable changes to the Egui crate will be documented in this file.
+All notable changes to the egui crate will be documented in this file.
 
 NOTE: `epi`, `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 
@@ -63,7 +63,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
 * `ui.allocate_painter` helper.
 * Mouse-over explanation to duplicate ID warning.
-* You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
+* You can now easily constrain egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
 * Add `egui::math::Rot2`: rotation helper.
 * `Response` now contains the `Id` of the widget it pertains to.
@@ -145,7 +145,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.
 * You must now be explicit when creating a `TextEdit` if you want it to be singeline or multiline.
 * Improved automatic `Id` generation, making `Id` clashes less likely.
-* Egui now requires modifier key state from the integration
+* egui now requires modifier key state from the integration
 * Added, renamed and removed some keys in the `Key` enum.
 * Fixed incorrect text wrapping width on radio buttons
 
@@ -159,10 +159,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * Panels: you can now create panels using `SidePanel`, `TopPanel` and `CentralPanel`.
-* You can now override the default Egui fonts.
+* You can now override the default egui fonts.
 * Add ability to override text color with `visuals.override_text_color`.
 * The demo now includes a simple drag-and-drop example.
-* The demo app now has a slider to scale all of Egui.
+* The demo app now has a slider to scale all of egui.
 
 ### Changed 🔧
 

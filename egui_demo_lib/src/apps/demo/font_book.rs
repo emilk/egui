@@ -58,7 +58,7 @@ impl super::View for FontBook {
         use super::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
 
         ui.label(format!(
-            "Egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
+            "egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
             UBUNTU_FONT_CHARACTERS.len(),
             FULL_EMOJI_LIST.len(),
         ));

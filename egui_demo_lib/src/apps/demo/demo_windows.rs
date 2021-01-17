@@ -64,17 +64,17 @@ impl DemoWindows {
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
         egui::SidePanel::left("side_panel", 200.0).show(ctx, |ui| {
-            ui.heading("✒ Egui Demo");
+            ui.heading("✒ egui demos");
 
             ui.separator();
 
             ScrollArea::auto_sized().show(ui, |ui| {
-                ui.label("Egui is an immediate mode GUI library written in Rust.");
+                ui.label("egui is an immediate mode GUI library written in Rust.");
                 ui.add(
-                    egui::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"),
+                    egui::Hyperlink::new("https://github.com/emilk/egui").text(" egui home page"),
                 );
 
-                ui.label("Egui can be run on the web, or natively on 🐧");
+                ui.label("egui can be run on the web, or natively on 🐧");
 
                 ui.separator();
 
@@ -237,7 +237,7 @@ impl OpenWindows {
             memory,
             resize,
         } = self;
-        ui.label("Egui:");
+        ui.label("egui:");
         ui.checkbox(settings, "🔧 Settings");
         ui.checkbox(inspection, "🔍 Inspection");
         ui.checkbox(memory, "📝 Memory");
@@ -259,7 +259,7 @@ fn show_menu_bar(ui: &mut Ui) {
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .button("Clear Egui memory")
+                .button("Clear egui memory")
                 .on_hover_text("Forget scroll, collapsing headers etc")
                 .clicked
             {

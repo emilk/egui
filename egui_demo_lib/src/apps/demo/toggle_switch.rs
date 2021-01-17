@@ -32,8 +32,8 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     }
 
     // 4. Paint!
-    // First let's ask for a simple animation from Egui.
-    // Egui keeps track of changes in the boolean associated with the id and
+    // First let's ask for a simple animation from egui.
+    // egui keeps track of changes in the boolean associated with the id and
     // returns an animated value in the 0-1 range for how much "on" we are.
     let how_on = ui.ctx().animate_bool(response.id, *on);
     // We will follow the current style by asking

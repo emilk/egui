@@ -107,7 +107,7 @@ impl super::Demo for DragAndDropDemo {
 
 impl super::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("This is a proof-of-concept of drag-and-drop in Egui");
+        ui.label("This is a proof-of-concept of drag-and-drop in egui");
         ui.label("Drag items between columns.");
 
         let mut source_col_row = None;

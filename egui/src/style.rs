@@ -1,4 +1,4 @@
-//! Egui theme (spacing, colors, etc).
+//! egui theme (spacing, colors, etc).
 
 #![allow(clippy::if_same_then_else)]
 

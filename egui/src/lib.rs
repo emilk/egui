@@ -1,9 +1,9 @@
-//! Egui core library
+//! egui core library
 //!
-//! To quickly get started with Egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
+//! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
-//! To create a GUI using Egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
+//! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
 //! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
@@ -16,7 +16,7 @@
 //! ```
 //!
 //!
-//! To write your own integration for Egui you need to do this:
+//! To write your own integration for egui you need to do this:
 //!
 //! ``` ignore
 //! let mut egui_ctx = egui::CtxRef::default();
@@ -150,7 +150,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
                 .small()
                 .text_color(crate::Color32::RED),
         )
-        .on_hover_text("Egui was compiled with debug assertions enabled.");
+        .on_hover_text("egui was compiled with debug assertions enabled.");
     }
 }
 

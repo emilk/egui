@@ -1,4 +1,4 @@
-//! Demo-code for showing how Egui is used.
+//! Demo-code for showing how egui is used.
 //!
 //! The demo-code is also used in benchmarks and tests.
 

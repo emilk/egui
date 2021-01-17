@@ -2,7 +2,7 @@
 //!
 //! `epi` provides interfaces for window management, serialization and http requests.
 //! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
-//! the Egui framework crate.
+//! the egui framework crate.
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 

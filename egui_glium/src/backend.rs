@@ -284,7 +284,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
             glutin::event::Event::WindowEvent { event, .. } => {
                 input_to_egui(event, clipboard.as_mut(), &mut input_state, control_flow);
-                display.gl_window().window().request_redraw(); // TODO: ask Egui if the events warrants a repaint instead
+                display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
                 app.on_exit();

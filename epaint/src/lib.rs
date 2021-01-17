@@ -71,7 +71,7 @@ pub use ahash;
 pub use emath;
 
 /// The UV coordinate of a white region of the texture mesh.
-/// The default Egui texture has the top-left corner pixel fully white.
+/// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
 pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
@@ -79,12 +79,12 @@ pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 /// What texture to use in a [`Triangles`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextureId {
-    /// The Egui font texture.
+    /// The egui font texture.
     /// If you don't want to use a texture, pick this and the [`WHITE_UV`] for uv-coord.
     Egui,
 
     /// Your own texture, defined in any which way you want.
-    /// Egui won't care. The backend renderer will presumably use this to look up what texture to use.
+    /// egui won't care. The backend renderer will presumably use this to look up what texture to use.
     User(u64),
 }
 

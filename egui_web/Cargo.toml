@@ -2,7 +2,7 @@
 name = "egui_web"
 version = "0.7.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Bindings for compiling Egui code to WASM for a web page"
+description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
 edition = "2018"
 homepage = "https://github.com/emilk/egui"

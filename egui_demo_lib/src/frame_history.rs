@@ -43,7 +43,7 @@ impl FrameHistory {
             1e3 * self.mean_frame_time()
         ))
         .on_hover_text(
-            "Includes Egui layout and tessellation time.\n\
+            "Includes egui layout and tessellation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
         egui::warn_if_debug_build(ui);
@@ -59,7 +59,7 @@ impl FrameHistory {
         use egui::*;
 
         let graph_top_cpu_usage = 0.010;
-        ui.label("Egui CPU usage history");
+        ui.label("egui CPU usage history");
 
         let history = &self.frame_times;
 

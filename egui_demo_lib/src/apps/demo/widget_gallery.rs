@@ -62,7 +62,7 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Hyperlink:");
-            ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"));
+            ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text(" egui home page"));
             ui.end_row();
 
             ui.label("Text Input:");

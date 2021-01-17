@@ -5,7 +5,7 @@ use crate::*;
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
 ///
-/// Egui represents positions using [`Pos2`].
+/// emath represents positions using [`Pos2`].
 ///
 /// Normally the units are points (logical pixels).
 #[derive(Clone, Copy, Default)]
@@ -68,7 +68,7 @@ impl Vec2 {
     }
 
     /// Rotates the vector by 90°, i.e positive X to positive Y
-    /// (clockwise in Egui coordinates).
+    /// (clockwise in egui coordinates).
     #[inline(always)]
     pub fn rot90(self) -> Self {
         vec2(self.y, -self.x)
