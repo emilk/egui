@@ -86,7 +86,7 @@ pub(crate) mod grid;
 mod id;
 mod input_state;
 mod introspection;
-mod layers;
+pub mod layers;
 mod layout;
 mod memory;
 pub mod menu;
@@ -118,7 +118,7 @@ pub use {
     grid::Grid,
     id::Id,
     input_state::*,
-    layers::*,
+    layers::{LayerId, Order},
     layout::*,
     memory::Memory,
     painter::Painter,

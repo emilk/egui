@@ -1,11 +1,11 @@
 use crate::{
-    layers::ShapeIdx,
+    layers::{LayerId, ShapeIdx},
     math::{Align2, Pos2, Rect, Vec2},
     paint::{
         text::{Fonts, Galley, TextStyle},
         Shape, Stroke,
     },
-    Color32, CtxRef, LayerId,
+    Color32, CtxRef,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.

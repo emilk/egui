@@ -380,7 +380,7 @@ impl Areas {
     pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
         self.visible_layer_ids()
             .iter()
-            .filter(|layer| layer.order == crate::layers::Order::Middle)
+            .filter(|layer| layer.order == crate::Order::Middle)
             .filter_map(|layer| self.get(layer.id))
             .collect()
     }
