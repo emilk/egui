@@ -10,7 +10,7 @@ pub struct Output {
     /// If set, open this url.
     pub open_url: Option<String>,
 
-    /// Response to [`Event::Copy`] or [`Event::Cut`]. Ignore if empty.
+    /// Response to [`crate::Event::Copy`] or [`crate::Event::Cut`]. Ignore if empty.
     pub copied_text: String,
 
     /// If `true`, Egui is requesting immediate repaint (i.e. on the next frame).
