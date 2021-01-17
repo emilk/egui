@@ -6,7 +6,7 @@ use crate::{
     color::*,
     math::*,
     paint::{Shadow, Stroke, TextStyle},
-    types::*,
+    Response,
 };
 
 /// Specifies the look and feel of a [`Ui`].
@@ -197,7 +197,7 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if response.active || response.has_kb_focus {
             &self.active
-        } else if response.sense == Sense::hover() {
+        } else if response.sense == crate::Sense::hover() {
             &self.disabled
         } else if response.hovered {
             &self.hovered

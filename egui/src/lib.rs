@@ -92,8 +92,9 @@ mod memory;
 pub mod menu;
 mod painter;
 pub(crate) mod placer;
+mod response;
+mod sense;
 pub mod style;
-mod types;
 mod ui;
 pub mod util;
 pub mod widgets;
@@ -122,8 +123,9 @@ pub use {
     layout::*,
     memory::Memory,
     painter::Painter,
+    response::Response,
+    sense::Sense,
     style::Style,
-    types::*,
     ui::Ui,
     widgets::*,
 };

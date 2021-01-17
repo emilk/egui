@@ -69,7 +69,7 @@ impl ScrollArea {
     /// Set the vertical scroll offset position.
     ///
     /// See also: [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
-    /// [`Response::scroll_to_me`](crate::types::Response::scroll_to_me)
+    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     pub fn scroll_offset(mut self, offset: f32) -> Self {
         self.offset = Some(Vec2::new(0.0, offset));
         self
