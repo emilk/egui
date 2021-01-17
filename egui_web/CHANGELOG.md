@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Slightly improved alpha-blending (work-around for non-existing linear-space blending).
 
+### Fixed ⭐
+
+* Call prevent_default for arrow keys when entering text
+
 
 ## 0.7.0 - 2021-01-04
 

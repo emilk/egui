@@ -154,6 +154,10 @@ impl AppRunner {
         })
     }
 
+    pub fn egui_ctx(&self) -> &egui::CtxRef {
+        &self.web_backend.ctx
+    }
+
     pub fn auto_save(&mut self) {
         let now = now_sec();
         let time_since_last_save = now - self.last_save_time;

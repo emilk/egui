@@ -452,25 +452,34 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
             runner_lock.needs_repaint.set_true();
 
-            // So, shall we call prevent_default?
-            // YES:
-            // * Tab  (move to next text field)
-            //
-            // SOMETIMES:
-            // * Backspace - when entering text we don't want to go back one page.
-            //
-            // NO:
-            // * F5 / cmd-R (refresh)
-            // * cmd-shift-C (debug tools)
-            // * ...
-            //
-            // NOTE: if we call prevent_default for cmd-c/v/x, we will prevent copy/paste/cut events.
-            // Let's do things manually for now:
-            if matches!(
-                event.key().as_str(),
-                "Backspace"  // so we don't go back to previous page when deleting text
-                | "Tab" // so that e.g. tab doesn't move focus to url bar
-            ) {
+            let egui_wants_keyboard = runner_lock.egui_ctx().wants_keyboard_input();
+
+            let prevent_default = if matches!(event.key().as_str(), "Tab") {
+                // Always prevent moving cursor to url bar.
+                // Egui wants to use tab to move to the next text field.
+                true
+            } else if egui_wants_keyboard {
+                matches!(
+                    event.key().as_str(),
+                    "Backspace" // so we don't go back to previous page when deleting text
+                | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp" // cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
+                )
+            } else {
+                // We never want to prevent:
+                // * F5 / cmd-R (refresh)
+                // * cmd-shift-C (debug tools)
+                // * cmd/ctrl-c/v/x (or we stop copy/past/cut events)
+                false
+            };
+
+            // console_log(format!(
+            //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
+            //     event.key().as_str(),
+            //     egui_wants_keyboard,
+            //     prevent_default
+            // ));
+
+            if prevent_default {
                 event.prevent_default();
             }
         }) as Box<dyn FnMut(_)>);
