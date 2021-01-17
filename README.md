@@ -3,10 +3,10 @@
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
-[![dependency status](https://deps.rs/repo/github/emilk/egui/status.svg)](https://deps.rs/repo/github/emilk/egui)
 [![Build Status](https://github.com/emilk/egui/workflows/CI/badge.svg)](https://github.com/emilk/egui/actions?workflow=CI)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+**dependencies**: [`rusttype`](https://crates.io/crates/rusttype) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ahash`](https://crates.io/crates/ahash)
 
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and in your favorite game engine (or will soon).
@@ -70,8 +70,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies
-  * [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
+* Minimal dependencies: [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
