@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+
+## 0.8.0 - 2021-01-17 - Grid layout & new visual style
+
+<img src="media/widget_gallery_0.8.0.gif" width="50%">
+
 ### Added ⭐
 
 * Added a simple grid layout (`Grid`).

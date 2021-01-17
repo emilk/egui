@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -8,7 +8,7 @@ homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 repository = "https://github.com/emilk/egui"
-categories = ["gui", "graphics"]
+categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
 include = [
   "**/*.rs",
@@ -18,7 +18,7 @@ include = [
 [lib]
 
 [dependencies]
-epaint = { path = "../epaint", default-features = false }
+epaint = { version = "0.8.0", path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
