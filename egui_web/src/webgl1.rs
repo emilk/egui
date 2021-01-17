@@ -39,6 +39,7 @@ const VERTEX_SHADER_SOURCE: &str = r#"
             1.0 - 2.0 * a_pos.y / u_screen_size.y,
             0.0,
             1.0);
+        // Egui encodes vertex colors in gamma spaces, so we must decode the colors here:
         v_rgba = linear_from_srgba(a_srgba);
         v_tc = a_tc;
     }
@@ -75,7 +76,13 @@ const FRAGMENT_SHADER_SOURCE: &str = r#"
     }
 
     void main() {
+        // We must decode the colors, since WebGL doesn't come with sRGBA textures:
         vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
+
+        /// Multiply vertex color with texture color (in linear space).
+        gl_FragColor = v_rgba * texture_rgba;
+
+        // We must gamma-encode again since WebGL doesn't support linear blending in the framebuffer.
         gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
 
         // WebGL doesn't support linear blending in the framebuffer,
@@ -456,12 +463,11 @@ impl crate::Painter for WebGlPainter {
         let gl = &self.gl;
 
         gl.disable(Gl::SCISSOR_TEST);
-        gl.viewport(
-            0,
-            0,
-            self.canvas.width() as i32,
-            self.canvas.height() as i32,
-        );
+
+        let width = self.canvas.width() as i32;
+        let height = self.canvas.height() as i32;
+        gl.viewport(0, 0, width, height);
+
         let clear_color: Color32 = clear_color.into();
         gl.clear_color(
             clear_color[0] as f32 / 255.0,

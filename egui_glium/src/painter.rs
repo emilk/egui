@@ -43,6 +43,7 @@ const VERTEX_SHADER_SOURCE: &str = r#"
             1.0 - 2.0 * a_pos.y / u_screen_size.y,
             0.0,
             1.0);
+        // Egui encodes vertex colors in gamma spaces, so we must decode the colors here:
         v_rgba = linear_from_srgba(a_srgba);
         v_tc = a_tc;
     }
@@ -226,6 +227,9 @@ impl Painter {
                 ..Default::default()
             };
 
+            // Egui outputs triangles in both winding orders:
+            let backface_culling = glium::BackfaceCullingMode::CullingDisabled;
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -245,6 +249,7 @@ impl Painter {
 
             let params = glium::DrawParameters {
                 blend,
+                backface_culling,
                 scissor: Some(glium::Rect {
                     left: clip_min_x,
                     bottom: height_in_pixels - clip_max_y,

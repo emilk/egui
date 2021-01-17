@@ -183,9 +183,13 @@ loop {
 }
 ```
 
-For a reference OpenGL backend, [see the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs).
+For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs) or [the `egui_web` `WebGL` painter](https://github.com/emilk/egui/blob/master/egui_web/src/webgl1.rs).
 
-#### Debugging your integration
+### Debugging your integration
+
+#### Things look jagged
+
+* Turn off backface culling.
 
 #### My text is blurry
 
@@ -194,9 +198,13 @@ For a reference OpenGL backend, [see the `egui_glium` painter](https://github.co
 
 #### My windows are too transparent or too dark
 
-* Make sure your texture sampler is clamped.
-* Make sure you consider sRGB (gamma) in your shaders.
-* Egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`
+* Egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
+* Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
+* Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
+  * Otherwise: remember to decode gamma in the fragment shader.
+* Decode the gamma of the incoming vertex colors in your vertex shader.
+* Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
+  * Otherwise: gamma-encode the colors before you write them again.
 
 ## Other
 
