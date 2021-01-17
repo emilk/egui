@@ -66,18 +66,14 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 
 /// Describes the font data and the sizes to use.
 ///
-/// This is how you can tell Egui which fonts and font sizes to use.
-///
 /// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
 ///
-/// ``` ignore
-/// # let mut ctx = egui::CtxRef::default();
-/// let mut fonts = egui::FontDefinitions::default();
+/// ```
+/// let mut fonts = epaint::text::FontDefinitions::default();
 /// // Large button text:
 /// fonts.family_and_size.insert(
-///     egui::TextStyle::Button,
-///     (egui::FontFamily::Proportional, 32.0));
-/// ctx.set_fonts(fonts);
+///     epaint::text::TextStyle::Button,
+///     (epaint::text::FontFamily::Proportional, 32.0));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -86,7 +82,7 @@ pub struct FontDefinitions {
     /// List of font names and their definitions.
     /// The definition must be the contents of either a `.ttf` or `.otf` font file.
     ///
-    /// Egui has built-in-default for these,
+    /// `epaint` has built-in-default for these,
     /// but you can override them if you like.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub font_data: BTreeMap<String, FontData>,
@@ -94,7 +90,7 @@ pub struct FontDefinitions {
     /// Which fonts (names) to use for each [`FontFamily`].
     ///
     /// The list should be a list of keys into [`Self::font_data`].
-    /// When looking for a character glyph Egui will start with
+    /// When looking for a character glyph `epaint` will start with
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     pub fonts_for_family: BTreeMap<FontFamily, Vec<String>>,
@@ -175,7 +171,7 @@ impl Default for FontDefinitions {
     }
 }
 
-/// The collection of fonts used by Egui.
+/// The collection of fonts used by `epaint`.
 ///
 /// Note: `Fonts::default()` is invalid (missing `pixels_per_point`).
 #[derive(Default)]

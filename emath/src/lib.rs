@@ -1,4 +1,6 @@
-//! Vectors, positions, rectangles etc.
+//! Opinionated 2D math library for building GUIs.
+//!
+//! Includes vectors, positions, rectangles etc.
 //!
 //! Conventions (unless otherwise specified):
 //!
@@ -127,7 +129,7 @@ where
     lerp(to, t)
 }
 
-/// Like `remap`, but also clamps the value so that the returned value is always in the `to` range.
+/// Like [`remap`], but also clamps the value so that the returned value is always in the `to` range.
 pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,

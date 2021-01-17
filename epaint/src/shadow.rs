@@ -1,5 +1,6 @@
 use super::*;
 
+/// A rectangular shadow with a soft penumbra.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Shadow {

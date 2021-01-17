@@ -2,7 +2,7 @@
 
 use crate::*;
 
-/// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
+/// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]

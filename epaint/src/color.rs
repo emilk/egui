@@ -1,3 +1,5 @@
+//! Color conversions and types.
+
 use emath::clamp;
 
 /// This format is used for space-efficient color representation (32 bits).

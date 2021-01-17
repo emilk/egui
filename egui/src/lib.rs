@@ -156,7 +156,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 // ----------------------------------------------------------------------------
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this file (and line) on Github
+/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
 /// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
 #[macro_export]
@@ -167,7 +167,7 @@ macro_rules! github_link_file_line {
     }};
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this file on github.
+/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
 ///
 /// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
 #[macro_export]

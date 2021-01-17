@@ -193,7 +193,7 @@ impl GridLayout {
 
 // ----------------------------------------------------------------------------
 
-/// A simple `Grid` layout.
+/// A simple grid layout.
 ///
 /// The contents of each cell be aligned to the left and center.
 /// If you want to add multiple widgets to a cell you need to group them with
@@ -209,6 +209,11 @@ impl GridLayout {
 ///     ui.label("Second row, first column");
 ///     ui.label("Second row, second column");
 ///     ui.label("Second row, third column");
+///     ui.end_row();
+///
+///     ui.horizontal(|ui| { ui.label("Same"); ui.label("cell"); });
+///     ui.label("Third row, second column");
+///     ui.end_row();
 /// });
 /// ```
 pub struct Grid {
@@ -220,6 +225,7 @@ pub struct Grid {
 }
 
 impl Grid {
+    /// Create a new [`Grid`] with a locally unique identifier.
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),

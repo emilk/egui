@@ -47,7 +47,7 @@
 pub mod color;
 pub mod mutex;
 mod shadow;
-pub mod shape;
+mod shape;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
@@ -108,7 +108,7 @@ pub(crate) struct PaintRect {
 #[derive(Clone, Debug)]
 pub struct ClippedShape(
     /// Clip / scissor rectangle.
-    /// Only show the part of the [`shape`] that falls within this.
+    /// Only show the part of the [`Shape`] that falls within this.
     pub emath::Rect,
     /// The shape
     pub Shape,

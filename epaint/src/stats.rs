@@ -1,5 +1,8 @@
+//! Collect statistics about what is being painted.
+
 use crate::*;
 
+/// Size of the elements in a vector/array.
 #[derive(Clone, Copy, PartialEq)]
 enum ElementSize {
     Unknown,
@@ -13,6 +16,7 @@ impl Default for ElementSize {
     }
 }
 
+/// Aggregate information about a bunch of allocations.
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct AllocInfo {
     element_size: ElementSize,
@@ -131,6 +135,7 @@ impl AllocInfo {
     }
 }
 
+/// Collected allocation statistics for shapes and meshes.
 #[derive(Clone, Copy, Default)]
 pub struct PaintStats {
     pub shapes: AllocInfo,

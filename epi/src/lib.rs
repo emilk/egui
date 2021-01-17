@@ -160,7 +160,7 @@ impl<'a> Frame<'a> {
     }
 }
 
-/// Information about the web environment
+/// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
