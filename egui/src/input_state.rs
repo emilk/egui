@@ -16,7 +16,7 @@ pub struct InputState {
     /// The raw input we got this frame
     pub raw: RawInput,
 
-    pub mouse: MouseInput,
+    pub mouse: CursorState,
 
     /// How many pixels the user scrolled
     pub scroll_delta: Vec2,
@@ -68,7 +68,7 @@ impl Default for InputState {
 
 /// Mouse (or touch) state.
 #[derive(Clone, Debug)]
-pub struct MouseInput {
+pub struct CursorState {
     /// Is the button currently down?
     /// true the frame when it is pressed,
     /// false the frame it is released.
@@ -113,7 +113,7 @@ pub struct MouseInput {
     pos_history: History<Pos2>,
 }
 
-impl Default for MouseInput {
+impl Default for CursorState {
     fn default() -> Self {
         Self {
             down: false,
@@ -236,9 +236,9 @@ impl InputState {
     }
 }
 
-impl MouseInput {
+impl CursorState {
     #[must_use]
-    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> MouseInput {
+    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> CursorState {
         let delta = new
             .mouse_pos
             .and_then(|new| self.pos.map(|last| new - last))
@@ -289,7 +289,7 @@ impl MouseInput {
             Vec2::default()
         };
 
-        MouseInput {
+        CursorState {
             down: new.mouse_down && new.mouse_pos.is_some(),
             pressed,
             released,
@@ -354,7 +354,7 @@ impl InputState {
     }
 }
 
-impl MouseInput {
+impl CursorState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             down,
