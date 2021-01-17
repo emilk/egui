@@ -237,13 +237,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 }
 
                 if let Some(window_size) = window_size {
-                    display
-                        .gl_window()
-                        .window()
-                        .set_inner_size(glutin::dpi::LogicalSize {
-                            width: window_size.x,
-                            height: window_size.y,
-                        });
+                    display.gl_window().window().set_inner_size(
+                        glutin::dpi::PhysicalSize {
+                            width: (ctx.pixels_per_point() * window_size.x).round(),
+                            height: (ctx.pixels_per_point() * window_size.y).round(),
+                        }
+                        .to_logical::<f32>(native_pixels_per_point(&display) as f64),
+                    );
                 }
 
                 *control_flow = if quit {

@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed 🐛
 
 * Fix a bug where key releases weren't sent to Egui
+* Fix `set_window_size` for non-native `pixels_per_point`.
 
 
 ## 0.7.0 - 2021-01-04
