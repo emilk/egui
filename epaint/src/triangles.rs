@@ -29,7 +29,7 @@ pub struct Triangles {
     /// The vertex data indexed by `indices`.
     pub vertices: Vec<Vertex>,
 
-    /// The texture to use when drawing these triangles
+    /// The texture to use when drawing these triangles.
     pub texture_id: TextureId,
 }
 

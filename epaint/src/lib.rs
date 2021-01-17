@@ -61,7 +61,7 @@ pub use {
     shape::Shape,
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::{PaintJob, PaintJobs, TessellationOptions},
+    tessellator::TessellationOptions,
     text::{Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
     triangles::{Triangles, Vertex},
@@ -101,3 +101,21 @@ pub(crate) struct PaintRect {
     pub fill: Color32,
     pub stroke: Stroke,
 }
+
+/// A [`Shape`] within a clip rectangle.
+///
+/// Everything is using logical points.
+#[derive(Clone, Debug)]
+pub struct ClippedShape(
+    /// Clip / scissor rectangle.
+    /// Only show the part of the [`shape`] that falls within this.
+    pub emath::Rect,
+    /// The shape
+    pub Shape,
+);
+
+/// A clip triangle and some textured triangles, all in points (logical pixels).
+pub type PaintJob = (emath::Rect, Triangles);
+
+/// Grouped by clip rectangles, in points (logical pixels).
+pub type PaintJobs = Vec<PaintJob>;

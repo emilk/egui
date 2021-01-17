@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Center window titles.
 * Tweak size and alignment of some emojis to match other text.
 * Rename `PaintCmd` to `Shape`.
+* Replace tuple `(Rect, Shape)` with tuple-struct `ClippedShape`.
 * Rename feature `"serde"` to `"persistence"`.
 * Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 

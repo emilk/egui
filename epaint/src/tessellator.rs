@@ -9,12 +9,6 @@ use crate::{text::Fonts, *};
 use emath::*;
 use std::f32::consts::TAU;
 
-/// A clip triangle and some textured triangles.
-pub type PaintJob = (Rect, Triangles);
-
-/// Grouped by clip rectangles, in pixel coordinates
-pub type PaintJobs = Vec<PaintJob>;
-
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Default)]
@@ -670,14 +664,14 @@ impl Tessellator {
 /// ## Returns
 /// A list of clip rectangles with matching [`Triangles`].
 pub fn tessellate_shapes(
-    shapes: Vec<(Rect, Shape)>,
+    shapes: Vec<ClippedShape>,
     options: TessellationOptions,
     fonts: &Fonts,
 ) -> Vec<(Rect, Triangles)> {
     let mut tessellator = Tessellator::from_options(options);
 
     let mut jobs = PaintJobs::default();
-    for (clip_rect, shape) in shapes {
+    for ClippedShape(clip_rect, shape) in shapes {
         let start_new_job = match jobs.last() {
             None => true,
             Some(job) => job.0 != clip_rect || job.1.texture_id != shape.texture_id(),

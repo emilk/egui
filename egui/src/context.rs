@@ -596,7 +596,7 @@ impl Context {
     /// You can transform the returned shapes into triangles with a call to
     /// `Context::tessellate`.
     #[must_use]
-    pub fn end_frame(&self) -> (Output, Vec<(Rect, Shape)>) {
+    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
@@ -613,13 +613,13 @@ impl Context {
         (output, shapes)
     }
 
-    fn drain_paint_lists(&self) -> Vec<(Rect, Shape)> {
+    fn drain_paint_lists(&self) -> Vec<ClippedShape> {
         let memory = self.memory();
         self.graphics().drain(memory.areas.order()).collect()
     }
 
     /// Tessellate the given shapes into triangle meshes.
-    pub fn tessellate(&self, shapes: Vec<(Rect, Shape)>) -> PaintJobs {
+    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> PaintJobs {
         let mut tessellation_options = self.memory().options.tessellation_options;
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations

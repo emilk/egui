@@ -1,4 +1,4 @@
-use {crate::*, emath::*};
+use crate::*;
 
 #[derive(Clone, Copy, PartialEq)]
 enum ElementSize {
@@ -146,13 +146,13 @@ pub struct PaintStats {
 }
 
 impl PaintStats {
-    pub fn from_shapes(shapes: &[(Rect, Shape)]) -> Self {
+    pub fn from_shapes(shapes: &[ClippedShape]) -> Self {
         let mut stats = Self::default();
         stats.shape_path.element_size = ElementSize::Heterogenous; // nicer display later
         stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.shapes = AllocInfo::from_slice(shapes);
-        for (_, shape) in shapes {
+        for ClippedShape(_, shape) in shapes {
             stats.add(shape);
         }
         stats

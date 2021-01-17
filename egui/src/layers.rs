@@ -1,6 +1,6 @@
+use crate::{math::Rect, Id, *};
 use epaint::ahash::AHashMap;
-
-use crate::{math::Rect, paint::Shape, Id, *};
+use epaint::{ClippedShape, Shape};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -76,7 +76,7 @@ pub struct ShapeIdx(usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
-pub struct PaintList(Vec<(Rect, Shape)>);
+pub struct PaintList(Vec<ClippedShape>);
 
 impl PaintList {
     pub fn is_empty(&self) -> bool {
@@ -86,13 +86,13 @@ impl PaintList {
     /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
-        self.0.push((clip_rect, shape));
+        self.0.push(ClippedShape(clip_rect, shape));
         idx
     }
 
     pub fn extend(&mut self, clip_rect: Rect, mut shapes: Vec<Shape>) {
         self.0
-            .extend(shapes.drain(..).map(|shape| (clip_rect, shape)))
+            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)))
     }
 
     /// Modify an existing [`Shape`].
@@ -104,12 +104,12 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
         assert!(idx.0 < self.0.len());
-        self.0[idx.0] = (clip_rect, shape);
+        self.0[idx.0] = ClippedShape(clip_rect, shape);
     }
 
     /// Translate each [`Shape`] and clip rectangle by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
-        for (clip_rect, shape) in &mut self.0 {
+        for ClippedShape(clip_rect, shape) in &mut self.0 {
             *clip_rect = clip_rect.translate(delta);
             shape.translate(delta);
         }
@@ -126,10 +126,7 @@ impl GraphicLayers {
             .or_default()
     }
 
-    pub fn drain(
-        &mut self,
-        area_order: &[LayerId],
-    ) -> impl ExactSizeIterator<Item = (Rect, Shape)> {
+    pub fn drain(&mut self, area_order: &[LayerId]) -> impl ExactSizeIterator<Item = ClippedShape> {
         let mut all_shapes: Vec<_> = Default::default();
 
         for &order in &Order::ALL {
