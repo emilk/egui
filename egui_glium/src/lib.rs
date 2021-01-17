@@ -49,13 +49,13 @@ pub fn input_to_egui(
     input_state: &mut GliumInputState,
     control_flow: &mut ControlFlow,
 ) {
-    use glutin::event::WindowEvent::*;
+    use glutin::event::WindowEvent;
     match event {
-        CloseRequested | Destroyed => *control_flow = ControlFlow::Exit,
-        MouseInput { state, .. } => {
+        WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
+        WindowEvent::MouseInput { state, .. } => {
             input_state.raw.mouse_down = state == glutin::event::ElementState::Pressed;
         }
-        CursorMoved {
+        WindowEvent::CursorMoved {
             position: pos_in_pixels,
             ..
         } => {
@@ -64,10 +64,10 @@ pub fn input_to_egui(
                 pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
             ));
         }
-        CursorLeft { .. } => {
+        WindowEvent::CursorLeft { .. } => {
             input_state.raw.mouse_pos = None;
         }
-        ReceivedCharacter(ch) => {
+        WindowEvent::ReceivedCharacter(ch) => {
             if printable_char(ch)
                 && !input_state.raw.modifiers.ctrl
                 && !input_state.raw.modifiers.mac_cmd
@@ -75,7 +75,7 @@ pub fn input_to_egui(
                 input_state.raw.events.push(Event::Text(ch.to_string()));
             }
         }
-        KeyboardInput { input, .. } => {
+        WindowEvent::KeyboardInput { input, .. } => {
             if let Some(keycode) = input.virtual_keycode {
                 let pressed = input.state == glutin::event::ElementState::Pressed;
 
@@ -135,7 +135,7 @@ pub fn input_to_egui(
                 }
             }
         }
-        MouseWheel { delta, .. } => {
+        WindowEvent::MouseWheel { delta, .. } => {
             match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 24.0; // TODO
