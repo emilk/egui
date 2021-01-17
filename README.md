@@ -156,6 +156,7 @@ The same code can be compiled to a native app or a web app.
 
 ### 3rd party
 
+* [`bevy_egui`](https://github.com/mvlabat/bevy_egui) egui bindings for [the Bevy game engine](https://bevyengine.org/).
 * [`wgpu`](https://crates.io/crates/wgpu) WebGPU API wrapper:
   * [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend) with [example code](https://github.com/hasenbanck/egui_example)
   * Alternative: [egui_winit_wgpu](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
