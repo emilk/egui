@@ -57,6 +57,10 @@ impl ColorTest {
         ui: &mut Ui,
         mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         ui.label("This is made to test that the egui painter backend is set up correctly, so that all colors are interpolated and blended in linear space with premultiplied alpha.");
         ui.label("If everything is set up correctly, all groups of gradients will look uniform");
 

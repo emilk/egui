@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "criterion",
  "egui",

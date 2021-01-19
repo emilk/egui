@@ -49,6 +49,7 @@ mod apps;
 pub(crate) mod frame_history;
 mod wrap_app;
 
+pub use apps::ColorTest; // used for tests
 pub use apps::DemoWindows; // used for tests
 pub use wrap_app::WrapApp;
 

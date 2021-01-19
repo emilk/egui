@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_lib"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition = "2018"
