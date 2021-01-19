@@ -158,6 +158,34 @@ impl Area {
         add_contents(&mut content_ui);
         prepared.end(ctx, content_ui)
     }
+
+    pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {
+        // must be called first so animation managers know the latest state
+        let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
+
+        if is_open {
+            // we actually only show close animations.
+            // when opening a window we show it right away.
+            return;
+        }
+        if visibility_factor <= 0.0 {
+            return;
+        }
+
+        let layer_id = LayerId::new(self.order, self.id);
+        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
+        if let Some(area_rect) = area_rect {
+            let clip_rect = ctx.available_rect();
+            let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
+
+            // shrinkage: looks kinda a bad on its own
+            // let area_rect =
+            //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
+
+            let frame = frame.multiply_with_opacity(visibility_factor);
+            painter.add(frame.paint(area_rect));
+        }
+    }
 }
 
 impl Prepared {

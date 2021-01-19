@@ -1,11 +1,15 @@
 use super::*;
 
-/// A rectangular shadow with a soft penumbra.
+/// The color and fuzziness of a fuzzy shape.
+/// Can be used for a rectangular shadow with a soft penumbra.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Shadow {
-    // The shadow extends this much outside the rect.
+    /// The shadow extends this much outside the rect.
+    /// The size of the fuzzy penumbra.
     pub extrusion: f32,
+
+    /// Color of the opaque center of the shadow.
     pub color: Color32,
 }
 

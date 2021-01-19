@@ -224,7 +224,12 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        if matches!(open, Some(false)) && !ctx.memory().everything_is_visible() {
+        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+
+        let is_open = !matches!(open, Some(false)) || ctx.memory().everything_is_visible();
+        area.show_open_close_animation(ctx, &frame, is_open);
+
+        if !is_open {
             return None;
         }
 
@@ -243,8 +248,6 @@ impl<'open> Window<'open> {
         let area = area.movable(false); // We move it manually
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
-
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let mut area = area.begin(ctx);
 

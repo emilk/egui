@@ -129,6 +129,14 @@ impl Color32 {
     pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
+
+    /// Multiply with 0.5 to make color half as opaque.
+    pub fn linear_multiply(self, factor: f32) -> Color32 {
+        debug_assert!(0.0 <= factor && factor <= 1.0);
+        // As an unfortunate side-effect of using premultiplied alpha
+        // we need a somewhat expensive conversion to linear space and back.
+        Rgba::from(self).multiply(factor).into()
+    }
 }
 
 // ----------------------------------------------------------------------------

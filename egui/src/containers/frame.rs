@@ -90,6 +90,13 @@ impl Frame {
         self.stroke = stroke;
         self
     }
+
+    pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
+        self.fill = self.fill.linear_multiply(opacity);
+        self.stroke.color = self.stroke.color.linear_multiply(opacity);
+        self.shadow.color = self.shadow.color.linear_multiply(opacity);
+        self
+    }
 }
 
 pub struct Prepared {
@@ -122,6 +129,31 @@ impl Frame {
         prepared.end(ui);
         ret
     }
+
+    pub fn paint(&self, outer_rect: Rect) -> Shape {
+        let Self {
+            margin: _,
+            corner_radius,
+            shadow,
+            fill,
+            stroke,
+        } = *self;
+
+        let frame_shape = Shape::Rect {
+            rect: outer_rect,
+            corner_radius,
+            fill,
+            stroke,
+        };
+
+        if shadow == Default::default() {
+            frame_shape
+        } else {
+            let shadow = shadow.tessellate(outer_rect, corner_radius);
+            let shadow = Shape::Triangles(shadow);
+            Shape::Vec(vec![shadow, frame_shape])
+        }
+    }
 }
 
 impl Prepared {
@@ -141,26 +173,9 @@ impl Prepared {
             ..
         } = self;
 
-        let frame_shape = Shape::Rect {
-            rect: outer_rect,
-            corner_radius: frame.corner_radius,
-            fill: frame.fill,
-            stroke: frame.stroke,
-        };
-
-        if frame.shadow == Default::default() {
-            ui.painter().set(where_to_put_background, frame_shape);
-        } else {
-            let shadow = frame.shadow.tessellate(outer_rect, frame.corner_radius);
-            let shadow = Shape::Triangles(shadow);
-            ui.painter().set(
-                where_to_put_background,
-                Shape::Vec(vec![shadow, frame_shape]),
-            )
-        };
-
+        let shape = frame.paint(outer_rect);
+        ui.painter().set(where_to_put_background, shape);
         ui.advance_cursor_after_rect(outer_rect);
-
         outer_rect
     }
 }

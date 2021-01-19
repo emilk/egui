@@ -420,8 +420,9 @@ fn stroke_path(
 
 fn mul_color(color: Color32, factor: f32) -> Color32 {
     debug_assert!(0.0 <= factor && factor <= 1.0);
-    // sRGBA correct fading requires conversion to linear space and back again because of premultiplied alpha
-    Rgba::from(color).multiply(factor).into()
+    // As an unfortunate side-effect of using premultiplied alpha
+    // we need a somewhat expensive conversion to linear space and back.
+    color.linear_multiply(factor)
 }
 
 // ----------------------------------------------------------------------------
