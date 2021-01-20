@@ -18,7 +18,17 @@ impl Frame {
         Self::default()
     }
 
-    pub(crate) fn panel(style: &Style) -> Self {
+    /// For when you want to group a few widgets together within a frame.
+    pub fn group(style: &Style) -> Self {
+        Self {
+            margin: Vec2::new(8.0, 8.0),
+            corner_radius: 4.0,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn side_top_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 2.0),
             corner_radius: 0.0,
@@ -28,7 +38,7 @@ impl Frame {
         }
     }
 
-    pub fn central_panel(style: &Style) -> Self {
+    pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 8.0),
             corner_radius: 0.0,

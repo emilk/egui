@@ -104,8 +104,7 @@ impl Widgets {
             ui.label(format!("The button has been clicked {} times.", self.count));
         });
 
-        ui.separator();
-        {
+        egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Drag this value to change it:");
                 ui.add(DragValue::f64(&mut self.sliders.value).speed(0.01));
@@ -122,7 +121,7 @@ impl Widgets {
                 .show(ui, |ui| {
                     self.sliders.ui(ui);
                 });
-        }
+        });
 
         ui.separator();
 

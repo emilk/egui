@@ -46,7 +46,7 @@ impl SidePanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::panel(&ctx.style());
+        let frame = Frame::side_top_panel(&ctx.style());
         let (r, used_space) = frame.show(&mut panel_ui, |ui| {
             let r = add_contents(ui);
             let used_space = ui.min_rect();
@@ -109,7 +109,7 @@ impl TopPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::panel(&ctx.style());
+        let frame = Frame::side_top_panel(&ctx.style());
         let (r, used_space) = frame.show(&mut panel_ui, |ui| {
             let r = add_contents(ui);
             let used_space = ui.min_rect();
