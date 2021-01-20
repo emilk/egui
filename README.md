@@ -38,7 +38,9 @@ If you have questions, use [Discussions](https://github.com/emilk/egui/discussio
 
 [Click to run egui web demo](https://emilk.github.io/egui/index.html).
 
-[Hobogo](https://emilk.github.io/hobogo/index.html): A small game I made using egui. Source: <https://github.com/emilk/hobogo>
+To test the demo app locally, run `cargo run --release -p egui_demo_app`.
+
+On Linux you need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`.
 
 ### Example
 
