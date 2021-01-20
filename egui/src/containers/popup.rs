@@ -1,3 +1,5 @@
+//! Show popup windows, tooltips, context menus etc.
+
 use crate::*;
 
 /// Show a tooltip at the current mouse position (if any).
@@ -33,7 +35,7 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
 
     //  TODO: default size
     let id = Id::tooltip();
-    let response = show_popup(ctx, id, window_pos, add_contents);
+    let response = show_tooltip_area(ctx, id, window_pos, add_contents);
 
     let tooltip_rect = tooltip_rect.unwrap_or_else(Rect::nothing);
     ctx.frame_state().tooltip_rect = Some(tooltip_rect.union(response.rect));
@@ -58,7 +60,7 @@ pub fn show_tooltip_text(ctx: &CtxRef, text: impl Into<String>) {
 }
 
 /// Show a pop-over window.
-fn show_popup(
+fn show_tooltip_area(
     ctx: &CtxRef,
     id: Id,
     window_pos: Pos2,
@@ -75,4 +77,53 @@ fn show_popup(
                 add_contents(ui);
             })
         })
+}
+
+/// Shows a popup below another widget.
+///
+/// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
+///
+/// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// let response = ui.button("Open popup");
+/// let popup_id = ui.make_persistent_id("my_unique_id");
+/// if response.clicked {
+///     ui.memory().toggle_popup(popup_id);
+/// }
+/// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
+///     ui.label("Some more info, or things you can select:");
+///     ui.label("…");
+/// });
+/// ```
+pub fn popup_below_widget(
+    ui: &Ui,
+    popup_id: Id,
+    widget_response: &Response,
+    add_contents: impl FnOnce(&mut Ui),
+) {
+    if ui.memory().is_popup_open(popup_id) {
+        let parent_clip_rect = ui.clip_rect();
+
+        Area::new(popup_id)
+            .order(Order::Foreground)
+            .fixed_pos(widget_response.rect.left_bottom())
+            .show(ui.ctx(), |ui| {
+                ui.set_clip_rect(parent_clip_rect); // for when the combo-box is in a scroll area.
+                let frame = Frame::popup(ui.style());
+                let frame_margin = frame.margin;
+                frame.show(ui, |ui| {
+                    ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
+                        ui.set_width(widget_response.rect.width() - 2.0 * frame_margin.x);
+                        add_contents(ui)
+                    });
+                });
+            });
+
+        if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !widget_response.clicked
+        {
+            ui.memory().close_popup();
+        }
+    }
 }

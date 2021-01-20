@@ -54,8 +54,6 @@ pub fn combo_box(
     selected: impl Into<String>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
-    const MAX_COMBO_HEIGHT: f32 = 128.0;
-
     let popup_id = button_id.with("popup");
 
     let button_active = ui.memory().is_popup_open(popup_id);
@@ -85,33 +83,14 @@ pub fn combo_box(
         ui.painter()
             .galley(text_rect.min, galley, text_style, visuals.text_color());
     });
+
     if button_response.clicked {
         ui.memory().toggle_popup(popup_id);
     }
-
-    if ui.memory().is_popup_open(popup_id) {
-        let parent_clip_rect = ui.clip_rect();
-
-        Area::new(popup_id)
-            .order(Order::Foreground)
-            .fixed_pos(button_response.rect.left_bottom())
-            .show(ui.ctx(), |ui| {
-                ui.set_clip_rect(parent_clip_rect); // for when the combo-box is in a scroll area.
-                let frame = Frame::popup(ui.style());
-                let frame_margin = frame.margin;
-                frame.show(ui, |ui| {
-                    ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        ui.set_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents);
-                    });
-                });
-            });
-
-        if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked
-        {
-            ui.memory().close_popup();
-        }
-    }
+    const MAX_COMBO_HEIGHT: f32 = 128.0;
+    crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
+        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents)
+    });
 
     button_response
 }

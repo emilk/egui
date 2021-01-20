@@ -7,7 +7,7 @@ pub(crate) mod collapsing_header;
 mod combo_box;
 pub(crate) mod frame;
 pub(crate) mod panel;
-pub(crate) mod popup;
+pub mod popup;
 pub(crate) mod resize;
 pub(crate) mod scroll_area;
 pub(crate) mod window;
