@@ -197,8 +197,9 @@ impl Galley {
         let mut pcursor_it = PCursor::default();
 
         for (row_nr, row) in self.rows.iter().enumerate() {
+            let is_pos_within_row = pos.y >= row.y_min && pos.y <= row.y_max;
             let y_dist = (row.y_min - pos.y).abs().min((row.y_max - pos.y).abs());
-            if y_dist < best_y_dist {
+            if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 let column = row.char_at(pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
@@ -216,6 +217,10 @@ impl Galley {
                         offset: pcursor_it.offset + column,
                         prefer_next_row,
                     },
+                };
+
+                if is_pos_within_row {
+                    return cursor;
                 }
             }
             ccursor_index += row.char_count_including_newline();
