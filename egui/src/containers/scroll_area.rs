@@ -213,8 +213,8 @@ impl Prepared {
 
             let input = ui.input();
             if content_response.dragged() {
-                state.offset.y -= input.pointer.delta.y;
-                state.vel = input.pointer.velocity;
+                state.offset.y -= input.pointer.delta().y;
+                state.vel = input.pointer.velocity();
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.

@@ -225,10 +225,10 @@ pub struct PointerState {
     interact_pos: Option<Pos2>,
 
     /// How much the pointer moved compared to last frame, in points.
-    pub delta: Vec2,
+    delta: Vec2,
 
     /// Current velocity of pointer.
-    pub velocity: Vec2,
+    velocity: Vec2,
 
     /// Recent movement of the pointer.
     /// Used for calculating velocity of pointer.
@@ -238,7 +238,7 @@ pub struct PointerState {
 
     /// Where did the current click/drag originate?
     /// `None` if no mouse button is down.
-    pub press_origin: Option<Pos2>,
+    press_origin: Option<Pos2>,
 
     /// If the pointer button is down, will it register as a click when released?
     /// Set to true on pointer button down, set to false when pointer button moves too much.
@@ -273,7 +273,7 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
+    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
         // self.clicks.clear();
         self.pointer_events.clear();
 
@@ -384,6 +384,22 @@ impl PointerState {
         !self.pointer_events.is_empty() || self.delta != Vec2::zero()
     }
 
+    /// How much the pointer moved compared to last frame, in points.
+    pub fn delta(&self) -> Vec2 {
+        self.delta
+    }
+
+    /// Current velocity of pointer.
+    pub fn velocity(&self) -> Vec2 {
+        self.velocity
+    }
+
+    /// Where did the current click/drag originate?
+    /// `None` if no mouse button is down.
+    pub fn press_origin(&self) -> Option<Pos2> {
+        self.press_origin
+    }
+
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     pub(crate) fn latest_pos(&self) -> Option<Pos2> {
@@ -395,6 +411,8 @@ impl PointerState {
         self.latest_pos
     }
 
+    /// If you detect a click or drag and wants to know where it happened, use this.
+    ///
     /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
     /// if there were interactions this frame.
     /// When tapping a touch screen, this will be the location of the touch.
@@ -402,6 +420,9 @@ impl PointerState {
         self.interact_pos
     }
 
+    /// Do we have a pointer?
+    ///
+    /// `false` if the mouse is not over the egui area, or if no touches are down on touch screens.
     pub fn has_pointer(&self) -> bool {
         self.latest_pos.is_some()
     }

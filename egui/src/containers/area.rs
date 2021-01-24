@@ -250,7 +250,7 @@ impl Prepared {
         );
 
         if move_response.dragged() && movable {
-            state.pos += ctx.input().pointer.delta;
+            state.pos += ctx.input().pointer.delta();
         }
 
         state.pos = ctx.constrain_window_rect(state.rect()).min;

@@ -467,7 +467,7 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
         }
     } else {
         // movement
-        rect = rect.translate(pointer_pos - ctx.input().pointer.press_origin?);
+        rect = rect.translate(pointer_pos - ctx.input().pointer.press_origin()?);
     }
 
     Some(rect)
