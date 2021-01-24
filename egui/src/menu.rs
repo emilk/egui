@@ -90,7 +90,7 @@ fn menu_impl<'c>(
         } else {
             bar_state.open_menu = Some(menu_id);
         }
-    } else if button_response.hovered && bar_state.open_menu.is_some() {
+    } else if button_response.hovered() && bar_state.open_menu.is_some() {
         bar_state.open_menu = Some(menu_id);
     }
 

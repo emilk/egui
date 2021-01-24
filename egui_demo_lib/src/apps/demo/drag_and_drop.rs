@@ -8,7 +8,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 
         // Check for drags:
         let response = ui.interact(response.rect, id, Sense::drag());
-        if response.hovered {
+        if response.hovered() {
             ui.output().cursor_icon = CursorIcon::Grab;
         }
     } else {
@@ -49,7 +49,7 @@ pub fn drop_target<R>(
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
 
-    let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered {
+    let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
         ui.style().visuals.widgets.active
     } else if is_being_dragged && can_accept_what_is_being_dragged {
         ui.style().visuals.widgets.inactive
@@ -134,7 +134,7 @@ impl super::View for DragAndDropDemo {
                 .1;
 
                 let is_being_dragged = ui.memory().is_anything_being_dragged();
-                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered {
+                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
                     drop_col = Some(col_idx);
                 }
             }

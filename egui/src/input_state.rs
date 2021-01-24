@@ -274,7 +274,6 @@ impl Default for PointerState {
 impl PointerState {
     #[must_use]
     pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
-        // self.clicks.clear();
         self.pointer_events.clear();
 
         let old_pos = self.latest_pos;
@@ -366,7 +365,7 @@ impl PointerState {
         } else {
             // we do not clear the `pos_history` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
-            // the user tried to throw
+            // the user tried to throw.
         }
 
         self.pos_history.flush(time);

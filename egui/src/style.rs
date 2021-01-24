@@ -199,7 +199,7 @@ impl Widgets {
             &self.active
         } else if response.sense == crate::Sense::hover() {
             &self.disabled
-        } else if response.hovered {
+        } else if response.hovered() {
             &self.hovered
         } else {
             &self.inactive

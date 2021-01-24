@@ -115,7 +115,7 @@ impl CCursorPair {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
-/// if response.lost_kb_focus {
+/// if response.lost_kb_focus() {
 ///     // use my_string
 /// }
 /// ```
@@ -324,12 +324,12 @@ impl<'t> TextEdit<'t> {
 
                 let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
 
-                if response.hovered && ui.input().pointer.is_moving() {
+                if response.hovered() && ui.input().pointer.is_moving() {
                     // preview:
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
-                if response.hovered && response.double_clicked() {
+                if response.hovered() && response.double_clicked() {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursorp = select_word_at(text, center.ccursor);
@@ -337,7 +337,7 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                } else if response.hovered && ui.input().pointer.any_pressed() {
+                } else if response.hovered() && ui.input().pointer.any_pressed() {
                     ui.memory().request_kb_focus(id);
                     if ui.input().modifiers.shift {
                         if let Some(cursorp) = &mut state.cursorp {
@@ -356,7 +356,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        if ui.input().pointer.any_pressed() && !response.hovered {
+        if ui.input().pointer.any_pressed() && !response.hovered() {
             // User clicked somewhere else
             ui.memory().surrender_kb_focus(id);
         }
@@ -365,7 +365,7 @@ impl<'t> TextEdit<'t> {
             ui.memory().surrender_kb_focus(id);
         }
 
-        if response.hovered && enabled {
+        if response.hovered() && enabled {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 

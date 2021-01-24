@@ -294,7 +294,7 @@ impl Resize {
         if let Some(corner_response) = corner_response {
             paint_resize_corner(ui, &corner_response);
 
-            if corner_response.hovered || corner_response.dragged() {
+            if corner_response.hovered() || corner_response.dragged() {
                 ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }

@@ -48,7 +48,7 @@ impl Widget for Hyperlink {
         let galley = font.layout_multiline(text, ui.available_width());
         let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
 
-        if response.hovered {
+        if response.hovered() {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if response.clicked() {
@@ -58,7 +58,7 @@ impl Widget for Hyperlink {
         let color = ui.style().visuals.hyperlink_color;
         let visuals = ui.style().interact(&response);
 
-        if response.hovered {
+        if response.hovered() {
             // Underline:
             for line in &galley.rows {
                 let pos = rect.min;

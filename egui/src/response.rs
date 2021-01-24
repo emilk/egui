@@ -31,7 +31,7 @@ pub struct Response {
 
     // OUT:
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
-    pub hovered: bool,
+    pub(crate) hovered: bool,
 
     /// The pointer clicked this thing this frame.
     pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
@@ -56,20 +56,8 @@ pub struct Response {
     /// This widget has the keyboard focus (i.e. is receiving key pressed).
     pub(crate) has_kb_focus: bool,
 
-    /// The widget had keyboard focus and lost it,
-    /// perhaps because the user pressed enter.
-    /// If you want to do an action when a user presses enter in a text field,
-    /// use this.
-    ///
-    /// ```
-    /// # let mut ui = egui::Ui::__test();
-    /// # let mut my_text = String::new();
-    /// # fn do_request(_: &str) {}
-    /// if ui.text_edit_singleline(&mut my_text).lost_kb_focus {
-    ///     do_request(&my_text);
-    /// }
-    /// ```
-    pub lost_kb_focus: bool,
+    /// The widget had keyboard focus and lost it.
+    pub(crate) lost_kb_focus: bool,
 }
 
 impl std::fmt::Debug for Response {
@@ -119,6 +107,28 @@ impl Response {
         self.double_clicked[PointerButton::Primary as usize]
     }
 
+    /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    pub fn hovered(&self) -> bool {
+        self.hovered
+    }
+
+    /// The widget had keyboard focus and lost it,
+    /// perhaps because the user pressed enter.
+    /// If you want to do an action when a user presses enter in a text field,
+    /// use this.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// # let mut my_text = String::new();
+    /// # fn do_request(_: &str) {}
+    /// if ui.text_edit_singleline(&mut my_text).lost_kb_focus() {
+    ///     do_request(&my_text);
+    /// }
+    /// ```
+    pub fn lost_kb_focus(&self) -> bool {
+        self.lost_kb_focus
+    }
+
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`PointerState::button_down`]
@@ -157,7 +167,7 @@ impl Response {
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if (self.hovered && self.ctx.input().pointer.tooltip_pos().is_some())
+        if (self.hovered() && self.ctx.input().pointer.tooltip_pos().is_some())
             || self.ctx.memory().everything_is_visible()
         {
             crate::containers::show_tooltip(&self.ctx, add_contents);
@@ -274,7 +284,7 @@ impl std::ops::BitOr for Response {
 /// let mut response = ui.add(widget_a);
 /// response |= ui.add(widget_b);
 /// response |= ui.add(widget_c);
-/// if response.hovered { ui.label("You hovered at least one of the widgets"); }
+/// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
 /// ```
 impl std::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {
