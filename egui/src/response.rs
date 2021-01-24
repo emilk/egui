@@ -31,10 +31,10 @@ pub struct Response {
     pub hovered: bool,
 
     /// The pointer clicked this thing this frame.
-    pub clicked: bool,
+    pub(crate) clicked: bool,
 
     /// The thing was double-clicked.
-    pub double_clicked: bool,
+    pub(crate) double_clicked: bool,
 
     /// The pointer is interacting with this thing (e.g. dragging it).
     pub active: bool,
@@ -89,6 +89,16 @@ impl std::fmt::Debug for Response {
 }
 
 impl Response {
+    /// Returns true if this widget was clicked this frame by the primary button.
+    pub fn clicked(&self) -> bool {
+        self.clicked
+    }
+
+    /// Returns true if this widget was double-clicked this frame by the primary button.
+    pub fn double_clicked(&self) -> bool {
+        self.double_clicked
+    }
+
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
@@ -116,9 +126,9 @@ impl Response {
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.label("hello");
-    /// assert!(!response.clicked); // labels don't sense clicks
+    /// assert!(!response.clicked()); // labels don't sense clicks
     /// let response = response.interact(egui::Sense::click());
-    /// if response.clicked { /* … */ }
+    /// if response.clicked() { /* … */ }
     /// ```
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx
@@ -133,7 +143,7 @@ impl Response {
     /// egui::ScrollArea::auto_sized().show(ui, |ui| {
     ///     for i in 0..1000 {
     ///         let response = ui.button(format!("Button {}", i));
-    ///         if response.clicked {
+    ///         if response.clicked() {
     ///             response.scroll_to_me(Align::Center);
     ///         }
     ///     }

@@ -185,7 +185,7 @@ impl<'a> Widget for DragValue<'a> {
                 value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                 suffix
             ));
-            if response.clicked {
+            if response.clicked() {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
             } else if response.active {

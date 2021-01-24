@@ -33,13 +33,13 @@ impl Scrolls {
             ui.add(Slider::usize(&mut self.track_item, 1..=50).text("Track Item"));
         });
         let (scroll_offset, _) = ui.horizontal(|ui| {
-            let scroll_offset = ui.small_button("Scroll Offset").clicked;
+            let scroll_offset = ui.small_button("Scroll Offset").clicked();
             ui.add(DragValue::f32(&mut self.offset).speed(1.0).suffix("px"));
             scroll_offset
         });
 
-        let scroll_top = ui.button("Scroll to top").clicked;
-        let scroll_bottom = ui.button("Scroll to bottom").clicked;
+        let scroll_top = ui.button("Scroll to top").clicked();
+        let scroll_bottom = ui.button("Scroll to bottom").clicked();
         if scroll_bottom || scroll_top {
             self.tracking = false;
         }

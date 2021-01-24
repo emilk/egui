@@ -57,7 +57,7 @@ impl DemoWindow {
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.label(format!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns && col.button("Delete this").clicked {
+                    if i + 1 == self.num_columns && col.button("Delete this").clicked() {
                         self.num_columns -= 1;
                     }
                 }
@@ -287,15 +287,15 @@ impl LayoutDemo {
 
     pub fn content_ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            if ui.button("Top-down").clicked {
+            if ui.button("Top-down").clicked() {
                 *self = Default::default();
             }
-            if ui.button("Top-down, centered and justified").clicked {
+            if ui.button("Top-down, centered and justified").clicked() {
                 *self = Default::default();
                 self.cross_align = Align::Center;
                 self.cross_justify = true;
             }
-            if ui.button("Horizontal wrapped").clicked {
+            if ui.button("Horizontal wrapped").clicked() {
                 *self = Default::default();
                 self.main_dir = Direction::LeftToRight;
                 self.cross_align = Align::Center;
@@ -391,7 +391,7 @@ impl Tree {
         if depth > 0
             && ui
                 .add(Button::new("delete").text_color(Color32::RED))
-                .clicked
+                .clicked()
         {
             return Action::Delete;
         }
@@ -409,7 +409,7 @@ impl Tree {
             })
             .collect();
 
-        if ui.button("+").clicked {
+        if ui.button("+").clicked() {
             self.0.push(Tree::default());
         }
 

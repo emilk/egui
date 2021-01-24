@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed 🔧
 
 * `mouse` has be renamed `pointer` everywhere (to make it clear it includes touches too).
+* `Response::clicked` and `double_clicked` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`
 
 ### Added ⭐
 

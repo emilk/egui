@@ -89,7 +89,7 @@ fn show_tooltip_area(
 /// # let ui = &mut egui::Ui::__test();
 /// let response = ui.button("Open popup");
 /// let popup_id = ui.make_persistent_id("my_unique_id");
-/// if response.clicked {
+/// if response.clicked() {
 ///     ui.memory().toggle_popup(popup_id);
 /// }
 /// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
@@ -122,7 +122,7 @@ pub fn popup_below_widget(
             });
 
         if ui.input().key_pressed(Key::Escape)
-            || ui.input().pointer.click && !widget_response.clicked
+            || ui.input().pointer.click && !widget_response.clicked()
         {
             ui.memory().close_popup();
         }

@@ -255,7 +255,7 @@ impl Prepared {
 
         state.pos = ctx.constrain_window_rect(state.rect()).min;
 
-        if (move_response.active || move_response.clicked)
+        if (move_response.active || move_response.clicked())
             || pointer_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
         {

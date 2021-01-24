@@ -115,7 +115,7 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Button:");
-            if ui.button("Toggle boolean").clicked {
+            if ui.button("Toggle boolean").clicked() {
                 *boolean = !*boolean;
             }
             ui.end_row();
@@ -123,7 +123,7 @@ impl super::View for WidgetGallery {
             ui.label("ImageButton:");
             if ui
                 .add(egui::ImageButton::new(egui::TextureId::Egui, [24.0, 16.0]))
-                .clicked
+                .clicked()
             {
                 *boolean = !*boolean;
             }

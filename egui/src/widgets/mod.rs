@@ -2,7 +2,7 @@
 //!
 //! Example widget uses:
 //! * `ui.add(Label::new("Text").text_color(color::red));`
-//! * `if ui.add(Button::new("Click me")).clicked { ... }`
+//! * `if ui.add(Button::new("Click me")).clicked() { ... }`
 
 #![allow(clippy::new_without_default)]
 
@@ -40,7 +40,10 @@ pub trait Widget {
 /// The button is only enabled if the value does not already have its original value.
 pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
     let def = T::default();
-    if ui.add(Button::new("Reset").enabled(*value != def)).clicked {
+    if ui
+        .add(Button::new("Reset").enabled(*value != def))
+        .clicked()
+    {
         *value = def;
     }
 }

@@ -7,7 +7,7 @@
 //!
 //!     menu::bar(ui, |ui| {
 //!         menu::menu(ui, "File", |ui| {
-//!             if ui.button("Open").clicked {
+//!             if ui.button("Open").clicked() {
 //!                 // ...
 //!             }
 //!         });
@@ -83,7 +83,7 @@ fn menu_impl<'c>(
     }
 
     let button_response = ui.add(button);
-    if button_response.clicked {
+    if button_response.clicked() {
         // Toggle
         if bar_state.open_menu == Some(menu_id) {
             bar_state.open_menu = None;
@@ -117,7 +117,7 @@ fn menu_impl<'c>(
 
         // TODO: this prevents sub-menus in menus. We should fix that.
         if ui.input().key_pressed(Key::Escape)
-            || ui.input().pointer.click && !button_response.clicked
+            || ui.input().pointer.click && !button_response.clicked()
         {
             bar_state.open_menu = None;
         }

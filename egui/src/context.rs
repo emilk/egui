@@ -794,7 +794,7 @@ impl Context {
         if ui
             .button("Reset all")
             .on_hover_text("Reset all egui state")
-            .clicked
+            .clicked()
         {
             *self.memory() = Default::default();
         }
@@ -804,7 +804,7 @@ impl Context {
                 "{} areas (window positions)",
                 self.memory().areas.count()
             ));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().areas = Default::default();
             }
         });
@@ -837,28 +837,28 @@ impl Context {
                 "{} collapsing headers",
                 self.memory().collapsing_headers.len()
             ));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().collapsing_headers = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} menu bars", self.memory().menu_bar.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().menu_bar = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} scroll areas", self.memory().scroll_areas.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().scroll_areas = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} resize areas", self.memory().resize.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().resize = Default::default();
             }
         });

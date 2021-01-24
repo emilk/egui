@@ -97,7 +97,7 @@ impl Widgets {
             if ui
                 .add(Button::new("Click me").enabled(self.button_enabled))
                 .on_hover_text("This will just increase a counter.")
-                .clicked
+                .clicked()
             {
                 self.count += 1;
             }

@@ -21,7 +21,7 @@ impl Painting {
         ui.horizontal(|ui| {
             egui::stroke_ui(ui, &mut self.stroke, "Stroke");
             ui.separator();
-            if ui.button("Clear Painting").clicked {
+            if ui.button("Clear Painting").clicked() {
                 self.lines.clear();
             }
         });

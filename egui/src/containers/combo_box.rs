@@ -84,7 +84,7 @@ pub fn combo_box(
             .galley(text_rect.min, galley, text_style, visuals.text_color());
     });
 
-    if button_response.clicked {
+    if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
     const MAX_COMBO_HEIGHT: f32 = 128.0;

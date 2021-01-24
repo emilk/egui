@@ -410,7 +410,7 @@ impl Ui {
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
-    /// if response.clicked { /* … */ }
+    /// if response.clicked() { /* … */ }
     /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -572,7 +572,7 @@ impl Ui {
     /// # use egui::Align;
     /// # let mut ui = &mut egui::Ui::__test();
     /// egui::ScrollArea::auto_sized().show(ui, |ui| {
-    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked;
+    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked();
     ///     for i in 0..1000 {
     ///         ui.label(format!("Item {}", i));
     ///     }
@@ -654,20 +654,20 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
-    /// Usage: `if ui.button("Click me").clicked { ... }`
+    /// Usage: `if ui.button("Click me").clicked() { ... }`
     ///
     /// Shortcut for `add(Button::new(text))`
-    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked() { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }
 
     /// A button as small as normal body text.
     ///
-    /// Usage: `if ui.small_button("Click me").clicked { ... }`
+    /// Usage: `if ui.small_button("Click me").clicked() { ... }`
     ///
     /// Shortcut for `add(Button::new(text).small())`
-    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked() { ... } "]
     pub fn small_button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text).small())
     }
@@ -694,7 +694,7 @@ impl Ui {
         text: impl Into<String>,
     ) -> Response {
         let response = self.radio(*current_value == selected_value, text);
-        if response.clicked {
+        if response.clicked() {
             *current_value = selected_value;
         }
         response
@@ -716,7 +716,7 @@ impl Ui {
         text: impl Into<String>,
     ) -> Response {
         let response = self.selectable_label(*current_value == selected_value, text);
-        if response.clicked {
+        if response.clicked() {
             *current_value = selected_value;
         }
         response

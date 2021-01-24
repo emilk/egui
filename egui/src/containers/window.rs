@@ -671,7 +671,7 @@ fn show_title_bar(
 
             let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
-            if collapse_button_response.clicked {
+            if collapse_button_response.clicked() {
                 collapsing.toggle(ui);
             }
             let openness = collapsing.openness(ui.ctx(), collapsing_id);
@@ -721,7 +721,7 @@ impl TitleBar {
 
         if let Some(open) = open {
             // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked {
+            if self.close_button_ui(ui).clicked() {
                 *open = false;
             }
         }
@@ -752,7 +752,7 @@ impl TitleBar {
 
         if ui
             .interact(self.rect, self.id, Sense::click())
-            .double_clicked
+            .double_clicked()
             && collapsible
         {
             collapsing.toggle(ui);

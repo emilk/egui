@@ -31,7 +31,7 @@ impl FontBook {
                     ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                 };
 
-                if ui.add(button).on_hover_ui(tooltip_ui).clicked {
+                if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
                     ui.output().copied_text = chr.to_string();
                 }
             }
@@ -81,7 +81,7 @@ impl super::View for FontBook {
             ui.label("Filter:");
             ui.text_edit_singleline(&mut self.filter);
             self.filter = self.filter.to_lowercase();
-            if ui.button("ｘ").clicked {
+            if ui.button("ｘ").clicked() {
                 self.filter.clear();
             }
         });

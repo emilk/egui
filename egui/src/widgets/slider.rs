@@ -350,7 +350,7 @@ impl<'a> Slider<'a> {
                 self.get_value() as f32 // Show full precision value on-hover. TODO: figure out f64 vs f32
             ));
             // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
-            if response.clicked {
+            if response.clicked() {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
             }

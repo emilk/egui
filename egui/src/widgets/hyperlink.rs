@@ -51,7 +51,7 @@ impl Widget for Hyperlink {
         if response.hovered {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
-        if response.clicked {
+        if response.clicked() {
             ui.ctx().output().open_url = Some(url.clone());
         }
 

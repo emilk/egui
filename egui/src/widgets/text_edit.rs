@@ -329,7 +329,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
-                if response.hovered && response.double_clicked {
+                if response.hovered && response.double_clicked() {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursorp = select_word_at(text, center.ccursor);

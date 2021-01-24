@@ -217,7 +217,7 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
             r, g, b, a
         ));
 
-        if ui.button("📋").on_hover_text("Click to copy").clicked {
+        if ui.button("📋").on_hover_text("Click to copy").clicked() {
             ui.output().copied_text = format!("rgba({}, {}, {}, {})", r, g, b, a);
         }
     });
@@ -323,7 +323,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     let pupup_id = ui.auto_id_with("popup");
     let button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
 
-    if button_response.clicked {
+    if button_response.clicked() {
         ui.memory().toggle_popup(pupup_id);
     }
     // TODO: make it easier to show a temporary popup that closes when you click outside it
@@ -338,7 +338,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                 })
             });
 
-        if !button_response.clicked {
+        if !button_response.clicked() {
             let clicked_outside = ui.input().pointer.click && !area_response.hovered;
             if clicked_outside || ui.input().key_pressed(Key::Escape) {
                 ui.memory().close_popup();
