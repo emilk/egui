@@ -1,4 +1,4 @@
-use crate::math::{lerp, Align, Rect};
+use crate::math::{lerp, Align, Pos2, Rect};
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 // ----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ pub struct Response {
     pub sense: Sense,
 
     // OUT:
-    /// The pointer is hovering above this.
+    /// The pointer is hovering above this widget.
     pub hovered: bool,
 
     /// The pointer clicked this thing this frame.
@@ -36,8 +36,19 @@ pub struct Response {
     /// The thing was double-clicked.
     pub(crate) double_clicked: bool,
 
-    /// The pointer is interacting with this thing (e.g. dragging it).
-    pub active: bool,
+    /// The widgets is being dragged
+    pub(crate) dragged: bool,
+
+    /// The widget was being dragged, but now it has been released.
+    pub(crate) drag_released: bool,
+
+    /// Is the pointer button currently down on this widget?
+    /// This is true if the pointer is pressing down or dragging a widget
+    pub(crate) is_pointer_button_down_on: bool,
+
+    /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
+    /// `None` if the widget is not being interacted with.
+    pub(crate) interact_pointer_pos: Option<Pos2>,
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed).
     pub has_kb_focus: bool,
@@ -69,7 +80,10 @@ impl std::fmt::Debug for Response {
             hovered,
             clicked,
             double_clicked,
-            active,
+            dragged,
+            drag_released,
+            is_pointer_button_down_on,
+            interact_pointer_pos,
             has_kb_focus,
             lost_kb_focus,
         } = self;
@@ -81,7 +95,10 @@ impl std::fmt::Debug for Response {
             .field("hovered", hovered)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
-            .field("active", active)
+            .field("dragged", dragged)
+            .field("drag_released", drag_released)
+            .field("is_pointer_button_down_on", is_pointer_button_down_on)
+            .field("interact_pointer_pos", interact_pointer_pos)
             .field("has_kb_focus", has_kb_focus)
             .field("lost_kb_focus", lost_kb_focus)
             .finish()
@@ -97,6 +114,28 @@ impl Response {
     /// Returns true if this widget was double-clicked this frame by the primary button.
     pub fn double_clicked(&self) -> bool {
         self.double_clicked
+    }
+
+    /// The widgets is being dragged
+    pub fn dragged(&self) -> bool {
+        self.dragged
+    }
+
+    /// The widget was being dragged, but now it has been released.
+    pub fn drag_released(&self) -> bool {
+        self.drag_released
+    }
+
+    /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
+    /// `None` if the widget is not being interacted with.
+    pub fn interact_pointer_pos(&self) -> Option<Pos2> {
+        self.interact_pointer_pos
+    }
+
+    /// Is the pointer button currently down on this widget?
+    /// This is true if the pointer is pressing down or dragging a widget
+    pub fn is_pointer_button_down_on(&self) -> bool {
+        self.is_pointer_button_down_on
     }
 
     /// Show this UI if the item was hovered (i.e. a tooltip).
@@ -173,7 +212,11 @@ impl Response {
             hovered: self.hovered || other.hovered,
             clicked: self.clicked || other.clicked,
             double_clicked: self.double_clicked || other.double_clicked,
-            active: self.active || other.active,
+            dragged: self.dragged || other.dragged,
+            drag_released: self.drag_released || other.drag_released,
+            is_pointer_button_down_on: self.is_pointer_button_down_on
+                || other.is_pointer_button_down_on,
+            interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
             lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
         }
@@ -205,7 +248,7 @@ impl std::ops::BitOr for Response {
 /// let mut response = ui.add(widget_a);
 /// response |= ui.add(widget_b);
 /// response |= ui.add(widget_c);
-/// if response.active { ui.label("You are interacting with one of the widgets"); }
+/// if response.hovered { ui.label("You hovered at least one of the widgets"); }
 /// ```
 impl std::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {

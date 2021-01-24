@@ -94,10 +94,8 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     );
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
-    if response.active {
-        if let Some(mpos) = ui.input().pointer.pos {
-            *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
-        }
+    if let Some(mpos) = response.interact_pointer_pos() {
+        *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
     }
 
     let visuals = ui.style().interact(&response);
@@ -151,11 +149,9 @@ fn color_slider_2d(
     let desired_size = Vec2::splat(ui.style().spacing.slider_width);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
-    if response.active {
-        if let Some(mpos) = ui.input().pointer.pos {
-            *x_value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
-            *y_value = remap_clamp(mpos.y, rect.bottom()..=rect.top(), 0.0..=1.0);
-        }
+    if let Some(mpos) = response.interact_pointer_pos() {
+        *x_value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
+        *y_value = remap_clamp(mpos.y, rect.bottom()..=rect.top(), 0.0..=1.0);
     }
 
     let visuals = ui.style().interact(&response);

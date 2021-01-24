@@ -212,7 +212,7 @@ impl Prepared {
             let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
 
             let input = ui.input();
-            if content_response.active {
+            if content_response.dragged() {
                 state.offset.y -= input.pointer.delta.y;
                 state.vel = input.pointer.velocity;
             } else {
@@ -283,26 +283,24 @@ impl Prepared {
             let interact_id = id.with("vertical");
             let response = ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
 
-            if response.active {
-                if let Some(pointer_pos) = ui.input().pointer.pos {
-                    let scroll_start_offset_from_top =
-                        state.scroll_start_offset_from_top.get_or_insert_with(|| {
-                            if handle_rect.contains(pointer_pos) {
-                                pointer_pos.y - handle_rect.top()
-                            } else {
-                                let handle_top_pos_at_bottom = bottom - handle_rect.height();
-                                // Calculate the new handle top position, centering the handle on the mouse.
-                                let new_handle_top_pos = clamp(
-                                    pointer_pos.y - handle_rect.height() / 2.0,
-                                    top..=handle_top_pos_at_bottom,
-                                );
-                                pointer_pos.y - new_handle_top_pos
-                            }
-                        });
+            if let Some(pointer_pos) = response.interact_pointer_pos() {
+                let scroll_start_offset_from_top =
+                    state.scroll_start_offset_from_top.get_or_insert_with(|| {
+                        if handle_rect.contains(pointer_pos) {
+                            pointer_pos.y - handle_rect.top()
+                        } else {
+                            let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                            // Calculate the new handle top position, centering the handle on the mouse.
+                            let new_handle_top_pos = clamp(
+                                pointer_pos.y - handle_rect.height() / 2.0,
+                                top..=handle_top_pos_at_bottom,
+                            );
+                            pointer_pos.y - new_handle_top_pos
+                        }
+                    });
 
-                    let new_handle_top = pointer_pos.y - *scroll_start_offset_from_top;
-                    state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
-                }
+                let new_handle_top = pointer_pos.y - *scroll_start_offset_from_top;
+                state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
             } else {
                 state.scroll_start_offset_from_top = None;
             }

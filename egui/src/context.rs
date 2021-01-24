@@ -241,26 +241,27 @@ impl CtxRef {
         hovered: bool,
     ) -> Response {
         let has_kb_focus = self.memory().has_kb_focus(id);
-
-        // If the the focus is lost after the call to interact,
-        // this will be `false`, so `TextEdit` also sets this manually.
         let lost_kb_focus = self.memory().lost_kb_focus(id);
+        let mut response = Response {
+            ctx: self.clone(),
+            layer_id,
+            id,
+            rect,
+            sense,
+            hovered,
+            clicked: false,
+            double_clicked: false,
+            dragged: false,
+            drag_released: false,
+            is_pointer_button_down_on: false,
+            interact_pointer_pos: None,
+            has_kb_focus,
+            lost_kb_focus,
+        };
 
         if sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            return Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active: false,
-                has_kb_focus,
-                lost_kb_focus,
-            };
+            return response;
         }
 
         self.register_interaction_id(id, rect.min);
@@ -270,29 +271,16 @@ impl CtxRef {
         memory.interaction.click_interest |= hovered && sense.click;
         memory.interaction.drag_interest |= hovered && sense.drag;
 
-        let active =
-            memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
+        response.dragged = memory.interaction.drag_id == Some(id);
+        response.is_pointer_button_down_on =
+            memory.interaction.click_id == Some(id) || response.dragged;
 
         if self.input.pointer.pressed {
             if hovered {
-                let mut response = Response {
-                    ctx: self.clone(),
-                    layer_id,
-                    id,
-                    rect,
-                    sense,
-                    hovered: true,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
-                };
-
                 if sense.click && memory.interaction.click_id.is_none() {
                     // start of a click
                     memory.interaction.click_id = Some(id);
-                    response.active = true;
+                    response.is_pointer_button_down_on = true;
                 }
 
                 if sense.drag
@@ -302,70 +290,28 @@ impl CtxRef {
                     memory.interaction.drag_id = Some(id);
                     memory.interaction.drag_is_window = false;
                     memory.window_interaction = None; // HACK: stop moving windows (if any)
-                    response.active = true;
+                    response.is_pointer_button_down_on = true;
                 }
-
-                response
             } else {
                 // miss
-                Response {
-                    ctx: self.clone(),
-                    layer_id,
-                    id,
-                    rect,
-                    sense,
-                    hovered,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
-                }
+                response.is_pointer_button_down_on = false;
             }
         } else if self.input.pointer.released {
-            let clicked = hovered && active && self.input.pointer.could_be_click;
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked,
-                double_clicked: clicked && self.input.pointer.double_click,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
+            response.clicked =
+                hovered && response.is_pointer_button_down_on && self.input.pointer.could_be_click;
+            response.double_clicked = response.clicked && self.input.pointer.double_click;
+            response.drag_released = response.dragged;
+            response.dragged = false;
         } else if self.input.pointer.down {
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered: hovered && active,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        } else {
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
+            // We don't hover things while dragging another widget
+            response.hovered &= response.is_pointer_button_down_on;
         }
+
+        if response.is_pointer_button_down_on || response.clicked {
+            response.interact_pointer_pos = self.input.pointer.pos;
+        }
+
+        response
     }
 
     pub fn debug_painter(&self) -> Painter {

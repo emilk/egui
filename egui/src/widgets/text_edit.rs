@@ -348,7 +348,7 @@ impl<'t> TextEdit<'t> {
                     } else {
                         state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                } else if ui.input().pointer.down && response.active {
+                } else if ui.input().pointer.down && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_pointer;
                     }

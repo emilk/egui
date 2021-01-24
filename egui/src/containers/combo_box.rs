@@ -118,7 +118,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let mut response = ui.interact(outer_rect, id, sense);
-    response.active |= button_active;
+    response.is_pointer_button_down_on |= button_active;
     let visuals = ui.style().interact(&response);
 
     ui.painter().set(
