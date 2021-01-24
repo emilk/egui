@@ -318,7 +318,7 @@ impl<'t> TextEdit<'t> {
         }
 
         if enabled {
-            if let Some(pointer_pos) = ui.input().pointer.pos {
+            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
 
@@ -337,7 +337,7 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                } else if response.hovered && ui.input().pointer.pressed {
+                } else if response.hovered && ui.input().pointer.any_pressed() {
                     ui.memory().request_kb_focus(id);
                     if ui.input().modifiers.shift {
                         if let Some(cursorp) = &mut state.cursorp {
@@ -348,7 +348,7 @@ impl<'t> TextEdit<'t> {
                     } else {
                         state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                } else if ui.input().pointer.down && response.is_pointer_button_down_on() {
+                } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_pointer;
                     }
@@ -356,7 +356,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        if ui.input().pointer.pressed && !response.hovered {
+        if ui.input().pointer.any_pressed() && !response.hovered {
             // User clicked somewhere else
             ui.memory().surrender_kb_focus(id);
         }
@@ -471,7 +471,7 @@ impl<'t> TextEdit<'t> {
                         modifiers,
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
 
-                    Event::Key { .. } => None,
+                    _ => None,
                 };
 
                 if let Some(new_ccursorp) = did_mutate_text {

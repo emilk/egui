@@ -18,6 +18,7 @@ pub mod persistence;
 pub mod window_settings;
 
 pub use backend::*;
+use glutin::event::MouseButton;
 pub use painter::Painter;
 
 use {
@@ -29,12 +30,14 @@ use {
 pub use clipboard::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
+    pub pointer_pos_in_points: Option<Pos2>,
     pub raw: egui::RawInput,
 }
 
 impl GliumInputState {
     pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
         Self {
+            pointer_pos_in_points: Default::default(),
             raw: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
@@ -52,23 +55,38 @@ pub fn input_to_egui(
     use glutin::event::WindowEvent;
     match event {
         WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
-        WindowEvent::MouseInput { state, .. } => {
-            input_state.raw.pointer_button_down = state == glutin::event::ElementState::Pressed;
+        WindowEvent::MouseInput { state, button, .. } => {
+            if let Some(pos_in_points) = input_state.pointer_pos_in_points {
+                if let Some(button) = translate_mouse_button(button) {
+                    input_state.raw.events.push(egui::Event::PointerButton {
+                        pos: pos_in_points,
+                        button,
+                        pressed: state == glutin::event::ElementState::Pressed,
+                        modifiers: input_state.raw.modifiers,
+                    });
+                }
+            }
         }
         WindowEvent::CursorMoved {
             position: pos_in_pixels,
             ..
         } => {
-            input_state.raw.pointer_pos = Some(pos2(
+            let pos_in_points = pos2(
                 pos_in_pixels.x as f32 / input_state.raw.pixels_per_point.unwrap(),
                 pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
-            ));
+            );
+            input_state.pointer_pos_in_points = Some(pos_in_points);
+            input_state
+                .raw
+                .events
+                .push(egui::Event::PointerMoved(pos_in_points));
         }
         WindowEvent::CursorLeft { .. } => {
-            input_state.raw.pointer_pos = None;
+            input_state.pointer_pos_in_points = None;
+            input_state.raw.events.push(egui::Event::PointerGone);
         }
         WindowEvent::ReceivedCharacter(ch) => {
-            if printable_char(ch)
+            if is_printable_char(ch)
                 && !input_state.raw.modifiers.ctrl
                 && !input_state.raw.modifiers.mac_cmd
             {
@@ -79,6 +97,7 @@ pub fn input_to_egui(
             if let Some(keycode) = input.virtual_keycode {
                 let pressed = input.state == glutin::event::ElementState::Pressed;
 
+                // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
                 if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
                     input_state.raw.modifiers.alt = pressed;
                 }
@@ -157,12 +176,21 @@ pub fn input_to_egui(
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
 /// Newlines are handled by the `Key::Enter` event.
-fn printable_char(chr: char) -> bool {
+fn is_printable_char(chr: char) -> bool {
     let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
         || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
         || '\u{100000}' <= chr && chr <= '\u{10fffd}';
 
     !is_in_private_use_area && !chr.is_ascii_control()
+}
+
+pub fn translate_mouse_button(button: MouseButton) -> Option<egui::PointerButton> {
+    match button {
+        MouseButton::Left => Some(egui::PointerButton::Primary),
+        MouseButton::Right => Some(egui::PointerButton::Secondary),
+        MouseButton::Middle => Some(egui::PointerButton::Middle),
+        _ => None,
+    }
 }
 
 pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {

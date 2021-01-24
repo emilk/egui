@@ -13,12 +13,13 @@ const MAX_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 /// Input state that egui updates each frame.
 #[derive(Clone, Debug)]
 pub struct InputState {
-    /// The raw input we got this frame
+    /// The raw input we got this frame from the backend.
     pub raw: RawInput,
 
+    /// State of the mouse or touch.
     pub pointer: PointerState,
 
-    /// How many pixels the user scrolled
+    /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
 
     /// Position and size of the egui area.
@@ -66,71 +67,6 @@ impl Default for InputState {
     }
 }
 
-/// Mouse or touch state.
-#[derive(Clone, Debug)]
-pub struct PointerState {
-    /// Is the button currently down?
-    /// true the frame when it is pressed,
-    /// false the frame it is released.
-    pub down: bool,
-
-    /// The pointer button went from !down to down
-    pub pressed: bool,
-
-    /// The pointer button went from down to !down
-    pub released: bool,
-
-    /// If the pointer button is down, will it register as a click when released?
-    /// Set to true on pointer button down, set to false when pointer moves too much.
-    pub could_be_click: bool,
-
-    /// Was there a click?
-    /// Did a pointer button get released this frame closely after going down?
-    pub click: bool,
-
-    /// Was there a double-click?
-    pub double_click: bool,
-
-    /// When did the pointer get click last?
-    /// Used to check for double-clicks.
-    pub last_click_time: f64,
-
-    /// Current position of the pointer in points.
-    /// None for touch screens when finger is not down.
-    pub pos: Option<Pos2>,
-
-    /// Where did the current click/drag originate?
-    pub press_origin: Option<Pos2>,
-
-    /// How much the pointer moved compared to last frame, in points.
-    pub delta: Vec2,
-
-    /// Current velocity of pointer.
-    pub velocity: Vec2,
-
-    /// Recent movement of the pointer.
-    /// Used for calculating velocity of pointer.
-    pos_history: History<Pos2>,
-}
-
-impl Default for PointerState {
-    fn default() -> Self {
-        Self {
-            down: false,
-            pressed: false,
-            released: false,
-            could_be_click: false,
-            click: false,
-            double_click: false,
-            last_click_time: std::f64::NEG_INFINITY,
-            pos: None,
-            press_origin: None,
-            delta: Vec2::zero(),
-            velocity: Vec2::zero(),
-            pos_history: History::new(1000, 0.1),
-        }
-    }
-}
 impl InputState {
     #[must_use]
     pub fn begin_frame(self, new: RawInput) -> InputState {
@@ -178,11 +114,7 @@ impl InputState {
     }
 
     pub fn wants_repaint(&self) -> bool {
-        self.pointer.pressed
-            || self.pointer.released
-            || self.pointer.delta != Vec2::zero()
-            || self.scroll_delta != Vec2::zero()
-            || !self.events.is_empty()
+        self.pointer.wants_repaint() || self.scroll_delta != Vec2::zero() || !self.events.is_empty()
     }
 
     /// Was the given key pressed this frame?
@@ -236,46 +168,201 @@ impl InputState {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// A pointer (mouse or touch) click.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Click {
+    pub pos: Pos2,
+    pub button: PointerButton,
+    /// 1 or 2 (double-click)
+    pub count: u32,
+    /// Allows you to check for e.g. shift-click
+    pub modifiers: Modifiers,
+}
+
+impl Click {
+    pub fn is_double(&self) -> bool {
+        self.count == 2
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PointerEvent {
+    Moved(Pos2),
+    Pressed(Pos2),
+    Released(Option<Click>),
+}
+
+impl PointerEvent {
+    pub fn is_press(&self) -> bool {
+        matches!(self, PointerEvent::Pressed(_))
+    }
+    pub fn is_release(&self) -> bool {
+        matches!(self, PointerEvent::Released(_))
+    }
+    pub fn is_click(&self) -> bool {
+        matches!(self, PointerEvent::Released(Some(_click)))
+    }
+}
+
+/// Mouse or touch state.
+#[derive(Clone, Debug)]
+pub struct PointerState {
+    // Consider a finger tapping a touch screen.
+    // What position should we report?
+    // The location of the touch, or `None`, because the finger is gone?
+    //
+    // For some cases we want the first: e.g. to check for interaction.
+    // For showing tooltips, we want the latter (no tooltips, since there are no fingers).
+    /// Latest reported pointer position.
+    /// When tapping a touch screen, this will be `None`.
+    latest_pos: Option<Pos2>,
+
+    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
+    /// if there were interactions this frame.
+    /// When tapping a touch screen, this will be the location of the touch.
+    interact_pos: Option<Pos2>,
+
+    /// How much the pointer moved compared to last frame, in points.
+    pub delta: Vec2,
+
+    /// Current velocity of pointer.
+    pub velocity: Vec2,
+
+    /// Recent movement of the pointer.
+    /// Used for calculating velocity of pointer.
+    pos_history: History<Pos2>,
+
+    down: [bool; NUM_POINTER_BUTTONS],
+
+    /// Where did the current click/drag originate?
+    /// `None` if no mouse button is down.
+    pub press_origin: Option<Pos2>,
+
+    /// If the pointer button is down, will it register as a click when released?
+    /// Set to true on pointer button down, set to false when pointer button moves too much.
+    could_be_click: bool,
+
+    /// When did the pointer get click last?
+    /// Used to check for double-clicks.
+    last_click_time: f64,
+
+    // /// All clicks that occurred this frame
+    // clicks: Vec<Click>,
+    /// All button events that occurred this frame
+    pub(crate) pointer_events: Vec<PointerEvent>,
+}
+
+impl Default for PointerState {
+    fn default() -> Self {
+        Self {
+            latest_pos: None,
+            interact_pos: None,
+            delta: Vec2::zero(),
+            velocity: Vec2::zero(),
+            pos_history: History::new(1000, 0.1),
+            down: Default::default(),
+            press_origin: None,
+            could_be_click: false,
+            last_click_time: std::f64::NEG_INFINITY,
+            pointer_events: vec![],
+        }
+    }
+}
+
 impl PointerState {
     #[must_use]
     pub fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
-        let delta = new
-            .pointer_pos
-            .and_then(|new| self.pos.map(|last| new - last))
-            .unwrap_or_default();
-        let pressed = !self.down && new.pointer_button_down;
+        // self.clicks.clear();
+        self.pointer_events.clear();
 
-        let released = self.down && !new.pointer_button_down;
-        let click = released && self.could_be_click;
-        let double_click = click && (time - self.last_click_time) < MAX_CLICK_DELAY;
-        let mut press_origin = self.press_origin;
-        let mut could_be_click = self.could_be_click;
-        let mut last_click_time = self.last_click_time;
-        if click {
-            last_click_time = time
+        let old_pos = self.latest_pos;
+        self.interact_pos = self.latest_pos;
+
+        for event in &new.events {
+            match event {
+                Event::PointerMoved(pos) => {
+                    let pos = *pos;
+
+                    self.latest_pos = Some(pos);
+                    self.interact_pos = Some(pos);
+
+                    if let Some(press_origin) = &mut self.press_origin {
+                        self.could_be_click &= press_origin.distance(pos) < MAX_CLICK_DIST;
+                    } else {
+                        self.could_be_click = false;
+                    }
+
+                    self.pointer_events.push(PointerEvent::Moved(pos));
+                }
+                Event::PointerButton {
+                    pos,
+                    button,
+                    pressed,
+                    modifiers,
+                } => {
+                    let pos = *pos;
+                    let button = *button;
+                    let pressed = *pressed;
+                    let modifiers = *modifiers;
+
+                    self.latest_pos = Some(pos);
+                    self.interact_pos = Some(pos);
+
+                    if pressed {
+                        // Start of a drag: we want to track the velocity for during the drag
+                        // and ignore any incoming movement
+                        self.pos_history.clear();
+                    }
+
+                    if pressed {
+                        self.press_origin = Some(pos);
+                        self.could_be_click = true;
+                        self.pointer_events.push(PointerEvent::Pressed(pos));
+                    } else {
+                        let clicked = self.could_be_click;
+
+                        let click = if clicked {
+                            let double_click = (time - self.last_click_time) < MAX_CLICK_DELAY;
+                            let count = if double_click { 2 } else { 1 };
+
+                            self.last_click_time = time;
+
+                            Some(Click {
+                                pos,
+                                button,
+                                count,
+                                modifiers,
+                            })
+                        } else {
+                            None
+                        };
+
+                        self.pointer_events.push(PointerEvent::Released(click));
+
+                        self.press_origin = None;
+                        self.could_be_click = false;
+                    }
+
+                    self.down[button as usize] = pressed;
+                }
+                Event::PointerGone => {
+                    self.latest_pos = None;
+                    // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
+                }
+                _ => {}
+            }
         }
 
-        if pressed {
-            press_origin = new.pointer_pos;
-            could_be_click = true;
-        } else if !self.down || self.pos.is_none() {
-            press_origin = None;
-        }
-
-        if let (Some(press_origin), Some(pointer_pos)) = (new.pointer_pos, press_origin) {
-            could_be_click &= press_origin.distance(pointer_pos) < MAX_CLICK_DIST;
+        self.delta = if let (Some(old_pos), Some(new_pos)) = (old_pos, self.latest_pos) {
+            new_pos - old_pos
         } else {
-            could_be_click = false;
-        }
+            Vec2::zero()
+        };
 
-        if pressed {
-            // Start of a drag: we want to track the velocity for during the drag
-            // and ignore any incoming movement
-            self.pos_history.clear();
-        }
-
-        if let Some(pointer_pos) = new.pointer_pos {
-            self.pos_history.add(time, pointer_pos);
+        if let Some(pos) = self.latest_pos {
+            self.pos_history.add(time, pos);
         } else {
             // we do not clear the `pos_history` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
@@ -283,30 +370,85 @@ impl PointerState {
         }
 
         self.pos_history.flush(time);
-        let velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
+
+        self.velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
             self.pos_history.velocity().unwrap_or_default()
         } else {
             Vec2::default()
         };
 
-        PointerState {
-            down: new.pointer_button_down && new.pointer_pos.is_some(),
-            pressed,
-            released,
-            could_be_click,
-            click,
-            double_click,
-            last_click_time,
-            pos: new.pointer_pos,
-            press_origin,
-            delta,
-            velocity,
-            pos_history: self.pos_history,
-        }
+        self
     }
 
+    fn wants_repaint(&self) -> bool {
+        !self.pointer_events.is_empty() || self.delta != Vec2::zero()
+    }
+
+    /// Latest reported pointer position.
+    /// When tapping a touch screen, this will be `None`.
+    pub(crate) fn latest_pos(&self) -> Option<Pos2> {
+        self.latest_pos
+    }
+
+    /// If it is a good idea to show a tooltip, where is pointer?
+    pub fn tooltip_pos(&self) -> Option<Pos2> {
+        self.latest_pos
+    }
+
+    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
+    /// if there were interactions this frame.
+    /// When tapping a touch screen, this will be the location of the touch.
+    pub fn interact_pos(&self) -> Option<Pos2> {
+        self.interact_pos
+    }
+
+    pub fn has_pointer(&self) -> bool {
+        self.latest_pos.is_some()
+    }
+
+    /// Is the pointer currently moving?
+    /// This is smoothed so a few frames of stillness is required before this returns `true`.
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::zero()
+    }
+
+    /// Was any pointer button pressed (`!down -> down`) this frame?
+    /// This can sometimes return `true` even if `any_down() == false`
+    /// because a press can be shorted than one frame.
+    pub fn any_pressed(&self) -> bool {
+        self.pointer_events.iter().any(|event| event.is_press())
+    }
+
+    /// Was any pointer button released (`down -> !down`) this frame?
+    pub fn any_released(&self) -> bool {
+        self.pointer_events.iter().any(|event| event.is_release())
+    }
+
+    /// Is any pointer button currently down?
+    pub fn any_down(&self) -> bool {
+        self.down.iter().any(|&down| down)
+    }
+
+    /// Were there any type of click this frame?
+    pub fn any_click(&self) -> bool {
+        self.pointer_events.iter().any(|event| event.is_click())
+    }
+
+    // /// Was this button pressed (`!down -> down`) this frame?
+    // /// This can sometimes return `true` even if `any_down() == false`
+    // /// because a press can be shorted than one frame.
+    // pub fn button_pressed(&self, button: PointerButton) -> bool {
+    //     self.pointer_events.iter().any(|event| event.is_press())
+    // }
+
+    // /// Was this button released (`down -> !down`) this frame?
+    // pub fn button_released(&self, button: PointerButton) -> bool {
+    //     self.pointer_events.iter().any(|event| event.is_release())
+    // }
+
+    /// Is this button currently down?
+    pub fn button_down(&self, button: PointerButton) -> bool {
+        self.down[button as usize]
     }
 }
 
@@ -357,33 +499,29 @@ impl InputState {
 impl PointerState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
-            down,
-            pressed,
-            released,
-            could_be_click,
-            click,
-            double_click,
-            last_click_time,
-            pos,
-            press_origin,
+            latest_pos,
+            interact_pos,
             delta,
             velocity,
             pos_history: _,
+            down,
+            press_origin,
+            could_be_click,
+            last_click_time,
+            pointer_events,
         } = self;
 
-        ui.label(format!("down: {}", down));
-        ui.label(format!("pressed: {}", pressed));
-        ui.label(format!("released: {}", released));
-        ui.label(format!("could_be_click: {}", could_be_click));
-        ui.label(format!("click: {}", click));
-        ui.label(format!("double_click: {}", double_click));
-        ui.label(format!("last_click_time: {:.3}", last_click_time));
-        ui.label(format!("pos: {:?}", pos));
-        ui.label(format!("press_origin: {:?}", press_origin));
+        ui.label(format!("latest_pos: {:?}", latest_pos));
+        ui.label(format!("interact_pos: {:?}", interact_pos));
         ui.label(format!("delta: {:?}", delta));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
+        ui.label(format!("down: {:#?}", down));
+        ui.label(format!("press_origin: {:?}", press_origin));
+        ui.label(format!("could_be_click: {:#?}", could_be_click));
+        ui.label(format!("last_click_time: {:#?}", last_click_time));
+        ui.label(format!("pointer_events: {:?}", pointer_events));
     }
 }

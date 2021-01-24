@@ -9,13 +9,6 @@ use crate::math::*;
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
 #[derive(Clone, Debug)]
 pub struct RawInput {
-    /// Is the mouse button currently down (or a finger, on touch screens??
-    /// NOTE: egui currently only supports the primary mouse button.
-    pub pointer_button_down: bool,
-
-    /// Current position of the mouse/touch in points.
-    pub pointer_pos: Option<Pos2>,
-
     /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
 
@@ -56,8 +49,6 @@ impl Default for RawInput {
     fn default() -> Self {
         #![allow(deprecated)] // for screen_size
         Self {
-            pointer_button_down: false,
-            pointer_pos: None,
             scroll_delta: Vec2::zero(),
             screen_size: Default::default(),
             screen_rect: None,
@@ -75,8 +66,6 @@ impl RawInput {
     pub fn take(&mut self) -> RawInput {
         #![allow(deprecated)] // for screen_size
         RawInput {
-            pointer_button_down: self.pointer_button_down,
-            pointer_pos: self.pointer_pos,
             scroll_delta: std::mem::take(&mut self.scroll_delta),
             screen_size: self.screen_size,
             screen_rect: self.screen_rect,
@@ -107,7 +96,37 @@ pub enum Event {
         pressed: bool,
         modifiers: Modifiers,
     },
+
+    PointerMoved(Pos2),
+    PointerButton {
+        pos: Pos2,
+        button: PointerButton,
+        pressed: bool,
+        /// The state of the modifier keys at the time of the event
+        modifiers: Modifiers,
+    },
+    /// The mouse left the screen, or the last/primary touch input disappeared.
+    ///
+    /// This means there is no longer a cursor on the screen for hovering etc.
+    ///
+    /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
+    PointerGone,
 }
+
+/// Mouse button (or similar for touch input)
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PointerButton {
+    /// The primary mouse button is usually the left one.
+    Primary = 0,
+    /// The secondary mouse button is usually the right one,
+    /// and most often used for context menus or other optional things.
+    Secondary = 1,
+    /// The tertiary mouse button is usually the middle mouse button (e.g. clicking the scroll wheel).
+    Middle = 2,
+}
+
+/// Number of pointer buttons supported by egui, i.e. the number of possible states of [`PointerButton`].
+pub const NUM_POINTER_BUTTONS: usize = 3;
 
 /// State of the modifier keys. These must be fed to egui.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -208,8 +227,6 @@ impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         #![allow(deprecated)] // for screen_size
         let Self {
-            pointer_button_down,
-            pointer_pos,
             scroll_delta,
             screen_size: _,
             screen_rect,
@@ -220,8 +237,6 @@ impl RawInput {
             events,
         } = self;
 
-        ui.label(format!("pointer_button_down: {}", pointer_button_down));
-        ui.label(format!("pointer_pos: {:.1?}", pointer_pos));
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))

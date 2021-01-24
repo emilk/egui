@@ -363,12 +363,14 @@ impl<'open> Window<'open> {
                     ctx.style().visuals.widgets.active,
                 );
             } else if let Some(hover_interaction) = hover_interaction {
-                paint_frame_interaction(
-                    &mut area_content_ui,
-                    outer_rect,
-                    hover_interaction,
-                    ctx.style().visuals.widgets.hovered,
-                );
+                if ctx.input().pointer.has_pointer() {
+                    paint_frame_interaction(
+                        &mut area_content_ui,
+                        outer_rect,
+                        hover_interaction,
+                        ctx.style().visuals.widgets.hovered,
+                    );
+                }
             }
         }
         let full_response = area.end(ctx, area_content_ui);
@@ -448,7 +450,7 @@ fn interact(
 
 fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
-    let pointer_pos = ctx.input().pointer.pos?;
+    let pointer_pos = ctx.input().pointer.interact_pos()?;
     let mut rect = window_interaction.start_rect; // prevent drift
 
     if window_interaction.is_resize() {
@@ -491,7 +493,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().pointer.pressed {
+            if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
                 ctx.memory().interaction.drag_id = Some(id);
                 ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
@@ -517,9 +519,9 @@ fn resize_hover(
     area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    let pointer_pos = ctx.input().pointer.pos?;
+    let pointer_pos = ctx.input().pointer.interact_pos()?;
 
-    if ctx.input().pointer.down && !ctx.input().pointer.pressed {
+    if ctx.input().pointer.any_down() && !ctx.input().pointer.any_pressed() {
         return None; // already dragging (something)
     }
 

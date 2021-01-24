@@ -21,7 +21,7 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
 
     let window_pos = if let Some(tooltip_rect) = tooltip_rect {
         tooltip_rect.left_bottom()
-    } else if let Some(pointer_pos) = ctx.input().pointer.pos {
+    } else if let Some(pointer_pos) = ctx.input().pointer.tooltip_pos() {
         let expected_size = vec2(ctx.style().spacing.tooltip_width, 32.0);
         let position = pointer_pos + vec2(16.0, 16.0);
         let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
@@ -122,7 +122,7 @@ pub fn popup_below_widget(
             });
 
         if ui.input().key_pressed(Key::Escape)
-            || ui.input().pointer.click && !widget_response.clicked()
+            || ui.input().pointer.any_click() && !widget_response.clicked()
         {
             ui.memory().close_popup();
         }

@@ -9,14 +9,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* Add support for secondary and middle mouse buttons.
+* `egui::popup::popup_below_widget`: show a popup area below another widget.
+
 ### Changed 🔧
 
 * `mouse` has be renamed `pointer` everywhere (to make it clear it includes touches too).
-* `Response::clicked` and `double_clicked` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`
+* `Response::clicked` and `double_clicked` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
+* Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
 
-### Added ⭐
+### Fixed 🐛
 
-* `egui::popup::popup_below_widget`: show a popup area below another widget
+* It is now possible to click widgets even when FPS is very low.
 
 
 ## 0.8.0 - 2021-01-17 - Grid layout & new visual style

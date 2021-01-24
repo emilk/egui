@@ -1,4 +1,7 @@
-use crate::math::{lerp, Align, Pos2, Rect};
+use crate::{
+    math::{lerp, Align, Pos2, Rect},
+    PointerButton, NUM_POINTER_BUTTONS,
+};
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 // ----------------------------------------------------------------------------
@@ -27,14 +30,14 @@ pub struct Response {
     pub sense: Sense,
 
     // OUT:
-    /// The pointer is hovering above this widget.
+    /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     pub hovered: bool,
 
     /// The pointer clicked this thing this frame.
-    pub(crate) clicked: bool,
+    pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The thing was double-clicked.
-    pub(crate) double_clicked: bool,
+    pub(crate) double_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The widgets is being dragged
     pub(crate) dragged: bool,
@@ -51,7 +54,7 @@ pub struct Response {
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed).
-    pub has_kb_focus: bool,
+    pub(crate) has_kb_focus: bool,
 
     /// The widget had keyboard focus and lost it,
     /// perhaps because the user pressed enter.
@@ -108,15 +111,18 @@ impl std::fmt::Debug for Response {
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
     pub fn clicked(&self) -> bool {
-        self.clicked
+        self.clicked[PointerButton::Primary as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the primary button.
     pub fn double_clicked(&self) -> bool {
-        self.double_clicked
+        self.double_clicked[PointerButton::Primary as usize]
     }
 
-    /// The widgets is being dragged
+    /// The widgets is being dragged.
+    ///
+    /// To find out which button(s), query [`PointerState::button_down`]
+    /// (`ui.input().pointer.button_down(…)`).
     pub fn dragged(&self) -> bool {
         self.dragged
     }
@@ -124,6 +130,16 @@ impl Response {
     /// The widget was being dragged, but now it has been released.
     pub fn drag_released(&self) -> bool {
         self.drag_released
+    }
+
+    /// Returns true if this widget was clicked this frame by the given button.
+    pub fn clicked_with(&self, button: PointerButton) -> bool {
+        self.clicked[button as usize]
+    }
+
+    /// Returns true if this widget was double-clicked this frame by the given button.
+    pub fn double_clicked_with(&self, button: PointerButton) -> bool {
+        self.double_clicked[button as usize]
     }
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
@@ -141,7 +157,9 @@ impl Response {
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.hovered || self.ctx.memory().everything_is_visible() {
+        if (self.hovered && self.ctx.input().pointer.tooltip_pos().is_some())
+            || self.ctx.memory().everything_is_visible()
+        {
             crate::containers::show_tooltip(&self.ctx, add_contents);
         }
         self
@@ -210,8 +228,16 @@ impl Response {
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             hovered: self.hovered || other.hovered,
-            clicked: self.clicked || other.clicked,
-            double_clicked: self.double_clicked || other.double_clicked,
+            clicked: [
+                self.clicked[0] || other.clicked[0],
+                self.clicked[1] || other.clicked[1],
+                self.clicked[2] || other.clicked[2],
+            ],
+            double_clicked: [
+                self.double_clicked[0] || other.double_clicked[0],
+                self.double_clicked[1] || other.double_clicked[1],
+                self.double_clicked[2] || other.double_clicked[2],
+            ],
             dragged: self.dragged || other.dragged,
             drag_released: self.drag_released || other.drag_released,
             is_pointer_button_down_on: self.is_pointer_button_down_on

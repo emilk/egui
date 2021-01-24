@@ -139,11 +139,7 @@ impl Interaction {
         self.click_interest = false;
         self.drag_interest = false;
 
-        if !prev_input.pointer.could_be_click {
-            self.click_id = None;
-        }
-
-        if !prev_input.pointer.down || prev_input.pointer.pos.is_none() {
+        if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
             // pointer button was not down last frame
             self.click_id = None;
             self.drag_id = None;
@@ -176,7 +172,7 @@ impl Memory {
     ) {
         self.interaction.begin_frame(prev_input, new_input);
 
-        if !prev_input.pointer.down {
+        if !prev_input.pointer.any_down() {
             self.window_interaction = None;
         }
     }

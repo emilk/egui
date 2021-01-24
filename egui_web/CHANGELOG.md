@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* Right-clicks will no longer open browser context menu.
+
+### Fixed ⭐
+
+* Fix a bug where one couldn't select items in a combo box on a touch screen.
+
 
 ## 0.8.0 - 2021-01-17
 
