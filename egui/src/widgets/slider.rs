@@ -252,16 +252,16 @@ impl<'a> Slider<'a> {
         let rect = &response.rect;
         let x_range = x_range(rect);
 
-        if let Some(mouse_pos) = ui.input().mouse.pos {
+        if let Some(pointer_pos) = ui.input().pointer.pos {
             if response.active {
                 let new_value = if self.smart_aim {
                     let aim_radius = ui.input().aim_radius();
                     crate::math::smart_aim::best_in_range_f64(
-                        self.value_from_x(mouse_pos.x - aim_radius, x_range.clone()),
-                        self.value_from_x(mouse_pos.x + aim_radius, x_range.clone()),
+                        self.value_from_x(pointer_pos.x - aim_radius, x_range.clone()),
+                        self.value_from_x(pointer_pos.x + aim_radius, x_range.clone()),
                     )
                 } else {
-                    self.value_from_x(mouse_pos.x, x_range.clone())
+                    self.value_from_x(pointer_pos.x, x_range.clone())
                 };
                 self.set_value(new_value);
             }

@@ -25,8 +25,8 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         // (anything with `Order::Tooltip` always gets an empty `Response`)
         // So this is fine!
 
-        if let Some(mouse_pos) = ui.input().mouse.pos {
-            let delta = mouse_pos - response.rect.center();
+        if let Some(pointer_pos) = ui.input().pointer.pos {
+            let delta = pointer_pos - response.rect.center();
             ui.ctx().translate_layer(layer_id, delta);
         }
     }
@@ -143,7 +143,7 @@ impl super::View for DragAndDropDemo {
 
         if let Some((source_col, source_row)) = source_col_row {
             if let Some(drop_col) = drop_col {
-                if ui.input().mouse.released {
+                if ui.input().pointer.released {
                     // do the drop:
                     let item = self.columns[source_col].remove(source_row);
                     self.columns[drop_col].push(item);

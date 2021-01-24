@@ -189,7 +189,7 @@ impl<'a> Widget for DragValue<'a> {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
             } else if response.active {
-                let mdelta = ui.input().mouse.delta;
+                let mdelta = ui.input().pointer.delta;
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
                 let delta_value = speed * delta_points;
                 if delta_value != 0.0 {

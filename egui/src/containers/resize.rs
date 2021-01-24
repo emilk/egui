@@ -192,9 +192,9 @@ impl Resize {
             let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
             if corner_response.active {
-                if let Some(mouse_pos) = ui.input().mouse.pos {
+                if let Some(pointer_pos) = ui.input().pointer.pos {
                     user_requested_size =
-                        Some(mouse_pos - position + 0.5 * corner_response.rect.size());
+                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
                 }
             }
             Some(corner_response)

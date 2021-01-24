@@ -27,16 +27,16 @@ pub struct Response {
     pub sense: Sense,
 
     // OUT:
-    /// The mouse is hovering above this.
+    /// The pointer is hovering above this.
     pub hovered: bool,
 
-    /// The mouse clicked this thing this frame.
+    /// The pointer clicked this thing this frame.
     pub clicked: bool,
 
     /// The thing was double-clicked.
     pub double_clicked: bool,
 
-    /// The mouse is interacting with this thing (e.g. dragging it).
+    /// The pointer is interacting with this thing (e.g. dragging it).
     pub active: bool,
 
     /// This widget has the keyboard focus (i.e. is receiving key pressed).

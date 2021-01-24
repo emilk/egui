@@ -5,9 +5,9 @@ use crate::data::input::*;
 
 pub use crate::data::input::Key;
 
-/// If mouse moves more than this, it is no longer a click (but maybe a drag)
+/// If the pointer moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
-/// The new mouse press must come within this many seconds from previous mouse release
+/// The new pointer press must come within this many seconds from previous pointer release
 const MAX_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 
 /// Input state that egui updates each frame.
@@ -16,7 +16,7 @@ pub struct InputState {
     /// The raw input we got this frame
     pub raw: RawInput,
 
-    pub mouse: CursorState,
+    pub pointer: PointerState,
 
     /// How many pixels the user scrolled
     pub scroll_delta: Vec2,
@@ -52,7 +52,7 @@ impl Default for InputState {
     fn default() -> Self {
         Self {
             raw: Default::default(),
-            mouse: Default::default(),
+            pointer: Default::default(),
             scroll_delta: Default::default(),
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -66,54 +66,54 @@ impl Default for InputState {
     }
 }
 
-/// Mouse (or touch) state.
+/// Mouse or touch state.
 #[derive(Clone, Debug)]
-pub struct CursorState {
+pub struct PointerState {
     /// Is the button currently down?
     /// true the frame when it is pressed,
     /// false the frame it is released.
     pub down: bool,
 
-    /// The mouse went from !down to down
+    /// The pointer button went from !down to down
     pub pressed: bool,
 
-    /// The mouse went from down to !down
+    /// The pointer button went from down to !down
     pub released: bool,
 
-    /// If the mouse is down, will it register as a click when released?
-    /// Set to true on mouse down, set to false when mouse moves too much.
+    /// If the pointer button is down, will it register as a click when released?
+    /// Set to true on pointer button down, set to false when pointer moves too much.
     pub could_be_click: bool,
 
     /// Was there a click?
-    /// Did a mouse button get released this frame closely after going down?
+    /// Did a pointer button get released this frame closely after going down?
     pub click: bool,
 
     /// Was there a double-click?
     pub double_click: bool,
 
-    /// When did the mouse get click last?
+    /// When did the pointer get click last?
     /// Used to check for double-clicks.
     pub last_click_time: f64,
 
-    /// Current position of the mouse in points.
+    /// Current position of the pointer in points.
     /// None for touch screens when finger is not down.
     pub pos: Option<Pos2>,
 
     /// Where did the current click/drag originate?
     pub press_origin: Option<Pos2>,
 
-    /// How much the mouse moved compared to last frame, in points.
+    /// How much the pointer moved compared to last frame, in points.
     pub delta: Vec2,
 
-    /// Current velocity of mouse cursor.
+    /// Current velocity of pointer.
     pub velocity: Vec2,
 
-    /// Recent movement of the mouse.
-    /// Used for calculating velocity of mouse pointer.
+    /// Recent movement of the pointer.
+    /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
 }
 
-impl Default for CursorState {
+impl Default for PointerState {
     fn default() -> Self {
         Self {
             down: false,
@@ -147,7 +147,7 @@ impl InputState {
                 self.screen_rect
             }
         });
-        let mouse = self.mouse.begin_frame(time, &new);
+        let pointer = self.pointer.begin_frame(time, &new);
         let mut keys_down = self.keys_down;
         for event in &new.events {
             if let Event::Key { key, pressed, .. } = event {
@@ -159,7 +159,7 @@ impl InputState {
             }
         }
         InputState {
-            mouse,
+            pointer,
             scroll_delta: new.scroll_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
@@ -178,9 +178,9 @@ impl InputState {
     }
 
     pub fn wants_repaint(&self) -> bool {
-        self.mouse.pressed
-            || self.mouse.released
-            || self.mouse.delta != Vec2::zero()
+        self.pointer.pressed
+            || self.pointer.released
+            || self.pointer.delta != Vec2::zero()
             || self.scroll_delta != Vec2::zero()
             || !self.events.is_empty()
     }
@@ -236,16 +236,16 @@ impl InputState {
     }
 }
 
-impl CursorState {
+impl PointerState {
     #[must_use]
-    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> CursorState {
+    pub fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
         let delta = new
-            .mouse_pos
+            .pointer_pos
             .and_then(|new| self.pos.map(|last| new - last))
             .unwrap_or_default();
-        let pressed = !self.down && new.mouse_down;
+        let pressed = !self.down && new.pointer_button_down;
 
-        let released = self.down && !new.mouse_down;
+        let released = self.down && !new.pointer_button_down;
         let click = released && self.could_be_click;
         let double_click = click && (time - self.last_click_time) < MAX_CLICK_DELAY;
         let mut press_origin = self.press_origin;
@@ -256,14 +256,14 @@ impl CursorState {
         }
 
         if pressed {
-            press_origin = new.mouse_pos;
+            press_origin = new.pointer_pos;
             could_be_click = true;
         } else if !self.down || self.pos.is_none() {
             press_origin = None;
         }
 
-        if let (Some(press_origin), Some(mouse_pos)) = (new.mouse_pos, press_origin) {
-            could_be_click &= press_origin.distance(mouse_pos) < MAX_CLICK_DIST;
+        if let (Some(press_origin), Some(pointer_pos)) = (new.pointer_pos, press_origin) {
+            could_be_click &= press_origin.distance(pointer_pos) < MAX_CLICK_DIST;
         } else {
             could_be_click = false;
         }
@@ -274,10 +274,10 @@ impl CursorState {
             self.pos_history.clear();
         }
 
-        if let Some(mouse_pos) = new.mouse_pos {
-            self.pos_history.add(time, mouse_pos);
+        if let Some(pointer_pos) = new.pointer_pos {
+            self.pos_history.add(time, pointer_pos);
         } else {
-            // we do not clear the `mouse_tracker` here, because it is exactly when a finger has
+            // we do not clear the `pos_history` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
             // the user tried to throw
         }
@@ -289,15 +289,15 @@ impl CursorState {
             Vec2::default()
         };
 
-        CursorState {
-            down: new.mouse_down && new.mouse_pos.is_some(),
+        PointerState {
+            down: new.pointer_button_down && new.pointer_pos.is_some(),
             pressed,
             released,
             could_be_click,
             click,
             double_click,
             last_click_time,
-            pos: new.mouse_pos,
+            pos: new.pointer_pos,
             press_origin,
             delta,
             velocity,
@@ -314,7 +314,7 @@ impl InputState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             raw,
-            mouse,
+            pointer,
             scroll_delta,
             screen_rect,
             pixels_per_point,
@@ -329,10 +329,10 @@ impl InputState {
         ui.style_mut().body_text_style = crate::paint::TextStyle::Monospace;
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("🖱 Mouse")
+        crate::containers::CollapsingHeader::new("🖱 Pointer")
             .default_open(true)
             .show(ui, |ui| {
-                mouse.ui(ui);
+                pointer.ui(ui);
             });
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
@@ -354,7 +354,7 @@ impl InputState {
     }
 }
 
-impl CursorState {
+impl PointerState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             down,

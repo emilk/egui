@@ -363,15 +363,15 @@ impl Ui {
         )
     }
 
-    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
+    pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
-            .rect_contains_mouse(self.layer_id(), self.clip_rect().intersect(rect))
+            .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the mouse above this `Ui`?
-    /// Equivalent to `ui.rect_contains_mouse(ui.min_rect())`
-    pub fn ui_contains_mouse(&self) -> bool {
-        self.rect_contains_mouse(self.min_rect())
+    /// Is the pointer (mouse/touch) above this `Ui`?
+    /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
+    pub fn ui_contains_pointer(&self) -> bool {
+        self.rect_contains_pointer(self.min_rect())
     }
 
     #[deprecated = "Use: interact(rect, id, Sense::hover())"]
@@ -379,7 +379,7 @@ impl Ui {
         self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
     }
 
-    #[deprecated = "Use: rect_contains_mouse()"]
+    #[deprecated = "Use: rect_contains_pointer()"]
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact(rect, self.id, Sense::hover()).hovered
     }

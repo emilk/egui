@@ -53,19 +53,19 @@ pub fn input_to_egui(
     match event {
         WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
         WindowEvent::MouseInput { state, .. } => {
-            input_state.raw.mouse_down = state == glutin::event::ElementState::Pressed;
+            input_state.raw.pointer_button_down = state == glutin::event::ElementState::Pressed;
         }
         WindowEvent::CursorMoved {
             position: pos_in_pixels,
             ..
         } => {
-            input_state.raw.mouse_pos = Some(pos2(
+            input_state.raw.pointer_pos = Some(pos2(
                 pos_in_pixels.x as f32 / input_state.raw.pixels_per_point.unwrap(),
                 pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
             ));
         }
         WindowEvent::CursorLeft { .. } => {
-            input_state.raw.mouse_pos = None;
+            input_state.raw.pointer_pos = None;
         }
         WindowEvent::ReceivedCharacter(ch) => {
             if printable_char(ch)

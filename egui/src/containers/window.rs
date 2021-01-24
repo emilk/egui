@@ -448,24 +448,24 @@ fn interact(
 
 fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
-    let mouse_pos = ctx.input().mouse.pos?;
+    let pointer_pos = ctx.input().pointer.pos?;
     let mut rect = window_interaction.start_rect; // prevent drift
 
     if window_interaction.is_resize() {
         if window_interaction.left {
-            rect.min.x = ctx.round_to_pixel(mouse_pos.x);
+            rect.min.x = ctx.round_to_pixel(pointer_pos.x);
         } else if window_interaction.right {
-            rect.max.x = ctx.round_to_pixel(mouse_pos.x);
+            rect.max.x = ctx.round_to_pixel(pointer_pos.x);
         }
 
         if window_interaction.top {
-            rect.min.y = ctx.round_to_pixel(mouse_pos.y);
+            rect.min.y = ctx.round_to_pixel(pointer_pos.y);
         } else if window_interaction.bottom {
-            rect.max.y = ctx.round_to_pixel(mouse_pos.y);
+            rect.max.y = ctx.round_to_pixel(pointer_pos.y);
         }
     } else {
         // movement
-        rect = rect.translate(mouse_pos - ctx.input().mouse.press_origin?);
+        rect = rect.translate(pointer_pos - ctx.input().pointer.press_origin?);
     }
 
     Some(rect)
@@ -491,7 +491,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().mouse.pressed {
+            if ctx.input().pointer.pressed {
                 ctx.memory().interaction.drag_id = Some(id);
                 ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
@@ -517,13 +517,13 @@ fn resize_hover(
     area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    let mouse_pos = ctx.input().mouse.pos?;
+    let pointer_pos = ctx.input().pointer.pos?;
 
-    if ctx.input().mouse.down && !ctx.input().mouse.pressed {
+    if ctx.input().pointer.down && !ctx.input().pointer.pressed {
         return None; // already dragging (something)
     }
 
-    if let Some(top_layer_id) = ctx.layer_id_at(mouse_pos) {
+    if let Some(top_layer_id) = ctx.layer_id_at(pointer_pos) {
         if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
             return None; // Another window is on top here
         }
@@ -536,33 +536,33 @@ fn resize_hover(
 
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
-    if !rect.expand(side_grab_radius).contains(mouse_pos) {
+    if !rect.expand(side_grab_radius).contains(pointer_pos) {
         return None;
     }
 
     let (mut left, mut right, mut top, mut bottom) = Default::default();
     if possible.resizable {
-        right = (rect.right() - mouse_pos.x).abs() <= side_grab_radius;
-        bottom = (rect.bottom() - mouse_pos.y).abs() <= side_grab_radius;
+        right = (rect.right() - pointer_pos.x).abs() <= side_grab_radius;
+        bottom = (rect.bottom() - pointer_pos.y).abs() <= side_grab_radius;
 
-        if rect.right_bottom().distance(mouse_pos) < corner_grab_radius {
+        if rect.right_bottom().distance(pointer_pos) < corner_grab_radius {
             right = true;
             bottom = true;
         }
 
         if possible.movable {
-            left = (rect.left() - mouse_pos.x).abs() <= side_grab_radius;
-            top = (rect.top() - mouse_pos.y).abs() <= side_grab_radius;
+            left = (rect.left() - pointer_pos.x).abs() <= side_grab_radius;
+            top = (rect.top() - pointer_pos.y).abs() <= side_grab_radius;
 
-            if rect.right_top().distance(mouse_pos) < corner_grab_radius {
+            if rect.right_top().distance(pointer_pos) < corner_grab_radius {
                 right = true;
                 top = true;
             }
-            if rect.left_top().distance(mouse_pos) < corner_grab_radius {
+            if rect.left_top().distance(pointer_pos) < corner_grab_radius {
                 left = true;
                 top = true;
             }
-            if rect.left_bottom().distance(mouse_pos) < corner_grab_radius {
+            if rect.left_bottom().distance(pointer_pos) < corner_grab_radius {
                 left = true;
                 bottom = true;
             }

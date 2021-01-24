@@ -39,8 +39,8 @@ impl Painting {
         let current_line = self.lines.last_mut().unwrap();
 
         if response.active {
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                let canvas_pos = mouse_pos - rect.min;
+            if let Some(pointer_pos) = ui.input().pointer.pos {
+                let canvas_pos = pointer_pos - rect.min;
                 if current_line.last() != Some(&canvas_pos) {
                     current_line.push(canvas_pos);
                 }

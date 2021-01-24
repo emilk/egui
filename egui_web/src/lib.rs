@@ -605,9 +605,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
+                runner_lock.input.raw.pointer_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.input.raw.mouse_down = true;
+                runner_lock.input.raw.pointer_button_down = true;
                 runner_lock.logic().unwrap(); // in case we get "mouseup" the same frame. TODO: handle via events instead
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
@@ -624,7 +624,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
+                runner_lock.input.raw.pointer_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
@@ -641,9 +641,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
+                runner_lock.input.raw.pointer_pos =
                     Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.input.raw.mouse_down = false;
+                runner_lock.input.raw.pointer_button_down = false;
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
@@ -659,7 +659,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos = None;
+                runner_lock.input.raw.pointer_pos = None;
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
@@ -675,8 +675,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_pos = Some(pos_from_touch_event(&event));
-            runner_lock.input.raw.mouse_down = true;
+            runner_lock.input.raw.pointer_pos = Some(pos_from_touch_event(&event));
+            runner_lock.input.raw.pointer_button_down = true;
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -691,7 +691,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_pos = Some(pos_from_touch_event(&event));
+            runner_lock.input.raw.pointer_pos = Some(pos_from_touch_event(&event));
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -706,9 +706,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_down = false; // First release mouse to click...
+            runner_lock.input.raw.pointer_button_down = false; // First release mouse to click...
             runner_lock.logic().unwrap(); // ...do the clicking... (TODO: handle via events instead)
-            runner_lock.input.raw.mouse_pos = None; // ...remove hover effect
+            runner_lock.input.raw.pointer_pos = None; // ...remove hover effect
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();

@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed 🔧
+
+* `mouse` has be renamed `pointer` everywhere (to make it clear it includes touches too).
+
 ### Added ⭐
 
 * `egui::popup::popup_below_widget`: show a popup area below another widget

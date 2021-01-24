@@ -116,7 +116,8 @@ fn menu_impl<'c>(
         });
 
         // TODO: this prevents sub-menus in menus. We should fix that.
-        if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked
+        if ui.input().key_pressed(Key::Escape)
+            || ui.input().pointer.click && !button_response.clicked
         {
             bar_state.open_menu = None;
         }

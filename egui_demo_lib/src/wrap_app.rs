@@ -283,7 +283,7 @@ impl BackendPanel {
         });
 
         // We wait until mouse release to activate:
-        if ui.ctx().is_using_mouse() {
+        if ui.ctx().is_using_pointer() {
             None
         } else {
             Some(*pixels_per_point)

@@ -32,7 +32,7 @@ impl Widget for &epaint::Texture {
             response.on_hover_ui(|ui| {
                 let pos = ui
                     .input()
-                    .mouse
+                    .pointer
                     .pos
                     .unwrap_or_else(|| ui.min_rect().left_top());
                 let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));

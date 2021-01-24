@@ -95,7 +95,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
     if response.active {
-        if let Some(mpos) = ui.input().mouse.pos {
+        if let Some(mpos) = ui.input().pointer.pos {
             *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
         }
     }
@@ -152,7 +152,7 @@ fn color_slider_2d(
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
     if response.active {
-        if let Some(mpos) = ui.input().mouse.pos {
+        if let Some(mpos) = ui.input().pointer.pos {
             *x_value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
             *y_value = remap_clamp(mpos.y, rect.bottom()..=rect.top(), 0.0..=1.0);
         }
@@ -339,7 +339,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
             });
 
         if !button_response.clicked {
-            let clicked_outside = ui.input().mouse.click && !area_response.hovered;
+            let clicked_outside = ui.input().pointer.click && !area_response.hovered;
             if clicked_outside || ui.input().key_pressed(Key::Escape) {
                 ui.memory().close_popup();
             }

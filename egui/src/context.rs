@@ -190,8 +190,8 @@ impl CtxRef {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(mouse_pos) = self.input.mouse.pos {
-                    if rect.contains(mouse_pos) {
+                if let Some(pointer_pos) = self.input.pointer.pos {
+                    if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
                             "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
@@ -227,7 +227,7 @@ impl CtxRef {
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
-        let hovered = self.rect_contains_mouse(layer_id, clip_rect.intersect(interact_rect));
+        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
         self.interact_with_hovered(layer_id, id, rect, sense, hovered)
     }
 
@@ -273,7 +273,7 @@ impl CtxRef {
         let active =
             memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
 
-        if self.input.mouse.pressed {
+        if self.input.pointer.pressed {
             if hovered {
                 let mut response = Response {
                     ctx: self.clone(),
@@ -322,8 +322,8 @@ impl CtxRef {
                     lost_kb_focus,
                 }
             }
-        } else if self.input.mouse.released {
-            let clicked = hovered && active && self.input.mouse.could_be_click;
+        } else if self.input.pointer.released {
+            let clicked = hovered && active && self.input.pointer.could_be_click;
             Response {
                 ctx: self.clone(),
                 layer_id,
@@ -332,12 +332,12 @@ impl CtxRef {
                 sense,
                 hovered,
                 clicked,
-                double_clicked: clicked && self.input.mouse.double_click,
+                double_clicked: clicked && self.input.pointer.double_click,
                 active,
                 has_kb_focus,
                 lost_kb_focus,
             }
-        } else if self.input.mouse.down {
+        } else if self.input.pointer.down {
             Response {
                 ctx: self.clone(),
                 layer_id,
@@ -648,12 +648,12 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Is the mouse over any egui area?
-    pub fn is_mouse_over_area(&self) -> bool {
-        if let Some(mouse_pos) = self.input.mouse.pos {
-            if let Some(layer) = self.layer_id_at(mouse_pos) {
+    /// Is the pointer (mouse/touch) over any egui area?
+    pub fn is_pointer_over_area(&self) -> bool {
+        if let Some(pointer_pos) = self.input.pointer.pos {
+            if let Some(layer) = self.layer_id_at(pointer_pos) {
                 if layer.order == Order::Background {
-                    !self.frame_state().unused_rect.contains(mouse_pos)
+                    !self.frame_state().unused_rect.contains(pointer_pos)
                 } else {
                     true
                 }
@@ -665,19 +665,19 @@ impl Context {
         }
     }
 
-    /// True if egui is currently interested in the mouse.
-    /// Could be the mouse is hovering over a [`Window`] or the user is dragging a widget.
-    /// If `false`, the mouse is outside of any egui area and so
+    /// True if egui is currently interested in the pointer (mouse or touch).
+    /// Could be the pointer is hovering over a [`Window`] or the user is dragging a widget.
+    /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     /// Returns `false` if a drag started outside of egui and then moved over an egui area.
-    pub fn wants_mouse_input(&self) -> bool {
-        self.is_using_mouse() || (self.is_mouse_over_area() && !self.input().mouse.down)
+    pub fn wants_pointer_input(&self) -> bool {
+        self.is_using_pointer() || (self.is_pointer_over_area() && !self.input().pointer.down)
     }
 
-    /// Is egui currently using the mouse position (e.g. dragging a slider).
-    /// NOTE: this will return `false` if the mouse is just hovering over an egui area.
-    pub fn is_using_mouse(&self) -> bool {
-        self.memory().interaction.is_using_mouse()
+    /// Is egui currently using the pointer position (e.g. dragging a slider).
+    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
+    pub fn is_using_pointer(&self) -> bool {
+        self.memory().interaction.is_using_pointer()
     }
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
@@ -698,9 +698,9 @@ impl Context {
         self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
-    pub(crate) fn rect_contains_mouse(&self, layer_id: LayerId, rect: Rect) -> bool {
-        if let Some(mouse_pos) = self.input.mouse.pos {
-            rect.contains(mouse_pos) && self.layer_id_at(mouse_pos) == Some(layer_id)
+    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        if let Some(pointer_pos) = self.input.pointer.pos {
+            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
         } else {
             false
         }
@@ -766,10 +766,12 @@ impl Context {
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        ui.label(format!("Is using mouse: {}", self.is_using_mouse()))
-            .on_hover_text("Is egui currently using the mouse actively (e.g. dragging a slider)?");
-        ui.label(format!("Wants mouse input: {}", self.wants_mouse_input()))
-            .on_hover_text("Is egui currently interested in the location of the mouse (either because it is in use, or because it is hovering over a window).");
+        ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
+            .on_hover_text(
+                "Is egui currently using the pointer actively (e.g. dragging a slider)?",
+            );
+        ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
+            .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
