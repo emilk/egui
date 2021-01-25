@@ -8,7 +8,7 @@ use {
 
 use egui::{
     math::clamp,
-    paint::{Color32, Mesh, PaintJobs, Texture},
+    paint::{Color32, Mesh, Texture},
     vec2,
 };
 
@@ -467,7 +467,11 @@ impl crate::Painter for WebGl2Painter {
         gl.clear(Gl::COLOR_BUFFER_BIT);
     }
 
-    fn paint_meshes(&mut self, jobs: PaintJobs, pixels_per_point: f32) -> Result<(), JsValue> {
+    fn paint_meshes(
+        &mut self,
+        clipped_meshes: Vec<egui::ClippedMesh>,
+        pixels_per_point: f32,
+    ) -> Result<(), JsValue> {
         self.upload_user_textures();
 
         let gl = &self.gl;
@@ -493,7 +497,7 @@ impl crate::Painter for WebGl2Painter {
         let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
         gl.uniform1i(Some(&u_sampler_loc), 0);
 
-        for (clip_rect, mesh) in jobs {
+        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             if let Some(gl_texture) = self.get_texture(mesh.texture_id) {
                 gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
 

@@ -42,30 +42,30 @@ impl WebBackend {
         self.ctx.begin_frame(raw_input)
     }
 
-    pub fn end_frame(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
+    pub fn end_frame(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
         let frame_start = self
             .frame_start
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
         let (output, shapes) = self.ctx.end_frame();
-        let paint_jobs = self.ctx.tessellate(shapes);
+        let clipped_meshes = self.ctx.tessellate(shapes);
 
         let now = now_sec();
         self.previous_frame_time = Some((now - frame_start) as f32);
 
-        Ok((output, paint_jobs))
+        Ok((output, clipped_meshes))
     }
 
     pub fn paint(
         &mut self,
         clear_color: egui::Rgba,
-        paint_jobs: egui::PaintJobs,
+        clipped_meshes: Vec<egui::ClippedMesh>,
     ) -> Result<(), JsValue> {
         self.painter.upload_egui_texture(&self.ctx.texture());
         self.painter.clear(clear_color);
         self.painter
-            .paint_meshes(paint_jobs, self.ctx.pixels_per_point())
+            .paint_meshes(clipped_meshes, self.ctx.pixels_per_point())
     }
 
     pub fn painter_debug_info(&self) -> String {
@@ -190,7 +190,7 @@ impl AppRunner {
         Ok(())
     }
 
-    pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
+    pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
         resize_canvas_to_screen_size(self.web_backend.canvas_id());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
@@ -216,7 +216,7 @@ impl AppRunner {
 
         let egui_ctx = &self.web_backend.ctx;
         self.app.update(egui_ctx, &mut frame);
-        let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
+        let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
         handle_output(&egui_output);
 
         {
@@ -227,11 +227,12 @@ impl AppRunner {
             } = app_output;
         }
 
-        Ok((egui_output, paint_jobs))
+        Ok((egui_output, clipped_meshes))
     }
 
-    pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
-        self.web_backend.paint(self.app.clear_color(), paint_jobs)
+    pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
+        self.web_backend
+            .paint(self.app.clear_color(), clipped_meshes)
     }
 }
 

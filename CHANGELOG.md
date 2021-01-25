@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
 * `DragValue::range` is now called `clamp_range` and also clamps incoming values.
 * Renamed `Triangles` to `Mesh`.
+* The tesselator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
 
 ### Fixed 🐛
 

@@ -10,8 +10,11 @@ pub trait Painter {
 
     fn upload_egui_texture(&mut self, texture: &egui::Texture);
 
-    fn clear(&mut self, lear_color: egui::Rgba);
+    fn clear(&mut self, clear_color: egui::Rgba);
 
-    fn paint_meshes(&mut self, jobs: egui::PaintJobs, pixels_per_point: f32)
-        -> Result<(), JsValue>;
+    fn paint_meshes(
+        &mut self,
+        clipped_meshes: Vec<egui::ClippedMesh>,
+        pixels_per_point: f32,
+    ) -> Result<(), JsValue>;
 }

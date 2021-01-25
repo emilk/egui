@@ -114,8 +114,14 @@ pub struct ClippedShape(
     pub Shape,
 );
 
-/// A clip triangle and some textured triangles, all in points (logical pixels).
-pub type PaintJob = (emath::Rect, Mesh);
-
-/// Grouped by clip rectangles, in points (logical pixels).
-pub type PaintJobs = Vec<PaintJob>;
+/// A [`Mesh`] within a clip rectangle.
+///
+/// Everything is using logical points.
+#[derive(Clone, Debug)]
+pub struct ClippedMesh(
+    /// Clip / scissor rectangle.
+    /// Only show the part of the [`Mesh`] that falls within this.
+    pub emath::Rect,
+    /// The shape
+    pub Mesh,
+);

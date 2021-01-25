@@ -668,27 +668,28 @@ pub fn tessellate_shapes(
     shapes: Vec<ClippedShape>,
     options: TessellationOptions,
     fonts: &Fonts,
-) -> Vec<(Rect, Mesh)> {
+) -> Vec<ClippedMesh> {
     let mut tessellator = Tessellator::from_options(options);
 
-    let mut jobs = PaintJobs::default();
+    let mut clipped_meshes: Vec<ClippedMesh> = Vec::default();
+
     for ClippedShape(clip_rect, shape) in shapes {
-        let start_new_job = match jobs.last() {
+        let start_new_mesh = match clipped_meshes.last() {
             None => true,
-            Some(job) => job.0 != clip_rect || job.1.texture_id != shape.texture_id(),
+            Some(cm) => cm.0 != clip_rect || cm.1.texture_id != shape.texture_id(),
         };
 
-        if start_new_job {
-            jobs.push((clip_rect, Mesh::default()));
+        if start_new_mesh {
+            clipped_meshes.push(ClippedMesh(clip_rect, Mesh::default()));
         }
 
-        let out = &mut jobs.last_mut().unwrap().1;
+        let out = &mut clipped_meshes.last_mut().unwrap().1;
         tessellator.clip_rect = clip_rect;
         tessellator.tessellate_shape(fonts, shape, out);
     }
 
     if options.debug_paint_clip_rects {
-        for (clip_rect, mesh) in &mut jobs {
+        for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
             tessellator.clip_rect = Rect::everything();
             tessellator.tessellate_shape(
                 fonts,
@@ -704,14 +705,14 @@ pub fn tessellate_shapes(
     }
 
     if options.debug_ignore_clip_rects {
-        for (clip_rect, _) in &mut jobs {
+        for ClippedMesh(clip_rect, _) in &mut clipped_meshes {
             *clip_rect = Rect::everything();
         }
     }
 
-    for (_, mesh) in &jobs {
+    for ClippedMesh(_, mesh) in &clipped_meshes {
         debug_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
     }
 
-    jobs
+    clipped_meshes
 }

@@ -405,8 +405,8 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (output, paint_jobs) = runner_lock.logic()?;
-            runner_lock.paint(paint_jobs)?;
+            let (output, clipped_meshes) = runner_lock.logic()?;
+            runner_lock.paint(clipped_meshes)?;
             if output.needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }

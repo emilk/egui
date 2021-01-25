@@ -1,11 +1,7 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    egui::{
-        math::clamp,
-        paint::{Mesh, PaintJobs},
-        Color32, Rect,
-    },
+    egui::{math::clamp, paint::Mesh, Color32, Rect},
     glium::{
         implement_vertex,
         index::PrimitiveType,
@@ -128,7 +124,7 @@ impl Painter {
         display: &glium::Display,
         pixels_per_point: f32,
         clear_color: egui::Rgba,
-        jobs: PaintJobs,
+        cipped_meshes: Vec<egui::ClippedMesh>,
         egui_texture: &egui::Texture,
     ) {
         self.upload_egui_texture(display, egui_texture);
@@ -142,7 +138,7 @@ impl Painter {
             clear_color[2],
             clear_color[3],
         );
-        for (clip_rect, mesh) in jobs {
+        for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
             self.paint_mesh(&mut target, display, pixels_per_point, clip_rect, &mesh)
         }
         target.finish().unwrap();

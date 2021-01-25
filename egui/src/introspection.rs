@@ -88,7 +88,7 @@ impl Widget for &epaint::stats::PaintStats {
                 shape_path,
                 shape_mesh,
                 shape_vec,
-                jobs,
+                clipped_meshes,
                 vertices,
                 indices,
             } = self;
@@ -97,12 +97,13 @@ impl Widget for &epaint::stats::PaintStats {
             label(ui, shapes, "shapes").on_hover_text("Boxes, circles, etc");
             label(ui, shape_text, "text");
             label(ui, shape_path, "paths");
-            label(ui, shape_mesh, "meshes");
-            label(ui, shape_vec, "nested");
+            label(ui, shape_mesh, "nested meshes");
+            label(ui, shape_vec, "nested shapes");
             ui.advance_cursor(10.0);
 
             ui.label("Tessellated:");
-            label(ui, jobs, "jobs").on_hover_text("Number of separate clip rectangles");
+            label(ui, clipped_meshes, "clipped_meshes")
+                .on_hover_text("Number of separate clip rectangles");
             label(ui, vertices, "vertices");
             label(ui, indices, "indices").on_hover_text("Three 32-bit indices per triangles");
             ui.advance_cursor(10.0);

@@ -107,17 +107,17 @@ impl AllocInfo {
 
     pub fn format(&self, what: &str) -> String {
         if self.num_allocs() == 0 {
-            format!("{:6} {:12}", 0, what)
+            format!("{:6} {:14}", 0, what)
         } else if self.num_allocs() == 1 {
             format!(
-                "{:6} {:12}  {}       1 allocation",
+                "{:6} {:14}  {}       1 allocation",
                 self.num_elements,
                 what,
                 self.megabytes()
             )
         } else if self.element_size != ElementSize::Heterogenous {
             format!(
-                "{:6} {:12}  {}     {:3} allocations",
+                "{:6} {:14}  {}     {:3} allocations",
                 self.num_elements(),
                 what,
                 self.megabytes(),
@@ -125,7 +125,7 @@ impl AllocInfo {
             )
         } else {
             format!(
-                "{:6} {:12}  {}     {:3} allocations",
+                "{:6} {:14}  {}     {:3} allocations",
                 "",
                 what,
                 self.megabytes(),
@@ -145,7 +145,7 @@ pub struct PaintStats {
     pub shape_vec: AllocInfo,
 
     /// Number of separate clip rectangles
-    pub jobs: AllocInfo,
+    pub clipped_meshes: AllocInfo,
     pub vertices: AllocInfo,
     pub indices: AllocInfo,
 }
@@ -188,9 +188,9 @@ impl PaintStats {
         }
     }
 
-    pub fn with_paint_jobs(mut self, paint_jobs: &[crate::PaintJob]) -> Self {
-        self.jobs += AllocInfo::from_slice(paint_jobs);
-        for (_, indices) in paint_jobs {
+    pub fn with_clipped_meshes(mut self, clipped_meshes: &[crate::ClippedMesh]) -> Self {
+        self.clipped_meshes += AllocInfo::from_slice(clipped_meshes);
+        for ClippedMesh(_, indices) in clipped_meshes {
             self.vertices += AllocInfo::from_slice(&indices.vertices);
             self.indices += AllocInfo::from_slice(&indices.indices);
         }
@@ -202,7 +202,7 @@ impl PaintStats {
     //         + self.shape_text
     //         + self.shape_path
     //         + self.shape_mesh
-    //         + self.jobs
+    //         + self.clipped_meshes
     //         + self.vertices
     //         + self.indices
     // }

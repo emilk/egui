@@ -27,8 +27,8 @@
 //!     egui_ctx.begin_frame(raw_input);
 //!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
 //!     let (output, shapes) = egui_ctx.end_frame();
-//!     let paint_jobs = egui_ctx.tessellate(shapes); // create triangles to paint
-//!     my_integration.paint(paint_jobs);
+//!     let clipped_meshes = egui_ctx.tessellate(shapes); // create triangles to paint
+//!     my_integration.paint(clipped_meshes);
 //!     my_integration.set_cursor_icon(output.cursor_icon);
 //!     // Also see `egui::Output` for more
 //! }
@@ -109,7 +109,7 @@ pub use emath::{
 pub use epaint::{
     color, mutex,
     text::{FontDefinitions, FontFamily, TextStyle},
-    Color32, PaintJobs, Rgba, Shape, Stroke, Texture, TextureId,
+    ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
 };
 
 pub use {

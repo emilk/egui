@@ -100,7 +100,7 @@ fn test_egui_e2e() {
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);
         let (_output, shapes) = ctx.end_frame();
-        let paint_jobs = ctx.tessellate(shapes);
-        assert!(!paint_jobs.is_empty());
+        let clipped_meshes = ctx.tessellate(shapes);
+        assert!(!clipped_meshes.is_empty());
     }
 }
