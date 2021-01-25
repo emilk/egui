@@ -13,15 +13,16 @@ struct Demos {
 impl Default for Demos {
     fn default() -> Self {
         let demos: Vec<Box<dyn super::Demo>> = vec![
-            Box::new(super::WidgetGallery::default()),
+            Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::sliders::Sliders::default()),
             Box::new(super::input_test::InputTest::default()),
-            Box::new(super::FontBook::default()),
-            Box::new(super::Painting::default()),
-            Box::new(super::DancingStrings::default()),
-            Box::new(super::DragAndDropDemo::default()),
-            Box::new(super::Tests::default()),
-            Box::new(super::WindowOptions::default()),
+            Box::new(super::font_book::FontBook::default()),
+            Box::new(super::painting::Painting::default()),
+            Box::new(super::dancing_strings::DancingStrings::default()),
+            Box::new(super::drag_and_drop::DragAndDropDemo::default()),
+            Box::new(super::tests::Tests::default()),
+            Box::new(super::window_options::WindowOptions::default()),
+            Box::new(super::scrolling::Scrolling::default()),
         ];
         Self {
             open: vec![false; demos.len()],
