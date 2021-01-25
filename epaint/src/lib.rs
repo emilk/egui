@@ -57,7 +57,7 @@ mod texture_atlas;
 
 pub use {
     color::{Color32, Rgba},
-    mesh::{Mesh, Vertex},
+    mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::Shape,
     stats::PaintStats,

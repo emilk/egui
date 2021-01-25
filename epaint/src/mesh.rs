@@ -25,6 +25,8 @@ pub struct Vertex {
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
     ///
+    /// If you only support 16-bit indices you can use [`Mesh::split_to_u16`].
+    ///
     /// egui is NOT consistent with what winding order it uses, so turn off backface culling.
     pub indices: Vec<u32>,
 
@@ -51,8 +53,12 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        let n = self.vertices.len() as u32;
-        self.indices.iter().all(|&i| i < n)
+        if self.vertices.len() <= u32::MAX as usize {
+            let n = self.vertices.len() as u32;
+            self.indices.iter().all(|&i| i < n)
+        } else {
+            false
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -149,13 +155,20 @@ impl Mesh {
 
     /// This is for platforms that only support 16-bit index buffers.
     ///
-    /// Splits this mesh into many smaller meshes (if needed).
-    /// All the returned meshes will have indices that fit into a `u16`.
-    pub fn split_to_u16(self) -> Vec<Mesh> {
+    /// Splits this mesh into many smaller meshes (if needed)
+    /// where the smaller meshes have 16-bit indices.
+    pub fn split_to_u16(self) -> Vec<Mesh16> {
+        debug_assert!(self.is_valid());
+
         const MAX_SIZE: u32 = 1 << 16;
 
         if self.vertices.len() < MAX_SIZE as usize {
-            return vec![self]; // Common-case optimization
+            // Common-case optimization:
+            return vec![Mesh16 {
+                indices: self.indices.iter().map(|&i| i as u16).collect(),
+                vertices: self.vertices,
+                texture_id: self.texture_id,
+            }];
         }
 
         let mut output = vec![];
@@ -190,14 +203,17 @@ impl Mesh {
                 MAX_SIZE
             );
 
-            output.push(Mesh {
+            use std::convert::TryFrom;
+            let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| vi - min_vindex)
+                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
-            });
+            };
+            debug_assert!(mesh.is_valid());
+            output.push(mesh);
         }
         output
     }
@@ -206,6 +222,36 @@ impl Mesh {
     pub fn translate(&mut self, delta: Vec2) {
         for v in &mut self.vertices {
             v.pos += delta;
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A version of [`Mesh`] that uses 16-bit indices.
+///
+/// This is produced by [`Mesh::split_to_u16`] and is meant to be used for legacy render backends.
+pub struct Mesh16 {
+    /// Draw as triangles (i.e. the length is always multiple of three).
+    ///
+    /// egui is NOT consistent with what winding order it uses, so turn off backface culling.
+    pub indices: Vec<u16>,
+
+    /// The vertex data indexed by `indices`.
+    pub vertices: Vec<Vertex>,
+
+    /// The texture to use when drawing these triangles.
+    pub texture_id: TextureId,
+}
+
+impl Mesh16 {
+    /// Are all indices within the bounds of the contained vertices?
+    pub fn is_valid(&self) -> bool {
+        if self.vertices.len() <= u16::MAX as usize {
+            let n = self.vertices.len() as u16;
+            self.indices.iter().all(|&i| i < n)
+        } else {
+            false
         }
     }
 }

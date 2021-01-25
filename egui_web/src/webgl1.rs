@@ -6,7 +6,7 @@ use {
 
 use egui::{
     math::clamp,
-    paint::{Color32, Mesh, Texture},
+    paint::{Color32, Texture},
     vec2,
 };
 
@@ -265,9 +265,8 @@ impl WebGlPainter {
         }
     }
 
-    fn paint_mesh(&self, mesh: &Mesh) -> Result<(), JsValue> {
+    fn paint_mesh(&self, mesh: &egui::paint::Mesh16) -> Result<(), JsValue> {
         debug_assert!(mesh.is_valid());
-        let indices: Vec<u16> = mesh.indices.iter().map(|idx| *idx as u16).collect();
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
         let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
@@ -293,9 +292,9 @@ impl WebGlPainter {
         let indices_memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
             .buffer();
-        let indices_ptr = indices.as_ptr() as u32 / 2;
+        let indices_ptr = mesh.indices.as_ptr() as u32 / 2;
         let indices_array = js_sys::Int16Array::new(&indices_memory_buffer)
-            .subarray(indices_ptr, indices_ptr + indices.len() as u32);
+            .subarray(indices_ptr, indices_ptr + mesh.indices.len() as u32);
 
         gl.bind_buffer(Gl::ELEMENT_ARRAY_BUFFER, Some(&self.index_buffer));
         gl.buffer_data_with_array_buffer_view(
@@ -379,7 +378,12 @@ impl WebGlPainter {
 
         // --------------------------------------------------------------------
 
-        gl.draw_elements_with_i32(Gl::TRIANGLES, indices.len() as i32, Gl::UNSIGNED_SHORT, 0);
+        gl.draw_elements_with_i32(
+            Gl::TRIANGLES,
+            mesh.indices.len() as i32,
+            Gl::UNSIGNED_SHORT,
+            0,
+        );
 
         Ok(())
     }

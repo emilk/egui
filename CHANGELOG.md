@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `DragValue::range` is now called `clamp_range` and also clamps incoming values.
 * Renamed `Triangles` to `Mesh`.
 * The tesselator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
+* `Mesh::split_to_u16` now returns a 16-bit indexed `Mesh16`.
 
 ### Fixed 🐛
 
