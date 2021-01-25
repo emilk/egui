@@ -3,7 +3,7 @@
 use {
     egui::{
         math::clamp,
-        paint::{PaintJobs, Triangles},
+        paint::{Mesh, PaintJobs},
         Color32, Rect,
     },
     glium::{
@@ -123,7 +123,7 @@ impl Painter {
     }
 
     /// Main entry-point for painting a frame
-    pub fn paint_jobs(
+    pub fn paint_meshes(
         &mut self,
         display: &glium::Display,
         pixels_per_point: f32,
@@ -142,28 +142,22 @@ impl Painter {
             clear_color[2],
             clear_color[3],
         );
-        for (clip_rect, triangles) in jobs {
-            self.paint_job(
-                &mut target,
-                display,
-                pixels_per_point,
-                clip_rect,
-                &triangles,
-            )
+        for (clip_rect, mesh) in jobs {
+            self.paint_mesh(&mut target, display, pixels_per_point, clip_rect, &mesh)
         }
         target.finish().unwrap();
     }
 
     #[inline(never)] // Easier profiling
-    pub fn paint_job(
+    pub fn paint_mesh(
         &mut self,
         target: &mut Frame,
         display: &glium::Display,
         pixels_per_point: f32,
         clip_rect: Rect,
-        triangles: &Triangles,
+        mesh: &Mesh,
     ) {
-        debug_assert!(triangles.is_valid());
+        debug_assert!(mesh.is_valid());
 
         let vertex_buffer = {
             #[derive(Copy, Clone)]
@@ -174,7 +168,7 @@ impl Painter {
             }
             implement_vertex!(Vertex, a_pos, a_tc, a_srgba);
 
-            let vertices: Vec<Vertex> = triangles
+            let vertices: Vec<Vertex> = mesh
                 .vertices
                 .iter()
                 .map(|v| Vertex {
@@ -188,7 +182,7 @@ impl Painter {
             glium::VertexBuffer::new(display, &vertices).unwrap()
         };
 
-        let indices: Vec<u32> = triangles.indices.iter().map(|idx| *idx as u32).collect();
+        let indices: Vec<u32> = mesh.indices.iter().map(|idx| *idx as u32).collect();
 
         // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
         let index_buffer =
@@ -198,7 +192,7 @@ impl Painter {
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
-        if let Some(texture) = self.get_texture(triangles.texture_id) {
+        if let Some(texture) = self.get_texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
             let filter = MagnifySamplerFilter::Linear;
@@ -227,7 +221,7 @@ impl Painter {
                 ..Default::default()
             };
 
-            // egui outputs triangles in both winding orders:
+            // egui outputs mesh in both winding orders:
             let backface_culling = glium::BackfaceCullingMode::CullingDisabled;
 
             // Transform clip rect to physical pixels:

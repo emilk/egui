@@ -302,26 +302,26 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     use egui::paint::*;
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
-        let mut triangles = Triangles::default();
-        triangles.add_colored_rect(rect, bg_fill);
-        ui.painter().add(Shape::triangles(triangles));
+        let mut mesh = Mesh::default();
+        mesh.add_colored_rect(rect, bg_fill);
+        ui.painter().add(Shape::mesh(mesh));
     }
     {
         let n = gradient.0.len();
         assert!(n >= 2);
-        let mut triangles = Triangles::default();
+        let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
             let x = lerp(rect.x_range(), t);
-            triangles.colored_vertex(pos2(x, rect.top()), color);
-            triangles.colored_vertex(pos2(x, rect.bottom()), color);
+            mesh.colored_vertex(pos2(x, rect.top()), color);
+            mesh.colored_vertex(pos2(x, rect.bottom()), color);
             if i < n - 1 {
                 let i = i as u32;
-                triangles.add_triangle(2 * i, 2 * i + 1, 2 * i + 2);
-                triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
+                mesh.add_triangle(2 * i, 2 * i + 1, 2 * i + 2);
+                mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(Shape::triangles(triangles));
+        ui.painter().add(Shape::mesh(mesh));
     }
     response
 }

@@ -26,20 +26,20 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     let checker_size = Vec2::splat(rect.height() / 2.0);
     let n = (rect.width() / checker_size.x).round() as u32;
 
-    let mut triangles = Triangles::default();
+    let mut mesh = Mesh::default();
     for i in 0..n {
         let x = lerp(rect.left()..=rect.right(), i as f32 / (n as f32));
-        triangles.add_colored_rect(
+        mesh.add_colored_rect(
             Rect::from_min_size(pos2(x, rect.top()), checker_size),
             top_color,
         );
-        triangles.add_colored_rect(
+        mesh.add_colored_rect(
             Rect::from_min_size(pos2(x, rect.center().y), checker_size),
             bottom_color,
         );
         std::mem::swap(&mut top_color, &mut bottom_color);
     }
-    painter.add(Shape::triangles(triangles));
+    painter.add(Shape::mesh(mesh));
 }
 
 pub fn show_color(ui: &mut Ui, color: impl Into<Hsva>, desired_size: Vec2) -> Response {
@@ -104,19 +104,19 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
 
     {
         // fill color:
-        let mut triangles = Triangles::default();
+        let mut mesh = Mesh::default();
         for i in 0..=N {
             let t = i as f32 / (N as f32);
             let color = color_at(t);
             let x = lerp(rect.left()..=rect.right(), t);
-            triangles.colored_vertex(pos2(x, rect.top()), color);
-            triangles.colored_vertex(pos2(x, rect.bottom()), color);
+            mesh.colored_vertex(pos2(x, rect.top()), color);
+            mesh.colored_vertex(pos2(x, rect.bottom()), color);
             if i < N {
-                triangles.add_triangle(2 * i + 0, 2 * i + 1, 2 * i + 2);
-                triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
+                mesh.add_triangle(2 * i + 0, 2 * i + 1, 2 * i + 2);
+                mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(Shape::triangles(triangles));
+        ui.painter().add(Shape::mesh(mesh));
     }
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
@@ -155,7 +155,7 @@ fn color_slider_2d(
     }
 
     let visuals = ui.style().interact(&response);
-    let mut triangles = Triangles::default();
+    let mut mesh = Mesh::default();
 
     for xi in 0..=N {
         for yi in 0..=N {
@@ -164,18 +164,18 @@ fn color_slider_2d(
             let color = color_at(xt, yt);
             let x = lerp(rect.left()..=rect.right(), xt);
             let y = lerp(rect.bottom()..=rect.top(), yt);
-            triangles.colored_vertex(pos2(x, y), color);
+            mesh.colored_vertex(pos2(x, y), color);
 
             if xi < N && yi < N {
                 let x_offset = 1;
                 let y_offset = N + 1;
                 let tl = yi * y_offset + xi;
-                triangles.add_triangle(tl, tl + x_offset, tl + y_offset);
-                triangles.add_triangle(tl + x_offset, tl + y_offset, tl + y_offset + x_offset);
+                mesh.add_triangle(tl, tl + x_offset, tl + y_offset);
+                mesh.add_triangle(tl + x_offset, tl + y_offset, tl + y_offset + x_offset);
             }
         }
     }
-    ui.painter().add(Shape::triangles(triangles)); // fill
+    ui.painter().add(Shape::mesh(mesh)); // fill
 
     ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
 

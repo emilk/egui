@@ -1,6 +1,6 @@
 use crate::{
     text::{Fonts, Galley, TextStyle},
-    Color32, Stroke, Triangles,
+    Color32, Mesh, Stroke,
 };
 use emath::*;
 
@@ -47,7 +47,7 @@ pub enum Shape {
         text_style: TextStyle, // TODO: Font?
         color: Color32,
     },
-    Triangles(Triangles),
+    Mesh(Mesh),
 }
 
 /// ## Constructors
@@ -144,14 +144,19 @@ impl Shape {
 
 /// ## Operations
 impl Shape {
-    pub fn triangles(triangles: Triangles) -> Self {
-        debug_assert!(triangles.is_valid());
-        Self::Triangles(triangles)
+    pub fn mesh(mesh: Mesh) -> Self {
+        debug_assert!(mesh.is_valid());
+        Self::Mesh(mesh)
+    }
+
+    #[deprecated = "Renamed `mesh`"]
+    pub fn triangles(mesh: Mesh) -> Self {
+        Self::mesh(mesh)
     }
 
     pub fn texture_id(&self) -> super::TextureId {
-        if let Shape::Triangles(triangles) = self {
-            triangles.texture_id
+        if let Shape::Mesh(mesh) = self {
+            mesh.texture_id
         } else {
             super::TextureId::Egui
         }
@@ -185,8 +190,8 @@ impl Shape {
             Shape::Text { pos, .. } => {
                 *pos += delta;
             }
-            Shape::Triangles(triangles) => {
-                triangles.translate(delta);
+            Shape::Mesh(mesh) => {
+                mesh.translate(delta);
             }
         }
     }

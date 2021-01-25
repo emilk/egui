@@ -57,16 +57,16 @@ impl Image {
         } = self;
 
         if *bg_fill != Default::default() {
-            let mut triangles = Triangles::default();
-            triangles.add_colored_rect(rect, *bg_fill);
-            ui.painter().add(Shape::triangles(triangles));
+            let mut mesh = Mesh::default();
+            mesh.add_colored_rect(rect, *bg_fill);
+            ui.painter().add(Shape::mesh(mesh));
         }
 
         {
-            // TODO: builder pattern for Triangles
-            let mut triangles = Triangles::with_texture(*texture_id);
-            triangles.add_rect_with_uv(rect, *uv, *tint);
-            ui.painter().add(Shape::triangles(triangles));
+            // TODO: builder pattern for Mesh
+            let mut mesh = Mesh::with_texture(*texture_id);
+            mesh.add_rect_with_uv(rect, *uv, *tint);
+            ui.painter().add(Shape::mesh(mesh));
         }
     }
 }

@@ -45,6 +45,7 @@
 #![allow(clippy::manual_range_contains)]
 
 pub mod color;
+mod mesh;
 pub mod mutex;
 mod shadow;
 mod shape;
@@ -53,10 +54,10 @@ mod stroke;
 pub mod tessellator;
 pub mod text;
 mod texture_atlas;
-mod triangles;
 
 pub use {
     color::{Color32, Rgba},
+    mesh::{Mesh, Vertex},
     shadow::Shadow,
     shape::Shape,
     stats::PaintStats,
@@ -64,7 +65,6 @@ pub use {
     tessellator::TessellationOptions,
     text::{Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
-    triangles::{Triangles, Vertex},
 };
 
 pub use ahash;
@@ -76,7 +76,7 @@ pub use emath;
 /// (so it doesn't do bilinear blending with bottom right corner).
 pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
-/// What texture to use in a [`Triangles`] mesh.
+/// What texture to use in a [`Mesh`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextureId {
     /// The egui font texture.
@@ -115,7 +115,7 @@ pub struct ClippedShape(
 );
 
 /// A clip triangle and some textured triangles, all in points (logical pixels).
-pub type PaintJob = (emath::Rect, Triangles);
+pub type PaintJob = (emath::Rect, Mesh);
 
 /// Grouped by clip rectangles, in points (logical pixels).
 pub type PaintJobs = Vec<PaintJob>;

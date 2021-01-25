@@ -160,7 +160,7 @@ impl Frame {
             frame_shape
         } else {
             let shadow = shadow.tessellate(outer_rect, corner_radius);
-            let shadow = Shape::Triangles(shadow);
+            let shadow = Shape::Mesh(shadow);
             Shape::Vec(vec![shadow, frame_shape])
         }
     }

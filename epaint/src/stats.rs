@@ -67,7 +67,7 @@ impl AllocInfo {
     //         | Shape::Rect { .. } => Self::default(),
     //         Shape::Path { points, .. } => Self::from_slice(points),
     //         Shape::Text { galley, .. } => Self::from_galley(galley),
-    //         Shape::Triangles(triangles) => Self::from_triangles(triangles),
+    //         Shape::Mesh(mesh) => Self::from_mesh(mesh),
     //     }
     // }
 
@@ -75,8 +75,8 @@ impl AllocInfo {
         Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.rows)
     }
 
-    pub fn from_triangles(triangles: &Triangles) -> Self {
-        Self::from_slice(&triangles.indices) + Self::from_slice(&triangles.vertices)
+    pub fn from_mesh(mesh: &Mesh) -> Self {
+        Self::from_slice(&mesh.indices) + Self::from_slice(&mesh.vertices)
     }
 
     pub fn from_slice<T>(slice: &[T]) -> Self {
@@ -182,8 +182,8 @@ impl PaintStats {
             Shape::Text { galley, .. } => {
                 self.shape_text += AllocInfo::from_galley(galley);
             }
-            Shape::Triangles(triangles) => {
-                self.shape_mesh += AllocInfo::from_triangles(triangles);
+            Shape::Mesh(mesh) => {
+                self.shape_mesh += AllocInfo::from_mesh(mesh);
             }
         }
     }

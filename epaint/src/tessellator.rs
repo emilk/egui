@@ -1,7 +1,7 @@
 //! Converts graphics primitives into textured triangles.
 //!
 //! This module converts lines, circles, text and more represented by [`Shape`]
-//! into textured triangles represented by [`Triangles`].
+//! into textured triangles represented by [`Mesh`].
 
 #![allow(clippy::identity_op)]
 
@@ -239,7 +239,7 @@ fn fill_closed_path(
     path: &[PathPoint],
     color: Color32,
     options: TessellationOptions,
-    out: &mut Triangles,
+    out: &mut Mesh,
 ) {
     if color == Color32::TRANSPARENT {
         return;
@@ -285,7 +285,7 @@ fn stroke_path(
     path_type: PathType,
     stroke: Stroke,
     options: TessellationOptions,
-    out: &mut Triangles,
+    out: &mut Mesh,
 ) {
     if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
         return;
@@ -427,7 +427,7 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 
 // ----------------------------------------------------------------------------
 
-/// Converts [`Shape`]s into [`Triangles`].
+/// Converts [`Shape`]s into [`Mesh`].
 pub struct Tessellator {
     options: TessellationOptions,
     /// Only used for culling
@@ -446,7 +446,7 @@ impl Tessellator {
         }
     }
 
-    /// Tessellate a single [`Shape`] into a [`Triangles`].
+    /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
     /// * `shape`: the shape to tessellate
     /// * `options`: tessellation quality
@@ -454,7 +454,7 @@ impl Tessellator {
     /// * `out`: where the triangles are put
     /// * `scratchpad_path`: if you plan to run `tessellate_shape`
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Triangles) {
+    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
         let options = self.options;
 
@@ -487,11 +487,11 @@ impl Tessellator {
                 fill_closed_path(&path.0, fill, options, out);
                 stroke_path(&path.0, Closed, stroke, options, out);
             }
-            Shape::Triangles(triangles) => {
-                if triangles.is_valid() {
-                    out.append(triangles);
+            Shape::Mesh(mesh) => {
+                if mesh.is_valid() {
+                    out.append(mesh);
                 } else {
-                    debug_assert!(false, "Invalid Triangles in Shape::Triangles");
+                    debug_assert!(false, "Invalid Mesh in Shape::Mesh");
                 }
             }
             Shape::LineSegment { points, stroke } => {
@@ -562,7 +562,7 @@ impl Tessellator {
         }
     }
 
-    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Triangles) {
+    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Mesh) {
         let PaintRect {
             mut rect,
             corner_radius,
@@ -599,7 +599,7 @@ impl Tessellator {
         galley: &super::Galley,
         text_style: super::TextStyle,
         color: Color32,
-        out: &mut Triangles,
+        out: &mut Mesh,
     ) {
         if color == Color32::TRANSPARENT {
             return;
@@ -663,12 +663,12 @@ impl Tessellator {
 /// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
-/// A list of clip rectangles with matching [`Triangles`].
+/// A list of clip rectangles with matching [`Mesh`].
 pub fn tessellate_shapes(
     shapes: Vec<ClippedShape>,
     options: TessellationOptions,
     fonts: &Fonts,
-) -> Vec<(Rect, Triangles)> {
+) -> Vec<(Rect, Mesh)> {
     let mut tessellator = Tessellator::from_options(options);
 
     let mut jobs = PaintJobs::default();
@@ -679,7 +679,7 @@ pub fn tessellate_shapes(
         };
 
         if start_new_job {
-            jobs.push((clip_rect, Triangles::default()));
+            jobs.push((clip_rect, Mesh::default()));
         }
 
         let out = &mut jobs.last_mut().unwrap().1;
@@ -688,7 +688,7 @@ pub fn tessellate_shapes(
     }
 
     if options.debug_paint_clip_rects {
-        for (clip_rect, triangles) in &mut jobs {
+        for (clip_rect, mesh) in &mut jobs {
             tessellator.clip_rect = Rect::everything();
             tessellator.tessellate_shape(
                 fonts,
@@ -698,7 +698,7 @@ pub fn tessellate_shapes(
                     fill: Default::default(),
                     stroke: Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
                 },
-                triangles,
+                mesh,
             )
         }
     }
@@ -709,11 +709,8 @@ pub fn tessellate_shapes(
         }
     }
 
-    for (_, triangles) in &jobs {
-        debug_assert!(
-            triangles.is_valid(),
-            "Tessellator generated invalid Triangles"
-        );
+    for (_, mesh) in &jobs {
+        debug_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
     }
 
     jobs

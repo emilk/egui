@@ -216,7 +216,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
             let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);
-            painter.paint_jobs(
+            painter.paint_meshes(
                 &display,
                 ctx.pixels_per_point(),
                 app.clear_color(),

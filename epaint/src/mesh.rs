@@ -1,7 +1,7 @@
 use crate::*;
 use emath::*;
 
-/// The vertex type.
+/// The 2D vertex type.
 ///
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
@@ -20,9 +20,9 @@ pub struct Vertex {
     pub color: Color32, // 32 bit
 }
 
-/// Textured triangles.
+/// Textured triangles in two dimensions.
 #[derive(Clone, Debug, Default)]
-pub struct Triangles {
+pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
     ///
     /// egui is NOT consistent with what winding order it uses, so turn off backface culling.
@@ -35,7 +35,7 @@ pub struct Triangles {
     pub texture_id: TextureId,
 }
 
-impl Triangles {
+impl Mesh {
     pub fn with_texture(texture_id: TextureId) -> Self {
         Self {
             texture_id,
@@ -60,7 +60,7 @@ impl Triangles {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
-    pub fn append(&mut self, other: Triangles) {
+    pub fn append(&mut self, other: Mesh) {
         debug_assert!(other.is_valid());
 
         if self.is_empty() {
@@ -68,7 +68,7 @@ impl Triangles {
         } else {
             assert_eq!(
                 self.texture_id, other.texture_id,
-                "Can't merge Triangles using different textures"
+                "Can't merge Mesh using different textures"
             );
 
             let index_offset = self.vertices.len() as u32;
@@ -151,7 +151,7 @@ impl Triangles {
     ///
     /// Splits this mesh into many smaller meshes (if needed).
     /// All the returned meshes will have indices that fit into a `u16`.
-    pub fn split_to_u16(self) -> Vec<Triangles> {
+    pub fn split_to_u16(self) -> Vec<Mesh> {
         const MAX_SIZE: u32 = 1 << 16;
 
         if self.vertices.len() < MAX_SIZE as usize {
@@ -190,7 +190,7 @@ impl Triangles {
                 MAX_SIZE
             );
 
-            output.push(Triangles {
+            output.push(Mesh {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
                     .map(|vi| vi - min_vindex)

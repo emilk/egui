@@ -3,7 +3,7 @@ use crate::*;
 
 impl Widget for &epaint::Texture {
     fn ui(self, ui: &mut Ui) -> Response {
-        use epaint::Triangles;
+        use epaint::Mesh;
 
         ui.vertical(|ui| {
             // Show font texture in demo Ui
@@ -19,13 +19,13 @@ impl Widget for &epaint::Texture {
                 size *= ui.available_width() / size.x;
             }
             let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-            let mut triangles = Triangles::default();
-            triangles.add_rect_with_uv(
+            let mut mesh = Mesh::default();
+            mesh.add_rect_with_uv(
                 rect,
                 [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
                 Color32::WHITE,
             );
-            ui.painter().add(Shape::triangles(triangles));
+            ui.painter().add(Shape::mesh(mesh));
 
             let (tex_w, tex_h) = (self.width as f32, self.height as f32);
 
@@ -45,9 +45,9 @@ impl Widget for &epaint::Texture {
                     pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
                     pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
                 );
-                let mut triangles = Triangles::default();
-                triangles.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-                ui.painter().add(Shape::triangles(triangles));
+                let mut mesh = Mesh::default();
+                mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
+                ui.painter().add(Shape::mesh(mesh));
             });
         })
         .1

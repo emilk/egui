@@ -65,7 +65,7 @@ impl WebBackend {
         self.painter.upload_egui_texture(&self.ctx.texture());
         self.painter.clear(clear_color);
         self.painter
-            .paint_jobs(paint_jobs, self.ctx.pixels_per_point())
+            .paint_meshes(paint_jobs, self.ctx.pixels_per_point())
     }
 
     pub fn painter_debug_info(&self) -> String {

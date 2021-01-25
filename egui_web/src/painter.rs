@@ -12,5 +12,6 @@ pub trait Painter {
 
     fn clear(&mut self, lear_color: egui::Rgba);
 
-    fn paint_jobs(&mut self, jobs: egui::PaintJobs, pixels_per_point: f32) -> Result<(), JsValue>;
+    fn paint_meshes(&mut self, jobs: egui::PaintJobs, pixels_per_point: f32)
+        -> Result<(), JsValue>;
 }

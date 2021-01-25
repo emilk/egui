@@ -30,7 +30,7 @@ impl Shadow {
         }
     }
 
-    pub fn tessellate(&self, rect: emath::Rect, corner_radius: f32) -> Triangles {
+    pub fn tessellate(&self, rect: emath::Rect, corner_radius: f32) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO: culling
 
         let Self { extrusion, color } = *self;
@@ -47,8 +47,8 @@ impl Shadow {
             anti_alias: true,
             ..Default::default()
         });
-        let mut triangles = Triangles::default();
-        tessellator.tessellate_rect(&rect, &mut triangles);
-        triangles
+        let mut mesh = Mesh::default();
+        tessellator.tessellate_rect(&rect, &mut mesh);
+        mesh
     }
 }
