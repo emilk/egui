@@ -23,7 +23,7 @@ pub struct DragValue<'a> {
     speed: f32,
     prefix: String,
     suffix: String,
-    range: RangeInclusive<f64>,
+    clamp_range: RangeInclusive<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -35,7 +35,7 @@ impl<'a> DragValue<'a> {
             speed: 1.0,
             prefix: Default::default(),
             suffix: Default::default(),
-            range: f64::NEG_INFINITY..=f64::INFINITY,
+            clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
             min_decimals: 0,
             max_decimals: None,
         }
@@ -85,10 +85,15 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Clamp the value to this range
-    pub fn range(mut self, range: RangeInclusive<f32>) -> Self {
-        self.range = *range.start() as f64..=*range.end() as f64;
+    /// Clamp incoming and outgoing values to this range.
+    pub fn clamp_range(mut self, clamp_range: RangeInclusive<f32>) -> Self {
+        self.clamp_range = *clamp_range.start() as f64..=*clamp_range.end() as f64;
         self
+    }
+
+    #[deprecated = "Renamed clamp_range"]
+    pub fn range(self, clamp_range: RangeInclusive<f32>) -> Self {
+        self.clamp_range(clamp_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "
@@ -138,7 +143,7 @@ impl<'a> Widget for DragValue<'a> {
         let Self {
             mut value_function,
             speed,
-            range,
+            clamp_range,
             prefix,
             suffix,
             min_decimals,
@@ -146,6 +151,7 @@ impl<'a> Widget for DragValue<'a> {
         } = self;
 
         let value = get(&mut value_function);
+        let value = clamp(value, clamp_range.clone());
         let aim_rad = ui.input().physical_pixel_size(); // ui.input().aim_radius(); // TODO
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
@@ -165,7 +171,7 @@ impl<'a> Widget for DragValue<'a> {
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {
-                let parsed_value = clamp(parsed_value, range);
+                let parsed_value = clamp(parsed_value, clamp_range);
                 set(&mut value_function, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
@@ -195,7 +201,7 @@ impl<'a> Widget for DragValue<'a> {
                 if delta_value != 0.0 {
                     let new_value = value + delta_value as f64;
                     let new_value = math::round_to_decimals(new_value, auto_decimals);
-                    let new_value = clamp(new_value, range);
+                    let new_value = clamp(new_value, clamp_range);
                     set(&mut value_function, new_value);
                     // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
                     // otherwise we will just keep rounding to the same value while moving the mouse.

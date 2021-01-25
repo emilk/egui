@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Most parts of `Response` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
 * `Response::active` is now gone. You can use `response.dragged()` or `response.clicked()` instead.
 * Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
+* `DragValue::range` is now called `clamp_range` and also clamps incoming values.
 
 ### Fixed 🐛
 
