@@ -20,7 +20,6 @@ pub struct Widgets {
     button_enabled: bool,
     count: usize,
     radio: Enum,
-    sliders: super::Sliders,
     angle: f32,
     color: Color32,
     single_line_text_input: String,
@@ -34,7 +33,6 @@ impl Default for Widgets {
             button_enabled: true,
             radio: Enum::First,
             count: 0,
-            sliders: Default::default(),
             angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
@@ -79,16 +77,20 @@ impl Widgets {
         ui.label("Tooltips can be more than just simple text.")
             .on_hover_ui(tooltip_ui);
 
-        ui.horizontal(|ui| {
-            ui.radio_value(&mut self.radio, Enum::First, "First");
-            ui.radio_value(&mut self.radio, Enum::Second, "Second");
-            ui.radio_value(&mut self.radio, Enum::Third, "Third");
-        });
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.label("This is a group of widgets");
 
-        egui::combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
-            ui.selectable_value(&mut self.radio, Enum::First, "First");
-            ui.selectable_value(&mut self.radio, Enum::Second, "Second");
-            ui.selectable_value(&mut self.radio, Enum::Third, "Third");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.radio, Enum::First, "First");
+                ui.radio_value(&mut self.radio, Enum::Second, "Second");
+                ui.radio_value(&mut self.radio, Enum::Third, "Third");
+            });
+
+            egui::combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
+                ui.selectable_value(&mut self.radio, Enum::First, "First");
+                ui.selectable_value(&mut self.radio, Enum::Second, "Second");
+                ui.selectable_value(&mut self.radio, Enum::Third, "Third");
+            });
         });
 
         ui.checkbox(&mut self.button_enabled, "Button enabled");
@@ -102,25 +104,6 @@ impl Widgets {
                 self.count += 1;
             }
             ui.label(format!("The button has been clicked {} times.", self.count));
-        });
-
-        egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Drag this value to change it:");
-                ui.add(DragValue::f64(&mut self.sliders.value).speed(0.01));
-            });
-
-            ui.add(
-                egui::Slider::f64(&mut self.sliders.value, 1.0..=100.0)
-                    .logarithmic(true)
-                    .text("A slider"),
-            );
-
-            egui::CollapsingHeader::new("More sliders")
-                .default_open(false)
-                .show(ui, |ui| {
-                    self.sliders.ui(ui);
-                });
         });
 
         ui.separator();

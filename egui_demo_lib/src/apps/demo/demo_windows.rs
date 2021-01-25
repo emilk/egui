@@ -14,6 +14,7 @@ impl Default for Demos {
     fn default() -> Self {
         let demos: Vec<Box<dyn super::Demo>> = vec![
             Box::new(super::WidgetGallery::default()),
+            Box::new(super::sliders::Sliders::default()),
             Box::new(super::input_test::InputTest::default()),
             Box::new(super::FontBook::default()),
             Box::new(super::Painting::default()),

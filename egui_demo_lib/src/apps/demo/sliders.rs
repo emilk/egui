@@ -29,8 +29,24 @@ impl Default for Sliders {
     }
 }
 
-impl Sliders {
-    pub fn ui(&mut self, ui: &mut Ui) {
+impl super::Demo for Sliders {
+    fn name(&self) -> &str {
+        "⬌ Sliders"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                use super::View;
+                self.ui(ui);
+            });
+    }
+}
+
+impl super::View for Sliders {
+    fn ui(&mut self, ui: &mut Ui) {
         let Self {
             min,
             max,
@@ -84,7 +100,7 @@ impl Sliders {
         }
 
         ui.separator();
-        ui.label("Demo slider range:");
+        ui.label("Slider range:");
         ui.add(
             Slider::f64(min, full_range.clone())
                 .logarithmic(true)

@@ -15,7 +15,7 @@ pub mod font_contents_ubuntu;
 pub mod input_test;
 mod painting;
 mod scrolls;
-mod sliders;
+pub mod sliders;
 mod tests;
 pub mod toggle_switch;
 mod widget_gallery;
