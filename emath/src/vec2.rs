@@ -21,6 +21,9 @@ pub const fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
 
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from [f32; 2]:
+
 impl From<[f32; 2]> for Vec2 {
     fn from(v: [f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
@@ -32,6 +35,47 @@ impl From<&[f32; 2]> for Vec2 {
         Self { x: v[0], y: v[1] }
     }
 }
+
+impl From<Vec2> for [f32; 2] {
+    fn from(v: Vec2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+impl From<&Vec2> for [f32; 2] {
+    fn from(v: &Vec2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from (f32, f32):
+
+impl From<(f32, f32)> for Vec2 {
+    fn from(v: (f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<&(f32, f32)> for Vec2 {
+    fn from(v: &(f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<Vec2> for (f32, f32) {
+    fn from(v: Vec2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+impl From<&Vec2> for (f32, f32) {
+    fn from(v: &Vec2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl Vec2 {
     pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };

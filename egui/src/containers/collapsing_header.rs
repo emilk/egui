@@ -199,7 +199,7 @@ impl CollapsingHeader {
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
-        if header_response.clicked {
+        if header_response.clicked() {
             state.toggle(ui);
         }
 

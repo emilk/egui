@@ -73,7 +73,7 @@ impl epi::App for WrapApp {
                 for (anchor, app) in self.apps.iter_mut() {
                     if ui
                         .selectable_label(self.selected_anchor == anchor, app.name())
-                        .clicked
+                        .clicked()
                     {
                         self.selected_anchor = anchor.to_owned();
                         if frame.is_web() {
@@ -86,7 +86,7 @@ impl epi::App for WrapApp {
                     if false {
                         // TODO: fix the overlap on small screens
                         if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
-                            if clock_button(ui, seconds_since_midnight).clicked {
+                            if clock_button(ui, seconds_since_midnight).clicked() {
                                 self.selected_anchor = "clock".to_owned();
                                 if frame.is_web() {
                                     ui.output().open_url = Some("#clock".to_owned());
@@ -234,11 +234,11 @@ impl BackendPanel {
             if ui
                 .button("📱 Phone Size")
                 .on_hover_text("Resize the window to be small like a phone.")
-                .clicked
+                .clicked()
             {
                 frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
             }
-            if ui.button("Quit").clicked {
+            if ui.button("Quit").clicked() {
                 frame.quit();
             }
         }
@@ -275,7 +275,7 @@ impl BackendPanel {
                         "Reset scale to native value ({:.1})",
                         native_pixels_per_point
                     ))
-                    .clicked
+                    .clicked()
                 {
                     *pixels_per_point = native_pixels_per_point;
                 }
@@ -283,7 +283,7 @@ impl BackendPanel {
         });
 
         // We wait until mouse release to activate:
-        if ui.ctx().is_using_mouse() {
+        if ui.ctx().is_using_pointer() {
             None
         } else {
             Some(*pixels_per_point)

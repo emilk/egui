@@ -2,7 +2,7 @@
 
 use crate::*;
 
-/// Show a tooltip at the current mouse position (if any).
+/// Show a tooltip at the current pointer position (if any).
 ///
 /// Most of the time it is easier to use [`Response::on_hover_ui`].
 ///
@@ -10,7 +10,7 @@ use crate::*;
 ///
 /// ```
 /// # let mut ui = egui::Ui::__test();
-/// if ui.ui_contains_mouse() {
+/// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip(ui.ctx(), |ui| {
 ///         ui.label("Helpful text");
 ///     });
@@ -21,9 +21,9 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
 
     let window_pos = if let Some(tooltip_rect) = tooltip_rect {
         tooltip_rect.left_bottom()
-    } else if let Some(mouse_pos) = ctx.input().mouse.pos {
+    } else if let Some(pointer_pos) = ctx.input().pointer.tooltip_pos() {
         let expected_size = vec2(ctx.style().spacing.tooltip_width, 32.0);
-        let position = mouse_pos + vec2(16.0, 16.0);
+        let position = pointer_pos + vec2(16.0, 16.0);
         let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
         let position = position.max(ctx.input().screen_rect().left_top());
         position
@@ -41,7 +41,7 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     ctx.frame_state().tooltip_rect = Some(tooltip_rect.union(response.rect));
 }
 
-/// Show some text at the current mouse position (if any).
+/// Show some text at the current pointer position (if any).
 ///
 /// Most of the time it is easier to use [`Response::on_hover_text`].
 ///
@@ -49,7 +49,7 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
 ///
 /// ```
 /// # let mut ui = egui::Ui::__test();
-/// if ui.ui_contains_mouse() {
+/// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip_text(ui.ctx(), "Helpful text");
 /// }
 /// ```
@@ -89,7 +89,7 @@ fn show_tooltip_area(
 /// # let ui = &mut egui::Ui::__test();
 /// let response = ui.button("Open popup");
 /// let popup_id = ui.make_persistent_id("my_unique_id");
-/// if response.clicked {
+/// if response.clicked() {
 ///     ui.memory().toggle_popup(popup_id);
 /// }
 /// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
@@ -121,7 +121,8 @@ pub fn popup_below_widget(
                 });
             });
 
-        if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !widget_response.clicked
+        if ui.input().key_pressed(Key::Escape)
+            || ui.input().pointer.any_click() && !widget_response.clicked()
         {
             ui.memory().close_popup();
         }

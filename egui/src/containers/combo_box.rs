@@ -84,7 +84,7 @@ pub fn combo_box(
             .galley(text_rect.min, galley, text_style, visuals.text_color());
     });
 
-    if button_response.clicked {
+    if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
     const MAX_COMBO_HEIGHT: f32 = 128.0;
@@ -118,7 +118,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let mut response = ui.interact(outer_rect, id, sense);
-    response.active |= button_active;
+    response.is_pointer_button_down_on |= button_active;
     let visuals = ui.style().interact(&response);
 
     ui.painter().set(

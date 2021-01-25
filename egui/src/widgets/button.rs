@@ -191,7 +191,7 @@ impl<'a> Widget for Checkbox<'a> {
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
-        if response.clicked {
+        if response.clicked() {
             *checked = !*checked;
         }
 

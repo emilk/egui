@@ -252,19 +252,17 @@ impl<'a> Slider<'a> {
         let rect = &response.rect;
         let x_range = x_range(rect);
 
-        if let Some(mouse_pos) = ui.input().mouse.pos {
-            if response.active {
-                let new_value = if self.smart_aim {
-                    let aim_radius = ui.input().aim_radius();
-                    crate::math::smart_aim::best_in_range_f64(
-                        self.value_from_x(mouse_pos.x - aim_radius, x_range.clone()),
-                        self.value_from_x(mouse_pos.x + aim_radius, x_range.clone()),
-                    )
-                } else {
-                    self.value_from_x(mouse_pos.x, x_range.clone())
-                };
-                self.set_value(new_value);
-            }
+        if let Some(pointer_pos) = response.interact_pointer_pos() {
+            let new_value = if self.smart_aim {
+                let aim_radius = ui.input().aim_radius();
+                crate::math::smart_aim::best_in_range_f64(
+                    self.value_from_x(pointer_pos.x - aim_radius, x_range.clone()),
+                    self.value_from_x(pointer_pos.x + aim_radius, x_range.clone()),
+                )
+            } else {
+                self.value_from_x(pointer_pos.x, x_range.clone())
+            };
+            self.set_value(new_value);
         }
 
         // Paint it:
@@ -350,7 +348,7 @@ impl<'a> Slider<'a> {
                 self.get_value() as f32 // Show full precision value on-hover. TODO: figure out f64 vs f32
             ));
             // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
-            if response.clicked {
+            if response.clicked() {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
             }

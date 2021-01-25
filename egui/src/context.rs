@@ -8,6 +8,7 @@ use std::sync::{
 use crate::{
     animation_manager::AnimationManager,
     data::output::Output,
+    input_state::*,
     layers::GraphicLayers,
     mutex::{Mutex, MutexGuard},
     paint::{stats::*, text::Fonts, *},
@@ -190,8 +191,8 @@ impl CtxRef {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(mouse_pos) = self.input.mouse.pos {
-                    if rect.contains(mouse_pos) {
+                if let Some(pointer_pos) = self.input.pointer.tooltip_pos() {
+                    if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
                             "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
@@ -227,7 +228,7 @@ impl CtxRef {
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
-        let hovered = self.rect_contains_mouse(layer_id, clip_rect.intersect(interact_rect));
+        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
         self.interact_with_hovered(layer_id, id, rect, sense, hovered)
     }
 
@@ -241,26 +242,28 @@ impl CtxRef {
         hovered: bool,
     ) -> Response {
         let has_kb_focus = self.memory().has_kb_focus(id);
-
-        // If the the focus is lost after the call to interact,
-        // this will be `false`, so `TextEdit` also sets this manually.
         let lost_kb_focus = self.memory().lost_kb_focus(id);
+
+        let mut response = Response {
+            ctx: self.clone(),
+            layer_id,
+            id,
+            rect,
+            sense,
+            hovered,
+            clicked: Default::default(),
+            double_clicked: Default::default(),
+            dragged: false,
+            drag_released: false,
+            is_pointer_button_down_on: false,
+            interact_pointer_pos: None,
+            has_kb_focus,
+            lost_kb_focus,
+        };
 
         if sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            return Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active: false,
-                has_kb_focus,
-                lost_kb_focus,
-            };
+            return response;
         }
 
         self.register_interaction_id(id, rect.min);
@@ -270,102 +273,62 @@ impl CtxRef {
         memory.interaction.click_interest |= hovered && sense.click;
         memory.interaction.drag_interest |= hovered && sense.drag;
 
-        let active =
-            memory.interaction.click_id == Some(id) || memory.interaction.drag_id == Some(id);
+        response.dragged = memory.interaction.drag_id == Some(id);
+        response.is_pointer_button_down_on =
+            memory.interaction.click_id == Some(id) || response.dragged;
 
-        if self.input.mouse.pressed {
-            if hovered {
-                let mut response = Response {
-                    ctx: self.clone(),
-                    layer_id,
-                    id,
-                    rect,
-                    sense,
-                    hovered: true,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
-                };
-
-                if sense.click && memory.interaction.click_id.is_none() {
-                    // start of a click
-                    memory.interaction.click_id = Some(id);
-                    response.active = true;
+        for pointer_event in &self.input.pointer.pointer_events {
+            match pointer_event {
+                PointerEvent::Moved(pos) => {
+                    if response.is_pointer_button_down_on {
+                        response.interact_pointer_pos = Some(*pos);
+                    }
                 }
+                PointerEvent::Pressed(pos) => {
+                    if hovered {
+                        if sense.click && memory.interaction.click_id.is_none() {
+                            // potential start of a click
+                            memory.interaction.click_id = Some(id);
+                            response.interact_pointer_pos = Some(*pos);
+                            response.is_pointer_button_down_on = true;
+                        }
 
-                if sense.drag
-                    && (memory.interaction.drag_id.is_none() || memory.interaction.drag_is_window)
-                {
-                    // start of a drag
-                    memory.interaction.drag_id = Some(id);
-                    memory.interaction.drag_is_window = false;
-                    memory.window_interaction = None; // HACK: stop moving windows (if any)
-                    response.active = true;
+                        if sense.drag
+                            && (memory.interaction.drag_id.is_none()
+                                || memory.interaction.drag_is_window)
+                        {
+                            // potential start of a drag
+                            response.interact_pointer_pos = Some(*pos);
+                            memory.interaction.drag_id = Some(id);
+                            memory.interaction.drag_is_window = false;
+                            memory.window_interaction = None; // HACK: stop moving windows (if any)
+                            response.is_pointer_button_down_on = true;
+                            response.dragged = true;
+                        }
+                    }
                 }
+                PointerEvent::Released(click) => {
+                    response.drag_released = response.dragged;
+                    response.dragged = false;
 
-                response
-            } else {
-                // miss
-                Response {
-                    ctx: self.clone(),
-                    layer_id,
-                    id,
-                    rect,
-                    sense,
-                    hovered,
-                    clicked: false,
-                    double_clicked: false,
-                    active: false,
-                    has_kb_focus,
-                    lost_kb_focus,
+                    if hovered && response.is_pointer_button_down_on {
+                        if let Some(click) = click {
+                            let clicked = hovered && response.is_pointer_button_down_on;
+                            response.interact_pointer_pos = Some(click.pos);
+                            response.clicked[click.button as usize] = clicked;
+                            response.double_clicked[click.button as usize] =
+                                clicked && click.is_double();
+                        }
+                    }
                 }
-            }
-        } else if self.input.mouse.released {
-            let clicked = hovered && active && self.input.mouse.could_be_click;
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked,
-                double_clicked: clicked && self.input.mouse.double_click,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        } else if self.input.mouse.down {
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered: hovered && active,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
-            }
-        } else {
-            Response {
-                ctx: self.clone(),
-                layer_id,
-                id,
-                rect,
-                sense,
-                hovered,
-                clicked: false,
-                double_clicked: false,
-                active,
-                has_kb_focus,
-                lost_kb_focus,
             }
         }
+
+        if self.input.pointer.any_down() {
+            response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+        }
+
+        response
     }
 
     pub fn debug_painter(&self) -> Painter {
@@ -648,12 +611,12 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Is the mouse over any egui area?
-    pub fn is_mouse_over_area(&self) -> bool {
-        if let Some(mouse_pos) = self.input.mouse.pos {
-            if let Some(layer) = self.layer_id_at(mouse_pos) {
+    /// Is the pointer (mouse/touch) over any egui area?
+    pub fn is_pointer_over_area(&self) -> bool {
+        if let Some(pointer_pos) = self.input.pointer.interact_pos() {
+            if let Some(layer) = self.layer_id_at(pointer_pos) {
                 if layer.order == Order::Background {
-                    !self.frame_state().unused_rect.contains(mouse_pos)
+                    !self.frame_state().unused_rect.contains(pointer_pos)
                 } else {
                     true
                 }
@@ -665,19 +628,29 @@ impl Context {
         }
     }
 
-    /// True if egui is currently interested in the mouse.
-    /// Could be the mouse is hovering over a [`Window`] or the user is dragging a widget.
-    /// If `false`, the mouse is outside of any egui area and so
+    /// True if egui is currently interested in the pointer (mouse or touch).
+    /// Could be the pointer is hovering over a [`Window`] or the user is dragging a widget.
+    /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     /// Returns `false` if a drag started outside of egui and then moved over an egui area.
-    pub fn wants_mouse_input(&self) -> bool {
-        self.is_using_mouse() || (self.is_mouse_over_area() && !self.input().mouse.down)
+    pub fn wants_pointer_input(&self) -> bool {
+        self.is_using_pointer() || (self.is_pointer_over_area() && !self.input().pointer.any_down())
     }
 
-    /// Is egui currently using the mouse position (e.g. dragging a slider).
-    /// NOTE: this will return `false` if the mouse is just hovering over an egui area.
+    /// Is egui currently using the pointer position (e.g. dragging a slider).
+    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
+    pub fn is_using_pointer(&self) -> bool {
+        self.memory().interaction.is_using_pointer()
+    }
+
+    #[deprecated = "Renamed wants_pointer_input"]
+    pub fn wants_mouse_input(&self) -> bool {
+        self.wants_pointer_input()
+    }
+
+    #[deprecated = "Renamed is_using_pointer"]
     pub fn is_using_mouse(&self) -> bool {
-        self.memory().interaction.is_using_mouse()
+        self.is_using_pointer()
     }
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
@@ -698,9 +671,9 @@ impl Context {
         self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
-    pub(crate) fn rect_contains_mouse(&self, layer_id: LayerId, rect: Rect) -> bool {
-        if let Some(mouse_pos) = self.input.mouse.pos {
-            rect.contains(mouse_pos) && self.layer_id_at(mouse_pos) == Some(layer_id)
+    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        if let Some(pointer_pos) = self.input.pointer.interact_pos() {
+            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
         } else {
             false
         }
@@ -766,10 +739,12 @@ impl Context {
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
-        ui.label(format!("Is using mouse: {}", self.is_using_mouse()))
-            .on_hover_text("Is egui currently using the mouse actively (e.g. dragging a slider)?");
-        ui.label(format!("Wants mouse input: {}", self.wants_mouse_input()))
-            .on_hover_text("Is egui currently interested in the location of the mouse (either because it is in use, or because it is hovering over a window).");
+        ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
+            .on_hover_text(
+                "Is egui currently using the pointer actively (e.g. dragging a slider)?",
+            );
+        ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
+            .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
@@ -792,7 +767,7 @@ impl Context {
         if ui
             .button("Reset all")
             .on_hover_text("Reset all egui state")
-            .clicked
+            .clicked()
         {
             *self.memory() = Default::default();
         }
@@ -802,7 +777,7 @@ impl Context {
                 "{} areas (window positions)",
                 self.memory().areas.count()
             ));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().areas = Default::default();
             }
         });
@@ -835,28 +810,28 @@ impl Context {
                 "{} collapsing headers",
                 self.memory().collapsing_headers.len()
             ));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().collapsing_headers = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} menu bars", self.memory().menu_bar.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().menu_bar = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} scroll areas", self.memory().scroll_areas.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().scroll_areas = Default::default();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!("{} resize areas", self.memory().resize.len()));
-            if ui.button("Reset").clicked {
+            if ui.button("Reset").clicked() {
                 self.memory().resize = Default::default();
             }
         });

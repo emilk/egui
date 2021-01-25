@@ -195,11 +195,11 @@ pub struct Widgets {
 
 impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
-        if response.active || response.has_kb_focus {
+        if response.is_pointer_button_down_on() || response.has_kb_focus {
             &self.active
         } else if response.sense == crate::Sense::hover() {
             &self.disabled
-        } else if response.hovered {
+        } else if response.hovered() {
             &self.hovered
         } else {
             &self.inactive

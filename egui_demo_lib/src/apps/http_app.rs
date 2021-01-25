@@ -113,8 +113,8 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
 
     ui.horizontal(|ui| {
         ui.label("URL:");
-        trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus;
-        trigger_fetch |= ui.button("GET").clicked;
+        trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus();
+        trigger_fetch |= ui.button("GET").clicked();
     });
 
     if frame.is_web() {
@@ -122,14 +122,14 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
     }
 
     ui.horizontal(|ui| {
-        if ui.button("Source code for this example").clicked {
+        if ui.button("Source code for this example").clicked() {
             *url = format!(
                 "https://raw.githubusercontent.com/emilk/egui/master/{}",
                 file!()
             );
             trigger_fetch = true;
         }
-        if ui.button("Random image").clicked {
+        if ui.button("Random image").clicked() {
             let seed = ui.input().time;
             let width = 640;
             let height = 480;
@@ -170,7 +170,7 @@ fn ui_resouce(
 
     if let Some(text) = &response.text {
         let tooltip = "Click to copy the response body";
-        if ui.button("📋").on_hover_text(tooltip).clicked {
+        if ui.button("📋").on_hover_text(tooltip).clicked() {
             ui.output().copied_text = text.clone();
         }
     }

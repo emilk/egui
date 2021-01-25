@@ -97,7 +97,7 @@ impl Widgets {
             if ui
                 .add(Button::new("Click me").enabled(self.button_enabled))
                 .on_hover_text("This will just increase a counter.")
-                .clicked
+                .clicked()
             {
                 self.count += 1;
             }
@@ -146,7 +146,7 @@ impl Widgets {
         ui.horizontal(|ui| {
             ui.label("Single line text input:");
             let response = ui.text_edit_singleline(&mut self.single_line_text_input);
-            if response.lost_kb_focus {
+            if response.lost_kb_focus() {
                 // The user pressed enter.
             }
         });

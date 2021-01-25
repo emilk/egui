@@ -21,7 +21,7 @@ impl Painting {
         ui.horizontal(|ui| {
             egui::stroke_ui(ui, &mut self.stroke, "Stroke");
             ui.separator();
-            if ui.button("Clear Painting").clicked {
+            if ui.button("Clear Painting").clicked() {
                 self.lines.clear();
             }
         });
@@ -38,12 +38,10 @@ impl Painting {
 
         let current_line = self.lines.last_mut().unwrap();
 
-        if response.active {
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                let canvas_pos = mouse_pos - rect.min;
-                if current_line.last() != Some(&canvas_pos) {
-                    current_line.push(canvas_pos);
-                }
+        if let Some(pointer_pos) = response.interact_pointer_pos() {
+            let canvas_pos = pointer_pos - rect.min;
+            if current_line.last() != Some(&canvas_pos) {
+                current_line.push(canvas_pos);
             }
         } else if !current_line.is_empty() {
             self.lines.push(vec![]);

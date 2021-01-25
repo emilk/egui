@@ -14,6 +14,7 @@ impl Default for Demos {
     fn default() -> Self {
         let demos: Vec<Box<dyn super::Demo>> = vec![
             Box::new(super::WidgetGallery::default()),
+            Box::new(super::input_test::InputTest::default()),
             Box::new(super::FontBook::default()),
             Box::new(super::Painting::default()),
             Box::new(super::DancingStrings::default()),
@@ -86,7 +87,7 @@ impl DemoWindows {
 
                 ui.separator();
 
-                if ui.button("Organize windows").clicked {
+                if ui.button("Organize windows").clicked() {
                     ui.ctx().memory().reset_areas();
                 }
             });
@@ -255,13 +256,13 @@ fn show_menu_bar(ui: &mut Ui) {
 
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            if ui.button("Organize windows").clicked {
+            if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
             }
             if ui
                 .button("Clear egui memory")
                 .on_hover_text("Forget scroll, collapsing headers etc")
-                .clicked
+                .clicked()
             {
                 *ui.ctx().memory() = Default::default();
             }

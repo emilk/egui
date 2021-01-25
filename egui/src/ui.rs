@@ -363,15 +363,29 @@ impl Ui {
         )
     }
 
-    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
+    /// Is the pointer (mouse/touch) above this rectangle in this `Ui`?
+    ///
+    /// The `clip_rect` and layer of this `Ui` will be respected, so, for instance,
+    /// if this `Ui` is behind some other window, this will always return `false`.
+    pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
-            .rect_contains_mouse(self.layer_id(), self.clip_rect().intersect(rect))
+            .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the mouse above this `Ui`?
-    /// Equivalent to `ui.rect_contains_mouse(ui.min_rect())`
+    /// Is the pointer (mouse/touch) above this `Ui`?
+    /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
+    pub fn ui_contains_pointer(&self) -> bool {
+        self.rect_contains_pointer(self.min_rect())
+    }
+
+    #[deprecated = "renamed rect_contains_pointer"]
+    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
+        self.rect_contains_pointer(rect)
+    }
+
+    #[deprecated = "renamed ui_contains_pointer"]
     pub fn ui_contains_mouse(&self) -> bool {
-        self.rect_contains_mouse(self.min_rect())
+        self.ui_contains_pointer()
     }
 
     #[deprecated = "Use: interact(rect, id, Sense::hover())"]
@@ -379,7 +393,7 @@ impl Ui {
         self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
     }
 
-    #[deprecated = "Use: rect_contains_mouse()"]
+    #[deprecated = "Use: rect_contains_pointer()"]
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact(rect, self.id, Sense::hover()).hovered
     }
@@ -410,7 +424,7 @@ impl Ui {
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
-    /// if response.clicked { /* … */ }
+    /// if response.clicked() { /* … */ }
     /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -572,7 +586,7 @@ impl Ui {
     /// # use egui::Align;
     /// # let mut ui = &mut egui::Ui::__test();
     /// egui::ScrollArea::auto_sized().show(ui, |ui| {
-    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked;
+    ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked();
     ///     for i in 0..1000 {
     ///         ui.label(format!("Item {}", i));
     ///     }
@@ -654,20 +668,20 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
-    /// Usage: `if ui.button("Click me").clicked { ... }`
+    /// Usage: `if ui.button("Click me").clicked() { ... }`
     ///
     /// Shortcut for `add(Button::new(text))`
-    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked() { ... } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }
 
     /// A button as small as normal body text.
     ///
-    /// Usage: `if ui.small_button("Click me").clicked { ... }`
+    /// Usage: `if ui.small_button("Click me").clicked() { ... }`
     ///
     /// Shortcut for `add(Button::new(text).small())`
-    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked() { ... } "]
     pub fn small_button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text).small())
     }
@@ -694,7 +708,7 @@ impl Ui {
         text: impl Into<String>,
     ) -> Response {
         let response = self.radio(*current_value == selected_value, text);
-        if response.clicked {
+        if response.clicked() {
             *current_value = selected_value;
         }
         response
@@ -716,7 +730,7 @@ impl Ui {
         text: impl Into<String>,
     ) -> Response {
         let response = self.selectable_label(*current_value == selected_value, text);
-        if response.clicked {
+        if response.clicked() {
             *current_value = selected_value;
         }
         response

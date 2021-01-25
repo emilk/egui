@@ -27,7 +27,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
     // 3. Interact: Time to check for clicks!.
-    if response.clicked {
+    if response.clicked() {
         *on = !*on;
     }
 
@@ -63,7 +63,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.style().spacing.interact_size;
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
-    *on ^= response.clicked; // toggle if clicked
+    *on ^= response.clicked(); // toggle if clicked
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact(&response);

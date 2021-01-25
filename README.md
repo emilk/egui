@@ -51,7 +51,7 @@ ui.horizontal(|ui| {
     ui.text_edit_singleline(&mut name);
 });
 ui.add(egui::Slider::u32(&mut age, 0..=120).text("age"));
-if ui.button("Click each year").clicked {
+if ui.button("Click each year").clicked() {
     age += 1;
 }
 ui.label(format!("Hello '{}', age {}", name, age));

@@ -73,7 +73,7 @@ impl Sliders {
                 You can always see the full precision value by hovering the value.",
             );
 
-            if ui.button("Assign PI").clicked {
+            if ui.button("Assign PI").clicked() {
                 self.value = std::f64::consts::PI;
             }
         }

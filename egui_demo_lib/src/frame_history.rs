@@ -79,9 +79,9 @@ impl FrameHistory {
         let rect = rect.shrink(4.0);
         let line_stroke = Stroke::new(1.0, Color32::from_additive_luminance(128));
 
-        if let Some(mouse_pos) = ui.input().mouse.pos {
-            if rect.contains(mouse_pos) {
-                let y = mouse_pos.y;
+        if let Some(pointer_pos) = ui.input().pointer.tooltip_pos() {
+            if rect.contains(pointer_pos) {
+                let y = pointer_pos.y;
                 shapes.push(Shape::line_segment(
                     [pos2(rect.left(), y), pos2(rect.right(), y)],
                     line_stroke,

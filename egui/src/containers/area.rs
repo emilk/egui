@@ -249,14 +249,14 @@ impl Prepared {
             sense,
         );
 
-        if move_response.active && movable {
-            state.pos += ctx.input().mouse.delta;
+        if move_response.dragged() && movable {
+            state.pos += ctx.input().pointer.delta();
         }
 
         state.pos = ctx.constrain_window_rect(state.rect()).min;
 
-        if (move_response.active || move_response.clicked)
-            || mouse_pressed_on_area(ctx, layer_id)
+        if (move_response.dragged() || move_response.clicked())
+            || pointer_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
         {
             ctx.memory().areas.move_to_top(layer_id);
@@ -268,9 +268,9 @@ impl Prepared {
     }
 }
 
-fn mouse_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(mouse_pos) = ctx.input().mouse.pos {
-        ctx.input().mouse.pressed && ctx.layer_id_at(mouse_pos) == Some(layer_id)
+fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
+    if let Some(pointer_pos) = ctx.input().pointer.interact_pos() {
+        ctx.input().pointer.any_pressed() && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {
         false
     }

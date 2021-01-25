@@ -125,7 +125,8 @@ pub(crate) struct Interaction {
 }
 
 impl Interaction {
-    pub fn is_using_mouse(&self) -> bool {
+    /// Are we currently clicking or dragging an egui widget?
+    pub fn is_using_pointer(&self) -> bool {
         self.click_id.is_some() || self.drag_id.is_some()
     }
 
@@ -138,12 +139,8 @@ impl Interaction {
         self.click_interest = false;
         self.drag_interest = false;
 
-        if !prev_input.mouse.could_be_click {
-            self.click_id = None;
-        }
-
-        if !prev_input.mouse.down || prev_input.mouse.pos.is_none() {
-            // mouse was not down last frame
+        if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
+            // pointer button was not down last frame
             self.click_id = None;
             self.drag_id = None;
         }
@@ -175,7 +172,7 @@ impl Memory {
     ) {
         self.interaction.begin_frame(prev_input, new_input);
 
-        if !prev_input.mouse.down {
+        if !prev_input.pointer.any_down() {
             self.window_interaction = None;
         }
     }

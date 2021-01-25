@@ -8,7 +8,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 
         // Check for drags:
         let response = ui.interact(response.rect, id, Sense::drag());
-        if response.hovered {
+        if response.hovered() {
             ui.output().cursor_icon = CursorIcon::Grab;
         }
     } else {
@@ -25,8 +25,8 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         // (anything with `Order::Tooltip` always gets an empty `Response`)
         // So this is fine!
 
-        if let Some(mouse_pos) = ui.input().mouse.pos {
-            let delta = mouse_pos - response.rect.center();
+        if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+            let delta = pointer_pos - response.rect.center();
             ui.ctx().translate_layer(layer_id, delta);
         }
     }
@@ -49,7 +49,7 @@ pub fn drop_target<R>(
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
 
-    let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered {
+    let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
         ui.style().visuals.widgets.active
     } else if is_being_dragged && can_accept_what_is_being_dragged {
         ui.style().visuals.widgets.inactive
@@ -126,8 +126,7 @@ impl super::View for DragAndDropDemo {
                             ui.label(item);
                         });
 
-                        let this_item_being_dragged = ui.memory().is_being_dragged(item_id);
-                        if this_item_being_dragged {
+                        if ui.memory().is_being_dragged(item_id) {
                             source_col_row = Some((col_idx, row_idx));
                         }
                     }
@@ -135,7 +134,7 @@ impl super::View for DragAndDropDemo {
                 .1;
 
                 let is_being_dragged = ui.memory().is_anything_being_dragged();
-                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered {
+                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
                     drop_col = Some(col_idx);
                 }
             }
@@ -143,7 +142,7 @@ impl super::View for DragAndDropDemo {
 
         if let Some((source_col, source_row)) = source_col_row {
             if let Some(drop_col) = drop_col {
-                if ui.input().mouse.released {
+                if ui.input().pointer.any_released() {
                     // do the drop:
                     let item = self.columns[source_col].remove(source_row);
                     self.columns[drop_col].push(item);

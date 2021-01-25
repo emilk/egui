@@ -81,6 +81,9 @@ pub struct WebInput {
     /// Is this a touch screen? If so, we ignore mouse events.
     pub is_touch: bool,
 
+    /// Required because we don't get a position on touched
+    pub latest_touch_pos: Option<egui::Pos2>,
+
     pub raw: egui::RawInput,
 }
 

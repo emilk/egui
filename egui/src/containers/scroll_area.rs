@@ -212,9 +212,9 @@ impl Prepared {
             let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
 
             let input = ui.input();
-            if content_response.active {
-                state.offset.y -= input.mouse.delta.y;
-                state.vel = input.mouse.velocity;
+            if content_response.dragged() {
+                state.offset.y -= input.pointer.delta().y;
+                state.vel = input.pointer.velocity();
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
@@ -234,7 +234,7 @@ impl Prepared {
         }
 
         let max_offset = content_size.y - inner_rect.height();
-        if ui.rect_contains_mouse(outer_rect) {
+        if ui.rect_contains_pointer(outer_rect) {
             let mut frame_state = ui.ctx().frame_state();
             let scroll_delta = frame_state.scroll_delta;
 
@@ -283,26 +283,24 @@ impl Prepared {
             let interact_id = id.with("vertical");
             let response = ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
 
-            if response.active {
-                if let Some(mouse_pos) = ui.input().mouse.pos {
-                    let scroll_start_offset_from_top =
-                        state.scroll_start_offset_from_top.get_or_insert_with(|| {
-                            if handle_rect.contains(mouse_pos) {
-                                mouse_pos.y - handle_rect.top()
-                            } else {
-                                let handle_top_pos_at_bottom = bottom - handle_rect.height();
-                                // Calculate the new handle top position, centering the handle on the mouse.
-                                let new_handle_top_pos = clamp(
-                                    mouse_pos.y - handle_rect.height() / 2.0,
-                                    top..=handle_top_pos_at_bottom,
-                                );
-                                mouse_pos.y - new_handle_top_pos
-                            }
-                        });
+            if let Some(pointer_pos) = response.interact_pointer_pos() {
+                let scroll_start_offset_from_top =
+                    state.scroll_start_offset_from_top.get_or_insert_with(|| {
+                        if handle_rect.contains(pointer_pos) {
+                            pointer_pos.y - handle_rect.top()
+                        } else {
+                            let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                            // Calculate the new handle top position, centering the handle on the mouse.
+                            let new_handle_top_pos = clamp(
+                                pointer_pos.y - handle_rect.height() / 2.0,
+                                top..=handle_top_pos_at_bottom,
+                            );
+                            pointer_pos.y - new_handle_top_pos
+                        }
+                    });
 
-                    let new_handle_top = mouse_pos.y - *scroll_start_offset_from_top;
-                    state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
-                }
+                let new_handle_top = pointer_pos.y - *scroll_start_offset_from_top;
+                state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
             } else {
                 state.scroll_start_offset_from_top = None;
             }

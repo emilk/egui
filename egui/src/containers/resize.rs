@@ -191,12 +191,11 @@ impl Resize {
                 Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
             let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
-            if corner_response.active {
-                if let Some(mouse_pos) = ui.input().mouse.pos {
-                    user_requested_size =
-                        Some(mouse_pos - position + 0.5 * corner_response.rect.size());
-                }
+            if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
+                user_requested_size =
+                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
             }
+
             Some(corner_response)
         } else {
             None
@@ -295,7 +294,7 @@ impl Resize {
         if let Some(corner_response) = corner_response {
             paint_resize_corner(ui, &corner_response);
 
-            if corner_response.hovered || corner_response.active {
+            if corner_response.hovered() || corner_response.dragged() {
                 ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }

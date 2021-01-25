@@ -12,6 +12,7 @@ mod drag_and_drop;
 mod font_book;
 pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
+pub mod input_test;
 mod painting;
 mod scrolls;
 mod sliders;

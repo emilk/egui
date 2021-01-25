@@ -29,12 +29,10 @@ impl Widget for &epaint::Texture {
 
             let (tex_w, tex_h) = (self.width as f32, self.height as f32);
 
+            let pointer_pos = response.interact_pointer_pos();
+
             response.on_hover_ui(|ui| {
-                let pos = ui
-                    .input()
-                    .mouse
-                    .pos
-                    .unwrap_or_else(|| ui.min_rect().left_top());
+                let pos = pointer_pos.unwrap_or_else(|| ui.min_rect().left_top());
                 let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
                 let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
                 let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
