@@ -22,6 +22,9 @@ pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
 }
 
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from [f32; 2]:
+
 impl From<[f32; 2]> for Pos2 {
     fn from(v: [f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
@@ -33,6 +36,47 @@ impl From<&[f32; 2]> for Pos2 {
         Self { x: v[0], y: v[1] }
     }
 }
+
+impl From<Pos2> for [f32; 2] {
+    fn from(v: Pos2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+impl From<&Pos2> for [f32; 2] {
+    fn from(v: &Pos2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from (f32, f32):
+
+impl From<(f32, f32)> for Pos2 {
+    fn from(v: (f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<&(f32, f32)> for Pos2 {
+    fn from(v: &(f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<Pos2> for (f32, f32) {
+    fn from(v: Pos2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+impl From<&Pos2> for (f32, f32) {
+    fn from(v: &Pos2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl Pos2 {
     /// The zero position, the origin.
