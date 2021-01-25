@@ -363,6 +363,10 @@ impl Ui {
         )
     }
 
+    /// Is the pointer (mouse/touch) above this rectangle in this `Ui`?
+    ///
+    /// The `clip_rect` and layer of this `Ui` will be respected, so, for instance,
+    /// if this `Ui` is behind some other window, this will always return `false`.
     pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
@@ -372,6 +376,16 @@ impl Ui {
     /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
+    }
+
+    #[deprecated = "renamed rect_contains_pointer"]
+    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
+        self.rect_contains_pointer(rect)
+    }
+
+    #[deprecated = "renamed ui_contains_pointer"]
+    pub fn ui_contains_mouse(&self) -> bool {
+        self.ui_contains_pointer()
     }
 
     #[deprecated = "Use: interact(rect, id, Sense::hover())"]

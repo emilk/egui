@@ -610,7 +610,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
 
     {
         // By default, right-clicks open a context menu.
-        // We don't want to do that (right clicks is handled by Egui):
+        // We don't want to do that (right clicks is handled by egui):
         let event_name = "contextmenu";
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             event.prevent_default();

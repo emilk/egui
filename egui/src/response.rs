@@ -102,6 +102,16 @@ impl Response {
         self.clicked[PointerButton::Primary as usize]
     }
 
+    /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
+    pub fn secondary_clicked(&self) -> bool {
+        self.clicked[PointerButton::Secondary as usize]
+    }
+
+    /// Returns true if this widget was clicked this frame by the middle mouse button.
+    pub fn middle_clicked(&self) -> bool {
+        self.clicked[PointerButton::Middle as usize]
+    }
+
     /// Returns true if this widget was double-clicked this frame by the primary button.
     pub fn double_clicked(&self) -> bool {
         self.double_clicked[PointerButton::Primary as usize]
@@ -143,12 +153,12 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the given button.
-    pub fn clicked_with(&self, button: PointerButton) -> bool {
+    pub fn clicked_by(&self, button: PointerButton) -> bool {
         self.clicked[button as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the given button.
-    pub fn double_clicked_with(&self, button: PointerButton) -> bool {
+    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
         self.double_clicked[button as usize]
     }
 

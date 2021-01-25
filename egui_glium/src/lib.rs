@@ -18,7 +18,6 @@ pub mod persistence;
 pub mod window_settings;
 
 pub use backend::*;
-use glutin::event::MouseButton;
 pub use painter::Painter;
 
 use {
@@ -184,11 +183,11 @@ fn is_printable_char(chr: char) -> bool {
     !is_in_private_use_area && !chr.is_ascii_control()
 }
 
-pub fn translate_mouse_button(button: MouseButton) -> Option<egui::PointerButton> {
+pub fn translate_mouse_button(button: glutin::event::MouseButton) -> Option<egui::PointerButton> {
     match button {
-        MouseButton::Left => Some(egui::PointerButton::Primary),
-        MouseButton::Right => Some(egui::PointerButton::Secondary),
-        MouseButton::Middle => Some(egui::PointerButton::Middle),
+        glutin::event::MouseButton::Left => Some(egui::PointerButton::Primary),
+        glutin::event::MouseButton::Right => Some(egui::PointerButton::Secondary),
+        glutin::event::MouseButton::Middle => Some(egui::PointerButton::Middle),
         _ => None,
     }
 }

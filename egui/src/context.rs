@@ -643,6 +643,16 @@ impl Context {
         self.memory().interaction.is_using_pointer()
     }
 
+    #[deprecated = "Renamed wants_pointer_input"]
+    pub fn wants_mouse_input(&self) -> bool {
+        self.wants_pointer_input()
+    }
+
+    #[deprecated = "Renamed is_using_pointer"]
+    pub fn is_using_mouse(&self) -> bool {
+        self.is_using_pointer()
+    }
+
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory().interaction.kb_focus_id.is_some()

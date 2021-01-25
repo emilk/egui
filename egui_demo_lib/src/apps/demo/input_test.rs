@@ -33,10 +33,10 @@ impl super::View for InputTest {
             egui::PointerButton::Secondary,
             egui::PointerButton::Middle,
         ] {
-            if response.clicked_with(button) {
+            if response.clicked_by(button) {
                 new_info += &format!("Clicked by {:?}\n", button);
             }
-            if response.double_clicked_with(button) {
+            if response.double_clicked_by(button) {
                 new_info += &format!("Double-clicked by {:?}\n", button);
             }
             if response.dragged() && ui.input().pointer.button_down(button) {
