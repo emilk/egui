@@ -13,6 +13,7 @@ pub mod font_book;
 pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
 pub mod input_test;
+pub mod layout_test;
 pub mod painting;
 pub mod scrolling;
 pub mod sliders;

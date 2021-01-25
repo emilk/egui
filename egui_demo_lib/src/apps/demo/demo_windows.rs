@@ -23,6 +23,7 @@ impl Default for Demos {
             Box::new(super::tests::Tests::default()),
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::scrolling::Scrolling::default()),
+            Box::new(super::layout_test::LayoutTest::default()),
         ];
         Self {
             open: vec![false; demos.len()],
