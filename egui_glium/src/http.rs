@@ -3,9 +3,14 @@ pub use epi::http::{Request, Response};
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
 pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
-    let Request { method, url } = request;
+    let Request { method, url, body } = request;
 
-    let resp = ureq::request(method, url).set("Accept", "*/*").call();
+    let resp = match method.as_str() {
+        "GET" => ureq::get(url).set("Accept", "*/*").call(),
+        "POST" => ureq::post(url).set("Accept", "*/*").set("Content-Type", "text/plain; charset=utf-8").send_string(body),
+        _ => return Err("method not implemented".to_string()),
+        // TODO: PUT only sends in binary form.
+    };
 
     let (ok, resp) = match resp {
         Ok(resp) => (true, resp),

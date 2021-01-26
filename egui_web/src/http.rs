@@ -25,7 +25,7 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
     opts.mode(web_sys::RequestMode::Cors);
 
     if !body.is_empty() {
-        opts.body(Some(&JsValue::from_serde(body).unwrap()));
+        opts.body(Some(&JsValue::from_str(body)));
     }
 
     let request = web_sys::Request::new_with_str_and_init(&url, &opts)?;
