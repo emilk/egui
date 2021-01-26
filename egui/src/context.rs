@@ -227,7 +227,12 @@ impl CtxRef {
         rect: Rect,
         sense: Sense,
     ) -> Response {
-        let interact_rect = rect.expand2((0.5 * item_spacing).min(Vec2::splat(5.0))); // make it easier to click
+        let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+        let interact_rect = rect.expand2(
+            (0.5 * item_spacing - Vec2::splat(gap))
+                .at_least(Vec2::splat(0.0))
+                .at_most(Vec2::splat(5.0)),
+        ); // make it easier to click
         let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
         self.interact_with_hovered(layer_id, id, rect, sense, hovered)
     }
