@@ -9,8 +9,8 @@ env:
   RUSTFLAGS: --cfg=web_sys_unstable_apis
 
 jobs:
-  check:
-    name: Check
+  check_default:
+    name: cargo check (default features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,8 +23,23 @@ jobs:
         with:
           command: check
 
-  check_egui_demo_web:
-    name: Check egui_demo_app (web)
+  check_all_features:
+    name: cargo check --all-features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-features
+
+  check_web_default:
+    name: cargo check web (default features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,6 +53,22 @@ jobs:
         with:
           command: check
           args: -p egui_demo_app --lib --target wasm32-unknown-unknown
+
+  check_web_all_features:
+    name: cargo check web --all-features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
 
   test:
     name: Test Suite
@@ -53,6 +84,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --all-features
 
   fmt:
     name: Rustfmt
