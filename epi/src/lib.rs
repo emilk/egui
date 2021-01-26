@@ -263,6 +263,8 @@ pub mod http {
         pub method: String,
         /// https://…
         pub url: String,
+        /// x-www-form-urlencoded body
+        pub body: String,
     }
 
     impl Request {
@@ -271,6 +273,16 @@ pub mod http {
             Self {
                 method: "GET".to_owned(),
                 url: url.into(),
+                body: "".to_string(),
+            }
+        }
+
+        /// Create a `POST` requests with the give url and body.
+        pub fn post(url: impl Into<String>, body: impl Into<String>) -> Self {
+            Self {
+                method: "POST".to_owned(),
+                url: url.into(),
+                body: body.into(),
             }
         }
     }
