@@ -643,6 +643,13 @@ impl Ui {
         self.add(label.into().monospace())
     }
 
+    /// Show text as monospace with a gray background.
+    ///
+    /// Shortcut for `add(Label::new(text).code())`
+    pub fn code(&mut self, label: impl Into<Label>) -> Response {
+        self.add(label.into().code())
+    }
+
     /// Shortcut for `add(Label::new(text).small())`
     pub fn small(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into().small())
