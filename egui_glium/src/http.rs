@@ -7,7 +7,10 @@ pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
 
     let resp = match method.as_str() {
         "GET" => ureq::get(url).set("Accept", "*/*").call(),
-        "POST" => ureq::post(url).set("Accept", "*/*").set("Content-Type", "text/plain; charset=utf-8").send_string(body),
+        "POST" => ureq::post(url)
+            .set("Accept", "*/*")
+            .set("Content-Type", "text/plain; charset=utf-8")
+            .send_string(body),
         _ => return Err("method not implemented".to_string()),
         // TODO: PUT only sends in binary form.
     };
