@@ -24,7 +24,7 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
     opts.method(method);
     opts.mode(web_sys::RequestMode::Cors);
 
-    if method == &"POST".to_string() {
+    if !body.is_empty() {
         opts.body(Some(&JsValue::from_serde(body).unwrap()));
     }
 
