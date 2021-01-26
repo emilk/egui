@@ -5,12 +5,13 @@ pub use epi::http::{Request, Response};
 pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
     let Request { method, url, body } = request;
 
-    let mut req = ureq::request(method, url).set("Accept", "*/*");
-    if !body.is_empty() {
-        req.set("Content-Type", "text/plain; charset=utf-8");
-        req.send_string(body);
-    }
-    let resp = req.call();
+    let req = ureq::request(method, url).set("Accept", "*/*");
+    let resp = if body.is_empty() {
+        req.call()
+    } else {
+        req.set("Content-Type", "text/plain; charset=utf-8")
+            .send_string(body)
+    };
 
     let (ok, resp) = match resp {
         Ok(resp) => (true, resp),
