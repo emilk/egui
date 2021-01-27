@@ -284,17 +284,12 @@ impl CtxRef {
 
         for pointer_event in &self.input.pointer.pointer_events {
             match pointer_event {
-                PointerEvent::Moved(pos) => {
-                    if response.is_pointer_button_down_on {
-                        response.interact_pointer_pos = Some(*pos);
-                    }
-                }
-                PointerEvent::Pressed(pos) => {
+                PointerEvent::Moved(_) => {}
+                PointerEvent::Pressed(_) => {
                     if hovered {
                         if sense.click && memory.interaction.click_id.is_none() {
                             // potential start of a click
                             memory.interaction.click_id = Some(id);
-                            response.interact_pointer_pos = Some(*pos);
                             response.is_pointer_button_down_on = true;
                         }
 
@@ -303,7 +298,6 @@ impl CtxRef {
                                 || memory.interaction.drag_is_window)
                         {
                             // potential start of a drag
-                            response.interact_pointer_pos = Some(*pos);
                             memory.interaction.drag_id = Some(id);
                             memory.interaction.drag_is_window = false;
                             memory.window_interaction = None; // HACK: stop moving windows (if any)
@@ -319,7 +313,6 @@ impl CtxRef {
                     if hovered && response.is_pointer_button_down_on {
                         if let Some(click) = click {
                             let clicked = hovered && response.is_pointer_button_down_on;
-                            response.interact_pointer_pos = Some(click.pos);
                             response.clicked[click.button as usize] = clicked;
                             response.double_clicked[click.button as usize] =
                                 clicked && click.is_double();
@@ -327,6 +320,10 @@ impl CtxRef {
                     }
                 }
             }
+        }
+
+        if response.is_pointer_button_down_on {
+            response.interact_pointer_pos = self.input().pointer.interact_pos();
         }
 
         if self.input.pointer.any_down() {
