@@ -36,11 +36,15 @@ If you have questions, use [Discussions](https://github.com/emilk/egui/discussio
 
 ## Demo
 
-[Click to run egui web demo](https://emilk.github.io/egui/index.html).
+[Click to run egui web demo](https://emilk.github.io/egui/index.html) (works in any browser with WASM and WebGL support).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
-On Linux you need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`.
+The native backend is currently using [`glium`](https://github.com/glium/glium) ([though there are plans to change that](https://github.com/emilk/egui/issues/93)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
+
+`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`
+
+**NOTE**: egui itself is completely platform agnostic.
 
 ### Example
 
