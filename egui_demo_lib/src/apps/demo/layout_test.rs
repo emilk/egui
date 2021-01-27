@@ -29,7 +29,7 @@ impl Default for LayoutTest {
 
 impl super::Demo for LayoutTest {
     fn name(&self) -> &str {
-        "🖹 Layouts"
+        "🗺 Layout Test"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {

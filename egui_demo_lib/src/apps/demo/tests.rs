@@ -1,9 +1,9 @@
 #[derive(Default)]
-pub struct Tests {}
+pub struct IdTest {}
 
-impl super::Demo for Tests {
+impl super::Demo for IdTest {
     fn name(&self) -> &str {
-        "📋 Tests"
+        "📋 ID Test"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
@@ -14,7 +14,7 @@ impl super::Demo for Tests {
     }
 }
 
-impl super::View for Tests {
+impl super::View for IdTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Name collision example");
 

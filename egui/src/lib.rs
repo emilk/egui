@@ -82,6 +82,7 @@ mod animation_manager;
 pub mod containers;
 mod context;
 mod data;
+pub mod experimental;
 pub(crate) mod grid;
 mod id;
 mod input_state;
