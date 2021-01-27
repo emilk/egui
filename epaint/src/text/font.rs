@@ -354,7 +354,14 @@ impl Font {
             paragraph_start = paragraph_end + 1;
         }
 
-        if text.is_empty() || text.ends_with('\n') {
+        if text.is_empty() {
+            rows.push(Row {
+                x_offsets: vec![first_row_indentation],
+                y_min: cursor_y,
+                y_max: cursor_y + row_height,
+                ends_with_newline: false,
+            });
+        } else if text.ends_with('\n') {
             rows.push(Row {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
