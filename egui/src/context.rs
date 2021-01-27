@@ -293,6 +293,11 @@ impl CtxRef {
                             response.is_pointer_button_down_on = true;
                         }
 
+                        // HACK: windows have low priority on dragging.
+                        // This is so that if you drag a slider in a window,
+                        // the slider will steal the drag away from the window.
+                        // This is needed because we do window interaction first (to prevent frame delay),
+                        // and then do content layout.
                         if sense.drag
                             && (memory.interaction.drag_id.is_none()
                                 || memory.interaction.drag_is_window)

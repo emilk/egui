@@ -466,8 +466,17 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
             rect.max.y = ctx.round_to_pixel(pointer_pos.y);
         }
     } else {
-        // movement
-        rect = rect.translate(pointer_pos - ctx.input().pointer.press_origin()?);
+        // Movement.
+
+        // We do window interaction first (to avoid frame delay),
+        // but we want anything interactive in the window (e.g. slider) to steal
+        // the drag from us. It is therefor important not to move the window the first frame,
+        // but instead let other widgets to the steal. HACK.
+        if !ctx.input().pointer.any_pressed() {
+            let press_origin = ctx.input().pointer.press_origin()?;
+            let delta = pointer_pos - press_origin;
+            rect = rect.translate(delta);
+        }
     }
 
     Some(rect)
