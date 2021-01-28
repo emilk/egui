@@ -2,7 +2,7 @@
 //!
 //! Be very careful about depending on the experimental parts of egui!
 
-mod markdown;
-pub mod markdown_parser;
+pub mod easy_mark_parser;
+mod easy_mark_viewer;
 
-pub use markdown::markdown;
+pub use easy_mark_viewer::easy_mark;
