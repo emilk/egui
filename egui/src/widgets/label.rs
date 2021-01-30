@@ -13,6 +13,7 @@ pub struct Label {
     strong: bool,
     strikethrough: bool,
     underline: bool,
+    italics: bool,
 }
 
 impl Label {
@@ -27,6 +28,7 @@ impl Label {
             strong: false,
             strikethrough: false,
             underline: false,
+            italics: false,
         }
     }
 
@@ -83,6 +85,12 @@ impl Label {
         self
     }
 
+    /// tilt the characters to the right.
+    pub fn italics(mut self) -> Self {
+        self.italics = true;
+        self
+    }
+
     pub fn small(self) -> Self {
         self.text_style(TextStyle::Small)
     }
@@ -133,6 +141,7 @@ impl Label {
             strong,
             strikethrough,
             underline,
+            italics,
             ..
         } = *self;
 
@@ -173,7 +182,8 @@ impl Label {
         }
 
         let text_style = self.text_style_or_default(ui.style());
-        ui.painter().galley(pos, galley, text_style, text_color);
+        ui.painter()
+            .galley_with_italics(pos, galley, text_style, text_color, italics);
     }
 
     /// Read the text style, or get the default for the current style
