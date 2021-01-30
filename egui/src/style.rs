@@ -138,6 +138,9 @@ pub struct Visuals {
     /// The color used for `Hyperlink`,
     pub hyperlink_color: Color32,
 
+    /// Background color behind code-styled monospaced labels.
+    pub code_bg_color: Color32,
+
     pub window_corner_radius: f32,
     pub window_shadow: Shadow,
 
@@ -283,6 +286,7 @@ impl Default for Visuals {
             selection: Default::default(),
             dark_bg_color: Color32::from_gray(10),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
+            code_bg_color: Color32::from_gray(64),
             window_corner_radius: 10.0,
             window_shadow: Shadow::big(),
             resize_corner_size: 12.0,
@@ -500,6 +504,7 @@ impl Visuals {
             selection,
             dark_bg_color,
             hyperlink_color,
+            code_bg_color,
             window_corner_radius,
             window_shadow,
             resize_corner_size,
@@ -514,6 +519,7 @@ impl Visuals {
         ui.collapsing("selection", |ui| selection.ui(ui));
         ui_color(ui, dark_bg_color, "dark_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
+        ui_color(ui, code_bg_color, "code_bg_color");
         ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
         shadow_ui(ui, window_shadow, "Window shadow:");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));

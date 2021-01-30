@@ -8,6 +8,7 @@ pub struct Label {
     pub(crate) multiline: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) background_color: Color32,
+    use_code_bg_color: bool,
     pub(crate) text_color: Option<Color32>,
 }
 
@@ -18,6 +19,7 @@ impl Label {
             multiline: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,
+            use_code_bg_color: false,
             text_color: None,
         }
     }
@@ -52,9 +54,9 @@ impl Label {
     }
 
     /// Monospace label with gray background
-    pub fn code(self) -> Self {
+    pub fn code(mut self) -> Self {
+        self.use_code_bg_color = true;
         self.text_style(TextStyle::Monospace)
-            .background_color(Color32::from_gray(64)) // TODO: style
     }
 
     pub fn small(self) -> Self {
@@ -101,11 +103,15 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
-        if self.background_color != Color32::TRANSPARENT {
+        let mut background_color = self.background_color;
+        if self.use_code_bg_color {
+            background_color = ui.style().visuals.code_bg_color;
+        }
+        if background_color != Color32::TRANSPARENT {
             for row in &galley.rows {
                 let rect = row.rect().translate(pos.to_vec2());
                 let rect = rect.expand(1.0); // looks better
-                ui.painter().rect_filled(rect, 0.0, self.background_color);
+                ui.painter().rect_filled(rect, 0.0, background_color);
             }
         }
 
