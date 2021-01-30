@@ -8,8 +8,11 @@ pub struct Label {
     pub(crate) multiline: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) background_color: Color32,
-    use_code_bg_color: bool,
     pub(crate) text_color: Option<Color32>,
+    code: bool,
+    strong: bool,
+    strikethrough: bool,
+    underline: bool,
 }
 
 impl Label {
@@ -19,8 +22,11 @@ impl Label {
             multiline: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,
-            use_code_bg_color: false,
             text_color: None,
+            code: false,
+            strong: false,
+            strikethrough: false,
+            underline: false,
         }
     }
 
@@ -39,7 +45,7 @@ impl Label {
         self
     }
 
-    /// If you do not set a `TextStyle`, the default `style.text_style`.
+    /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
         self
@@ -55,8 +61,26 @@ impl Label {
 
     /// Monospace label with gray background
     pub fn code(mut self) -> Self {
-        self.use_code_bg_color = true;
+        self.code = true;
         self.text_style(TextStyle::Monospace)
+    }
+
+    /// Extra white text
+    pub fn strong(mut self) -> Self {
+        self.strong = true;
+        self
+    }
+
+    /// draw a line under the text
+    pub fn underline(mut self) -> Self {
+        self.underline = true;
+        self
+    }
+
+    /// draw a line through the text, crossing it out
+    pub fn strikethrough(mut self) -> Self {
+        self.strikethrough = true;
+        self
     }
 
     pub fn small(self) -> Self {
@@ -103,22 +127,52 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
-        let mut background_color = self.background_color;
-        if self.use_code_bg_color {
+        let Self {
+            mut background_color,
+            code,
+            strong,
+            strikethrough,
+            underline,
+            ..
+        } = *self;
+
+        let text_color = self.text_color.unwrap_or_else(|| {
+            if strong {
+                ui.style().visuals.strong_text_color()
+            } else {
+                ui.style().visuals.text_color()
+            }
+        });
+
+        if code {
             background_color = ui.style().visuals.code_bg_color;
         }
-        if background_color != Color32::TRANSPARENT {
+
+        if strikethrough || underline || background_color != Color32::TRANSPARENT {
             for row in &galley.rows {
                 let rect = row.rect().translate(pos.to_vec2());
-                let rect = rect.expand(1.0); // looks better
-                ui.painter().rect_filled(rect, 0.0, background_color);
+
+                let stroke_width = 1.0;
+                if strikethrough {
+                    ui.painter().line_segment(
+                        [rect.left_center(), rect.right_center()],
+                        (stroke_width, text_color),
+                    );
+                }
+                if underline {
+                    ui.painter().line_segment(
+                        [rect.left_bottom(), rect.right_bottom()],
+                        (stroke_width, text_color),
+                    );
+                }
+                if background_color != Color32::TRANSPARENT {
+                    let rect = rect.expand(1.0); // looks better
+                    ui.painter().rect_filled(rect, 0.0, background_color);
+                }
             }
         }
 
         let text_style = self.text_style_or_default(ui.style());
-        let text_color = self
-            .text_color
-            .unwrap_or_else(|| ui.style().visuals.text_color());
         ui.painter().galley(pos, galley, text_style, text_color);
     }
 
