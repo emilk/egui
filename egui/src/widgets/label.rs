@@ -168,26 +168,29 @@ impl Label {
             background_color = ui.style().visuals.code_bg_color;
         }
 
+        let mut lines = vec![];
+
         if strikethrough || underline || background_color != Color32::TRANSPARENT {
             for row in &galley.rows {
                 let rect = row.rect().translate(pos.to_vec2());
 
-                let stroke_width = 1.0;
-                if strikethrough {
-                    ui.painter().line_segment(
-                        [rect.left_center(), rect.right_center()],
-                        (stroke_width, text_color),
-                    );
-                }
-                if underline {
-                    ui.painter().line_segment(
-                        [rect.left_bottom(), rect.right_bottom()],
-                        (stroke_width, text_color),
-                    );
-                }
                 if background_color != Color32::TRANSPARENT {
                     let rect = rect.expand(1.0); // looks better
                     ui.painter().rect_filled(rect, 0.0, background_color);
+                }
+
+                let stroke_width = 1.0;
+                if strikethrough {
+                    lines.push(Shape::line_segment(
+                        [rect.left_center(), rect.right_center()],
+                        (stroke_width, text_color),
+                    ));
+                }
+                if underline {
+                    lines.push(Shape::line_segment(
+                        [rect.left_bottom(), rect.right_bottom()],
+                        (stroke_width, text_color),
+                    ));
                 }
             }
         }
@@ -195,6 +198,8 @@ impl Label {
         let text_style = self.text_style_or_default(ui.style());
         ui.painter()
             .galley_with_italics(pos, galley, text_style, text_color, italics);
+
+        ui.painter().extend(lines);
     }
 
     /// Read the text style, or get the default for the current style

@@ -117,10 +117,12 @@ impl Painter {
     }
 
     pub fn extend(&self, shapes: Vec<Shape>) {
-        self.ctx
-            .graphics()
-            .list(self.layer_id)
-            .extend(self.clip_rect, shapes);
+        if !shapes.is_empty() {
+            self.ctx
+                .graphics()
+                .list(self.layer_id)
+                .extend(self.clip_rect, shapes);
+        }
     }
 
     /// Modify an existing [`Shape`].
