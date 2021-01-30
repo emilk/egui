@@ -170,6 +170,10 @@ impl Visuals {
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
 
+    pub fn weak_text_color(&self) -> Color32 {
+        self.widgets.disabled.text_color()
+    }
+
     pub fn strong_text_color(&self) -> Color32 {
         self.widgets.active.text_color()
     }

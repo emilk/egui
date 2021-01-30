@@ -11,6 +11,7 @@ pub struct Label {
     pub(crate) text_color: Option<Color32>,
     code: bool,
     strong: bool,
+    weak: bool,
     strikethrough: bool,
     underline: bool,
     italics: bool,
@@ -26,6 +27,7 @@ impl Label {
             text_color: None,
             code: false,
             strong: false,
+            weak: false,
             strikethrough: false,
             underline: false,
             italics: false,
@@ -67,9 +69,15 @@ impl Label {
         self.text_style(TextStyle::Monospace)
     }
 
-    /// Extra white text
+    /// Extra strong text (stronger color).
     pub fn strong(mut self) -> Self {
         self.strong = true;
+        self
+    }
+
+    /// Extra weak text (fainter color).
+    pub fn weak(mut self) -> Self {
+        self.weak = true;
         self
     }
 
@@ -139,6 +147,7 @@ impl Label {
             mut background_color,
             code,
             strong,
+            weak,
             strikethrough,
             underline,
             italics,
@@ -148,6 +157,8 @@ impl Label {
         let text_color = self.text_color.unwrap_or_else(|| {
             if strong {
                 ui.style().visuals.strong_text_color()
+            } else if weak {
+                ui.style().visuals.weak_text_color()
             } else {
                 ui.style().visuals.text_color()
             }
