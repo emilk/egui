@@ -12,8 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * Add support for secondary and middle mouse buttons.
+* Add `Label` methods for code, strong, strikethrough, underline and italics.
 * `egui::popup::popup_below_widget`: show a popup area below another widget.
 * Add `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
+* Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
 
 ### Changed 🔧
 

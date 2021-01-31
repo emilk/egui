@@ -30,7 +30,7 @@ criterion = { version = "0.3", default-features = false }
 
 [features]
 default = []
-http = ["image", "syntect", "epi/http"]
+http = ["image", "epi/http"]
 persistence = ["epi/persistence", "serde"]
 
 [[bench]]

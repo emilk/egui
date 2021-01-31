@@ -46,6 +46,8 @@ pub enum Shape {
         galley: Galley,
         text_style: TextStyle, // TODO: Font?
         color: Color32,
+        /// If true, tilt the letters for an ugly italics effect
+        fake_italics: bool,
     },
     Mesh(Mesh),
 }
@@ -138,6 +140,7 @@ impl Shape {
             galley,
             text_style,
             color,
+            fake_italics: false,
         }
     }
 }

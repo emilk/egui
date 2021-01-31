@@ -114,37 +114,33 @@ impl Mesh {
     }
 
     /// Rectangle with a texture and color.
-    pub fn add_rect_with_uv(&mut self, pos: Rect, uv: Rect, color: Color32) {
+    pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
         #![allow(clippy::identity_op)]
 
         let idx = self.vertices.len() as u32;
         self.add_triangle(idx + 0, idx + 1, idx + 2);
         self.add_triangle(idx + 2, idx + 1, idx + 3);
 
-        let right_top = Vertex {
-            pos: pos.right_top(),
-            uv: uv.right_top(),
-            color,
-        };
-        let left_top = Vertex {
-            pos: pos.left_top(),
+        self.vertices.push(Vertex {
+            pos: rect.left_top(),
             uv: uv.left_top(),
             color,
-        };
-        let left_bottom = Vertex {
-            pos: pos.left_bottom(),
+        });
+        self.vertices.push(Vertex {
+            pos: rect.right_top(),
+            uv: uv.right_top(),
+            color,
+        });
+        self.vertices.push(Vertex {
+            pos: rect.left_bottom(),
             uv: uv.left_bottom(),
             color,
-        };
-        let right_bottom = Vertex {
-            pos: pos.right_bottom(),
+        });
+        self.vertices.push(Vertex {
+            pos: rect.right_bottom(),
             uv: uv.right_bottom(),
             color,
-        };
-        self.vertices.push(left_top);
-        self.vertices.push(right_top);
-        self.vertices.push(left_bottom);
-        self.vertices.push(right_bottom);
+        });
     }
 
     /// Uniformly colored rectangle.

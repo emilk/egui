@@ -117,10 +117,12 @@ impl Painter {
     }
 
     pub fn extend(&self, shapes: Vec<Shape>) {
-        self.ctx
-            .graphics()
-            .list(self.layer_id)
-            .extend(self.clip_rect, shapes);
+        if !shapes.is_empty() {
+            self.ctx
+                .graphics()
+                .list(self.layer_id)
+                .extend(self.clip_rect, shapes);
+        }
     }
 
     /// Modify an existing [`Shape`].
@@ -269,11 +271,23 @@ impl Painter {
 
     /// Paint text that has already been layed out in a `Galley`.
     pub fn galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color: Color32) {
+        self.galley_with_italics(pos, galley, text_style, color, false)
+    }
+
+    pub fn galley_with_italics(
+        &self,
+        pos: Pos2,
+        galley: Galley,
+        text_style: TextStyle,
+        color: Color32,
+        fake_italics: bool,
+    ) {
         self.add(Shape::Text {
             pos,
             galley,
             text_style,
             color,
+            fake_italics,
         });
     }
 }

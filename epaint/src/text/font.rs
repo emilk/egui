@@ -142,13 +142,6 @@ impl FontImpl {
 
 type FontIndex = usize;
 
-#[inline]
-fn is_chinese(c: char) -> bool {
-    (c >= '\u{4E00}' && c <= '\u{9FFF}')
-        || (c >= '\u{3400}' && c <= '\u{4DBF}')
-        || (c >= '\u{2B740}' && c <= '\u{2B81F}')
-}
-
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 #[derive(Default)]
@@ -347,7 +340,7 @@ impl Font {
                 row.y_max += cursor_y;
             }
             cursor_y = paragraph_rows.last().unwrap().y_max;
-            cursor_y += row_height * 0.4; // Extra spacing between paragraphs. TODO: less hacky
+            cursor_y += row_height * 0.2; // Extra spacing between paragraphs. TODO: less hacky
 
             rows.append(&mut paragraph_rows);
 
@@ -406,8 +399,8 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut row_start_idx = 0;
 
-        // start index of the last space or hieroglyphs. A candidate for a new row.
-        let mut newline_mark = None;
+        // Keeps track of good places to insert row break if we exceed `max_width_in_points`.
+        let mut row_break_candidates = RowBreakCandidates::default();
 
         let mut out_rows = vec![];
 
@@ -416,10 +409,9 @@ impl Font {
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
-                if let Some(last_space_idx) = newline_mark {
-                    // We include the trailing space in the row:
+                if let Some(last_kept_index) = row_break_candidates.get() {
                     let row = Row {
-                        x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
+                        x_offsets: full_x_offsets[row_start_idx..=last_kept_index + 1]
                             .iter()
                             .map(|x| first_row_indentation + x - row_start_x)
                             .collect(),
@@ -430,9 +422,9 @@ impl Font {
                     row.sanity_check();
                     out_rows.push(row);
 
-                    row_start_idx = last_space_idx + 1;
+                    row_start_idx = last_kept_index + 1;
                     row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
-                    newline_mark = None;
+                    row_break_candidates = Default::default();
                     cursor_y = self.round_to_pixel(cursor_y + self.row_height());
                 } else if out_rows.is_empty() && first_row_indentation > 0.0 {
                     assert_eq!(row_start_idx, 0);
@@ -450,10 +442,7 @@ impl Font {
                 }
             }
 
-            const NON_BREAKING_SPACE: char = '\u{A0}';
-            if (chr.is_whitespace() && chr != NON_BREAKING_SPACE) || is_chinese(chr) {
-                newline_mark = Some(i);
-            }
+            row_break_candidates.add(i, chr);
         }
 
         if row_start_idx + 1 < full_x_offsets.len() {
@@ -471,6 +460,43 @@ impl Font {
         }
 
         out_rows
+    }
+}
+
+/// Keeps track of good places to break a long row of text.
+/// Will focus primarily on spaces, secondarily on things like `-`
+#[derive(Clone, Copy, Default)]
+struct RowBreakCandidates {
+    /// Breaking at ` ` or other whitespace
+    /// is always the primary candidate.
+    space: Option<usize>,
+    /// Breaking at a dash is super-
+    /// good idea.
+    dash: Option<usize>,
+    /// This is nicer for things like URLs, e.g. www.
+    /// example.com.
+    punctuation: Option<usize>,
+    /// Breaking after just random character is some
+    /// times necessary.
+    any: Option<usize>,
+}
+
+impl RowBreakCandidates {
+    fn add(&mut self, index: usize, chr: char) {
+        const NON_BREAKING_SPACE: char = '\u{A0}';
+        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+            self.space = Some(index);
+        }
+        if chr == '-' {
+            self.dash = Some(index);
+        } else if chr.is_ascii_punctuation() {
+            self.punctuation = Some(index);
+        }
+        self.any = Some(index);
+    }
+
+    fn get(&self) -> Option<usize> {
+        self.space.or(self.dash).or(self.punctuation).or(self.any)
     }
 }
 

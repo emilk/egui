@@ -545,6 +545,7 @@ impl Tessellator {
                 galley,
                 text_style,
                 color,
+                fake_italics,
             } => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
@@ -557,7 +558,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(fonts, pos, &galley, text_style, color, out);
+                self.tessellate_text(fonts, pos, &galley, text_style, color, fake_italics, out);
             }
         }
     }
@@ -592,6 +593,7 @@ impl Tessellator {
         stroke_path(&path.0, Closed, stroke, self.options, out);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn tessellate_text(
         &mut self,
         fonts: &Fonts,
@@ -599,6 +601,7 @@ impl Tessellator {
         galley: &super::Galley,
         text_style: super::TextStyle,
         color: Color32,
+        fake_italics: bool,
         out: &mut Mesh,
     ) {
         if color == Color32::TRANSPARENT {
@@ -636,12 +639,42 @@ impl Tessellator {
                     left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
                     left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
 
-                    let pos = Rect::from_min_max(left_top, left_top + glyph.size);
+                    let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
                         pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
                         pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
                     );
-                    out.add_rect_with_uv(pos, uv, color);
+
+                    if fake_italics {
+                        let idx = out.vertices.len() as u32;
+                        out.add_triangle(idx, idx + 1, idx + 2);
+                        out.add_triangle(idx + 2, idx + 1, idx + 3);
+
+                        let top_offset = rect.height() * 0.25 * Vec2::X;
+
+                        out.vertices.push(Vertex {
+                            pos: rect.left_top() + top_offset,
+                            uv: uv.left_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_top() + top_offset,
+                            uv: uv.right_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.left_bottom(),
+                            uv: uv.left_bottom(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_bottom(),
+                            uv: uv.right_bottom(),
+                            color,
+                        });
+                    } else {
+                        out.add_rect_with_uv(rect, uv, color);
+                    }
                 }
             }
             if line.ends_with_newline {

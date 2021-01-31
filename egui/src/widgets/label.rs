@@ -9,6 +9,12 @@ pub struct Label {
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) background_color: Color32,
     pub(crate) text_color: Option<Color32>,
+    code: bool,
+    strong: bool,
+    weak: bool,
+    strikethrough: bool,
+    underline: bool,
+    italics: bool,
 }
 
 impl Label {
@@ -19,6 +25,12 @@ impl Label {
             text_style: None,
             background_color: Color32::TRANSPARENT,
             text_color: None,
+            code: false,
+            strong: false,
+            weak: false,
+            strikethrough: false,
+            underline: false,
+            italics: false,
         }
     }
 
@@ -37,7 +49,7 @@ impl Label {
         self
     }
 
-    /// If you do not set a `TextStyle`, the default `style.text_style`.
+    /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
         self
@@ -52,9 +64,39 @@ impl Label {
     }
 
     /// Monospace label with gray background
-    pub fn code(self) -> Self {
+    pub fn code(mut self) -> Self {
+        self.code = true;
         self.text_style(TextStyle::Monospace)
-            .background_color(Color32::from_gray(64)) // TODO: style
+    }
+
+    /// Extra strong text (stronger color).
+    pub fn strong(mut self) -> Self {
+        self.strong = true;
+        self
+    }
+
+    /// Extra weak text (fainter color).
+    pub fn weak(mut self) -> Self {
+        self.weak = true;
+        self
+    }
+
+    /// draw a line under the text
+    pub fn underline(mut self) -> Self {
+        self.underline = true;
+        self
+    }
+
+    /// draw a line through the text, crossing it out
+    pub fn strikethrough(mut self) -> Self {
+        self.strikethrough = true;
+        self
+    }
+
+    /// tilt the characters to the right.
+    pub fn italics(mut self) -> Self {
+        self.italics = true;
+        self
     }
 
     pub fn small(self) -> Self {
@@ -101,19 +143,63 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
-        if self.background_color != Color32::TRANSPARENT {
+        let Self {
+            mut background_color,
+            code,
+            strong,
+            weak,
+            strikethrough,
+            underline,
+            italics,
+            ..
+        } = *self;
+
+        let text_color = self.text_color.unwrap_or_else(|| {
+            if strong {
+                ui.style().visuals.strong_text_color()
+            } else if weak {
+                ui.style().visuals.weak_text_color()
+            } else {
+                ui.style().visuals.text_color()
+            }
+        });
+
+        if code {
+            background_color = ui.style().visuals.code_bg_color;
+        }
+
+        let mut lines = vec![];
+
+        if strikethrough || underline || background_color != Color32::TRANSPARENT {
             for row in &galley.rows {
                 let rect = row.rect().translate(pos.to_vec2());
-                let rect = rect.expand(1.0); // looks better
-                ui.painter().rect_filled(rect, 0.0, self.background_color);
+
+                if background_color != Color32::TRANSPARENT {
+                    let rect = rect.expand(1.0); // looks better
+                    ui.painter().rect_filled(rect, 0.0, background_color);
+                }
+
+                let stroke_width = 1.0;
+                if strikethrough {
+                    lines.push(Shape::line_segment(
+                        [rect.left_center(), rect.right_center()],
+                        (stroke_width, text_color),
+                    ));
+                }
+                if underline {
+                    lines.push(Shape::line_segment(
+                        [rect.left_bottom(), rect.right_bottom()],
+                        (stroke_width, text_color),
+                    ));
+                }
             }
         }
 
         let text_style = self.text_style_or_default(ui.style());
-        let text_color = self
-            .text_color
-            .unwrap_or_else(|| ui.style().visuals.text_color());
-        ui.painter().galley(pos, galley, text_style, text_color);
+        ui.painter()
+            .galley_with_italics(pos, galley, text_style, text_color, italics);
+
+        ui.painter().extend(lines);
     }
 
     /// Read the text style, or get the default for the current style
