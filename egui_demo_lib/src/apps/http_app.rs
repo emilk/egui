@@ -196,6 +196,7 @@ fn ui_resouce(
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
+#[cfg(feature = "syntect")]
 fn syntax_highlighting(response: &Response) -> Option<ColoredText> {
     let text = response.text.as_ref()?;
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
@@ -204,8 +205,10 @@ fn syntax_highlighting(response: &Response) -> Option<ColoredText> {
 }
 
 /// Lines of text fragments
+#[cfg(feature = "syntect")]
 struct ColoredText(Vec<Vec<(syntect::highlighting::Style, String)>>);
 
+#[cfg(feature = "syntect")]
 impl ColoredText {
     /// e.g. `text_with_extension("fn foo() {}", "rs")`
     pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
@@ -245,6 +248,17 @@ impl ColoredText {
             });
         }
     }
+}
+
+#[cfg(not(feature = "syntect"))]
+fn syntax_highlighting(_: &Response) -> Option<ColoredText> {
+    None
+}
+#[cfg(not(feature = "syntect"))]
+struct ColoredText();
+#[cfg(not(feature = "syntect"))]
+impl ColoredText {
+    pub fn ui(&self, _ui: &mut egui::Ui) {}
 }
 
 // ----------------------------------------------------------------------------
