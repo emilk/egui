@@ -594,20 +594,20 @@ fn test_text_layout() {
     assert_eq!(galley.rows[1].ends_with_newline, false);
     assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
 
-    let galley = font.layout_multiline("line\nbreak".to_owned(), 10.0);
+    let galley = font.layout_multiline("line\nbreak".to_owned(), 40.0);
     assert_eq!(galley.rows.len(), 2);
     assert_eq!(galley.rows[0].ends_with_newline, true);
     assert_eq!(galley.rows[1].ends_with_newline, false);
 
     // Test wrapping:
-    let galley = font.layout_multiline("word wrap".to_owned(), 10.0);
+    let galley = font.layout_multiline("word wrap".to_owned(), 40.0);
     assert_eq!(galley.rows.len(), 2);
     assert_eq!(galley.rows[0].ends_with_newline, false);
     assert_eq!(galley.rows[1].ends_with_newline, false);
 
     {
         // Test wrapping:
-        let galley = font.layout_multiline("word wrap.\nNew paragraph.".to_owned(), 10.0);
+        let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
         assert_eq!(galley.rows.len(), 4);
         assert_eq!(galley.rows[0].ends_with_newline, false);
         assert_eq!(galley.rows[0].char_count_excluding_newline(), "word ".len());
@@ -618,6 +618,8 @@ fn test_text_layout() {
             galley.rows[1].char_count_including_newline(),
             "wrap.\n".len()
         );
+        assert_eq!(galley.rows[2].char_count_excluding_newline(), "New ".len());
+        assert_eq!(galley.rows[3].char_count_excluding_newline(), "para.".len());
         assert_eq!(galley.rows[2].ends_with_newline, false);
         assert_eq!(galley.rows[3].ends_with_newline, false);
 
@@ -633,11 +635,11 @@ fn test_text_layout() {
         assert_eq!(
             cursor,
             Cursor {
-                ccursor: CCursor::new(25),
-                rcursor: RCursor { row: 3, column: 10 },
+                ccursor: CCursor::new(20),
+                rcursor: RCursor { row: 3, column: 5 },
                 pcursor: PCursor {
                     paragraph: 1,
-                    offset: 14,
+                    offset: 9,
                     prefer_next_row: false,
                 }
             }
@@ -711,7 +713,7 @@ fn test_text_layout() {
 
     {
         // Test cursor movement:
-        let galley = font.layout_multiline("word wrap.\nNew paragraph.".to_owned(), 10.0);
+        let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
         assert_eq!(galley.rows.len(), 4);
         assert_eq!(galley.rows[0].ends_with_newline, false);
         assert_eq!(galley.rows[1].ends_with_newline, true);
@@ -773,7 +775,7 @@ fn test_text_layout() {
             galley.cursor_up_one_row(&galley.end()),
             Cursor {
                 ccursor: CCursor::new(15),
-                rcursor: RCursor { row: 2, column: 10 },
+                rcursor: RCursor { row: 2, column: 5 },
                 pcursor: PCursor {
                     paragraph: 1,
                     offset: 4,
