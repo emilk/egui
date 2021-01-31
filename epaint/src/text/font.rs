@@ -340,7 +340,7 @@ impl Font {
                 row.y_max += cursor_y;
             }
             cursor_y = paragraph_rows.last().unwrap().y_max;
-            cursor_y += row_height * 0.4; // Extra spacing between paragraphs. TODO: less hacky
+            cursor_y += row_height * 0.2; // Extra spacing between paragraphs. TODO: less hacky
 
             rows.append(&mut paragraph_rows);
 
