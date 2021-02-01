@@ -669,11 +669,11 @@ fn show_title_bar(
     let (title_bar, response) = ui.horizontal(|ui| {
         let height = title_label
             .font_height(ui.fonts(), ui.style())
-            .max(ui.style().spacing.interact_size.y);
+            .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
 
-        let item_spacing = ui.style().spacing.item_spacing;
-        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+        let item_spacing = ui.spacing().item_spacing;
+        let button_size = Vec2::splat(ui.spacing().icon_width);
 
         let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
@@ -753,7 +753,7 @@ impl TitleBar {
             // paint separator between title and content:
             let left = outer_rect.left();
             let right = outer_rect.right();
-            let y = content_response.rect.top() + ui.style().spacing.item_spacing.y * 0.5;
+            let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
@@ -771,7 +771,7 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+        let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
             pos2(

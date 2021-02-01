@@ -567,12 +567,12 @@ fn ui_slider_vec2(
         fsw - 2 * space - value = 2 * ssw
         ssw = fsw / 2 - space - value / 2
         */
-        // let spacing = &ui.style().spacing;
+        // let spacing = &ui.spacing();
         // let space = spacing.item_spacing.x;
         // let value_w = spacing.interact_size.x;
         // let full_slider_width = spacing.slider_width;
         // let small_slider_width = full_slider_width / 2.0 - space - value_w / 2.0;
-        // ui.style_mut().spacing.slider_width = small_slider_width;
+        // ui.spacing_mut().slider_width = small_slider_width;
 
         ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));

@@ -73,7 +73,7 @@ fn show_tooltip_area(
         .interactable(false)
         .show(ctx, |ui| {
             Frame::popup(&ctx.style()).show(ui, |ui| {
-                ui.set_max_width(ui.style().spacing.tooltip_width);
+                ui.set_max_width(ui.spacing().tooltip_width);
                 add_contents(ui);
             })
         })

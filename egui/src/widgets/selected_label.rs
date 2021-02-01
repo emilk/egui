@@ -26,13 +26,13 @@ impl Widget for SelectableLabel {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
 
-        let button_padding = ui.style().spacing.button_padding;
+        let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
 
         let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
 
         let mut desired_size = total_extra + galley.size;
-        desired_size.y = desired_size.y.at_least(ui.style().spacing.interact_size.y);
+        desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
 
         let text_cursor = ui

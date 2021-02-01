@@ -266,7 +266,7 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn allocate_slider_space(&self, ui: &mut Ui, height: f32) -> Response {
-        let desired_size = vec2(ui.style().spacing.slider_width, height);
+        let desired_size = vec2(ui.spacing().slider_width, height);
         ui.allocate_response(desired_size, Sense::click_and_drag())
     }
 
@@ -343,7 +343,7 @@ impl<'a> Slider<'a> {
         let value_text = self.format_value(aim_radius, x_range);
 
         if is_kb_editing {
-            let button_width = ui.style().spacing.interact_size.x;
+            let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui.memory().temp_edit_string.take().unwrap_or(value_text);
             ui.add(
                 TextEdit::singleline(&mut value_text)
@@ -409,9 +409,7 @@ impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let height = font
-            .row_height()
-            .at_least(ui.style().spacing.interact_size.y);
+        let height = font.row_height().at_least(ui.spacing().interact_size.y);
 
         if self.text.is_some() {
             ui.horizontal(|ui| {

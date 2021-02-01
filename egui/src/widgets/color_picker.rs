@@ -66,7 +66,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
 }
 
 fn color_button(ui: &mut Ui, color: Color32) -> Response {
-    let size = ui.style().spacing.interact_size;
+    let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let visuals = ui.style().interact(&response);
     let rect = rect.expand(visuals.expansion);
@@ -89,8 +89,8 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(
-        ui.style().spacing.slider_width,
-        ui.style().spacing.interact_size.y * 2.0,
+        ui.spacing().slider_width,
+        ui.spacing().interact_size.y * 2.0,
     );
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
@@ -146,7 +146,7 @@ fn color_slider_2d(
     y_value: &mut f32,
     color_at: impl Fn(f32, f32) -> Color32,
 ) -> Response {
-    let desired_size = Vec2::splat(ui.style().spacing.slider_width);
+    let desired_size = Vec2::splat(ui.spacing().slider_width);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
     if let Some(mpos) = response.interact_pointer_pos() {
@@ -254,8 +254,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
     crate::Grid::new(grid_id).show(ui, |ui| {
         let current_color_size = vec2(
-            ui.style().spacing.slider_width,
-            ui.style().spacing.interact_size.y * 2.0,
+            ui.spacing().slider_width,
+            ui.spacing().interact_size.y * 2.0,
         );
 
         let opaque = HsvaGamma { a: 1.0, ..*hsva };
@@ -328,7 +328,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
             .order(Order::Foreground)
             .default_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {
-                ui.style_mut().spacing.slider_width = 256.0;
+                ui.spacing_mut().slider_width = 256.0;
                 Frame::popup(ui.style()).show(ui, |ui| {
                     color_picker_hsva_2d(ui, hsva, alpha);
                 })

@@ -289,7 +289,7 @@ impl<'t> TextEdit<'t> {
             font.layout_single_line(text.clone())
         };
 
-        let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
+        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(
             galley.size.x.max(desired_width.min(available_width)),

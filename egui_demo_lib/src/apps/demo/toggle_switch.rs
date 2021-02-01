@@ -19,7 +19,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // 1. Deciding widget size:
     // You can query the `ui` how much space is available,
     // but in this example we have a fixed size widget of the default size for a button:
-    let desired_size = ui.style().spacing.interact_size;
+    let desired_size = ui.spacing().interact_size;
 
     // 2. Allocating space:
     // This is where we get a region of the screen assigned.
@@ -61,7 +61,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 /// Here is the same code again, but a bit more compact:
 #[allow(dead_code)]
 fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
-    let desired_size = ui.style().spacing.interact_size;
+    let desired_size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     *on ^= response.clicked(); // toggle if clicked
 

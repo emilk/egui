@@ -183,7 +183,7 @@ impl Prepared {
             let visible_range = top..=top + content_ui.clip_rect().height();
             let offset_y = scroll_y - lerp(visible_range, center_factor);
 
-            let mut spacing = ui.style().spacing.item_spacing.y;
+            let mut spacing = ui.spacing().item_spacing.y;
 
             // Depending on the alignment we need to add or subtract the spacing
             spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
@@ -260,7 +260,7 @@ impl Prepared {
         if current_scroll_bar_width > 0.0 {
             let animation_t = current_scroll_bar_width / max_scroll_bar_width;
             // margin between contents and scroll bar
-            let margin = animation_t * ui.style().spacing.item_spacing.x;
+            let margin = animation_t * ui.spacing().item_spacing.x;
             let left = inner_rect.right() + margin;
             let right = outer_rect.right();
             let corner_radius = (right - left) / 2.0;
@@ -364,5 +364,5 @@ impl Prepared {
 }
 
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.style().spacing.item_spacing.x + 16.0
+    ui.spacing().item_spacing.x + 16.0
 }

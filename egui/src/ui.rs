@@ -108,6 +108,18 @@ impl Ui {
         self.style = style.into();
     }
 
+    /// Short for `&self.style().spacing`
+    /// Spacing options for this `Ui` and its children.
+    pub fn spacing(&self) -> &crate::style::Spacing {
+        &self.style.spacing
+    }
+
+    /// Mutably borrow internal `Spacing`.
+    /// Changes apply to this `Ui` and its subsequent children.
+    pub fn spacing_mut(&mut self) -> &mut crate::style::Spacing {
+        &mut self.style_mut().spacing
+    }
+
     /// Get a reference to the parent [`CtxRef`].
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
@@ -355,7 +367,7 @@ impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
             self.clip_rect(),
-            self.style().spacing.item_spacing,
+            self.spacing().item_spacing,
             self.layer_id(),
             id,
             rect,
@@ -517,7 +529,7 @@ impl Ui {
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
-        let item_spacing = self.style().spacing.item_spacing;
+        let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let widget_rect = self.placer.justify_or_align(frame_rect, desired_size);
 
@@ -534,7 +546,7 @@ impl Ui {
     }
 
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
-        let item_spacing = self.style().spacing.item_spacing;
+        let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
@@ -554,7 +566,7 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> (R, Response) {
-        let item_spacing = self.style().spacing.item_spacing;
+        let item_spacing = self.spacing().item_spacing;
         let outer_child_rect = self.placer.next_space(desired_size, item_spacing);
         let inner_child_rect = self.placer.justify_or_align(outer_child_rect, desired_size);
 
@@ -929,7 +941,7 @@ impl Ui {
             "You can only indent vertical layouts, found {:?}",
             self.layout()
         );
-        let indent = vec2(self.style().spacing.indent, 0.0);
+        let indent = vec2(self.spacing().indent, 0.0);
         let child_rect = Rect::from_min_max(self.cursor() + indent, self.max_rect().right_bottom()); // TODO: wrong for reversed layouts
         let mut child_ui = Self {
             id: self.id.with(id_source),
@@ -1016,10 +1028,10 @@ impl Ui {
             let font = &ui.fonts()[text_style];
             let row_height = font.row_height();
             let space_width = font.glyph_width(' ');
-            let style = ui.style_mut();
-            style.spacing.interact_size.y = row_height;
-            style.spacing.item_spacing.x = space_width;
-            style.spacing.item_spacing.y = 0.0;
+            let spacing = ui.spacing_mut();
+            spacing.interact_size.y = row_height;
+            spacing.item_spacing.x = space_width;
+            spacing.item_spacing.y = 0.0;
             ui.horizontal(add_contents).0
         })
     }
@@ -1060,10 +1072,10 @@ impl Ui {
             let font = &ui.fonts()[text_style];
             let row_height = font.row_height();
             let space_width = font.glyph_width(' ');
-            let style = ui.style_mut();
-            style.spacing.interact_size.y = row_height;
-            style.spacing.item_spacing.x = space_width;
-            style.spacing.item_spacing.y = 0.0;
+            let spacing = ui.spacing_mut();
+            spacing.interact_size.y = row_height;
+            spacing.item_spacing.x = space_width;
+            spacing.item_spacing.y = 0.0;
             ui.horizontal_wrapped(add_contents).0
         })
     }
@@ -1075,7 +1087,7 @@ impl Ui {
     ) -> (R, Response) {
         let initial_size = vec2(
             self.available_size_before_wrap_finite().x,
-            self.style().spacing.interact_size.y, // Assume there will be something interactive on the horizontal layout
+            self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
         let layout = if self.placer.prefer_right_to_left() {
@@ -1123,7 +1135,7 @@ impl Ui {
         let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let ret = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
-        let item_spacing = self.style().spacing.item_spacing;
+        let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
         (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
@@ -1144,7 +1156,7 @@ impl Ui {
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {
         self.placer
-            .end_row(self.style().spacing.item_spacing, &self.painter().clone());
+            .end_row(self.spacing().item_spacing, &self.painter().clone());
     }
 
     /// Temporarily split split an Ui into several columns.
@@ -1161,7 +1173,7 @@ impl Ui {
         F: FnOnce(&mut [Self]) -> R,
     {
         // TODO: ensure there is space
-        let spacing = self.style().spacing.item_spacing.x;
+        let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
         let top_left = self.cursor();

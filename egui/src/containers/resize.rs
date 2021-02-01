@@ -167,7 +167,7 @@ impl Resize {
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.input().screen_rect().size() - 2.0 * ui.style().spacing.window_padding, // hack for windows
+                    ui.input().screen_rect().size() - 2.0 * ui.spacing().window_padding, // hack for windows
                 );
 
             State {

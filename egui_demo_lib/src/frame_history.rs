@@ -64,7 +64,7 @@ impl FrameHistory {
         let history = &self.frame_times;
 
         // TODO: we should not use `slider_width` as default graph width.
-        let height = ui.style().spacing.slider_width;
+        let height = ui.spacing().slider_width;
         let size = vec2(ui.available_size_before_wrap_finite().x, height);
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let style = ui.style().noninteractive();

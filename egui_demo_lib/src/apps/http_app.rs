@@ -239,7 +239,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
         for line in &self.0 {
             ui.horizontal_wrapped_for_text(egui::TextStyle::Monospace, |ui| {
-                ui.style_mut().spacing.item_spacing.x = 0.0;
+                ui.spacing_mut().item_spacing.x = 0.0;
                 for (style, range) in line {
                     let fg = style.foreground;
                     let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);

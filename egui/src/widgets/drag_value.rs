@@ -162,7 +162,7 @@ impl<'a> Widget for DragValue<'a> {
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
         if is_kb_editing {
-            let button_width = ui.style().spacing.interact_size.x;
+            let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui.memory().temp_edit_string.take().unwrap_or(value_text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)

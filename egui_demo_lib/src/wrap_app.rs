@@ -261,7 +261,7 @@ impl BackendPanel {
         let pixels_per_point = self.pixels_per_point.as_mut()?;
 
         ui.horizontal(|ui| {
-            ui.style_mut().spacing.slider_width = 90.0;
+            ui.spacing_mut().slider_width = 90.0;
             ui.add(
                 egui::Slider::f32(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)

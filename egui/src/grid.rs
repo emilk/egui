@@ -64,10 +64,10 @@ impl GridLayout {
             id,
             prev_state,
             curr_state: State::default(),
-            spacing: ui.style().spacing.item_spacing,
+            spacing: ui.spacing().item_spacing,
             striped: false,
             initial_x: ui.cursor().x,
-            min_cell_size: ui.style().spacing.interact_size,
+            min_cell_size: ui.spacing().interact_size,
             col: 0,
             row: 0,
         }
@@ -276,9 +276,9 @@ impl Grid {
             min_row_height,
             spacing,
         } = self;
-        let min_col_width = min_col_width.unwrap_or_else(|| ui.style().spacing.interact_size.x);
-        let min_row_height = min_row_height.unwrap_or_else(|| ui.style().spacing.interact_size.y);
-        let spacing = spacing.unwrap_or_else(|| ui.style().spacing.item_spacing);
+        let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
+        let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
+        let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
 
         // Each grid cell is aligned LEFT_CENTER.
         // If somebody wants to wrap more things inside a cell,

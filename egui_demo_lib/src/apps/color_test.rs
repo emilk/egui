@@ -71,7 +71,7 @@ impl ColorTest {
         ui.heading("sRGB color test");
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
             self.tex_gradient(
@@ -87,13 +87,13 @@ impl ColorTest {
 
         ui.label("Test that vertex color times texture color is done in linear space:");
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
 
             let tex_color = Rgba::from_rgb(1.0, 0.25, 0.25);
             let vertex_color = Rgba::from_rgb(0.5, 0.75, 0.75);
 
             ui.horizontal(|ui| {
-                let color_size = ui.style().spacing.interact_size;
+                let color_size = ui.spacing().interact_size;
                 ui.label("texture");
                 show_color(ui, tex_color, color_size);
                 ui.label(" * ");
@@ -174,7 +174,7 @@ impl ColorTest {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
         ui.horizontal(|ui| {
-            let color_size = ui.style().spacing.interact_size;
+            let color_size = ui.spacing().interact_size;
             if !is_opaque {
                 ui.label("Background:");
                 show_color(ui, bg_fill, color_size);
@@ -186,7 +186,7 @@ impl ColorTest {
         });
 
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             if is_opaque {
                 let g = Gradient::ground_truth_linear_gradient(left, right);
                 self.vertex_gradient(ui, "Ground Truth (CPU gradient) - vertices", bg_fill, &g);

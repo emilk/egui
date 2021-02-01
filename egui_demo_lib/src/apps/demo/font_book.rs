@@ -90,7 +90,7 @@ impl super::View for FontBook {
 
         egui::ScrollArea::auto_sized().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.style_mut().spacing.item_spacing = egui::Vec2::splat(2.0);
+                ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
                 if self.standard {
                     self.characters_ui(ui, UBUNTU_FONT_CHARACTERS);
