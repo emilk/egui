@@ -902,6 +902,11 @@ impl Ui {
 
 /// # Adding Containers / Sub-uis:
 impl Ui {
+    /// Put into a `Frame::group`, visually grouping the contents together
+    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        crate::Frame::group(self.style()).show(self, add_contents)
+    }
+
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
     pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
         let child_rect = self.available_rect_before_wrap();

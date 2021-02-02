@@ -77,9 +77,7 @@ impl Widgets {
         ui.label("Tooltips can be more than just simple text.")
             .on_hover_ui(tooltip_ui);
 
-        egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("This is a group of widgets");
-
+        ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.radio_value(&mut self.radio, Enum::First, "First");
                 ui.radio_value(&mut self.radio, Enum::Second, "Second");
