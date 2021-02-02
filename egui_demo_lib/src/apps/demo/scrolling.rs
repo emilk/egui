@@ -107,7 +107,7 @@ impl super::View for Scrolling {
                 ui.scroll_to_cursor(Align::bottom());
             }
 
-            let margin = ui.style().visuals.clip_rect_margin;
+            let margin = ui.visuals().clip_rect_margin;
 
             let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
             let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;

@@ -48,7 +48,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             let rect = rect.expand2(ui.style().spacing.item_spacing * 0.5);
             ui.painter().line_segment(
                 [rect.center_top(), rect.center_bottom()],
-                (1.0, ui.style().visuals.weak_text_color()),
+                (1.0, ui.visuals().weak_text_color()),
             );
         }
         easy_mark::Item::BulletPoint => {
@@ -66,7 +66,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             let mut rect = ui.monospace(code).rect;
             rect = rect.expand(1.0); // looks better
             rect.max.x = ui.max_rect_finite().max.x;
-            let code_bg_color = ui.style().visuals.code_bg_color;
+            let code_bg_color = ui.visuals().code_bg_color;
             ui.painter().set(
                 where_to_put_background,
                 Shape::rect_filled(rect, 1.0, code_bg_color),
@@ -116,7 +116,7 @@ fn bullet_point(ui: &mut Ui, width: f32) -> Response {
     ui.painter().circle_filled(
         rect.center(),
         rect.height() / 8.0,
-        ui.style().visuals.strong_text_color(),
+        ui.visuals().strong_text_color(),
     );
     response
 }
@@ -125,7 +125,7 @@ fn numbered_point(ui: &mut Ui, width: f32, number: &str) -> Response {
     let row_height = ui.fonts()[TextStyle::Body].row_height();
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());
     let text = format!("{}.", number);
-    let text_color = ui.style().visuals.strong_text_color();
+    let text_color = ui.visuals().strong_text_color();
     ui.painter().text(
         rect.right_center(),
         Align2::RIGHT_CENTER,

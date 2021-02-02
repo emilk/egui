@@ -126,7 +126,7 @@ impl Widget for Button {
             }
 
             let text_color = text_color
-                .or(ui.style().visuals.override_text_color)
+                .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
             ui.painter()
                 .galley(text_cursor, galley, text_style, text_color);
@@ -217,12 +217,12 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 visuals.fg_stroke,
-                // ui.style().visuals.selection.stroke, // too much color
+                // ui.visuals().selection.stroke, // too much color
             ));
         }
 
         let text_color = text_color
-            .or(ui.style().visuals.override_text_color)
+            .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
         ui.painter()
             .galley(text_cursor, galley, text_style, text_color);
@@ -307,13 +307,13 @@ impl Widget for RadioButton {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
-                // fill: ui.style().visuals.selection.stroke.color, // too much color
+                // fill: ui.visuals().selection.stroke.color, // too much color
                 stroke: Default::default(),
             });
         }
 
         let text_color = text_color
-            .or(ui.style().visuals.override_text_color)
+            .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
         painter.galley(text_cursor, galley, text_style, text_color);
         response
@@ -391,7 +391,7 @@ impl Widget for ImageButton {
             let visuals = ui.style().interact(&response);
 
             if selected {
-                let selection = ui.style().visuals.selection;
+                let selection = ui.visuals().selection;
                 ui.painter()
                     .rect(rect, 0.0, selection.bg_fill, selection.stroke);
             } else if frame {

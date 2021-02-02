@@ -45,12 +45,12 @@ impl Widget for SelectableLabel {
         if selected || response.hovered() {
             let rect = rect.expand(visuals.expansion);
             let fill = if selected {
-                ui.style().visuals.selection.bg_fill
+                ui.visuals().selection.bg_fill
             } else {
                 Default::default()
             };
             let stroke = if selected {
-                ui.style().visuals.selection.stroke
+                ui.visuals().selection.stroke
             } else {
                 visuals.bg_stroke
             };

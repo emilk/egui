@@ -53,7 +53,7 @@ impl Widget for Hyperlink {
             ui.ctx().output().open_url = Some(url.clone());
         }
 
-        let color = ui.style().visuals.hyperlink_color;
+        let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
 
         if response.hovered() {

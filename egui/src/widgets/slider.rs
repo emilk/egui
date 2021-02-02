@@ -304,12 +304,12 @@ impl<'a> Slider<'a> {
                 rect: rail_rect,
                 corner_radius: rail_radius,
 
-                fill: ui.style().visuals.widgets.inactive.bg_fill,
+                fill: ui.visuals().widgets.inactive.bg_fill,
                 // fill: visuals.bg_fill,
-                // fill: ui.style().visuals.dark_bg_color,
+                // fill: ui.visuals().dark_bg_color,
                 stroke: Default::default(),
                 // stroke: visuals.bg_stroke,
-                // stroke: ui.style().visuals.widgets.inactive.bg_stroke,
+                // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
             ui.painter().add(Shape::Circle {
@@ -323,9 +323,7 @@ impl<'a> Slider<'a> {
 
     fn label_ui(&mut self, ui: &mut Ui) {
         if let Some(label_text) = self.text.as_deref() {
-            let text_color = self
-                .text_color
-                .unwrap_or_else(|| ui.style().visuals.text_color());
+            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
 
             ui.add(
                 Label::new(label_text)

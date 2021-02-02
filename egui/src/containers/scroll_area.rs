@@ -138,7 +138,7 @@ impl ScrollArea {
             ),
             *ui.layout(),
         );
-        let mut content_clip_rect = inner_rect.expand(ui.style().visuals.clip_rect_margin);
+        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
         content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
         content_ui.set_clip_rect(content_clip_rect);
@@ -331,7 +331,7 @@ impl Prepared {
             ui.painter().add(paint::Shape::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill: ui.style().visuals.dark_bg_color,
+                fill: ui.visuals().dark_bg_color,
                 stroke: Default::default(),
                 // fill: visuals.bg_fill,
                 // stroke: visuals.bg_stroke,

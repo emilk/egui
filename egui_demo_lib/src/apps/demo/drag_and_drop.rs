@@ -50,13 +50,13 @@ pub fn drop_target<R>(
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
 
     let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
-        ui.style().visuals.widgets.active
+        ui.visuals().widgets.active
     } else if is_being_dragged && can_accept_what_is_being_dragged {
-        ui.style().visuals.widgets.inactive
+        ui.visuals().widgets.inactive
     } else if is_being_dragged && !can_accept_what_is_being_dragged {
-        ui.style().visuals.widgets.disabled
+        ui.visuals().widgets.disabled
     } else {
-        ui.style().visuals.widgets.inactive
+        ui.visuals().widgets.inactive
     };
 
     ui.painter().set(

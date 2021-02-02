@@ -380,7 +380,7 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, stroke: Stroke) {
-    let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
+    let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let handle_offset = -Vec2::splat(2.0);
     let corner_rect =
         Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
@@ -608,7 +608,7 @@ fn paint_frame_interaction(
 ) {
     use paint::tessellator::path::add_circle_quadrant;
 
-    let cr = ui.style().visuals.window_corner_radius;
+    let cr = ui.visuals().window_corner_radius;
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
@@ -739,7 +739,7 @@ impl TitleBar {
 
         // Always have inactive style for the window.
         // It is VERY annoying to e.g. change it when moving the window.
-        let style = ui.style().visuals.widgets.inactive;
+        let style = ui.visuals().widgets.inactive;
 
         self.title_label = self.title_label.text_color(style.fg_stroke.color);
 
@@ -757,7 +757,7 @@ impl TitleBar {
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.widgets.noninteractive.bg_stroke,
+                ui.visuals().widgets.noninteractive.bg_stroke,
             );
         }
 

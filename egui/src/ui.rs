@@ -120,6 +120,18 @@ impl Ui {
         &mut self.style_mut().spacing
     }
 
+    /// Short for `&self.style().visuals`
+    /// visuals options for this `Ui` and its children.
+    pub fn visuals(&self) -> &crate::style::Visuals {
+        &self.style.visuals
+    }
+
+    /// Mutably borrow internal `visuals`.
+    /// Changes apply to this `Ui` and its subsequent children.
+    pub fn visuals_mut(&mut self) -> &mut crate::style::Visuals {
+        &mut self.style_mut().visuals
+    }
+
     /// Get a reference to the parent [`CtxRef`].
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
@@ -493,8 +505,8 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
-        let debug_expand_width = self.style().visuals.debug_expand_width;
-        let debug_expand_height = self.style().visuals.debug_expand_height;
+        let debug_expand_width = self.visuals().debug_expand_width;
+        let debug_expand_height = self.visuals().debug_expand_height;
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
@@ -956,7 +968,7 @@ impl Ui {
         let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
         self.painter.line_segment(
             [line_start, line_end],
-            self.style().visuals.widgets.noninteractive.bg_stroke,
+            self.visuals().widgets.noninteractive.bg_stroke,
         );
 
         let response = self.allocate_response(indent + size, Sense::hover());

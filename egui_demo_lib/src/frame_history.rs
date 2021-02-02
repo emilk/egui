@@ -72,7 +72,7 @@ impl FrameHistory {
         let mut shapes = vec![Shape::Rect {
             rect,
             corner_radius: style.corner_radius,
-            fill: ui.style().visuals.dark_bg_color,
+            fill: ui.visuals().dark_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
         }];
 

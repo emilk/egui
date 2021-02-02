@@ -68,7 +68,7 @@ impl Widget for Separator {
                 pos2(rect.center().x, rect.bottom()),
             ]
         };
-        let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
+        let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
         response
     }

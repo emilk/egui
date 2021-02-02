@@ -156,16 +156,16 @@ impl Label {
 
         let text_color = self.text_color.unwrap_or_else(|| {
             if strong {
-                ui.style().visuals.strong_text_color()
+                ui.visuals().strong_text_color()
             } else if weak {
-                ui.style().visuals.weak_text_color()
+                ui.visuals().weak_text_color()
             } else {
-                ui.style().visuals.text_color()
+                ui.visuals().text_color()
             }
         });
 
         if code {
-            background_color = ui.style().visuals.code_bg_color;
+            background_color = ui.visuals().code_bg_color;
         }
 
         let mut lines = vec![];
