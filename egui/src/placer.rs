@@ -118,12 +118,16 @@ impl Placer {
     }
 
     /// Advance the cursor by this many points.
+    /// [`Self::min_rect`] will expand to contain the cursor.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
         debug_assert!(
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
-        self.layout.advance_cursor(&mut self.region.cursor, amount)
+        self.layout.advance_cursor(&mut self.region.cursor, amount);
+
+        self.region
+            .expand_to_include_rect(Rect::from_min_size(self.cursor(), Vec2::zero()));
     }
 
     /// Advance cursor after a widget was added to a specific rectangle
@@ -165,6 +169,11 @@ impl Placer {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub(crate) fn expand_to_include_rect(&mut self, rect: Rect) {
         self.region.expand_to_include_rect(rect);
+    }
+
+    /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given x-coordinate.
+    pub(crate) fn expand_to_include_x(&mut self, x: f32) {
+        self.region.expand_to_include_x(x);
     }
 
     /// Set the maximum width of the ui.

@@ -60,6 +60,16 @@ impl Region {
         self.min_rect = self.min_rect.union(rect);
         self.max_rect = self.max_rect.union(rect);
     }
+
+    /// Ensure we are big enough to contain the given x-coordinate.
+    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    pub fn expand_to_include_x(&mut self, x: f32) {
+        self.min_rect.min.x = self.min_rect.min.x.min(x);
+        self.min_rect.max.x = self.min_rect.max.x.max(x);
+
+        self.max_rect.min.x = self.max_rect.min.x.min(x);
+        self.max_rect.max.x = self.max_rect.max.x.max(x);
+    }
 }
 
 // ----------------------------------------------------------------------------

@@ -311,6 +311,12 @@ impl Ui {
         self.set_max_width(width);
     }
 
+    /// Ensure we are big enough to contain the given x-coordinate.
+    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    pub fn expand_to_include_x(&mut self, x: f32) {
+        self.placer.expand_to_include_x(x);
+    }
+
     // ------------------------------------------------------------------------
     // Layout related measures:
 
@@ -426,8 +432,11 @@ impl Ui {
     // Stuff that moves the cursor, i.e. allocates space in this ui!
 
     /// Advance the cursor (where the next widget is put) by this many points.
+    ///
     /// The direction is dependent on the layout.
     /// This is useful for creating some extra space between widgets.
+    ///
+    /// [`Self::min_rect`] will expand to contain the cursor.
     pub fn advance_cursor(&mut self, amount: f32) {
         self.placer.advance_cursor(amount);
     }
@@ -965,16 +974,27 @@ impl Ui {
             ..self.child_ui(child_rect, *self.layout())
         };
         let ret = add_contents(&mut child_ui);
+
+        let end_with_horizontal_line = true;
+        if end_with_horizontal_line {
+            child_ui.advance_cursor(4.0);
+        }
+
         let size = child_ui.min_size();
 
-        // draw a grey line on the left to mark the indented section
-        let line_start = child_rect.min - indent * 0.5;
-        let line_start = self.painter().round_pos_to_pixels(line_start);
-        let line_end = pos2(line_start.x, line_start.y + size.y - 2.0);
-        self.painter.line_segment(
-            [line_start, line_end],
-            self.visuals().widgets.noninteractive.bg_stroke,
-        );
+        // draw a faint line on the left to mark the indented section
+        let stroke = self.visuals().widgets.noninteractive.bg_stroke;
+        let left_top = child_rect.min - indent * 0.5;
+        let left_top = self.painter().round_pos_to_pixels(left_top);
+        let left_bottom = pos2(left_top.x, left_top.y + size.y - 2.0);
+        let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+        self.painter.line_segment([left_top, left_bottom], stroke);
+        if end_with_horizontal_line {
+            let fudge = 2.0; // looks nicer with button rounding in collapsing headers
+            let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
+            self.painter
+                .line_segment([left_bottom, right_bottom], stroke);
+        }
 
         let response = self.allocate_response(indent + size, Sense::hover());
         (ret, response)

@@ -254,7 +254,14 @@ impl CollapsingHeader {
                 header_response,
                 mut state,
             } = self.begin(ui);
-            let ret_response = state.add_contents(ui, id, |ui| ui.indent(id, add_contents).0);
+            let ret_response = state.add_contents(ui, id, |ui| {
+                ui.indent(id, |ui| {
+                    // make as wide as the header:
+                    ui.expand_to_include_x(header_response.rect.right());
+                    add_contents(ui)
+                })
+                .0
+            });
             ui.memory().collapsing_headers.insert(id, state);
 
             if let Some((ret, response)) = ret_response {
