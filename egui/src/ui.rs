@@ -122,13 +122,13 @@ impl Ui {
 
     /// Short for `&self.style().visuals`
     /// visuals options for this `Ui` and its children.
-    pub fn visuals(&self) -> &crate::style::Visuals {
+    pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
 
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this `Ui` and its subsequent children.
-    pub fn visuals_mut(&mut self) -> &mut crate::style::Visuals {
+    pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
     }
 

@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `egui::popup::popup_below_widget`: show a popup area below another widget.
 * Add `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
 * Add: `ui.spacing()`, `ui.spacing_mut()`, `ui.visuals()`, `ui.visuals_mut()`.
+* Add: `ctx.set_visuals()`.
 
 ### Changed 🔧
 

@@ -462,6 +462,17 @@ impl Context {
         self.memory().options.style = style.into();
     }
 
+    /// The [`Visuals`] used by all new windows, panels etc.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::CtxRef::default();
+    /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
+    /// ```
+    pub fn set_visuals(&self, visuals: crate::Visuals) {
+        std::sync::Arc::make_mut(&mut self.memory().options.style).visuals = visuals;
+    }
+
     /// The number of physical pixels for each logical point.
     pub fn pixels_per_point(&self) -> f32 {
         self.input.pixels_per_point()

@@ -126,7 +126,7 @@ pub use {
     painter::Painter,
     response::Response,
     sense::Sense,
-    style::Style,
+    style::{Style, Visuals},
     ui::Ui,
     widgets::*,
 };

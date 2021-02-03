@@ -137,7 +137,7 @@ fn dark_light_mode_switch(ui: &mut egui::Ui) {
     let style: egui::Style = (*ui.ctx().style()).clone();
     let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
     if let Some(visuals) = new_visuals {
-        ui.ctx().set_style(egui::Style { visuals, ..style });
+        ui.ctx().set_visuals(visuals);
     }
 }
 
