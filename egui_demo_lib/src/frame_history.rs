@@ -72,12 +72,13 @@ impl FrameHistory {
         let mut shapes = vec![Shape::Rect {
             rect,
             corner_radius: style.corner_radius,
-            fill: ui.visuals().dark_bg_color,
+            fill: ui.visuals().extreme_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
         }];
 
         let rect = rect.shrink(4.0);
-        let line_stroke = Stroke::new(1.0, Color32::from_additive_luminance(128));
+        let color = ui.visuals().text_color();
+        let line_stroke = Stroke::new(1.0, color);
 
         if let Some(pointer_pos) = ui.input().pointer.tooltip_pos() {
             if rect.contains(pointer_pos) {
@@ -94,12 +95,12 @@ impl FrameHistory {
                     egui::Align2::LEFT_BOTTOM,
                     text,
                     TextStyle::Monospace,
-                    Color32::WHITE,
+                    color,
                 ));
             }
         }
 
-        let circle_color = Color32::from_additive_luminance(196);
+        let circle_color = color;
         let radius = 2.0;
         let right_side_time = ui.input().time; // Time at right side of screen
 

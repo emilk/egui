@@ -22,11 +22,19 @@ impl Shadow {
         }
     }
 
-    /// Windows
-    pub fn big() -> Self {
+    /// Subtle and nice on dark backgrounds
+    pub fn big_dark() -> Self {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(96),
+        }
+    }
+
+    /// Subtle and nice on white backgrounds
+    pub fn big_light() -> Self {
+        Self {
+            extrusion: 32.0,
+            color: Color32::from_black_alpha(40),
         }
     }
 

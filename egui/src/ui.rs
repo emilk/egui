@@ -1,6 +1,6 @@
 // #![warn(missing_docs)]
 
-use std::{hash::Hash, sync::Arc};
+use std::hash::Hash;
 
 use crate::{
     color::*, containers::*, layout::*, mutex::MutexGuard, paint::text::Fonts, placer::Placer,
@@ -42,7 +42,7 @@ pub struct Ui {
     /// The `Style` (visuals, spacing, etc) of this ui.
     /// Commonly many `Ui`:s share the same `Style`.
     /// The `Ui` implements copy-on-write for this.
-    style: Arc<Style>,
+    style: std::sync::Arc<Style>,
 
     /// Handles the `Ui` size and the placement of new widgets.
     placer: Placer,
@@ -93,18 +93,18 @@ impl Ui {
     }
 
     /// Style options for this `Ui` and its children.
-    pub fn style(&self) -> &Style {
+    pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
     }
 
     /// Mutably borrow internal `Style`.
     /// Changes apply to this `Ui` and its subsequent children.
     pub fn style_mut(&mut self) -> &mut Style {
-        Arc::make_mut(&mut self.style) // clone-on-write
+        std::sync::Arc::make_mut(&mut self.style) // clone-on-write
     }
 
     /// Changes apply to this `Ui` and its subsequent children.
-    pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
+    pub fn set_style(&mut self, style: impl Into<std::sync::Arc<Style>>) {
         self.style = style.into();
     }
 

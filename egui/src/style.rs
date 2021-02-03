@@ -111,6 +111,10 @@ pub struct Interaction {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Visuals {
+    /// If true, the visuals are overall dark with light text.
+    /// If false, the visuals are overall light with dark text.
+    pub dark_mode: bool,
+
     /// Override default text color for all text.
     ///
     /// This is great for setting the color of text for any widget.
@@ -131,9 +135,10 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// e.g. the background of the slider or text edit,
-    /// needs to look different from other interactive stuff.
-    pub dark_bg_color: Color32, // TODO: remove, rename, or clarify what it is for
+    /// Very dark or light color (for corresponding theme).
+    /// Used as the background of text edits, scroll bars and others things
+    /// that needs to look different from other interactive stuff.
+    pub extreme_bg_color: Color32,
 
     /// The color used for `Hyperlink`,
     pub hyperlink_color: Color32,
@@ -286,17 +291,18 @@ impl Default for Interaction {
     }
 }
 
-impl Default for Visuals {
-    fn default() -> Self {
+impl Visuals {
+    pub fn dark() -> Self {
         Self {
+            dark_mode: true,
             override_text_color: None,
-            widgets: Default::default(),
-            selection: Default::default(),
-            dark_bg_color: Color32::from_gray(10),
+            widgets: Widgets::default(),
+            selection: Selection::default(),
+            extreme_bg_color: Color32::from_gray(10),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             code_bg_color: Color32::from_gray(64),
             window_corner_radius: 10.0,
-            window_shadow: Shadow::big(),
+            window_shadow: Shadow::big_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
@@ -305,10 +311,29 @@ impl Default for Visuals {
             debug_resize: false,
         }
     }
+
+    pub fn light() -> Self {
+        Self {
+            dark_mode: false,
+            widgets: Widgets::light(),
+            selection: Selection::light(),
+            extreme_bg_color: Color32::from_gray(235), // TODO: rename
+            hyperlink_color: Color32::from_rgb(0, 133, 218),
+            code_bg_color: Color32::from_gray(200),
+            window_shadow: Shadow::big_light(),
+            ..Self::dark()
+        }
+    }
 }
 
-impl Default for Selection {
+impl Default for Visuals {
     fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl Selection {
+    fn dark() -> Self {
         Self {
             bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0)
                 .additive()
@@ -317,52 +342,105 @@ impl Default for Selection {
             stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
         }
     }
+    fn light() -> Self {
+        Self {
+            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0).multiply(0.5).into(),
+            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
+        }
+    }
 }
 
-impl Default for Widgets {
+impl Default for Selection {
     fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl Widgets {
+    pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(65)), // window outline
                 bg_fill: Color32::from_gray(30),                     // window background
-                corner_radius: 4.0,
-
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
+                corner_radius: 4.0,
                 expansion: 0.0,
             },
             disabled: WidgetVisuals {
                 bg_fill: Color32::from_gray(40), // Should look grayed out
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(70)),
-                corner_radius: 4.0,
-
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // Should look grayed out
+                corner_radius: 4.0,
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Default::default(),
-                corner_radius: 4.0,
-
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
+                corner_radius: 4.0,
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(80),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
-                corner_radius: 4.0,
-
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
+                corner_radius: 4.0,
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(90),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
-                corner_radius: 4.0,
-
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                corner_radius: 4.0,
                 expansion: 2.0,
             },
         }
+    }
+
+    pub fn light() -> Self {
+        Self {
+            noninteractive: WidgetVisuals {
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // window outline
+                bg_fill: Color32::from_gray(220),                     // window background
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)),  // text color
+                corner_radius: 4.0,
+                expansion: 0.0,
+            },
+            disabled: WidgetVisuals {
+                bg_fill: Color32::from_gray(215), // Should look grayed out
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(185)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(115)), // Should look grayed out
+                corner_radius: 4.0,
+                expansion: 0.0,
+            },
+            inactive: WidgetVisuals {
+                bg_fill: Color32::from_gray(195),
+                bg_stroke: Default::default(),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(55)), // Should NOT look grayed out!
+                corner_radius: 4.0,
+                expansion: 0.0,
+            },
+            hovered: WidgetVisuals {
+                bg_fill: Color32::from_gray(175),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
+                fg_stroke: Stroke::new(2.0, Color32::BLACK),
+                corner_radius: 4.0,
+                expansion: 1.0,
+            },
+            active: WidgetVisuals {
+                bg_fill: Color32::from_gray(165),
+                bg_stroke: Stroke::new(1.0, Color32::BLACK),
+                fg_stroke: Stroke::new(2.0, Color32::BLACK),
+                corner_radius: 4.0,
+                expansion: 2.0,
+            },
+        }
+    }
+}
+
+impl Default for Widgets {
+    fn default() -> Self {
+        Self::dark()
     }
 }
 
@@ -372,8 +450,6 @@ use crate::{widgets::*, Ui};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        crate::reset_button(ui, self);
-
         let Self {
             body_text_style,
             spacing,
@@ -381,6 +457,9 @@ impl Style {
             visuals,
             animation_time,
         } = self;
+
+        visuals.light_dark_radio_buttons(ui);
+
         ui.horizontal(|ui| {
             ui.label("Default text style:");
             for &value in &[TextStyle::Body, TextStyle::Monospace] {
@@ -391,13 +470,13 @@ impl Style {
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
         ui.add(Slider::f32(animation_time, 0.0..=1.0).text("animation_time"));
+
+        ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
 impl Spacing {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        crate::reset_button(ui, self);
-
         let Self {
             item_spacing,
             window_padding,
@@ -422,13 +501,13 @@ impl Spacing {
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
         ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
         ui.add(Slider::f32(tooltip_width, 0.0..=10.0).text("tooltip_width"));
+
+        ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        crate::reset_button(ui, self);
-
         let Self {
             resize_grab_radius_side,
             resize_grab_radius_corner,
@@ -437,13 +516,13 @@ impl Interaction {
         ui.add(
             Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
         );
+
+        ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        crate::reset_button(ui, self);
-
         let Self {
             active,
             hovered,
@@ -472,6 +551,8 @@ impl Widgets {
             ui.label("The style of a widget as you are clicking or dragging it.");
             active.ui(ui)
         });
+
+        ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
@@ -503,14 +584,47 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
-        crate::reset_button(ui, self);
+    /// Show radio-buttons to switch between light and dark mode.
+    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.radio_value(self, Self::light(), "☀ Light");
+                ui.radio_value(self, Self::dark(), "🌙 Dark");
+            });
+        });
+    }
 
+    /// Show small toggle-button for light and dark mode.
+    #[must_use]
+    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
+        #![allow(clippy::collapsible_if)]
+        if self.dark_mode {
+            if ui
+                .add(Button::new("☀").frame(false))
+                .on_hover_text("Switch to light mode")
+                .clicked()
+            {
+                return Some(Self::light());
+            }
+        } else {
+            if ui
+                .add(Button::new("🌙").frame(false))
+                .on_hover_text("Switch to dark mode")
+                .clicked()
+            {
+                return Some(Self::dark());
+            }
+        }
+        None
+    }
+
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            dark_mode: _,
             override_text_color: _,
             widgets,
             selection,
-            dark_bg_color,
+            extreme_bg_color,
             hyperlink_color,
             code_bg_color,
             window_corner_radius,
@@ -525,25 +639,42 @@ impl Visuals {
 
         ui.collapsing("widgets", |ui| widgets.ui(ui));
         ui.collapsing("selection", |ui| selection.ui(ui));
-        ui_color(ui, dark_bg_color, "dark_bg_color");
+
+        ui.group(|ui| {
+            ui.label("Window");
+            // Common shortcuts
+            ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
+            stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
+            ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
+            shadow_ui(ui, window_shadow, "Shadow");
+        });
+        ui_color(
+            ui,
+            &mut widgets.noninteractive.fg_stroke.color,
+            "Text color",
+        );
+
+        ui_color(ui, extreme_bg_color, "extreme_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui_color(ui, code_bg_color, "code_bg_color");
-        ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("window_corner_radius"));
-        shadow_ui(ui, window_shadow, "Window shadow:");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.label("DEBUG:");
-        ui.checkbox(
-            debug_expand_width,
-            "Show which widgets make their parent wider",
-        );
-        ui.checkbox(
-            debug_expand_height,
-            "Show which widgets make their parent higher",
-        );
-        ui.checkbox(debug_resize, "Debug Resize");
+        ui.group(|ui| {
+            ui.label("DEBUG:");
+            ui.checkbox(
+                debug_expand_width,
+                "Show which widgets make their parent wider",
+            );
+            ui.checkbox(
+                debug_expand_height,
+                "Show which widgets make their parent higher",
+            );
+            ui.checkbox(debug_resize, "Debug Resize");
+        });
+
+        ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 

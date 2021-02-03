@@ -42,7 +42,7 @@ impl BarState {
 /// In the latter case you may want to wrap it in `Frame`.
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
     ui.horizontal(|ui| {
-        let mut style = ui.style().clone();
+        let mut style = (**ui.style()).clone();
         style.spacing.button_padding = vec2(2.0, 0.0);
         // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
         style.visuals.widgets.active.bg_stroke = Stroke::none();
@@ -102,7 +102,7 @@ fn menu_impl<'c>(
 
         area.show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
-                let mut style = ui.style().clone();
+                let mut style = (**ui.style()).clone();
                 style.spacing.button_padding = vec2(2.0, 0.0);
                 // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
                 style.visuals.widgets.active.bg_stroke = Stroke::none();

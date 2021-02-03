@@ -331,7 +331,7 @@ impl Prepared {
             ui.painter().add(paint::Shape::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
-                fill: ui.visuals().dark_bg_color,
+                fill: ui.visuals().extreme_bg_color,
                 stroke: Default::default(),
                 // fill: visuals.bg_fill,
                 // stroke: visuals.bg_stroke,

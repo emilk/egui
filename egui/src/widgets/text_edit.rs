@@ -245,14 +245,14 @@ impl<'t> Widget for TextEdit<'t> {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
                     // fill: ui.visuals().selection.bg_fill,
-                    fill: ui.visuals().dark_bg_color,
+                    fill: ui.visuals().extreme_bg_color,
                     stroke: ui.visuals().selection.stroke,
                 }
             } else {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
-                    fill: ui.visuals().dark_bg_color,
+                    fill: ui.visuals().extreme_bg_color,
                     stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
                 }
             };

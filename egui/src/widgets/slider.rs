@@ -306,7 +306,7 @@ impl<'a> Slider<'a> {
 
                 fill: ui.visuals().widgets.inactive.bg_fill,
                 // fill: visuals.bg_fill,
-                // fill: ui.visuals().dark_bg_color,
+                // fill: ui.visuals().extreme_bg_color,
                 stroke: Default::default(),
                 // stroke: visuals.bg_stroke,
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,

@@ -101,6 +101,13 @@ impl DemoWindows {
             show_menu_bar(ui);
         });
 
+        // Just get a background to put the windows on instead of using whatever the clear color is
+        let frame = egui::Frame {
+            fill: ctx.style().visuals.extreme_bg_color,
+            ..egui::Frame::none()
+        };
+        egui::CentralPanel::default().frame(frame).show(ctx, |_| {});
+
         self.windows(ctx);
     }
 

@@ -38,6 +38,7 @@ impl State {
 
 pub(crate) struct GridLayout {
     ctx: CtxRef,
+    style: std::sync::Arc<Style>,
     id: Id,
 
     /// State previous frame (if any).
@@ -61,6 +62,7 @@ impl GridLayout {
 
         Self {
             ctx: ui.ctx().clone(),
+            style: ui.style().clone(),
             id,
             prev_state,
             curr_state: State::default(),
@@ -125,8 +127,8 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
-        let debug_expand_width = self.ctx.style().visuals.debug_expand_width;
-        let debug_expand_height = self.ctx.style().visuals.debug_expand_height;
+        let debug_expand_width = self.style.visuals.debug_expand_width;
+        let debug_expand_height = self.style.visuals.debug_expand_height;
         if debug_expand_width || debug_expand_height {
             let rect = widget_rect;
             let too_wide = rect.width() > self.prev_col_width(self.col);
@@ -173,8 +175,12 @@ impl GridLayout {
                 let rect = Rect::from_min_size(*cursor, size);
                 let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
                 let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
-                let color = Rgba::from_white_alpha(0.0075);
-                // let color = Rgba::from_black_alpha(0.2);
+
+                let color = if self.style.visuals.dark_mode {
+                    Rgba::from_white_alpha(0.0075)
+                } else {
+                    Rgba::from_black_alpha(0.075)
+                };
                 painter.rect_filled(rect, 2.0, color);
             }
         }
