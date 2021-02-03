@@ -96,7 +96,7 @@ impl epi::App for HttpApp {
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
-                        ui_resouce(ui, frame, &mut self.tex_mngr, resource);
+                        ui_resource(ui, frame, &mut self.tex_mngr, resource);
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
@@ -145,7 +145,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
     }
 }
 
-fn ui_resouce(
+fn ui_resource(
     ui: &mut egui::Ui,
     frame: &mut epi::Frame<'_>,
     tex_mngr: &mut TexMngr,
