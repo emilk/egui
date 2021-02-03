@@ -362,14 +362,14 @@ impl Widgets {
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(65)), // window outline
                 bg_fill: Color32::from_gray(30),                     // window background
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // text color
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // normal text color
                 corner_radius: 4.0,
                 expansion: 0.0,
             },
             disabled: WidgetVisuals {
                 bg_fill: Color32::from_gray(40), // Should look grayed out
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(70)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(110)), // Should look grayed out. Also used for "weak" text color.
                 corner_radius: 4.0,
                 expansion: 0.0,
             },
@@ -402,14 +402,14 @@ impl Widgets {
             noninteractive: WidgetVisuals {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // window outline
                 bg_fill: Color32::from_gray(220),                     // window background
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)),  // text color
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)),  // normal text color
                 corner_radius: 4.0,
                 expansion: 0.0,
             },
             disabled: WidgetVisuals {
                 bg_fill: Color32::from_gray(215), // Should look grayed out
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(185)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(115)), // Should look grayed out
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(145)), // Should look grayed out. Also used for "weak" text color.
                 corner_radius: 4.0,
                 expansion: 0.0,
             },

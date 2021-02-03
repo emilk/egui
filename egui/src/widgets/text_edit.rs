@@ -123,6 +123,7 @@ impl CCursorPair {
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
+    hint_text: String,
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
@@ -144,6 +145,7 @@ impl<'t> TextEdit<'t> {
     pub fn singleline(text: &'t mut String) -> Self {
         TextEdit {
             text,
+            hint_text: Default::default(),
             id: None,
             id_source: None,
             text_style: None,
@@ -160,6 +162,7 @@ impl<'t> TextEdit<'t> {
     pub fn multiline(text: &'t mut String) -> Self {
         TextEdit {
             text,
+            hint_text: Default::default(),
             id: None,
             id_source: None,
             text_style: None,
@@ -180,6 +183,12 @@ impl<'t> TextEdit<'t> {
     /// A source for the unique `Id`, e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
+        self
+    }
+
+    /// Show a faint hint text when the text field is empty.
+    pub fn hint_text(mut self, hint_text: impl Into<String>) -> Self {
+        self.hint_text = hint_text.into();
         self
     }
 
@@ -268,6 +277,7 @@ impl<'t> TextEdit<'t> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
+            hint_text,
             id,
             id_source,
             text_style,
@@ -510,6 +520,18 @@ impl<'t> TextEdit<'t> {
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
         ui.painter()
             .galley(response.rect.min, galley, text_style, text_color);
+
+        if text.is_empty() && !hint_text.is_empty() {
+            let font = &ui.fonts()[text_style];
+            let galley = if multiline {
+                font.layout_multiline(hint_text, available_width)
+            } else {
+                font.layout_single_line(hint_text)
+            };
+            let hint_text_color = ui.visuals().weak_text_color();
+            ui.painter()
+                .galley(response.rect.min, galley, text_style, hint_text_color);
+        }
 
         ui.memory().text_edit.insert(id, state);
 

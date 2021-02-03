@@ -21,7 +21,7 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
-            string: "Hello World!".to_owned(),
+            string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
         }
     }
@@ -66,7 +66,7 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Text Input:");
-            ui.text_edit_singleline(string);
+            ui.add(egui::TextEdit::singleline(string).hint_text("Write something here"));
             ui.end_row();
 
             ui.label("Checkbox:");
