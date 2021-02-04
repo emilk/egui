@@ -13,6 +13,7 @@ pub struct FractalClock {
     length_factor: f32,
     luminance_factor: f32,
     width_factor: f32,
+    line_count: usize,
 }
 
 impl Default for FractalClock {
@@ -26,6 +27,7 @@ impl Default for FractalClock {
             length_factor: 0.8,
             luminance_factor: 0.8,
             width_factor: 0.9,
+            line_count: 0,
         }
     }
 }
@@ -79,6 +81,7 @@ impl FractalClock {
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
         };
+        ui.label(format!("Painted line count: {}", self.line_count));
 
         ui.checkbox(&mut self.paused, "Paused");
         ui.add(Slider::f32(&mut self.zoom, 0.0..=1.0).text("zoom"));
@@ -128,13 +131,16 @@ impl FractalClock {
         ];
 
         let scale = self.zoom * rect.width().min(rect.height());
-        let paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
+        let mut shapes: Vec<Shape> = Vec::new();
+        let mut paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
             let line = [
                 rect.center() + scale * points[0].to_vec2(),
                 rect.center() + scale * points[1].to_vec2(),
             ];
 
-            painter.line_segment([line[0], line[1]], (width, color));
+            if rect.intersects(Rect::from_two_pos(line[0], line[1])) {
+                shapes.push(Shape::line_segment(line, (width, color)));
+            }
         };
 
         let hand_rotations = [
@@ -199,5 +205,7 @@ impl FractalClock {
 
             std::mem::swap(&mut nodes, &mut new_nodes);
         }
+        self.line_count = shapes.len();
+        painter.extend(shapes);
     }
 }
