@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed 🐛
 
 * It is now possible to click widgets even when FPS is very low.
+* Tessellator: handle sharp path corners better (switch to bevel instead of miter joints for > 90°).
 
 
 ## 0.8.0 - 2021-01-17 - Grid layout & new visual style

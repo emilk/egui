@@ -87,9 +87,21 @@ impl Path {
                     n1 = n0;
                 }
 
-                let v = (n0 + n1) / 2.0;
-                let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
-                self.add_point(points[i], normal);
+                let normal = (n0 + n1) / 2.0;
+                let length_sq = normal.length_sq();
+                let right_angle_length_sq = 0.5;
+                let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
+                if sharper_than_a_right_angle {
+                    // cut off the sharp corner
+                    let center_normal = normal.normalized();
+                    let n0c = (n0 + center_normal) / 2.0;
+                    let n1c = (n1 + center_normal) / 2.0;
+                    self.add_point(points[i], n0c / n0c.length_sq());
+                    self.add_point(points[i], n1c / n1c.length_sq());
+                } else {
+                    // miter join
+                    self.add_point(points[i], normal / length_sq);
+                }
             }
             self.add_point(
                 points[n - 1],
@@ -115,12 +127,21 @@ impl Path {
                 n1 = n0;
             }
 
-            // if n1 == Vec2::zero() {
-            //     continue
-            // }
-            let v = (n0 + n1) / 2.0;
-            let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
-            self.add_point(points[i], normal);
+            let normal = (n0 + n1) / 2.0;
+            let length_sq = normal.length_sq();
+            let right_angle_length_sq = 0.5;
+            let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
+            if sharper_than_a_right_angle {
+                // cut off the sharp corner
+                let center_normal = normal.normalized();
+                let n0c = (n0 + center_normal) / 2.0;
+                let n1c = (n1 + center_normal) / 2.0;
+                self.add_point(points[i], n0c / n0c.length_sq());
+                self.add_point(points[i], n1c / n1c.length_sq());
+            } else {
+                // miter join
+                self.add_point(points[i], normal / length_sq);
+            }
         }
     }
 }
