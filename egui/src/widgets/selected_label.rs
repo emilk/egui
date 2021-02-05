@@ -29,7 +29,12 @@ impl Widget for SelectableLabel {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
 
-        let galley = font.layout_multiline(text, ui.available_width() - total_extra.x);
+        let single_line = ui.layout().is_horizontal();
+        let galley = if single_line {
+            font.layout_single_line(text)
+        } else {
+            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        };
 
         let mut desired_size = total_extra + galley.size;
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
