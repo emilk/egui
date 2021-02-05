@@ -72,7 +72,13 @@ impl WindowSettings {
         //         height: size.y as f64,
         //     });
 
-        if let Some(pos) = self.pos {
+        if let Some(mut pos) = self.pos {
+            if pos.x < 0.0 {
+                pos.x = 0.0;
+            }
+            if pos.y < 0.0 {
+                pos.y = 0.0;
+            }
             display
                 .gl_window()
                 .window()
