@@ -133,7 +133,7 @@ impl Default for Layout {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
-            cross_align: Align::left(),
+            cross_align: Align::LEFT,
             cross_justify: false,
         }
     }
@@ -253,7 +253,7 @@ impl Layout {
 
     fn horizontal_align(&self) -> Align {
         match self.main_dir {
-            // Direction::LeftToRight => Align::left(),
+            // Direction::LeftToRight => Align::LEFT,
             // Direction::RightToLeft => Align::right(),
             Direction::LeftToRight | Direction::RightToLeft => Align::Center, // looks better to e.g. center text within a button
 
@@ -263,8 +263,8 @@ impl Layout {
 
     fn vertical_align(&self) -> Align {
         match self.main_dir {
-            // Direction::TopDown => Align::top(),
-            // Direction::BottomUp => Align::bottom(),
+            // Direction::TopDown => Align::TOP,
+            // Direction::BottomUp => Align::BOTTOM,
             Direction::TopDown | Direction::BottomUp => Align::Center, // looks better to e.g. center text within a button
 
             Direction::LeftToRight | Direction::RightToLeft => self.cross_align,
@@ -300,7 +300,7 @@ impl Layout {
 
     pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
         let cursor = self.initial_cursor(max_rect);
-        let min_rect = Rect::from_min_size(cursor, Vec2::zero());
+        let min_rect = Rect::from_min_size(cursor, Vec2::ZERO);
         Region {
             min_rect,
             max_rect,

@@ -90,7 +90,7 @@ impl super::View for Scrolling {
 
         let (current_scroll, max_scroll) = scroll_area.show(ui, |ui| {
             if scroll_top {
-                ui.scroll_to_cursor(Align::top());
+                ui.scroll_to_cursor(Align::TOP);
             }
             ui.vertical(|ui| {
                 for item in 1..=50 {
@@ -104,7 +104,7 @@ impl super::View for Scrolling {
             });
 
             if scroll_bottom {
-                ui.scroll_to_cursor(Align::bottom());
+                ui.scroll_to_cursor(Align::BOTTOM);
             }
 
             let margin = ui.visuals().clip_rect_margin;

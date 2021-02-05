@@ -49,7 +49,7 @@ impl Default for RawInput {
     fn default() -> Self {
         #![allow(deprecated)] // for screen_size
         Self {
-            scroll_delta: Vec2::zero(),
+            scroll_delta: Vec2::ZERO,
             screen_size: Default::default(),
             screen_rect: None,
             pixels_per_point: None,

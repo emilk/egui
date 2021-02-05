@@ -19,9 +19,9 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            offset: Vec2::zero(),
+            offset: Vec2::ZERO,
             show_scroll: false,
-            vel: Vec2::zero(),
+            vel: Vec2::ZERO,
             scroll_start_offset_from_top: None,
         }
     }
@@ -222,7 +222,7 @@ impl Prepared {
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {
-                    state.vel = Vec2::zero();
+                    state.vel = Vec2::ZERO;
                 } else {
                     state.vel -= friction * state.vel.normalized();
                     // Offset has an inverted coordinate system compared to
@@ -244,7 +244,7 @@ impl Prepared {
             if scrolling_up || scrolling_down {
                 state.offset.y -= scroll_delta.y;
                 // Clear scroll delta so no parent scroll will use it.
-                frame_state.scroll_delta = Vec2::zero();
+                frame_state.scroll_delta = Vec2::ZERO;
             }
         }
 
@@ -310,7 +310,7 @@ impl Prepared {
             state.offset.y = state.offset.y.min(max_offset);
             #[allow(clippy::float_cmp)]
             if state.offset.y != unbounded_offset_y {
-                state.vel = Vec2::zero();
+                state.vel = Vec2::ZERO;
             }
 
             // Avoid frame-delay by calculating a new handle rect:

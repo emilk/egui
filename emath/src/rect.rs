@@ -1,3 +1,4 @@
+use std::f32::INFINITY;
 use std::ops::RangeInclusive;
 
 use crate::*;
@@ -13,7 +14,37 @@ pub struct Rect {
 }
 
 impl Rect {
-    /// Infinite rectangle that contains everything
+    /// Infinite rectangle that contains everything.
+    pub const EVERYTHING: Self = Self {
+        min: pos2(-INFINITY, -INFINITY),
+        max: pos2(INFINITY, INFINITY),
+    };
+
+    /// The inverse of [`Self::EVERYTHING`]: streches from positive infinity to negative infinity.
+    /// Contains no points.
+    ///
+    /// This is useful as the seed for boulding bounding boxes.
+    ///
+    /// # Example:
+    /// ```
+    /// # use emath::*;
+    /// let mut rect = Rect::NOTHING;
+    /// rect.extend_with(pos2(2.0, 1.0));
+    /// rect.extend_with(pos2(0.0, 3.0));
+    /// assert_eq!(rect, Rect::from_min_max(pos2(0.0, 1.0), pos2(2.0, 3.0)))
+    /// ```
+    pub const NOTHING: Self = Self {
+        min: pos2(INFINITY, INFINITY),
+        max: pos2(-INFINITY, -INFINITY),
+    };
+
+    /// An invalid `Rect` filled with [`f32::NAN`];
+    pub const NAN: Self = Self {
+        min: pos2(f32::NAN, f32::NAN),
+        max: pos2(-f32::NAN, -f32::NAN),
+    };
+
+    #[deprecated = "Use Rect::EVERYTHING"]
     pub fn everything() -> Self {
         let inf = f32::INFINITY;
         Self {
@@ -22,6 +53,7 @@ impl Rect {
         }
     }
 
+    #[deprecated = "Use Rect::NOTHING"]
     pub fn nothing() -> Self {
         let inf = f32::INFINITY;
         Self {
@@ -30,15 +62,12 @@ impl Rect {
         }
     }
 
-    /// invalid, NAN filled Rect.
+    #[deprecated = "Use Rect::NAN"]
     pub fn invalid() -> Self {
-        Self {
-            min: pos2(f32::NAN, f32::NAN),
-            max: pos2(f32::NAN, f32::NAN),
-        }
+        Self::NAN
     }
 
-    pub fn from_min_max(min: Pos2, max: Pos2) -> Self {
+    pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
     }
 

@@ -81,23 +81,25 @@ impl Vec2 {
     pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };
     pub const Y: Vec2 = Vec2 { x: 0.0, y: 1.0 };
 
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    pub const INFINITY: Self = Self::splat(f32::INFINITY);
+
+    #[deprecated = "Use Vec2::ZERO instead"]
     pub fn zero() -> Self {
-        Self { x: 0.0, y: 0.0 }
+        Self::ZERO
     }
 
+    #[deprecated = "Use Vec2::INFINITY instead"]
     pub fn infinity() -> Self {
-        Self {
-            x: f32::INFINITY,
-            y: f32::INFINITY,
-        }
+        Self::INFINITY
     }
 
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    pub fn splat(v: impl Into<f32>) -> Self {
-        let v: f32 = v.into();
+    /// Set both `x` and `y` to the same value.
+    pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
     }
 

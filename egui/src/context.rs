@@ -51,11 +51,11 @@ impl Default for FrameState {
     fn default() -> Self {
         Self {
             used_ids: Default::default(),
-            available_rect: Rect::invalid(),
-            unused_rect: Rect::invalid(),
-            used_by_panels: Rect::invalid(),
+            available_rect: Rect::NAN,
+            unused_rect: Rect::NAN,
+            used_by_panels: Rect::NAN,
             tooltip_rect: None,
-            scroll_delta: Vec2::zero(),
+            scroll_delta: Vec2::ZERO,
             scroll_target: None,
         }
     }
@@ -76,7 +76,7 @@ impl FrameState {
         used_ids.clear();
         *available_rect = input.screen_rect();
         *unused_rect = input.screen_rect();
-        *used_by_panels = Rect::nothing();
+        *used_by_panels = Rect::NOTHING;
         *tooltip_rect = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = None;
@@ -118,7 +118,7 @@ impl FrameState {
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
-        self.unused_rect = Rect::nothing(); // Nothing left unused after this
+        self.unused_rect = Rect::NOTHING; // Nothing left unused after this
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 }

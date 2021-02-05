@@ -8,7 +8,7 @@ pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = Vec2::zero();
+        ui.spacing_mut().item_spacing = Vec2::ZERO;
         for item in items {
             item_ui(ui, item);
         }

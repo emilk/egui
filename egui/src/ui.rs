@@ -625,7 +625,7 @@ impl Ui {
     ///     }
     ///
     ///     if scroll_bottom {
-    ///         ui.scroll_to_cursor(Align::bottom());
+    ///         ui.scroll_to_cursor(Align::BOTTOM);
     ///     }
     /// });
     /// ```
@@ -1223,7 +1223,7 @@ impl Ui {
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
                 let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::left()));
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
                 column_ui.set_width(column_width);
                 column_ui
             })

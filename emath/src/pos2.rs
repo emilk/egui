@@ -82,8 +82,11 @@ impl Pos2 {
     /// The zero position, the origin.
     /// The top left corner in a GUI.
     /// Same as `Pos2::default()`.
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+
+    #[deprecated = "Use Pos2::ZERO instead"]
     pub const fn zero() -> Self {
-        Self { x: 0.0, y: 0.0 }
+        Self::ZERO
     }
 
     pub const fn new(x: f32, y: f32) -> Self {

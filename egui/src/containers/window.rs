@@ -705,7 +705,7 @@ fn show_title_bar(
             title_label,
             title_galley,
             min_rect,
-            rect: Rect::invalid(), // Will be filled in later
+            rect: Rect::NAN, // Will be filled in later
         }
     });
 

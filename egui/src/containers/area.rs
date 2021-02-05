@@ -139,7 +139,7 @@ impl Area {
         let state = ctx.memory().areas.get(id).cloned();
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
-            size: Vec2::zero(),
+            size: Vec2::ZERO,
             interactable,
         });
         state.pos = new_pos.unwrap_or(state.pos);
@@ -198,7 +198,7 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
+        let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let mut clip_rect = max_rect
             .expand(ctx.style().visuals.clip_rect_margin)
@@ -241,7 +241,7 @@ impl Prepared {
         };
 
         let move_response = ctx.interact(
-            Rect::everything(),
+            Rect::EVERYTHING,
             ctx.style().spacing.item_spacing,
             layer_id,
             interact_id,

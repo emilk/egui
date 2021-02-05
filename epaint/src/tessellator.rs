@@ -81,9 +81,9 @@ impl Path {
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
                 // Handle duplicated points (but not triplicated...):
-                if n0 == Vec2::zero() {
+                if n0 == Vec2::ZERO {
                     n0 = n1;
-                } else if n1 == Vec2::zero() {
+                } else if n1 == Vec2::ZERO {
                     n1 = n0;
                 }
 
@@ -121,9 +121,9 @@ impl Path {
             let mut n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
 
             // Handle duplicated points (but not triplicated...):
-            if n0 == Vec2::zero() {
+            if n0 == Vec2::ZERO {
                 n0 = n1;
-            } else if n1 == Vec2::zero() {
+            } else if n1 == Vec2::ZERO {
                 n1 = n0;
             }
 
@@ -461,7 +461,7 @@ impl Tessellator {
     pub fn from_options(options: TessellationOptions) -> Self {
         Self {
             options,
-            clip_rect: Rect::everything(),
+            clip_rect: Rect::EVERYTHING,
             scratchpad_points: Default::default(),
             scratchpad_path: Default::default(),
         }
@@ -744,7 +744,7 @@ pub fn tessellate_shapes(
 
     if options.debug_paint_clip_rects {
         for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
-            tessellator.clip_rect = Rect::everything();
+            tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
                 fonts,
                 Shape::Rect {
@@ -760,7 +760,7 @@ pub fn tessellate_shapes(
 
     if options.debug_ignore_clip_rects {
         for ClippedMesh(clip_rect, _) in &mut clipped_meshes {
-            *clip_rect = Rect::everything();
+            *clip_rect = Rect::EVERYTHING;
         }
     }
 

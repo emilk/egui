@@ -127,7 +127,7 @@ impl Placer {
         self.layout.advance_cursor(&mut self.region.cursor, amount);
 
         self.region
-            .expand_to_include_rect(Rect::from_min_size(self.cursor(), Vec2::zero()));
+            .expand_to_include_rect(Rect::from_min_size(self.cursor(), Vec2::ZERO));
     }
 
     /// Advance cursor after a widget was added to a specific rectangle

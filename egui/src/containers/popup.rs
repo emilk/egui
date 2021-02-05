@@ -37,7 +37,7 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
     let id = Id::tooltip();
     let response = show_tooltip_area(ctx, id, window_pos, add_contents);
 
-    let tooltip_rect = tooltip_rect.unwrap_or_else(Rect::nothing);
+    let tooltip_rect = tooltip_rect.unwrap_or(Rect::NOTHING);
     ctx.frame_state().tooltip_rect = Some(tooltip_rect.union(response.rect));
 }
 
@@ -114,7 +114,7 @@ pub fn popup_below_widget(
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame.show(ui, |ui| {
-                    ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
+                    ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
                         ui.set_width(widget_response.rect.width() - 2.0 * frame_margin.x);
                         add_contents(ui)
                     });

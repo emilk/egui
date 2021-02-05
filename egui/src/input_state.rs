@@ -114,7 +114,7 @@ impl InputState {
     }
 
     pub fn wants_repaint(&self) -> bool {
-        self.pointer.wants_repaint() || self.scroll_delta != Vec2::zero() || !self.events.is_empty()
+        self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
     }
 
     /// Was the given key pressed this frame?
@@ -259,8 +259,8 @@ impl Default for PointerState {
         Self {
             latest_pos: None,
             interact_pos: None,
-            delta: Vec2::zero(),
-            velocity: Vec2::zero(),
+            delta: Vec2::ZERO,
+            velocity: Vec2::ZERO,
             pos_history: History::new(1000, 0.1),
             down: Default::default(),
             press_origin: None,
@@ -357,7 +357,7 @@ impl PointerState {
         self.delta = if let (Some(old_pos), Some(new_pos)) = (old_pos, self.latest_pos) {
             new_pos - old_pos
         } else {
-            Vec2::zero()
+            Vec2::ZERO
         };
 
         if let Some(pos) = self.latest_pos {
@@ -380,7 +380,7 @@ impl PointerState {
     }
 
     fn wants_repaint(&self) -> bool {
-        !self.pointer_events.is_empty() || self.delta != Vec2::zero()
+        !self.pointer_events.is_empty() || self.delta != Vec2::ZERO
     }
 
     /// How much the pointer moved compared to last frame, in points.
@@ -429,7 +429,7 @@ impl PointerState {
     /// Is the pointer currently moving?
     /// This is smoothed so a few frames of stillness is required before this returns `true`.
     pub fn is_moving(&self) -> bool {
-        self.velocity != Vec2::zero()
+        self.velocity != Vec2::ZERO
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?

@@ -124,7 +124,7 @@ impl Resize {
     /// Not manually resizable, just takes the size of its contents.
     /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(self) -> Self {
-        self.min_size(Vec2::zero())
+        self.min_size(Vec2::ZERO)
             .default_size(Vec2::splat(f32::INFINITY))
             .resizable(false)
     }

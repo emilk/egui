@@ -28,8 +28,12 @@ impl Default for Rot2 {
 }
 
 impl Rot2 {
+    /// The identity rotation: nothing rotates
+    pub const IDENTITY: Self = Self { s: 0.0, c: 1.0 };
+
+    #[deprecated = "Use Rot2::IDENTITY"]
     pub fn identity() -> Self {
-        Self { s: 0.0, c: 1.0 }
+        Self::IDENTITY
     }
 
     /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
