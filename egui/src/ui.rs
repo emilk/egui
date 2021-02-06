@@ -743,20 +743,20 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
-    /// Usage: `if ui.button("Click me").clicked() { ... }`
+    /// Usage: `if ui.button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text))`
-    #[must_use = "You should check if the user clicked this with `if ui.button(...).clicked() { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
     }
 
     /// A button as small as normal body text.
     ///
-    /// Usage: `if ui.small_button("Click me").clicked() { ... }`
+    /// Usage: `if ui.small_button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text).small())`
-    #[must_use = "You should check if the user clicked this with `if ui.small_button(...).clicked() { ... } "]
+    #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
     pub fn small_button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text).small())
     }
@@ -768,6 +768,7 @@ impl Ui {
 
     /// Show a radio button.
     /// Often you want to use `ui.radio_value` instead.
+    #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
         self.add(RadioButton::new(selected, text))
     }
@@ -790,6 +791,7 @@ impl Ui {
     }
 
     /// Show a label which can be selected or not.
+    #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
         self.add(SelectableLabel::new(checked, text))
     }
