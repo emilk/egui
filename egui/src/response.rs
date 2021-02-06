@@ -141,7 +141,7 @@ impl Response {
 
     /// The widgets is being dragged.
     ///
-    /// To find out which button(s), query [`PointerState::button_down`]
+    /// To find out which button(s), query [`crate::PointerState::button_down`]
     /// (`ui.input().pointer.button_down(…)`).
     pub fn dragged(&self) -> bool {
         self.dragged

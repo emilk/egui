@@ -39,7 +39,7 @@ impl Label {
     }
 
     /// If `true`, the text will wrap at the `max_width`.
-    /// By default [`wrap`] will be true in vertical layouts
+    /// By default [`Self::wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,
     /// and false on non-wrapping horizontal layouts.
     ///

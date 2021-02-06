@@ -119,7 +119,7 @@ pub use {
     data::{input::*, output::*},
     grid::Grid,
     id::Id,
-    input_state::InputState,
+    input_state::{InputState, PointerState},
     layers::{LayerId, Order},
     layout::*,
     memory::Memory,
