@@ -170,6 +170,17 @@ impl Ui {
         self.placer.layout()
     }
 
+    /// Should text wrap in this `Ui`?
+    /// This is determined first by [`Style::wrap`], and then by the layout of this `Ui`.
+    pub fn wrap_text(&self) -> bool {
+        if let Some(wrap) = self.style.wrap {
+            wrap
+        } else {
+            // In vertical layouts we wrap text, but in horizontal we keep going.
+            self.layout().is_vertical()
+        }
+    }
+
     /// Create a painter for a sub-region of this Ui.
     ///
     /// The clip-rect of the returned `Painter` will be the intersection

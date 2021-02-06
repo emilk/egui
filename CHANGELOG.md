@@ -19,11 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
 * Add: `ui.spacing()`, `ui.spacing_mut()`, `ui.visuals()`, `ui.visuals_mut()`.
 * Add: `ctx.set_visuals()`.
+* You can now control text wrapping with `Style::wrap`.
 
 ### Changed 🔧
 
 * Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
-* `mouse` has be renamed `pointer` everywhere (to make it clear it includes touches too).
+* Widgets will now always line break at `\n` characters.
+* `mouse` has been renamed `pointer` everywhere (to make it clear it includes touches too).
 * Most parts of `Response` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
 * `Response::active` is now gone. You can use `response.dragged()` or `response.clicked()` instead.
 * Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.

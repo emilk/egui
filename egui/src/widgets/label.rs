@@ -5,7 +5,7 @@ use crate::{paint::Galley, *};
 pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
-    pub(crate) multiline: Option<bool>,
+    pub(crate) wrap: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) background_color: Color32,
     pub(crate) text_color: Option<Color32>,
@@ -21,7 +21,7 @@ impl Label {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
-            multiline: None,
+            wrap: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,
             text_color: None,
@@ -39,14 +39,19 @@ impl Label {
     }
 
     /// If `true`, the text will wrap at the `max_width`.
-    /// By default `multiline` will be true in vertical layouts
+    /// By default [`wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,
     /// and false on non-wrapping horizontal layouts.
     ///
-    /// If the text has any newlines (`\n`) in it, multiline will automatically turn on.
-    pub fn multiline(mut self, multiline: bool) -> Self {
-        self.multiline = Some(multiline);
+    /// Note that any `\n` in the text label will always produce a new line.
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = Some(wrap);
         self
+    }
+
+    #[deprecated = "Use Label::wrap instead"]
+    pub fn multiline(self, multiline: bool) -> Self {
+        self.wrap(multiline)
     }
 
     /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
@@ -122,11 +127,12 @@ impl Label {
     pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
         let text_style = self.text_style_or_default(ui.style());
         let font = &ui.fonts()[text_style];
-        if self.is_multiline(ui) {
-            font.layout_multiline(self.text.clone(), max_width) // TODO: avoid clone
+        let wrap_width = if self.should_wrap(ui) {
+            max_width
         } else {
-            font.layout_single_line(self.text.clone()) // TODO: avoid clone
-        }
+            f32::INFINITY
+        };
+        font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
     }
 
     pub fn font_height(&self, fonts: &paint::text::Fonts, style: &Style) -> f32 {
@@ -207,19 +213,17 @@ impl Label {
         self.text_style.unwrap_or(style.body_text_style)
     }
 
-    fn is_multiline(&self, ui: &Ui) -> bool {
-        self.multiline.unwrap_or_else(|| {
+    fn should_wrap(&self, ui: &Ui) -> bool {
+        self.wrap.or(ui.style().wrap).unwrap_or_else(|| {
             let layout = ui.layout();
-            layout.is_vertical()
-                || layout.is_horizontal() && layout.main_wrap()
-                || self.text.contains('\n')
+            layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
         })
     }
 }
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        if self.is_multiline(ui)
+        if self.should_wrap(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
         {

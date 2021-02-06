@@ -17,6 +17,11 @@ pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
 
+    /// If set, labels buttons wtc will use this to determine whether or not
+    /// to wrap the text at the right edge of the `Ui` they are in.
+    /// By default this is `None`.
+    pub wrap: Option<bool>,
+
     pub spacing: Spacing,
     pub interaction: Interaction,
     pub visuals: Visuals,
@@ -263,6 +268,7 @@ impl Default for Style {
     fn default() -> Self {
         Self {
             body_text_style: TextStyle::Body,
+            wrap: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
@@ -460,6 +466,7 @@ impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             body_text_style,
+            wrap: _,
             spacing,
             interaction,
             visuals,

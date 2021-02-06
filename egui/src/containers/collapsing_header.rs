@@ -134,9 +134,7 @@ pub struct CollapsingHeader {
 impl CollapsingHeader {
     /// The `CollapsingHeader` starts out collapsed unless you call `default_open`.
     pub fn new(label: impl Into<String>) -> Self {
-        let label = Label::new(label)
-            .text_style(TextStyle::Button)
-            .multiline(false);
+        let label = Label::new(label).text_style(TextStyle::Button).wrap(false);
         let id_source = Id::new(label.text());
         Self {
             label,

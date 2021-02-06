@@ -38,9 +38,7 @@ impl<'open> Window<'open> {
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
         let area = Area::new(&title);
-        let title_label = Label::new(title)
-            .text_style(TextStyle::Heading)
-            .multiline(false);
+        let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
         Self {
             title_label,
             open: None,

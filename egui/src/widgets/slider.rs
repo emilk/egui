@@ -324,12 +324,7 @@ impl<'a> Slider<'a> {
     fn label_ui(&mut self, ui: &mut Ui) {
         if let Some(label_text) = self.text.as_deref() {
             let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-
-            ui.add(
-                Label::new(label_text)
-                    .multiline(false)
-                    .text_color(text_color),
-            );
+            ui.add(Label::new(label_text).wrap(false).text_color(text_color));
         }
     }
 

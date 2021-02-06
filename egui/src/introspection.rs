@@ -116,7 +116,7 @@ impl Widget for &epaint::stats::PaintStats {
 }
 
 pub fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
-    ui.add(Label::new(alloc_info.format(what)).multiline(false))
+    ui.add(Label::new(alloc_info.format(what)).wrap(false))
 }
 
 impl Widget for &mut epaint::TessellationOptions {
