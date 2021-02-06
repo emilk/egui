@@ -419,7 +419,24 @@ impl Font {
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
-                if let Some(last_kept_index) = row_break_candidates.get() {
+                let is_first_row = out_rows.is_empty();
+                if is_first_row
+                    && first_row_indentation > 0.0
+                    && !row_break_candidates.has_word_boundary()
+                {
+                    // Allow the first row to be completely empty, because we know there will be more space on the next row:
+                    assert_eq!(row_start_idx, 0);
+                    let row = Row {
+                        x_offsets: vec![first_row_indentation],
+                        y_min: cursor_y,
+                        y_max: cursor_y + self.row_height(),
+                        ends_with_newline: false,
+                    };
+                    row.sanity_check();
+                    out_rows.push(row);
+                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
+                    first_row_indentation = 0.0; // Continue all other rows as if there is no indentation
+                } else if let Some(last_kept_index) = row_break_candidates.get() {
                     let row = Row {
                         x_offsets: full_x_offsets[row_start_idx..=last_kept_index + 1]
                             .iter()
@@ -436,19 +453,6 @@ impl Font {
                     row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
                     row_break_candidates = Default::default();
                     cursor_y = self.round_to_pixel(cursor_y + self.row_height());
-                } else if out_rows.is_empty() && first_row_indentation > 0.0 {
-                    assert_eq!(row_start_idx, 0);
-                    // Allow the first row to be completely empty, because we know there will be more space on the next row:
-                    let row = Row {
-                        x_offsets: vec![first_row_indentation],
-                        y_min: cursor_y,
-                        y_max: cursor_y + self.row_height(),
-                        ends_with_newline: false,
-                    };
-                    row.sanity_check();
-                    out_rows.push(row);
-                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
-                    first_row_indentation = 0.0; // Continue all other rows as if there is no indentation
                 }
             }
 
@@ -480,6 +484,8 @@ struct RowBreakCandidates {
     /// Breaking at ` ` or other whitespace
     /// is always the primary candidate.
     space: Option<usize>,
+    /// Logogram (single character representing a whole word) are good candidates for line break.
+    logogram: Option<usize>,
     /// Breaking at a dash is super-
     /// good idea.
     dash: Option<usize>,
@@ -496,18 +502,35 @@ impl RowBreakCandidates {
         const NON_BREAKING_SPACE: char = '\u{A0}';
         if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
             self.space = Some(index);
-        }
-        if chr == '-' {
+        } else if is_chinese(chr) {
+            self.logogram = Some(index);
+        } else if chr == '-' {
             self.dash = Some(index);
         } else if chr.is_ascii_punctuation() {
             self.punctuation = Some(index);
+        } else {
+            self.any = Some(index);
         }
-        self.any = Some(index);
+    }
+
+    fn has_word_boundary(&self) -> bool {
+        self.space.is_some() || self.logogram.is_some()
     }
 
     fn get(&self) -> Option<usize> {
-        self.space.or(self.dash).or(self.punctuation).or(self.any)
+        self.space
+            .or(self.logogram)
+            .or(self.dash)
+            .or(self.punctuation)
+            .or(self.any)
     }
+}
+
+#[inline]
+fn is_chinese(c: char) -> bool {
+    ('\u{4E00}' <= c && c <= '\u{9FFF}')
+        || ('\u{3400}' <= c && c <= '\u{4DBF}')
+        || ('\u{2B740}' <= c && c <= '\u{2B81F}')
 }
 
 fn allocate_glyph(
