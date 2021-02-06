@@ -24,7 +24,8 @@ impl Default for Demos {
             // Tests:
             Box::new(super::layout_test::LayoutTest::default()),
             Box::new(super::tests::IdTest::default()),
-            Box::new(super::input_test::InputTest::default()),
+            Box::new(super::tests::TableTest::default()),
+            Box::new(super::tests::InputTest::default()),
         ];
         Self {
             open: vec![false; demos.len()],

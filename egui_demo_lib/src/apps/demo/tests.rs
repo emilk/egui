@@ -3,7 +3,7 @@ pub struct IdTest {}
 
 impl super::Demo for IdTest {
     fn name(&self) -> &str {
-        "📋 ID Test"
+        "ID Test"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
@@ -47,5 +47,137 @@ impl super::View for IdTest {
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+pub struct TableTest {
+    num_cols: usize,
+    num_rows: usize,
+    min_col_width: f32,
+    max_col_width: f32,
+}
+
+impl Default for TableTest {
+    fn default() -> Self {
+        Self {
+            num_cols: 4,
+            num_rows: 4,
+            min_col_width: 10.0,
+            max_col_width: 200.0,
+        }
+    }
+}
+
+impl super::Demo for TableTest {
+    fn name(&self) -> &str {
+        "Table Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for TableTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(
+            egui::Slider::f32(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
+        );
+        ui.add(
+            egui::Slider::f32(&mut self.max_col_width, 0.0..=400.0).text("Maximum column width"),
+        );
+        ui.add(egui::Slider::usize(&mut self.num_cols, 0..=5).text("Columns"));
+        ui.add(egui::Slider::usize(&mut self.num_rows, 0..=20).text("Rows"));
+
+        ui.separator();
+
+        let words = [
+            "random", "words", "in", "a", "random", "order", "that", "just", "keeps", "going",
+            "with", "some", "more",
+        ];
+
+        egui::Grid::new("my_grid")
+            .striped(true)
+            .min_col_width(self.min_col_width)
+            .max_col_width(self.max_col_width)
+            .show(ui, |ui| {
+                for row in 0..self.num_rows {
+                    for col in 0..self.num_cols {
+                        if col == 0 {
+                            ui.label(format!("row {}", row));
+                        } else {
+                            let word_idx = row * 3 + col * 5;
+                            let word_count = (row * 5 + col * 75) % 13;
+                            let mut string = String::new();
+                            for word in words.iter().cycle().skip(word_idx).take(word_count) {
+                                string += word;
+                                string += " ";
+                            }
+                            ui.label(string);
+                        }
+                    }
+                    ui.end_row();
+                }
+            });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default)]
+pub struct InputTest {
+    info: String,
+}
+
+impl super::Demo for InputTest {
+    fn name(&self) -> &str {
+        "Input Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                use super::View;
+                self.ui(ui);
+            });
+    }
+}
+
+impl super::View for InputTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let response = ui.add(
+            egui::Button::new("Click, double-click or drag me with any mouse button")
+                .sense(egui::Sense::click_and_drag()),
+        );
+
+        let mut new_info = String::new();
+        for &button in &[
+            egui::PointerButton::Primary,
+            egui::PointerButton::Secondary,
+            egui::PointerButton::Middle,
+        ] {
+            if response.clicked_by(button) {
+                new_info += &format!("Clicked by {:?}\n", button);
+            }
+            if response.double_clicked_by(button) {
+                new_info += &format!("Double-clicked by {:?}\n", button);
+            }
+            if response.dragged() && ui.input().pointer.button_down(button) {
+                new_info += &format!("Dragged by {:?}\n", button);
+            }
+        }
+        if !new_info.is_empty() {
+            self.info = new_info;
+        }
+
+        ui.label(&self.info);
     }
 }

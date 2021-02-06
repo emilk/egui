@@ -175,6 +175,8 @@ impl Ui {
     pub fn wrap_text(&self) -> bool {
         if let Some(wrap) = self.style.wrap {
             wrap
+        } else if let Some(grid) = self.placer.grid() {
+            grid.wrap_text()
         } else {
             // In vertical layouts we wrap text, but in horizontal we keep going.
             self.layout().is_vertical()
@@ -1224,6 +1226,10 @@ impl Ui {
 
     pub(crate) fn is_grid(&self) -> bool {
         self.placer.is_grid()
+    }
+
+    pub(crate) fn grid(&self) -> Option<&grid::GridLayout> {
+        self.placer.grid()
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

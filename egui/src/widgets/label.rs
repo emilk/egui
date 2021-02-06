@@ -215,8 +215,12 @@ impl Label {
 
     fn should_wrap(&self, ui: &Ui) -> bool {
         self.wrap.or(ui.style().wrap).unwrap_or_else(|| {
-            let layout = ui.layout();
-            layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
+            if let Some(grid) = ui.grid() {
+                grid.wrap_text()
+            } else {
+                let layout = ui.layout();
+                layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
+            }
         })
     }
 }

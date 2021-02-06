@@ -20,11 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add: `ui.spacing()`, `ui.spacing_mut()`, `ui.visuals()`, `ui.visuals_mut()`.
 * Add: `ctx.set_visuals()`.
 * You can now control text wrapping with `Style::wrap`.
+* Add `Grid::max_col_width`.
 
 ### Changed 🔧
 
 * Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
 * Widgets will now always line break at `\n` characters.
+* Widgets will now more intelligently choose wether or not to wrap text.
 * `mouse` has been renamed `pointer` everywhere (to make it clear it includes touches too).
 * Most parts of `Response` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
 * `Response::active` is now gone. You can use `response.dragged()` or `response.clicked()` instead.

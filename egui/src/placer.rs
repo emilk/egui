@@ -27,6 +27,10 @@ impl Placer {
         }
     }
 
+    pub(crate) fn grid(&self) -> Option<&grid::GridLayout> {
+        self.grid.as_ref()
+    }
+
     pub(crate) fn is_grid(&self) -> bool {
         self.grid.is_some()
     }

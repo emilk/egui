@@ -52,6 +52,7 @@ pub(crate) struct GridLayout {
     striped: bool,
     initial_x: f32,
     min_cell_size: Vec2,
+    max_cell_size: Vec2,
     col: usize,
     row: usize,
 }
@@ -70,6 +71,7 @@ impl GridLayout {
             striped: false,
             initial_x: ui.cursor().x,
             min_cell_size: ui.spacing().interact_size,
+            max_cell_size: Vec2::INFINITY,
             col: 0,
             row: 0,
         }
@@ -88,6 +90,10 @@ impl GridLayout {
             .unwrap_or(self.min_cell_size.y)
     }
 
+    pub(crate) fn wrap_text(&self) -> bool {
+        self.max_cell_size.x.is_finite()
+    }
+
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
         // let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
         // rect.set_height(rect.height().at_least(self.min_cell_size.y));
@@ -98,14 +104,22 @@ impl GridLayout {
     }
 
     pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
-        // If we want to allow width-filling widgets like `Separator` in one of the first cells
-        // then we need to make sure they don't spill out of the first cell:
-        let width = self.prev_state.col_width(self.col);
-        let width = width.or_else(|| self.curr_state.col_width(self.col));
-        let width = width.unwrap_or_default().at_least(self.min_cell_size.x);
+        let width = if self.max_cell_size.x.is_finite() {
+            // TODO: should probably heed `prev_state` here too
+            self.max_cell_size.x
+        } else {
+            // If we want to allow width-filling widgets like `Separator` in one of the first cells
+            // then we need to make sure they don't spill out of the first cell:
+            self.prev_state
+                .col_width(self.col)
+                .or_else(|| self.curr_state.col_width(self.col))
+                .unwrap_or(self.min_cell_size.x)
+        };
 
         let height = region.max_rect_finite().max.y - region.cursor.y;
-        let height = height.at_least(self.min_cell_size.y);
+        let height = height
+            .at_least(self.min_cell_size.y)
+            .at_most(self.max_cell_size.y);
 
         Rect::from_min_size(region.cursor, vec2(width, height))
     }
@@ -227,6 +241,7 @@ pub struct Grid {
     striped: bool,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
+    max_cell_size: Vec2,
     spacing: Option<Vec2>,
 }
 
@@ -238,6 +253,7 @@ impl Grid {
             striped: false,
             min_col_width: None,
             min_row_height: None,
+            max_cell_size: Vec2::INFINITY,
             spacing: None,
         }
     }
@@ -265,6 +281,12 @@ impl Grid {
         self
     }
 
+    /// Set soft maximum width (wrapping width) of each column.
+    pub fn max_col_width(mut self, max_col_width: f32) -> Self {
+        self.max_cell_size.x = max_col_width;
+        self
+    }
+
     /// Set spacing between columns/rows.
     /// Default: [`crate::style::Spacing::item_spacing`].
     pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
@@ -280,6 +302,7 @@ impl Grid {
             striped,
             min_col_width,
             min_row_height,
+            max_cell_size,
             spacing,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
@@ -296,6 +319,7 @@ impl Grid {
                 striped,
                 spacing,
                 min_cell_size: vec2(min_col_width, min_row_height),
+                max_cell_size,
                 ..GridLayout::new(ui, id)
             };
 
