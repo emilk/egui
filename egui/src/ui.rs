@@ -99,35 +99,59 @@ impl Ui {
 
     /// Mutably borrow internal `Style`.
     /// Changes apply to this `Ui` and its subsequent children.
+    ///
+    /// To set the style of all `Ui`:s, use [`Context::set_style`].
+    ///
+    /// Example:
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.style_mut().body_text_style = egui::TextStyle::Heading;
+    /// ```
     pub fn style_mut(&mut self) -> &mut Style {
         std::sync::Arc::make_mut(&mut self.style) // clone-on-write
     }
 
     /// Changes apply to this `Ui` and its subsequent children.
+    ///
+    /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
     pub fn set_style(&mut self, style: impl Into<std::sync::Arc<Style>>) {
         self.style = style.into();
     }
 
-    /// Short for `&self.style().spacing`
-    /// Spacing options for this `Ui` and its children.
+    /// The current spacing options for this `Ui`.
+    /// Short for `ui.style().spacing`.
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
 
     /// Mutably borrow internal `Spacing`.
     /// Changes apply to this `Ui` and its subsequent children.
+    ///
+    /// Example:
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.spacing_mut().item_spacing = egui::vec2(10.0, 2.0);
+    /// ```
     pub fn spacing_mut(&mut self) -> &mut crate::style::Spacing {
         &mut self.style_mut().spacing
     }
 
-    /// Short for `&self.style().visuals`
-    /// visuals options for this `Ui` and its children.
+    /// The current visuals settings of this `Ui`.
+    /// Short for `ui.style().visuals`.
     pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
 
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this `Ui` and its subsequent children.
+    ///
+    /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
+    ///
+    /// Example:
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+    /// ```
     pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
     }

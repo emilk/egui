@@ -452,17 +452,27 @@ impl Context {
         self.memory().options.font_definitions = font_definitions;
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
+    /// The [`Style`] used by all subsequent windows, panels etc.
     pub fn style(&self) -> Arc<Style> {
         self.memory().options.style.clone()
     }
 
     /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::CtxRef::default();
+    /// let mut style: egui::Style = (*ctx.style()).clone();
+    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// ctx.set_style(style);
+    /// ```
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.memory().options.style = style.into();
     }
 
-    /// The [`Visuals`] used by all new windows, panels etc.
+    /// The [`Visuals`] used by all subsequent windows, panels etc.
+    ///
+    /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
     /// Example:
     /// ```

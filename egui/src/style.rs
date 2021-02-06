@@ -113,6 +113,9 @@ pub struct Interaction {
 pub struct Visuals {
     /// If true, the visuals are overall dark with light text.
     /// If false, the visuals are overall light with dark text.
+    ///
+    /// NOTE: setting this does very little by itself,
+    /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
     /// Override default text color for all text.
@@ -197,15 +200,18 @@ pub struct Selection {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Widgets {
-    /// For a non-interactive widget
+    /// The style of a widget that you cannot interact with.
+    /// * `noninteractive.bg_stroke` is the outline of windows.
+    /// * `noninteractive.bg_fill` is the background color of windows.
+    /// * `noninteractive.fg_stroke` is the normal text color.
     pub noninteractive: WidgetVisuals,
-    /// For an otherwise interactive widget that has been disabled
+    /// The style of a disabled button.
     pub disabled: WidgetVisuals,
-    /// For an interactive widget that is "resting"
+    /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
-    /// For an interactive widget that is being hovered
+    /// The style of an interactive widget while you hover it.
     pub hovered: WidgetVisuals,
-    /// For an interactive widget that is being interacted with
+    /// The style of an interactive widget as you are clicking or dragging it.
     pub active: WidgetVisuals,
 }
 
@@ -227,7 +233,7 @@ impl Widgets {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
-    /// Background color of widget
+    /// Background color of widget.
     pub bg_fill: Color32,
 
     /// For surrounding rectangle of things that need it,
@@ -235,13 +241,13 @@ pub struct WidgetVisuals {
     /// Should maybe be called `frame_stroke`.
     pub bg_stroke: Stroke,
 
-    /// Button frames etc
+    /// Button frames etc.
     pub corner_radius: f32,
 
-    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...)
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...).
     pub fg_stroke: Stroke,
 
-    /// Make the frame this much larger
+    /// Make the frame this much larger.
     pub expansion: f32,
 }
 
@@ -292,6 +298,7 @@ impl Default for Interaction {
 }
 
 impl Visuals {
+    /// Default dark theme.
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
@@ -312,6 +319,7 @@ impl Visuals {
         }
     }
 
+    /// Default light theme.
     pub fn light() -> Self {
         Self {
             dark_mode: false,
@@ -532,7 +540,7 @@ impl Widgets {
         } = self;
 
         ui.collapsing("noninteractive", |ui| {
-            ui.label("The style of something that you cannot interact with.");
+            ui.label("The style of a widget that you cannot interact with.");
             noninteractive.ui(ui)
         });
         ui.collapsing("interactive & disabled", |ui| {
@@ -540,15 +548,15 @@ impl Widgets {
             disabled.ui(ui)
         });
         ui.collapsing("interactive & inactive", |ui| {
-            ui.label("The style of a widget, such as a button, at rest.");
+            ui.label("The style of an interactive widget, such as a button, at rest.");
             inactive.ui(ui)
         });
         ui.collapsing("interactive & hovered", |ui| {
-            ui.label("The style of a widget while you hover it.");
+            ui.label("The style of an interactive widget while you hover it.");
             hovered.ui(ui)
         });
         ui.collapsing("interactive & active", |ui| {
-            ui.label("The style of a widget as you are clicking or dragging it.");
+            ui.label("The style of an interactive widget as you are clicking or dragging it.");
             active.ui(ui)
         });
 
