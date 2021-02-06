@@ -299,12 +299,14 @@ impl<'a> Iterator for Parser<'a> {
             }
 
             // Swallow everything up to the next special character:
-            let special = self.s[1..]
+            let end = self
+                .s
                 .find(&['*', '`', '~', '_', '/', '\\', '<', '[', '\n'][..])
-                .map(|i| i + 1)
+                .map(|special| special.max(1)) // make sure we swallow at least one character
                 .unwrap_or_else(|| self.s.len());
-            let item = Item::Text(self.style, &self.s[..special]);
-            self.s = &self.s[special..];
+
+            let item = Item::Text(self.style, &self.s[..end]);
+            self.s = &self.s[end..];
             self.start_of_line = false;
             return Some(item);
         }
