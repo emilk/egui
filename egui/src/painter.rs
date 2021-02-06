@@ -116,6 +116,9 @@ impl Painter {
             .add(self.clip_rect, shape)
     }
 
+    /// Add many shapes at once.
+    ///
+    /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend(&self, shapes: Vec<Shape>) {
         if !shapes.is_empty() {
             self.ctx
