@@ -37,8 +37,9 @@ impl EasyMarkEditor {
             ScrollArea::auto_sized()
                 .id_source("source")
                 .show(&mut columns[0], |ui| {
-                    // ui.text_edit_multiline(&mut self.code);
                     ui.add(TextEdit::multiline(&mut self.code).text_style(TextStyle::Monospace));
+                    // let cursor = TextEdit::cursor(response.id);
+                    // TODO: cmd-i, cmd-b, etc for italics, bold, ....
                 });
             ScrollArea::auto_sized()
                 .id_source("rendered")
@@ -62,7 +63,7 @@ and is also missing some features.
 
 # At a glance
 - inline text:
-  - normal, `code`, *strong*, ~strikethrough~, _underline_, /italics/
+  - normal, `code`, *strong*, ~strikethrough~, _underline_, /italics/, ^raised^, $small$
   - `\` escapes the next character
   - [hyperlink](https://github.com/emilk/egui)
   - Embedded URL: <https://github.com/emilk/egui>
@@ -72,6 +73,8 @@ and is also missing some features.
 - `- ` bullet list
 - `1. ` numbered list
 - \`\`\` code fence
+- a^2^ + b^2^ = c^2^
+- $Remember to read the small print$
 
 # Design
 > /"Why do what everyone else is doing, when everyone else is already doing it?"
@@ -102,9 +105,11 @@ Escaping the newline effectively ignores it.
 
 The style characters are chosen to be similar to what they are representing:
   `_` = _underline_
-  `~` = ~strikethrough~ (`-` is too common in normal text)
+  `~` = ~strikethrough~ (`-` is used for bullet points)
   `/` = /italics/
   `*` = *strong*
+  `$` = $small$
+  `^` = ^raised^
 
 # TODO
 - Sub-headers (`## h2`, `### h3` etc)
@@ -113,5 +118,9 @@ The style characters are chosen to be similar to what they are representing:
   - centering of images is very desirable
   - captioning (image with a text underneath it)
   - `![caption=My image][width=200][center](url)` ?
+- Nicer URL:s
+  - `<url>` and `[url](url)` do the same thing yet look completely different.
+  - let's keep similarity with images
 - Tables
+- Inspiration: <https://mycorrhiza.lesarbr.es/page/mycomarkup>
 "#;

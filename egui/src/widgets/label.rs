@@ -23,6 +23,7 @@ pub struct Label {
     strikethrough: bool,
     underline: bool,
     italics: bool,
+    raised: bool,
 }
 
 impl Label {
@@ -39,6 +40,7 @@ impl Label {
             strikethrough: false,
             underline: false,
             italics: false,
+            raised: false,
         }
     }
 
@@ -112,8 +114,20 @@ impl Label {
         self
     }
 
+    /// Smaller text
     pub fn small(self) -> Self {
         self.text_style(TextStyle::Small)
+    }
+
+    /// For e.g. exponents
+    pub fn small_raised(self) -> Self {
+        self.text_style(TextStyle::Small).raised()
+    }
+
+    /// Align text to top. Only applicable together with [`Self::small()`].
+    pub fn raised(mut self) -> Self {
+        self.raised = true;
+        self
     }
 
     /// Fill-color behind the text
@@ -142,7 +156,8 @@ impl Label {
         } else {
             f32::INFINITY
         };
-        font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
+        let galley = font.layout_multiline(self.text.clone(), wrap_width); // TODO: avoid clone
+        self.valign_galley(ui, text_style, galley)
     }
 
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
@@ -171,6 +186,7 @@ impl Label {
             strikethrough,
             underline,
             italics,
+            raised: _,
             ..
         } = *self;
 
@@ -239,6 +255,26 @@ impl Label {
             }
         })
     }
+
+    fn valign_galley(&self, ui: &Ui, text_style: TextStyle, mut galley: Galley) -> Galley {
+        if text_style == TextStyle::Small {
+            // Hacky McHackface strikes again:
+            let dy = if self.raised {
+                -2.0
+            } else {
+                let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height();
+                let font_height = ui.fonts()[text_style].row_height();
+                (normal_text_heigth - font_height) / 2.0 - 1.0 // center
+
+                // normal_text_heigth - font_height // align bottom
+            };
+
+            for row in &mut galley.rows {
+                row.translate_y(dy);
+            }
+        }
+        galley
+    }
 }
 
 impl Widget for Label {
@@ -284,6 +320,8 @@ impl Widget for Label {
                     }
                 }
             }
+
+            let galley = self.valign_galley(ui, text_style, galley);
 
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
             let mut response = ui.allocate_rect(rect, sense);
