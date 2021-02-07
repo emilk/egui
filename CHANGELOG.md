@@ -9,7 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+
+## 0.9.0 - 2021-02-07 - Light Mode and much more
+
 ### Added ⭐
+
+<img src="media/0.9.0-disabled.gif" width="50%">
 
 * Add support for secondary and middle mouse buttons.
 * Add `Label` methods for code, strong, strikethrough, underline and italics.

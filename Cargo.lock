@@ -628,7 +628,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "eframe"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "egui",
  "egui_glium",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "epaint",
  "serde",
@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "eframe",
  "egui_demo_lib",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "egui",
@@ -666,7 +666,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glium"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "clipboard",
@@ -682,7 +682,7 @@ dependencies = [
 
 [[package]]
 name = "egui_web"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "egui",
  "epi",
@@ -702,14 +702,14 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "emath"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "epaint"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "ahash",
  "atomic_refcell",
@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "epi"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "egui",
  "serde",
