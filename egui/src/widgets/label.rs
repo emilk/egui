@@ -23,6 +23,7 @@ pub struct Label {
     strikethrough: bool,
     underline: bool,
     italics: bool,
+    raised: bool,
 }
 
 impl Label {
@@ -39,6 +40,7 @@ impl Label {
             strikethrough: false,
             underline: false,
             italics: false,
+            raised: false,
         }
     }
 
@@ -112,8 +114,20 @@ impl Label {
         self
     }
 
+    /// Smaller text
     pub fn small(self) -> Self {
         self.text_style(TextStyle::Small)
+    }
+
+    /// For e.g. exponents
+    pub fn small_raised(self) -> Self {
+        self.text_style(TextStyle::Small).raised()
+    }
+
+    /// Align text to top
+    pub fn raised(mut self) -> Self {
+        self.raised = true;
+        self
     }
 
     /// Fill-color behind the text
@@ -171,6 +185,7 @@ impl Label {
             strikethrough,
             underline,
             italics,
+            raised: _, // TODO
             ..
         } = *self;
 
@@ -257,6 +272,7 @@ impl Widget for Label {
 
             let text_style = self.text_style_or_default(ui.style());
             let font = &ui.fonts()[text_style];
+            let font_height = font.row_height();
             let mut galley = font.layout_multiline_with_indentation_and_max_width(
                 self.text.clone(),
                 first_row_indentation,
@@ -270,18 +286,35 @@ impl Widget for Label {
             let id = ui.advance_cursor_after_rect(rect);
             let mut response = ui.interact(rect, id, sense);
 
-            let mut y_translation = 0.0;
-            if let Some(row) = galley.rows.get(1) {
-                // We could be sharing the first row with e.g. a button, that is higher than text.
-                // So we need to compensate for that:
-                if pos.y + row.y_min < ui.min_rect().bottom() {
-                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
+            // We could be sharing the first row with e.g. a button which is higher than text.
+            // So we need to compensate for that:
+            if let Some(row) = galley.rows.get_mut(1) {
+                let cursor = ui.cursor();
+
+                if pos.y + row.y_min < cursor.bottom() {
+                    let y_translation = cursor.bottom() - row.y_min - pos.y;
+
+                    if y_translation != 0.0 {
+                        for row in galley.rows.iter_mut().skip(1) {
+                            row.y_min += y_translation;
+                            row.y_max += y_translation;
+                        }
+                    }
+                }
+            }
+
+            if text_style == TextStyle::Small && !self.raised {
+                for row in galley.rows.iter_mut() {
+                    // center:
+                    let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height(); // TODO: get from ui
+                    let dy = (normal_text_heigth - font_height) / 2.0;
+
+                    row.y_min += dy;
+                    row.y_max += dy;
                 }
             }
 
             for row in galley.rows.iter_mut().skip(1) {
-                row.y_min += y_translation;
-                row.y_max += y_translation;
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
