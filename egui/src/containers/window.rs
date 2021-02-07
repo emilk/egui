@@ -333,7 +333,7 @@ impl<'open> Window<'open> {
                         }
                     })
                 })
-                .map(|ri| ri.1);
+                .map(|ir| ir.response);
 
             let outer_rect = frame.end(&mut area_content_ui);
 
@@ -670,7 +670,7 @@ fn show_title_bar(
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
-    let (title_bar, response) = ui.horizontal(|ui| {
+    let inner_response = ui.horizontal(|ui| {
         let height = title_label
             .font_height(ui.fonts(), ui.style())
             .max(ui.spacing().interact_size.y);
@@ -713,10 +713,10 @@ fn show_title_bar(
         }
     });
 
-    TitleBar {
-        rect: response.rect,
-        ..title_bar
-    }
+    let title_bar = inner_response.inner;
+    let rect = inner_response.response.rect;
+
+    TitleBar { rect, ..title_bar }
 }
 
 impl TitleBar {

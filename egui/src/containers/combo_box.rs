@@ -29,7 +29,7 @@ pub fn combo_box_with_label(
         response |= ui.add(label);
         response
     })
-    .0
+    .inner
 }
 
 /// A drop-down selection menu.

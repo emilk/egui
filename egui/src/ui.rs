@@ -7,6 +7,8 @@ use crate::{
     widgets::*, *,
 };
 
+// ----------------------------------------------------------------------------
+
 /// This is what you use to place widgets.
 ///
 /// Represents a region of the screen with a type of layout (horizontal or vertical).
@@ -669,7 +671,7 @@ impl Ui {
         &mut self,
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         let item_spacing = self.spacing().item_spacing;
         let outer_child_rect = self.placer.next_space(desired_size, item_spacing);
         let inner_child_rect = self
@@ -687,7 +689,7 @@ impl Ui {
         );
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        (ret, response)
+        InnerResponse::new(ret, response)
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
@@ -698,7 +700,7 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
@@ -710,7 +712,7 @@ impl Ui {
         );
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        (ret, response)
+        InnerResponse::new(ret, response)
     }
 
     /// Convenience function to get a region to paint on
@@ -763,17 +765,17 @@ impl Ui {
     /// Add a widget to this `Ui` with a given max size.
     pub fn add_sized(&mut self, max_size: Vec2, widget: impl Widget) -> Response {
         self.allocate_ui(max_size, |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).0
+            ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
-        .0
+        .inner
     }
 
     /// Add a widget to this `Ui` at a specific location (manual layout).
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.allocate_ui_at_rect(max_rect, |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).0
+            ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
-        .0
+        .inner
     }
 
     /// Shortcut for `add(Label::new(text))`
@@ -1043,13 +1045,13 @@ impl Ui {
     }
 
     /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let size = child_ui.min_size();
         let response = self.allocate_response(size, Sense::hover());
-        (ret, response)
+        InnerResponse::new(ret, response)
     }
 
     /// Redirect shapes to another paint layer.
@@ -1057,7 +1059,7 @@ impl Ui {
         &mut self,
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.wrap(|ui| {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
@@ -1070,7 +1072,7 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Rect {
-        self.allocate_ui(desired_size, add_contents).1.rect
+        self.allocate_ui(desired_size, add_contents).response.rect
     }
 
     /// A `CollapsingHeader` that starts out collapsed.
@@ -1087,7 +1089,7 @@ impl Ui {
         &mut self,
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         assert!(
             self.layout().is_vertical(),
             "You can only indent vertical layouts, found {:?}",
@@ -1123,7 +1125,7 @@ impl Ui {
         }
 
         let response = self.allocate_response(indent + size, Sense::hover());
-        (ret, response)
+        InnerResponse::new(ret, response)
     }
 
     #[deprecated]
@@ -1173,7 +1175,7 @@ impl Ui {
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
-    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
     }
 
@@ -1186,7 +1188,7 @@ impl Ui {
         &mut self,
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.wrap(|ui| {
             let font = &ui.fonts()[text_style];
             let row_height = font.row_height();
@@ -1195,7 +1197,7 @@ impl Ui {
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
             spacing.item_spacing.y = 0.0;
-            ui.horizontal(add_contents).0
+            ui.horizontal(add_contents).inner
         })
     }
 
@@ -1215,7 +1217,7 @@ impl Ui {
     pub fn horizontal_wrapped<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(true, add_contents)
     }
 
@@ -1230,7 +1232,7 @@ impl Ui {
         &mut self,
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.wrap(|ui| {
             let font = &ui.fonts()[text_style];
             let row_height = font.row_height();
@@ -1239,7 +1241,7 @@ impl Ui {
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
             spacing.item_spacing.y = 0.0;
-            ui.horizontal_wrapped(add_contents).0
+            ui.horizontal_wrapped(add_contents).inner
         })
     }
 
@@ -1247,7 +1249,7 @@ impl Ui {
         &mut self,
         main_wrap: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         let initial_size = vec2(
             self.available_size_before_wrap_finite().x,
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
@@ -1260,12 +1262,14 @@ impl Ui {
         }
         .with_main_wrap(main_wrap);
 
-        self.allocate_ui(initial_size, |ui| ui.with_layout(layout, add_contents).0)
+        self.allocate_ui(initial_size, |ui| {
+            ui.with_layout(layout, add_contents).inner
+        })
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
-    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
@@ -1274,7 +1278,7 @@ impl Ui {
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Center), add_contents)
     }
 
@@ -1283,7 +1287,7 @@ impl Ui {
     pub fn vertical_centered_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.with_layout(
             Layout::top_down(Align::Center).with_cross_justify(true),
             add_contents,
@@ -1294,20 +1298,20 @@ impl Ui {
         &mut self,
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
-        let ret = add_contents(&mut child_ui);
+        let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
-        (ret, self.interact(rect, child_ui.id, Sense::hover()))
+        InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
     /// This will make the next added widget centered and justified in the available space.
     pub fn centered_and_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> (R, Response) {
+    ) -> InnerResponse<R> {
         self.with_layout(
             Layout::centered_and_justified(Direction::TopDown),
             add_contents,

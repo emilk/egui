@@ -124,7 +124,7 @@ pub use {
     layout::*,
     memory::Memory,
     painter::Painter,
-    response::Response,
+    response::{InnerResponse, Response},
     sense::Sense,
     style::{Style, Visuals},
     ui::Ui,

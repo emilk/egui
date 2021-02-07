@@ -4,7 +4,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
     let is_being_dragged = ui.memory().is_being_dragged(id);
 
     if !is_being_dragged {
-        let response = ui.wrap(body).1;
+        let response = ui.wrap(body).response;
 
         // Check for drags:
         let response = ui.interact(response.rect, id, Sense::drag());
@@ -16,7 +16,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 
         // Paint the body to a new layer:
         let layer_id = LayerId::new(Order::Tooltip, id);
-        let response = ui.with_layer_id(layer_id, body).1;
+        let response = ui.with_layer_id(layer_id, body).response;
 
         // Now we move the visuals of the body to where the mouse is.
         // Normally you need to decide a location for a widget first,
@@ -36,7 +36,7 @@ pub fn drop_target<R>(
     ui: &mut Ui,
     can_accept_what_is_being_dragged: bool,
     body: impl FnOnce(&mut Ui) -> R,
-) -> (R, Response) {
+) -> InnerResponse<R> {
     let is_being_dragged = ui.memory().is_anything_being_dragged();
 
     let margin = Vec2::splat(4.0);
@@ -73,7 +73,7 @@ pub fn drop_target<R>(
         },
     );
 
-    (ret, response)
+    InnerResponse::new(ret, response)
 }
 
 pub struct DragAndDropDemo {
@@ -135,7 +135,7 @@ impl super::View for DragAndDropDemo {
                         }
                     }
                 })
-                .1;
+                .response;
 
                 let is_being_dragged = ui.memory().is_anything_being_dragged();
                 if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {

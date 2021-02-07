@@ -149,7 +149,7 @@ impl Widget for Button {
                 ui.set_enabled(false);
                 self.enabled_ui(ui)
             })
-            .0
+            .inner
         }
     }
 }

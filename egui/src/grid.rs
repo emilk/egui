@@ -328,6 +328,6 @@ impl Grid {
             ui.save_grid();
             r
         })
-        .0
+        .inner
     }
 }

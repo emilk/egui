@@ -413,7 +413,7 @@ impl<'a> Widget for Slider<'a> {
                 self.label_ui(ui);
                 slider_response
             })
-            .0
+            .inner
         } else {
             let response = self.allocate_slider_space(ui, height);
             self.slider_ui(ui, &response);

@@ -321,3 +321,28 @@ impl std::ops::BitOrAssign for Response {
         *self = self.union(rhs);
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Returned when we wrap some ui-code and want to return both
+/// the results of the inner function and the ui as a whole, e.g.:
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// let inner_resp = ui.horizontal(|ui| {
+///     ui.label("Blah blah");
+///     42
+/// });
+/// inner_resp.response.on_hover_text("You hovered the horizontal layout");
+/// assert_eq!(inner_resp.inner, 42);
+/// ```
+pub struct InnerResponse<R> {
+    pub inner: R,
+    pub response: Response,
+}
+
+impl<R> InnerResponse<R> {
+    pub fn new(inner: R, response: Response) -> Self {
+        Self { inner, response }
+    }
+}

@@ -709,7 +709,7 @@ fn ui_slider_vec2(
         ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
         ui.label(text);
     })
-    .1
+    .response
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: &str) {

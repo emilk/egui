@@ -86,7 +86,7 @@ pub fn demo(ui: &mut egui::Ui, on: &mut bool) {
         toggle(ui, on).on_hover_text("Click to toggle");
         ui.add(crate::__egui_github_link_file!());
     })
-    .1
+    .response
     .on_hover_text(
         "It's easy to create your own widgets!\n\
         This toggle switch is just one function and 20 lines of code.",
