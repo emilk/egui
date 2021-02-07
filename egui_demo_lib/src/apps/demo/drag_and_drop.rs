@@ -51,20 +51,24 @@ pub fn drop_target<R>(
 
     let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
         ui.visuals().widgets.active
-    } else if is_being_dragged && can_accept_what_is_being_dragged {
-        ui.visuals().widgets.inactive
-    } else if is_being_dragged && !can_accept_what_is_being_dragged {
-        ui.visuals().widgets.disabled
     } else {
         ui.visuals().widgets.inactive
     };
+
+    let mut fill = style.bg_fill;
+    let mut stroke = style.bg_stroke;
+    if is_being_dragged && !can_accept_what_is_being_dragged {
+        // gray out:
+        fill = color::tint_color_towards(fill, ui.visuals().window_fill());
+        stroke.color = color::tint_color_towards(stroke.color, ui.visuals().window_fill());
+    }
 
     ui.painter().set(
         where_to_put_background,
         Shape::Rect {
             corner_radius: style.corner_radius,
-            fill: style.bg_fill,
-            stroke: style.bg_stroke,
+            fill,
+            stroke,
             rect,
         },
     );

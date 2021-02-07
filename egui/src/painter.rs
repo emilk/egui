@@ -22,6 +22,10 @@ pub struct Painter {
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
+
+    /// If set, all shapes will have their colors modified to be closer to this.
+    /// This is used to implement grayed out interfaces.
+    fade_to_color: Option<Color32>,
 }
 
 impl Painter {
@@ -30,6 +34,7 @@ impl Painter {
             ctx,
             layer_id,
             clip_rect,
+            fade_to_color: None,
         }
     }
 
@@ -39,12 +44,18 @@ impl Painter {
             ctx: self.ctx,
             layer_id,
             clip_rect: self.clip_rect,
+            fade_to_color: None,
         }
     }
 
     /// redirect
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
+    }
+
+    /// If set, colors will be modified to look like this
+    pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
+        self.fade_to_color = fade_to_color;
     }
 
     /// Create a painter for a sub-region of this `Painter`.
@@ -106,10 +117,17 @@ impl Painter {
 
 /// ## Low level
 impl Painter {
+    fn transform_shape(&self, shape: &mut Shape) {
+        if let Some(fade_to_color) = self.fade_to_color {
+            tint_shape_towards(shape, fade_to_color);
+        }
+    }
+
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add(&self, shape: Shape) -> ShapeIdx {
+    pub fn add(&self, mut shape: Shape) -> ShapeIdx {
+        self.transform_shape(&mut shape);
         self.ctx
             .graphics()
             .list(self.layer_id)
@@ -119,8 +137,14 @@ impl Painter {
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
-    pub fn extend(&self, shapes: Vec<Shape>) {
+    pub fn extend(&self, mut shapes: Vec<Shape>) {
         if !shapes.is_empty() {
+            if self.fade_to_color.is_some() {
+                for shape in &mut shapes {
+                    self.transform_shape(shape);
+                }
+            }
+
             self.ctx
                 .graphics()
                 .list(self.layer_id)
@@ -129,7 +153,8 @@ impl Painter {
     }
 
     /// Modify an existing [`Shape`].
-    pub fn set(&self, idx: ShapeIdx, shape: Shape) {
+    pub fn set(&self, idx: ShapeIdx, mut shape: Shape) {
+        self.transform_shape(&mut shape);
         self.ctx
             .graphics()
             .list(self.layer_id)
@@ -293,4 +318,10 @@ impl Painter {
             fake_italics,
         });
     }
+}
+
+fn tint_shape_towards(shape: &mut Shape, target: Color32) {
+    epaint::shape_transform::adjust_colors(shape, &|color| {
+        *color = crate::color::tint_color_towards(*color, target);
+    });
 }

@@ -8,6 +8,7 @@ enum Enum {
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetGallery {
+    enabled: bool,
     boolean: bool,
     radio: Enum,
     scalar: f32,
@@ -18,6 +19,7 @@ pub struct WidgetGallery {
 impl Default for WidgetGallery {
     fn default() -> Self {
         Self {
+            enabled: true,
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
@@ -46,12 +48,19 @@ impl super::Demo for WidgetGallery {
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self {
+            enabled,
             boolean,
             radio,
             scalar,
             string,
             color,
         } = self;
+
+        ui.horizontal(|ui| {
+            ui.radio_value(enabled, true, "Enabled");
+            ui.radio_value(enabled, false, "Disabled");
+        });
+        ui.set_enabled(*enabled);
 
         let grid = egui::Grid::new("my_grid")
             .striped(true)
@@ -65,7 +74,7 @@ impl super::View for WidgetGallery {
             ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text(" egui home page"));
             ui.end_row();
 
-            ui.label("Text Input:");
+            ui.label("TextEdit:");
             ui.add(egui::TextEdit::singleline(string).hint_text("Write something here"));
             ui.end_row();
 
@@ -73,7 +82,7 @@ impl super::View for WidgetGallery {
             ui.checkbox(boolean, "Checkbox");
             ui.end_row();
 
-            ui.label("Radio buttons:");
+            ui.label("RadioButton:");
             ui.horizontal(|ui| {
                 ui.radio_value(radio, Enum::First, "First");
                 ui.radio_value(radio, Enum::Second, "Second");
@@ -142,6 +151,10 @@ impl super::View for WidgetGallery {
                     ui.colored_label(egui::Color32::GOLD, "☆");
                 });
             });
+            ui.end_row();
+
+            ui.label("Custom widget");
+            super::toggle_switch::demo(ui, boolean);
             ui.end_row();
         });
 

@@ -49,6 +49,7 @@ mod mesh;
 pub mod mutex;
 mod shadow;
 mod shape;
+pub mod shape_transform;
 pub mod stats;
 mod stroke;
 pub mod tessellator;

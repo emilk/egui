@@ -48,16 +48,19 @@ impl Widget for SelectableLabel {
 
         if selected || response.hovered() {
             let rect = rect.expand(visuals.expansion);
+
             let fill = if selected {
                 ui.visuals().selection.bg_fill
             } else {
                 Default::default()
             };
+
             let stroke = if selected {
                 ui.visuals().selection.stroke
             } else {
                 visuals.bg_stroke
             };
+
             let corner_radius = 2.0;
             ui.painter().rect(rect, corner_radius, fill, stroke);
         }

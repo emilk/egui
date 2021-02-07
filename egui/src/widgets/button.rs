@@ -68,6 +68,8 @@ impl Button {
 
     /// If you set this to `false`, the button will be grayed out and un-clickable.
     /// `enabled(false)` has the same effect as calling `sense(Sense::hover())`.
+    ///
+    /// This is a convenience for [`Ui::set_enabled`].
     pub fn enabled(mut self, enabled: bool) -> Self {
         if !enabled {
             self.sense = Sense::hover();
@@ -76,8 +78,8 @@ impl Button {
     }
 }
 
-impl Widget for Button {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl Button {
+    fn enabled_ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
             text_color,
@@ -133,6 +135,22 @@ impl Widget for Button {
         }
 
         response
+    }
+}
+
+impl Widget for Button {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let button_enabled = self.sense != Sense::hover();
+        if button_enabled || !ui.enabled() {
+            self.enabled_ui(ui)
+        } else {
+            // We need get a temporary disabled `Ui` to get that grayed out look:
+            ui.wrap(|ui| {
+                ui.set_enabled(false);
+                self.enabled_ui(ui)
+            })
+            .0
+        }
     }
 }
 

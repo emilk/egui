@@ -46,6 +46,10 @@ pub struct Ui {
 
     /// Handles the `Ui` size and the placement of new widgets.
     placer: Placer,
+
+    /// If false we are unresponsive to input,
+    /// and all widgets will assume a gray style.
+    enabled: bool,
 }
 
 impl Ui {
@@ -60,6 +64,7 @@ impl Ui {
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer: Placer::new(max_rect, Layout::default()),
+            enabled: true,
         }
     }
 
@@ -72,6 +77,7 @@ impl Ui {
             painter: self.painter.clone(),
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
+            enabled: self.enabled,
         }
     }
 
@@ -164,6 +170,39 @@ impl Ui {
     /// Use this to paint stuff within this `Ui`.
     pub fn painter(&self) -> &Painter {
         &self.painter
+    }
+
+    /// If `false`, the `Ui` does not allow any interaction and
+    /// the widgets in it will draw with a gray look.
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    /// Calling `set_enabled(false)` will cause the `Ui` to deny all future interaction
+    /// and all the widgets will draw with a gray look.
+    ///
+    /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the `Ui` once disabled.
+    ///
+    /// ### Example
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut enabled = true;
+    /// ui.group(|ui|{
+    ///     ui.checkbox(&mut enabled, "Enable subsection");
+    ///     ui.set_enabled(enabled);
+    ///     if ui.button("Button that is not always clickable").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// ```
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled &= enabled;
+        if self.enabled {
+            self.painter.set_fade_to_color(None);
+        } else {
+            self.painter
+                .set_fade_to_color(Some(self.visuals().window_fill()));
+        }
     }
 
     pub fn layout(&self) -> &Layout {
@@ -427,6 +466,7 @@ impl Ui {
             id,
             rect,
             sense,
+            self.enabled,
         )
     }
 

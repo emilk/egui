@@ -218,6 +218,7 @@ impl CtxRef {
     // ---------------------------------------------------------------------
 
     /// Use `ui.interact` instead
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn interact(
         &self,
         clip_rect: Rect,
@@ -226,6 +227,7 @@ impl CtxRef {
         id: Id,
         rect: Rect,
         sense: Sense,
+        enabled: bool,
     ) -> Response {
         let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
         let interact_rect = rect.expand2(
@@ -234,7 +236,7 @@ impl CtxRef {
                 .at_most(Vec2::splat(5.0)),
         ); // make it easier to click
         let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
-        self.interact_with_hovered(layer_id, id, rect, sense, hovered)
+        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
     /// You specify if a thing is hovered, and the function gives a `Response`.
@@ -244,8 +246,11 @@ impl CtxRef {
         id: Id,
         rect: Rect,
         sense: Sense,
+        enabled: bool,
         hovered: bool,
     ) -> Response {
+        let hovered = hovered && enabled; // can't even hover disabled widgets
+
         let has_kb_focus = self.memory().has_kb_focus(id);
         let lost_kb_focus = self.memory().lost_kb_focus(id);
 
@@ -255,6 +260,7 @@ impl CtxRef {
             id,
             rect,
             sense,
+            enabled,
             hovered,
             clicked: Default::default(),
             double_clicked: Default::default(),
@@ -266,7 +272,7 @@ impl CtxRef {
             lost_kb_focus,
         };
 
-        if sense == Sense::hover() || !layer_id.allow_interaction() {
+        if !enabled || sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             return response;
         }

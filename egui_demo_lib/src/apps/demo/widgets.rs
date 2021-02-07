@@ -134,8 +134,5 @@ impl Widgets {
 
         ui.label("Multiline text input:");
         ui.text_edit_multiline(&mut self.multiline_text_input);
-
-        ui.separator();
-        super::toggle_switch::demo(ui, &mut self.toggle_switch);
     }
 }

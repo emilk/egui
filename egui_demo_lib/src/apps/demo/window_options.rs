@@ -7,6 +7,7 @@ pub struct WindowOptions {
     collapsible: bool,
     resizable: bool,
     scroll: bool,
+    disabled_time: f64,
 }
 
 impl Default for WindowOptions {
@@ -18,6 +19,7 @@ impl Default for WindowOptions {
             collapsible: true,
             resizable: true,
             scroll: false,
+            disabled_time: f64::NEG_INFINITY,
         }
     }
 }
@@ -36,7 +38,13 @@ impl super::Demo for WindowOptions {
             collapsible,
             resizable,
             scroll,
+            disabled_time,
         } = self.clone();
+
+        let enabled = ctx.input().time - disabled_time > 2.0;
+        if !enabled {
+            ctx.request_repaint();
+        }
 
         use super::View;
         let mut window = egui::Window::new(title)
@@ -44,7 +52,8 @@ impl super::Demo for WindowOptions {
             .resizable(resizable)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll(scroll);
+            .scroll(scroll)
+            .enabled(enabled);
         if closable {
             window = window.open(open);
         }
@@ -63,6 +72,7 @@ impl super::View for WindowOptions {
             collapsible,
             resizable,
             scroll,
+            disabled_time,
         } = self;
 
         ui.horizontal(|ui| {
@@ -77,5 +87,9 @@ impl super::View for WindowOptions {
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());
         });
+
+        if ui.button("Disable for 2 seconds").clicked() {
+            *disabled_time = ui.input().time;
+        }
     }
 }

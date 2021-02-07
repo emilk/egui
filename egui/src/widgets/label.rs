@@ -160,15 +160,15 @@ impl Label {
             ..
         } = *self;
 
-        let text_color = self.text_color.unwrap_or_else(|| {
-            if strong {
-                ui.visuals().strong_text_color()
-            } else if weak {
-                ui.visuals().weak_text_color()
-            } else {
-                ui.visuals().text_color()
-            }
-        });
+        let text_color = if let Some(text_color) = self.text_color {
+            text_color
+        } else if strong {
+            ui.visuals().strong_text_color()
+        } else if weak {
+            ui.visuals().weak_text_color()
+        } else {
+            ui.visuals().text_color()
+        };
 
         if code {
             background_color = ui.visuals().code_bg_color;

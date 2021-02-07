@@ -682,3 +682,30 @@ impl From<Hsva> for HsvaGamma {
         }
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Cheap and ugly.
+/// Made for graying out disabled `Ui`:s.
+pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
+    let [mut r, mut g, mut b, mut a] = color.to_array();
+
+    if a == 0 {
+        r /= 2;
+        g /= 2;
+        b /= 2;
+    } else if a < 170 {
+        // Cheapish and looks ok.
+        // Works for e.g. grid stripes.
+        let div = (2 * 255 / a as i32) as u8;
+        r = r / 2 + target.r() / div;
+        g = g / 2 + target.g() / div;
+        b = b / 2 + target.b() / div;
+        a /= 2;
+    } else {
+        r = r / 2 + target.r() / 2;
+        g = g / 2 + target.g() / 2;
+        b = b / 2 + target.b() / 2;
+    }
+    Color32::from_rgba_premultiplied(r, g, b, a)
+}

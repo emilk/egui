@@ -23,7 +23,7 @@ impl Frame {
         Self {
             margin: Vec2::new(8.0, 6.0),
             corner_radius: 4.0,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }
@@ -32,8 +32,8 @@ impl Frame {
         Self {
             margin: Vec2::new(8.0, 2.0),
             corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }
@@ -42,7 +42,7 @@ impl Frame {
         Self {
             margin: Vec2::new(8.0, 8.0),
             corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
+            fill: style.visuals.window_fill(),
             stroke: Default::default(),
             ..Default::default()
         }
@@ -53,8 +53,8 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.window_corner_radius,
             shadow: style.visuals.window_shadow,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -63,8 +63,8 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
             shadow: Shadow::small(),
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -73,8 +73,8 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: 5.0,
             shadow: Shadow::small(),
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -84,7 +84,7 @@ impl Frame {
             margin: Vec2::new(10.0, 10.0),
             corner_radius: 5.0,
             fill: Color32::from_black_alpha(250),
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }

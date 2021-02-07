@@ -83,9 +83,12 @@ fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 
 pub fn demo(ui: &mut egui::Ui, on: &mut bool) {
     ui.horizontal_wrapped_for_text(egui::TextStyle::Button, |ui| {
-        ui.label("It's easy to create your own widgets!");
-        ui.label("This toggle switch is just one function and 15 lines of code:");
         toggle(ui, on).on_hover_text("Click to toggle");
         ui.add(crate::__egui_github_link_file!());
-    });
+    })
+    .1
+    .on_hover_text(
+        "It's easy to create your own widgets!\n\
+        This toggle switch is just one function and 20 lines of code.",
+    );
 }

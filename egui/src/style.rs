@@ -184,11 +184,19 @@ impl Visuals {
     }
 
     pub fn weak_text_color(&self) -> Color32 {
-        self.widgets.disabled.text_color()
+        crate::color::tint_color_towards(self.text_color(), self.window_fill())
     }
 
     pub fn strong_text_color(&self) -> Color32 {
         self.widgets.active.text_color()
+    }
+
+    pub fn window_fill(&self) -> Color32 {
+        self.widgets.noninteractive.bg_fill
+    }
+
+    pub fn window_stroke(&self) -> Stroke {
+        self.widgets.noninteractive.bg_stroke
     }
 }
 
@@ -210,8 +218,6 @@ pub struct Widgets {
     /// * `noninteractive.bg_fill` is the background color of windows.
     /// * `noninteractive.fg_stroke` is the normal text color.
     pub noninteractive: WidgetVisuals,
-    /// The style of a disabled button.
-    pub disabled: WidgetVisuals,
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
     /// The style of an interactive widget while you hover it.
@@ -224,8 +230,6 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if response.is_pointer_button_down_on() || response.has_kb_focus {
             &self.active
-        } else if response.sense == crate::Sense::hover() {
-            &self.disabled
         } else if response.hovered() {
             &self.hovered
         } else {
@@ -374,16 +378,9 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
+                bg_fill: Color32::from_gray(30), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(65)), // window outline
-                bg_fill: Color32::from_gray(30),                     // window background
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // normal text color
-                corner_radius: 4.0,
-                expansion: 0.0,
-            },
-            disabled: WidgetVisuals {
-                bg_fill: Color32::from_gray(40), // Should look grayed out
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(70)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(110)), // Should look grayed out. Also used for "weak" text color.
                 corner_radius: 4.0,
                 expansion: 0.0,
             },
@@ -414,16 +411,9 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
+                bg_fill: Color32::from_gray(220), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // window outline
-                bg_fill: Color32::from_gray(220),                     // window background
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)),  // normal text color
-                corner_radius: 4.0,
-                expansion: 0.0,
-            },
-            disabled: WidgetVisuals {
-                bg_fill: Color32::from_gray(215), // Should look grayed out
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(185)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(145)), // Should look grayed out. Also used for "weak" text color.
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)), // normal text color
                 corner_radius: 4.0,
                 expansion: 0.0,
             },
@@ -542,17 +532,12 @@ impl Widgets {
             active,
             hovered,
             inactive,
-            disabled,
             noninteractive,
         } = self;
 
         ui.collapsing("noninteractive", |ui| {
             ui.label("The style of a widget that you cannot interact with.");
             noninteractive.ui(ui)
-        });
-        ui.collapsing("interactive & disabled", |ui| {
-            ui.label("The style of a disabled button.");
-            disabled.ui(ui)
         });
         ui.collapsing("interactive & inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");

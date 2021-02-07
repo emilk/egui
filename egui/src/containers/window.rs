@@ -70,6 +70,12 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// If `false` the window will be grayed out and non-interactive.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        self.area = self.area.enabled(enabled);
+        self
+    }
+
     /// Usage: `Window::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
@@ -239,8 +245,8 @@ impl<'open> Window<'open> {
         let is_maximized = !with_title_bar
             || collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions {
-            movable: area.is_movable(),
-            resizable: resize.is_resizable() && is_maximized,
+            movable: area.is_enabled() && area.is_movable(),
+            resizable: area.is_enabled() && resize.is_resizable() && is_maximized,
         };
 
         let area = area.movable(false); // We move it manually

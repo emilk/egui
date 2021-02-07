@@ -29,6 +29,10 @@ pub struct Response {
     /// The senses (click and/or drag) that the widget was interested in (if any).
     pub sense: Sense,
 
+    /// Was the widget enabled?
+    /// If `false`, there was no interaction attempted (not even hover).
+    pub(crate) enabled: bool,
+
     // OUT:
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     pub(crate) hovered: bool,
@@ -68,6 +72,7 @@ impl std::fmt::Debug for Response {
             id,
             rect,
             sense,
+            enabled,
             hovered,
             clicked,
             double_clicked,
@@ -83,6 +88,7 @@ impl std::fmt::Debug for Response {
             .field("id", id)
             .field("rect", rect)
             .field("sense", sense)
+            .field("enabled", enabled)
             .field("hovered", hovered)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
@@ -115,6 +121,13 @@ impl Response {
     /// Returns true if this widget was double-clicked this frame by the primary button.
     pub fn double_clicked(&self) -> bool {
         self.double_clicked[PointerButton::Primary as usize]
+    }
+
+    /// Was the widget enabled?
+    /// If false, there was no interaction attempted
+    /// and the widget should be drawn in a gray disabled look.
+    pub fn enabled(&self) -> bool {
+        self.enabled
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
@@ -208,8 +221,14 @@ impl Response {
     /// if response.clicked() { /* … */ }
     /// ```
     pub fn interact(&self, sense: Sense) -> Self {
-        self.ctx
-            .interact_with_hovered(self.layer_id, self.id, self.rect, sense, self.hovered)
+        self.ctx.interact_with_hovered(
+            self.layer_id,
+            self.id,
+            self.rect,
+            sense,
+            self.enabled,
+            self.hovered,
+        )
     }
 
     /// Move the scroll to this UI with the specified alignment.
@@ -247,6 +266,7 @@ impl Response {
             id: self.id,
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
+            enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
             clicked: [
                 self.clicked[0] || other.clicked[0],
