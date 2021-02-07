@@ -139,6 +139,10 @@ impl Interaction {
         self.click_interest = false;
         self.drag_interest = false;
 
+        if !prev_input.pointer.could_any_button_be_click() {
+            self.click_id = None;
+        }
+
         if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
             // pointer button was not down last frame
             self.click_id = None;

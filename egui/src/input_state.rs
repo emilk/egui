@@ -470,6 +470,10 @@ impl PointerState {
     pub fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
     }
+
+    pub(crate) fn could_any_button_be_click(&self) -> bool {
+        self.could_be_click
+    }
 }
 
 impl InputState {
