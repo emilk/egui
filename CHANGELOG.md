@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add support for secondary and middle mouse buttons.
 * Add `Label` methods for code, strong, strikethrough, underline and italics.
 * Add `ui.group(|ui| { … })` to visually group some widgets within a frame.
+* Add `Ui` helpers for doing manual layout (`ui.put`, `ui.allocate_ui_at_rect` and more).
 * Add `ui.set_enabled(false)` to disable all widgets in a `Ui` (grayed out and non-interactive).
 * Add `TextEdit::hint_text` for showing a weak hint text when empty.
 * `egui::popup::popup_below_widget`: show a popup area below another widget.

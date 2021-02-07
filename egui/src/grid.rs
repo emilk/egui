@@ -136,7 +136,7 @@ impl GridLayout {
         Align2::LEFT_CENTER.align_size_within_rect(size, frame)
     }
 
-    pub(crate) fn justify_or_align(&self, frame: Rect, size: Vec2) -> Rect {
+    pub(crate) fn justify_and_align(&self, frame: Rect, size: Vec2) -> Rect {
         self.align_size_within_rect(size, frame)
     }
 

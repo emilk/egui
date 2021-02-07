@@ -62,6 +62,8 @@ impl super::View for WidgetGallery {
         });
         ui.set_enabled(*enabled);
 
+        ui.separator();
+
         let grid = egui::Grid::new("my_grid")
             .striped(true)
             .spacing([40.0, 4.0]);

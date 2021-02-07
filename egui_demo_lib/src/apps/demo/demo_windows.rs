@@ -22,10 +22,11 @@ impl Default for Demos {
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
             // Tests:
-            Box::new(super::layout_test::LayoutTest::default()),
             Box::new(super::tests::IdTest::default()),
-            Box::new(super::tests::TableTest::default()),
             Box::new(super::tests::InputTest::default()),
+            Box::new(super::layout_test::LayoutTest::default()),
+            Box::new(super::tests::ManualLayoutTest::default()),
+            Box::new(super::tests::TableTest::default()),
         ];
         Self {
             open: vec![false; demos.len()],

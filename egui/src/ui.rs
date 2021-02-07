@@ -17,7 +17,9 @@ use crate::{
 /// ui.label("A shorter and more convenient way to add a label.");
 /// ui.horizontal(|ui| {
 ///     ui.label("Add widgets");
-///     ui.button("on the same row!");
+///     if ui.button("on the same row!").clicked() {
+///         /* … */
+///     }
 /// });
 /// ```
 pub struct Ui {
@@ -274,7 +276,7 @@ impl Ui {
 
 // ------------------------------------------------------------------------
 
-/// ## Sizes etc
+/// # Sizes etc
 impl Ui {
     /// Where and how large the `Ui` is already.
     /// All widgets that have been added ot this `Ui` fits within this rectangle.
@@ -517,7 +519,10 @@ impl Ui {
     pub fn advance_cursor(&mut self, amount: f32) {
         self.placer.advance_cursor(amount);
     }
+}
 
+/// # Allocating space: where do I put my widgets?
+impl Ui {
     /// Allocate space for a widget and check for interaction in the space.
     /// Returns a `Response` which contains a rectangle, id, and interaction info.
     ///
@@ -629,7 +634,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        let widget_rect = self.placer.justify_or_align(frame_rect, desired_size);
+        let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
             .advance_after_rects(frame_rect, widget_rect, item_spacing);
@@ -637,7 +642,8 @@ impl Ui {
         widget_rect
     }
 
-    /// Allocate a specific part of the ui.
+    /// Allocate a specific part of the `Ui‘.
+    /// Ignore the layout of the `Ui‘: just put my widget here!
     pub(crate) fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
@@ -666,7 +672,9 @@ impl Ui {
     ) -> (R, Response) {
         let item_spacing = self.spacing().item_spacing;
         let outer_child_rect = self.placer.next_space(desired_size, item_spacing);
-        let inner_child_rect = self.placer.justify_or_align(outer_child_rect, desired_size);
+        let inner_child_rect = self
+            .placer
+            .justify_and_align(outer_child_rect, desired_size);
 
         let mut child_ui = self.child_ui(inner_child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
@@ -676,6 +684,29 @@ impl Ui {
             outer_child_rect.union(final_child_rect),
             final_child_rect,
             item_spacing,
+        );
+
+        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
+        (ret, response)
+    }
+
+    /// Allocated the given rectangle and then adds content to that rectangle.
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_ui_at_rect<R>(
+        &mut self,
+        max_rect: Rect,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Response) {
+        let mut child_ui = self.child_ui(max_rect, *self.layout());
+        let ret = add_contents(&mut child_ui);
+        let final_child_rect = child_ui.min_rect();
+
+        self.placer.advance_after_rects(
+            final_child_rect,
+            final_child_rect,
+            self.spacing().item_spacing,
         );
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
@@ -727,6 +758,22 @@ impl Ui {
     /// ```
     pub fn add(&mut self, widget: impl Widget) -> Response {
         widget.ui(self)
+    }
+
+    /// Add a widget to this `Ui` with a given max size.
+    pub fn add_sized(&mut self, max_size: Vec2, widget: impl Widget) -> Response {
+        self.allocate_ui(max_size, |ui| {
+            ui.centered_and_justified(|ui| ui.add(widget)).0
+        })
+        .0
+    }
+
+    /// Add a widget to this `Ui` at a specific location (manual layout).
+    pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        self.allocate_ui_at_rect(max_rect, |ui| {
+            ui.centered_and_justified(|ui| ui.add(widget)).0
+        })
+        .0
     }
 
     /// Shortcut for `add(Label::new(text))`
@@ -1256,6 +1303,17 @@ impl Ui {
         (ret, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
+    /// This will make the next added widget centered and justified in the available space.
+    pub fn centered_and_justified<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> (R, Response) {
+        self.with_layout(
+            Layout::centered_and_justified(Direction::TopDown),
+            add_contents,
+        )
+    }
+
     pub(crate) fn set_grid(&mut self, grid: grid::GridLayout) {
         self.placer.set_grid(grid);
     }
@@ -1332,7 +1390,7 @@ impl Ui {
 
 // ----------------------------------------------------------------------------
 
-/// ## Debug stuff
+/// # Debug stuff
 impl Ui {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {

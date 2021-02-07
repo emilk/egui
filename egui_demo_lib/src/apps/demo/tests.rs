@@ -52,6 +52,91 @@ impl super::View for IdTest {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum WidgetType {
+    Label,
+    Button,
+    TextEdit,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ManualLayoutTest {
+    widget_offset: egui::Vec2,
+    widget_size: egui::Vec2,
+    widget_type: WidgetType,
+    text_edit_contents: String,
+}
+
+impl Default for ManualLayoutTest {
+    fn default() -> Self {
+        Self {
+            widget_offset: egui::Vec2::splat(150.0),
+            widget_size: egui::Vec2::new(200.0, 100.0),
+            widget_type: WidgetType::Button,
+            text_edit_contents: crate::LOREM_IPSUM.to_owned(),
+        }
+    }
+}
+
+impl super::Demo for ManualLayoutTest {
+    fn name(&self) -> &str {
+        "Manual Layout Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for ManualLayoutTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        use egui::*;
+        reset_button(ui, self);
+        let Self {
+            widget_offset,
+            widget_size,
+            widget_type,
+            text_edit_contents,
+        } = self;
+        ui.horizontal(|ui| {
+            ui.label("Test widget:");
+            ui.radio_value(widget_type, WidgetType::Button, "Button");
+            ui.radio_value(widget_type, WidgetType::Label, "Label");
+            ui.radio_value(widget_type, WidgetType::TextEdit, "TextEdit");
+        });
+        Grid::new("pos_size").show(ui, |ui| {
+            ui.label("Widget position:");
+            ui.add(Slider::f32(&mut widget_offset.x, 0.0..=400.0));
+            ui.add(Slider::f32(&mut widget_offset.y, 0.0..=400.0));
+            ui.end_row();
+
+            ui.label("Widget size:");
+            ui.add(Slider::f32(&mut widget_size.x, 0.0..=400.0));
+            ui.add(Slider::f32(&mut widget_size.y, 0.0..=400.0));
+            ui.end_row();
+        });
+        let widget_rect = Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
+
+        // Showing how to place a widget anywhere in the `Ui`:
+        match *widget_type {
+            WidgetType::Button => {
+                ui.put(widget_rect, Button::new("Example button"));
+            }
+            WidgetType::Label => {
+                ui.put(widget_rect, Label::new("Example label"));
+            }
+            WidgetType::TextEdit => {
+                ui.put(widget_rect, TextEdit::multiline(text_edit_contents));
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct TableTest {
     num_cols: usize,
     num_rows: usize,
