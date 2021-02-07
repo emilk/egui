@@ -87,11 +87,18 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
         underline,
         strikethrough,
         italics,
+        small,
+        raised,
     } = *style;
 
+    let small = small || raised; // Raised text is also smaller
+
     let mut label = Label::new(text);
-    if heading {
+    if heading && !small {
         label = label.heading().strong();
+    }
+    if small && !heading {
+        label = label.small();
     }
     if code {
         label = label.code();
@@ -109,6 +116,9 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
     }
     if italics {
         label = label.italics();
+    }
+    if raised {
+        label = label.raised();
     }
     label
 }

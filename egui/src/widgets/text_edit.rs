@@ -13,7 +13,7 @@ pub(crate) struct State {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct CursorPair {
+pub struct CursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
     /// Note that the two ends can come in any order, and also be equal (no selection).
@@ -132,6 +132,14 @@ pub struct TextEdit<'t> {
     enabled: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
+}
+impl<'t> TextEdit<'t> {
+    pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
+        ui.memory()
+            .text_edit
+            .get(&id)
+            .and_then(|state| state.cursorp)
+    }
 }
 
 impl<'t> TextEdit<'t> {
