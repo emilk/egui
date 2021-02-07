@@ -1,4 +1,8 @@
 //! Color conversions and types.
+//!
+//! If you want a compact color representation, use [`Color32`].
+//! If you want to manipulate RGBA colors use [`Rgba`].
+//! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
 
 use emath::clamp;
 
@@ -64,14 +68,14 @@ impl Color32 {
         } else if a == 0 {
             Self::TRANSPARENT // common-case optimization
         } else {
-            let r_lin = linear_from_gamma_byte(r);
-            let g_lin = linear_from_gamma_byte(g);
-            let b_lin = linear_from_gamma_byte(b);
-            let a_lin = linear_from_alpha_byte(a);
+            let r_lin = linear_f32_from_gamma_u8(r);
+            let g_lin = linear_f32_from_gamma_u8(g);
+            let b_lin = linear_f32_from_gamma_u8(b);
+            let a_lin = linear_f32_from_linear_u8(a);
 
-            let r = gamma_byte_from_linear(r_lin * a_lin);
-            let g = gamma_byte_from_linear(g_lin * a_lin);
-            let b = gamma_byte_from_linear(b_lin * a_lin);
+            let r = gamma_u8_from_linear_f32(r_lin * a_lin);
+            let g = gamma_u8_from_linear_f32(g_lin * a_lin);
+            let b = gamma_u8_from_linear_f32(b_lin * a_lin);
 
             Self::from_rgba_premultiplied(r, g, b, a)
         }
@@ -91,7 +95,7 @@ impl Color32 {
     }
 
     pub fn from_white_alpha(a: u8) -> Self {
-        Rgba::from_white_alpha(linear_from_alpha_byte(a)).into()
+        Rgba::from_white_alpha(linear_f32_from_linear_u8(a)).into()
     }
 
     pub const fn from_additive_luminance(l: u8) -> Self {
@@ -302,10 +306,10 @@ impl std::ops::Mul<Rgba> for f32 {
 impl From<Color32> for Rgba {
     fn from(srgba: Color32) -> Rgba {
         Rgba([
-            linear_from_gamma_byte(srgba[0]),
-            linear_from_gamma_byte(srgba[1]),
-            linear_from_gamma_byte(srgba[2]),
-            linear_from_alpha_byte(srgba[3]),
+            linear_f32_from_gamma_u8(srgba[0]),
+            linear_f32_from_gamma_u8(srgba[1]),
+            linear_f32_from_gamma_u8(srgba[2]),
+            linear_f32_from_linear_u8(srgba[3]),
         ])
     }
 }
@@ -313,16 +317,16 @@ impl From<Color32> for Rgba {
 impl From<Rgba> for Color32 {
     fn from(rgba: Rgba) -> Color32 {
         Color32([
-            gamma_byte_from_linear(rgba[0]),
-            gamma_byte_from_linear(rgba[1]),
-            gamma_byte_from_linear(rgba[2]),
-            alpha_byte_from_linear(rgba[3]),
+            gamma_u8_from_linear_f32(rgba[0]),
+            gamma_u8_from_linear_f32(rgba[1]),
+            gamma_u8_from_linear_f32(rgba[2]),
+            linear_u8_from_linear_f32(rgba[3]),
         ])
     }
 }
 
-/// [0, 255] -> [0, 1]
-fn linear_from_gamma_byte(s: u8) -> f32 {
+/// gamma [0, 255] -> linear [0, 1].
+pub fn linear_f32_from_gamma_u8(s: u8) -> f32 {
     if s <= 10 {
         s as f32 / 3294.6
     } else {
@@ -330,12 +334,15 @@ fn linear_from_gamma_byte(s: u8) -> f32 {
     }
 }
 
-fn linear_from_alpha_byte(a: u8) -> f32 {
+/// linear [0, 255] -> linear [0, 1].
+/// Useful for alpha-channel.
+pub fn linear_f32_from_linear_u8(a: u8) -> f32 {
     a as f32 / 255.0
 }
 
-/// [0, 1] -> [0, 255]
-fn gamma_byte_from_linear(l: f32) -> u8 {
+/// linear [0, 1] -> gamma [0, 255] (clamped).
+/// Values outside this range will be clamped to the range.
+pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
     if l <= 0.0 {
         0
     } else if l <= 0.0031308 {
@@ -347,17 +354,43 @@ fn gamma_byte_from_linear(l: f32) -> u8 {
     }
 }
 
-fn alpha_byte_from_linear(a: f32) -> u8 {
+/// linear [0, 1] -> linear [0, 255] (clamped).
+/// Useful for alpha-channel.
+pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
     clamp(a * 255.0, 0.0..=255.0).round() as u8
 }
 
 #[test]
-fn test_srgba_conversion() {
+pub fn test_srgba_conversion() {
     #![allow(clippy::float_cmp)]
     for b in 0..=255 {
-        let l = linear_from_gamma_byte(b);
+        let l = linear_f32_from_gamma_u8(b);
         assert!(0.0 <= l && l <= 1.0);
-        assert_eq!(gamma_byte_from_linear(l), b);
+        assert_eq!(gamma_u8_from_linear_f32(l), b);
+    }
+}
+
+/// gamma [0, 1] -> linear [0, 1] (not clamped).
+/// Works for numbers outside this range (e.g. negative numbers).
+pub fn linear_from_gamma(gamma: f32) -> f32 {
+    if gamma < 0.0 {
+        -linear_from_gamma(-gamma)
+    } else if gamma <= 0.04045 {
+        gamma / 12.92
+    } else {
+        ((gamma + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// linear [0, 1] -> gamma [0, 1] (not clamped).
+/// Works for numbers outside this range (e.g. negative numbers).
+pub fn gamma_from_linear(linear: f32) -> f32 {
+    if linear < 0.0 {
+        -gamma_from_linear(-linear)
+    } else if linear <= 0.0031308 {
+        12.92 * linear
+    } else {
+        1.055 * linear.powf(1.0 / 2.4) - 0.055
     }
 }
 
@@ -385,20 +418,20 @@ impl Hsva {
     /// From `sRGBA` with premultiplied alpha
     pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
         Self::from_rgba_premultiplied([
-            linear_from_gamma_byte(srgba[0]),
-            linear_from_gamma_byte(srgba[1]),
-            linear_from_gamma_byte(srgba[2]),
-            linear_from_alpha_byte(srgba[3]),
+            linear_f32_from_gamma_u8(srgba[0]),
+            linear_f32_from_gamma_u8(srgba[1]),
+            linear_f32_from_gamma_u8(srgba[2]),
+            linear_f32_from_linear_u8(srgba[3]),
         ])
     }
 
     /// From `sRGBA` without premultiplied alpha
     pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
         Self::from_rgba_unmultiplied([
-            linear_from_gamma_byte(srgba[0]),
-            linear_from_gamma_byte(srgba[1]),
-            linear_from_gamma_byte(srgba[2]),
-            linear_from_alpha_byte(srgba[3]),
+            linear_f32_from_gamma_u8(srgba[0]),
+            linear_f32_from_gamma_u8(srgba[1]),
+            linear_f32_from_gamma_u8(srgba[2]),
+            linear_f32_from_linear_u8(srgba[3]),
         ])
     }
 
@@ -441,9 +474,9 @@ impl Hsva {
 
     pub fn from_srgb([r, g, b]: [u8; 3]) -> Self {
         Self::from_rgb([
-            linear_from_gamma_byte(r),
-            linear_from_gamma_byte(g),
-            linear_from_gamma_byte(b),
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
         ])
     }
 
@@ -460,9 +493,9 @@ impl Hsva {
     pub fn to_srgb(&self) -> [u8; 3] {
         let [r, g, b] = self.to_rgb();
         [
-            gamma_byte_from_linear(r),
-            gamma_byte_from_linear(g),
-            gamma_byte_from_linear(b),
+            gamma_u8_from_linear_f32(r),
+            gamma_u8_from_linear_f32(g),
+            gamma_u8_from_linear_f32(b),
         ]
     }
 
@@ -486,20 +519,20 @@ impl Hsva {
     pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_premultiplied();
         [
-            gamma_byte_from_linear(r),
-            gamma_byte_from_linear(g),
-            gamma_byte_from_linear(b),
-            alpha_byte_from_linear(a),
+            gamma_u8_from_linear_f32(r),
+            gamma_u8_from_linear_f32(g),
+            gamma_u8_from_linear_f32(b),
+            linear_u8_from_linear_f32(a),
         ]
     }
 
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_unmultiplied();
         [
-            gamma_byte_from_linear(r),
-            gamma_byte_from_linear(g),
-            gamma_byte_from_linear(b),
-            alpha_byte_from_linear(a.abs()),
+            gamma_u8_from_linear_f32(r),
+            gamma_u8_from_linear_f32(g),
+            gamma_u8_from_linear_f32(b),
+            linear_u8_from_linear_f32(a.abs()),
         ]
     }
 }
@@ -582,6 +615,70 @@ fn test_hsv_roundtrip() {
                 let hsva = Hsva::from(srgba);
                 assert_eq!(srgba, Color32::from(hsva));
             }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Like Hsva but with the `v` value (brightness) being gamma corrected
+/// so that it is somewhat perceptually even.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct HsvaGamma {
+    /// hue 0-1
+    pub h: f32,
+    /// saturation 0-1
+    pub s: f32,
+    /// value 0-1, in gamma-space (~perceptually even)
+    pub v: f32,
+    /// alpha 0-1. A negative value signifies an additive color (and alpha is ignored).
+    pub a: f32,
+}
+
+impl From<HsvaGamma> for Rgba {
+    fn from(hsvag: HsvaGamma) -> Rgba {
+        Hsva::from(hsvag).into()
+    }
+}
+
+impl From<HsvaGamma> for Color32 {
+    fn from(hsvag: HsvaGamma) -> Color32 {
+        Rgba::from(hsvag).into()
+    }
+}
+
+impl From<HsvaGamma> for Hsva {
+    fn from(hsvag: HsvaGamma) -> Hsva {
+        let HsvaGamma { h, s, v, a } = hsvag;
+        Hsva {
+            h,
+            s,
+            v: linear_from_gamma(v),
+            a,
+        }
+    }
+}
+
+impl From<Rgba> for HsvaGamma {
+    fn from(rgba: Rgba) -> HsvaGamma {
+        Hsva::from(rgba).into()
+    }
+}
+
+impl From<Color32> for HsvaGamma {
+    fn from(srgba: Color32) -> HsvaGamma {
+        Hsva::from(srgba).into()
+    }
+}
+
+impl From<Hsva> for HsvaGamma {
+    fn from(hsva: Hsva) -> HsvaGamma {
+        let Hsva { h, s, v, a } = hsva;
+        HsvaGamma {
+            h,
+            s,
+            v: gamma_from_linear(v),
+            a,
         }
     }
 }
