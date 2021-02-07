@@ -127,6 +127,37 @@ impl FrameState {
 
 /// A wrapper around [`Arc`](std::sync::Arc)`<`[`Context`]`>`.
 /// This is how you will normally create and access a [`Context`].
+///
+/// Almost all methods are marked `&self`, `Context` has interior mutability (protected by mutexes).
+///
+/// [`CtxRef`] is cheap to clone, and any clones refers to the same mutable data.
+///
+/// # Example:
+///
+/// ``` no_run
+/// # fn handle_output(_: egui::Output) {}
+/// # fn paint(_: Vec<egui::ClippedMesh>) {}
+/// let mut ctx = egui::CtxRef::default();
+///
+/// // Game loop:
+/// loop {
+///     let raw_input = egui::RawInput::default();
+///     ctx.begin_frame(raw_input);
+///
+///     egui::CentralPanel::default().show(&ctx, |ui| {
+///         ui.label("Hello world!");
+///         if ui.button("Click me").clicked() {
+///             /* take some action here */
+///         }
+///     });
+///
+///     let (output, shapes) = ctx.end_frame();
+///     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
+///     handle_output(output);
+///     paint(clipped_meshes);
+/// }
+/// ```
+///
 #[derive(Clone)]
 pub struct CtxRef(std::sync::Arc<Context>);
 
@@ -168,7 +199,11 @@ impl Default for CtxRef {
 }
 
 impl CtxRef {
-    /// Call at the start of every frame.
+    /// Call at the start of every frame. Match with a call to [`Context::end_frame`].
+    ///
+    /// This will modify the internal reference to point to a new generation of [`Context`].
+    /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    ///
     /// Put your widgets into a [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
@@ -354,7 +389,14 @@ impl CtxRef {
 /// This is the first thing you need when working with egui. Create using [`CtxRef`].
 ///
 /// Contains the [`InputState`], [`Memory`], [`Output`], and more.
-// TODO: too many mutexes. Maybe put it all behind one Mutex instead.
+///
+/// Your handle to Egui.
+///
+/// Almost all methods are marked `&self`, `Context` has interior mutability (protected by mutexes).
+/// Multi-threaded access to a [`Context`] is behind the feature flag `multi_threaded`.
+/// Normally you'd always do all ui work on one thread, or perhaps use multiple contexts,
+/// but if you really want to access the same Context from multiple threads, it *SHOULD* be fine,
+/// but you are likely the first person to try it.
 #[derive(Default)]
 pub struct Context {
     /// None until first call to `begin_frame`.
@@ -591,8 +633,7 @@ impl Context {
 
     /// Call at the end of each frame.
     /// Returns what has happened this frame (`Output`) as well as what you need to paint.
-    /// You can transform the returned shapes into triangles with a call to
-    /// `Context::tessellate`.
+    /// You can transform the returned shapes into triangles with a call to `Context::tessellate`.
     #[must_use]
     pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {

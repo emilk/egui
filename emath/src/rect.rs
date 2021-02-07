@@ -91,12 +91,11 @@ impl Rect {
             max: pos2(*x_range.end(), *y_range.end()),
         }
     }
+
     pub fn from_two_pos(a: Pos2, b: Pos2) -> Self {
-        let (left, right) = if a.x > b.x { (b.x, a.x) } else { (a.x, b.x) };
-        let (top, bottom) = if a.y > b.y { (b.y, a.y) } else { (a.y, b.y) };
         Rect {
-            min: pos2(left, top),
-            max: pos2(right, bottom),
+            min: pos2(a.x.min(b.x), a.y.min(b.y)),
+            max: pos2(a.x.max(b.x), a.y.max(b.y)),
         }
     }
 

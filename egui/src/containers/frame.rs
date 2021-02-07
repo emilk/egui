@@ -2,10 +2,10 @@
 
 use crate::{layers::ShapeIdx, paint::*, *};
 
-/// Adds a rectangular frame and background to some [`Ui`].
+/// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Frame {
-    // On each side
+    /// On each side
     pub margin: Vec2,
     pub corner_radius: f32,
     pub shadow: Shadow,

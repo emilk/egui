@@ -4,6 +4,40 @@
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
 //! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
+//! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
+//!
+//! ## Integrating with egui
+//! To write your own integration for egui you need to do this:
+//!
+//! ``` no_run
+//! # fn handle_output(_: egui::Output) {}
+//! # fn paint(_: Vec<egui::ClippedMesh>) {}
+//! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
+//! let mut ctx = egui::CtxRef::default();
+//!
+//! // Game loop:
+//! loop {
+//!     let raw_input: egui::RawInput = gather_input();
+//!     ctx.begin_frame(raw_input);
+//!
+//!     egui::CentralPanel::default().show(&ctx, |ui| {
+//!         ui.label("Hello world!");
+//!         if ui.button("Click me").clicked() {
+//!             /* take some action here */
+//!         }
+//!     });
+//!
+//!     let (output, shapes) = ctx.end_frame();
+//!     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
+//!     handle_output(output);
+//!     paint(clipped_meshes);
+//! }
+//! ```
+//!
+//! ## Using egui
+//!
+//! To see what is possible to build we egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
+//!
 //! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
@@ -11,28 +45,14 @@
 //! # let mut ctx = egui::CtxRef::default();
 //! # ctx.begin_frame(Default::default());
 //! egui::CentralPanel::default().show(&ctx, |ui| {
-//!     ui.label("Hello");
+//!     ui.add(egui::Label::new("Hello World!"));
+//!     ui.label("A shorter and more convenient way to add a label.");
+//!     if ui.button("Click me").clicked() {
+//!         /* take some action here */
+//!     }
 //! });
-//! ```
 //!
 //!
-//! To write your own integration for egui you need to do this:
-//!
-//! ``` ignore
-//! let mut egui_ctx = egui::CtxRef::default();
-//!
-//! // Game loop:
-//! loop {
-//!     let raw_input: egui::RawInput = my_integration.gather_input();
-//!     egui_ctx.begin_frame(raw_input);
-//!     my_app.ui(&egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-//!     let (output, shapes) = egui_ctx.end_frame();
-//!     let clipped_meshes = egui_ctx.tessellate(shapes); // create triangles to paint
-//!     my_integration.paint(clipped_meshes);
-//!     my_integration.set_cursor_icon(output.cursor_icon);
-//!     // Also see `egui::Output` for more
-//! }
-//! ```
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![forbid(unsafe_code)]
@@ -133,11 +153,13 @@ pub use {
 
 // ----------------------------------------------------------------------------
 
+/// `true` if egui was compiled with debug assertions enabled.
 #[cfg(debug_assertions)]
 pub(crate) const fn has_debug_assertions() -> bool {
     true
 }
 
+/// `true` if egui was compiled with debug assertions enabled.
 #[cfg(not(debug_assertions))]
 pub(crate) const fn has_debug_assertions() -> bool {
     false

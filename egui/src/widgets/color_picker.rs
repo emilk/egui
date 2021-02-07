@@ -348,7 +348,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
-    // To ensure we keep hue slider when `srgba` is grey we store the
+    // To ensure we keep hue slider when `srgba` is gray we store the
     // full `Hsva` in a cache:
 
     let mut hsva = ui

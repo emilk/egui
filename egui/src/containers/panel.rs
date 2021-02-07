@@ -158,6 +158,7 @@ pub struct CentralPanel {
 }
 
 impl CentralPanel {
+    /// Change the background color, margins, etc.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self

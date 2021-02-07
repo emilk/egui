@@ -90,8 +90,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Usage: `Window::new(...).frame(|f| f.fill(Some(BLUE)))`
-    /// Not sure this is a good interface for this.
+    /// Change the background color, margins, etc.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -399,6 +398,7 @@ struct PossibleInteractions {
     resizable: bool,
 }
 
+/// Either a move or resize
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WindowInteraction {
     pub(crate) area_layer_id: LayerId,
@@ -486,6 +486,7 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
     Some(rect)
 }
 
+/// Returns `Some` if there is a move or resize
 fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,

@@ -70,7 +70,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Friendly: difficult to make mistakes, and shouldn't panic
 * Portable: the same code works on the web and as a native app
 * Easy to integrate into any environment
-* A simple 2D graphics API for custom painting
+* A simple 2D graphics API for custom painting ([`epaint`](https://docs.rs/epaint)).
 * No callbacks
 * Pure immediate mode
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)

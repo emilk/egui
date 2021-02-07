@@ -12,13 +12,13 @@ pub struct RawInput {
     /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
 
-    #[deprecated = "Use screen_rect instead: `Some(Rect::from_pos_size(Default::default(), vec2(window_width, window_height)))`"]
+    #[deprecated = "Use instead: `screen_rect: Some(Rect::from_pos_size(Default::default(), screen_size))`"]
     pub screen_size: Vec2,
 
     /// Position and size of the area that egui should use.
     /// Usually you would set this to
     ///
-    /// `Some(Rect::from_pos_size(Default::default(), vec2(window_width, window_height)))`.
+    /// `Some(Rect::from_pos_size(Default::default(), screen_size))`.
     ///
     /// but you could also constrain egui to some smaller portion of your window if you like.
     ///
