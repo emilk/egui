@@ -266,3 +266,68 @@ impl super::View for InputTest {
         ui.label(&self.info);
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+pub struct WindowResizeTest {}
+
+impl super::Demo for WindowResizeTest {
+    fn name(&self) -> &str {
+        "↔ Window Resize"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        use egui::*;
+
+        Window::new("↔ resizable")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                assert!(ui.enabled()); // TODO: remove
+                ui.label("scroll:    NO");
+                ui.label("resizable: YES");
+                ui.label(crate::LOREM_IPSUM);
+            });
+
+        Window::new("↔ resizable + embedded scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label("scroll:    NO");
+                ui.label("resizable: YES");
+                ui.heading("We have a sub-region with scroll bar:");
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.label(crate::LOREM_IPSUM_LONG);
+                    ui.label(crate::LOREM_IPSUM_LONG);
+                });
+                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+            });
+
+        Window::new("↔ resizable + scroll")
+            .open(open)
+            .scroll(true)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label("scroll:    YES");
+                ui.label("resizable: YES");
+                ui.label(crate::LOREM_IPSUM_LONG);
+            });
+
+        Window::new("↔ auto_sized")
+            .open(open)
+            .auto_sized()
+            .show(ctx, |ui| {
+                ui.label("This window will auto-size based on its contents.");
+                ui.heading("Resize this area:");
+                Resize::default().show(ui, |ui| {
+                    ui.label(crate::LOREM_IPSUM);
+                });
+                ui.heading("Resize the above area!");
+            });
+    }
+}

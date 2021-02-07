@@ -873,6 +873,11 @@ impl Context {
 
         ui.shrink_width_to_current(); // don't let the text below grow this window wider
         ui.label("NOTE: the position of this window cannot be reset from within itself.");
+
+        ui.collapsing("Interaction", |ui| {
+            let interaction = self.memory().interaction.clone();
+            interaction.ui(ui);
+        });
     }
 }
 

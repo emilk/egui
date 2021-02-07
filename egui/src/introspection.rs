@@ -142,3 +142,16 @@ impl Widget for &mut epaint::TessellationOptions {
         .response
     }
 }
+
+impl Widget for &memory::Interaction {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.vertical(|ui| {
+            ui.label(format!("click_id: {:?}", self.click_id));
+            ui.label(format!("drag_id: {:?}", self.drag_id));
+            ui.label(format!("drag_is_window: {:?}", self.drag_is_window));
+            ui.label(format!("click_interest: {:?}", self.click_interest));
+            ui.label(format!("drag_interest: {:?}", self.drag_interest));
+        })
+        .response
+    }
+}

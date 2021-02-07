@@ -17,7 +17,7 @@ impl Default for Enum {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Widgets {
-    button_enabled: bool,
+    group_enabled: bool,
     count: usize,
     radio: Enum,
     angle: f32,
@@ -30,7 +30,7 @@ pub struct Widgets {
 impl Default for Widgets {
     fn default() -> Self {
         Self {
-            button_enabled: true,
+            group_enabled: true,
             radio: Enum::First,
             count: 0,
             angle: std::f32::consts::TAU / 3.0,
@@ -78,6 +78,8 @@ impl Widgets {
             .on_hover_ui(tooltip_ui);
 
         ui.group(|ui| {
+            ui.checkbox(&mut self.group_enabled, "Group enabled");
+            ui.set_enabled(self.group_enabled);
             ui.horizontal(|ui| {
                 ui.radio_value(&mut self.radio, Enum::First, "First");
                 ui.radio_value(&mut self.radio, Enum::Second, "Second");
@@ -91,11 +93,9 @@ impl Widgets {
             });
         });
 
-        ui.checkbox(&mut self.button_enabled, "Button enabled");
-
         ui.horizontal(|ui| {
             if ui
-                .add(Button::new("Click me").enabled(self.button_enabled))
+                .button("Click me")
                 .on_hover_text("This will just increase a counter.")
                 .clicked()
             {

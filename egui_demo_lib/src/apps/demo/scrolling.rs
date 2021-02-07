@@ -2,6 +2,7 @@ use egui::{color::*, *};
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
+#[derive(PartialEq)]
 pub struct Scrolling {
     track_item: usize,
     tack_item_align: Align,
@@ -36,14 +37,6 @@ impl super::Demo for Scrolling {
 
 impl super::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
-        ScrollArea::from_max_height(200.0)
-            .id_source("lorem_ipsum_scroll_area")
-            .show(ui, |ui| {
-                ui.label(crate::LOREM_IPSUM_LONG);
-                ui.label(crate::LOREM_IPSUM_LONG);
-            });
-
-        ui.separator();
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 
         let mut track_item = false;
@@ -88,6 +81,7 @@ impl super::View for Scrolling {
             scroll_area = scroll_area.scroll_offset(self.offset);
         }
 
+        ui.separator();
         let (current_scroll, max_scroll) = scroll_area.show(ui, |ui| {
             if scroll_top {
                 ui.scroll_to_cursor(Align::TOP);
@@ -95,10 +89,11 @@ impl super::View for Scrolling {
             ui.vertical(|ui| {
                 for item in 1..=50 {
                     if track_item && item == self.track_item {
-                        let response = ui.colored_label(Color32::YELLOW, format!("Item {}", item));
+                        let response =
+                            ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
                         response.scroll_to_me(self.tack_item_align);
                     } else {
-                        ui.label(format!("Item {}", item));
+                        ui.label(format!("This is item {}", item));
                     }
                 }
             });
@@ -113,10 +108,17 @@ impl super::View for Scrolling {
             let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
             (current_scroll, max_scroll)
         });
+        ui.separator();
 
-        ui.colored_label(
-            Color32::WHITE,
-            format!("{:.0}/{:.0} px", current_scroll, max_scroll),
-        );
+        ui.label(format!(
+            "Scroll offset: {:.0}/{:.0} px",
+            current_scroll, max_scroll
+        ));
+
+        ui.separator();
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

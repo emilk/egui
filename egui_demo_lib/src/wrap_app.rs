@@ -51,7 +51,15 @@ impl epi::App for WrapApp {
     }
 
     fn warm_up_enabled(&self) -> bool {
-        true // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open.
+        // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
+        #[cfg(debug_assertions)]
+        {
+            false // debug
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            true // release
+        }
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {

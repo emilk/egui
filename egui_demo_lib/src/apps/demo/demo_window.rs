@@ -26,8 +26,21 @@ impl Default for DemoWindow {
     }
 }
 
-impl DemoWindow {
-    pub fn ui(&mut self, ui: &mut Ui) {
+impl Demo for DemoWindow {
+    fn name(&self) -> &str {
+        "✨ Misc Demos"
+    }
+
+    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+        Window::new(self.name())
+            .open(open)
+            .scroll(true)
+            .show(ctx, |ui| self.ui(ui));
+    }
+}
+
+impl View for DemoWindow {
+    fn ui(&mut self, ui: &mut Ui) {
         CollapsingHeader::new("Widgets")
             .default_open(true)
             .show(ui, |ui| {

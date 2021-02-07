@@ -138,6 +138,9 @@ impl super::View for Sliders {
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
         ui.advance_cursor(8.0);
 
-        egui::reset_button(ui, self);
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

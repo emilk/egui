@@ -63,8 +63,6 @@ impl super::Demo for WindowOptions {
 
 impl super::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::reset_button(ui, self);
-
         let Self {
             title,
             title_bar,
@@ -84,12 +82,14 @@ impl super::View for WindowOptions {
         ui.checkbox(collapsible, "collapsible");
         ui.checkbox(resizable, "resizable");
         ui.checkbox(scroll, "scroll");
-        ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file!());
-        });
 
         if ui.button("Disable for 2 seconds").clicked() {
             *disabled_time = ui.input().time;
         }
+
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }

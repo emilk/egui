@@ -20,7 +20,7 @@ epi = { version = "0.8.0", path = "../epi" }
 
 # feature "http":
 image = { version = "0.23", default_features = false, features = ["jpeg", "png"], optional = true }
-syntect = { version = "4", default_features = false, features = ["default-fancy"], optional = true }
+syntect = { version = "4", default_features = false, features = ["default-fancy"], optional = true } # optional syntax highlighting
 
 # feature "persistence":
 serde = { version = "1", features = ["derive"], optional = true }
