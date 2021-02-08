@@ -1,5 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
+use egui_demo_lib::LOREM_IPSUM_LONG;
+
 pub fn criterion_benchmark(c: &mut Criterion) {
     let raw_input = egui::RawInput::default();
 
@@ -47,11 +49,44 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("label", |b| {
                 b.iter(|| {
-                    ui.label(egui_demo_lib::LOREM_IPSUM_LONG);
+                    ui.label(LOREM_IPSUM_LONG);
                 })
             });
         });
         let _ = ctx.end_frame();
+    }
+
+    {
+        let pixels_per_point = 1.0;
+        let wrap_width = 512.0;
+        let text_style = egui::TextStyle::Body;
+        let fonts = egui::paint::text::Fonts::from_definitions(
+            pixels_per_point,
+            egui::FontDefinitions::default(),
+        );
+        let font = &fonts[text_style];
+        c.bench_function("text layout", |b| {
+            b.iter(|| font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width))
+        });
+
+        let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
+        let mut tesselator = egui::paint::Tessellator::from_options(Default::default());
+        let mut mesh = egui::paint::Mesh::default();
+        c.bench_function("tesselate text", |b| {
+            b.iter(|| {
+                let fake_italics = false;
+                tesselator.tessellate_text(
+                    &fonts,
+                    egui::Pos2::ZERO,
+                    &galley,
+                    text_style,
+                    egui::Color32::WHITE,
+                    fake_italics,
+                    &mut mesh,
+                );
+                mesh.clear();
+            })
+        });
     }
 }
 

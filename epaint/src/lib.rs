@@ -63,7 +63,7 @@ pub use {
     shape::Shape,
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::TessellationOptions,
+    tessellator::{TessellationOptions, Tessellator},
     text::{Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
 };

@@ -218,8 +218,8 @@ impl Font {
     /// `\n` will (intentionally) show up as the replacement character.
     fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
         {
-            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
-                return *glyph_info;
+            if let Some(font_index_glyph_info) = self.glyph_info_cache.read().get(&c) {
+                return *font_index_glyph_info;
             }
         }
 

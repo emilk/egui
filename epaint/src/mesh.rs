@@ -45,6 +45,13 @@ impl Mesh {
         }
     }
 
+    /// Restore to default state, but without freeing memory.
+    pub fn clear(&mut self) {
+        self.indices.clear();
+        self.vertices.clear();
+        self.vertices = Default::default();
+    }
+
     pub fn bytes_used(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.vertices.len() * std::mem::size_of::<Vertex>()
