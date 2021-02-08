@@ -172,9 +172,6 @@ impl Default for FontDefinitions {
 }
 
 /// The collection of fonts used by `epaint`.
-///
-/// Note: `Fonts::default()` is invalid (missing `pixels_per_point`).
-#[derive(Default)]
 pub struct Fonts {
     pixels_per_point: f32,
     definitions: FontDefinitions,
