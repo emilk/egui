@@ -24,6 +24,7 @@ Sections:
 * [State / features](#state)
 * [How it works](#how-it-works)
 * [Integrations](#integrations)
+* [Why immediate mode](#why-immediate-mode)
 * [Other](#other)
 
 ## Quick start
@@ -213,6 +214,57 @@ For a reference OpenGL backend, see [the `egui_glium` painter](https://github.co
 * Decode the gamma of the incoming vertex colors in your vertex shader.
 * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
   * Otherwise: gamma-encode the colors before you write them again.
+
+
+## Why immediate mode
+
+`egui` is an [immediate mode GUI library](https://en.wikipedia.org/wiki/Immediate_mode_GUI), as opposed to a *retained mode* GUI library. The difference between retained mode and immediate mode is best illustrated with the example of a button: In a retained GUI you create a button, add it to some UI and install some on-click handler (callback). The button is retained in the UI, and to change the text on it you need to store some sort of reference to it. By contrast, in immediate mode you show the button and interact with it immediately, and you do so every frame (e.g. 60 times per second). This means there is no need for any on-click handler, nor to store any reference to it. In `egui` this looks like this: `if ui.button("Save file").clicked() { save(file); }`.
+
+There are advantages and disadvantages to both systems.
+
+The short of it is this: immediate mode GUI libraries are easier to use, but less powerful.
+
+### Advantaged of immediate mode
+#### Usability
+The main advantage of immediate mode is that the application code becomes vastly simpler:
+
+* You never need to have any on-click handlers and callbacks that disrupts your code flow.
+* You don't have to worry about a linger callback calling something that is gone.
+* Your GUI code can easily live in a simple function (no need for an object just for the UI).
+* You don't have to worry about app state and GUI state being out-of-sync (i.e. the GUI showing something outdated), because the GUI isn't storing any state - it is showing the latest state *immediately*.
+
+In other words, a whole lot of code, complexity and bugs are gone, and you can focus your time on something more interesting than writing GUI code.
+
+### Disadvantages of immediate mode
+
+#### Layout
+The main disadvantage of immediate mode is it makes layout more difficult. Say you want to show a small dialog window in the center of the screen. To position the window correctly the GUI library must first know the size of it. To know the size of the window the GUI library must first layout the contents of the window. In retained mode this is easy: the GUI library does the window layout, positions the window, then checks for interaction ("was the OK button clicked?").
+
+In immediate mode you run into a paradox: to know the size of the window, we must do the layout, but the layout code also checks for interaction ("was the OK button clicked?") and so it needs to know the window position *before* showing the window contents. This means we must decide where to show the window *before* we know its size!
+
+This is a fundamental shortcoming of immediate mode GUIs, and any attempt to resolve it comes with its own downsides.
+
+One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occational flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
+
+You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
+
+For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so centering buttons, labels etc is possible in `egui` without any special workarounds.
+
+#### CPU usage
+Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be layed out each frame.
+
+If you design the GUI with this in mind and refrain from huge scroll areas then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
+
+If your GUI is highly interactive, then immediate mode may actually be more performant compared to retained mode. Go to any web page and resize the browser window, and you'll notice that the browser is very slow to do the layout and eats a lot of CPU doing it. Resize a window in `egui` by contrast, and you'll get smooth 60 FPS for no extra CPU cost.
+
+
+#### IDs
+There are some GUI state that you want the GUI library to retain, even in an immediate mode library such as `egui`. This includes position and sizes of windows and how far the user has scrolled in some UI. In these cases you need to provide `egui` with a seed of a unique identifier (unique within the parent UI). For instance: by default `egui` uses the window titles as unique IDs to store window positions. If you want two windows with the same name (or one window with a dynamic name) you must provide some other ID source to `egui` (some unique integer or string).
+
+`egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
+
+Overall, ID handling is a rare invonvenience, and not a big disadvantage.
+
 
 ## Other
 
