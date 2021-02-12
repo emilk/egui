@@ -33,6 +33,10 @@ struct SliderSpec {
     /// For logarithmic sliders, the smallest positive value we are interested in.
     /// 1 for integer sliders, maybe 1e-6 for others.
     smallest_positive: f64,
+    /// For logarithmic sliders, the largest positive value we are interested in
+    /// before the slider switches to `INFINITY`, if that is the higher end.
+    /// Default: INFINITY.
+    largest_finite: f64,
 }
 
 /// Control a number by a horizontal slider.
@@ -68,6 +72,7 @@ impl<'a> Slider<'a> {
             spec: SliderSpec {
                 logarithmic: false,
                 smallest_positive: 1e-6,
+                largest_finite: f64::INFINITY,
             },
             clamp_to_range: false,
             smart_aim: true,
@@ -161,6 +166,14 @@ impl<'a> Slider<'a> {
     /// The default is `1` for integer sliders and `1e-6` for real sliders.
     pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
         self.spec.smallest_positive = smallest_positive;
+        self
+    }
+
+    /// For logarithmic sliders, the largest positive value we are interested in
+    /// before the slider switches to `INFINITY`, if that is the higher end.
+    /// Default: INFINITY.
+    pub fn largest_finite(mut self, largest_finite: f64) -> Self {
+        self.spec.largest_finite = largest_finite;
         self
     }
 
@@ -545,7 +558,11 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
             (max.log10() - INF_RANGE_MAGNITUDE, max.log10())
         }
     } else if max == INFINITY {
-        (min.log10(), min.log10() + INF_RANGE_MAGNITUDE)
+        if min < spec.largest_finite {
+            (min.log10(), spec.largest_finite.log10())
+        } else {
+            (min.log10(), min.log10() + INF_RANGE_MAGNITUDE)
+        }
     } else {
         (min.log10(), max.log10())
     }
