@@ -97,6 +97,12 @@ pub trait App {
         true
     }
 
+    /// The size limit of the web app canvas
+    fn max_size_points(&self) -> egui::Vec2 {
+        // Some browsers get slow with huge WebGL canvases, so we limit the size:
+        egui::Vec2::new(1024.0, 2048.0)
+    }
+
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.
     /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> egui::Rgba {

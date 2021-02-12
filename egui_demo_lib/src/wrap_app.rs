@@ -50,6 +50,10 @@ impl epi::App for WrapApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
+    fn max_size_points(&self) -> egui::Vec2 {
+        self.backend_panel.max_size_points_active
+    }
+
     fn warm_up_enabled(&self) -> bool {
         // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
         #[cfg(debug_assertions)]
@@ -194,7 +198,6 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 struct BackendPanel {
@@ -207,8 +210,25 @@ struct BackendPanel {
     /// current slider value for current gui scale
     pixels_per_point: Option<f32>,
 
+    /// maximum size of the web browser canvas
+    max_size_points_ui: egui::Vec2,
+    max_size_points_active: egui::Vec2,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
+}
+
+impl Default for BackendPanel {
+    fn default() -> Self {
+        Self {
+            open: false,
+            run_mode: Default::default(),
+            pixels_per_point: Default::default(),
+            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
+            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
+            frame_history: Default::default(),
+        }
+    }
 }
 
 impl BackendPanel {
@@ -251,6 +271,19 @@ impl BackendPanel {
                 ui.label("Project home page:");
                 ui.hyperlink("https://github.com/emilk/egui");
             });
+
+            ui.separator();
+
+            ui.add(
+                egui::Slider::f32(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                    .logarithmic(true)
+                    .largest_finite(8192.0)
+                    .text("Max width"),
+            )
+            .on_hover_text("Maximum width of the egui region of the web page.");
+            if !ui.ctx().is_using_pointer() {
+                self.max_size_points_active = self.max_size_points_ui;
+            }
         } else {
             if ui
                 .button("📱 Phone Size")

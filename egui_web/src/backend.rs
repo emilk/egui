@@ -191,7 +191,7 @@ impl AppRunner {
     }
 
     pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
-        resize_canvas_to_screen_size(self.web_backend.canvas_id());
+        resize_canvas_to_screen_size(self.web_backend.canvas_id(), self.app.max_size_points());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
