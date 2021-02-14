@@ -8,7 +8,7 @@ use crate::*;
 /// emath represents positions using [`Pos2`].
 ///
 /// Normally the units are points (logical pixels).
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
     pub x: f32,
@@ -186,11 +186,27 @@ impl Vec2 {
     }
 }
 
-impl PartialEq for Vec2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+impl std::ops::Index<usize> for Vec2 {
+    type Output = f32;
+    fn index(&self, index: usize) -> &f32 {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Vec2 index out of bounds: {}", index),
+        }
     }
 }
+
+impl std::ops::IndexMut<usize> for Vec2 {
+    fn index_mut(&mut self, index: usize) -> &mut f32 {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Vec2 index out of bounds: {}", index),
+        }
+    }
+}
+
 impl Eq for Vec2 {}
 
 impl Neg for Vec2 {
@@ -235,6 +251,28 @@ impl Sub for Vec2 {
         Vec2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
+        }
+    }
+}
+
+/// Element-wise multiplication
+impl Mul<Vec2> for Vec2 {
+    type Output = Vec2;
+    fn mul(self, vec: Vec2) -> Vec2 {
+        Vec2 {
+            x: self.x * vec.x,
+            y: self.y * vec.y,
+        }
+    }
+}
+
+/// Element-wise division
+impl Div<Vec2> for Vec2 {
+    type Output = Vec2;
+    fn div(self, rhs: Vec2) -> Vec2 {
+        Vec2 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
         }
     }
 }

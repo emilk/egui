@@ -26,6 +26,11 @@ impl RectTransform {
         &self.to
     }
 
+    /// The scale factors.
+    pub fn scale(&self) -> Vec2 {
+        self.to.size() / self.from.size()
+    }
+
     pub fn inverse(&self) -> RectTransform {
         Self::from_to(self.to, self.from)
     }

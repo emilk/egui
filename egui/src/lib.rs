@@ -51,8 +51,32 @@
 //!         /* take some action here */
 //!     }
 //! });
+//! ```
 //!
 //!
+//! # Code snippets
+//!
+//! ```
+//! # let ui = &mut egui::Ui::__test();
+//! # let mut some_bool = true;
+//! // Some examples, tips and tricks, etc.
+//!
+//! ui.checkbox(&mut some_bool, "Click to toggle");
+//!
+//! ui.horizontal(|ui|{
+//!     // `radio_value` also works for enums, integers, and more.
+//!     ui.radio_value(&mut some_bool, false, "Off");
+//!     ui.radio_value(&mut some_bool, true, "On");
+//! });
+//!
+//! if ui.button("Click me!").clicked() { }
+//!
+//! // Change test color on subsequent widgets:
+//! ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+//!
+//! // Turn off text wrapping on subsequent widgets:
+//! ui.style_mut().wrap = Some(false);
+//! ```
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![forbid(unsafe_code)]

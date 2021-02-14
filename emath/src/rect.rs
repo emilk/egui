@@ -180,6 +180,18 @@ impl Rect {
         self.max = self.max.max(p);
     }
 
+    /// Expand to include the given x coordinate
+    pub fn extend_with_x(&mut self, x: f32) {
+        self.min.x = self.min.x.min(x);
+        self.max.x = self.max.x.max(x);
+    }
+
+    /// Expand to include the given y coordinate
+    pub fn extend_with_y(&mut self, y: f32) {
+        self.min.y = self.min.y.min(y);
+        self.max.y = self.max.y.max(y);
+    }
+
     pub fn union(self, other: Rect) -> Rect {
         Rect {
             min: self.min.min(other.min),

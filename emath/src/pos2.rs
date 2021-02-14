@@ -8,7 +8,7 @@ use crate::*;
 ///
 /// Mathematically this is known as a "point", but the term position was chosen so not to
 /// conflict with the unit (one point = X physical pixels).
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
     pub x: f32,
@@ -145,11 +145,27 @@ impl Pos2 {
     }
 }
 
-impl PartialEq for Pos2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+impl std::ops::Index<usize> for Pos2 {
+    type Output = f32;
+    fn index(&self, index: usize) -> &f32 {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Pos2 index out of bounds: {}", index),
+        }
     }
 }
+
+impl std::ops::IndexMut<usize> for Pos2 {
+    fn index_mut(&mut self, index: usize) -> &mut f32 {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Pos2 index out of bounds: {}", index),
+        }
+    }
+}
+
 impl Eq for Pos2 {}
 
 impl AddAssign<Vec2> for Pos2 {
