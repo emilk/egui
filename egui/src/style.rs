@@ -2,12 +2,8 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{
-    color::*,
-    emath::*,
-    paint::{Shadow, Stroke, TextStyle},
-    Response,
-};
+use crate::{color::*, emath::*, Response};
+use epaint::{Shadow, Stroke, TextStyle};
 
 /// Specifies the look and feel of a [`Ui`].
 #[derive(Clone, Debug, PartialEq)]

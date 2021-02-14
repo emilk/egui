@@ -1,6 +1,7 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::{paint::*, widgets::*, *};
+use crate::{widgets::*, *};
+use epaint::*;
 
 use super::*;
 
@@ -611,7 +612,7 @@ fn paint_frame_interaction(
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,
 ) {
-    use paint::tessellator::path::add_circle_quadrant;
+    use epaint::tessellator::path::add_circle_quadrant;
 
     let cr = ui.visuals().window_corner_radius;
     let Rect { min, max } = rect;

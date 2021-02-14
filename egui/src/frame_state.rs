@@ -1,4 +1,5 @@
-use crate::{paint::ahash, *};
+use crate::*;
+use epaint::ahash;
 
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.

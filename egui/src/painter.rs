@@ -1,11 +1,11 @@
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, ShapeIdx},
-    paint::{
-        text::{Fonts, Galley, TextStyle},
-        Shape, Stroke,
-    },
     Color32, CtxRef,
+};
+use epaint::{
+    text::{Fonts, Galley, TextStyle},
+    Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.

@@ -12,9 +12,9 @@ use crate::{
     input_state::*,
     layers::GraphicLayers,
     mutex::{Mutex, MutexGuard},
-    paint::{stats::*, text::Fonts, *},
     *,
 };
+use epaint::{stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
@@ -383,7 +383,7 @@ impl Context {
     /// The egui texture, containing font characters etc.
     /// Not valid until first call to [`CtxRef::begin_frame()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn texture(&self) -> Arc<paint::Texture> {
+    pub fn texture(&self) -> Arc<epaint::Texture> {
         self.fonts().texture()
     }
 

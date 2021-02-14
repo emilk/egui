@@ -60,7 +60,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let pixels_per_point = 1.0;
         let wrap_width = 512.0;
         let text_style = egui::TextStyle::Body;
-        let fonts = egui::paint::text::Fonts::from_definitions(
+        let fonts = egui::epaint::text::Fonts::from_definitions(
             pixels_per_point,
             egui::FontDefinitions::default(),
         );
@@ -70,8 +70,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
 
         let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
-        let mut tesselator = egui::paint::Tessellator::from_options(Default::default());
-        let mut mesh = egui::paint::Mesh::default();
+        let mut tesselator = egui::epaint::Tessellator::from_options(Default::default());
+        let mut mesh = egui::epaint::Mesh::default();
         c.bench_function("tesselate text", |b| {
             b.iter(|| {
                 let fake_italics = false;

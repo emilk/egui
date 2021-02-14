@@ -47,7 +47,7 @@ impl Image {
     }
 
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
-        use paint::*;
+        use epaint::*;
         let Self {
             texture_id,
             uv,

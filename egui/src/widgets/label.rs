@@ -1,4 +1,5 @@
-use crate::{paint::Galley, *};
+use crate::*;
+use epaint::Galley;
 
 /// Static text.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
@@ -135,7 +136,7 @@ impl Label {
         font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
     }
 
-    pub fn font_height(&self, fonts: &paint::text::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
         fonts[text_style].row_height()
     }

@@ -299,7 +299,7 @@ impl ColorTest {
 }
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
-    use egui::paint::*;
+    use egui::epaint::*;
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
         let mut mesh = Mesh::default();

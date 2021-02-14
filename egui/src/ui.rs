@@ -3,7 +3,7 @@
 use std::hash::Hash;
 
 use crate::{
-    color::*, containers::*, layout::*, mutex::MutexGuard, paint::text::Fonts, placer::Placer,
+    color::*, containers::*, epaint::text::Fonts, layout::*, mutex::MutexGuard, placer::Placer,
     widgets::*, *,
 };
 

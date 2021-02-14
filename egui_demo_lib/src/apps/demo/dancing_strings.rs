@@ -54,7 +54,7 @@ impl super::View for DancingStrings {
                     .collect();
 
                 let thickness = 10.0 / mode;
-                shapes.push(paint::Shape::line(
+                shapes.push(epaint::Shape::line(
                     points,
                     Stroke::new(thickness, Color32::from_additive_luminance(196)),
                 ));

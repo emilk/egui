@@ -328,7 +328,7 @@ impl Prepared {
 
             let visuals = ui.style().interact(&response);
 
-            ui.painter().add(paint::Shape::Rect {
+            ui.painter().add(epaint::Shape::Rect {
                 rect: outer_scroll_rect,
                 corner_radius,
                 fill: ui.visuals().extreme_bg_color,
@@ -337,7 +337,7 @@ impl Prepared {
                 // stroke: visuals.bg_stroke,
             });
 
-            ui.painter().add(paint::Shape::Rect {
+            ui.painter().add(epaint::Shape::Rect {
                 rect: handle_rect.expand(-2.0),
                 corner_radius,
                 fill: visuals.bg_fill,
