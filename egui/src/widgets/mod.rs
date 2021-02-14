@@ -14,6 +14,7 @@ mod drag_value;
 mod hyperlink;
 mod image;
 mod label;
+pub mod plot;
 mod selected_label;
 mod separator;
 mod slider;

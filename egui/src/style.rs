@@ -16,6 +16,10 @@ pub struct Style {
     /// If set, labels buttons wtc will use this to determine whether or not
     /// to wrap the text at the right edge of the `Ui` they are in.
     /// By default this is `None`.
+    ///
+    /// * `None`: follow layout
+    /// * `Some(true)`: default on
+    /// * `Some(false)`: default off
     pub wrap: Option<bool>,
 
     pub spacing: Spacing,

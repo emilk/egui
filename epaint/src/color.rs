@@ -124,6 +124,12 @@ impl Color32 {
         Rgba::from(self).to_opaque().into()
     }
 
+    /// Returns an additive version of self
+    pub fn additive(self) -> Self {
+        let [r, g, b, _] = self.to_array();
+        Self([r, g, b, 0])
+    }
+
     /// Premultiplied RGBA
     pub fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]

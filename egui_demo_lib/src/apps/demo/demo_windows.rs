@@ -18,6 +18,7 @@ impl Default for Demos {
             Box::new(super::font_book::FontBook::default()),
             Box::new(super::DemoWindow::default()),
             Box::new(super::painting::Painting::default()),
+            Box::new(super::plot_demo::PlotDemo::default()),
             Box::new(super::scrolling::Scrolling::default()),
             Box::new(super::sliders::Sliders::default()),
             Box::new(super::widget_gallery::WidgetGallery::default()),
