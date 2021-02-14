@@ -1,7 +1,7 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
 use {
-    egui::{math::clamp, paint::Mesh, Color32, Rect},
+    egui::{emath::clamp, paint::Mesh, Color32, Rect},
     glium::{
         implement_vertex,
         index::PrimitiveType,

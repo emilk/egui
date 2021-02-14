@@ -4,7 +4,7 @@
 
 use crate::{
     color::*,
-    math::*,
+    emath::*,
     paint::{Shadow, Stroke, TextStyle},
     Response,
 };

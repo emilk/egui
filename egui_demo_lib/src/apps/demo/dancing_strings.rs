@@ -35,7 +35,7 @@ impl super::View for DancingStrings {
             let (_id, rect) = ui.allocate_space(desired_size);
 
             let to_screen =
-                math::RectTransform::from_to(Rect::from_x_y_ranges(0.0..=1.0, -1.0..=1.0), rect);
+                emath::RectTransform::from_to(Rect::from_x_y_ranges(0.0..=1.0, -1.0..=1.0), rect);
 
             let mut shapes = vec![];
 

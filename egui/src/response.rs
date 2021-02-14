@@ -1,5 +1,5 @@
 use crate::{
-    math::{lerp, Align, Pos2, Rect},
+    emath::{lerp, Align, Pos2, Rect},
     PointerButton, NUM_POINTER_BUTTONS,
 };
 use crate::{CtxRef, Id, LayerId, Sense, Ui};

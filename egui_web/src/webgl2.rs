@@ -7,7 +7,7 @@ use {
 };
 
 use egui::{
-    math::clamp,
+    emath::clamp,
     paint::{Color32, Texture},
     vec2,
 };

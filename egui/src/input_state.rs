@@ -1,7 +1,6 @@
-use crate::{math::*, util::History};
-use std::collections::HashSet;
-
 use crate::data::input::*;
+use crate::{emath::*, util::History};
+use std::collections::HashSet;
 
 pub use crate::data::input::Key;
 

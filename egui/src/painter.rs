@@ -1,6 +1,6 @@
 use crate::{
+    emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, ShapeIdx},
-    math::{Align2, Pos2, Rect, Vec2},
     paint::{
         text::{Fonts, Galley, TextStyle},
         Shape, Stroke,
@@ -264,7 +264,7 @@ impl Painter {
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: Stroke) {
-        use crate::math::*;
+        use crate::emath::*;
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;

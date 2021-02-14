@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{math::Rect, Id, *};
+use crate::{Id, *};
 use epaint::ahash::AHashMap;
 use epaint::{ClippedShape, Shape};
 

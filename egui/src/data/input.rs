@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::math::*;
+use crate::emath::*;
 
 /// What the integrations provides to egui at the start of each frame.
 ///
