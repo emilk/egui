@@ -202,6 +202,29 @@ impl Rect {
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
     }
+
+    /// Width / height
+    ///
+    /// * `aspect_ratio < 1`: portrait / high
+    /// * `aspect_ratio = 1`: square
+    /// * `aspect_ratio > 1`: landscape / wide
+    pub fn aspect_ratio(&self) -> f32 {
+        self.width() / self.height()
+    }
+
+    /// `[2, 1]` for wide screen, and `[1, 2]` for portrait, etc.
+    /// At least one dimension = 1, the other >= 1
+    /// Returns the proportions required to letter-box a square view area.
+    pub fn square_proportions(&self) -> Vec2 {
+        let w = self.width();
+        let h = self.height();
+        if w > h {
+            vec2(w / h, 1.0)
+        } else {
+            vec2(1.0, h / w)
+        }
+    }
+
     pub fn area(&self) -> f32 {
         self.width() * self.height()
     }

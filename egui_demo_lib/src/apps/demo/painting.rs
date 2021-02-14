@@ -3,7 +3,8 @@ use egui::*;
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Painting {
-    lines: Vec<Vec<Vec2>>,
+    /// in 0-1 normalized coordinates
+    lines: Vec<Vec<Pos2>>,
     stroke: Stroke,
 }
 
@@ -32,6 +33,12 @@ impl Painting {
             ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::drag());
         let rect = response.rect;
 
+        let to_screen = emath::RectTransform::from_to(
+            Rect::from_min_size(Pos2::ZERO, rect.square_proportions()),
+            rect,
+        );
+        let from_screen = to_screen.inverse();
+
         if self.lines.is_empty() {
             self.lines.push(vec![]);
         }
@@ -39,7 +46,7 @@ impl Painting {
         let current_line = self.lines.last_mut().unwrap();
 
         if let Some(pointer_pos) = response.interact_pointer_pos() {
-            let canvas_pos = pointer_pos - rect.min;
+            let canvas_pos = from_screen * pointer_pos;
             if current_line.last() != Some(&canvas_pos) {
                 current_line.push(canvas_pos);
             }
@@ -49,7 +56,7 @@ impl Painting {
 
         for line in &self.lines {
             if line.len() >= 2 {
-                let points: Vec<Pos2> = line.iter().map(|p| rect.min + *p).collect();
+                let points: Vec<Pos2> = line.iter().map(|p| to_screen * *p).collect();
                 painter.add(Shape::line(points, self.stroke));
             }
         }

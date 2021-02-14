@@ -58,7 +58,6 @@ impl FrameHistory {
     fn graph(&mut self, ui: &mut egui::Ui) -> egui::Response {
         use egui::*;
 
-        let graph_top_cpu_usage = 0.010;
         ui.label("egui CPU usage history");
 
         let history = &self.frame_times;
@@ -69,12 +68,17 @@ impl FrameHistory {
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let style = ui.style().noninteractive();
 
-        let mut shapes = vec![Shape::Rect {
+        let graph_top_cpu_usage = 0.010;
+        let graph_rect = Rect::from_x_y_ranges(history.max_age()..=0.0, graph_top_cpu_usage..=0.0);
+        let to_screen = emath::RectTransform::from_to(graph_rect, rect);
+
+        let mut shapes = Vec::with_capacity(3 + 2 * history.len());
+        shapes.push(Shape::Rect {
             rect,
             corner_radius: style.corner_radius,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
-        }];
+        });
 
         let rect = rect.shrink(4.0);
         let color = ui.visuals().text_color();
@@ -87,7 +91,7 @@ impl FrameHistory {
                     [pos2(rect.left(), y), pos2(rect.right(), y)],
                     line_stroke,
                 ));
-                let cpu_usage = remap(y, rect.bottom_up_range(), 0.0..=graph_top_cpu_usage);
+                let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
                 let text = format!("{:.1} ms", 1e3 * cpu_usage);
                 shapes.push(Shape::text(
                     ui.fonts(),
@@ -106,16 +110,15 @@ impl FrameHistory {
 
         for (time, cpu_usage) in history.iter() {
             let age = (right_side_time - time) as f32;
-            let x = remap(age, history.max_age()..=0.0, rect.x_range());
-            let y = remap_clamp(cpu_usage, 0.0..=graph_top_cpu_usage, rect.bottom_up_range());
+            let pos = to_screen.transform_pos_clamped(Pos2::new(age, cpu_usage));
 
             shapes.push(Shape::line_segment(
-                [pos2(x, rect.bottom()), pos2(x, y)],
+                [pos2(pos.x, rect.bottom()), pos],
                 line_stroke,
             ));
 
             if cpu_usage < graph_top_cpu_usage {
-                shapes.push(Shape::circle_filled(pos2(x, y), radius, circle_color));
+                shapes.push(Shape::circle_filled(pos, radius, circle_color));
             }
         }
 

@@ -100,8 +100,6 @@ impl FractalClock {
     }
 
     fn paint(&mut self, painter: &Painter) {
-        let rect = painter.clip_rect();
-
         struct Hand {
             length: f32,
             angle: f32,
@@ -130,14 +128,18 @@ impl FractalClock {
             Hand::from_length_angle(0.5, angle_from_period(12.0 * 60.0 * 60.0)),
         ];
 
-        let scale = self.zoom * rect.width().min(rect.height());
         let mut shapes: Vec<Shape> = Vec::new();
-        let mut paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
-            let line = [
-                rect.center() + scale * points[0].to_vec2(),
-                rect.center() + scale * points[1].to_vec2(),
-            ];
 
+        let rect = painter.clip_rect();
+        let to_screen = emath::RectTransform::from_to(
+            Rect::from_center_size(Pos2::ZERO, rect.square_proportions() / self.zoom),
+            rect,
+        );
+
+        let mut paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
+            let line = [to_screen * points[0], to_screen * points[1]];
+
+            // culling
             if rect.intersects(Rect::from_two_pos(line[0], line[1])) {
                 shapes.push(Shape::line_segment(line, (width, color)));
             }
@@ -186,6 +188,9 @@ impl FractalClock {
             width *= self.width_factor;
 
             let luminance_u8 = (255.0 * luminance).round() as u8;
+            if luminance_u8 == 0 {
+                break;
+            }
 
             for &rotor in &hand_rotors {
                 for a in &nodes {

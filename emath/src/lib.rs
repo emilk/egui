@@ -60,6 +60,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 pub mod align;
 mod pos2;
 mod rect;
+mod rect_transform;
 mod rot2;
 pub mod smart_aim;
 mod vec2;
@@ -68,6 +69,7 @@ pub use {
     align::{Align, Align2},
     pos2::*,
     rect::*,
+    rect_transform::*,
     rot2::*,
     vec2::*,
 };
