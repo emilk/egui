@@ -111,13 +111,22 @@ impl Default for FontDefinitions {
             // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
 
             // Use size 13 for this. NOTHING ELSE:
+
             font_data.insert(
                 "ProggyClean".to_owned(),
                 std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
             );
+
             font_data.insert(
+
                 "Ubuntu-Light".to_owned(),
                 std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+            );
+
+
+            font_data.insert(
+                "NotoSansJP-Light-slim".to_owned(),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoSansJP-Light-slim.ttf")),
             );
 
             // Some good looking emojis. Use as first priority:
@@ -126,6 +135,7 @@ impl Default for FontDefinitions {
                 std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
             );
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+
             font_data.insert(
                 "emoji-icon-font".to_owned(),
                 std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
@@ -134,8 +144,9 @@ impl Default for FontDefinitions {
             fonts_for_family.insert(
                 FontFamily::Monospace,
                 vec![
-                    "ProggyClean".to_owned(),
+                   "ProggyClean".to_owned(),
                     "Ubuntu-Light".to_owned(), // fallback for √ etc
+                    "NotoSansJP-Light-slim".to_owned(),
                     "NotoEmoji-Regular".to_owned(),
                     "emoji-icon-font".to_owned(),
                 ],
@@ -144,6 +155,7 @@ impl Default for FontDefinitions {
                 FontFamily::Proportional,
                 vec![
                     "Ubuntu-Light".to_owned(),
+                    "NotoSansJP-Light-slim".to_owned(),
                     "NotoEmoji-Regular".to_owned(),
                     "emoji-icon-font".to_owned(),
                 ],
@@ -186,7 +198,10 @@ impl Fonts {
     pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
-        let mut atlas = TextureAtlas::new(2048, 64);
+        // first 2048 x 64
+        // but too small for cjk
+        //     16384 x 16384
+        let mut atlas = TextureAtlas::new(0x4000, 0x4000);
 
         {
             // Make the top left pixel fully white:

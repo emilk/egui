@@ -1,6 +1,7 @@
 pub struct FontBook {
     standard: bool,
     emojis: bool,
+    japanese:bool,
     filter: String,
     text_style: egui::TextStyle,
 }
@@ -9,7 +10,8 @@ impl Default for FontBook {
     fn default() -> Self {
         Self {
             standard: false,
-            emojis: true,
+            emojis: false,
+            japanese: false,
             filter: Default::default(),
             text_style: egui::TextStyle::Button,
         }
@@ -56,10 +58,11 @@ impl super::View for FontBook {
     fn ui(&mut self, ui: &mut egui::Ui) {
         use super::font_contents_emoji::FULL_EMOJI_LIST;
         use super::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
-
+        use super::font_contents_japanese::JAPANESE_FONT_LIST;
         ui.label(format!(
-            "egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
+            "egui supports {} standard characters {} cjk characters and {} emojis.\nClick on a character to copy it.",
             UBUNTU_FONT_CHARACTERS.len(),
+            JAPANESE_FONT_LIST.len(),
             FULL_EMOJI_LIST.len(),
         ));
 
@@ -74,7 +77,9 @@ impl super::View for FontBook {
         ui.horizontal(|ui| {
             ui.label("Show:");
             ui.checkbox(&mut self.standard, "Standard");
+            ui.checkbox(&mut self.japanese,"Japanese");
             ui.checkbox(&mut self.emojis, "Emojis");
+
         });
 
         ui.horizontal(|ui| {
@@ -97,6 +102,9 @@ impl super::View for FontBook {
                 }
                 if self.emojis {
                     self.characters_ui(ui, FULL_EMOJI_LIST);
+                }
+                if self.japanese{
+                    self.characters_ui(ui,JAPANESE_FONT_LIST);
                 }
             });
         });
