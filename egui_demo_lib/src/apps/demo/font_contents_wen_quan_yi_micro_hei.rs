@@ -34403,10 +34403,12 @@ pub const CJK_FONT_CHARACTERS: &[(u32, char, &str)] = &[
 (0xFA2B, '飼', "cjk compatibility ideograph-fa2b"),
 (0xFA2C, '館', "cjk compatibility ideograph-fa2c"),
 (0xFA2D, '鶴', "cjk compatibility ideograph-fa2d"),
+    /*
 (0xFB01, 'ﬁ', "latin small ligature fi"),
 (0xFB02, 'ﬂ', "latin small ligature fl"),
 (0xFB03, 'ﬃ', "latin small ligature ffi"),
 (0xFB04, 'ﬄ', "latin small ligature ffl"),
+     */
 (0xFE30, '︰', "presentation form for vertical two dot leader"),
 (0xFE31, '︱', "presentation form for vertical em dash"),
 (0xFE33, '︳', "presentation form for vertical low line"),

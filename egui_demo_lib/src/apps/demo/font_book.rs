@@ -1,7 +1,7 @@
 pub struct FontBook {
     standard: bool,
     emojis: bool,
-    japanese:bool,
+    cjk:bool,
     filter: String,
     text_style: egui::TextStyle,
 }
@@ -11,7 +11,7 @@ impl Default for FontBook {
         Self {
             standard: false,
             emojis: false,
-            japanese: false,
+            cjk: false,
             filter: Default::default(),
             text_style: egui::TextStyle::Button,
         }
@@ -67,7 +67,10 @@ impl super::View for FontBook {
         ));
 
         ui.separator();
-
+        ui.label("egui support cjk fonts but too large you may hit performance issue when you draw huge amount different character");
+        ui.label("i want to render some cjk text");
+        ui.label("on demo app you may need to clear memory from File");
+        ui.label("日本語　繁体中文　簡体中文　カタカナ　ひらがな");
         egui::combo_box_with_label(ui, "Text style", format!("{:?}", self.text_style), |ui| {
             for style in egui::TextStyle::all() {
                 ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
@@ -77,7 +80,7 @@ impl super::View for FontBook {
         ui.horizontal(|ui| {
             ui.label("Show:");
             ui.checkbox(&mut self.standard, "Standard");
-            ui.checkbox(&mut self.japanese,"Japanese");
+            ui.checkbox(&mut self.cjk, "CJK");
             ui.checkbox(&mut self.emojis, "Emojis");
 
         });
@@ -103,7 +106,7 @@ impl super::View for FontBook {
                 if self.emojis {
                     self.characters_ui(ui, FULL_EMOJI_LIST);
                 }
-                if self.japanese{
+                if self.cjk {
                     self.characters_ui(ui,CJK_FONT_CHARACTERS);
                 }
             });
