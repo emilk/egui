@@ -1,7 +1,6 @@
 //! Frame container
 
-use crate::{layers::ShapeIdx, *};
-use epaint::*;
+use crate::{layers::ShapeIdx, paint::*, *};
 
 /// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

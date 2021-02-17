@@ -7,8 +7,9 @@ use {
 };
 
 use egui::{
-    emath::{clamp, vec2},
-    epaint::{Color32, Texture},
+    emath::clamp,
+    paint::{Color32, Texture},
+    vec2,
 };
 
 type Gl = WebGl2RenderingContext;
@@ -252,7 +253,7 @@ impl WebGl2Painter {
         }
     }
 
-    fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
+    fn paint_mesh(&self, mesh: &egui::paint::Mesh16) -> Result<(), JsValue> {
         debug_assert!(mesh.is_valid());
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());

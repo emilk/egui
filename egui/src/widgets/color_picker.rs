@@ -1,7 +1,9 @@
 //! Color picker widgets.
 
-use crate::*;
-use epaint::{color::*, *};
+use crate::{
+    paint::{color::*, *},
+    *,
+};
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {

@@ -15,8 +15,7 @@
 //! }
 //! ```
 
-use crate::{widgets::*, *};
-use epaint::Stroke;
+use crate::{paint::Stroke, widgets::*, *};
 
 /// What is saved between frames.
 #[derive(Clone, Copy, Debug, Default)]

@@ -1,7 +1,10 @@
 use std::hash::Hash;
 
-use crate::{widgets::Label, *};
-use epaint::{Shape, TextStyle};
+use crate::{
+    paint::{Shape, TextStyle},
+    widgets::Label,
+    *,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]

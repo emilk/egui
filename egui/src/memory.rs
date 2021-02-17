@@ -1,10 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
-    Id, LayerId, Pos2, Rect, Style,
+    area, collapsing_header, menu,
+    paint::color::{Color32, Hsva},
+    resize, scroll_area,
+    util::Cache,
+    widgets::text_edit,
+    window, Id, LayerId, Pos2, Rect, Style,
 };
-use epaint::color::{Color32, Hsva};
 
 // ----------------------------------------------------------------------------
 
@@ -65,9 +68,9 @@ pub(crate) struct Options {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
-    pub(crate) tessellation_options: epaint::TessellationOptions,
+    pub(crate) tessellation_options: crate::paint::TessellationOptions,
     /// Font sizes etc.
-    pub(crate) font_definitions: epaint::text::FontDefinitions,
+    pub(crate) font_definitions: crate::paint::text::FontDefinitions,
 }
 
 // ----------------------------------------------------------------------------

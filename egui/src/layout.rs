@@ -538,7 +538,7 @@ impl Layout {
         stroke: epaint::Stroke,
         painter: &crate::Painter,
     ) {
-        use epaint::*;
+        use crate::paint::*;
 
         let cursor = region.cursor;
 

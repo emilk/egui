@@ -121,14 +121,11 @@ mod ui;
 pub mod util;
 pub mod widgets;
 
-pub use epaint;
+pub use epaint as paint;
 pub use epaint::emath;
 
 // Can't add deprecation notice due to https://github.com/rust-lang/rust/issues/30827
-pub use epaint as paint; // historical reasons
-
-// Can't add deprecation notice due to https://github.com/rust-lang/rust/issues/30827
-pub use emath as math; // historical reasons
+pub use emath as math;
 
 pub use emath::{
     clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2,

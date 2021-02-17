@@ -1,5 +1,4 @@
-use crate::{style::WidgetVisuals, *};
-use epaint::Shape;
+use crate::{paint::Shape, style::WidgetVisuals, *};
 
 /// A drop-down selection menu with a descriptive label.
 ///
