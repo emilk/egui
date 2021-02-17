@@ -58,11 +58,11 @@ impl super::View for FontBook {
     fn ui(&mut self, ui: &mut egui::Ui) {
         use super::font_contents_emoji::FULL_EMOJI_LIST;
         use super::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
-        use super::font_contents_japanese::JAPANESE_FONT_LIST;
+        use super::font_contents_wen_quan_yi_micro_hei::CJK_FONT_CHARACTERS;
         ui.label(format!(
             "egui supports {} standard characters {} cjk characters and {} emojis.\nClick on a character to copy it.",
             UBUNTU_FONT_CHARACTERS.len(),
-            JAPANESE_FONT_LIST.len(),
+            CJK_FONT_CHARACTERS.len(),
             FULL_EMOJI_LIST.len(),
         ));
 
@@ -104,7 +104,7 @@ impl super::View for FontBook {
                     self.characters_ui(ui, FULL_EMOJI_LIST);
                 }
                 if self.japanese{
-                    self.characters_ui(ui,JAPANESE_FONT_LIST);
+                    self.characters_ui(ui,CJK_FONT_CHARACTERS);
                 }
             });
         });

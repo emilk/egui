@@ -1,0 +1,38 @@
+
+==========================================================
+
+                 Wen Quan Yi Micro Hei
+
+                     ChangeLog
+
+----------------------------------------------------------
+
+WenQuanYi Micro Hei ChangeLog:
+
+== WenQuanYi Micro Hei 0.2 (BigBang), FangQ <fangq nmr mgh harvard edu> ==
+
+ 2009/05/25  Updated contributor list in the NB and announced beta release
+ 2009/05/18  fixed hinting instr for M/N in MicroHeiMono by copying cvt table (F
+angQ)
+ 2009/05/16  added Micro Hei Mono by merging with Droid Sans Mono (FangQ)
+ 2009/05/15  rename uni00B9 to onesuperior to match the it in DroidSans (FangQ)
+ 2009/05/10  updated documentations (FangQ)
+ 2009/05/09  scale MicroHei to EM=2048 before merging to Droid Sans, keep
+             all hinting and kerning info. (FangQ)
+ 2009/04/12  imported Chinese punctuations from UmeGothic (FangQ)
+ 2009/02/08  all characters in U4E00~U9FC3 were complete (review panel, wanghong
+)
+ 2009/01/16  Micro Hei nightly-build became active (FangQ)
+ 2009/01/15  GBK glyph review process started (FangQ)
+ 2009/01/03  Fontopia supported sub-contour editing (FangQ)
+ 2008/12/31  GBK char-set completed 90%, CJK Ext. A became online
+ 2008/12/29  project publicly announcement (FangQ)
+ 2008/12/09  Droid Font license confirmed (Apache2 as committed in git)
+ 2008/12/03  add theme and rename as Fontopia (FangQ)
+ 2008/11/23  Droid extension GUI milestone reached (mozbug, FangQ)
+ 2008/11/07  initial upload of BezierGlyph/Bezier_lib.js script (mozbug)
+ 2008/11/06  code point and script preparation (mozbug)
+ 2008/10/21  project conceptualized (FangQ)
+
+
+

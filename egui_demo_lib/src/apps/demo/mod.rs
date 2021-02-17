@@ -12,7 +12,7 @@ pub mod drag_and_drop;
 pub mod font_book;
 pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
-pub mod font_contents_japanese;
+pub mod font_contents_wen_quan_yi_micro_hei;
 pub mod layout_test;
 pub mod painting;
 pub mod scrolling;
@@ -22,6 +22,7 @@ pub mod toggle_switch;
 pub mod widget_gallery;
 mod widgets;
 pub mod window_options;
+
 
 
 pub use {app::*, demo_window::DemoWindow, demo_windows::*, widgets::Widgets};
