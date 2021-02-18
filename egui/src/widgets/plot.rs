@@ -2,6 +2,8 @@
 
 #![allow(clippy::comparison_chain)]
 
+use color::Hsva;
+
 use crate::*;
 
 // ----------------------------------------------------------------------------
@@ -148,7 +150,7 @@ impl Curve {
         Self {
             values,
             bounds,
-            stroke: Stroke::new(2.0, Color32::from_gray(120)),
+            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
             name: Default::default(),
         }
     }
@@ -176,13 +178,13 @@ impl Curve {
         self
     }
 
-    /// Stroke width (in points).
+    /// Stroke width. A high value means the plot thickens.
     pub fn width(mut self, width: f32) -> Self {
         self.stroke.width = width;
         self
     }
 
-    /// Stroke color.
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
         self
@@ -203,19 +205,20 @@ impl Curve {
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::Color32;
 /// use egui::plot::{Curve, Plot, Value};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
 /// });
-/// let curve = Curve::from_values_iter(sin).color(Color32::from_rgb(50, 200, 50));
+/// let curve = Curve::from_values_iter(sin);
 /// ui.add(
 ///     Plot::default().curve(curve).view_aspect(2.0)
 /// );
 /// ```
 #[derive(Clone, PartialEq)]
 pub struct Plot {
+    next_auto_color_idx: usize,
+
     curves: Vec<Curve>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
@@ -238,6 +241,8 @@ pub struct Plot {
 impl Default for Plot {
     fn default() -> Self {
         Self {
+            next_auto_color_idx: 0,
+
             curves: Default::default(),
             hlines: Default::default(),
             vlines: Default::default(),
@@ -260,9 +265,20 @@ impl Default for Plot {
 }
 
 impl Plot {
+    fn auto_color(&mut self, color: &mut Color32) {
+        if *color == Color32::TRANSPARENT {
+            let i = self.next_auto_color_idx;
+            self.next_auto_color_idx += 1;
+            let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+            let h = i as f32 * golden_ratio;
+            *color = Hsva::new(h, 0.85, 0.5, 1.0).into(); // TODO: OkLab or some other perspective color space
+        }
+    }
+
     /// Add a data curve.
     /// You can add multiple curves.
-    pub fn curve(mut self, curve: Curve) -> Self {
+    pub fn curve(mut self, mut curve: Curve) -> Self {
+        self.auto_color(&mut curve.stroke.color);
         self.bounds.union_mut(&curve.bounds);
         self.curves.push(curve);
         self
@@ -271,7 +287,8 @@ impl Plot {
     /// Add a horizontal line.
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
-    pub fn hline(mut self, hline: HLine) -> Self {
+    pub fn hline(mut self, mut hline: HLine) -> Self {
+        self.auto_color(&mut hline.stroke.color);
         self = self.include_y(hline.y);
         self.hlines.push(hline);
         self
@@ -280,7 +297,8 @@ impl Plot {
     /// Add a vertical line.
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
-    pub fn vline(mut self, vline: VLine) -> Self {
+    pub fn vline(mut self, mut vline: VLine) -> Self {
+        self.auto_color(&mut vline.stroke.color);
         self = self.include_x(vline.x);
         self.vlines.push(vline);
         self
@@ -330,6 +348,7 @@ impl Plot {
     /// Width of plot. By default a plot will fill the ui it is in.
     /// If you set [`Self::view_aspect`], the width can be calculated from the height.
     pub fn width(mut self, width: f32) -> Self {
+        self.min_size.x = width;
         self.width = Some(width);
         self
     }
@@ -337,6 +356,7 @@ impl Plot {
     /// Height of plot. By default a plot will fill the ui it is in.
     /// If you set [`Self::view_aspect`], the height can be calculated from the width.
     pub fn height(mut self, height: f32) -> Self {
+        self.min_size.y = height;
         self.height = Some(height);
         self
     }
@@ -363,6 +383,7 @@ impl Plot {
 impl Widget for Plot {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
+            next_auto_color_idx: _,
             curves,
             hlines,
             vlines,

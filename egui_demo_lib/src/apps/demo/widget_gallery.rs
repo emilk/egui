@@ -155,8 +155,23 @@ impl super::View for WidgetGallery {
             });
             ui.end_row();
 
-            ui.label("Custom widget");
+            ui.label("Custom widget:");
             super::toggle_switch::demo(ui, boolean);
+            ui.end_row();
+
+            ui.label("Plot:");
+            let n = 512;
+            let curve = egui::plot::Curve::from_values_iter((0..=n).map(|i| {
+                use std::f64::consts::TAU;
+                let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
+                egui::plot::Value::new(x, x.sin())
+            }));
+            ui.add(
+                egui::plot::Plot::default()
+                    .curve(curve)
+                    .height(32.0)
+                    .data_aspect(1.0),
+            );
             ui.end_row();
         });
 
