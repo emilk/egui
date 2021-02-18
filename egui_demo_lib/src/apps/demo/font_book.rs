@@ -1,7 +1,7 @@
 pub struct FontBook {
     standard: bool,
     emojis: bool,
-    cjk:bool,
+    cjk: bool,
     filter: String,
     text_style: egui::TextStyle,
 }
@@ -82,7 +82,6 @@ impl super::View for FontBook {
             ui.checkbox(&mut self.standard, "Standard");
             ui.checkbox(&mut self.cjk, "CJK");
             ui.checkbox(&mut self.emojis, "Emojis");
-
         });
 
         ui.horizontal(|ui| {
@@ -107,7 +106,7 @@ impl super::View for FontBook {
                     self.characters_ui(ui, FULL_EMOJI_LIST);
                 }
                 if self.cjk {
-                    self.characters_ui(ui,CJK_FONT_CHARACTERS);
+                    self.characters_ui(ui, CJK_FONT_CHARACTERS);
                 }
             });
         });

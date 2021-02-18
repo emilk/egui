@@ -23,8 +23,6 @@ pub mod widget_gallery;
 mod widgets;
 pub mod window_options;
 
-
-
 pub use {app::*, demo_window::DemoWindow, demo_windows::*, widgets::Widgets};
 
 // ----------------------------------------------------------------------------

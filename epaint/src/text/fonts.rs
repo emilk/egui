@@ -118,11 +118,9 @@ impl Default for FontDefinitions {
             );
 
             font_data.insert(
-
                 "Ubuntu-Light".to_owned(),
                 std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
             );
-
 
             font_data.insert(
                 "WenQuanYiMicroHei".to_owned(),
@@ -144,7 +142,7 @@ impl Default for FontDefinitions {
             fonts_for_family.insert(
                 FontFamily::Monospace,
                 vec![
-                   "ProggyClean".to_owned(),
+                    "ProggyClean".to_owned(),
                     "Ubuntu-Light".to_owned(), // fallback for √ etc
                     "WenQuanYiMicroHei".to_owned(),
                     "NotoEmoji-Regular".to_owned(),

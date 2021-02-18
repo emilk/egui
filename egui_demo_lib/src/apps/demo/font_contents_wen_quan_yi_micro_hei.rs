@@ -1,4 +1,3 @@
-
 /// A list of all codepoints available in `WenQuanYiMicroHei.ttf`
 #[rustfmt::skip]
 pub const CJK_FONT_CHARACTERS: &[(u32, char, &str)] = &[
