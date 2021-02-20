@@ -13,73 +13,6 @@ use egui::{
 
 type Gl = WebGl2RenderingContext;
 
-const VERTEX_SHADER_SOURCE: &str = r#"
-    precision mediump float;
-    uniform vec2 u_screen_size;
-    attribute vec2 a_pos;
-    attribute vec2 a_tc;
-    attribute vec4 a_srgba;
-    varying vec4 v_rgba;
-    varying vec2 v_tc;
-
-    // 0-1 linear  from  0-255 sRGB
-    vec3 linear_from_srgb(vec3 srgb) {
-        bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-        vec3 lower = srgb / vec3(3294.6);
-        vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-        return mix(higher, lower, vec3(cutoff));
-    }
-
-    vec4 linear_from_srgba(vec4 srgba) {
-        return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-    }
-
-    void main() {
-        gl_Position = vec4(
-            2.0 * a_pos.x / u_screen_size.x - 1.0,
-            1.0 - 2.0 * a_pos.y / u_screen_size.y,
-            0.0,
-            1.0);
-        // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
-        v_rgba = linear_from_srgba(a_srgba);
-        v_tc = a_tc;
-    }
-"#;
-
-const FRAGMENT_SHADER_SOURCE: &str = r#"
-    precision mediump float;
-    uniform sampler2D u_sampler;
-    varying vec4 v_rgba;
-    varying vec2 v_tc;
-
-    // 0-255 sRGB  from  0-1 linear
-    vec3 srgb_from_linear(vec3 rgb) {
-        bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
-        vec3 lower = rgb * vec3(3294.6);
-        vec3 higher = vec3(269.025) * pow(rgb, vec3(1.0 / 2.4)) - vec3(14.025);
-        return mix(higher, lower, vec3(cutoff));
-    }
-
-    vec4 srgba_from_linear(vec4 rgba) {
-        return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
-    }
-
-    void main() {
-        // The texture is set up with `SRGB8_ALPHA8`, so no need to decode here!
-        vec4 texture_rgba = texture2D(u_sampler, v_tc);
-
-        /// Multiply vertex color with texture color (in linear space).
-        gl_FragColor = v_rgba * texture_rgba;
-
-        // We must gamma-encode again since WebGL doesn't support linear blending in the framebuffer.
-        gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
-
-        // WebGL doesn't support linear blending in the framebuffer,
-        // so we apply this hack to at least get a bit closer to the desired blending:
-        gl_FragColor.a = pow(gl_FragColor.a, 1.6); // Empiric nonsense
-    }
-"#;
-
 pub struct WebGl2Painter {
     canvas_id: String,
     canvas: web_sys::HtmlCanvasElement,
@@ -126,8 +59,16 @@ impl WebGl2Painter {
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
-        let vert_shader = compile_shader(&gl, Gl::VERTEX_SHADER, VERTEX_SHADER_SOURCE)?;
-        let frag_shader = compile_shader(&gl, Gl::FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE)?;
+        let vert_shader = compile_shader(
+            &gl,
+            Gl::VERTEX_SHADER,
+            include_str!("shader/vertex_300es.glsl"),
+        )?;
+        let frag_shader = compile_shader(
+            &gl,
+            Gl::FRAGMENT_SHADER,
+            include_str!("shader/fragment_300es.glsl"),
+        )?;
 
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
         let index_buffer = gl.create_buffer().ok_or("failed to create index_buffer")?;
