@@ -47,6 +47,14 @@ impl Painter {
                 vertex: include_str!("shader/vertex_140.glsl"),
                 fragment: include_str!("shader/fragment_140.glsl"),
             },
+            100 es => {
+                vertex: include_str!("shader/vertex_100es.glsl"),
+                fragment: include_str!("shader/fragment_100es.glsl"),
+            },
+            300 es => {
+                vertex: include_str!("shader/vertex_300es.glsl"),
+                fragment: include_str!("shader/fragment_300es.glsl"),
+            },
         }
         .expect("Failed to compile shader");
 
