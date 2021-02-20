@@ -110,6 +110,9 @@ pub struct Interaction {
 
     /// Mouse must be the close to the corner of a window to resize
     pub resize_grab_radius_corner: f32,
+
+    /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
+    pub show_tooltips_only_when_still: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -303,6 +306,7 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
+            show_tooltips_only_when_still: true,
         }
     }
 }
@@ -516,10 +520,15 @@ impl Interaction {
         let Self {
             resize_grab_radius_side,
             resize_grab_radius_corner,
+            show_tooltips_only_when_still,
         } = self;
         ui.add(Slider::f32(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
+        );
+        ui.checkbox(
+            show_tooltips_only_when_still,
+            "Only show tooltips if mouse is still",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self));

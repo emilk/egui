@@ -11,12 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
-* Add `egui::plot::Plot` to plot some 2D data
+* Add `egui::plot::Plot` to plot some 2D data.
 * Add `Ui::hyperlink_to(label, url)`.
 
 ### Changed 🔧
 
 * Improve the positioning of tooltips.
+* Only show tooltips if mouse is still.
 
 
 ## 0.9.0 - 2021-02-07 - Light Mode and much more

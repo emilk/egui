@@ -190,9 +190,7 @@ impl Response {
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if (self.hovered() && self.ctx.input().pointer.tooltip_pos().is_some())
-            || self.ctx.memory().everything_is_visible()
-        {
+        if self.should_show_hover_ui() {
             crate::containers::show_tooltip_under(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -201,6 +199,28 @@ impl Response {
             );
         }
         self
+    }
+
+    fn should_show_hover_ui(&self) -> bool {
+        if self.ctx.memory().everything_is_visible() {
+            true
+        } else if self.hovered && self.ctx.input().pointer.has_pointer() {
+            let show_tooltips_only_when_still =
+                self.ctx.style().interaction.show_tooltips_only_when_still;
+            if show_tooltips_only_when_still {
+                if self.ctx.input().pointer.is_still() {
+                    true
+                } else {
+                    // wait for mouse to stop
+                    self.ctx.request_repaint();
+                    false
+                }
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 
     /// Show this text if the item was hovered (i.e. a tooltip).
