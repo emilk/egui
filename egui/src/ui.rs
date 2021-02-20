@@ -819,6 +819,16 @@ impl Ui {
         self.add(Hyperlink::new(url))
     }
 
+    /// Shortcut for `add(Hyperlink::new(url).text(label))`
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.hyperlink_to("egui on GitHub", "https://www.github.com/emilk/egui/");
+    /// ```
+    pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
+        self.add(Hyperlink::new(url).text(label))
+    }
+
     #[deprecated = "Use `text_edit_singleline` or `text_edit_multiline`"]
     pub fn text_edit(&mut self, text: &mut String) -> Response {
         self.text_edit_multiline(text)

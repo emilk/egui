@@ -93,9 +93,9 @@ impl FractalClock {
 
         egui::reset_button(ui, self);
 
-        ui.add(
-            Hyperlink::new("http://www.dqd.com/~mayoff/programs/FractalClock/")
-                .text("Inspired by a screensaver by Rob Mayoff"),
+        ui.hyperlink_to(
+            "Inspired by a screensaver by Rob Mayoff",
+            "http://www.dqd.com/~mayoff/programs/FractalClock/",
         );
     }
 
