@@ -193,7 +193,12 @@ impl Response {
         if (self.hovered() && self.ctx.input().pointer.tooltip_pos().is_some())
             || self.ctx.memory().everything_is_visible()
         {
-            crate::containers::show_tooltip(&self.ctx, add_contents);
+            crate::containers::show_tooltip_under(
+                &self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
         }
         self
     }

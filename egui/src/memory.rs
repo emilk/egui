@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
-    Id, LayerId, Pos2, Rect, Style,
+    Id, LayerId, Pos2, Rect, Style, Vec2,
 };
 use epaint::color::{Color32, Hsva};
 
@@ -50,6 +50,10 @@ pub struct Memory {
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<Id>,
+
+    /// Used to clamp the tooltip to the screen.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    tooltip_size: Option<(Id, Vec2)>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -253,6 +257,29 @@ impl Memory {
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
         self.areas = Default::default();
+    }
+
+    pub(crate) fn tooltip_size(&self, id: Id) -> Option<Vec2> {
+        if let Some((stored_id, stored_size)) = self.tooltip_size {
+            if stored_id == id {
+                Some(stored_size)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn set_tooltip_size(&mut self, id: Id, size: Vec2) {
+        if let Some((stored_id, stored_size)) = &mut self.tooltip_size {
+            if *stored_id == id {
+                *stored_size = stored_size.max(size);
+                return;
+            }
+        }
+
+        self.tooltip_size = Some((id, size));
     }
 }
 

@@ -32,14 +32,11 @@ use std::hash::Hash;
 pub struct Id(u64);
 
 impl Id {
-    pub fn background() -> Self {
+    pub(crate) fn background() -> Self {
         Self(0)
     }
 
-    pub fn tooltip() -> Self {
-        Self(1)
-    }
-
+    /// Generate a new `Id` by hashing some source (e.g. a string or integer).
     pub fn new(source: impl Hash) -> Id {
         // NOTE: AHasher is NOT suitable for this!
         use std::collections::hash_map::DefaultHasher;
@@ -49,6 +46,7 @@ impl Id {
         Id(hasher.finish())
     }
 
+    /// Generate a new `Id` by hashing the parent `Id` and the given argument.
     pub fn with(self, child: impl Hash) -> Id {
         // NOTE: AHasher is NOT suitable for this!
         use std::collections::hash_map::DefaultHasher;

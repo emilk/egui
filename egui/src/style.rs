@@ -293,7 +293,7 @@ impl Default for Spacing {
             text_edit_width: 280.0,
             icon_width: 16.0,
             icon_spacing: 0.0,
-            tooltip_width: 400.0,
+            tooltip_width: 600.0,
         }
     }
 }
@@ -505,7 +505,7 @@ impl Spacing {
         ui.add(Slider::f32(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
         ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
-        ui.add(Slider::f32(tooltip_width, 0.0..=10.0).text("tooltip_width"));
+        ui.add(Slider::f32(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
