@@ -8,19 +8,19 @@ use crate::*;
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
 
-fn get(value_function: &mut GetSetValue<'_>) -> f64 {
-    (value_function)(None)
+fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
+    (get_set_value)(None)
 }
 
-fn set(value_function: &mut GetSetValue<'_>, value: f64) {
-    (value_function)(Some(value));
+fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
+    (get_set_value)(Some(value));
 }
 
 /// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
-    value_function: GetSetValue<'a>,
-    speed: f32,
+    get_set_value: GetSetValue<'a>,
+    speed: f64,
     prefix: String,
     suffix: String,
     clamp_range: RangeInclusive<f64>,
@@ -29,9 +29,9 @@ pub struct DragValue<'a> {
 }
 
 impl<'a> DragValue<'a> {
-    pub(crate) fn from_get_set(value_function: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
+    pub(crate) fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {
-            value_function: Box::new(value_function),
+            get_set_value: Box::new(get_set_value),
             speed: 1.0,
             prefix: Default::default(),
             suffix: Default::default(),
@@ -80,14 +80,19 @@ impl<'a> DragValue<'a> {
     }
 
     /// How much the value changes when dragged one point (logical pixel).
-    pub fn speed(mut self, speed: f32) -> Self {
-        self.speed = speed;
+    pub fn speed(mut self, speed: impl Into<f64>) -> Self {
+        self.speed = speed.into();
         self
     }
 
     /// Clamp incoming and outgoing values to this range.
     pub fn clamp_range(mut self, clamp_range: RangeInclusive<f32>) -> Self {
         self.clamp_range = *clamp_range.start() as f64..=*clamp_range.end() as f64;
+        self
+    }
+
+    pub fn clamp_range_f64(mut self, clamp_range: RangeInclusive<f64>) -> Self {
+        self.clamp_range = clamp_range;
         self
     }
 
@@ -127,6 +132,11 @@ impl<'a> DragValue<'a> {
         self
     }
 
+    pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
+        self.max_decimals = max_decimals;
+        self
+    }
+
     /// Set an exact number of decimals to display.
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -141,7 +151,7 @@ impl<'a> DragValue<'a> {
 impl<'a> Widget for DragValue<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
-            mut value_function,
+            mut get_set_value,
             speed,
             clamp_range,
             prefix,
@@ -150,13 +160,17 @@ impl<'a> Widget for DragValue<'a> {
             max_decimals,
         } = self;
 
-        let value = get(&mut value_function);
+        let value = get(&mut get_set_value);
         let value = clamp(value, clamp_range.clone());
-        let aim_rad = ui.input().physical_pixel_size(); // ui.input().aim_radius(); // TODO
+        let aim_rad = ui.input().aim_radius() as f64;
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
-        let value_text = emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals);
+        let value_text = if value == 0.0 {
+            "0".to_owned()
+        } else {
+            emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+        };
 
         let kb_edit_id = ui.auto_id_with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
@@ -172,7 +186,7 @@ impl<'a> Widget for DragValue<'a> {
             );
             if let Ok(parsed_value) = value_text.parse() {
                 let parsed_value = clamp(parsed_value, clamp_range);
-                set(&mut value_function, parsed_value)
+                set(&mut get_set_value, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
                 ui.memory().surrender_kb_focus(kb_edit_id);
@@ -198,7 +212,7 @@ impl<'a> Widget for DragValue<'a> {
             } else if response.dragged() {
                 let mdelta = ui.input().pointer.delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
-                let delta_value = speed * delta_points;
+                let delta_value = delta_points as f64 * speed;
                 if delta_value != 0.0 {
                     // Since we round the value being dragged, we need to store the full precision value in memory:
                     let stored_value = ui
@@ -212,15 +226,15 @@ impl<'a> Widget for DragValue<'a> {
 
                     let rounded_new_value = stored_value;
 
-                    let aim_delta = ui.input().aim_radius() * speed;
+                    let aim_delta = aim_rad * speed;
                     let rounded_new_value = emath::smart_aim::best_in_range_f64(
-                        rounded_new_value - aim_delta as f64,
-                        rounded_new_value + aim_delta as f64,
+                        rounded_new_value - aim_delta,
+                        rounded_new_value + aim_delta,
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
                     let rounded_new_value = clamp(rounded_new_value, clamp_range);
-                    set(&mut value_function, rounded_new_value);
+                    set(&mut get_set_value, rounded_new_value);
 
                     ui.memory().drag_value = Some((response.id, stored_value));
                 }

@@ -1,8 +1,8 @@
+#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 #![allow(clippy::float_cmp)]
 
-use std::ops::RangeInclusive;
-
 use crate::{widgets::Label, *};
+use std::ops::RangeInclusive;
 
 // ----------------------------------------------------------------------------
 
@@ -10,12 +10,12 @@ use crate::{widgets::Label, *};
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
 
-fn get(value_function: &mut GetSetValue<'_>) -> f64 {
-    (value_function)(None)
+fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
+    (get_set_value)(None)
 }
 
-fn set(value_function: &mut GetSetValue<'_>, value: f64) {
-    (value_function)(Some(value));
+fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
+    (get_set_value)(Some(value));
 }
 
 fn to_f64_range<T: Copy>(r: RangeInclusive<T>) -> RangeInclusive<f64>
@@ -64,6 +64,8 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     show_value: bool,
+    prefix: String,
+    suffix: String,
     text: String,
     text_color: Option<Color32>,
     min_decimals: usize,
@@ -86,6 +88,8 @@ impl<'a> Slider<'a> {
             clamp_to_range: false,
             smart_aim: true,
             show_value: true,
+            prefix: Default::default(),
+            suffix: Default::default(),
             text: Default::default(),
             text_color: None,
             min_decimals: 0,
@@ -156,6 +160,18 @@ impl<'a> Slider<'a> {
     /// Default: `true`.
     pub fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
+        self
+    }
+
+    /// Show a prefix before the number, e.g. "x: "
+    pub fn prefix(mut self, prefix: impl ToString) -> Self {
+        self.prefix = prefix.to_string();
+        self
+    }
+
+    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    pub fn suffix(mut self, suffix: impl ToString) -> Self {
+        self.suffix = suffix.to_string();
         self
     }
 
@@ -269,6 +285,14 @@ impl<'a> Slider<'a> {
         set(&mut self.get_set_value, value);
     }
 
+    fn clamp_range(&self) -> RangeInclusive<f64> {
+        if self.clamp_to_range {
+            self.range()
+        } else {
+            f64::NEG_INFINITY..=f64::INFINITY
+        }
+    }
+
     fn range(&self) -> RangeInclusive<f64> {
         self.range.clone()
     }
@@ -360,72 +384,30 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
-        let kb_edit_id = ui.auto_id_with("edit");
-        let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
-
-        let aim_radius = ui.input().aim_radius();
-        let value_text = self.format_value(aim_radius, x_range);
-
-        if is_kb_editing {
-            let button_width = ui.spacing().interact_size.x;
-            let mut value_text = ui.memory().temp_edit_string.take().unwrap_or(value_text);
-            ui.add(
-                TextEdit::singleline(&mut value_text)
-                    .id(kb_edit_id)
-                    .desired_width(button_width)
-                    .text_color_opt(self.text_color)
-                    .text_style(TextStyle::Monospace),
-            );
-            if let Ok(value) = value_text.parse() {
-                self.set_value(value);
-            }
-            if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_kb_focus(kb_edit_id);
-            } else {
-                ui.memory().temp_edit_string = Some(value_text);
-            }
-        } else {
-            let response = ui.add(
-                Button::new(value_text)
-                    .text_style(TextStyle::Monospace)
-                    .text_color_opt(self.text_color),
-            );
-            let response = response.on_hover_text(format!(
-                "{}\nClick to enter a value.",
-                self.get_value() as f32 // Show full precision value on-hover. TODO: figure out f64 vs f32
-            ));
-            // let response = ui.interact(response.rect, kb_edit_id, Sense::click());
-            if response.clicked() {
-                ui.memory().request_kb_focus(kb_edit_id);
-                ui.memory().temp_edit_string = None; // Filled in next frame
-            }
+        let mut value = self.get_value();
+        ui.add(
+            DragValue::f64(&mut value)
+                .speed(self.current_gradient(&x_range))
+                .clamp_range_f64(self.clamp_range())
+                .min_decimals(self.min_decimals)
+                .max_decimals_opt(self.max_decimals)
+                .suffix(self.suffix.clone())
+                .prefix(self.prefix.clone()),
+        );
+        if value != self.get_value() {
+            self.set_value(value);
         }
     }
 
-    fn format_value(&mut self, aim_radius: f32, x_range: RangeInclusive<f32>) -> String {
+    /// delta(value) / delta(points)
+    fn current_gradient(&mut self, x_range: &RangeInclusive<f32>) -> f64 {
+        // TODO: handle clamping
         let value = self.get_value();
-
-        // pick precision based upon how much moving the slider would change the value:
         let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
         let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
-        let left_value = value_from_x(x_from_value(value) - aim_radius);
-        let right_value = value_from_x(x_from_value(value) + aim_radius);
-        let range = (left_value - right_value).abs();
-        let auto_decimals = ((-range.log10()).ceil().at_least(0.0) as usize).at_most(16);
-        let min_decimals = self.min_decimals;
-        let max_decimals = self.max_decimals.unwrap_or(auto_decimals + 2);
-
-        let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
-
-        if min_decimals == max_decimals {
-            emath::format_with_minimum_decimals(value, max_decimals)
-        } else if value == 0.0 {
-            "0".to_owned()
-        } else if range == 0.0 {
-            value.to_string()
-        } else {
-            emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
-        }
+        let left_value = value_from_x(x_from_value(value) - 0.5);
+        let right_value = value_from_x(x_from_value(value) + 0.5);
+        right_value - left_value
     }
 }
 
@@ -457,7 +439,7 @@ impl<'a> Widget for Slider<'a> {
 // Helpers for converting slider range to/from normalized [0-1] range.
 // Always clamps.
 // Logarithmic sliders are allowed to include zero and infinity,
-// even though emathematically it doesn't make sense.
+// even though mathematically it doesn't make sense.
 
 use std::f64::INFINITY;
 

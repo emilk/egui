@@ -144,7 +144,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::f32(scalar, 0.0..=100.0).text("value"));
+        ui.add(egui::Slider::f32(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));

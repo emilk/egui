@@ -13,12 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Add `egui::plot::Plot` to plot some 2D data.
 * Add `Ui::hyperlink_to(label, url)`.
+* Sliders can now have a value prefix and suffix (e.g. "°" as a unit).
 
 ### Changed 🔧
 
 * Improve the positioning of tooltips.
 * Only show tooltips if mouse is still.
 * `Slider` will now show the value display by default, unless turned off with `.show_value(false)`.
+* The `Slider` value is now a `DragValue` which when dragged can pick values outside of the slider range (unless `clamp_to_range` is set).
 
 
 ## 0.9.0 - 2021-02-07 - Light Mode and much more
