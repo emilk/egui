@@ -212,7 +212,7 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
         ));
 
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
-            ui.output().copied_text = format!("rgba({}, {}, {}, {})", r, g, b, a);
+            ui.output().copied_text = format!("{}, {}, {}, {}", r, g, b, a);
         }
     });
 }
