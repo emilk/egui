@@ -35,6 +35,31 @@ pub trait Widget {
     fn ui(self, ui: &mut Ui) -> Response;
 }
 
+/// This enables functions that return `impl Widget`, so that you can
+/// create a widget by just returning a lambda from a function.
+///
+/// For instance: `ui.add(slider_vec2(&mut vec2));` with:
+///
+/// ```
+/// pub fn slider_vec2(value: &mut egui::Vec2) -> impl egui::Widget + '_ {
+///    move |ui: &mut egui::Ui| {
+///        ui.horizontal(|ui| {
+///            ui.add(egui::Slider::f32(&mut value.x, 0.0..=1.0).text("x"));
+///            ui.add(egui::Slider::f32(&mut value.y, 0.0..=1.0).text("y"));
+///        })
+///        .response
+///    }
+/// }
+/// ```
+impl<F> Widget for F
+where
+    F: FnOnce(&mut Ui) -> Response,
+{
+    fn ui(self, ui: &mut Ui) -> Response {
+        self(ui)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Show a button to reset a value to its default.

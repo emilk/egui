@@ -156,7 +156,10 @@ impl super::View for WidgetGallery {
             ui.end_row();
 
             ui.label("Custom widget:");
-            super::toggle_switch::demo(ui, boolean);
+            ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
+                "It's easy to create your own widgets!\n\
+                This toggle switch is just 15 lines of code.",
+            );
             ui.end_row();
 
             ui.label("Plot:");

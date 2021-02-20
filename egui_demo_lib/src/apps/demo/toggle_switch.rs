@@ -9,7 +9,12 @@
 ///    |       |.......|
 ///     \_______\_____/
 /// ```
-pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+///
+/// ## Example:
+/// ``` ignore
+/// toggle_ui(ui, &mut my_bool);
+/// ```
+pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // Widget code can be broken up in four steps:
     //  1. Decide a size for the widget
     //  2. Allocate space for it
@@ -58,7 +63,7 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 
 /// Here is the same code again, but a bit more compact:
 #[allow(dead_code)]
-fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     *on ^= response.clicked(); // toggle if clicked
@@ -77,14 +82,13 @@ fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     response
 }
 
-pub fn demo(ui: &mut egui::Ui, on: &mut bool) {
-    ui.horizontal_wrapped_for_text(egui::TextStyle::Button, |ui| {
-        toggle(ui, on).on_hover_text("Click to toggle");
-        ui.add(crate::__egui_github_link_file!());
-    })
-    .response
-    .on_hover_text(
-        "It's easy to create your own widgets!\n\
-        This toggle switch is just one function and 15 lines of code.",
-    );
+// A wrapper that allows the more idiomatic usage pattern: `ui.add(toggle(&mut my_bool))`
+/// iOS-style toggle switch.
+///
+/// ## Example:
+/// ``` ignore
+/// ui.add(toggle(&mut my_bool));
+/// ```
+pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
+    move |ui: &mut egui::Ui| toggle_ui(ui, on)
 }
