@@ -533,7 +533,8 @@ impl Context {
             self.request_repaint();
         }
 
-        self.memory().end_frame(&self.frame_state().used_ids);
+        self.memory()
+            .end_frame(&self.input, &self.frame_state().used_ids);
 
         let mut output: Output = std::mem::take(&mut self.output());
         if self.repaint_requests.load(SeqCst) > 0 {

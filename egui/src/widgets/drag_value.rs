@@ -191,6 +191,7 @@ impl<'a> Widget for DragValue<'a> {
                 value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                 suffix
             ));
+
             if response.clicked() {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().temp_edit_string = None; // Filled in next frame
@@ -199,12 +200,21 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
                 let delta_value = speed * delta_points;
                 if delta_value != 0.0 {
-                    let new_value = value + delta_value as f64;
-                    let new_value = emath::round_to_decimals(new_value, auto_decimals);
-                    let new_value = clamp(new_value, clamp_range);
-                    set(&mut value_function, new_value);
-                    // TODO: To make use or `smart_aim` for `DragValue` we need to store some state somewhere,
-                    // otherwise we will just keep rounding to the same value while moving the mouse.
+                    // Since we round the value being dragged, we need to store the full precision value in memory:
+                    let stored_value = ui
+                        .memory()
+                        .drag_value
+                        .filter(|(id, _)| *id == response.id)
+                        .map(|(_, value)| value);
+                    let stored_value = stored_value.unwrap_or(value);
+                    let stored_value = stored_value + delta_value as f64;
+                    let stored_value = clamp(stored_value, clamp_range.clone());
+
+                    let rounded_new_value = emath::round_to_decimals(stored_value, auto_decimals);
+                    let rounded_new_value = clamp(rounded_new_value, clamp_range);
+                    set(&mut value_function, rounded_new_value);
+
+                    ui.memory().drag_value = Some((response.id, stored_value));
                 }
             }
             response

@@ -160,6 +160,11 @@ impl Response {
         self.dragged
     }
 
+    /// Did a drag on this widgets begin this frame?
+    pub fn drag_started(&self) -> bool {
+        self.dragged && self.ctx.input().pointer.any_pressed()
+    }
+
     /// The widget was being dragged, but now it has been released.
     pub fn drag_released(&self) -> bool {
         self.drag_released

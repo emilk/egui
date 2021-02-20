@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
-    Id, LayerId, Pos2, Rect, Style, Vec2,
+    Id, InputState, LayerId, Pos2, Rect, Style, Vec2,
 };
 use epaint::color::{Color32, Hsva};
 
@@ -35,10 +35,13 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    /// For temporary edit of e.g. a slider value.
+    /// For temporary edit of e.g. a `DragValue` value.
     /// Couples with [`Interaction::kb_focus_id`].
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) temp_edit_string: Option<String>,
+
+    /// Value of the `DragValue` being dragged (if any).
+    pub(crate) drag_value: Option<(Id, f64)>,
 
     pub(crate) areas: Areas,
 
@@ -182,7 +185,11 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(
+        &mut self,
+        input: &InputState,
+        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
+    ) {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {
@@ -194,6 +201,10 @@ impl Memory {
                 // Dead-mans-switch: the widget with kb focus has disappeared!
                 self.interaction.kb_focus_id = None;
             }
+        }
+
+        if input.pointer.any_pressed() || input.pointer.any_released() {
+            self.drag_value = Default::default();
         }
     }
 
