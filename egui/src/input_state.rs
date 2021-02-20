@@ -427,8 +427,14 @@ impl PointerState {
         self.latest_pos.is_some()
     }
 
-    /// Is the pointer currently moving?
+    /// Is the pointer currently still?
     /// This is smoothed so a few frames of stillness is required before this returns `true`.
+    pub fn is_still(&self) -> bool {
+        self.velocity == Vec2::ZERO
+    }
+
+    /// Is the pointer currently moving?
+    /// This is smoothed so a few frames of stillness is required before this returns `false`.
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::ZERO
     }
