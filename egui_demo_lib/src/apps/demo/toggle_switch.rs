@@ -18,8 +18,8 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 
     // 1. Deciding widget size:
     // You can query the `ui` how much space is available,
-    // but in this example we have a fixed size widget of the default size for a button:
-    let desired_size = ui.spacing().interact_size;
+    // but in this example we have a fixed size widget based on the height of a standard button:
+    let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
 
     // 2. Allocating space:
     // This is where we get a region of the screen assigned.
@@ -39,14 +39,12 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // We will follow the current style by asking
     // "how should something that is being interacted with be painted?".
     // This will, for instance, give us different colors when the widget is hovered or clicked.
-    let visuals = ui.style().interact(&response);
-    let off_bg_fill = egui::Rgba::from(visuals.bg_fill);
-    let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.0);
-    let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
+    let visuals = ui.style().interact_selectable(&response, *on);
     // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
     let rect = rect.expand(visuals.expansion);
     let radius = 0.5 * rect.height();
-    ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
+    ui.painter()
+        .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
     // Paint the circle, animating it from left to right with `how_on`:
     let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
     let center = egui::pos2(circle_x, rect.center().y);
@@ -61,18 +59,16 @@ pub fn toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 /// Here is the same code again, but a bit more compact:
 #[allow(dead_code)]
 fn toggle_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
-    let desired_size = ui.spacing().interact_size;
+    let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     *on ^= response.clicked(); // toggle if clicked
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
-    let visuals = ui.style().interact(&response);
-    let off_bg_fill = egui::Rgba::from(visuals.bg_fill);
-    let on_bg_fill = egui::Rgba::from_rgb(0.0, 0.5, 0.0);
-    let bg_fill = egui::lerp(off_bg_fill..=on_bg_fill, how_on);
+    let visuals = ui.style().interact_selectable(&response, *on);
     let rect = rect.expand(visuals.expansion);
     let radius = 0.5 * rect.height();
-    ui.painter().rect(rect, radius, bg_fill, visuals.bg_stroke);
+    ui.painter()
+        .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
     let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
     let center = egui::pos2(circle_x, rect.center().y);
     ui.painter()
@@ -89,6 +85,6 @@ pub fn demo(ui: &mut egui::Ui, on: &mut bool) {
     .response
     .on_hover_text(
         "It's easy to create your own widgets!\n\
-        This toggle switch is just one function and 20 lines of code.",
+        This toggle switch is just one function and 15 lines of code.",
     );
 }

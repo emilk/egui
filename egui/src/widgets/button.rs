@@ -212,6 +212,7 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
         }
 
+        // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
@@ -234,7 +235,6 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 visuals.fg_stroke,
-                // ui.visuals().selection.stroke, // too much color
             ));
         }
 
@@ -305,6 +305,7 @@ impl Widget for RadioButton {
             rect.center().y - 0.5 * galley.size.y,
         );
 
+        // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
         let visuals = ui.style().interact(&response);
 
         let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);

@@ -39,6 +39,16 @@ impl Style {
         self.visuals.widgets.style(response)
     }
 
+    pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
+        let mut visuals = *self.visuals.widgets.style(response);
+        if selected {
+            visuals.bg_fill = self.visuals.selection.bg_fill;
+            // visuals.bg_stroke = self.visuals.selection.stroke;
+            visuals.fg_stroke = self.visuals.selection.stroke;
+        }
+        visuals
+    }
+
     /// Style to use for non-interactive widgets.
     pub fn noninteractive(&self) -> &WidgetVisuals {
         &self.visuals.widgets.noninteractive
@@ -357,17 +367,14 @@ impl Default for Visuals {
 impl Selection {
     fn dark() -> Self {
         Self {
-            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0)
-                .additive()
-                .multiply(0.10)
-                .into(),
-            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
+            bg_fill: Color32::from_rgb(0, 92, 128),
+            stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
     fn light() -> Self {
         Self {
-            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0).multiply(0.5).into(),
-            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
+            bg_fill: Color32::from_rgb(144, 209, 255),
+            stroke: Stroke::new(1.0, Color32::from_rgb(0, 83, 125)),
         }
     }
 }
