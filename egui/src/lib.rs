@@ -1,4 +1,8 @@
-//! egui core library
+//! egui:  an easy-to-use GUI in pure Rust
+//!
+//! Try the live web demo: <https://emilk.github.io/egui/index.html>.
+//!
+//! Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -6,7 +10,9 @@
 //! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
+//!
 //! ## Integrating with egui
+//!
 //! To write your own integration for egui you need to do this:
 //!
 //! ``` no_run
@@ -33,6 +39,7 @@
 //!     paint(clipped_meshes);
 //! }
 //! ```
+//!
 //!
 //! ## Using egui
 //!
@@ -63,7 +70,8 @@
 //!
 //! ui.checkbox(&mut some_bool, "Click to toggle");
 //!
-//! ui.horizontal(|ui|{
+//! ui.horizontal_wrapped(|ui|{
+//!     ui.spacing_mut().item_spacing.x = 0.0; // remove spacing between widgets
 //!     // `radio_value` also works for enums, integers, and more.
 //!     ui.radio_value(&mut some_bool, false, "Off");
 //!     ui.radio_value(&mut some_bool, true, "On");
