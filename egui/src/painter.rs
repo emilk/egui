@@ -63,11 +63,12 @@ impl Painter {
     /// The clip-rect of the returned `Painter` will be the intersection
     /// of the given rectangle and the `clip_rect()` of this `Painter`.
     pub fn sub_region(&self, rect: Rect) -> Self {
-        Self::new(
-            self.ctx.clone(),
-            self.layer_id,
-            rect.intersect(self.clip_rect),
-        )
+        Self {
+            ctx: self.ctx.clone(),
+            layer_id: self.layer_id,
+            clip_rect: rect.intersect(self.clip_rect),
+            fade_to_color: self.fade_to_color,
+        }
     }
 }
 
