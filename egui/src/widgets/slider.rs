@@ -47,6 +47,15 @@ struct SliderSpec {
 /// If you want to clamp incoming and outgoing values, use [`Slider::clamp_to_range`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
+///
+/// The slider consists of three parts: a horizontal slider, a value display, and an optional text.
+/// The user can click the value display to edit its value. It can be turned off with `.show_value(false)`.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// # let mut my_f32: f32 = 0.0;
+/// ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0).text("My value"));
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
@@ -54,8 +63,8 @@ pub struct Slider<'a> {
     spec: SliderSpec,
     clamp_to_range: bool,
     smart_aim: bool,
-    // TODO: label: Option<Label>
-    text: Option<String>,
+    show_value: bool,
+    text: String,
     text_color: Option<Color32>,
     min_decimals: usize,
     max_decimals: Option<usize>,
@@ -76,7 +85,8 @@ impl<'a> Slider<'a> {
             },
             clamp_to_range: false,
             smart_aim: true,
-            text: None,
+            show_value: true,
+            text: Default::default(),
             text_color: None,
             min_decimals: 0,
             max_decimals: None,
@@ -142,8 +152,16 @@ impl<'a> Slider<'a> {
         .integer()
     }
 
+    /// Control wether or not the slider shows the current value.
+    /// Default: `true`.
+    pub fn show_value(mut self, show_value: bool) -> Self {
+        self.show_value = show_value;
+        self
+    }
+
+    /// Show a text next to the slider (e.g. explaining what the slider controls).
     pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.text = Some(text.into());
+        self.text = text.into();
         self
     }
 
@@ -335,9 +353,9 @@ impl<'a> Slider<'a> {
     }
 
     fn label_ui(&mut self, ui: &mut Ui) {
-        if let Some(label_text) = self.text.as_deref() {
+        if !self.text.is_empty() {
             let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            ui.add(Label::new(label_text).wrap(false).text_color(text_color));
+            ui.add(Label::new(&self.text).wrap(false).text_color(text_color));
         }
     }
 
@@ -417,21 +435,21 @@ impl<'a> Widget for Slider<'a> {
         let font = &ui.fonts()[text_style];
         let height = font.row_height().at_least(ui.spacing().interact_size.y);
 
-        if self.text.is_some() {
-            ui.horizontal(|ui| {
-                let slider_response = self.allocate_slider_space(ui, height);
-                self.slider_ui(ui, &slider_response);
+        let inner_response = ui.horizontal(|ui| {
+            let slider_response = self.allocate_slider_space(ui, height);
+            self.slider_ui(ui, &slider_response);
+
+            if self.show_value {
                 let x_range = x_range(&slider_response.rect);
                 self.value_ui(ui, x_range);
+            }
+
+            if !self.text.is_empty() {
                 self.label_ui(ui);
-                slider_response
-            })
-            .inner
-        } else {
-            let response = self.allocate_slider_space(ui, height);
-            self.slider_ui(ui, &response);
-            response
-        }
+            }
+            slider_response
+        });
+        inner_response.inner | inner_response.response
     }
 }
 
