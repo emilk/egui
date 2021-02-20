@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+* Added GLSL 1.2 shaders (now `egui` works well on old hardware which supports OpenGL 2.1 only like Raspberry Pi 1 and Zero)
+* Added GLSL ES 1.0 and 3.0 shaders (by reusing from webgl backend)
+
 
 ## 0.9.0 - 2021-02-07
 
