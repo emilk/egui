@@ -95,7 +95,11 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Hyperlink", "Hyperlink"));
-        ui.hyperlink_to(" egui home page", "https://github.com/emilk/egui");
+        use egui::special_emojis::GITHUB;
+        ui.hyperlink_to(
+            format!("{} egui home page", GITHUB),
+            "https://github.com/emilk/egui",
+        );
         ui.end_row();
 
         ui.add(doc_link_label("TextEdit", "TextEdit,text_edit"));

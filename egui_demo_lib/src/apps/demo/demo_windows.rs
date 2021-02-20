@@ -99,10 +99,18 @@ impl DemoWindows {
             ui.separator();
 
             ScrollArea::auto_sized().show(ui, |ui| {
-                ui.label("egui is an immediate mode GUI library written in Rust.");
-                ui.hyperlink_to(" egui home page", "https://github.com/emilk/egui");
+                use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
-                ui.label("egui can be run on the web, or natively on 🐧");
+                ui.label("egui is an immediate mode GUI library written in Rust.");
+                ui.hyperlink_to(
+                    format!("{} egui home page", GITHUB),
+                    "https://github.com/emilk/egui",
+                );
+
+                ui.label(format!(
+                    "egui can be run on the web, or natively on {}{}{}",
+                    OS_APPLE, OS_LINUX, OS_WINDOWS,
+                ));
 
                 ui.separator();
 
