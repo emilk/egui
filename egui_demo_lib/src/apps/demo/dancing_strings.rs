@@ -11,7 +11,7 @@ impl Default for DancingStrings {
 }
 
 impl super::Demo for DancingStrings {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "♫ Dancing Strings"
     }
 

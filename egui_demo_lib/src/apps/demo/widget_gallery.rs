@@ -30,7 +30,7 @@ impl Default for WidgetGallery {
 }
 
 impl super::Demo for WidgetGallery {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "🗄 Widget Gallery"
     }
 

@@ -26,7 +26,7 @@ impl Default for PlotDemo {
 }
 
 impl super::Demo for PlotDemo {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "🗠 Plot"
     }
 

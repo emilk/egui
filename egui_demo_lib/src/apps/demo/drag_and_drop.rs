@@ -94,7 +94,7 @@ impl Default for DragAndDropDemo {
 }
 
 impl super::Demo for DragAndDropDemo {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "✋ Drag and Drop"
     }
 

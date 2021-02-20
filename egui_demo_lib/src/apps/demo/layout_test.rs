@@ -28,7 +28,7 @@ impl Default for LayoutTest {
 }
 
 impl super::Demo for LayoutTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Layout Test"
     }
 

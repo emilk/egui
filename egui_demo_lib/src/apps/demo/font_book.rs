@@ -40,7 +40,7 @@ impl FontBook {
 }
 
 impl super::Demo for FontBook {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "🔤 Font Book"
     }
 

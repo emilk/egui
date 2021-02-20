@@ -25,9 +25,8 @@ impl Default for WindowOptions {
 }
 
 impl super::Demo for WindowOptions {
-    fn name(&self) -> &str {
-        // "🗖 Window Options"
-        &self.title
+    fn name(&self) -> &'static str {
+        "🗖 Window Options"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {

@@ -64,7 +64,7 @@ impl Painting {
 }
 
 impl super::Demo for Painting {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "🖊 Painting"
     }
 
