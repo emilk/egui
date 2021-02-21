@@ -388,7 +388,6 @@ impl Context {
     }
 
     /// Will become active at the start of the next frame.
-    /// `pixels_per_point` will be ignored (overwritten at start of each frame with the contents of input)
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         self.memory().options.font_definitions = font_definitions;
     }
@@ -427,6 +426,15 @@ impl Context {
     /// The number of physical pixels for each logical point.
     pub fn pixels_per_point(&self) -> f32 {
         self.input.pixels_per_point()
+    }
+
+    /// Set the number of physical pixels for each logical point.
+    /// Will become active at the start of the next frame.
+    ///
+    /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
+    /// For instance, when using `egui_web` the browsers native zoom level will always be used.
+    pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
+        self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
     /// Useful for pixel-perfect rendering
@@ -493,7 +501,12 @@ impl Context {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory().begin_frame(&self.input, &new_raw_input);
 
-        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+        let mut input = std::mem::take(&mut self.input);
+        if let Some(new_pixels_per_point) = self.memory().new_pixels_per_point.take() {
+            input.pixels_per_point = new_pixels_per_point;
+        }
+
+        self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
         let font_definitions = self.memory().options.font_definitions.clone();

@@ -144,10 +144,9 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
-    /// Change the `pixels_per_point` of [`egui`] to this next frame.
-    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
-        self.0.output.pixels_per_point = Some(pixels_per_point);
-    }
+    /// Use [`egui::Context::set_pixels_per_point`] instead
+    #[deprecated = "Use egui::Context::set_pixels_per_point instead"]
+    pub fn set_pixels_per_point(&mut self, _: f32) {}
 
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
@@ -367,8 +366,5 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
-
-        /// If the app sets this, change the `pixels_per_point` of [`egui`] to this next frame.
-        pub pixels_per_point: Option<f32>,
     }
 }

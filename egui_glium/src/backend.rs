@@ -192,11 +192,16 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
+            let pixels_per_point = input_state
+                .raw
+                .pixels_per_point
+                .unwrap_or_else(|| ctx.pixels_per_point());
+
             let frame_start = Instant::now();
             input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
             input_state.raw.screen_rect = Some(Rect::from_min_size(
                 Default::default(),
-                screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap(),
+                screen_size_in_pixels(&display) / pixels_per_point,
             ));
 
             ctx.begin_frame(input_state.raw.take());
@@ -225,16 +230,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             );
 
             {
-                let epi::backend::AppOutput {
-                    quit,
-                    window_size,
-                    pixels_per_point,
-                } = app_output;
-
-                if let Some(pixels_per_point) = pixels_per_point {
-                    // User changed GUI scale
-                    input_state.raw.pixels_per_point = Some(pixels_per_point);
-                }
+                let epi::backend::AppOutput { quit, window_size } = app_output;
 
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(
@@ -283,7 +279,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                input_to_egui(event, clipboard.as_mut(), &mut input_state, control_flow);
+                input_to_egui(
+                    ctx.pixels_per_point(),
+                    event,
+                    clipboard.as_mut(),
+                    &mut input_state,
+                    control_flow,
+                );
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {

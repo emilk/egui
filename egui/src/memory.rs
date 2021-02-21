@@ -20,6 +20,9 @@ use epaint::color::{Color32, Hsva};
 pub struct Memory {
     pub(crate) options: Options,
 
+    /// new scale that will be applied at the start of the next frame
+    pub(crate) new_pixels_per_point: Option<f32>,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 

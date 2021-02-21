@@ -91,7 +91,7 @@ impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(native_pixels_per_point()),
+            pixels_per_point: Some(native_pixels_per_point()), // We ALWAYS use the native pixels-per-point
             time: Some(now_sec()),
             ..self.raw.take()
         }
@@ -221,9 +221,8 @@ impl AppRunner {
 
         {
             let epi::backend::AppOutput {
-                quit: _,             // Can't quit a web page
-                window_size: _,      // Can't resize a web page
-                pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)
+                quit: _,        // Can't quit a web page
+                window_size: _, // Can't resize a web page
             } = app_output;
         }
 

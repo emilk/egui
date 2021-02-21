@@ -251,11 +251,13 @@ impl BackendPanel {
 
         self.frame_history.ui(ui);
 
-        if !frame.is_web() {
-            // web browsers have their own way of zooming, which egui_web respects
+        // For instance: `egui_web` sets `pixels_per_point` every frame to force
+        // egui to use the same scale as the web zoom factor.
+        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
+        if !integration_controls_pixels_per_point {
             ui.separator();
             if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
-                frame.set_pixels_per_point(new_pixels_per_point);
+                ui.ctx().set_pixels_per_point(new_pixels_per_point);
             }
         }
 
