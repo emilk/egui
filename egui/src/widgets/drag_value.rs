@@ -4,6 +4,29 @@ use std::ops::RangeInclusive;
 
 use crate::*;
 
+// ----------------------------------------------------------------------------
+
+/// Same state for all [`DragValue`]s.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct MonoState {
+    last_dragged_id: Option<Id>,
+    last_dragged_value: Option<f64>,
+    /// For temporary edit of a `DragValue` value.
+    /// Couples with [`Interaction::kb_focus_id`].
+    edit_string: Option<String>,
+}
+
+impl MonoState {
+    pub(crate) fn end_frame(&mut self, input: &InputState) {
+        if input.pointer.any_pressed() || input.pointer.any_released() {
+            self.last_dragged_id = None;
+            self.last_dragged_value = None;
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
@@ -177,7 +200,12 @@ impl<'a> Widget for DragValue<'a> {
 
         if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
-            let mut value_text = ui.memory().temp_edit_string.take().unwrap_or(value_text);
+            let mut value_text = ui
+                .memory()
+                .drag_value
+                .edit_string
+                .take()
+                .unwrap_or(value_text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .id(kb_edit_id)
@@ -190,8 +218,9 @@ impl<'a> Widget for DragValue<'a> {
             }
             if ui.input().key_pressed(Key::Enter) {
                 ui.memory().surrender_kb_focus(kb_edit_id);
+                ui.memory().drag_value.edit_string = None;
             } else {
-                ui.memory().temp_edit_string = Some(value_text);
+                ui.memory().drag_value.edit_string = Some(value_text);
             }
             response
         } else {
@@ -208,18 +237,18 @@ impl<'a> Widget for DragValue<'a> {
 
             if response.clicked() {
                 ui.memory().request_kb_focus(kb_edit_id);
-                ui.memory().temp_edit_string = None; // Filled in next frame
+                ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
                 let mdelta = ui.input().pointer.delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
                 let delta_value = delta_points as f64 * speed;
                 if delta_value != 0.0 {
+                    let mut drag_state = std::mem::take(&mut ui.memory().drag_value);
+
                     // Since we round the value being dragged, we need to store the full precision value in memory:
-                    let stored_value = ui
-                        .memory()
-                        .drag_value
-                        .filter(|(id, _)| *id == response.id)
-                        .map(|(_, value)| value);
+                    let stored_value = (drag_state.last_dragged_id == Some(response.id))
+                        .then(|| drag_state.last_dragged_value)
+                        .flatten();
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value as f64;
                     let stored_value = clamp(stored_value, clamp_range.clone());
@@ -236,7 +265,9 @@ impl<'a> Widget for DragValue<'a> {
                     let rounded_new_value = clamp(rounded_new_value, clamp_range);
                     set(&mut get_set_value, rounded_new_value);
 
-                    ui.memory().drag_value = Some((response.id, stored_value));
+                    drag_state.last_dragged_id = Some(response.id);
+                    drag_state.last_dragged_value = Some(stored_value);
+                    ui.memory().drag_value = drag_state;
                 }
             }
             response

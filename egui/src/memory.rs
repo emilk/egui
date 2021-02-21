@@ -35,13 +35,8 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    /// For temporary edit of e.g. a `DragValue` value.
-    /// Couples with [`Interaction::kb_focus_id`].
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) temp_edit_string: Option<String>,
-
-    /// Value of the `DragValue` being dragged (if any).
-    pub(crate) drag_value: Option<(Id, f64)>,
+    pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     pub(crate) areas: Areas,
 
@@ -203,9 +198,7 @@ impl Memory {
             }
         }
 
-        if input.pointer.any_pressed() || input.pointer.any_released() {
-            self.drag_value = Default::default();
-        }
+        self.drag_value.end_frame(input);
     }
 
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
