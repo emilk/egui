@@ -200,7 +200,7 @@ impl Painter {
             let clip_max_x = pixels_per_point * clip_rect.max.x;
             let clip_max_y = pixels_per_point * clip_rect.max.y;
 
-            // Make sure clip rect can fit withing an `u32`:
+            // Make sure clip rect can fit within a `u32`:
             let clip_min_x = clamp(clip_min_x, 0.0..=width_in_pixels as f32);
             let clip_min_y = clamp(clip_min_y, 0.0..=height_in_pixels as f32);
             let clip_max_x = clamp(clip_max_x, clip_min_x..=width_in_pixels as f32);

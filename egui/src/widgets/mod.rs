@@ -29,6 +29,10 @@ pub use {button::*, drag_value::DragValue, image::Image, slider::*, text_edit::*
 // ----------------------------------------------------------------------------
 
 /// Anything implementing Widget can be added to a [`Ui`] with [`Ui::add`].
+///
+/// Examples include `[Button]`, `[Label]` and [`Slider`].
+///
+/// `|ui: &mut Ui| -> Response { … }` also implemented `Widget`.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].

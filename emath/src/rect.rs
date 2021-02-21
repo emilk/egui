@@ -20,10 +20,17 @@ impl Rect {
         max: pos2(INFINITY, INFINITY),
     };
 
-    /// The inverse of [`Self::EVERYTHING`]: streches from positive infinity to negative infinity.
+    /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
     /// Contains no points.
     ///
-    /// This is useful as the seed for boulding bounding boxes.
+    /// This is useful as the seed for bounding bounding boxes.
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let inf = f32::INFINITY;
+    /// assert!(Rect::NOTHING.size() == Vec2::splat(-inf));
+    /// assert!(Rect::NOTHING.contains(pos2(0.0, 0.0)) == false);
+    /// ```
     ///
     /// # Example:
     /// ```

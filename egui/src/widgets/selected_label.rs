@@ -1,7 +1,7 @@
 use crate::*;
 
 /// One out of several alternatives, either selected or not.
-/// Will mark selected items with a different background color
+/// Will mark selected items with a different background color.
 /// An alternative to [`RadioButton`] and [`Checkbox`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
