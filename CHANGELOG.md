@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `Ui::hyperlink_to(label, url)`.
 * Sliders can now have a value prefix and suffix (e.g. the suffix `"°"` works like a unit).
 * `Context::set_pixels_per_point` to control the scale of the UI.
+* Add support for all integers in `DragValue` and `Slider` (except 128-bit).
 
 ### Changed 🔧
 

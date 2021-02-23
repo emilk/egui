@@ -51,6 +51,21 @@ pub struct DragValue<'a> {
     max_decimals: Option<usize>,
 }
 
+macro_rules! impl_integer_constructor {
+    ($int:ident) => {
+        pub fn $int(value: &'a mut $int) -> Self {
+            Self::from_get_set(move |v: Option<f64>| {
+                if let Some(v) = v {
+                    *value = v.round() as $int;
+                }
+                *value as f64
+            })
+            .max_decimals(0)
+            .clamp_range_f64(($int::MIN as f64)..=($int::MAX as f64))
+        }
+    };
+}
+
 impl<'a> DragValue<'a> {
     pub fn f32(value: &'a mut f32) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
@@ -70,25 +85,16 @@ impl<'a> DragValue<'a> {
         })
     }
 
-    pub fn u8(value: &'a mut u8) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as u8;
-            }
-            *value as f64
-        })
-        .max_decimals(0)
-    }
-
-    pub fn i32(value: &'a mut i32) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as i32;
-            }
-            *value as f64
-        })
-        .max_decimals(0)
-    }
+    impl_integer_constructor!(i8);
+    impl_integer_constructor!(u8);
+    impl_integer_constructor!(i16);
+    impl_integer_constructor!(u16);
+    impl_integer_constructor!(i32);
+    impl_integer_constructor!(u32);
+    impl_integer_constructor!(i64);
+    impl_integer_constructor!(u64);
+    impl_integer_constructor!(isize);
+    impl_integer_constructor!(usize);
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {

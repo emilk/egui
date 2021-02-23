@@ -18,13 +18,6 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }
 
-fn to_f64_range<T: Copy>(r: RangeInclusive<T>) -> RangeInclusive<f64>
-where
-    f64: From<T>,
-{
-    f64::from(*r.start())..=f64::from(*r.end())
-}
-
 // ----------------------------------------------------------------------------
 
 #[derive(Clone)]
@@ -72,7 +65,52 @@ pub struct Slider<'a> {
     max_decimals: Option<usize>,
 }
 
+macro_rules! impl_integer_constructor {
+    ($int:ident) => {
+        pub fn $int(value: &'a mut $int, range: RangeInclusive<$int>) -> Self {
+            let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
+            Self::from_get_set(range_f64, move |v: Option<f64>| {
+                if let Some(v) = v {
+                    *value = v.round() as $int
+                }
+                *value as f64
+            })
+            .integer()
+        }
+    };
+}
+
 impl<'a> Slider<'a> {
+    pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
+        let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
+        Self::from_get_set(range_f64, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v as f32
+            }
+            *value as f64
+        })
+    }
+
+    pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
+        Self::from_get_set(range, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = v
+            }
+            *value
+        })
+    }
+
+    impl_integer_constructor!(i8);
+    impl_integer_constructor!(u8);
+    impl_integer_constructor!(i16);
+    impl_integer_constructor!(u16);
+    impl_integer_constructor!(i32);
+    impl_integer_constructor!(u32);
+    impl_integer_constructor!(i64);
+    impl_integer_constructor!(u64);
+    impl_integer_constructor!(isize);
+    impl_integer_constructor!(usize);
+
     pub fn from_get_set(
         range: RangeInclusive<f64>,
         get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
@@ -95,65 +133,6 @@ impl<'a> Slider<'a> {
             min_decimals: 0,
             max_decimals: None,
         }
-    }
-
-    pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
-        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v as f32
-            }
-            *value as f64
-        })
-    }
-
-    pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
-        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v
-            }
-            *value
-        })
-    }
-
-    pub fn u8(value: &'a mut u8, range: RangeInclusive<u8>) -> Self {
-        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as u8
-            }
-            *value as f64
-        })
-        .integer()
-    }
-
-    pub fn i32(value: &'a mut i32, range: RangeInclusive<i32>) -> Self {
-        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as i32
-            }
-            *value as f64
-        })
-        .integer()
-    }
-
-    pub fn u32(value: &'a mut u32, range: RangeInclusive<u32>) -> Self {
-        Self::from_get_set(to_f64_range(range), move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as u32
-            }
-            *value as f64
-        })
-        .integer()
-    }
-
-    pub fn usize(value: &'a mut usize, range: RangeInclusive<usize>) -> Self {
-        let range = (*range.start() as f64)..=(*range.end() as f64);
-        Self::from_get_set(range, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v.round() as usize
-            }
-            *value as f64
-        })
-        .integer()
     }
 
     /// Control wether or not the slider shows the current value.
