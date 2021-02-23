@@ -877,7 +877,20 @@ impl Ui {
     /// Show a radio button. It is selected if `*current_value == selected_value`.
     /// If clicked, `selected_value` is assigned to `*current_value`.
     ///
-    /// Example: `ui.radio_value(&mut my_enum, Enum::Alternative, "Alternative")`.
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    ///
+    /// #[derive(PartialEq)]
+    /// enum Enum { First, Second, Third }
+    /// let mut my_enum = Enum::First;
+    ///
+    /// ui.radio_value(&mut my_enum, Enum::First, "First");
+    ///
+    /// // is equivalent to:
+    ///
+    /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
+    ///     my_enum = Enum::First
+    /// }
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,

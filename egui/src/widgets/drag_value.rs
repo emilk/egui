@@ -40,6 +40,12 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 }
 
 /// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// # let mut my_f32: f32 = 0.0;
+/// ui.add(egui::DragValue::f32(&mut my_f32).speed(0.1));
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,

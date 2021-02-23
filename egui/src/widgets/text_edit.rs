@@ -106,6 +106,8 @@ impl CCursorPair {
 
 /// A text region that the user can edit the contents of.
 ///
+/// Se also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
+///
 /// Example:
 ///
 /// ```

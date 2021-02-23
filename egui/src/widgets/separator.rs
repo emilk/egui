@@ -1,6 +1,15 @@
 use crate::*;
 
 /// A visual separator. A horizontal or vertical line (depending on [`Layout`]).
+///
+/// Usually you'd use the shorter version [`Ui::separator`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// // These are equivalent:
+/// ui.separator();
+/// ui.add(egui::Separator::new());
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
     spacing: f32,

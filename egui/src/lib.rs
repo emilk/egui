@@ -62,6 +62,38 @@
 //! });
 //! ```
 //!
+//! ### Quick start
+//!
+//! ``` rust
+//! # let ui = &mut egui::Ui::__test();
+//! # let mut my_string = String::new();
+//! # let mut my_boolean = true;
+//! # let mut my_f32 = 42.0;
+//! ui.label("This is a label");
+//! ui.hyperlink("https://github.com/emilk/egui");
+//! ui.text_edit_singleline(&mut my_string);
+//! if ui.button("Click me").clicked() { }
+//! ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0));
+//! ui.add(egui::DragValue::f32(&mut my_f32));
+//!
+//! ui.checkbox(&mut my_boolean, "Checkbox");
+//!
+//! #[derive(PartialEq)]
+//! enum Enum { First, Second, Third }
+//! let mut my_enum = Enum::First;
+//! ui.horizontal(|ui| {
+//!     ui.radio_value(&mut my_enum, Enum::First, "First");
+//!     ui.radio_value(&mut my_enum, Enum::Second, "Second");
+//!     ui.radio_value(&mut my_enum, Enum::Third, "Third");
+//! });
+//!
+//! ui.separator();
+//!
+//! ui.collapsing("Click to see what is hidden!", |ui| {
+//!     ui.label("Not much, as it turns out");
+//! });
+//! ```
+//!
 //! ## Conventions
 //!
 //! Conventions unless otherwise specified:
@@ -142,9 +174,7 @@
 //! ```
 //! # let ui = &mut egui::Ui::__test();
 //! # let mut some_bool = true;
-//! // Some examples, tips and tricks, etc.
-//!
-//! ui.checkbox(&mut some_bool, "Click to toggle");
+//! // Miscellaneous tips and tricks
 //!
 //! ui.horizontal_wrapped(|ui|{
 //!     ui.spacing_mut().item_spacing.x = 0.0; // remove spacing between widgets
@@ -152,8 +182,6 @@
 //!     ui.radio_value(&mut some_bool, false, "Off");
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
-//!
-//! if ui.button("Click me!").clicked() { }
 //!
 //! // Change test color on subsequent widgets:
 //! ui.visuals_mut().override_text_color = Some(egui::Color32::RED);

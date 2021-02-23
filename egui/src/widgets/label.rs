@@ -2,6 +2,13 @@ use crate::*;
 use epaint::Galley;
 
 /// Static text.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.label("Equivalent");
+/// ui.add(egui::Label::new("Equivalent"));
+/// ui.add(egui::Label::new("With Options").text_color(egui::Color32::RED));
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     // TODO: not pub
@@ -119,7 +126,9 @@ impl Label {
         self.text_color = Some(text_color.into());
         self
     }
+}
 
+impl Label {
     pub fn layout(&self, ui: &Ui) -> Galley {
         let max_width = ui.available_width();
         self.layout_width(ui, max_width)

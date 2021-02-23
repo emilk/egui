@@ -3,6 +3,23 @@ use crate::*;
 /// One out of several alternatives, either selected or not.
 /// Will mark selected items with a different background color.
 /// An alternative to [`RadioButton`] and [`Checkbox`].
+///
+/// Usually you'd use [`Ui::selectable_value`] or [`Ui::selectable_label`] instead.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// #[derive(PartialEq)]
+/// enum Enum { First, Second, Third }
+/// let mut my_enum = Enum::First;
+///
+/// ui.selectable_value(&mut my_enum, Enum::First, "First");
+///
+/// // is equivalent to:
+///
+/// if ui.add(egui::SelectableLabel::new(my_enum == Enum::First, "First")).clicked() {
+///     my_enum = Enum::First
+/// }
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct SelectableLabel {
