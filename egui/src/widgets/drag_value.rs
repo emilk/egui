@@ -52,18 +52,6 @@ pub struct DragValue<'a> {
 }
 
 impl<'a> DragValue<'a> {
-    pub(crate) fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
-        Self {
-            get_set_value: Box::new(get_set_value),
-            speed: 1.0,
-            prefix: Default::default(),
-            suffix: Default::default(),
-            clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
-            min_decimals: 0,
-            max_decimals: None,
-        }
-    }
-
     pub fn f32(value: &'a mut f32) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -100,6 +88,18 @@ impl<'a> DragValue<'a> {
             *value as f64
         })
         .max_decimals(0)
+    }
+
+    pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
+        Self {
+            get_set_value: Box::new(get_set_value),
+            speed: 1.0,
+            prefix: Default::default(),
+            suffix: Default::default(),
+            clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
+            min_decimals: 0,
+            max_decimals: None,
+        }
     }
 
     /// How much the value changes when dragged one point (logical pixel).
