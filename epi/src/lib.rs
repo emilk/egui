@@ -87,6 +87,11 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
+    /// The initial size of the native window in points (logical pixels).
+    fn initial_window_size(&self) -> Option<egui::Vec2> {
+        None
+    }
+
     /// Time between automatic calls to `save()`
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)

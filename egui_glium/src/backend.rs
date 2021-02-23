@@ -57,6 +57,7 @@ impl epi::RepaintSignal for GliumRepaintSignal {
 
 fn create_display(
     title: &str,
+    initial_size_points: Option<Vec2>,
     window_settings: Option<WindowSettings>,
     is_resizable: bool,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
@@ -69,6 +70,11 @@ fn create_display(
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
+    } else if let Some(initial_size_points) = initial_size_points {
+        window_builder = window_builder.with_inner_size(glutin::dpi::LogicalSize {
+            width: initial_size_points.x as f64,
+            height: initial_size_points.y as f64,
+        });
     }
 
     let context_builder = glutin::ContextBuilder::new()
@@ -135,7 +141,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
+    let display = create_display(
+        app.name(),
+        app.initial_window_size(),
+        window_settings,
+        app.is_resizable(),
+        &event_loop,
+    );
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),

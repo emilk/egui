@@ -38,6 +38,7 @@ impl epi::Storage for FileStorage {
 
     fn flush(&mut self) {
         if self.dirty {
+            // eprintln!("Persisted to {}", self.path.display());
             serde_json::to_writer(std::fs::File::create(&self.path).unwrap(), &self.kv).unwrap();
             self.dirty = false;
         }
@@ -46,11 +47,11 @@ impl epi::Storage for FileStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_json<T>(memory_json_path: impl AsRef<Path>) -> Option<T>
+pub fn read_json<T>(json_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    match std::fs::File::open(memory_json_path) {
+    match std::fs::File::open(json_path) {
         Ok(file) => {
             let reader = std::io::BufReader::new(file);
             match serde_json::from_reader(reader) {
