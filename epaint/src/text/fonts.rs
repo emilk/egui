@@ -184,6 +184,12 @@ pub struct Fonts {
 
 impl Fonts {
     pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+        assert!(
+            0.0 < pixels_per_point && pixels_per_point < 100.0,
+            "pixels_per_point out of range: {}",
+            pixels_per_point
+        );
+
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
         let mut atlas = TextureAtlas::new(2048, 64);
