@@ -226,6 +226,14 @@ impl Prepared {
         &mut self.state
     }
 
+    pub(crate) fn drag_bounds(&self) -> Option<Rect> {
+        if self.drag_bounds.is_some() {
+            Some(self.drag_bounds.unwrap())
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
         let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky

@@ -455,14 +455,14 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Constraint the position of a window/area
+    /// Constrain the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
         self.constrain_rect_impl(window, self.available_rect())
     }
 
-    /// Constraint the position of a window/area
-    /// so it fits withing the provided boundary.
+    /// Constrain the position of a window/area
+    /// so it fits within the provided boundary.
     pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
         self.constrain_rect_impl(window, area)
     }
