@@ -121,9 +121,15 @@ pub trait App {
     }
 }
 
+/// Image data for the icon.
 pub struct IconData {
+    /// RGBA pixels.
     pub rgba: Vec<u8>,
+
+    // Image width. This should be a multiple of 4.
     pub width: u32,
+
+    // Image height. This should be a multiple of 4.
     pub height: u32,
 }
 
