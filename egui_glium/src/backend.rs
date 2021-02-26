@@ -135,14 +135,7 @@ fn integration_info(
 
 fn load_icon(icon_data: Option<epi::IconData>) -> Option<glutin::window::Icon> {
     let icon_data = icon_data?;
-    if let Ok(icon) =
-        glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height)
-    {
-        Some(icon)
-    } else {
-        None
-    }
-}
+    glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
 
 /// Run an egui app
 pub fn run(mut app: Box<dyn epi::App>) -> ! {
