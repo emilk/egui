@@ -114,6 +114,17 @@ pub trait App {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         egui::Color32::from_rgb(12, 12, 12).into()
     }
+
+    /// The application icon, e.g. in the Windows task bar etc.
+    fn icon_data(&self) -> Option<IconData> {
+        None
+    }
+}
+
+pub struct IconData {
+    pub rgba: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// Represents the surroundings of your app.
