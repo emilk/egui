@@ -60,12 +60,14 @@ fn create_display(
     initial_size_points: Option<Vec2>,
     window_settings: Option<WindowSettings>,
     is_resizable: bool,
+    window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(is_resizable)
         .with_title(title)
+        .with_window_icon(window_icon)
         .with_transparent(false);
 
     if let Some(window_settings) = &window_settings {
@@ -131,6 +133,11 @@ fn integration_info(
     }
 }
 
+fn load_icon(icon_data: Option<epi::IconData>) -> Option<glutin::window::Icon> {
+    let icon_data = icon_data?;
+    glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
+}
+
 /// Run an egui app
 pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut storage = create_storage(app.name());
@@ -141,11 +148,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let icon = load_icon(app.icon_data());
     let display = create_display(
         app.name(),
         app.initial_window_size(),
         window_settings,
         app.is_resizable(),
+        icon,
         &event_loop,
     );
 

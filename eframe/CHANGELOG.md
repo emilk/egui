@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+*  You can now set your own app icons. See https://github.com/emilk/egui/pull/193
+   for example code.
 
 ## 0.9.0 - 2021-02-07
 
