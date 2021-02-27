@@ -26,6 +26,9 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
         Shape::Text { color, .. } => {
             adjust_color(color);
         }
+	Shape::MulticolorText { color_map, .. } => {
+	    color_map.adjust(adjust_color);            
+        }
         Shape::Mesh(mesh) => {
             for v in &mut mesh.vertices {
                 adjust_color(&mut v.color);
