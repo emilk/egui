@@ -202,6 +202,9 @@ impl Shape {
             Shape::Text { pos, .. } => {
                 *pos += delta;
             }
+	    Shape::MulticolorText { pos, .. } => {
+                *pos += delta;
+            }
             Shape::Mesh(mesh) => {
                 mesh.translate(delta);
             }
