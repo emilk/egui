@@ -396,6 +396,8 @@ impl<'a> Widget for Slider<'a> {
         let font = &ui.fonts()[text_style];
         let height = font.row_height().at_least(ui.spacing().interact_size.y);
 
+        let old_value = self.get_value();
+
         let inner_response = ui.horizontal(|ui| {
             let slider_response = self.allocate_slider_space(ui, height);
             self.slider_ui(ui, &slider_response);
@@ -410,7 +412,10 @@ impl<'a> Widget for Slider<'a> {
             }
             slider_response
         });
-        inner_response.inner | inner_response.response
+
+        let mut response = inner_response.inner | inner_response.response;
+        response.changed = self.get_value() != old_value;
+        response
     }
 }
 

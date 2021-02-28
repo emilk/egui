@@ -29,11 +29,12 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // 2. Allocating space:
     // This is where we get a region of the screen assigned.
     // We also tell the Ui to sense clicks in the allocated region.
-    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+    let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
-    // 3. Interact: Time to check for clicks!.
+    // 3. Interact: Time to check for clicks!
     if response.clicked() {
         *on = !*on;
+        response.mark_changed(); // report back that the value changed
     }
 
     // 4. Paint!
@@ -65,8 +66,11 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 #[allow(dead_code)]
 fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
-    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
-    *on ^= response.clicked(); // toggle if clicked
+    let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+    if response.clicked() {
+        *on = !*on;
+        response.mark_changed();
+    }
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact_selectable(&response, *on);

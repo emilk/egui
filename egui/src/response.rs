@@ -8,8 +8,11 @@ use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 /// The result of adding a widget to a [`Ui`].
 ///
-/// This lets you know whether or not a widget has been clicked this frame.
+/// A `Response` lets you know whether or not a widget is being hovered, clicked or dragged.
 /// It also lets you easily show a tooltip on hover.
+///
+/// Whenever something gets added to a `Ui`, a `Response` object is returned.
+/// [`ui.add`] returns a `Response`, as does [`ui.button`], and all similar shortcuts.
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -62,6 +65,11 @@ pub struct Response {
 
     /// The widget had keyboard focus and lost it.
     pub(crate) lost_kb_focus: bool,
+
+    /// What the underlying data changed?
+    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
+    /// Always `false` for something like a `Button`.
+    pub(crate) changed: bool,
 }
 
 impl std::fmt::Debug for Response {
@@ -82,6 +90,7 @@ impl std::fmt::Debug for Response {
             interact_pointer_pos,
             has_kb_focus,
             lost_kb_focus,
+            changed,
         } = self;
         f.debug_struct("Response")
             .field("layer_id", layer_id)
@@ -98,6 +107,7 @@ impl std::fmt::Debug for Response {
             .field("interact_pointer_pos", interact_pointer_pos)
             .field("has_kb_focus", has_kb_focus)
             .field("lost_kb_focus", lost_kb_focus)
+            .field("changed", changed)
             .finish()
     }
 }
@@ -190,6 +200,24 @@ impl Response {
     /// This is true if the pointer is pressing down or dragging a widget
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.is_pointer_button_down_on
+    }
+
+    /// What the underlying data changed?
+    ///
+    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
+    /// Always `false` for something like a `Button`.
+    /// Can sometimes be `true` even though the data didn't changed
+    /// (e.g. if the user entered a character and erased it the same frame).
+    pub fn changed(&self) -> bool {
+        self.changed
+    }
+
+    /// Report the data shown by this widget changed.
+    ///
+    /// This must be called by widgets that represent some mutable data,
+    /// e.g. checkboxes, sliders etc.
+    pub fn mark_changed(&mut self) {
+        self.changed = true;
     }
 
     /// Show this UI if the item was hovered (i.e. a tooltip).
@@ -315,6 +343,7 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
             lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
+            changed: self.changed || other.changed,
         }
     }
 }

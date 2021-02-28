@@ -897,9 +897,10 @@ impl Ui {
         selected_value: Value,
         text: impl Into<String>,
     ) -> Response {
-        let response = self.radio(*current_value == selected_value, text);
+        let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {
             *current_value = selected_value;
+            response.mark_changed();
         }
         response
     }
@@ -920,9 +921,10 @@ impl Ui {
         selected_value: Value,
         text: impl Into<String>,
     ) -> Response {
-        let response = self.selectable_label(*current_value == selected_value, text);
+        let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
             *current_value = selected_value;
+            response.mark_changed();
         }
         response
     }
@@ -938,11 +940,12 @@ impl Ui {
         #![allow(clippy::float_cmp)]
 
         let mut degrees = radians.to_degrees();
-        let response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
+        let mut response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
 
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
+            response.changed = true;
         }
 
         response
@@ -957,13 +960,14 @@ impl Ui {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
-        let response = self
+        let mut response = self
             .add(DragValue::f32(&mut taus).speed(0.01).suffix("τ"))
             .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
 
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
+            response.changed = true;
         }
 
         response

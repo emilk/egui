@@ -227,9 +227,10 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
+        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
         if response.clicked() {
             *checked = !*checked;
+            response.mark_changed();
         }
 
         // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful

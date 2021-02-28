@@ -210,7 +210,7 @@ impl<'a> Widget for DragValue<'a> {
         let kb_edit_id = ui.auto_id_with("edit");
         let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
 
-        if is_kb_editing {
+        let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
                 .memory()
@@ -283,6 +283,13 @@ impl<'a> Widget for DragValue<'a> {
                 }
             }
             response
+        };
+
+        #[allow(clippy::float_cmp)]
+        {
+            response.changed = get(&mut get_set_value) != value;
         }
+
+        response
     }
 }

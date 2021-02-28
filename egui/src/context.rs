@@ -198,6 +198,7 @@ impl CtxRef {
             interact_pointer_pos: None,
             has_kb_focus,
             lost_kb_focus,
+            changed: false, // must be set by the widget itself
         };
 
         if !enabled || sense == Sense::hover() || !layer_id.allow_interaction() {
