@@ -60,7 +60,7 @@ pub struct Response {
     /// `None` if the widget is not being interacted with.
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
-    /// This widget has the keyboard focus (i.e. is receiving key pressed).
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
     pub(crate) has_kb_focus: bool,
 
     /// The widget had keyboard focus and lost it.
@@ -143,6 +143,11 @@ impl Response {
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     pub fn hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
+    pub fn has_kb_focus(&self) -> bool {
+        self.has_kb_focus
     }
 
     /// The widget had keyboard focus and lost it,
