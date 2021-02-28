@@ -6,13 +6,20 @@ pub struct TextColorMap {
     color_map: BTreeMap<usize, Color32>,
 }
 
+impl Default for TextColorMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextColorMap {
+
     pub fn new() -> Self {
         TextColorMap {
             color_map: BTreeMap::new(),
         }
     }
-
+    
     pub fn add_color_change_at_index(&mut self, idx: usize, color: Color32) {
         self.color_map.insert(idx, color);
     }
