@@ -1,5 +1,3 @@
-#version 100 es
-
 precision mediump float;
 uniform vec2 u_screen_size;
 attribute vec2 a_pos;
@@ -16,6 +14,7 @@ vec3 linear_from_srgb(vec3 srgb) {
   return mix(higher, lower, vec3(cutoff));
 }
 
+// 0-1 linear  from  0-255 sRGBA
 vec4 linear_from_srgba(vec4 srgba) {
   return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
 }

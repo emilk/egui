@@ -1,5 +1,3 @@
-#version 300 es
-
 precision mediump float;
 uniform sampler2D u_sampler;
 varying vec4 v_rgba;
@@ -13,6 +11,7 @@ vec3 srgb_from_linear(vec3 rgb) {
   return mix(higher, lower, vec3(cutoff));
 }
 
+// 0-255 sRGBA  from  0-1 linear
 vec4 srgba_from_linear(vec4 rgba) {
   return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
 }
