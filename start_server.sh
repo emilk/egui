@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-# Starts a local web-server that servs the contents of the `doc/` folder,
+# Starts a local web-server that serves the contents of the `doc/` folder,
 # i.e. the web-version of `egui_demo_app`.
 
 cargo install basic-http-server
