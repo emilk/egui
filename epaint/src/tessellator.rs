@@ -723,6 +723,7 @@ impl Tessellator {
             }
             if line.ends_with_newline {
                 let newline = chars.next().unwrap();
+                char_count += 1;
                 debug_assert_eq!(newline, '\n');
             }
         }
