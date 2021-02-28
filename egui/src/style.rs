@@ -173,6 +173,8 @@ pub struct Visuals {
     pub resize_corner_size: f32,
 
     pub text_cursor_width: f32,
+    /// show where the text cursor would be if you clicked
+    pub text_cursor_preview: bool,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
@@ -336,6 +338,7 @@ impl Visuals {
             window_shadow: Shadow::big_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
+            text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             debug_expand_width: false,
             debug_expand_height: false,
@@ -647,6 +650,7 @@ impl Visuals {
             window_shadow,
             resize_corner_size,
             text_cursor_width,
+            text_cursor_preview,
             clip_rect_margin,
             debug_expand_width,
             debug_expand_height,
@@ -675,6 +679,7 @@ impl Visuals {
         ui_color(ui, code_bg_color, "code_bg_color");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
+        ui.checkbox(text_cursor_preview, "text_cursor_preview");
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.group(|ui| {

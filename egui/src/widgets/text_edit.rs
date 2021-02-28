@@ -333,7 +333,10 @@ impl<'t> TextEdit<'t> {
 
                 let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
 
-                if response.hovered() && ui.input().pointer.is_moving() {
+                if ui.visuals().text_cursor_preview
+                    && response.hovered()
+                    && ui.input().pointer.is_moving()
+                {
                     // preview:
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
