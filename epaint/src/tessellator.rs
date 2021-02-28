@@ -5,7 +5,10 @@
 
 #![allow(clippy::identity_op)]
 
-use crate::{text::{Fonts, TextColorMap}, *};
+use crate::{
+    text::{Fonts, TextColorMap},
+    *,
+};
 use emath::*;
 use std::f32::consts::TAU;
 
@@ -581,12 +584,12 @@ impl Tessellator {
                 }
                 self.tessellate_text(fonts, pos, &galley, text_style, color, fake_italics, out);
             }
-	    Shape::MulticolorText {
+            Shape::MulticolorText {
                 pos,
                 galley,
                 text_style,
                 color_map,
-		default_color
+                default_color,
             } => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
@@ -599,7 +602,15 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_multicolor_text(fonts, pos, &galley, text_style, &color_map, default_color, out);
+                self.tessellate_multicolor_text(
+                    fonts,
+                    pos,
+                    &galley,
+                    text_style,
+                    &color_map,
+                    default_color,
+                    out,
+                );
             }
         }
     }
@@ -725,7 +736,7 @@ impl Tessellator {
         }
         assert_eq!(chars.next(), None);
     }
-    
+
     pub fn tessellate_multicolor_text(
         &mut self,
         fonts: &Fonts,
@@ -733,10 +744,10 @@ impl Tessellator {
         galley: &super::Galley,
         text_style: super::TextStyle,
         color_map: &TextColorMap,
-	default_color: Color32,
-	out: &mut Mesh,
-    ) {        	
-	galley.sanity_check();
+        default_color: Color32,
+        out: &mut Mesh,
+    ) {
+        galley.sanity_check();
 
         let num_chars = galley.text.chars().count();
         out.reserve_triangles(num_chars * 2);
@@ -746,26 +757,25 @@ impl Tessellator {
         let tex_h = fonts.texture().height as f32;
 
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
-	
+
         let font = &fonts[text_style];
-	let mut char_count = 0;
+        let mut char_count = 0;
         let mut chars = galley.text.chars();
-	let mut color = default_color;
-        for line in &galley.rows {	   
+        let mut color = default_color;
+        for line in &galley.rows {
             let line_min_y = pos.y + line.y_min;
-	    //println!("{} {} {}", pos.y, line.y_min, line_min_y);
+            //println!("{} {} {}", pos.y, line.y_min, line_min_y);
             let line_max_y = line_min_y + font.row_height();
             let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
 
             for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
-		
-		if let Some(c) = color_map.get_color_change_at_index(char_count) {
-		    color = *c;
-		} 		
+                if let Some(c) = color_map.get_color_change_at_index(char_count) {
+                    color = *c;
+                }
 
-		let c = chars.next().unwrap();		
-		char_count += 1;
-		
+                let c = chars.next().unwrap();
+                char_count += 1;
+
                 if self.options.coarse_tessellation_culling && !is_line_visible {
                     // culling individual lines of text is important, since a single `Shape::Text`
                     // can span hundreds of lines.
@@ -787,7 +797,7 @@ impl Tessellator {
             }
             if line.ends_with_newline {
                 let newline = chars.next().unwrap();
-		char_count += 1;
+                char_count += 1;
                 debug_assert_eq!(newline, '\n');
             }
         }

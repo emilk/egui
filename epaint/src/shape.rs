@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley, TextStyle, TextColorMap},
+    text::{Fonts, Galley, TextColorMap, TextStyle},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -54,8 +54,8 @@ pub enum Shape {
         pos: Pos2,
         /// The layed out text
         galley: Galley,
-	text_style: TextStyle, // TODO: Font?
-	color_map: TextColorMap,
+        text_style: TextStyle, // TODO: Font?
+        color_map: TextColorMap,
         default_color: Color32,
     },
     Mesh(Mesh),
@@ -202,7 +202,7 @@ impl Shape {
             Shape::Text { pos, .. } => {
                 *pos += delta;
             }
-	    Shape::MulticolorText { pos, .. } => {
+            Shape::MulticolorText { pos, .. } => {
                 *pos += delta;
             }
             Shape::Mesh(mesh) => {

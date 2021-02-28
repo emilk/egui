@@ -4,7 +4,7 @@ use crate::{
     Color32, CtxRef,
 };
 use epaint::{
-    text::{Fonts, Galley, TextStyle, TextColorMap},
+    text::{Fonts, Galley, TextColorMap, TextStyle},
     Shape, Stroke,
 };
 
@@ -319,15 +319,22 @@ impl Painter {
             fake_italics,
         });
     }
-    
+
     /// Paint text that has already been layed out in a `Galley`, with multiple colors
-    pub fn multicolor_galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color_map: TextColorMap, default_color: Color32) {
+    pub fn multicolor_galley(
+        &self,
+        pos: Pos2,
+        galley: Galley,
+        text_style: TextStyle,
+        color_map: TextColorMap,
+        default_color: Color32,
+    ) {
         self.add(Shape::MulticolorText {
             pos,
             galley,
             text_style,
             color_map,
-	    default_color,
+            default_color,
         });
     }
 }
