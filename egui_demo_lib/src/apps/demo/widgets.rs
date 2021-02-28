@@ -24,7 +24,6 @@ pub struct Widgets {
     color: Color32,
     single_line_text_input: String,
     multiline_text_input: String,
-    toggle_switch: bool,
 }
 
 impl Default for Widgets {
@@ -37,7 +36,6 @@ impl Default for Widgets {
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
-            toggle_switch: false,
         }
     }
 }

@@ -83,8 +83,6 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 pub struct DemoWindows {
     open_windows: OpenWindows,
 
-    demo_window: super::DemoWindow,
-
     /// open, title, view
     demos: Demos,
 }
