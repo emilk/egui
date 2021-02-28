@@ -23,10 +23,12 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
         }
-        Shape::Text { color, .. } => {
-            adjust_color(color);
-        }
-        Shape::MulticolorText { color_map, .. } => {
+        Shape::Text {
+            default_color,
+            color_map,
+            ..
+        } => {
+            adjust_color(default_color);
             color_map.adjust(adjust_color);
         }
         Shape::Mesh(mesh) => {

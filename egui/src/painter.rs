@@ -315,7 +315,8 @@ impl Painter {
             pos,
             galley,
             text_style,
-            color,
+            default_color: color,
+            color_map: TextColorMap::default(),
             fake_italics,
         });
     }
@@ -329,12 +330,13 @@ impl Painter {
         color_map: TextColorMap,
         default_color: Color32,
     ) {
-        self.add(Shape::MulticolorText {
+        self.add(Shape::Text {
             pos,
             galley,
             text_style,
-            color_map,
-            default_color,
+            color_map: color_map,
+            default_color: default_color,
+            fake_italics: false,
         });
     }
 }

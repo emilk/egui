@@ -665,7 +665,8 @@ impl Prepared {
                 pos: text_pos,
                 galley,
                 text_style,
-                color: ui.visuals().text_color(),
+                default_color: ui.visuals().text_color(),
+                color_map: epaint::text::TextColorMap::default(),
                 fake_italics: false,
             });
         }
