@@ -334,8 +334,8 @@ impl Painter {
             pos,
             galley,
             text_style,
-            color_map: color_map,
-            default_color: default_color,
+            color_map,
+            default_color,
             fake_italics: false,
         });
     }
