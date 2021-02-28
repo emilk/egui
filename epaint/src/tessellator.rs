@@ -589,7 +589,7 @@ impl Tessellator {
                     &galley,
                     text_style,
                     default_color,
-                    color_map,
+                    &color_map,
                     fake_italics,
                     out,
                 );
@@ -635,7 +635,7 @@ impl Tessellator {
         galley: &super::Galley,
         text_style: super::TextStyle,
         default_color: Color32,
-        color_map: TextColorMap,
+        color_map: &TextColorMap,
         fake_italics: bool,
         out: &mut Mesh,
     ) {
