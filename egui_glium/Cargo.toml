@@ -10,7 +10,11 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["glium", "egui", "gui", "gamedev"]
-include = [ "**/*.rs", "Cargo.toml"]
+include = [
+  "**/*.rs",
+  "Cargo.toml",
+  "src/shader/*.glsl",
+]
 
 [dependencies]
 clipboard = "0.5"
