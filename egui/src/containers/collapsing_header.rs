@@ -122,6 +122,18 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 }
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
+///
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// egui::CollapsingHeader::new("Heading")
+///     .show(ui, |ui| {
+///         ui.label("Contents");
+///     });
+///
+/// // Short version:
+/// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
+/// ```
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
@@ -130,6 +142,11 @@ pub struct CollapsingHeader {
 
 impl CollapsingHeader {
     /// The `CollapsingHeader` starts out collapsed unless you call `default_open`.
+    ///
+    /// The label is used as an [`Id`] source.
+    /// If the label is unique and static this is fine,
+    /// but if it changes or there are several `CollapsingHeader` with the same title
+    /// you need to provide a unique id source with [`Self::id_source`].
     pub fn new(label: impl Into<String>) -> Self {
         let label = Label::new(label).text_style(TextStyle::Button).wrap(false);
         let id_source = Id::new(label.text());
@@ -140,6 +157,8 @@ impl CollapsingHeader {
         }
     }
 
+    /// By default, the `CollapsingHeader` is collapsed.
+    /// Call `.default_open(true)` to change this.
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self

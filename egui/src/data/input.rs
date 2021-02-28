@@ -42,7 +42,11 @@ pub struct RawInput {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    /// In-order events received this frame
+    /// In-order events received this frame.
+    ///
+    /// There is currently no way to know if egui handles a particular event,
+    /// but you can check if egui is using the keyboard with [`crate::Context::wants_keyboard_input`]
+    /// and/or the pointer (mouse/touch) with [`crate::Context::is_using_pointer`].
     pub events: Vec<Event>,
 }
 

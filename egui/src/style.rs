@@ -76,7 +76,7 @@ pub struct Spacing {
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Default width of a `Slider`.
+    /// Default width of a `Slider` and `ComboBox`.
     pub slider_width: f32, // TODO: rename big_interact_size ?
 
     /// Default width of a `TextEdit`.

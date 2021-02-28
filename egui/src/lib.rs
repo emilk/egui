@@ -9,41 +9,32 @@
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
-//! ## Integrating with egui
+//! # Using egui
 //!
-//! To write your own integration for egui you need to do this:
+//! To see what is possible to build with egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
 //!
-//! ``` no_run
-//! # fn handle_output(_: egui::Output) {}
-//! # fn paint(_: Vec<egui::ClippedMesh>) {}
-//! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! let mut ctx = egui::CtxRef::default();
+//! If you like the "learning by doing" approach, clone <https://github.com/emilk/egui_template> and get started using egui right away.
 //!
-//! // Game loop:
-//! loop {
-//!     let raw_input: egui::RawInput = gather_input();
-//!     ctx.begin_frame(raw_input);
+//! ### A simple example
 //!
-//!     egui::CentralPanel::default().show(&ctx, |ui| {
-//!         ui.label("Hello world!");
-//!         if ui.button("Click me").clicked() {
-//!             /* take some action here */
+//! Here is a simple counter that can be incremented and decremented using two buttons:
+//! ```
+//! fn ui_counter(ui: &mut egui::Ui, counter: &mut i32) {
+//!     // Put the buttons and label on the same row:
+//!     ui.horizontal(|ui| {
+//!         if ui.button("-").clicked() {
+//!             *counter -= 1;
+//!         }
+//!         ui.label(counter.to_string());
+//!         if ui.button("+").clicked() {
+//!             *counter += 1;
 //!         }
 //!     });
-//!
-//!     let (output, shapes) = ctx.end_frame();
-//!     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
-//!     handle_output(output);
-//!     paint(clipped_meshes);
 //! }
 //! ```
 //!
-//!
-//! ## Using egui
-//!
-//! To see what is possible to build we egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
-//!
-//! If you like the "learning by doing" approach, clone <https://github.com/emilk/egui_template> and get started using egui right away.
+//! In some GUI frameworks this would require defining multiple types and functions with callbacks or message handlers,
+//! but thanks to `egui` being immediate mode everything is one self-contained function!
 //!
 //! ### Getting a [`Ui`]
 //!
@@ -89,6 +80,9 @@
 //!
 //! ui.separator();
 //!
+//! # let my_image = egui::TextureId::default();
+//! ui.image(my_image, [640.0, 480.0]);
+//!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
 //! });
@@ -101,9 +95,42 @@
 //! * angles are in radians
 //! * `Vec2::X` is right and `Vec2::Y` is down.
 //! * `Pos2::ZERO` is left top.
+//! * Positions and sizes are measured in _points_. Each point may consist of many physical pixels.
+//!
+//! # Integrating with egui
+//!
+//! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe) or [`bevy_egui`](https://docs.rs/bevy_egui),
+//! but if you want to integrate `egui` into a new game engine, this is the section for you.
+//!
+//! To write your own integration for egui you need to do this:
+//!
+//! ``` no_run
+//! # fn handle_output(_: egui::Output) {}
+//! # fn paint(_: Vec<egui::ClippedMesh>) {}
+//! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
+//! let mut ctx = egui::CtxRef::default();
+//!
+//! // Game loop:
+//! loop {
+//!     let raw_input: egui::RawInput = gather_input();
+//!     ctx.begin_frame(raw_input);
+//!
+//!     egui::CentralPanel::default().show(&ctx, |ui| {
+//!         ui.label("Hello world!");
+//!         if ui.button("Click me").clicked() {
+//!             /* take some action here */
+//!         }
+//!     });
+//!
+//!     let (output, shapes) = ctx.end_frame();
+//!     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
+//!     handle_output(output);
+//!     paint(clipped_meshes);
+//! }
+//! ```
 //!
 //!
-//! ## Understanding immediate mode
+//! # Understanding immediate mode
 //!
 //! `egui` is an immediate mode GUI library. It is useful to fully grok what "immediate mode" implies.
 //!
@@ -111,7 +138,9 @@
 //!
 //! ```
 //! # let ui = &mut egui::Ui::__test();
-//! if ui.button("click me").clicked() { take_action() }
+//! if ui.button("click me").clicked() {
+//!     take_action()
+//! }
 //! # fn take_action() {}
 //! ```
 //!
@@ -169,7 +198,7 @@
 //! }
 //! ```
 //!
-//! # Code snippets
+//! ## Code snippets
 //!
 //! ```
 //! # let ui = &mut egui::Ui::__test();

@@ -215,7 +215,9 @@ impl GridLayout {
 
 /// A simple grid layout.
 ///
-/// The contents of each cell be aligned to the left and center.
+/// The cells are always layed out left to right, top-down.
+/// The contents of each cell will be aligned to the left and center.
+///
 /// If you want to add multiple widgets to a cell you need to group them with
 /// [`Ui::horizontal`], [`Ui::vertical`] etc.
 ///

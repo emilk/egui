@@ -76,6 +76,12 @@ pub trait App {
     fn load(&mut self, _storage: &dyn Storage) {}
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    ///
+    /// On web the states is stored to "Local Storage".
+    /// On native the path is picked using [`directories_next::ProjectDirs`](https://docs.rs/directories-next/latest/directories_next/struct.ProjectDirs.html) which is:
+    /// * Linux:   `/home/UserName/.config/appname`
+    /// * macOS:   `/Users/UserName/Library/Application Support/appname`
+    /// * Windows: `C:\Users\UserName\AppData\Roaming\appname`
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown (before or after `save()`)
