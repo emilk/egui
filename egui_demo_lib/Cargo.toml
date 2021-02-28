@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_lib"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition = "2018"
@@ -15,8 +15,8 @@ include = [ "**/*.rs", "Cargo.toml"]
 [lib]
 
 [dependencies]
-egui = { version = "0.9.0", path = "../egui" }
-epi = { version = "0.9.0", path = "../epi" }
+egui = { version = "0.10.0", path = "../egui" }
+epi = { version = "0.10.0", path = "../epi" }
 
 # feature "http":
 image = { version = "0.23", default_features = false, features = ["jpeg", "png"], optional = true }

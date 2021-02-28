@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2018"
@@ -15,16 +15,16 @@ include = [ "**/*.rs", "Cargo.toml"]
 [lib]
 
 [dependencies]
-egui = { version = "0.9.0", path = "../egui" }
-epi = { version = "0.9.0", path = "../epi" }
+egui = { version = "0.10.0", path = "../egui" }
+epi = { version = "0.10.0", path = "../epi" }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { version = "0.9.0", path = "../egui_glium" }
+egui_glium = { version = "0.10.0", path = "../egui_glium" }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.9.0", path = "../egui_web" }
+egui_web = { version = "0.10.0", path = "../egui_web" }
 
 [features]
 default = []

@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
@@ -20,8 +20,8 @@ include = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.9.0", path = "../egui" }
-epi = { version = "0.9.0", path = "../epi" }
+egui = { version = "0.10.0", path = "../egui" }
+epi = { version = "0.10.0", path = "../epi" }
 js-sys = "0.3"
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
