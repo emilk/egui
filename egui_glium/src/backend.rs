@@ -191,7 +191,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(&display, None),
-            tex_allocator: Some(&mut painter),
+            tex_allocator: &mut painter,
             #[cfg(feature = "http")]
             http: http.clone(),
             output: &mut app_output,
@@ -229,7 +229,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
-                tex_allocator: Some(&mut painter),
+                tex_allocator: &mut painter,
                 #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,

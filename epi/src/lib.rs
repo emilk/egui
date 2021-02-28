@@ -156,9 +156,9 @@ impl<'a> Frame<'a> {
         &self.0.info
     }
 
-    /// A way to allocate textures (on integrations that support it).
-    pub fn tex_allocator(&mut self) -> &mut Option<&'a mut dyn TextureAllocator> {
-        &mut self.0.tex_allocator
+    /// A way to allocate textures.
+    pub fn tex_allocator(&mut self) -> &mut dyn TextureAllocator {
+        self.0.tex_allocator
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
@@ -368,7 +368,7 @@ pub mod backend {
         /// Information about the integration.
         pub info: IntegrationInfo,
         /// A way to allocate textures (on integrations that support it).
-        pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
+        pub tex_allocator: &'a mut dyn TextureAllocator,
         /// Do http requests.
         #[cfg(feature = "http")]
         pub http: std::sync::Arc<dyn backend::Http>,

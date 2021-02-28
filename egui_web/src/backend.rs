@@ -206,7 +206,7 @@ impl AppRunner {
                 seconds_since_midnight: Some(seconds_since_midnight()),
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
-            tex_allocator: Some(self.web_backend.painter.as_tex_allocator()),
+            tex_allocator: self.web_backend.painter.as_tex_allocator(),
             #[cfg(feature = "http")]
             http: self.http.clone(),
             output: &mut app_output,

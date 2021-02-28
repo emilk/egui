@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * You can control the initial size of the native window with `App::initial_window_size`.
 * You can control the maximum egui web canvas size with `App::max_size_points`.
+* `Frame::tex_allocator()` no longer returns an `Option` (there is always a texture allocator).
 
 
 ## 0.9.0 - 2021-02-07
