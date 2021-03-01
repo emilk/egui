@@ -5,9 +5,9 @@ use cgmath::SquareMatrix;
 use egui::Rect;
 use egui_glium::{
     handle_output, init_clipboard, input_to_egui, native_pixels_per_point, screen_size_in_pixels,
-    seconds_since_midnight, GliumInputState, Painter,
+    GliumInputState, Painter,
 };
-use epi::IntegrationInfo;
+
 #[allow(unused_imports)]
 use glium::{glutin, Surface};
 use glium::{IndexBuffer, VertexBuffer};
@@ -443,33 +443,14 @@ impl ModelData {
     }
 }
 
-enum RequestRepaintEvent {
-    RequestRedraw,
-}
-
-struct GliumRepaintSignal(
-    std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>,
-);
-
-impl epi::RepaintSignal for GliumRepaintSignal {
-    fn request_repaint(&self) {
-        self.0
-            .lock()
-            .unwrap()
-            .send_event(RequestRepaintEvent::RequestRedraw)
-            .ok();
-    }
-}
 fn main() {
     //init glium
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new();
     let cb = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
     //init egui
-    let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
-        event_loop.create_proxy(),
-    )));
+
     let mut ctx = egui::CtxRef::default();
     let mut input_state = GliumInputState::from_pixels_per_point(native_pixels_per_point(&display));
 
@@ -503,22 +484,8 @@ fn main() {
             ));
 
             ctx.begin_frame(input_state.raw.take());
-            let mut app_output = epi::backend::AppOutput::default();
-            let mut frame = epi::backend::FrameBuilder {
-                info: IntegrationInfo {
-                    web_info: None,
-                    cpu_usage: None,
-                    seconds_since_midnight: Some(seconds_since_midnight().unwrap()),
-                    native_pixels_per_point: Some(native_pixels_per_point(&display)),
-                },
-                tex_allocator: &mut painter,
-                #[cfg(feature = "http")]
-                http: http.clone(),
-                output: &mut app_output,
-                repaint_signal: repaint_signal.clone(),
-            }
-            .build();
-            //app.update(&ctx, &mut frame);
+            let app_output = epi::backend::AppOutput::default();
+
             renderer.render(
                 &display,
                 painter.get_texture(texture_id_for_frame_buffer).unwrap(),
@@ -573,11 +540,8 @@ fn main() {
                 );
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
-            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
-                display.gl_window().window().request_redraw();
-            }
-
             _ => {
+                display.gl_window().window().request_redraw();
                 *control_flow = ControlFlow::Poll;
             }
         }
