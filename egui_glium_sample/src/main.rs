@@ -8,11 +8,11 @@ use glium::{IndexBuffer, VertexBuffer};
 use std::time::Instant;
 use egui_glium::{Painter, GliumInputState, init_clipboard, native_pixels_per_point, screen_size_in_pixels, handle_output, input_to_egui, seconds_since_midnight};
 use egui::Rect;
-use epi::{IntegrationInfo, RepaintSignal};
-use std::sync::Arc;
+use epi::IntegrationInfo;
+
 use glium::backend::glutin::glutin::event_loop::ControlFlow;
-use std::borrow::Borrow;
-use std::cell::RefCell;
+
+
 
 struct Renderer {
     size: [u32; 2],
@@ -243,7 +243,6 @@ impl Renderer {
         draw_params.backface_culling = glium::BackfaceCullingMode::CullCounterClockwise;
         draw_params.blend = glium::Blend::alpha_blending();
 
-
         let mut target=glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(display,virtual_screen,&self.depth_texture).unwrap();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
@@ -277,7 +276,7 @@ impl Renderer {
                 )
                 .unwrap();
         }
-       // target.finish().unwrap();
+
     }
 }
 
@@ -440,20 +439,7 @@ impl ModelData {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct DebugVertex {
-    position: [f32; 2],
-    tex_coords: [f32; 2],
-}
-implement_vertex!(DebugVertex, position, tex_coords);
-impl DebugVertex {
-    pub fn new(position: [f32; 2], tex_coords: [f32; 2]) -> Self {
-        Self {
-            position,
-            tex_coords,
-        }
-    }
-}
+
 enum RequestRepaintEvent{
     RequestRedraw,
 }
@@ -494,6 +480,7 @@ fn main() {
 
 
     event_loop.run(move |event, _, control_flow| {
+
         let mut redraw = || {
             let pixels_per_point = input_state
                 .raw
@@ -540,9 +527,7 @@ fn main() {
                 clipped_meshes,
                 &ctx.texture(),
             );
-
-            {
-                let epi::backend::AppOutput { quit, window_size } = app_output;
+                let epi::backend::AppOutput { quit:_, window_size } = app_output;
 
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(
@@ -553,17 +538,6 @@ fn main() {
                             .to_logical::<f32>(native_pixels_per_point(&display) as f64),
                     );
                 }
-
-                *control_flow = if quit {
-                    glutin::event_loop::ControlFlow::Exit
-                } else if egui_output.needs_repaint {
-                    display.gl_window().window().request_redraw();
-                    glutin::event_loop::ControlFlow::Poll
-                } else {
-                    glutin::event_loop::ControlFlow::Wait
-                };
-            }
-
             handle_output(egui_output, &display, clipboard.as_mut());
 
         };
@@ -588,7 +562,9 @@ fn main() {
                 display.gl_window().window().request_redraw();
             }
 
-            _ => (),
+            _ => {
+                *control_flow=ControlFlow::Poll;
+                }
         }
     });
 }
