@@ -266,6 +266,15 @@ impl Painter {
         }
         id
     }
+    pub fn rental_texture(&self,texture_id:egui::TextureId)->Option<&glium::texture::SrgbTexture2d>{
+       if let egui::TextureId::User(id) = texture_id{
+        self.user_textures.get(id as usize)
+            .expect("invalid user texture id").as_ref().expect("lazy alloc is not finished")
+            .gl_texture.as_ref()
+       }else{
+           None
+       }
+    }
     pub fn set_user_texture(
         &mut self,
         id: egui::TextureId,
