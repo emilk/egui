@@ -2,17 +2,18 @@
 extern crate glium;
 
 use cgmath::SquareMatrix;
+use egui::Rect;
+use egui_glium::{
+    handle_output, init_clipboard, input_to_egui, native_pixels_per_point, screen_size_in_pixels,
+    seconds_since_midnight, GliumInputState, Painter,
+};
+use epi::IntegrationInfo;
 #[allow(unused_imports)]
 use glium::{glutin, Surface};
 use glium::{IndexBuffer, VertexBuffer};
 use std::time::Instant;
-use egui_glium::{Painter, GliumInputState, init_clipboard, native_pixels_per_point, screen_size_in_pixels, handle_output, input_to_egui, seconds_since_midnight};
-use egui::Rect;
-use epi::IntegrationInfo;
 
 use glium::backend::glutin::glutin::event_loop::ControlFlow;
-
-
 
 struct Renderer {
     size: [u32; 2],
@@ -21,10 +22,10 @@ struct Renderer {
     model_index_buffer: IndexBuffer<u16>,
     model_data: [ModelData; 4],
     shadow_map_shaders: glium::Program,
-    shadow_texture:glium::texture::DepthTexture2d,
+    shadow_texture: glium::texture::DepthTexture2d,
     render_shaders: glium::Program,
 
-    depth_texture:glium::texture::DepthTexture2d,
+    depth_texture: glium::texture::DepthTexture2d,
     light_t: f64,
     light_rotating: bool,
     camera_t: f64,
@@ -32,14 +33,14 @@ struct Renderer {
     start: Instant,
 }
 impl Renderer {
-    fn init(display:&glium::Display,render_target:&glium::texture::SrgbTexture2d) -> Self {
+    fn init(display: &glium::Display, render_target: &glium::texture::SrgbTexture2d) -> Self {
         let shadow_map_size = 1024;
-        let width=render_target.width();
-        let height=render_target.height();
-        let size=[width,height];
+        let width = render_target.width();
+        let height = render_target.height();
+        let size = [width, height];
         // Create the boxes to render in the scene
         let (model_vertex_buffer, model_index_buffer) = create_box(display);
-        let  model_data = [
+        let model_data = [
             ModelData::color([0.4, 0.4, 0.4])
                 .translate([0.0, -2.5, 0.0])
                 .scale(5.0),
@@ -118,14 +119,15 @@ impl Renderer {
             glium::texture::DepthTexture2d::empty(display, shadow_map_size, shadow_map_size)
                 .unwrap();
 
-        let depth_texture=glium::texture::DepthTexture2d::empty(display,size[0],size[1]).unwrap();
-        let  start = Instant::now();
+        let depth_texture =
+            glium::texture::DepthTexture2d::empty(display, size[0], size[1]).unwrap();
+        let start = Instant::now();
 
-        let  light_t: f64 = 8.7;
-        let  light_rotating = true;
-        let  camera_t: f64 = 8.22;
-        let  camera_rotating = false;
-        Self{
+        let light_t: f64 = 8.7;
+        let light_rotating = true;
+        let camera_t: f64 = 8.22;
+        let camera_rotating = false;
+        Self {
             size,
 
             model_vertex_buffer,
@@ -140,10 +142,10 @@ impl Renderer {
             light_rotating,
             camera_t,
             camera_rotating,
-            start
+            start,
         }
     }
-    fn render(&mut self,display:&glium::Display,virtual_screen:&glium::texture::SrgbTexture2d) {
+    fn render(&mut self, display: &glium::Display, virtual_screen: &glium::texture::SrgbTexture2d) {
         let elapsed_dur = self.start.elapsed();
         let secs = (elapsed_dur.as_secs() as f64) + (elapsed_dur.subsec_nanos() as f64) * 1e-9;
         self.start = Instant::now();
@@ -154,8 +156,6 @@ impl Renderer {
         if self.light_rotating {
             self.light_t += secs * 0.7;
         }
-
-
 
         // Rotate the light around the center of the scene
         let light_loc = {
@@ -243,7 +243,12 @@ impl Renderer {
         draw_params.backface_culling = glium::BackfaceCullingMode::CullCounterClockwise;
         draw_params.blend = glium::Blend::alpha_blending();
 
-        let mut target=glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(display,virtual_screen,&self.depth_texture).unwrap();
+        let mut target = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(
+            display,
+            virtual_screen,
+            &self.depth_texture,
+        )
+        .unwrap();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
         // Draw each model
@@ -276,11 +281,10 @@ impl Renderer {
                 )
                 .unwrap();
         }
-
     }
 }
 
-fn create_box(display: & glium::Display) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
+fn create_box(display: &glium::Display) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
     let box_vertex_buffer = glium::VertexBuffer::new(
         display,
         &[
@@ -439,8 +443,7 @@ impl ModelData {
     }
 }
 
-
-enum RequestRepaintEvent{
+enum RequestRepaintEvent {
     RequestRedraw,
 }
 
@@ -450,15 +453,19 @@ struct GliumRepaintSignal(
 
 impl epi::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
-        self.0.lock().unwrap().send_event(RequestRepaintEvent::RequestRedraw).ok();
+        self.0
+            .lock()
+            .unwrap()
+            .send_event(RequestRepaintEvent::RequestRedraw)
+            .ok();
     }
 }
 fn main() {
     //init glium
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let wb=glutin::window::WindowBuilder::new();
-    let cb=glutin::ContextBuilder::new().with_vsync(true);
-    let display=glium::Display::new(wb,cb,&event_loop).unwrap();
+    let wb = glutin::window::WindowBuilder::new();
+    let cb = glutin::ContextBuilder::new().with_vsync(true);
+    let display = glium::Display::new(wb, cb, &event_loop).unwrap();
     //init egui
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -470,17 +477,18 @@ fn main() {
     let mut previous_frame_time = None;
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
-    let virtual_screen=glium::texture::SrgbTexture2d::empty(&display,640,480).unwrap();
+    let virtual_screen = glium::texture::SrgbTexture2d::empty(&display, 640, 480).unwrap();
 
     // move texture to painter
-    let texture_id_for_frame_buffer=painter.assume_glium_texture_as_egui_texture(virtual_screen);
+    let texture_id_for_frame_buffer = painter.assume_glium_texture_as_egui_texture(virtual_screen);
     //init renderer
-    let mut renderer =Renderer::init(&display, painter.rental_texture(texture_id_for_frame_buffer).unwrap());
+    let mut renderer = Renderer::init(
+        &display,
+        painter.get_texture(texture_id_for_frame_buffer).unwrap(),
+    );
     //assume
 
-
     event_loop.run(move |event, _, control_flow| {
-
         let mut redraw = || {
             let pixels_per_point = input_state
                 .raw
@@ -497,24 +505,29 @@ fn main() {
             ctx.begin_frame(input_state.raw.take());
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
-                info:IntegrationInfo{
+                info: IntegrationInfo {
                     web_info: None,
                     cpu_usage: None,
                     seconds_since_midnight: Some(seconds_since_midnight().unwrap()),
-                    native_pixels_per_point: Some(native_pixels_per_point(&display))
+                    native_pixels_per_point: Some(native_pixels_per_point(&display)),
                 },
                 tex_allocator: &mut painter,
                 #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,
-                repaint_signal:repaint_signal.clone(),
+                repaint_signal: repaint_signal.clone(),
             }
-                .build();
+            .build();
             //app.update(&ctx, &mut frame);
-            renderer.render(&display,painter.rental_texture(texture_id_for_frame_buffer).unwrap());
-            egui::Window::new("Offscreen render").fixed_size([640.0,480.0]).show(&ctx,|ui|{
-                ui.image(texture_id_for_frame_buffer,[640.0,480.0]);
-            });
+            renderer.render(
+                &display,
+                painter.get_texture(texture_id_for_frame_buffer).unwrap(),
+            );
+            egui::Window::new("Offscreen render")
+                .fixed_size([640.0, 480.0])
+                .show(&ctx, |ui| {
+                    ui.image(texture_id_for_frame_buffer, [640.0, 480.0]);
+                });
             let (egui_output, shapes) = ctx.end_frame();
             let clipped_meshes = ctx.tessellate(shapes);
 
@@ -523,23 +536,25 @@ fn main() {
             painter.paint_meshes(
                 &display,
                 ctx.pixels_per_point(),
-                egui::Rgba::from_rgb(0.0,0.0,0.0),
+                egui::Rgba::from_rgb(0.0, 0.0, 0.0),
                 clipped_meshes,
                 &ctx.texture(),
             );
-                let epi::backend::AppOutput { quit:_, window_size } = app_output;
+            let epi::backend::AppOutput {
+                quit: _,
+                window_size,
+            } = app_output;
 
-                if let Some(window_size) = window_size {
-                    display.gl_window().window().set_inner_size(
-                        glutin::dpi::PhysicalSize {
-                            width: (ctx.pixels_per_point() * window_size.x).round(),
-                            height: (ctx.pixels_per_point() * window_size.y).round(),
-                        }
-                            .to_logical::<f32>(native_pixels_per_point(&display) as f64),
-                    );
-                }
+            if let Some(window_size) = window_size {
+                display.gl_window().window().set_inner_size(
+                    glutin::dpi::PhysicalSize {
+                        width: (ctx.pixels_per_point() * window_size.x).round(),
+                        height: (ctx.pixels_per_point() * window_size.y).round(),
+                    }
+                    .to_logical::<f32>(native_pixels_per_point(&display) as f64),
+                );
+            }
             handle_output(egui_output, &display, clipboard.as_mut());
-
         };
 
         match event {
@@ -563,10 +578,8 @@ fn main() {
             }
 
             _ => {
-                *control_flow=ControlFlow::Poll;
-                }
+                *control_flow = ControlFlow::Poll;
+            }
         }
     });
 }
-
-

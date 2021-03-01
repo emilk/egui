@@ -1,5 +1,6 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
+use egui::TextureId;
 use {
     egui::{
         emath::{clamp, Rect},
@@ -18,6 +19,7 @@ use {
 
 pub struct Painter {
     program: glium::Program,
+    offscreen_program: glium::Program,
     egui_texture: Option<SrgbTexture2d>,
     egui_texture_version: Option<u64>,
 
@@ -30,7 +32,8 @@ struct UserTexture {
     /// Pending upload (will be emptied later).
     /// This is the format glium likes.
     pixels: Vec<Vec<(u8, u8, u8, u8)>>,
-
+    // need for invert v
+    is_offscreen: bool,
     /// Lazily uploaded
     gl_texture: Option<SrgbTexture2d>,
 }
@@ -57,9 +60,29 @@ impl Painter {
             },
         }
         .expect("Failed to compile shader");
-
+        let offscreen_program = program! {
+            facade,
+            120 => {
+                vertex: include_str!("shader/vertex_120_offscreen.glsl"),
+                fragment: include_str!("shader/fragment_120.glsl"),
+            },
+            140 => {
+                vertex: include_str!("shader/vertex_140_offscreen.glsl"),
+                fragment: include_str!("shader/fragment_140.glsl"),
+            },
+            100 es => {
+                vertex: include_str!("shader/vertex_100es_offscreen.glsl"),
+                fragment: include_str!("shader/fragment_100es.glsl"),
+            },
+            300 es => {
+                vertex: include_str!("shader/vertex_300es_offscreen.glsl"),
+                fragment: include_str!("shader/fragment_300es.glsl"),
+            },
+        }
+        .expect("Failed to compile shader");
         Painter {
             program,
+            offscreen_program,
             egui_texture: None,
             egui_texture_version: None,
             user_textures: Default::default(),
@@ -161,7 +184,7 @@ impl Painter {
         let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
-
+        let is_offscreen = self.query_is_offscreen(mesh.texture_id);
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
@@ -222,16 +245,30 @@ impl Painter {
                 }),
                 ..Default::default()
             };
-
-            target
-                .draw(
-                    &vertex_buffer,
-                    &index_buffer,
-                    &self.program,
-                    &uniforms,
-                    &params,
-                )
-                .unwrap();
+            match is_offscreen {
+                Some(true) => {
+                    target
+                        .draw(
+                            &vertex_buffer,
+                            &index_buffer,
+                            &self.offscreen_program,
+                            &uniforms,
+                            &params,
+                        )
+                        .unwrap();
+                }
+                _ => {
+                    target
+                        .draw(
+                            &vertex_buffer,
+                            &index_buffer,
+                            &self.program,
+                            &uniforms,
+                            &params,
+                        )
+                        .unwrap();
+                }
+            }
         }
     }
 
@@ -260,21 +297,14 @@ impl Painter {
                 id as usize,
                 Some(UserTexture {
                     pixels: vec![],
+                    is_offscreen: true,
                     gl_texture: Some(texture),
                 }),
             );
         }
         id
     }
-    pub fn rental_texture(&self,texture_id:egui::TextureId)->Option<&glium::texture::SrgbTexture2d>{
-       if let egui::TextureId::User(id) = texture_id{
-        self.user_textures.get(id as usize)
-            .expect("invalid user texture id").as_ref().expect("lazy alloc is not finished")
-            .gl_texture.as_ref()
-       }else{
-           None
-       }
-    }
+
     pub fn set_user_texture(
         &mut self,
         id: egui::TextureId,
@@ -292,6 +322,7 @@ impl Painter {
 
                 *user_texture = UserTexture {
                     pixels,
+                    is_offscreen: false,
                     gl_texture: None,
                 };
             }
@@ -307,7 +338,7 @@ impl Painter {
         }
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         match texture_id {
             egui::TextureId::Egui => self.egui_texture.as_ref(),
             egui::TextureId::User(id) => self
@@ -318,7 +349,14 @@ impl Painter {
                 .as_ref(),
         }
     }
-
+    fn query_is_offscreen(&self, texture_id: egui::TextureId) -> Option<bool> {
+        match texture_id {
+            TextureId::Egui => None,
+            TextureId::User(id) => {
+                Some(self.user_textures.get(id as usize)?.as_ref()?.is_offscreen)
+            }
+        }
+    }
     pub fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
         for user_texture in &mut self.user_textures {
             if let Some(user_texture) = user_texture {
