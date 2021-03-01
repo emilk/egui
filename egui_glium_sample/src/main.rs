@@ -461,7 +461,7 @@ fn main() {
     let virtual_screen = glium::texture::SrgbTexture2d::empty(&display, 640, 480).unwrap();
 
     // move texture to painter
-    let texture_id_for_frame_buffer = painter.assume_glium_texture_as_egui_texture(virtual_screen);
+    let texture_id_for_frame_buffer = painter.register_glium_texture_to_egui_texture(virtual_screen);
     //init renderer
     let mut renderer = Renderer::init(
         &display,

@@ -287,7 +287,16 @@ impl Painter {
         self.user_textures.push(Some(Default::default()));
         id
     }
-    pub fn assume_glium_texture_as_egui_texture(
+    // ------------------------------------------------------------------------
+    // user textures: this is an experimental feature.
+    // No need to implement this in your egui integration!
+    /// register glium::texture::SrgbTexture2d as egui::TextureId
+    ///
+    /// enables zero copy offscreen rendering
+    ///
+    /// some backends have same functionality e.g. egui_wgpu_backend egui_ash_vk_mem
+    ///
+    pub fn register_glium_texture_to_egui_texture(
         &mut self,
         texture: glium::texture::srgb_texture2d::SrgbTexture2d,
     ) -> egui::TextureId {
@@ -349,6 +358,8 @@ impl Painter {
                 .as_ref(),
         }
     }
+    //this function  need for offscreen rendering
+    //if we use same shader offscreen texture is flipped
     fn query_is_offscreen(&self, texture_id: egui::TextureId) -> Option<bool> {
         match texture_id {
             TextureId::Egui => None,
