@@ -250,10 +250,19 @@ impl Painter {
         self.user_textures.push(Some(Default::default()));
         id
     }
-    pub fn assume_glium_texture_as_egui_texture(&mut self,texture:glium::texture::srgb_texture2d::SrgbTexture2d)->egui::TextureId{
-        let id=self.alloc_user_texture();
-        if let egui::TextureId::User(id) =id {
-            self.user_textures.insert(id as usize, Some(UserTexture{ pixels: vec![], gl_texture: Some(texture) }));
+    pub fn assume_glium_texture_as_egui_texture(
+        &mut self,
+        texture: glium::texture::srgb_texture2d::SrgbTexture2d,
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        if let egui::TextureId::User(id) = id {
+            self.user_textures.insert(
+                id as usize,
+                Some(UserTexture {
+                    pixels: vec![],
+                    gl_texture: Some(texture),
+                }),
+            );
         }
         id
     }
