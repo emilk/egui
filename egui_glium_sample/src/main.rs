@@ -176,13 +176,15 @@ impl Renderer {
             let depth_view_matrix =
                 cgmath::Matrix4::look_at_rh(light_loc.into(), view_center, view_up);
 
-            let mut draw_params: glium::draw_parameters::DrawParameters<'_> = Default::default();
-            draw_params.depth = glium::Depth {
-                test: glium::draw_parameters::DepthTest::IfLessOrEqual,
-                write: true,
+            let draw_params: glium::draw_parameters::DrawParameters<'_> = glium::DrawParameters {
+                depth: glium::Depth {
+                    test: glium::draw_parameters::DepthTest::IfLessOrEqual,
+                    write: true,
+                    ..Default::default()
+                },
+                backface_culling: glium::BackfaceCullingMode::CullClockwise,
                 ..Default::default()
             };
-            draw_params.backface_culling = glium::BackfaceCullingMode::CullClockwise;
 
             // Write depth to shadow map texture
             let mut target =
@@ -234,14 +236,17 @@ impl Renderer {
         ]
         .into();
 
-        let mut draw_params: glium::draw_parameters::DrawParameters<'_> = Default::default();
-        draw_params.depth = glium::Depth {
-            test: glium::draw_parameters::DepthTest::IfLessOrEqual,
-            write: true,
-            ..Default::default()
-        };
-        draw_params.backface_culling = glium::BackfaceCullingMode::CullCounterClockwise;
-        draw_params.blend = glium::Blend::alpha_blending();
+        let draw_params: glium::draw_parameters::DrawParameters<'_> =
+            glium::draw_parameters::DrawParameters {
+                depth: glium::Depth {
+                    test: glium::draw_parameters::DepthTest::IfLessOrEqual,
+                    write: true,
+                    ..Default::default()
+                },
+                backface_culling: glium::BackfaceCullingMode::CullCounterClockwise,
+                blend: glium::Blend::alpha_blending(),
+                ..Default::default()
+            };
 
         let mut target = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(
             display,
@@ -396,10 +401,10 @@ fn create_box(display: &glium::Display) -> (glium::VertexBuffer<Vertex>, glium::
 
     let mut indexes = Vec::new();
     for face in 0..6u16 {
-        indexes.push(4 * face + 0);
+        indexes.push(4 * face);
         indexes.push(4 * face + 1);
         indexes.push(4 * face + 2);
-        indexes.push(4 * face + 0);
+        indexes.push(4 * face);
         indexes.push(4 * face + 2);
         indexes.push(4 * face + 3);
     }
