@@ -170,6 +170,13 @@ impl CollapsingHeader {
         self.id_source = Id::new(id_source);
         self
     }
+
+    /// By default, the `CollapsingHeader` text style is `TextStyle::Button`.
+    /// Call `.text_style(style)` to change this.
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.label = self.label.text_style(text_style);
+        self
+    }
 }
 
 struct Prepared {
