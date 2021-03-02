@@ -2,12 +2,8 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{
-    color::*,
-    math::*,
-    paint::{Shadow, Stroke, TextStyle},
-    Response,
-};
+use crate::{color::*, emath::*, Response};
+use epaint::{Shadow, Stroke, TextStyle};
 
 /// Specifies the look and feel of a [`Ui`].
 #[derive(Clone, Debug, PartialEq)]
@@ -20,6 +16,10 @@ pub struct Style {
     /// If set, labels buttons wtc will use this to determine whether or not
     /// to wrap the text at the right edge of the `Ui` they are in.
     /// By default this is `None`.
+    ///
+    /// * `None`: follow layout
+    /// * `Some(true)`: default on
+    /// * `Some(false)`: default off
     pub wrap: Option<bool>,
 
     pub spacing: Spacing,
@@ -37,6 +37,16 @@ impl Style {
     /// i.e. you must allocate space and interact BEFORE painting the widget!
     pub fn interact(&self, response: &Response) -> &WidgetVisuals {
         self.visuals.widgets.style(response)
+    }
+
+    pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
+        let mut visuals = *self.visuals.widgets.style(response);
+        if selected {
+            visuals.bg_fill = self.visuals.selection.bg_fill;
+            // visuals.bg_stroke = self.visuals.selection.stroke;
+            visuals.fg_stroke = self.visuals.selection.stroke;
+        }
+        visuals
     }
 
     /// Style to use for non-interactive widgets.
@@ -66,7 +76,7 @@ pub struct Spacing {
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Default width of a `Slider`.
+    /// Default width of a `Slider` and `ComboBox`.
     pub slider_width: f32, // TODO: rename big_interact_size ?
 
     /// Default width of a `TextEdit`.
@@ -110,6 +120,9 @@ pub struct Interaction {
 
     /// Mouse must be the close to the corner of a window to resize
     pub resize_grab_radius_corner: f32,
+
+    /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
+    pub show_tooltips_only_when_still: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -160,6 +173,8 @@ pub struct Visuals {
     pub resize_corner_size: f32,
 
     pub text_cursor_width: f32,
+    /// show where the text cursor would be if you clicked
+    pub text_cursor_preview: bool,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
@@ -293,7 +308,7 @@ impl Default for Spacing {
             text_edit_width: 280.0,
             icon_width: 16.0,
             icon_spacing: 0.0,
-            tooltip_width: 400.0,
+            tooltip_width: 600.0,
         }
     }
 }
@@ -303,6 +318,7 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
+            show_tooltips_only_when_still: true,
         }
     }
 }
@@ -322,6 +338,7 @@ impl Visuals {
             window_shadow: Shadow::big_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
+            text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             debug_expand_width: false,
             debug_expand_height: false,
@@ -353,17 +370,14 @@ impl Default for Visuals {
 impl Selection {
     fn dark() -> Self {
         Self {
-            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0)
-                .additive()
-                .multiply(0.10)
-                .into(),
-            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
+            bg_fill: Color32::from_rgb(0, 92, 128),
+            stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
     fn light() -> Self {
         Self {
-            bg_fill: Rgba::from_rgb(0.0, 0.5, 1.0).multiply(0.5).into(),
-            stroke: Stroke::new(1.0, Rgba::from_rgb(0.3, 0.6, 1.0)),
+            bg_fill: Color32::from_rgb(144, 209, 255),
+            stroke: Stroke::new(1.0, Color32::from_rgb(0, 83, 125)),
         }
     }
 }
@@ -495,17 +509,17 @@ impl Spacing {
             tooltip_width,
         } = self;
 
-        ui_slider_vec2(ui, item_spacing, 0.0..=10.0, "item_spacing");
-        ui_slider_vec2(ui, window_padding, 0.0..=10.0, "window_padding");
-        ui_slider_vec2(ui, button_padding, 0.0..=10.0, "button_padding");
-        ui_slider_vec2(ui, interact_size, 0.0..=60.0, "interact_size")
+        ui.add(slider_vec2(item_spacing, 0.0..=10.0, "item_spacing"));
+        ui.add(slider_vec2(window_padding, 0.0..=10.0, "window_padding"));
+        ui.add(slider_vec2(button_padding, 0.0..=10.0, "button_padding"));
+        ui.add(slider_vec2(interact_size, 0.0..=60.0, "interact_size"))
             .on_hover_text("Minimum size of an interactive widget");
         ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
         ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
         ui.add(Slider::f32(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
         ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
         ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
-        ui.add(Slider::f32(tooltip_width, 0.0..=10.0).text("tooltip_width"));
+        ui.add(Slider::f32(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -516,10 +530,15 @@ impl Interaction {
         let Self {
             resize_grab_radius_side,
             resize_grab_radius_corner,
+            show_tooltips_only_when_still,
         } = self;
         ui.add(Slider::f32(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
+        );
+        ui.checkbox(
+            show_tooltips_only_when_still,
+            "Only show tooltips if mouse is still",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
@@ -631,6 +650,7 @@ impl Visuals {
             window_shadow,
             resize_corner_size,
             text_cursor_width,
+            text_cursor_preview,
             clip_rect_margin,
             debug_expand_width,
             debug_expand_height,
@@ -659,6 +679,7 @@ impl Visuals {
         ui_color(ui, code_bg_color, "code_bg_color");
         ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
+        ui.checkbox(text_cursor_preview, "text_cursor_preview");
         ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.group(|ui| {
@@ -678,38 +699,20 @@ impl Visuals {
     }
 }
 
-// TODO: improve and standardize ui_slider_vec2
-fn ui_slider_vec2(
-    ui: &mut Ui,
-    value: &mut Vec2,
+// TODO: improve and standardize `slider_vec2`
+fn slider_vec2<'a>(
+    value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
-    text: &str,
-) -> Response {
-    ui.horizontal(|ui| {
-        /*
-        let fsw = full slider_width
-        let ssw = small slider_width
-        let space = item_spacing.x
-        let value = interact_size.x;
-
-        fsw + space + value = ssw + space + value + space + ssw + space + value
-        fsw + space + value = 2 * ssw + 3 * space + 2 * value
-        fsw + space - value = 2 * ssw + 3 * space
-        fsw - 2 * space - value = 2 * ssw
-        ssw = fsw / 2 - space - value / 2
-        */
-        // let spacing = &ui.spacing();
-        // let space = spacing.item_spacing.x;
-        // let value_w = spacing.interact_size.x;
-        // let full_slider_width = spacing.slider_width;
-        // let small_slider_width = full_slider_width / 2.0 - space - value_w / 2.0;
-        // ui.spacing_mut().slider_width = small_slider_width;
-
-        ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
-        ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
-        ui.label(text);
-    })
-    .response
+    text: &'a str,
+) -> impl Widget + 'a {
+    move |ui: &mut crate::Ui| {
+        ui.horizontal(|ui| {
+            ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
+            ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
+            ui.label(text);
+        })
+        .response
+    }
 }
 
 fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: &str) {

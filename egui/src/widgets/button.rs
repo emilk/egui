@@ -1,6 +1,16 @@
 use crate::*;
 
 /// Clickable button with text.
+///
+/// See also [`Ui::button`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// if ui.add(egui::Button::new("Click mew")).clicked() {
+///     do_stuff();
+/// }
+/// # fn do_stuff() {}
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: String,
@@ -158,6 +168,16 @@ impl Widget for Button {
 
 // TODO: allow checkbox without a text label
 /// Boolean on/off control with text label.
+///
+/// Usually you'd use [`Ui::checkbox`] instead.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// # let mut my_bool = true;
+/// // These are equivalent:
+/// ui.checkbox(&mut my_bool, "Checked");
+/// ui.add(egui::Checkbox::new(&mut my_bool, "Checked"));
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct Checkbox<'a> {
@@ -207,11 +227,13 @@ impl<'a> Widget for Checkbox<'a> {
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
-        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
+        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
         if response.clicked() {
             *checked = !*checked;
+            response.mark_changed();
         }
 
+        // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
         let text_cursor = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
@@ -234,7 +256,6 @@ impl<'a> Widget for Checkbox<'a> {
                     pos2(small_icon_rect.right(), small_icon_rect.top()),
                 ],
                 visuals.fg_stroke,
-                // ui.visuals().selection.stroke, // too much color
             ));
         }
 
@@ -250,6 +271,23 @@ impl<'a> Widget for Checkbox<'a> {
 // ----------------------------------------------------------------------------
 
 /// One out of several alternatives, either selected or not.
+///
+/// Usually you'd use [`Ui::radio_value`] or [`Ui::radio`] instead.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// #[derive(PartialEq)]
+/// enum Enum { First, Second, Third }
+/// let mut my_enum = Enum::First;
+///
+/// ui.radio_value(&mut my_enum, Enum::First, "First");
+///
+/// // is equivalent to:
+///
+/// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
+///     my_enum = Enum::First
+/// }
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct RadioButton {
@@ -305,6 +343,7 @@ impl Widget for RadioButton {
             rect.center().y - 0.5 * galley.size.y,
         );
 
+        // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
         let visuals = ui.style().interact(&response);
 
         let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);

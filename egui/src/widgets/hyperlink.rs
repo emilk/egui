@@ -1,6 +1,14 @@
 use crate::*;
 
 /// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
+///
+/// See also [`Ui::hyperlink`] and [`Ui::hyperlink_to`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.hyperlink("https://github.com/emilk/egui");
+/// ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text("My favorite repo").small());
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Hyperlink {
     url: String,

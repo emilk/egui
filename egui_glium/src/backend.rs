@@ -57,18 +57,26 @@ impl epi::RepaintSignal for GliumRepaintSignal {
 
 fn create_display(
     title: &str,
+    initial_size_points: Option<Vec2>,
     window_settings: Option<WindowSettings>,
     is_resizable: bool,
+    window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(is_resizable)
         .with_title(title)
+        .with_window_icon(window_icon)
         .with_transparent(false);
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
+    } else if let Some(initial_size_points) = initial_size_points {
+        window_builder = window_builder.with_inner_size(glutin::dpi::LogicalSize {
+            width: initial_size_points.x as f64,
+            height: initial_size_points.y as f64,
+        });
     }
 
     let context_builder = glutin::ContextBuilder::new()
@@ -125,6 +133,11 @@ fn integration_info(
     }
 }
 
+fn load_icon(icon_data: Option<epi::IconData>) -> Option<glutin::window::Icon> {
+    let icon_data = icon_data?;
+    glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
+}
+
 /// Run an egui app
 pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut storage = create_storage(app.name());
@@ -135,7 +148,15 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(app.name(), window_settings, app.is_resizable(), &event_loop);
+    let icon = load_icon(app.icon_data());
+    let display = create_display(
+        app.name(),
+        app.initial_window_size(),
+        window_settings,
+        app.is_resizable(),
+        icon,
+        &event_loop,
+    );
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -170,7 +191,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(&display, None),
-            tex_allocator: Some(&mut painter),
+            tex_allocator: &mut painter,
             #[cfg(feature = "http")]
             http: http.clone(),
             output: &mut app_output,
@@ -192,18 +213,23 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
+            let pixels_per_point = input_state
+                .raw
+                .pixels_per_point
+                .unwrap_or_else(|| ctx.pixels_per_point());
+
             let frame_start = Instant::now();
             input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
             input_state.raw.screen_rect = Some(Rect::from_min_size(
                 Default::default(),
-                screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap(),
+                screen_size_in_pixels(&display) / pixels_per_point,
             ));
 
             ctx.begin_frame(input_state.raw.take());
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
-                tex_allocator: Some(&mut painter),
+                tex_allocator: &mut painter,
                 #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,
@@ -225,16 +251,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             );
 
             {
-                let epi::backend::AppOutput {
-                    quit,
-                    window_size,
-                    pixels_per_point,
-                } = app_output;
-
-                if let Some(pixels_per_point) = pixels_per_point {
-                    // User changed GUI scale
-                    input_state.raw.pixels_per_point = Some(pixels_per_point);
-                }
+                let epi::backend::AppOutput { quit, window_size } = app_output;
 
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(
@@ -283,7 +300,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                input_to_egui(event, clipboard.as_mut(), &mut input_state, control_flow);
+                input_to_egui(
+                    ctx.pixels_per_point(),
+                    event,
+                    clipboard.as_mut(),
+                    &mut input_state,
+                    control_flow,
+                );
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {

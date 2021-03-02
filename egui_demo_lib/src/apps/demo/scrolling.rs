@@ -20,7 +20,7 @@ impl Default for Scrolling {
 }
 
 impl super::Demo for Scrolling {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "↕ Scrolling"
     }
 

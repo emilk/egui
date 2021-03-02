@@ -1,9 +1,7 @@
 //! Color picker widgets.
 
-use crate::{
-    paint::{color::*, *},
-    *,
-};
+use crate::*;
+use epaint::{color::*, *};
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {
@@ -214,7 +212,7 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
         ));
 
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
-            ui.output().copied_text = format!("rgba({}, {}, {}, {})", r, g, b, a);
+            ui.output().copied_text = format!("{}, {}, {}, {}", r, g, b, a);
         }
     });
 }
@@ -309,15 +307,22 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     });
 }
 
-fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) {
+/// return true on change
+fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     let mut hsvag = HsvaGamma::from(*hsva);
     color_picker_hsvag_2d(ui, &mut hsvag, alpha);
-    *hsva = Hsva::from(hsvag);
+    let new_hasva = Hsva::from(hsvag);
+    if *hsva == new_hasva {
+        false
+    } else {
+        *hsva = new_hasva;
+        true
+    }
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let pupup_id = ui.auto_id_with("popup");
-    let button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
+    let mut button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
 
     if button_response.clicked() {
         ui.memory().toggle_popup(pupup_id);
@@ -330,7 +335,9 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 256.0;
                 Frame::popup(ui.style()).show(ui, |ui| {
-                    color_picker_hsva_2d(ui, hsva, alpha);
+                    if color_picker_hsva_2d(ui, hsva, alpha) {
+                        button_response.mark_changed();
+                    }
                 })
             });
 

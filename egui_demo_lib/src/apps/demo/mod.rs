@@ -14,6 +14,7 @@ pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
 pub mod layout_test;
 pub mod painting;
+pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
 pub mod tests;
@@ -33,7 +34,8 @@ pub trait View {
 
 /// Something to view
 pub trait Demo {
-    fn name(&self) -> &str;
+    /// `&'static` so we can also use it as a key to store open/close state.
+    fn name(&self) -> &'static str;
 
     /// Show windows, etc
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool);

@@ -27,7 +27,7 @@ impl Default for DemoWindow {
 }
 
 impl Demo for DemoWindow {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "✨ Misc Demos"
     }
 

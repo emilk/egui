@@ -123,15 +123,15 @@ pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-pub fn resize_canvas_to_screen_size(canvas_id: &str) -> Option<()> {
+pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
 
     let screen_size_points = screen_size_in_native_points()?;
     let pixels_per_point = native_pixels_per_point();
 
+    let max_size_pixels = pixels_per_point * max_size_points;
+
     let canvas_size_pixels = pixels_per_point * screen_size_points;
-    // Some browsers get slow with huge WebGL canvases, so we limit the size:
-    let max_size_pixels = egui::vec2(2048.0, 4096.0);
     let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
     let canvas_size_points = canvas_size_pixels / pixels_per_point;
 

@@ -1,14 +1,15 @@
 use egui::{CtxRef, ScrollArea, Ui, Window};
+use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 struct Demos {
-    open: Vec<bool>,
-
     #[cfg_attr(feature = "persistence", serde(skip))]
     demos: Vec<Box<dyn super::Demo>>,
+
+    open: BTreeSet<String>,
 }
 impl Default for Demos {
     fn default() -> Self {
@@ -18,6 +19,7 @@ impl Default for Demos {
             Box::new(super::font_book::FontBook::default()),
             Box::new(super::DemoWindow::default()),
             Box::new(super::painting::Painting::default()),
+            Box::new(super::plot_demo::PlotDemo::default()),
             Box::new(super::scrolling::Scrolling::default()),
             Box::new(super::sliders::Sliders::default()),
             Box::new(super::widget_gallery::WidgetGallery::default()),
@@ -30,26 +32,45 @@ impl Default for Demos {
             Box::new(super::tests::ManualLayoutTest::default()),
             Box::new(super::tests::TableTest::default()),
         ];
-        Self {
-            open: vec![false; demos.len()],
-            demos,
-        }
+
+        use crate::apps::demo::Demo;
+        let mut open = BTreeSet::new();
+        open.insert(
+            super::widget_gallery::WidgetGallery::default()
+                .name()
+                .to_owned(),
+        );
+
+        Self { open, demos }
     }
 }
 impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { open, demos } = self;
-        for (ref mut open, demo) in open.iter_mut().zip(demos.iter()) {
-            ui.checkbox(open, demo.name());
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            ui.checkbox(&mut is_open, demo.name());
+            set_open(open, demo.name(), is_open);
         }
     }
 
     pub fn show(&mut self, ctx: &CtxRef) {
         let Self { open, demos } = self;
-        open.resize(demos.len(), false); // Handle deserialization of old data.
-        for (ref mut open, demo) in open.iter_mut().zip(demos.iter_mut()) {
-            demo.show(ctx, open);
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            demo.show(ctx, &mut is_open);
+            set_open(open, demo.name(), is_open);
         }
+    }
+}
+
+fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
+    if is_open {
+        if !open.contains(key) {
+            open.insert(key.to_owned());
+        }
+    } else {
+        open.remove(key);
     }
 }
 
@@ -61,8 +82,6 @@ impl Demos {
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoWindows {
     open_windows: OpenWindows,
-
-    demo_window: super::DemoWindow,
 
     /// open, title, view
     demos: Demos,
@@ -78,12 +97,18 @@ impl DemoWindows {
             ui.separator();
 
             ScrollArea::auto_sized().show(ui, |ui| {
+                use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+
                 ui.label("egui is an immediate mode GUI library written in Rust.");
-                ui.add(
-                    egui::Hyperlink::new("https://github.com/emilk/egui").text(" egui home page"),
+                ui.hyperlink_to(
+                    format!("{} egui home page", GITHUB),
+                    "https://github.com/emilk/egui",
                 );
 
-                ui.label("egui can be run on the web, or natively on 🐧");
+                ui.label(format!(
+                    "egui can be run on the web, or natively on {}{}{}",
+                    OS_APPLE, OS_LINUX, OS_WINDOWS,
+                ));
 
                 ui.separator();
 

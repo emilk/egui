@@ -2,7 +2,7 @@
 pub struct IdTest {}
 
 impl super::Demo for IdTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "ID Test"
     }
 
@@ -79,7 +79,7 @@ impl Default for ManualLayoutTest {
 }
 
 impl super::Demo for ManualLayoutTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Manual Layout Test"
     }
 
@@ -156,7 +156,7 @@ impl Default for TableTest {
 }
 
 impl super::Demo for TableTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Table Test"
     }
 
@@ -221,7 +221,7 @@ pub struct InputTest {
 }
 
 impl super::Demo for InputTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Input Test"
     }
 
@@ -273,7 +273,7 @@ impl super::View for InputTest {
 pub struct WindowResizeTest {}
 
 impl super::Demo for WindowResizeTest {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "↔ Window Resize"
     }
 

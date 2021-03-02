@@ -1,7 +1,6 @@
-use crate::{math::*, util::History};
-use std::collections::HashSet;
-
 use crate::data::input::*;
+use crate::{emath::*, util::History};
+use std::collections::HashSet;
 
 pub use crate::data::input::Key;
 
@@ -32,7 +31,9 @@ pub struct InputState {
     pub time: f64,
 
     /// Time since last frame, in seconds.
-    /// This can be very unstable in reactive mode (when we don't paint each frame).
+    ///
+    /// This can be very unstable in reactive mode (when we don't paint each frame)
+    /// so it can be smart ot use e.g. `unstable_dt.min(1.0 / 30.0)`.
     pub unstable_dt: f32,
 
     /// Used for animations to get instant feedback (avoid frame delay).
@@ -426,8 +427,14 @@ impl PointerState {
         self.latest_pos.is_some()
     }
 
-    /// Is the pointer currently moving?
+    /// Is the pointer currently still?
     /// This is smoothed so a few frames of stillness is required before this returns `true`.
+    pub fn is_still(&self) -> bool {
+        self.velocity == Vec2::ZERO
+    }
+
+    /// Is the pointer currently moving?
+    /// This is smoothed so a few frames of stillness is required before this returns `false`.
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::ZERO
     }
@@ -492,7 +499,7 @@ impl InputState {
             events,
         } = self;
 
-        ui.style_mut().body_text_style = crate::paint::TextStyle::Monospace;
+        ui.style_mut().body_text_style = epaint::TextStyle::Monospace;
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("🖱 Pointer")

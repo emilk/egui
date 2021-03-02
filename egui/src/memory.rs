@@ -1,13 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    area, collapsing_header, menu,
-    paint::color::{Color32, Hsva},
-    resize, scroll_area,
-    util::Cache,
-    widgets::text_edit,
-    window, Id, LayerId, Pos2, Rect, Style,
+    area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
+    Id, InputState, LayerId, Pos2, Rect, Style,
 };
+use epaint::color::{Color32, Hsva};
 
 // ----------------------------------------------------------------------------
 
@@ -22,6 +19,9 @@ use crate::{
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub(crate) options: Options,
+
+    /// new scale that will be applied at the start of the next frame
+    pub(crate) new_pixels_per_point: Option<f32>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
@@ -38,10 +38,11 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    /// For temporary edit of e.g. a slider value.
-    /// Couples with [`Interaction::kb_focus_id`].
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) temp_edit_string: Option<String>,
+    pub(crate) drag_value: crate::widgets::drag_value::MonoState,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) tooltip: crate::containers::popup::MonoState,
 
     pub(crate) areas: Areas,
 
@@ -68,9 +69,9 @@ pub(crate) struct Options {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
-    pub(crate) tessellation_options: crate::paint::TessellationOptions,
+    pub(crate) tessellation_options: epaint::TessellationOptions,
     /// Font sizes etc.
-    pub(crate) font_definitions: crate::paint::text::FontDefinitions,
+    pub(crate) font_definitions: epaint::text::FontDefinitions,
 }
 
 // ----------------------------------------------------------------------------
@@ -181,7 +182,11 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(
+        &mut self,
+        input: &InputState,
+        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
+    ) {
         self.areas.end_frame();
 
         if let Some(kb_focus_id) = self.interaction.kb_focus_id {
@@ -194,6 +199,8 @@ impl Memory {
                 self.interaction.kb_focus_id = None;
             }
         }
+
+        self.drag_value.end_frame(input);
     }
 
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {

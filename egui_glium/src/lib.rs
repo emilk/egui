@@ -46,6 +46,7 @@ impl GliumInputState {
 }
 
 pub fn input_to_egui(
+    pixels_per_point: f32,
     event: glutin::event::WindowEvent<'_>,
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
@@ -54,6 +55,9 @@ pub fn input_to_egui(
     use glutin::event::WindowEvent;
     match event {
         WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
+        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+            input_state.raw.pixels_per_point = Some(scale_factor as f32);
+        }
         WindowEvent::MouseInput { state, button, .. } => {
             if let Some(pos_in_points) = input_state.pointer_pos_in_points {
                 if let Some(button) = translate_mouse_button(button) {
@@ -71,8 +75,8 @@ pub fn input_to_egui(
             ..
         } => {
             let pos_in_points = pos2(
-                pos_in_pixels.x as f32 / input_state.raw.pixels_per_point.unwrap(),
-                pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
+                pos_in_pixels.x as f32 / pixels_per_point,
+                pos_in_pixels.y as f32 / pixels_per_point,
             );
             input_state.pointer_pos_in_points = Some(pos_in_points);
             input_state

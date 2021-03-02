@@ -1,6 +1,14 @@
-use crate::{paint::Galley, *};
+use crate::*;
+use epaint::Galley;
 
 /// Static text.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.label("Equivalent");
+/// ui.add(egui::Label::new("Equivalent"));
+/// ui.add(egui::Label::new("With Options").text_color(egui::Color32::RED));
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     // TODO: not pub
@@ -118,7 +126,9 @@ impl Label {
         self.text_color = Some(text_color.into());
         self
     }
+}
 
+impl Label {
     pub fn layout(&self, ui: &Ui) -> Galley {
         let max_width = ui.available_width();
         self.layout_width(ui, max_width)
@@ -135,7 +145,7 @@ impl Label {
         font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
     }
 
-    pub fn font_height(&self, fonts: &paint::text::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
         fonts[text_style].row_height()
     }

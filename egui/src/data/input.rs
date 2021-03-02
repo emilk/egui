@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::math::*;
+use crate::emath::*;
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -27,6 +27,7 @@ pub struct RawInput {
 
     /// Also known as device pixel ratio, > 1 for HDPI screens.
     /// If text looks blurry on high resolution screens, you probably forgot to set this.
+    /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
 
     /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
@@ -41,7 +42,11 @@ pub struct RawInput {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    /// In-order events received this frame
+    /// In-order events received this frame.
+    ///
+    /// There is currently no way to know if egui handles a particular event,
+    /// but you can check if egui is using the keyboard with [`crate::Context::wants_keyboard_input`]
+    /// and/or the pointer (mouse/touch) with [`crate::Context::is_using_pointer`].
     pub events: Vec<Event>,
 }
 
@@ -68,9 +73,9 @@ impl RawInput {
         RawInput {
             scroll_delta: std::mem::take(&mut self.scroll_delta),
             screen_size: self.screen_size,
-            screen_rect: self.screen_rect,
-            pixels_per_point: self.pixels_per_point,
-            time: self.time,
+            screen_rect: self.screen_rect.take(),
+            pixels_per_point: self.pixels_per_point.take(),
+            time: self.time.take(),
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),

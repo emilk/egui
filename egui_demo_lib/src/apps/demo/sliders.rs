@@ -30,7 +30,7 @@ impl Default for Sliders {
 }
 
 impl super::Demo for Sliders {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "⬌ Sliders"
     }
 

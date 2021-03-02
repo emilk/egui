@@ -2,6 +2,39 @@
 
 use crate::*;
 
+// ----------------------------------------------------------------------------
+
+/// Same state for all tooltips.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct MonoState {
+    last_id: Option<Id>,
+    last_size: Option<Vec2>,
+}
+
+impl MonoState {
+    fn tooltip_size(&self, id: Id) -> Option<Vec2> {
+        if self.last_id == Some(id) {
+            self.last_size
+        } else {
+            None
+        }
+    }
+
+    fn set_tooltip_size(&mut self, id: Id, size: Vec2) {
+        if self.last_id == Some(id) {
+            if let Some(stored_size) = &mut self.last_size {
+                *stored_size = stored_size.max(size);
+                return;
+            }
+        }
+
+        self.last_id = Some(id);
+        self.last_size = Some(size);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Show a tooltip at the current pointer position (if any).
 ///
 /// Most of the time it is easier to use [`Response::on_hover_ui`].
@@ -11,21 +44,47 @@ use crate::*;
 /// ```
 /// # let mut ui = egui::Ui::__test();
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip(ui.ctx(), |ui| {
+///     egui::show_tooltip(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
 /// ```
-pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
-    let tooltip_rect = ctx.frame_state().tooltip_rect;
+pub fn show_tooltip(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui)) {
+    show_tooltip_at_pointer(ctx, id, add_contents)
+}
 
-    let window_pos = if let Some(tooltip_rect) = tooltip_rect {
+pub fn show_tooltip_at_pointer(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui)) {
+    let suggested_pos = ctx
+        .input()
+        .pointer
+        .tooltip_pos()
+        .map(|pointer_pos| pointer_pos + vec2(16.0, 16.0));
+    show_tooltip_at(ctx, id, suggested_pos, add_contents)
+}
+
+pub fn show_tooltip_under(ctx: &CtxRef, id: Id, rect: &Rect, add_contents: impl FnOnce(&mut Ui)) {
+    show_tooltip_at(
+        ctx,
+        id,
+        Some(rect.left_bottom() + vec2(-2.0, 4.0)),
+        add_contents,
+    )
+}
+
+pub fn show_tooltip_at(
+    ctx: &CtxRef,
+    mut id: Id,
+    suggested_position: Option<Pos2>,
+    add_contents: impl FnOnce(&mut Ui),
+) {
+    let mut tooltip_rect = Rect::NOTHING;
+
+    let position = if let Some((stored_id, stored_tooltip_rect)) = ctx.frame_state().tooltip_rect {
+        // if there are multiple tooltips open they should use the same id for the `tooltip_size` caching to work.
+        id = stored_id;
+        tooltip_rect = stored_tooltip_rect;
         tooltip_rect.left_bottom()
-    } else if let Some(pointer_pos) = ctx.input().pointer.tooltip_pos() {
-        let expected_size = vec2(ctx.style().spacing.tooltip_width, 32.0);
-        let position = pointer_pos + vec2(16.0, 16.0);
-        let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
-        let position = position.max(ctx.input().screen_rect().left_top());
+    } else if let Some(position) = suggested_position {
         position
     } else if ctx.memory().everything_is_visible() {
         Pos2::default()
@@ -33,12 +92,17 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
         return; // No good place for a tooltip :(
     };
 
-    //  TODO: default size
-    let id = Id::tooltip();
-    let response = show_tooltip_area(ctx, id, window_pos, add_contents);
+    let expected_size = ctx.memory().tooltip.tooltip_size(id);
+    let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
+    let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
+    let position = position.max(ctx.input().screen_rect().left_top());
 
-    let tooltip_rect = tooltip_rect.unwrap_or(Rect::NOTHING);
-    ctx.frame_state().tooltip_rect = Some(tooltip_rect.union(response.rect));
+    let response = show_tooltip_area(ctx, id, position, add_contents);
+    ctx.memory()
+        .tooltip
+        .set_tooltip_size(id, response.rect.size());
+
+    ctx.frame_state().tooltip_rect = Some((id, tooltip_rect.union(response.rect)));
 }
 
 /// Show some text at the current pointer position (if any).
@@ -50,11 +114,11 @@ pub fn show_tooltip(ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) {
 /// ```
 /// # let mut ui = egui::Ui::__test();
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_text(ui.ctx(), "Helpful text");
+///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// ```
-pub fn show_tooltip_text(ctx: &CtxRef, text: impl Into<String>) {
-    show_tooltip(ctx, |ui| {
+pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<String>) {
+    show_tooltip(ctx, id, |ui| {
         ui.add(crate::widgets::Label::new(text));
     })
 }

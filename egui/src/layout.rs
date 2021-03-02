@@ -1,4 +1,4 @@
-use crate::{math::*, Align};
+use crate::{emath::*, Align};
 
 // ----------------------------------------------------------------------------
 
@@ -538,7 +538,7 @@ impl Layout {
         stroke: epaint::Stroke,
         painter: &crate::Painter,
     ) {
-        use crate::paint::*;
+        use epaint::*;
 
         let cursor = region.cursor;
 

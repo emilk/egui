@@ -20,10 +20,17 @@ impl Rect {
         max: pos2(INFINITY, INFINITY),
     };
 
-    /// The inverse of [`Self::EVERYTHING`]: streches from positive infinity to negative infinity.
+    /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
     /// Contains no points.
     ///
-    /// This is useful as the seed for boulding bounding boxes.
+    /// This is useful as the seed for bounding bounding boxes.
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let inf = f32::INFINITY;
+    /// assert!(Rect::NOTHING.size() == Vec2::splat(-inf));
+    /// assert!(Rect::NOTHING.contains(pos2(0.0, 0.0)) == false);
+    /// ```
     ///
     /// # Example:
     /// ```
@@ -180,6 +187,18 @@ impl Rect {
         self.max = self.max.max(p);
     }
 
+    /// Expand to include the given x coordinate
+    pub fn extend_with_x(&mut self, x: f32) {
+        self.min.x = self.min.x.min(x);
+        self.max.x = self.max.x.max(x);
+    }
+
+    /// Expand to include the given y coordinate
+    pub fn extend_with_y(&mut self, y: f32) {
+        self.min.y = self.min.y.min(y);
+        self.max.y = self.max.y.max(y);
+    }
+
     pub fn union(self, other: Rect) -> Rect {
         Rect {
             min: self.min.min(other.min),
@@ -202,6 +221,29 @@ impl Rect {
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
     }
+
+    /// Width / height
+    ///
+    /// * `aspect_ratio < 1`: portrait / high
+    /// * `aspect_ratio = 1`: square
+    /// * `aspect_ratio > 1`: landscape / wide
+    pub fn aspect_ratio(&self) -> f32 {
+        self.width() / self.height()
+    }
+
+    /// `[2, 1]` for wide screen, and `[1, 2]` for portrait, etc.
+    /// At least one dimension = 1, the other >= 1
+    /// Returns the proportions required to letter-box a square view area.
+    pub fn square_proportions(&self) -> Vec2 {
+        let w = self.width();
+        let h = self.height();
+        if w > h {
+            vec2(w / h, 1.0)
+        } else {
+            vec2(1.0, h / w)
+        }
+    }
+
     pub fn area(&self) -> f32 {
         self.width() * self.height()
     }

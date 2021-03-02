@@ -1,5 +1,5 @@
 use crate::{
-    math::{lerp, Align, Pos2, Rect},
+    emath::{lerp, Align, Pos2, Rect},
     PointerButton, NUM_POINTER_BUTTONS,
 };
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
@@ -8,8 +8,11 @@ use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 /// The result of adding a widget to a [`Ui`].
 ///
-/// This lets you know whether or not a widget has been clicked this frame.
+/// A `Response` lets you know whether or not a widget is being hovered, clicked or dragged.
 /// It also lets you easily show a tooltip on hover.
+///
+/// Whenever something gets added to a `Ui`, a `Response` object is returned.
+/// [`ui.add`] returns a `Response`, as does [`ui.button`], and all similar shortcuts.
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -57,11 +60,16 @@ pub struct Response {
     /// `None` if the widget is not being interacted with.
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
-    /// This widget has the keyboard focus (i.e. is receiving key pressed).
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
     pub(crate) has_kb_focus: bool,
 
     /// The widget had keyboard focus and lost it.
     pub(crate) lost_kb_focus: bool,
+
+    /// What the underlying data changed?
+    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
+    /// Always `false` for something like a `Button`.
+    pub(crate) changed: bool,
 }
 
 impl std::fmt::Debug for Response {
@@ -82,6 +90,7 @@ impl std::fmt::Debug for Response {
             interact_pointer_pos,
             has_kb_focus,
             lost_kb_focus,
+            changed,
         } = self;
         f.debug_struct("Response")
             .field("layer_id", layer_id)
@@ -98,6 +107,7 @@ impl std::fmt::Debug for Response {
             .field("interact_pointer_pos", interact_pointer_pos)
             .field("has_kb_focus", has_kb_focus)
             .field("lost_kb_focus", lost_kb_focus)
+            .field("changed", changed)
             .finish()
     }
 }
@@ -135,6 +145,11 @@ impl Response {
         self.hovered
     }
 
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
+    pub fn has_kb_focus(&self) -> bool {
+        self.has_kb_focus
+    }
+
     /// The widget had keyboard focus and lost it,
     /// perhaps because the user pressed enter.
     /// If you want to do an action when a user presses enter in a text field,
@@ -158,6 +173,11 @@ impl Response {
     /// (`ui.input().pointer.button_down(…)`).
     pub fn dragged(&self) -> bool {
         self.dragged
+    }
+
+    /// Did a drag on this widgets begin this frame?
+    pub fn drag_started(&self) -> bool {
+        self.dragged && self.ctx.input().pointer.any_pressed()
     }
 
     /// The widget was being dragged, but now it has been released.
@@ -187,15 +207,58 @@ impl Response {
         self.is_pointer_button_down_on
     }
 
+    /// What the underlying data changed?
+    ///
+    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
+    /// Always `false` for something like a `Button`.
+    /// Can sometimes be `true` even though the data didn't changed
+    /// (e.g. if the user entered a character and erased it the same frame).
+    pub fn changed(&self) -> bool {
+        self.changed
+    }
+
+    /// Report the data shown by this widget changed.
+    ///
+    /// This must be called by widgets that represent some mutable data,
+    /// e.g. checkboxes, sliders etc.
+    pub fn mark_changed(&mut self) {
+        self.changed = true;
+    }
+
     /// Show this UI if the item was hovered (i.e. a tooltip).
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if (self.hovered() && self.ctx.input().pointer.tooltip_pos().is_some())
-            || self.ctx.memory().everything_is_visible()
-        {
-            crate::containers::show_tooltip(&self.ctx, add_contents);
+        if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_under(
+                &self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
         }
         self
+    }
+
+    fn should_show_hover_ui(&self) -> bool {
+        if self.ctx.memory().everything_is_visible() {
+            true
+        } else if self.hovered && self.ctx.input().pointer.has_pointer() {
+            let show_tooltips_only_when_still =
+                self.ctx.style().interaction.show_tooltips_only_when_still;
+            if show_tooltips_only_when_still {
+                if self.ctx.input().pointer.is_still() {
+                    true
+                } else {
+                    // wait for mouse to stop
+                    self.ctx.request_repaint();
+                    false
+                }
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 
     /// Show this text if the item was hovered (i.e. a tooltip).
@@ -285,6 +348,7 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             has_kb_focus: self.has_kb_focus || other.has_kb_focus,
             lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
+            changed: self.changed || other.changed,
         }
     }
 }

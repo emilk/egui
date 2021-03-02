@@ -1,8 +1,25 @@
 use crate::*;
 
 /// One out of several alternatives, either selected or not.
-/// Will mark selected items with a different background color
+/// Will mark selected items with a different background color.
 /// An alternative to [`RadioButton`] and [`Checkbox`].
+///
+/// Usually you'd use [`Ui::selectable_value`] or [`Ui::selectable_label`] instead.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// #[derive(PartialEq)]
+/// enum Enum { First, Second, Third }
+/// let mut my_enum = Enum::First;
+///
+/// ui.selectable_value(&mut my_enum, Enum::First, "First");
+///
+/// // is equivalent to:
+///
+/// if ui.add(egui::SelectableLabel::new(my_enum == Enum::First, "First")).clicked() {
+///     my_enum = Enum::First
+/// }
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct SelectableLabel {
@@ -44,25 +61,14 @@ impl Widget for SelectableLabel {
             .align_size_within_rect(galley.size, rect.shrink2(button_padding))
             .min;
 
-        let visuals = ui.style().interact(&response);
+        let visuals = ui.style().interact_selectable(&response, selected);
 
         if selected || response.hovered() {
             let rect = rect.expand(visuals.expansion);
 
-            let fill = if selected {
-                ui.visuals().selection.bg_fill
-            } else {
-                Default::default()
-            };
-
-            let stroke = if selected {
-                ui.visuals().selection.stroke
-            } else {
-                visuals.bg_stroke
-            };
-
             let corner_radius = 2.0;
-            ui.painter().rect(rect, corner_radius, fill, stroke);
+            ui.painter()
+                .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
         }
 
         let text_color = ui

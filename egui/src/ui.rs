@@ -3,7 +3,7 @@
 use std::hash::Hash;
 
 use crate::{
-    color::*, containers::*, layout::*, mutex::MutexGuard, paint::text::Fonts, placer::Placer,
+    color::*, containers::*, epaint::text::Fonts, layout::*, mutex::MutexGuard, placer::Placer,
     widgets::*, *,
 };
 
@@ -747,7 +747,7 @@ impl Ui {
 
 /// # Adding widgets
 impl Ui {
-    /// Add a widget to this `Ui` at a location dependent on the current [`Layout`].
+    /// Add a [`Widget`] to this `Ui` at a location dependent on the current [`Layout`].
     ///
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
@@ -762,7 +762,7 @@ impl Ui {
         widget.ui(self)
     }
 
-    /// Add a widget to this `Ui` with a given max size.
+    /// Add a [`Widget`] to this `Ui` with a given max size.
     pub fn add_sized(&mut self, max_size: Vec2, widget: impl Widget) -> Response {
         self.allocate_ui(max_size, |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
@@ -770,7 +770,7 @@ impl Ui {
         .inner
     }
 
-    /// Add a widget to this `Ui` at a specific location (manual layout).
+    /// Add a [`Widget`] to this `Ui` at a specific location (manual layout).
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.allocate_ui_at_rect(max_rect, |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
@@ -779,6 +779,8 @@ impl Ui {
     }
 
     /// Shortcut for `add(Label::new(text))`
+    ///
+    /// Se also [`Label`].
     pub fn label(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into())
     }
@@ -815,8 +817,22 @@ impl Ui {
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
+    ///
+    /// Se also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
+    }
+
+    /// Shortcut for `add(Hyperlink::new(url).text(label))`
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.hyperlink_to("egui on GitHub", "https://www.github.com/emilk/egui/");
+    /// ```
+    ///
+    /// Se also [`Hyperlink`].
+    pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
+        self.add(Hyperlink::new(url).text(label))
     }
 
     #[deprecated = "Use `text_edit_singleline` or `text_edit_multiline`"]
@@ -825,11 +841,15 @@ impl Ui {
     }
 
     /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    ///
+    /// Se also [`TextEdit`].
     pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::singleline(text))
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
+    ///
+    /// Se also [`TextEdit`].
     pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::multiline(text))
     }
@@ -837,6 +857,8 @@ impl Ui {
     /// Usage: `if ui.button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text))`
+    ///
+    /// Se also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
@@ -857,31 +879,47 @@ impl Ui {
         self.add(Checkbox::new(checked, text))
     }
 
-    /// Show a radio button.
-    /// Often you want to use `ui.radio_value` instead.
+    /// Show a [`RadioButton`].
+    /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
         self.add(RadioButton::new(selected, text))
     }
 
-    /// Show a radio button. It is selected if `*current_value == selected_value`.
+    /// Show a [`RadioButton`]. It is selected if `*current_value == selected_value`.
     /// If clicked, `selected_value` is assigned to `*current_value`.
     ///
-    /// Example: `ui.radio_value(&mut my_enum, Enum::Alternative, "Alternative")`.
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    ///
+    /// #[derive(PartialEq)]
+    /// enum Enum { First, Second, Third }
+    /// let mut my_enum = Enum::First;
+    ///
+    /// ui.radio_value(&mut my_enum, Enum::First, "First");
+    ///
+    /// // is equivalent to:
+    ///
+    /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
+    ///     my_enum = Enum::First
+    /// }
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
         text: impl Into<String>,
     ) -> Response {
-        let response = self.radio(*current_value == selected_value, text);
+        let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {
             *current_value = selected_value;
+            response.mark_changed();
         }
         response
     }
 
     /// Show a label which can be selected or not.
+    ///
+    /// Se also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
         self.add(SelectableLabel::new(checked, text))
@@ -891,20 +929,23 @@ impl Ui {
     /// If clicked, `selected_value` is assigned to `*current_value`.
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
+    ///
+    /// Se also [`SelectableLabel`].
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
         text: impl Into<String>,
     ) -> Response {
-        let response = self.selectable_label(*current_value == selected_value, text);
+        let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
             *current_value = selected_value;
+            response.mark_changed();
         }
         response
     }
 
-    /// Shortcut for `add(Separator::new())`
+    /// Shortcut for `add(Separator::new())` (see [`Separator`]).
     pub fn separator(&mut self) -> Response {
         self.add(Separator::new())
     }
@@ -915,11 +956,12 @@ impl Ui {
         #![allow(clippy::float_cmp)]
 
         let mut degrees = radians.to_degrees();
-        let response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
+        let mut response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
 
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
+            response.changed = true;
         }
 
         response
@@ -934,19 +976,22 @@ impl Ui {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
-        let response = self
+        let mut response = self
             .add(DragValue::f32(&mut taus).speed(0.01).suffix("τ"))
             .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
 
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
+            response.changed = true;
         }
 
         response
     }
 
     /// Show an image here with the given size.
+    ///
+    /// See also [`Image`].
     pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
         self.add(Image::new(texture_id, size))
     }
@@ -1075,7 +1120,7 @@ impl Ui {
         self.allocate_ui(desired_size, add_contents).response.rect
     }
 
-    /// A `CollapsingHeader` that starts out collapsed.
+    /// A [`CollapsingHeader`] that starts out collapsed.
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<String>,
@@ -1084,7 +1129,7 @@ impl Ui {
         CollapsingHeader::new(heading).show(self, add_contents)
     }
 
-    /// Create a child ui which is indented to the right
+    /// Create a child ui which is indented to the right.
     pub fn indent<R>(
         &mut self,
         id_source: impl Hash,

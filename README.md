@@ -25,6 +25,7 @@ Sections:
 * [How it works](#how-it-works)
 * [Integrations](#integrations)
 * [Why immediate mode](#why-immediate-mode)
+* [FAQ](#faq)
 * [Other](#other)
 
 ## Quick start
@@ -141,7 +142,7 @@ Loop:
 * Gather input (mouse, touches, keyboard, screen size, etc) and give it to egui
 * Run application code (Immediate Mode GUI)
 * Tell egui to tessellate the frame graphics to a triangle mesh
-* Render the triangle mesh with your favorite graphics API (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs))
+* Render the triangle mesh with your favorite graphics API (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs)) or use `eframe`, the egui framework crate.
 
 ## Integrations
 
@@ -266,13 +267,28 @@ There are some GUI state that you want the GUI library to retain, even in an imm
 Overall, ID handling is a rare invonvenience, and not a big disadvantage.
 
 
+## FAQ
+
+Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categories/q-a).
+
+### What is the difference between egui and eframe?
+
+`egui` is a 2D user interface library for laying out and interacting with buttons, sliders, etc.
+`egui` has no idea if it is running on the web or natively, and does not know how to collect input or show things on screen.
+That is the job of *the integration* or *backend*.
+
+It is common to use `egui` from a game engine (using e.g. [`bevy_egui`](https://docs.rs/bevy_egui)),
+but you can also use `egui` stand-alone using `eframe`. `eframe` has integration for web and native, and handles input and rendering.
+The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`frame` is a framework, `egui` is a library).
+
+
 ## Other
 
 ### Conventions and design choices
 
 All coordinates are in screen space coordinates, with (0, 0) in the top left corner
 
-All coordinates are in locial "points" which may consist of many physical pixels.
+All coordinates are in "points" which may consist of many physical pixels.
 
 All colors have premultiplied alpha.
 
@@ -286,7 +302,7 @@ The one and only [Dear ImGui](https://github.com/ocornut/imgui) is a great Immed
 
 ### Name
 
-The name of the library and the project is "egui" and pronounced as "e-gooey".
+The name of the library and the project is "egui" and pronounced as "e-gooey". Please don't write it as "EGUI".
 
 The library was originally called "Emigui", but was renamed to "egui" in 2020.
 

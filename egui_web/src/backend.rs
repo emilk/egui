@@ -91,7 +91,7 @@ impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(native_pixels_per_point()),
+            pixels_per_point: Some(native_pixels_per_point()), // We ALWAYS use the native pixels-per-point
             time: Some(now_sec()),
             ..self.raw.take()
         }
@@ -191,7 +191,7 @@ impl AppRunner {
     }
 
     pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
-        resize_canvas_to_screen_size(self.web_backend.canvas_id());
+        resize_canvas_to_screen_size(self.web_backend.canvas_id(), self.app.max_size_points());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
@@ -206,7 +206,7 @@ impl AppRunner {
                 seconds_since_midnight: Some(seconds_since_midnight()),
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
-            tex_allocator: Some(self.web_backend.painter.as_tex_allocator()),
+            tex_allocator: self.web_backend.painter.as_tex_allocator(),
             #[cfg(feature = "http")]
             http: self.http.clone(),
             output: &mut app_output,
@@ -221,9 +221,8 @@ impl AppRunner {
 
         {
             let epi::backend::AppOutput {
-                quit: _,             // Can't quit a web page
-                window_size: _,      // Can't resize a web page
-                pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)
+                quit: _,        // Can't quit a web page
+                window_size: _, // Can't resize a web page
             } = app_output;
         }
 

@@ -281,7 +281,7 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(paint::Shape::Rect {
+            ui.painter().add(epaint::Shape::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),
@@ -314,7 +314,7 @@ impl Resize {
     }
 }
 
-use crate::paint::Stroke;
+use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
