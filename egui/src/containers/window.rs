@@ -290,7 +290,7 @@ impl<'open> Window<'open> {
                     area_layer_id,
                     area.state_mut(),
                     resize_id,
-                    bounds
+                    bounds,
                 )
             })
         } else {
@@ -443,7 +443,7 @@ fn interact(
     area_layer_id: LayerId,
     area_state: &mut area::State,
     resize_id: Id,
-    drag_bounds: Option<Rect>
+    drag_bounds: Option<Rect>,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);

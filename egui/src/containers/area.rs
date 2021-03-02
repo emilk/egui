@@ -49,7 +49,7 @@ pub struct Area {
     order: Order,
     default_pos: Option<Pos2>,
     new_pos: Option<Pos2>,
-    drag_bounds: Option<Rect>
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -62,7 +62,7 @@ impl Area {
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
-            drag_bounds: None
+            drag_bounds: None,
         }
     }
 
@@ -145,7 +145,7 @@ pub(crate) struct Prepared {
     state: State,
     movable: bool,
     enabled: bool,
-    drag_bounds: Option<Rect>
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -158,7 +158,7 @@ impl Area {
             enabled,
             default_pos,
             new_pos,
-            drag_bounds
+            drag_bounds,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -177,7 +177,7 @@ impl Area {
             state,
             movable,
             enabled,
-            drag_bounds
+            drag_bounds,
         }
     }
 
@@ -272,7 +272,7 @@ impl Prepared {
             mut state,
             movable,
             enabled,
-            drag_bounds
+            drag_bounds,
         } = self;
 
         state.size = content_ui.min_rect().size();
@@ -303,7 +303,7 @@ impl Prepared {
         } else {
             state.pos = ctx.constrain_window_rect(state.rect()).min;
         }
-        
+
         if (move_response.dragged() || move_response.clicked())
             || pointer_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
