@@ -341,10 +341,10 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                 })
             });
 
-        if !button_response.clicked() {
-            if ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere() {
-                ui.memory().close_popup();
-            }
+        if !button_response.clicked()
+            && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
+        {
+            ui.memory().close_popup();
         }
     }
 
