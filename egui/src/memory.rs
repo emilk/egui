@@ -207,9 +207,18 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
+    pub(crate) fn had_kb_focus_last_frame(&self, id: Id) -> bool {
+        self.interaction.kb_focus_id_previous_frame == Some(id)
+    }
+
     /// True if the given widget had keyboard focus last frame, but not this one.
     pub fn lost_kb_focus(&self, id: Id) -> bool {
-        self.interaction.kb_focus_id_previous_frame == Some(id) && !self.has_kb_focus(id)
+        self.had_kb_focus_last_frame(id) && !self.has_kb_focus(id)
+    }
+
+    /// True if the given widget has keyboard focus this frame, but didn't last frame.
+    pub fn gained_kb_focus(&self, id: Id) -> bool {
+        !self.had_kb_focus_last_frame(id) && self.has_kb_focus(id)
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {
