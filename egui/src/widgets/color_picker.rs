@@ -342,8 +342,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
             });
 
         if !button_response.clicked() {
-            let clicked_outside = ui.input().pointer.any_click() && !area_response.hovered();
-            if clicked_outside || ui.input().key_pressed(Key::Escape) {
+            if ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere() {
                 ui.memory().close_popup();
             }
         }

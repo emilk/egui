@@ -185,9 +185,7 @@ pub fn popup_below_widget(
                 });
             });
 
-        if ui.input().key_pressed(Key::Escape)
-            || ui.input().pointer.any_click() && !widget_response.clicked()
-        {
+        if ui.input().key_pressed(Key::Escape) || widget_response.clicked_elsewhere() {
             ui.memory().close_popup();
         }
     }
