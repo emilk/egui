@@ -1,5 +1,5 @@
 use crate::{
-    emath::{lerp, Align, Pos2, Rect},
+    emath::{lerp, Align, Pos2, Rect, Vec2},
     PointerButton, NUM_POINTER_BUTTONS,
 };
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
@@ -118,6 +118,11 @@ impl Response {
         self.clicked[PointerButton::Primary as usize]
     }
 
+    /// Returns true if this widget was clicked this frame by the given button.
+    pub fn clicked_by(&self, button: PointerButton) -> bool {
+        self.clicked[button as usize]
+    }
+
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
     pub fn secondary_clicked(&self) -> bool {
         self.clicked[PointerButton::Secondary as usize]
@@ -131,6 +136,16 @@ impl Response {
     /// Returns true if this widget was double-clicked this frame by the primary button.
     pub fn double_clicked(&self) -> bool {
         self.double_clicked[PointerButton::Primary as usize]
+    }
+
+    /// Returns true if this widget was double-clicked this frame by the given button.
+    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
+        self.double_clicked[button as usize]
+    }
+
+    /// `true` if there was a click *outside* this widget this frame.
+    pub fn clicked_elsewhere(&self) -> bool {
+        !self.hovered && self.ctx.input().pointer.any_pressed()
     }
 
     /// Was the widget enabled?
@@ -175,6 +190,10 @@ impl Response {
         self.dragged
     }
 
+    pub fn dragged_by(&self, button: PointerButton) -> bool {
+        self.dragged() && self.ctx.input().pointer.button_down(button)
+    }
+
     /// Did a drag on this widgets begin this frame?
     pub fn drag_started(&self) -> bool {
         self.dragged && self.ctx.input().pointer.any_pressed()
@@ -185,20 +204,29 @@ impl Response {
         self.drag_released
     }
 
-    /// Returns true if this widget was clicked this frame by the given button.
-    pub fn clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked[button as usize]
-    }
-
-    /// Returns true if this widget was double-clicked this frame by the given button.
-    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
-        self.double_clicked[button as usize]
+    /// If dragged, how many points were we dragged and in what direction?
+    pub fn drag_delta(&self) -> Vec2 {
+        if self.dragged() {
+            self.ctx.input().pointer.delta()
+        } else {
+            Vec2::ZERO
+        }
     }
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
+    }
+
+    /// If it is a good idea to show a tooltip, where is pointer?
+    /// None if the pointer is outside the response area.
+    pub fn hover_pos(&self) -> Option<Pos2> {
+        if self.hovered() {
+            self.ctx.input().pointer.hover_pos()
+        } else {
+            None
+        }
     }
 
     /// Is the pointer button currently down on this widget?

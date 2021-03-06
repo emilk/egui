@@ -341,7 +341,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
-                if response.hovered() && response.double_clicked() {
+                if response.double_clicked() {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursorp = select_word_at(text, center.ccursor);
@@ -371,8 +371,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        if ui.input().pointer.any_pressed() && !response.hovered() {
-            // User clicked somewhere else
+        if response.clicked_elsewhere() {
             ui.memory().surrender_kb_focus(id);
         }
 

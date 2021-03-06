@@ -407,7 +407,7 @@ impl PointerState {
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
-    pub fn tooltip_pos(&self) -> Option<Pos2> {
+    pub fn hover_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 

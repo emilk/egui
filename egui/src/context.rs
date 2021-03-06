@@ -119,7 +119,7 @@ impl CtxRef {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(pointer_pos) = self.input.pointer.tooltip_pos() {
+                if let Some(pointer_pos) = self.input.pointer.hover_pos() {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),

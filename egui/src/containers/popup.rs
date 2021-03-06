@@ -57,7 +57,7 @@ pub fn show_tooltip_at_pointer(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&
     let suggested_pos = ctx
         .input()
         .pointer
-        .tooltip_pos()
+        .hover_pos()
         .map(|pointer_pos| pointer_pos + vec2(16.0, 16.0));
     show_tooltip_at(ctx, id, suggested_pos, add_contents)
 }

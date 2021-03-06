@@ -255,8 +255,12 @@ impl super::View for InputTest {
             if response.double_clicked_by(button) {
                 new_info += &format!("Double-clicked by {:?}\n", button);
             }
-            if response.dragged() && ui.input().pointer.button_down(button) {
-                new_info += &format!("Dragged by {:?}\n", button);
+            if response.dragged_by(button) {
+                new_info += &format!(
+                    "Dragged by {:?}, delta: {:?}\n",
+                    button,
+                    response.drag_delta()
+                );
             }
         }
         if !new_info.is_empty() {

@@ -84,24 +84,22 @@ impl FrameHistory {
         let color = ui.visuals().text_color();
         let line_stroke = Stroke::new(1.0, color);
 
-        if let Some(pointer_pos) = ui.input().pointer.tooltip_pos() {
-            if rect.contains(pointer_pos) {
-                let y = pointer_pos.y;
-                shapes.push(Shape::line_segment(
-                    [pos2(rect.left(), y), pos2(rect.right(), y)],
-                    line_stroke,
-                ));
-                let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
-                let text = format!("{:.1} ms", 1e3 * cpu_usage);
-                shapes.push(Shape::text(
-                    ui.fonts(),
-                    pos2(rect.left(), y),
-                    egui::Align2::LEFT_BOTTOM,
-                    text,
-                    TextStyle::Monospace,
-                    color,
-                ));
-            }
+        if let Some(pointer_pos) = response.hover_pos() {
+            let y = pointer_pos.y;
+            shapes.push(Shape::line_segment(
+                [pos2(rect.left(), y), pos2(rect.right(), y)],
+                line_stroke,
+            ));
+            let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
+            let text = format!("{:.1} ms", 1e3 * cpu_usage);
+            shapes.push(Shape::text(
+                ui.fonts(),
+                pos2(rect.left(), y),
+                egui::Align2::LEFT_BOTTOM,
+                text,
+                TextStyle::Monospace,
+                color,
+            ));
         }
 
         let circle_color = color;
