@@ -298,31 +298,16 @@ impl super::Demo for WindowResizeTest {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         use egui::*;
 
-        Window::new("↔ resizable")
+        Window::new("↔ auto-sized")
             .open(open)
-            .scroll(false)
-            .resizable(true)
+            .auto_sized()
             .show(ctx, |ui| {
-                assert!(ui.enabled()); // TODO: remove
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM);
-            });
-
-        Window::new("↔ resizable + embedded scroll")
-            .open(open)
-            .scroll(false)
-            .resizable(true)
-            .default_height(300.0)
-            .show(ctx, |ui| {
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.heading("We have a sub-region with scroll bar:");
-                ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM_LONG);
-                    ui.label(crate::LOREM_IPSUM_LONG);
+                ui.label("This window will auto-size based on its contents.");
+                ui.heading("Resize this area:");
+                Resize::default().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM);
                 });
-                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+                ui.heading("Resize the above area!");
             });
 
         Window::new("↔ resizable + scroll")
@@ -331,21 +316,38 @@ impl super::Demo for WindowResizeTest {
             .resizable(true)
             .default_height(300.0)
             .show(ctx, |ui| {
-                ui.label("scroll:    YES");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM_LONG);
+                ui.label(
+                    "This window is resizable and has a scroll area. You can shrink it to any size",
+                );
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM_LONG);
             });
 
-        Window::new("↔ auto_sized")
+        Window::new("↔ resizable + embedded scroll")
             .open(open)
-            .auto_sized()
+            .scroll(false)
+            .resizable(true)
+            .default_height(300.0)
             .show(ctx, |ui| {
-                ui.label("This window will auto-size based on its contents.");
-                ui.heading("Resize this area:");
-                Resize::default().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM);
+                ui.label("This window is resizable but has no built-in scroll area.");
+                ui.label("However, we have a sub-region with a scroll bar:");
+                ui.separator();
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM_LONG);
+                    ui.code(crate::LOREM_IPSUM_LONG);
                 });
-                ui.heading("Resize the above area!");
+                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+            });
+
+        Window::new("↔ resizable without scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.label("This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.");
+                ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM);
             });
     }
 }
