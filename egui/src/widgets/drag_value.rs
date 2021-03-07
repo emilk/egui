@@ -251,7 +251,7 @@ impl<'a> Widget for DragValue<'a> {
                 ui.memory().request_kb_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
-                let mdelta = ui.input().pointer.delta();
+                let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
                 let delta_value = delta_points as f64 * speed;
                 if delta_value != 0.0 {
@@ -281,9 +281,27 @@ impl<'a> Widget for DragValue<'a> {
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
                 }
+            } else if response.has_kb_focus() {
+                let change = ui.input().num_presses(Key::ArrowUp) as f64
+                    + ui.input().num_presses(Key::ArrowRight) as f64
+                    - ui.input().num_presses(Key::ArrowDown) as f64
+                    - ui.input().num_presses(Key::ArrowLeft) as f64;
+
+                if change != 0.0 {
+                    let new_value = value + speed * change;
+                    let new_value = emath::round_to_decimals(new_value, auto_decimals);
+                    let new_value = clamp(new_value, clamp_range);
+                    set(&mut get_set_value, new_value);
+                }
             }
+
             response
         };
+
+        if response.gained_kb_focus() {
+            ui.output()
+                .push_gained_focus_event(WidgetType::DragValue, "");
+        }
 
         #[allow(clippy::float_cmp)]
         {

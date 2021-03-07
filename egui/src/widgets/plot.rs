@@ -582,10 +582,8 @@ impl Prepared {
             }
         }
 
-        if response.hovered() {
-            if let Some(pointer) = ui.input().pointer.tooltip_pos() {
-                self.hover(ui, pointer, &mut shapes);
-            }
+        if let Some(pointer) = response.hover_pos() {
+            self.hover(ui, pointer, &mut shapes);
         }
 
         ui.painter().sub_region(self.rect).extend(shapes);

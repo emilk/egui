@@ -233,6 +233,7 @@ pub fn handle_output(output: &egui::Output) {
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
+        events: _,        // we ignore these (TODO: accessibility screen reader)
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -358,7 +359,7 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "Tab" => Some(egui::Key::Tab),
         "Backspace" => Some(egui::Key::Backspace),
         "Enter" => Some(egui::Key::Enter),
-        "Space" => Some(egui::Key::Space),
+        "Space" | " " => Some(egui::Key::Space),
 
         "Help" | "Insert" => Some(egui::Key::Insert),
         "Delete" => Some(egui::Key::Delete),

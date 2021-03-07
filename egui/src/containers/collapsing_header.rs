@@ -207,6 +207,10 @@ impl CollapsingHeader {
         let (_, rect) = ui.allocate_space(desired_size);
 
         let header_response = ui.interact(rect, id, Sense::click());
+        if header_response.gained_kb_focus() {
+            ui.output()
+                .push_gained_focus_event(WidgetType::CollapsingHeader, &galley.text);
+        }
         let text_pos = pos2(
             text_pos.x,
             header_response.rect.center().y - galley.size.y / 2.0,

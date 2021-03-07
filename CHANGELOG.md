@@ -8,7 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ## Unreleased
+
+### Added ⭐
+
+* You can now give focus to any clickable widget with tab/shift-tab.
+  * Use space or enter to click the selected widget.
+  * Use arrow keys to adjust sliders and `DragValue`s.
+* egui will now output events when widgets gain keyboard focus.
+  * This can be hooked up to a screen reader to aid the visually impaired
 * Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
+
+### Fixed 🐛
+
+* Fixed secondary-click to open a menu
 
 ## 0.10.0 - 2021-02-28 - Plot and polish
 

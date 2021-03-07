@@ -243,12 +243,12 @@ impl<'t> Widget for TextEdit<'t> {
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
         let frame_rect = response.rect.expand2(margin);
-        let response = response | ui.allocate_rect(frame_rect, Sense::click());
+        let response = response | ui.allocate_rect(frame_rect, Sense::hover());
 
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
-            let shape = if response.has_kb_focus {
+            let shape = if response.has_kb_focus() {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
@@ -321,9 +321,9 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(rect, id, sense);
-
-        if enabled {
-            ui.memory().interested_in_kb_focus(id);
+        if response.gained_kb_focus() {
+            ui.output()
+                .push_gained_focus_event(WidgetType::TextEdit, &*text);
         }
 
         if enabled {
@@ -341,7 +341,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
-                if response.hovered() && response.double_clicked() {
+                if response.double_clicked() {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursorp = select_word_at(text, center.ccursor);
@@ -369,15 +369,6 @@ impl<'t> TextEdit<'t> {
                     }
                 }
             }
-        }
-
-        if ui.input().pointer.any_pressed() && !response.hovered() {
-            // User clicked somewhere else
-            ui.memory().surrender_kb_focus(id);
-        }
-
-        if !enabled {
-            ui.memory().surrender_kb_focus(id);
         }
 
         if response.hovered() && enabled {
@@ -450,20 +441,10 @@ impl<'t> TextEdit<'t> {
                             insert_text(&mut ccursor, text, "\n");
                             Some(CCursorPair::one(ccursor))
                         } else {
-                            // Common to end input with enter
-                            ui.memory().surrender_kb_focus(id);
+                            ui.memory().surrender_kb_focus(id); // End input with enter
                             break;
                         }
                     }
-                    Event::Key {
-                        key: Key::Escape,
-                        pressed: true,
-                        ..
-                    } => {
-                        ui.memory().surrender_kb_focus(id);
-                        break;
-                    }
-
                     Event::Key {
                         key: Key::Z,
                         pressed: true,
@@ -542,10 +523,7 @@ impl<'t> TextEdit<'t> {
 
         ui.memory().text_edit.insert(id, state);
 
-        Response {
-            lost_kb_focus: ui.memory().lost_kb_focus(id), // we may have lost it during the course of this function
-            ..response
-        }
+        response
     }
 }
 
