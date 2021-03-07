@@ -651,7 +651,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory().interaction.kb_focus_id.is_some()
+        self.memory().interaction.kb_focus.focused().is_some()
     }
 
     // ---------------------------------------------------------------------
@@ -750,7 +750,8 @@ impl Context {
             "keyboard focus widget: {}",
             self.memory()
                 .interaction
-                .kb_focus_id
+                .kb_focus
+                .focused()
                 .as_ref()
                 .map(Id::short_debug_format)
                 .unwrap_or_default()

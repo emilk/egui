@@ -91,23 +91,7 @@ pub(crate) struct Interaction {
     /// A widget interested in drags that has a mouse press on it.
     pub drag_id: Option<Id>,
 
-    /// The widget with keyboard focus (i.e. a text input field).
-    pub kb_focus_id: Option<Id>,
-
-    /// What had keyboard focus previous frame?
-    pub kb_focus_id_previous_frame: Option<Id>,
-
-    /// If set, the next widget that is interested in kb_focus will automatically get it.
-    /// Probably because the user pressed Tab.
-    pub kb_focus_give_to_next: bool,
-
-    /// The last widget interested in kb focus.
-    pub kb_focus_last_interested: Option<Id>,
-
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_tab: bool,
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_shift_tab: bool,
+    pub kb_focus: KbFocus,
 
     /// HACK: windows have low priority on dragging.
     /// This is so that if you drag a slider in a window,
@@ -125,6 +109,28 @@ pub(crate) struct Interaction {
     pub drag_interest: bool,
 }
 
+/// Keeps tracks of what widget has keyboard focus
+#[derive(Clone, Debug, Default)]
+pub(crate) struct KbFocus {
+    /// The widget with keyboard focus (i.e. a text input field).
+    id: Option<Id>,
+
+    /// What had keyboard focus previous frame?
+    id_previous_frame: Option<Id>,
+
+    /// If set, the next widget that is interested in kb_focus will automatically get it.
+    /// Probably because the user pressed Tab.
+    give_to_next: bool,
+
+    /// The last widget interested in kb focus.
+    last_interested: Option<Id>,
+
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_tab: bool,
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_shift_tab: bool,
+}
+
 impl Interaction {
     /// Are we currently clicking or dragging an egui widget?
     pub fn is_using_pointer(&self) -> bool {
@@ -136,7 +142,6 @@ impl Interaction {
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
     ) {
-        self.kb_focus_id_previous_frame = self.kb_focus_id;
         self.click_interest = false;
         self.drag_interest = false;
 
@@ -150,6 +155,18 @@ impl Interaction {
             self.drag_id = None;
         }
 
+        self.kb_focus.begin_frame(new_input);
+    }
+}
+
+impl KbFocus {
+    /// Which widget currently has keyboard focus?
+    pub fn focused(&self) -> Option<Id> {
+        self.id
+    }
+
+    fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
+        self.id_previous_frame = self.id;
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
@@ -161,7 +178,7 @@ impl Interaction {
                     modifiers: _,
                 }
             ) {
-                self.kb_focus_id = None;
+                self.id = None;
                 break;
             }
 
@@ -180,29 +197,41 @@ impl Interaction {
         }
     }
 
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+        if let Some(id) = self.id {
+            // Allow calling `request_kb_focus` one frame and not using it until next frame
+            let recently_gained_kb_focus = self.id_previous_frame != Some(id);
+
+            if !recently_gained_kb_focus && !used_ids.contains_key(&id) {
+                // Dead-mans-switch: the widget with kb focus has disappeared!
+                self.id = None;
+            }
+        }
+    }
+
     pub(crate) fn had_kb_focus_last_frame(&self, id: Id) -> bool {
-        self.kb_focus_id_previous_frame == Some(id)
+        self.id_previous_frame == Some(id)
     }
 
     fn interested_in_kb_focus(&mut self, id: Id) {
-        if self.kb_focus_give_to_next && !self.had_kb_focus_last_frame(id) {
-            self.kb_focus_id = Some(id);
-            self.kb_focus_give_to_next = false;
-        } else if self.kb_focus_id == Some(id) {
+        if self.give_to_next && !self.had_kb_focus_last_frame(id) {
+            self.id = Some(id);
+            self.give_to_next = false;
+        } else if self.id == Some(id) {
             if self.pressed_tab {
-                self.kb_focus_id = None;
-                self.kb_focus_give_to_next = true;
+                self.id = None;
+                self.give_to_next = true;
                 self.pressed_tab = false;
             } else if self.pressed_shift_tab {
-                self.kb_focus_id = self.kb_focus_last_interested;
+                self.id = self.last_interested;
                 self.pressed_shift_tab = false;
             }
-        } else if self.pressed_tab && self.kb_focus_id == None && !self.kb_focus_give_to_next {
+        } else if self.pressed_tab && self.id == None && !self.give_to_next {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.kb_focus_id = Some(id);
+            self.id = Some(id);
         }
 
-        self.kb_focus_last_interested = Some(id);
+        self.last_interested = Some(id);
     }
 }
 
@@ -225,18 +254,7 @@ impl Memory {
         used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
     ) {
         self.areas.end_frame();
-
-        if let Some(kb_focus_id) = self.interaction.kb_focus_id {
-            // Allow calling `request_kb_focus` one frame and not using it until next frame
-            let recently_gained_kb_focus =
-                self.interaction.kb_focus_id_previous_frame != Some(kb_focus_id);
-
-            if !recently_gained_kb_focus && !used_ids.contains_key(&kb_focus_id) {
-                // Dead-mans-switch: the widget with kb focus has disappeared!
-                self.interaction.kb_focus_id = None;
-            }
-        }
-
+        self.interaction.kb_focus.end_frame(used_ids);
         self.drag_value.end_frame(input);
     }
 
@@ -245,7 +263,7 @@ impl Memory {
     }
 
     pub(crate) fn had_kb_focus_last_frame(&self, id: Id) -> bool {
-        self.interaction.kb_focus_id_previous_frame == Some(id)
+        self.interaction.kb_focus.id_previous_frame == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -259,28 +277,28 @@ impl Memory {
     }
 
     pub fn has_kb_focus(&self, id: Id) -> bool {
-        self.interaction.kb_focus_id == Some(id)
+        self.interaction.kb_focus.id == Some(id)
     }
 
     pub fn request_kb_focus(&mut self, id: Id) {
-        self.interaction.kb_focus_id = Some(id);
+        self.interaction.kb_focus.id = Some(id);
     }
 
     pub fn surrender_kb_focus(&mut self, id: Id) {
-        if self.interaction.kb_focus_id == Some(id) {
-            self.interaction.kb_focus_id = None;
+        if self.interaction.kb_focus.id == Some(id) {
+            self.interaction.kb_focus.id = None;
         }
     }
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
     pub fn interested_in_kb_focus(&mut self, id: Id) {
-        self.interaction.interested_in_kb_focus(id);
+        self.interaction.kb_focus.interested_in_kb_focus(id);
     }
 
     /// Stop editing of active `TextEdit` (if any).
     pub fn stop_text_input(&mut self) {
-        self.interaction.kb_focus_id = None;
+        self.interaction.kb_focus.id = None;
     }
 
     pub fn is_anything_being_dragged(&self) -> bool {
