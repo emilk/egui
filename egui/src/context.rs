@@ -467,16 +467,12 @@ impl Context {
     /// Constrain the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
-        self.constrain_rect_impl(window, self.available_rect())
+        self.constrain_window_rect_to_area(window, self.available_rect())
     }
 
     /// Constrain the position of a window/area
     /// so it fits within the provided boundary.
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
-        self.constrain_rect_impl(window, area)
-    }
-
-    fn constrain_rect_impl(&self, window: Rect, mut area: Rect) -> Rect {
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, mut area: Rect) -> Rect {
         if window.width() > area.width() {
             // Allow overlapping side bars.
             // This is important for small screens, e.g. mobiles running the web demo.

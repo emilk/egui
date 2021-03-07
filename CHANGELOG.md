@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ## Unreleased
-
+* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
 
 ## 0.10.0 - 2021-02-28 - Plot and polish
 
@@ -22,7 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `Context::set_pixels_per_point` to control the scale of the UI.
 * Add `Response::changed()` to query if e.g. a slider was dragged, text was entered or a checkbox was clicked.
 * Add support for all integers in `DragValue` and `Slider` (except 128-bit).
-* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
 
 ### Changed 🔧
 

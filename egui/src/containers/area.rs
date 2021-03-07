@@ -133,7 +133,7 @@ impl Area {
         self
     }
 
-    ///Constrain the area up to which the window can be dragged.
+    /// Constrain the area up to which the window can be dragged.
     pub fn drag_bounds(mut self, bounds: Rect) -> Self {
         self.drag_bounds = Some(bounds);
         self

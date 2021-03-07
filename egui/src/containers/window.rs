@@ -205,7 +205,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    ///Constrain the area up to which the window can be dragged.
+    /// Constrain the area up to which the window can be dragged.
     pub fn drag_bounds(mut self, bounds: Rect) -> Self {
         self.area = self.area.drag_bounds(bounds);
         self
