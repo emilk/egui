@@ -227,11 +227,7 @@ impl Prepared {
     }
 
     pub(crate) fn drag_bounds(&self) -> Option<Rect> {
-        if self.drag_bounds.is_some() {
-            Some(self.drag_bounds.unwrap())
-        } else {
-            None
-        }
+        self.drag_bounds
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
