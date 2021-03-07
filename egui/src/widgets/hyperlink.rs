@@ -64,7 +64,7 @@ impl Widget for Hyperlink {
         let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
 
-        if response.hovered() {
+        if response.hovered() || response.has_kb_focus() {
             // Underline:
             for row in &galley.rows {
                 let rect = row.rect().translate(rect.min.to_vec2());

@@ -421,6 +421,7 @@ impl std::ops::BitOrAssign for Response {
 /// inner_resp.response.on_hover_text("You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
 /// ```
+#[derive(Debug)]
 pub struct InnerResponse<R> {
     pub inner: R,
     pub response: Response,

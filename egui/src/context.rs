@@ -198,7 +198,24 @@ impl CtxRef {
 
         if !enabled || sense == Sense::hover() || !layer_id.allow_interaction() {
             // Not interested or allowed input:
+            self.memory().surrender_kb_focus(id);
             return response;
+        }
+
+        if sense.click {
+            self.memory().interested_in_kb_focus(id);
+        }
+
+        if response.has_kb_focus() && response.clicked_elsewhere() {
+            self.memory().surrender_kb_focus(id);
+        }
+
+        if sense.click
+            && response.has_kb_focus()
+            && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
+        {
+            // Space/enter works like a primary click for e.g. selected buttons
+            response.clicked[PointerButton::Primary as usize] = true;
         }
 
         self.register_interaction_id(id, rect.min);
@@ -727,6 +744,16 @@ impl Context {
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
+        ))
+        .on_hover_text("Is egui currently listening for text input");
+        ui.label(format!(
+            "keyboard focus widget: {}",
+            self.memory()
+                .interaction
+                .kb_focus_id
+                .as_ref()
+                .map(Id::short_debug_format)
+                .unwrap_or_default()
         ))
         .on_hover_text("Is egui currently listening for text input");
         ui.advance_cursor(16.0);

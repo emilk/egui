@@ -153,6 +153,18 @@ impl Interaction {
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
+            if matches!(
+                event,
+                crate::Event::Key {
+                    key: crate::Key::Escape,
+                    pressed: true,
+                    modifiers: _,
+                }
+            ) {
+                self.kb_focus_id = None;
+                break;
+            }
+
             if let crate::Event::Key {
                 key: crate::Key::Tab,
                 pressed: true,
@@ -166,6 +178,31 @@ impl Interaction {
                 }
             }
         }
+    }
+
+    pub(crate) fn had_kb_focus_last_frame(&self, id: Id) -> bool {
+        self.kb_focus_id_previous_frame == Some(id)
+    }
+
+    fn interested_in_kb_focus(&mut self, id: Id) {
+        if self.kb_focus_give_to_next && !self.had_kb_focus_last_frame(id) {
+            self.kb_focus_id = Some(id);
+            self.kb_focus_give_to_next = false;
+        } else if self.kb_focus_id == Some(id) {
+            if self.pressed_tab {
+                self.kb_focus_id = None;
+                self.kb_focus_give_to_next = true;
+                self.pressed_tab = false;
+            } else if self.pressed_shift_tab {
+                self.kb_focus_id = self.kb_focus_last_interested;
+                self.pressed_shift_tab = false;
+            }
+        } else if self.pressed_tab && self.kb_focus_id == None && !self.kb_focus_give_to_next {
+            // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
+            self.kb_focus_id = Some(id);
+        }
+
+        self.kb_focus_last_interested = Some(id);
     }
 }
 
@@ -238,21 +275,7 @@ impl Memory {
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
     pub fn interested_in_kb_focus(&mut self, id: Id) {
-        if self.interaction.kb_focus_give_to_next {
-            self.interaction.kb_focus_id = Some(id);
-            self.interaction.kb_focus_give_to_next = false;
-        } else if self.has_kb_focus(id) {
-            if self.interaction.pressed_tab {
-                self.interaction.kb_focus_id = None;
-                self.interaction.kb_focus_give_to_next = true;
-                self.interaction.pressed_tab = false;
-            } else if self.interaction.pressed_shift_tab {
-                self.interaction.kb_focus_id = self.interaction.kb_focus_last_interested;
-                self.interaction.pressed_shift_tab = false;
-            }
-        }
-
-        self.interaction.kb_focus_last_interested = Some(id);
+        self.interaction.interested_in_kb_focus(id);
     }
 
     /// Stop editing of active `TextEdit` (if any).

@@ -120,16 +120,24 @@ impl InputState {
 
     /// Was the given key pressed this frame?
     pub fn key_pressed(&self, desired_key: Key) -> bool {
-        self.events.iter().any(|event| {
-            matches!(
-                event,
-                Event::Key {
-                    key,
-                    pressed: true,
-                    ..
-                } if *key == desired_key
-            )
-        })
+        self.num_presses(desired_key) > 0
+    }
+
+    /// How many times were the given key pressed this frame?
+    pub fn num_presses(&self, desired_key: Key) -> usize {
+        self.events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    Event::Key {
+                        key,
+                        pressed: true,
+                        ..
+                    } if *key == desired_key
+                )
+            })
+            .count()
     }
 
     /// Is the given key currently held down?

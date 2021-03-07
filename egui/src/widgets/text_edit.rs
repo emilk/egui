@@ -243,7 +243,7 @@ impl<'t> Widget for TextEdit<'t> {
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
         let frame_rect = response.rect.expand2(margin);
-        let response = response | ui.allocate_rect(frame_rect, Sense::click());
+        let response = response | ui.allocate_rect(frame_rect, Sense::hover());
 
         if frame {
             let visuals = ui.style().interact(&response);
@@ -323,10 +323,6 @@ impl<'t> TextEdit<'t> {
         let mut response = ui.interact(rect, id, sense);
 
         if enabled {
-            ui.memory().interested_in_kb_focus(id);
-        }
-
-        if enabled {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
@@ -369,14 +365,6 @@ impl<'t> TextEdit<'t> {
                     }
                 }
             }
-        }
-
-        if response.clicked_elsewhere() {
-            ui.memory().surrender_kb_focus(id);
-        }
-
-        if !enabled {
-            ui.memory().surrender_kb_focus(id);
         }
 
         if response.hovered() && enabled {
@@ -449,20 +437,10 @@ impl<'t> TextEdit<'t> {
                             insert_text(&mut ccursor, text, "\n");
                             Some(CCursorPair::one(ccursor))
                         } else {
-                            // Common to end input with enter
-                            ui.memory().surrender_kb_focus(id);
+                            ui.memory().surrender_kb_focus(id); // End input with enter
                             break;
                         }
                     }
-                    Event::Key {
-                        key: Key::Escape,
-                        pressed: true,
-                        ..
-                    } => {
-                        ui.memory().surrender_kb_focus(id);
-                        break;
-                    }
-
                     Event::Key {
                         key: Key::Z,
                         pressed: true,

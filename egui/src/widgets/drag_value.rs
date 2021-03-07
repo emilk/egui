@@ -281,7 +281,20 @@ impl<'a> Widget for DragValue<'a> {
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
                 }
+            } else if response.has_kb_focus() {
+                let change = ui.input().num_presses(Key::ArrowUp) as f64
+                    + ui.input().num_presses(Key::ArrowRight) as f64
+                    - ui.input().num_presses(Key::ArrowDown) as f64
+                    - ui.input().num_presses(Key::ArrowLeft) as f64;
+
+                if change != 0.0 {
+                    let new_value = value + speed * change;
+                    let new_value = emath::round_to_decimals(new_value, auto_decimals);
+                    let new_value = clamp(new_value, clamp_range);
+                    set(&mut get_set_value, new_value);
+                }
             }
+
             response
         };
 
