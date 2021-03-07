@@ -179,9 +179,6 @@ impl CtxRef {
     ) -> Response {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
-        let has_kb_focus = self.memory().has_kb_focus(id);
-        let lost_kb_focus = self.memory().lost_kb_focus(id);
-
         let mut response = Response {
             ctx: self.clone(),
             layer_id,
@@ -196,8 +193,6 @@ impl CtxRef {
             drag_released: false,
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
-            has_kb_focus,
-            lost_kb_focus,
             changed: false, // must be set by the widget itself
         };
 

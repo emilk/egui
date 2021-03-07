@@ -248,7 +248,7 @@ impl<'t> Widget for TextEdit<'t> {
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
-            let shape = if response.has_kb_focus {
+            let shape = if response.has_kb_focus() {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
@@ -541,10 +541,7 @@ impl<'t> TextEdit<'t> {
 
         ui.memory().text_edit.insert(id, state);
 
-        Response {
-            lost_kb_focus: ui.memory().lost_kb_focus(id), // we may have lost it during the course of this function
-            ..response
-        }
+        response
     }
 }
 

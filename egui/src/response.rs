@@ -60,12 +60,6 @@ pub struct Response {
     /// `None` if the widget is not being interacted with.
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
-    /// This widget has the keyboard focus (i.e. is receiving key presses).
-    pub(crate) has_kb_focus: bool,
-
-    /// The widget had keyboard focus and lost it.
-    pub(crate) lost_kb_focus: bool,
-
     /// What the underlying data changed?
     /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
     /// Always `false` for something like a `Button`.
@@ -88,8 +82,6 @@ impl std::fmt::Debug for Response {
             drag_released,
             is_pointer_button_down_on,
             interact_pointer_pos,
-            has_kb_focus,
-            lost_kb_focus,
             changed,
         } = self;
         f.debug_struct("Response")
@@ -105,8 +97,6 @@ impl std::fmt::Debug for Response {
             .field("drag_released", drag_released)
             .field("is_pointer_button_down_on", is_pointer_button_down_on)
             .field("interact_pointer_pos", interact_pointer_pos)
-            .field("has_kb_focus", has_kb_focus)
-            .field("lost_kb_focus", lost_kb_focus)
             .field("changed", changed)
             .finish()
     }
@@ -162,7 +152,12 @@ impl Response {
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
     pub fn has_kb_focus(&self) -> bool {
-        self.has_kb_focus
+        self.ctx.memory().has_kb_focus(self.id)
+    }
+
+    /// True if this widget has keyboard focus this frame, but didn't last frame.
+    pub fn gained_kb_focus(&self) -> bool {
+        self.ctx.memory().gained_kb_focus(self.id)
     }
 
     /// The widget had keyboard focus and lost it,
@@ -179,7 +174,7 @@ impl Response {
     /// }
     /// ```
     pub fn lost_kb_focus(&self) -> bool {
-        self.lost_kb_focus
+        self.ctx.memory().lost_kb_focus(self.id)
     }
 
     /// The widgets is being dragged.
@@ -374,8 +369,6 @@ impl Response {
             is_pointer_button_down_on: self.is_pointer_button_down_on
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
-            has_kb_focus: self.has_kb_focus || other.has_kb_focus,
-            lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
             changed: self.changed || other.changed,
         }
     }
