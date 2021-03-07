@@ -49,6 +49,7 @@ pub struct Area {
     order: Order,
     default_pos: Option<Pos2>,
     new_pos: Option<Pos2>,
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -61,6 +62,7 @@ impl Area {
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
+            drag_bounds: None,
         }
     }
 
@@ -130,6 +132,12 @@ impl Area {
         self.new_pos = Some(current_pos);
         self
     }
+
+    /// Constrain the area up to which the window can be dragged.
+    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
+        self.drag_bounds = Some(bounds);
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -137,6 +145,7 @@ pub(crate) struct Prepared {
     state: State,
     movable: bool,
     enabled: bool,
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -149,6 +158,7 @@ impl Area {
             enabled,
             default_pos,
             new_pos,
+            drag_bounds,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -167,6 +177,7 @@ impl Area {
             state,
             movable,
             enabled,
+            drag_bounds,
         }
     }
 
@@ -215,13 +226,19 @@ impl Prepared {
         &mut self.state
     }
 
+    pub(crate) fn drag_bounds(&self) -> Option<Rect> {
+        self.drag_bounds
+    }
+
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
         let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
+        let bounds = self.drag_bounds.unwrap_or_else(|| ctx.input().screen_rect);
+
         let mut clip_rect = max_rect
             .expand(ctx.style().visuals.clip_rect_margin)
             .expand(shadow_radius)
-            .intersect(ctx.input().screen_rect);
+            .intersect(bounds);
 
         // Windows are constrained to central area,
         // (except in rare cases where they don't fit).
@@ -240,6 +257,7 @@ impl Prepared {
             clip_rect,
         );
         ui.set_enabled(self.enabled);
+
         ui
     }
 
@@ -250,6 +268,7 @@ impl Prepared {
             mut state,
             movable,
             enabled,
+            drag_bounds,
         } = self;
 
         state.size = content_ui.min_rect().size();
@@ -275,7 +294,11 @@ impl Prepared {
             state.pos += ctx.input().pointer.delta();
         }
 
-        state.pos = ctx.constrain_window_rect(state.rect()).min;
+        if let Some(bounds) = drag_bounds {
+            state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
+        } else {
+            state.pos = ctx.constrain_window_rect(state.rect()).min;
+        }
 
         if (move_response.dragged() || move_response.clicked())
             || pointer_pressed_on_area(ctx, layer_id)

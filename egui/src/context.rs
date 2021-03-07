@@ -476,33 +476,37 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Constraint the position of a window/area
+    /// Constrain the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
-        let mut screen = self.available_rect();
+        self.constrain_window_rect_to_area(window, self.available_rect())
+    }
 
-        if window.width() > screen.width() {
+    /// Constrain the position of a window/area
+    /// so it fits within the provided boundary.
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, mut area: Rect) -> Rect {
+        if window.width() > area.width() {
             // Allow overlapping side bars.
             // This is important for small screens, e.g. mobiles running the web demo.
-            screen.max.x = self.input().screen_rect().max.x;
-            screen.min.x = self.input().screen_rect().min.x;
+            area.max.x = self.input().screen_rect().max.x;
+            area.min.x = self.input().screen_rect().min.x;
         }
-        if window.height() > screen.height() {
+        if window.height() > area.height() {
             // Allow overlapping top/bottom bars:
-            screen.max.y = self.input().screen_rect().max.y;
-            screen.min.y = self.input().screen_rect().min.y;
+            area.max.y = self.input().screen_rect().max.y;
+            area.min.y = self.input().screen_rect().min.y;
         }
 
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
-        let margin_x = (window.width() - screen.width()).at_least(0.0);
-        let margin_y = (window.height() - screen.height()).at_least(0.0);
+        let margin_x = (window.width() - area.width()).at_least(0.0);
+        let margin_y = (window.height() - area.height()).at_least(0.0);
 
-        pos.x = pos.x.at_most(screen.right() + margin_x - window.width()); // move left if needed
-        pos.x = pos.x.at_least(screen.left() - margin_x); // move right if needed
-        pos.y = pos.y.at_most(screen.bottom() + margin_y - window.height()); // move right if needed
-        pos.y = pos.y.at_least(screen.top() - margin_y); // move down if needed
+        pos.x = pos.x.at_most(area.right() + margin_x - window.width()); // move left if needed
+        pos.x = pos.x.at_least(area.left() - margin_x); // move right if needed
+        pos.y = pos.y.at_most(area.bottom() + margin_y - window.height()); // move right if needed
+        pos.y = pos.y.at_least(area.top() - margin_y); // move down if needed
 
         pos = self.round_pos_to_pixels(pos);
 

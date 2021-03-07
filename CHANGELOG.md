@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Use arrow keys to adjust sliders and `DragValue`s.
 * egui will now output events when widgets gain keyboard focus.
   * This can be hooked up to a screen reader to aid the visually impaired
+* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
 
 ### Fixed 🐛
 
