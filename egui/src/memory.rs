@@ -118,6 +118,9 @@ pub(crate) struct KbFocus {
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
 
+    /// Give focus to this widget next frame
+    id_next_frame: Option<Id>,
+
     /// If set, the next widget that is interested in kb_focus will automatically get it.
     /// Probably because the user pressed Tab.
     give_to_next: bool,
@@ -167,6 +170,10 @@ impl KbFocus {
 
     fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_previous_frame = self.id;
+        if let Some(id) = self.id_next_frame.take() {
+            self.id = Some(id);
+        }
+
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
@@ -223,7 +230,7 @@ impl KbFocus {
                 self.give_to_next = true;
                 self.pressed_tab = false;
             } else if self.pressed_shift_tab {
-                self.id = self.last_interested;
+                self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.pressed_shift_tab = false;
             }
         } else if self.pressed_tab && self.id == None && !self.give_to_next {
