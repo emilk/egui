@@ -27,6 +27,10 @@ pub fn combo_box_with_label(
 
     ui.horizontal(|ui| {
         let mut response = combo_box(ui, button_id, selected, menu_contents);
+        if response.gained_kb_focus() {
+            ui.output()
+                .push_gained_focus_event(WidgetType::ComboBox, label.text());
+        }
         response |= ui.add(label);
         response
     })

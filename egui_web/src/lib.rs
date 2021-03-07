@@ -233,6 +233,7 @@ pub fn handle_output(output: &egui::Output) {
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
+        events: _,        // we ignore these (TODO: accessibility screen reader)
     } = output;
 
     set_cursor_icon(*cursor_icon);

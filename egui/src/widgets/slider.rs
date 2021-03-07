@@ -322,6 +322,11 @@ impl<'a> Slider<'a> {
             self.set_value(new_value);
         }
 
+        if response.gained_kb_focus() {
+            ui.output()
+                .push_gained_focus_event(WidgetType::Slider, &self.text);
+        }
+
         if response.has_kb_focus() {
             let kb_step = ui.input().num_presses(Key::ArrowRight) as f32
                 - ui.input().num_presses(Key::ArrowLeft) as f32;

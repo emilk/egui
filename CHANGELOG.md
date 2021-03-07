@@ -12,8 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * You can now give focus to any clickable widget with tab/shift-tab.
-  * Use space or enter to click it.
+  * Use space or enter to click the selected widget.
   * Use arrow keys to adjust sliders and `DragValue`s.
+* egui will now output events when widgets gain keyboard focus.
+  * This can be hooked up to a screen reader to aid the visually impaired
 
 ### Fixed 🐛
 
