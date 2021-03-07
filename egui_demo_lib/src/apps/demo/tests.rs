@@ -94,6 +94,7 @@ impl super::Demo for ManualLayoutTest {
 impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         egui::reset_button(ui, self);
+
         let Self {
             widget_offset,
             widget_size,
@@ -117,8 +118,11 @@ impl super::View for ManualLayoutTest {
             ui.add(egui::Slider::f32(&mut widget_size.y, 0.0..=400.0));
             ui.end_row();
         });
+
         let widget_rect =
             egui::Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
+
+        ui.add(crate::__egui_github_link_file!());
 
         // Showing how to place a widget anywhere in the `Ui`:
         match *widget_type {
@@ -137,6 +141,7 @@ impl super::View for ManualLayoutTest {
 
 // ----------------------------------------------------------------------------
 
+#[derive(PartialEq)]
 pub struct TableTest {
     num_cols: usize,
     num_rows: usize,
@@ -209,6 +214,11 @@ impl super::View for TableTest {
                     ui.end_row();
                 }
             });
+
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }
 
@@ -238,6 +248,10 @@ impl super::Demo for InputTest {
 
 impl super::View for InputTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         let response = ui.add(
             egui::Button::new("Click, double-click or drag me with any mouse button")
                 .sense(egui::Sense::click_and_drag()),

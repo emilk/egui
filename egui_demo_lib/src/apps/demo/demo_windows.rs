@@ -91,7 +91,7 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        egui::SidePanel::left("side_panel", 185.0).show(ctx, |ui| {
+        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ egui demos");
 
             ui.separator();

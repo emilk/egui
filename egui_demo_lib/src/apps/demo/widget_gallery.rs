@@ -125,7 +125,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label(
-            "SelectableLabel:",
+            "SelectableLabel",
             "selectable_value,SelectableLabel",
         ));
         ui.horizontal(|ui| {
