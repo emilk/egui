@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Fixed secondary-click to open a menu
 
+
 ## 0.10.0 - 2021-02-28 - Plot and polish
 
 <img src="media/egui-0.10-plot.gif" width="50%">
