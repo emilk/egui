@@ -35,8 +35,7 @@ struct UserTexture {
 
     /// Pending upload (will be emptied later).
     pixels: Vec<u8>,
-    /// this flag is avoid image flip
-    is_offscreen: bool,
+
     /// Lazily uploaded
     gl_texture: Option<WebGlTexture>,
 }
@@ -122,7 +121,7 @@ impl WebGlPainter {
             *user_texture = UserTexture {
                 size,
                 pixels,
-                is_offscreen: false,
+
                 gl_texture: None,
             };
         }
@@ -150,14 +149,7 @@ impl WebGlPainter {
                 .as_ref(),
         }
     }
-    fn get_is_offsceen(&self, texture_id: egui::TextureId) -> Option<bool> {
-        match texture_id {
-            egui::TextureId::Egui => None,
-            egui::TextureId::User(id) => {
-                Some(self.user_textures.get(id as usize)?.as_ref()?.is_offscreen)
-            }
-        }
-    }
+
     fn upload_user_textures(&mut self) {
         let gl = &self.gl;
 
@@ -205,16 +197,12 @@ impl WebGlPainter {
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
         let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
-        let is_offscreen = self.get_is_offsceen(mesh.texture_id);
+
         for v in &mesh.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
             tex_coords.push(v.uv.x);
-            if let Some(true) = is_offscreen {
-                tex_coords.push(1.0 - v.uv.y);
-            } else {
-                tex_coords.push(v.uv.y);
-            }
+            tex_coords.push(v.uv.y);
         }
 
         let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
@@ -497,7 +485,6 @@ impl crate::Painter for WebGlPainter {
             Some(UserTexture {
                 size: (0, 0),
                 pixels: vec![],
-                is_offscreen: true,
                 gl_texture: Some(web_gl_texture.clone()),
             }),
         );

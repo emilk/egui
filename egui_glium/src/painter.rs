@@ -32,7 +32,6 @@ struct UserTexture {
     /// This is the format glium likes.
     pixels: Vec<Vec<(u8, u8, u8, u8)>>,
     // need for invert v
-    is_offscreen: bool,
     /// Lazily uploaded
     gl_texture: Option<SrgbTexture2d>,
 }
@@ -130,7 +129,7 @@ impl Painter {
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());
-        let is_offscreen = self.query_is_offscreen(mesh.texture_id);
+
         let vertex_buffer = {
             #[derive(Copy, Clone)]
             struct Vertex {
@@ -143,20 +142,10 @@ impl Painter {
             let vertices: Vec<Vertex> = mesh
                 .vertices
                 .iter()
-                .map(|v| {
-                    if let Some(true) = is_offscreen {
-                        Vertex {
-                            a_pos: [v.pos.x, v.pos.y],
-                            a_tc: [v.uv.x, 1.0 - v.uv.y],
-                            a_srgba: v.color.to_array(),
-                        }
-                    } else {
-                        Vertex {
-                            a_pos: [v.pos.x, v.pos.y],
-                            a_tc: [v.uv.x, v.uv.y],
-                            a_srgba: v.color.to_array(),
-                        }
-                    }
+                .map(|v| Vertex {
+                    a_pos: [v.pos.x, v.pos.y],
+                    a_tc: [v.uv.x, v.uv.y],
+                    a_srgba: v.color.to_array(),
                 })
                 .collect();
 
@@ -281,7 +270,7 @@ impl Painter {
                 id as usize,
                 Some(UserTexture {
                     pixels: vec![],
-                    is_offscreen: true,
+
                     gl_texture: Some(texture),
                 }),
             );
@@ -306,7 +295,6 @@ impl Painter {
 
                 *user_texture = UserTexture {
                     pixels,
-                    is_offscreen: false,
                     gl_texture: None,
                 };
             }
@@ -333,16 +321,7 @@ impl Painter {
                 .as_ref(),
         }
     }
-    //this function  need for offscreen rendering
-    //if we use same shader offscreen texture is flipped
-    fn query_is_offscreen(&self, texture_id: egui::TextureId) -> Option<bool> {
-        match texture_id {
-            TextureId::Egui => None,
-            TextureId::User(id) => {
-                Some(self.user_textures.get(id as usize)?.as_ref()?.is_offscreen)
-            }
-        }
-    }
+
     pub fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
         for user_texture in &mut self.user_textures {
             if let Some(user_texture) = user_texture {
