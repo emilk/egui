@@ -24,7 +24,7 @@ glium = "0.29"
 webbrowser = "0.5"
 
 # feature "http":
-egui_http_native ={path="../egui_http_native",optional=true}
+egui_http_native ={path="../egui_http_native",optional=true,features=["http"]}
 
 # feature "persistence":
 directories-next = { version = "2", optional = true }

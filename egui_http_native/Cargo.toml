@@ -13,13 +13,12 @@ keywords = ["ureq", "egui", "gui", "gamedev"]
 include = [
     "**/*.rs",
     "Cargo.toml",
-    "src/shader/*.glsl",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 http=["ureq","epi/http"]
 [dependencies]
-ureq = {version="2.0",optional=true}
-epi ={version="0.10.0",path="../epi"}
+ureq ={version="2",optional=true}
+epi  = {version="0.10.0",path="../epi",optional=true}
 

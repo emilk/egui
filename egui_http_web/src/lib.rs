@@ -1,9 +1,10 @@
-use wasm_bindgen::prelude::*;
-
+#[cfg(feature = "http")]
 pub use epi::http::{Request, Response};
-
+#[cfg(feature = "http")]
+use wasm_bindgen::JsValue;
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
+#[cfg(feature = "http")]
 pub async fn fetch_async(request: &Request) -> Result<Response, String> {
     fetch_jsvalue(request)
         .await
@@ -12,6 +13,7 @@ pub async fn fetch_async(request: &Request) -> Result<Response, String> {
 
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
+#[cfg(feature = "http")]
 async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
     let Request { method, url, body } = request;
 
@@ -72,14 +74,16 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
 }
 
 // ----------------------------------------------------------------------------
+#[cfg(feature = "http")]
 pub fn spawn_future<F>(future: F)
 where
     F: std::future::Future<Output = ()> + 'static,
 {
     wasm_bindgen_futures::spawn_local(future);
 }
+#[cfg(feature = "http")]
 pub struct EguiHttpWeb {}
-
+#[cfg(feature = "http")]
 impl epi::backend::Http for EguiHttpWeb {
     fn fetch_dyn(
         &self,

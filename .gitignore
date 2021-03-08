@@ -2,4 +2,5 @@
 /.*.json
 /.vscode
 /.idea
+/Cargo.lock
 /media/*

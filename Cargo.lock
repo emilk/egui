@@ -694,11 +694,8 @@ dependencies = [
 name = "egui_http_web"
 version = "0.10.0"
 dependencies = [
- "egui",
  "epi",
  "js-sys",
- "serde",
- "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

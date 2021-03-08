@@ -30,10 +30,7 @@ wasm-bindgen-futures = "0.4"
 egui_http_web={path="../egui_http_web",optional=true}
 [features]
 default = []
-http = [
-  "epi/http",
-"egui_http_web"
-]
+http = ["epi/http", "egui_http_web/http"]
 persistence = ["serde", "serde_json"]
 
 [dependencies.web-sys]

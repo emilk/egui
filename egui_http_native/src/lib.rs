@@ -1,7 +1,9 @@
+#[cfg(feature = "http")]
 pub use epi::http::{Request, Response};
 
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
+#[cfg(feature = "http")]
 pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
     let Request { method, url, body } = request;
 
@@ -52,9 +54,9 @@ pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
 }
 
 // ----------------------------------------------------------------------------
-
+#[cfg(feature = "http")]
 pub struct EguiHttpNative {}
-
+#[cfg(feature = "http")]
 impl epi::backend::Http for EguiHttpNative {
     fn fetch_dyn(
         &self,
