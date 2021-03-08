@@ -62,7 +62,7 @@ impl epi::backend::Http for EguiHttpNative {
         on_done: Box<dyn FnOnce(Result<Response, String>) + Send>,
     ) {
         std::thread::spawn(move || {
-            let result =fetch_blocking(&request);
+            let result = fetch_blocking(&request);
             on_done(result)
         });
     }

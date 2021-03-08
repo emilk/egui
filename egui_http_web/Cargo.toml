@@ -1,5 +1,5 @@
 [package]
-name = "egui_web"
+name = "egui_http_web"
 version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
@@ -11,13 +11,16 @@ repository = "https://github.com/emilk/egui"
 categories = ["gui", "web-programming"]
 keywords = ["wasm", "web", "egui", "gui", "gamedev"]
 include = [
-  "**/*.rs",
-  "Cargo.toml",
-  "src/shader/*.glsl",
+    "**/*.rs",
+    "Cargo.toml",
+    "src/shader/*.glsl",
 ]
-
 [lib]
 crate-type = ["cdylib", "rlib"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+http = ["epi/http"]
 
 [dependencies]
 egui = { version = "0.10.0", path = "../egui" }
@@ -27,44 +30,6 @@ serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-egui_http_web={path="../egui_http_web",optional=true}
-[features]
-default = []
-http = [
-  "epi/http",
-"egui_http_web"
-]
-persistence = ["serde", "serde_json"]
-
 [dependencies.web-sys]
 version = "0.3"
-features = [
-  "Clipboard",
-  "ClipboardEvent",
-  "console",
-  "CssStyleDeclaration",
-  "DataTransfer",
-  "Document",
-  "DomRect",
-  "Element",
-  "HtmlCanvasElement",
-  "HtmlElement",
-  "KeyboardEvent",
-  "Location",
-  "MouseEvent",
-  "Navigator",
-  "Performance",
-  "Storage",
-  "Touch",
-  "TouchEvent",
-  "TouchList",
-  "WebGl2RenderingContext",
-  "WebGlBuffer",
-  "WebGlProgram",
-  "WebGlRenderingContext",
-  "WebGlShader",
-  "WebGlTexture",
-  "WebGlUniformLocation",
-  "WheelEvent",
-  "Window",
-]
+features=["Headers","Request","RequestInit","RequestMode","Response"]

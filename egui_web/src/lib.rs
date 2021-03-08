@@ -9,8 +9,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "http")]
-pub mod http;
+
 mod painter;
 pub mod webgl1;
 pub mod webgl2;

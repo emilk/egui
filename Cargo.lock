@@ -691,10 +691,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_http_web"
+version = "0.10.0"
+dependencies = [
+ "egui",
+ "epi",
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "egui_web"
 version = "0.10.0"
 dependencies = [
  "egui",
+ "egui_http_web",
  "epi",
  "js-sys",
  "serde",
