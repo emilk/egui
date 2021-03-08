@@ -27,10 +27,10 @@ serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-egui_http_web={path="../egui_http_web",optional=true}
+epi_http={path="../epi_http",optional=true}
 [features]
 default = []
-http = ["epi/http", "egui_http_web/http"]
+http = ["epi/http", "epi_http/wasm"]
 persistence = ["serde", "serde_json"]
 
 [dependencies.web-sys]

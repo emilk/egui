@@ -1,5 +1,5 @@
 [package]
-name = "egui_http_web"
+name = "epi_http"
 version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
@@ -13,20 +13,24 @@ keywords = ["wasm", "web", "egui", "gui", "gamedev"]
 include = [
     "**/*.rs",
     "Cargo.toml",
-    "src/shader/*.glsl",
 ]
 [lib]
 crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-http = ["epi/http"]
-
+wasm=["js-sys","wasm-bindgen","wasm-bindgen-futures"]
+native=["ureq"]
 [dependencies]
-epi = { version = "0.10.0", path = "../epi" }
-js-sys = "0.3"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
+#common
+epi = { version = "0.10.0", path = "../epi",features=["http"] }
+#wasm
+js-sys = {version="0.3",optional=true}
+wasm-bindgen = {version="0.2",optional=true}
+wasm-bindgen-futures = {version="0.4",optional=true}
+#native
+ureq ={version="2",optional=true}
+#wasm
 [dependencies.web-sys]
 version = "0.3"
 features=["Headers","Request","RequestInit","RequestMode","Response"]
