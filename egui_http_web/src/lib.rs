@@ -72,17 +72,22 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
 }
 
 // ----------------------------------------------------------------------------
+pub fn spawn_future<F>(future: F)
+where
+    F: std::future::Future<Output = ()> + 'static,
+{
+    wasm_bindgen_futures::spawn_local(future);
+}
+pub struct EguiHttpWeb {}
 
-pub(crate) struct WebHttp {}
-
-impl epi::backend::Http for WebHttp {
+impl epi::backend::Http for EguiHttpWeb {
     fn fetch_dyn(
         &self,
         request: Request,
         on_done: Box<dyn FnOnce(Result<Response, String>) + Send>,
     ) {
-        crate::spawn_future(async move {
-            let result = crate::http::fetch_async(&request).await;
+        spawn_future(async move {
+            let result = fetch_async(&request).await;
             on_done(result)
         });
     }
