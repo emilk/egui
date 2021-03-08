@@ -31,6 +31,19 @@ impl Output {
     pub fn open_url(&mut self, url: impl Into<String>) {
         self.open_url = Some(OpenUrl::same_tab(url))
     }
+
+    /// This can be used by a text-to-speech system to describe the events (if any).
+    pub fn events_description(&self) -> String {
+        // only describe last event:
+        for event in self.events.iter().rev() {
+            match event {
+                OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info) => {
+                    return widget_info.description();
+                }
+            }
+        }
+        Default::default()
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -201,6 +214,63 @@ impl WidgetInfo {
             edit_text: Some(edit_text.into()),
             ..Self::new(WidgetType::TextEdit)
         }
+    }
+
+    /// This can be used by a text-to-speech system to describe the widget.
+    pub fn description(&self) -> String {
+        let Self {
+            typ,
+            label,
+            edit_text,
+            selected,
+            value,
+        } = self;
+
+        // TODO: localization
+        let widget_name = match typ {
+            WidgetType::Label => "",
+            WidgetType::Hyperlink => "link",
+            WidgetType::TextEdit => "text edit",
+            WidgetType::Button => "button",
+            WidgetType::Checkbox => "checkbox",
+            WidgetType::RadioButton => "radio",
+            WidgetType::SelectableLabel => "selectable",
+            WidgetType::ComboBox => "combo",
+            WidgetType::Slider => "slider",
+            WidgetType::DragValue => "drag value",
+            WidgetType::ColorButton => "color button",
+            WidgetType::ImageButton => "image button",
+            WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::Other => "",
+        };
+
+        let mut description = widget_name.to_owned();
+
+        if let Some(selected) = selected {
+            if *typ == WidgetType::Checkbox {
+                description += " ";
+                description += if *selected { "checked" } else { "unchecked" };
+            } else {
+                description += if *selected { "selected" } else { "" };
+            };
+        }
+
+        if let Some(label) = label {
+            description += " ";
+            description += label;
+        }
+
+        if let Some(edit_text) = edit_text {
+            description += " ";
+            description += edit_text;
+        }
+
+        if let Some(value) = value {
+            description += " ";
+            description += &value.to_string();
+        }
+
+        description.trim().to_owned()
     }
 }
 

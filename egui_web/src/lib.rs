@@ -12,6 +12,7 @@ pub mod backend;
 #[cfg(feature = "http")]
 pub mod http;
 mod painter;
+pub mod screen_reader;
 pub mod webgl1;
 pub mod webgl2;
 

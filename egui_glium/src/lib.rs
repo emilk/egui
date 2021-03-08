@@ -15,6 +15,7 @@ pub mod http;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;
+pub mod screen_reader;
 pub mod window_settings;
 
 pub use backend::*;

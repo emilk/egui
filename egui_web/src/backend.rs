@@ -135,6 +135,7 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
     last_save_time: f64,
+    screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
     http: Arc<http::WebHttp>,
 }
@@ -152,6 +153,7 @@ impl AppRunner {
             needs_repaint: Default::default(),
             storage,
             last_save_time: now_sec(),
+            screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
         })
@@ -217,6 +219,7 @@ impl AppRunner {
         let egui_ctx = &self.web_backend.ctx;
         self.app.update(egui_ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
+        self.screen_reader.speak(&egui_output.events_description());
         handle_output(&egui_output);
 
         {

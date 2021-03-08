@@ -31,6 +31,9 @@ directories-next = { version = "2", optional = true }
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
 
+# feature screen_reader
+tts = { version = "0.14", optional = true }
+
 # feature "time"
 chrono = { version = "0.4", optional = true }
 
@@ -46,3 +49,4 @@ persistence = [
     "serde",
 ]
 time = ["chrono"] # for seconds_since_midnight
+screen_reader = ["tts"] # experimental
