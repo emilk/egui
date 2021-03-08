@@ -1,6 +1,5 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 
-use egui::TextureId;
 use {
     egui::{
         emath::{clamp, Rect},

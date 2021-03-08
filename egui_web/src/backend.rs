@@ -136,7 +136,7 @@ pub struct AppRunner {
     storage: LocalStorage,
     last_save_time: f64,
     #[cfg(feature = "http")]
-    http: Arc<egui_http_web::EguiHttpWeb>,
+    http: Arc<epi_http::EpiHttp>,
 }
 
 impl AppRunner {
@@ -153,7 +153,7 @@ impl AppRunner {
             storage,
             last_save_time: now_sec(),
             #[cfg(feature = "http")]
-            http: Arc::new(egui_http_web::EguiHttpWeb {}),
+            http: Arc::new(epi_http::EpiHttp {}),
         })
     }
 
