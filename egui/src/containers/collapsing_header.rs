@@ -206,11 +206,7 @@ impl CollapsingHeader {
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
-        let header_response = ui.interact(rect, id, Sense::click());
-        if header_response.gained_kb_focus() {
-            ui.output()
-                .push_gained_focus_event(WidgetType::CollapsingHeader, &galley.text);
-        }
+        let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
             header_response.rect.center().y - galley.size.y / 2.0,
@@ -219,7 +215,10 @@ impl CollapsingHeader {
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
         if header_response.clicked() {
             state.toggle(ui);
+            header_response.mark_changed();
         }
+        header_response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, &galley.text));
 
         let visuals = ui.style().interact(&header_response);
         let text_color = visuals.text_color();

@@ -66,10 +66,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
 fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-    if response.gained_kb_focus() {
-        ui.output()
-            .push_gained_focus_event(WidgetType::ColorButton, "");
-    }
+    response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
     let visuals = ui.style().interact(&response);
     let rect = rect.expand(visuals.expansion);
 

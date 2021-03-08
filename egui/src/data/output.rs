@@ -25,6 +25,14 @@ pub struct Output {
     pub events: Vec<OutputEvent>,
 }
 
+impl Output {
+    /// Open the given url in a web browser.
+    /// If egui is running in a browser, the same tab will be reused.
+    pub fn open_url(&mut self, url: impl Into<String>) {
+        self.open_url = Some(OpenUrl::new_tab(url))
+    }
+}
+
 #[derive(Clone, PartialEq)]
 pub struct OpenUrl {
     pub url: String,
@@ -77,20 +85,129 @@ impl Default for CursorIcon {
 /// Things that happened during this frame that the integration may be interested in.
 ///
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum OutputEvent {
     /// A widget gained keyboard focus (by tab key).
-    ///
-    /// An integration can for instance read the newly selected widget out loud for the visually impaired.
-    //
-    // TODO: we should output state too, e.g. if a checkbox is selected, or current slider value.
-    Focused(WidgetType, String),
+    WidgetEvent(WidgetEvent, WidgetInfo),
+}
+
+impl std::fmt::Debug for OutputEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::WidgetEvent(we, wi) => write!(f, "{:?}: {:?}", we, wi),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WidgetEvent {
+    /// Keyboard focused moved onto the widget.
+    Focus,
+    // /// Started hovering a new widget.
+    // Hover, // TODO: cursor hovered events
+}
+
+/// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
+#[derive(Clone, PartialEq)]
+pub struct WidgetInfo {
+    /// The type of widget this is.
+    pub typ: WidgetType,
+    /// The text on labels, buttons, checkboxes etc.
+    pub label: Option<String>,
+    /// The contents of some editable text (for `TextEdit` fields).
+    pub edit_text: Option<String>,
+    /// The current value of checkboxes and radio buttons.
+    pub selected: Option<bool>,
+    /// The current value of sliders etc.
+    pub value: Option<f64>,
+}
+
+impl std::fmt::Debug for WidgetInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            typ,
+            label,
+            edit_text,
+            selected,
+            value,
+        } = self;
+
+        let mut s = f.debug_struct("WidgetInfo");
+
+        s.field("typ", typ);
+
+        if let Some(label) = label {
+            s.field("label", label);
+        }
+        if let Some(edit_text) = edit_text {
+            s.field("edit_text", edit_text);
+        }
+        if let Some(selected) = selected {
+            s.field("selected", selected);
+        }
+        if let Some(value) = value {
+            s.field("value", value);
+        }
+
+        s.finish()
+    }
+}
+
+impl WidgetInfo {
+    pub fn new(typ: WidgetType) -> Self {
+        Self {
+            typ,
+            label: None,
+            edit_text: None,
+            selected: None,
+            value: None,
+        }
+    }
+
+    pub fn labeled(typ: WidgetType, label: impl Into<String>) -> Self {
+        Self {
+            label: Some(label.into()),
+            ..Self::new(typ)
+        }
+    }
+
+    /// checkboxes, radio-buttons etc
+    pub fn selected(typ: WidgetType, selected: bool, label: impl Into<String>) -> Self {
+        Self {
+            label: Some(label.into()),
+            selected: Some(selected),
+            ..Self::new(typ)
+        }
+    }
+
+    pub fn drag_value(value: f64) -> Self {
+        Self {
+            value: Some(value),
+            ..Self::new(WidgetType::DragValue)
+        }
+    }
+
+    pub fn slider(value: f64, label: impl Into<String>) -> Self {
+        let label = label.into();
+        Self {
+            label: if label.is_empty() { None } else { Some(label) },
+            value: Some(value),
+            ..Self::new(WidgetType::Slider)
+        }
+    }
+
+    pub fn text_edit(edit_text: impl Into<String>) -> Self {
+        Self {
+            edit_text: Some(edit_text.into()),
+            ..Self::new(WidgetType::TextEdit)
+        }
+    }
 }
 
 /// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WidgetType {
-    Label,
+    Label, // TODO: emit Label events
     Hyperlink,
     TextEdit,
     Button,
@@ -103,18 +220,9 @@ pub enum WidgetType {
     ColorButton,
     ImageButton,
     CollapsingHeader,
-}
 
-impl Output {
-    /// Open the given url in a web browser.
-    /// If egui is running in a browser, the same tab will be reused.
-    pub fn open_url(&mut self, url: impl Into<String>) {
-        self.open_url = Some(OpenUrl::new_tab(url))
-    }
-
-    /// Inform the backend integration that a widget gained focus
-    pub fn push_gained_focus_event(&mut self, widget_type: WidgetType, text: impl Into<String>) {
-        self.events
-            .push(OutputEvent::Focused(widget_type, text.into()));
-    }
+    /// If you cannot fit any of the above slots.
+    ///
+    /// If this is something you think should be added, file an issue.
+    Other,
 }

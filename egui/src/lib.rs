@@ -309,7 +309,7 @@ pub use {
     context::{Context, CtxRef},
     data::{
         input::*,
-        output::{self, CursorIcon, Output, WidgetType},
+        output::{self, CursorIcon, Output, WidgetInfo, WidgetType},
     },
     grid::Grid,
     id::Id,

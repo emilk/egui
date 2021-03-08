@@ -316,10 +316,11 @@ impl BackendPanel {
         }
 
         ui.collapsing("Output events", |ui| {
-            ui.set_max_width(350.0);
+            ui.set_max_width(450.0);
             ui.label("Recent output events from egui:");
+            ui.advance_cursor(8.0);
             for event in &self.output_event_history {
-                ui.monospace(format!("{:?}", event));
+                ui.label(format!("{:?}", event));
             }
         });
     }

@@ -30,17 +30,15 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     // This is where we get a region of the screen assigned.
     // We also tell the Ui to sense clicks in the allocated region.
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
-    if response.gained_kb_focus() {
-        // Inform accessibility systems that the widget is selected:
-        ui.output()
-            .push_gained_focus_event(egui::WidgetType::Checkbox, "");
-    }
 
     // 3. Interact: Time to check for clicks!
     if response.clicked() {
         *on = !*on;
         response.mark_changed(); // report back that the value changed
     }
+
+    // Attach some meta-data to the response which can be used by screen readers:
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
 
     // 4. Paint!
     // First let's ask for a simple animation from egui.
@@ -72,14 +70,11 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
-    if response.gained_kb_focus() {
-        ui.output()
-            .push_gained_focus_event(egui::WidgetType::Checkbox, "");
-    }
     if response.clicked() {
         *on = !*on;
         response.mark_changed();
     }
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact_selectable(&response, *on);

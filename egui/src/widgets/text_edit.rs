@@ -321,10 +321,6 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(rect, id, sense);
-        if response.gained_kb_focus() {
-            ui.output()
-                .push_gained_focus_event(WidgetType::TextEdit, &*text);
-        }
 
         if enabled {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
@@ -523,6 +519,7 @@ impl<'t> TextEdit<'t> {
 
         ui.memory().text_edit.insert(id, state);
 
+        response.widget_info(|| WidgetInfo::text_edit(&*text));
         response
     }
 }

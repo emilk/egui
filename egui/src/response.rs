@@ -335,6 +335,18 @@ impl Response {
         let scroll_target = lerp(self.rect.y_range(), align.to_factor());
         self.ctx.frame_state().scroll_target = Some((scroll_target, align));
     }
+
+    /// For accessibility.
+    ///
+    /// Call after interacting and potential calls to [`Self::mark_changed`].
+    pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+        if self.gained_kb_focus() {
+            use crate::output::{OutputEvent, WidgetEvent};
+            let widget_info = make_info();
+            let event = OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info);
+            self.ctx.output().events.push(event);
+        }
+    }
 }
 
 impl Response {

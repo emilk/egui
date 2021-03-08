@@ -298,16 +298,12 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        if response.gained_kb_focus() {
-            ui.output()
-                .push_gained_focus_event(WidgetType::DragValue, "");
-        }
-
         #[allow(clippy::float_cmp)]
         {
             response.changed = get(&mut get_set_value) != value;
         }
 
+        response.widget_info(|| WidgetInfo::drag_value(value));
         response
     }
 }
