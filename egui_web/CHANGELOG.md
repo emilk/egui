@@ -6,8 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ## Unreleased
-* [Add assuming gl texture as egui texture function ](https://github.com/emilk/egui/pull/199)
-  - now egui with webgl support offscreen rendering without CPU and GPU copy
 
 * Split http from egui_web
     - now egui_web use egui_http_web as epi http backend
@@ -15,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * Hold down a modifier key when clicking a link to open it in a new tab.
+* [Add assuming gl texture as egui texture function ](https://github.com/emilk/egui/pull/199)
+  - now egui with webgl support offscreen rendering without CPU and GPU copy
 
 
 ## 0.10.0 - 2021-02-28

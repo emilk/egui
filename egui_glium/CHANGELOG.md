@@ -6,11 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ## Unreleased
+
+
+* Split http from egui_glium
+  - now egui_glium use egui_http_native as epi http backend
+### Added
 * [Add assuming glium texture as egui texture function ](https://github.com/emilk/egui/pull/199)
   - now egui with glium support offscreen rendering without CPU and GPU copy
 
-* [Split http from egui_glium]()
-  - now egui_glium use egui_http_native as epi http backend
 ## 0.10.0 - 2021-02-28
 
 * [Add shaders for GLSL 1.2, GLSL ES 1.0 and 3.0](https://github.com/emilk/egui/pull/187)
