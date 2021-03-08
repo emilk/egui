@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 * Split http from egui_glium
-  - now egui_glium use egui_http_native as epi http backend
+  - now egui_glium use epi_http as epi http backend
 ### Added
 * [Add assuming glium texture as egui texture function ](https://github.com/emilk/egui/pull/199)
   - now egui with glium support offscreen rendering without CPU and GPU copy
