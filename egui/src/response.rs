@@ -135,7 +135,7 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        !self.hovered && self.ctx.input().pointer.any_pressed()
+        !self.clicked() && self.ctx.input().pointer.any_click()
     }
 
     /// Was the widget enabled?
