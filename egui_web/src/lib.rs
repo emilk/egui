@@ -232,11 +232,12 @@ pub fn handle_output(output: &egui::Output) {
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
+        events: _,        // we ignore these (TODO: accessibility screen reader)
     } = output;
 
     set_cursor_icon(*cursor_icon);
-    if let Some(url) = open_url {
-        crate::open_url(url);
+    if let Some(open) = open_url {
+        crate::open_url(&open.url, open.new_tab);
     }
 
     #[cfg(web_sys_unstable_apis)]
@@ -297,9 +298,11 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     }
 }
 
-pub fn open_url(url: &str) -> Option<()> {
+pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
+    let name = if new_tab { "_blank" } else { "_self" };
+
     web_sys::window()?
-        .open_with_url_and_target(url, "_self")
+        .open_with_url_and_target(url, name)
         .ok()?;
     Some(())
 }
@@ -357,7 +360,7 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "Tab" => Some(egui::Key::Tab),
         "Backspace" => Some(egui::Key::Backspace),
         "Enter" => Some(egui::Key::Enter),
-        "Space" => Some(egui::Key::Space),
+        "Space" | " " => Some(egui::Key::Space),
 
         "Help" | "Insert" => Some(egui::Key::Insert),
         "Delete" => Some(egui::Key::Delete),

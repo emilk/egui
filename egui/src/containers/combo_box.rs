@@ -27,6 +27,7 @@ pub fn combo_box_with_label(
 
     ui.horizontal(|ui| {
         let mut response = combo_box(ui, button_id, selected, menu_contents);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
         response |= ui.add(label);
         response
     })

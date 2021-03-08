@@ -66,6 +66,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
 fn color_button(ui: &mut Ui, color: Color32) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
     let visuals = ui.style().interact(&response);
     let rect = rect.expand(visuals.expansion);
 
@@ -341,11 +342,10 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                 })
             });
 
-        if !button_response.clicked() {
-            let clicked_outside = ui.input().pointer.any_click() && !area_response.hovered();
-            if clicked_outside || ui.input().key_pressed(Key::Escape) {
-                ui.memory().close_popup();
-            }
+        if !button_response.clicked()
+            && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
+        {
+            ui.memory().close_popup();
         }
     }
 

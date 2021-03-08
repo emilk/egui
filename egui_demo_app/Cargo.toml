@@ -17,3 +17,4 @@ egui_demo_lib = { version = "0.10.0", path = "../egui_demo_lib" }
 default = ["persistence"]
 http = ["eframe/http", "egui_demo_lib/http"]
 persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
+syntect = ["egui_demo_lib/syntect"]

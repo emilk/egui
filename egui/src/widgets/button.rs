@@ -119,6 +119,7 @@ impl Button {
         }
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, &galley.text));
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
@@ -228,10 +229,12 @@ impl<'a> Widget for Checkbox<'a> {
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
+
         if response.clicked() {
             *checked = !*checked;
             response.mark_changed();
         }
+        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
 
         // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
@@ -337,6 +340,8 @@ impl Widget for RadioButton {
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
+        response
+            .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, &galley.text));
 
         let text_cursor = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
@@ -441,6 +446,7 @@ impl Widget for ImageButton {
         let button_padding = ui.spacing().button_padding;
         let size = image.size() + 2.0 * button_padding;
         let (rect, response) = ui.allocate_exact_size(size, sense);
+        response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);

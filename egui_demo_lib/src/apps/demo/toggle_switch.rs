@@ -37,6 +37,9 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         response.mark_changed(); // report back that the value changed
     }
 
+    // Attach some meta-data to the response which can be used by screen readers:
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
+
     // 4. Paint!
     // First let's ask for a simple animation from egui.
     // egui keeps track of changes in the boolean associated with the id and
@@ -71,6 +74,7 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         *on = !*on;
         response.mark_changed();
     }
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
 
     let how_on = ui.ctx().animate_bool(response.id, *on);
     let visuals = ui.style().interact_selectable(&response, *on);

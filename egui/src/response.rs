@@ -1,5 +1,5 @@
 use crate::{
-    emath::{lerp, Align, Pos2, Rect},
+    emath::{lerp, Align, Pos2, Rect, Vec2},
     PointerButton, NUM_POINTER_BUTTONS,
 };
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
@@ -60,12 +60,6 @@ pub struct Response {
     /// `None` if the widget is not being interacted with.
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
-    /// This widget has the keyboard focus (i.e. is receiving key presses).
-    pub(crate) has_kb_focus: bool,
-
-    /// The widget had keyboard focus and lost it.
-    pub(crate) lost_kb_focus: bool,
-
     /// What the underlying data changed?
     /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
     /// Always `false` for something like a `Button`.
@@ -88,8 +82,6 @@ impl std::fmt::Debug for Response {
             drag_released,
             is_pointer_button_down_on,
             interact_pointer_pos,
-            has_kb_focus,
-            lost_kb_focus,
             changed,
         } = self;
         f.debug_struct("Response")
@@ -105,8 +97,6 @@ impl std::fmt::Debug for Response {
             .field("drag_released", drag_released)
             .field("is_pointer_button_down_on", is_pointer_button_down_on)
             .field("interact_pointer_pos", interact_pointer_pos)
-            .field("has_kb_focus", has_kb_focus)
-            .field("lost_kb_focus", lost_kb_focus)
             .field("changed", changed)
             .finish()
     }
@@ -116,6 +106,11 @@ impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
     pub fn clicked(&self) -> bool {
         self.clicked[PointerButton::Primary as usize]
+    }
+
+    /// Returns true if this widget was clicked this frame by the given button.
+    pub fn clicked_by(&self, button: PointerButton) -> bool {
+        self.clicked[button as usize]
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
@@ -133,6 +128,16 @@ impl Response {
         self.double_clicked[PointerButton::Primary as usize]
     }
 
+    /// Returns true if this widget was double-clicked this frame by the given button.
+    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
+        self.double_clicked[button as usize]
+    }
+
+    /// `true` if there was a click *outside* this widget this frame.
+    pub fn clicked_elsewhere(&self) -> bool {
+        !self.hovered && self.ctx.input().pointer.any_pressed()
+    }
+
     /// Was the widget enabled?
     /// If false, there was no interaction attempted
     /// and the widget should be drawn in a gray disabled look.
@@ -147,7 +152,12 @@ impl Response {
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
     pub fn has_kb_focus(&self) -> bool {
-        self.has_kb_focus
+        self.ctx.memory().has_kb_focus(self.id)
+    }
+
+    /// True if this widget has keyboard focus this frame, but didn't last frame.
+    pub fn gained_kb_focus(&self) -> bool {
+        self.ctx.memory().gained_kb_focus(self.id)
     }
 
     /// The widget had keyboard focus and lost it,
@@ -164,7 +174,7 @@ impl Response {
     /// }
     /// ```
     pub fn lost_kb_focus(&self) -> bool {
-        self.lost_kb_focus
+        self.ctx.memory().lost_kb_focus(self.id)
     }
 
     /// The widgets is being dragged.
@@ -173,6 +183,10 @@ impl Response {
     /// (`ui.input().pointer.button_down(…)`).
     pub fn dragged(&self) -> bool {
         self.dragged
+    }
+
+    pub fn dragged_by(&self, button: PointerButton) -> bool {
+        self.dragged() && self.ctx.input().pointer.button_down(button)
     }
 
     /// Did a drag on this widgets begin this frame?
@@ -185,20 +199,29 @@ impl Response {
         self.drag_released
     }
 
-    /// Returns true if this widget was clicked this frame by the given button.
-    pub fn clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked[button as usize]
-    }
-
-    /// Returns true if this widget was double-clicked this frame by the given button.
-    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
-        self.double_clicked[button as usize]
+    /// If dragged, how many points were we dragged and in what direction?
+    pub fn drag_delta(&self) -> Vec2 {
+        if self.dragged() {
+            self.ctx.input().pointer.delta()
+        } else {
+            Vec2::ZERO
+        }
     }
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
+    }
+
+    /// If it is a good idea to show a tooltip, where is pointer?
+    /// None if the pointer is outside the response area.
+    pub fn hover_pos(&self) -> Option<Pos2> {
+        if self.hovered() {
+            self.ctx.input().pointer.hover_pos()
+        } else {
+            None
+        }
     }
 
     /// Is the pointer button currently down on this widget?
@@ -312,6 +335,18 @@ impl Response {
         let scroll_target = lerp(self.rect.y_range(), align.to_factor());
         self.ctx.frame_state().scroll_target = Some((scroll_target, align));
     }
+
+    /// For accessibility.
+    ///
+    /// Call after interacting and potential calls to [`Self::mark_changed`].
+    pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+        if self.gained_kb_focus() {
+            use crate::output::{OutputEvent, WidgetEvent};
+            let widget_info = make_info();
+            let event = OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info);
+            self.ctx.output().events.push(event);
+        }
+    }
 }
 
 impl Response {
@@ -346,8 +381,6 @@ impl Response {
             is_pointer_button_down_on: self.is_pointer_button_down_on
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
-            has_kb_focus: self.has_kb_focus || other.has_kb_focus,
-            lost_kb_focus: self.lost_kb_focus || other.lost_kb_focus,
             changed: self.changed || other.changed,
         }
     }
@@ -400,6 +433,7 @@ impl std::ops::BitOrAssign for Response {
 /// inner_resp.response.on_hover_text("You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
 /// ```
+#[derive(Debug)]
 pub struct InnerResponse<R> {
     pub inner: R,
     pub response: Response,
