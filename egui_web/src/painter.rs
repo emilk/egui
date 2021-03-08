@@ -17,4 +17,8 @@ pub trait Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         pixels_per_point: f32,
     ) -> Result<(), JsValue>;
+    fn register_gl_texture_to_egui(
+        &mut self,
+        web_gl_texture: &web_sys::WebGlTexture,
+    ) -> egui::TextureId;
 }

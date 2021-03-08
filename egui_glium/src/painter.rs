@@ -19,7 +19,6 @@ use {
 
 pub struct Painter {
     program: glium::Program,
-    offscreen_program: glium::Program,
     egui_texture: Option<SrgbTexture2d>,
     egui_texture_version: Option<u64>,
 
@@ -60,29 +59,9 @@ impl Painter {
             },
         }
         .expect("Failed to compile shader");
-        let offscreen_program = program! {
-            facade,
-            120 => {
-                vertex: include_str!("shader/vertex_120_offscreen.glsl"),
-                fragment: include_str!("shader/fragment_120.glsl"),
-            },
-            140 => {
-                vertex: include_str!("shader/vertex_140_offscreen.glsl"),
-                fragment: include_str!("shader/fragment_140.glsl"),
-            },
-            100 es => {
-                vertex: include_str!("shader/vertex_100es_offscreen.glsl"),
-                fragment: include_str!("shader/fragment_100es.glsl"),
-            },
-            300 es => {
-                vertex: include_str!("shader/vertex_300es_offscreen.glsl"),
-                fragment: include_str!("shader/fragment_300es.glsl"),
-            },
-        }
-        .expect("Failed to compile shader");
+
         Painter {
             program,
-            offscreen_program,
             egui_texture: None,
             egui_texture_version: None,
             user_textures: Default::default(),
@@ -151,7 +130,7 @@ impl Painter {
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());
-
+        let is_offscreen = self.query_is_offscreen(mesh.texture_id);
         let vertex_buffer = {
             #[derive(Copy, Clone)]
             struct Vertex {
@@ -164,10 +143,20 @@ impl Painter {
             let vertices: Vec<Vertex> = mesh
                 .vertices
                 .iter()
-                .map(|v| Vertex {
-                    a_pos: [v.pos.x, v.pos.y],
-                    a_tc: [v.uv.x, v.uv.y],
-                    a_srgba: v.color.to_array(),
+                .map(|v| {
+                    if let Some(true) = is_offscreen {
+                        Vertex {
+                            a_pos: [v.pos.x, v.pos.y],
+                            a_tc: [v.uv.x, 1.0 - v.uv.y],
+                            a_srgba: v.color.to_array(),
+                        }
+                    } else {
+                        Vertex {
+                            a_pos: [v.pos.x, v.pos.y],
+                            a_tc: [v.uv.x, v.uv.y],
+                            a_srgba: v.color.to_array(),
+                        }
+                    }
                 })
                 .collect();
 
@@ -184,7 +173,7 @@ impl Painter {
         let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
-        let is_offscreen = self.query_is_offscreen(mesh.texture_id);
+
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
@@ -245,30 +234,16 @@ impl Painter {
                 }),
                 ..Default::default()
             };
-            match is_offscreen {
-                Some(true) => {
-                    target
-                        .draw(
-                            &vertex_buffer,
-                            &index_buffer,
-                            &self.offscreen_program,
-                            &uniforms,
-                            &params,
-                        )
-                        .unwrap();
-                }
-                _ => {
-                    target
-                        .draw(
-                            &vertex_buffer,
-                            &index_buffer,
-                            &self.program,
-                            &uniforms,
-                            &params,
-                        )
-                        .unwrap();
-                }
-            }
+
+            target
+                .draw(
+                    &vertex_buffer,
+                    &index_buffer,
+                    &self.program,
+                    &uniforms,
+                    &params,
+                )
+                .unwrap();
         }
     }
 
