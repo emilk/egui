@@ -29,7 +29,7 @@ impl Output {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
     pub fn open_url(&mut self, url: impl Into<String>) {
-        self.open_url = Some(OpenUrl::new_tab(url))
+        self.open_url = Some(OpenUrl::same_tab(url))
     }
 }
 
