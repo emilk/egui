@@ -53,16 +53,16 @@ pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
 
 // ----------------------------------------------------------------------------
 
-pub(crate) struct GliumHttp {}
+pub struct EguiHttpNative {}
 
-impl epi::backend::Http for GliumHttp {
+impl epi::backend::Http for EguiHttpNative {
     fn fetch_dyn(
         &self,
         request: Request,
         on_done: Box<dyn FnOnce(Result<Response, String>) + Send>,
     ) {
         std::thread::spawn(move || {
-            let result = crate::http::fetch_blocking(&request);
+            let result =fetch_blocking(&request);
             on_done(result)
         });
     }
