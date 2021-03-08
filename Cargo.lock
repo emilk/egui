@@ -674,12 +674,20 @@ dependencies = [
  "clipboard",
  "directories-next",
  "egui",
+ "egui_http_native",
  "epi",
  "glium",
  "serde",
  "serde_json",
- "ureq",
  "webbrowser",
+]
+
+[[package]]
+name = "egui_http_native"
+version = "0.10.0"
+dependencies = [
+ "epi",
+ "ureq",
 ]
 
 [[package]]

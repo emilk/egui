@@ -178,7 +178,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut last_auto_save = Instant::now();
 
     #[cfg(feature = "http")]
-    let http = std::sync::Arc::new(crate::http::GliumHttp {});
+    let http = std::sync::Arc::new(egui_http_native::EguiHttpNative{});
 
     if app.warm_up_enabled() {
         // let warm_up_start = Instant::now();

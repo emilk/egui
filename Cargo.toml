@@ -3,6 +3,7 @@ members = [
     "egui_demo_app",
     "egui_demo_lib",
     "egui_glium",
+    "egui_http_native",
     "egui_web",
     "egui",
     "emath",
