@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+* [Split http from egui_web]()
+    - now egui_web use egui_http_web as epi http backend
 
 ## 0.10.0 - 2021-02-28
 
