@@ -35,7 +35,7 @@ impl Output {
     /// This can be used by a text-to-speech system to describe the events (if any).
     pub fn events_description(&self) -> String {
         // only describe last event:
-        for event in self.events.iter().rev() {
+        if let Some(event) = self.events.iter().rev().next() {
             match event {
                 OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info) => {
                     return widget_info.description();
