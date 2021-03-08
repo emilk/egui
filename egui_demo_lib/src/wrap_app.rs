@@ -93,7 +93,7 @@ impl epi::App for WrapApp {
                     {
                         self.selected_anchor = anchor.to_owned();
                         if frame.is_web() {
-                            ui.output().open_url = Some(format!("#{}", anchor));
+                            ui.output().open_url(format!("#{}", anchor));
                         }
                     }
                 }
@@ -105,7 +105,7 @@ impl epi::App for WrapApp {
                             if clock_button(ui, seconds_since_midnight).clicked() {
                                 self.selected_anchor = "clock".to_owned();
                                 if frame.is_web() {
-                                    ui.output().open_url = Some("#clock".to_owned());
+                                    ui.output().open_url("#clock");
                                 }
                             }
                         }
@@ -221,7 +221,7 @@ struct BackendPanel {
     frame_history: crate::frame_history::FrameHistory,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    output_event_history: std::collections::VecDeque<egui::OutputEvent>,
+    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
 }
 
 impl Default for BackendPanel {

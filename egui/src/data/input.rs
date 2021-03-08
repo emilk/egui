@@ -152,6 +152,16 @@ pub struct Modifiers {
     pub command: bool,
 }
 
+impl Modifiers {
+    pub fn is_none(&self) -> bool {
+        self == &Self::default()
+    }
+
+    pub fn any(&self) -> bool {
+        !self.is_none()
+    }
+}
+
 /// Keyboard keys.
 ///
 /// Includes all keys egui is interested in (such as `Home` and `End`)

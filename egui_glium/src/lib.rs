@@ -281,8 +281,8 @@ pub fn handle_output(
     display: &glium::backend::glutin::Display,
     clipboard: Option<&mut ClipboardContext>,
 ) {
-    if let Some(url) = output.open_url {
-        if let Err(err) = webbrowser::open(&url) {
+    if let Some(open) = output.open_url {
+        if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
         }
     }

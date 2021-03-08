@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* Hold down a modifier key when clicking a link to open it in a new tab.
+
 
 ## 0.10.0 - 2021-02-28
 

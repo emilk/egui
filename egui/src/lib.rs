@@ -307,7 +307,10 @@ pub use epaint::{
 pub use {
     containers::*,
     context::{Context, CtxRef},
-    data::{input::*, output::*},
+    data::{
+        input::*,
+        output::{self, CursorIcon, Output, WidgetType},
+    },
     grid::Grid,
     id::Id,
     input_state::{InputState, PointerState},

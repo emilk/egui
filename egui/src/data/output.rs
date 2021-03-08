@@ -2,13 +2,13 @@
 
 /// What egui emits each frame.
 /// The backend should use this.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Output {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
-    pub open_url: Option<String>,
+    pub open_url: Option<OpenUrl>,
 
     /// Response to [`crate::Event::Copy`] or [`crate::Event::Cut`]. Ignore if empty.
     pub copied_text: String,
@@ -25,10 +25,35 @@ pub struct Output {
     pub events: Vec<OutputEvent>,
 }
 
+#[derive(Clone, PartialEq)]
+pub struct OpenUrl {
+    pub url: String,
+    /// If `true`, open the url in a new tab.
+    /// If `false` open it in the same tab.
+    /// Only matters when in a web browser.
+    pub new_tab: bool,
+}
+
+impl OpenUrl {
+    pub fn same_tab(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            new_tab: false,
+        }
+    }
+
+    pub fn new_tab(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            new_tab: true,
+        }
+    }
+}
+
 /// A mouse cursor icon.
 ///
 /// egui emits a [`CursorIcon`] in [`Output`] each frame as a request to the integration.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum CursorIcon {
     Default,
     /// Pointing hand, used for e.g. web links
@@ -52,7 +77,7 @@ impl Default for CursorIcon {
 /// Things that happened during this frame that the integration may be interested in.
 ///
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OutputEvent {
     /// A widget gained keyboard focus (by tab key).
     ///
@@ -81,6 +106,12 @@ pub enum WidgetType {
 }
 
 impl Output {
+    /// Open the given url in a web browser.
+    /// If egui is running in a browser, the same tab will be reused.
+    pub fn open_url(&mut self, url: impl Into<String>) {
+        self.open_url = Some(OpenUrl::new_tab(url))
+    }
+
     /// Inform the backend integration that a widget gained focus
     pub fn push_gained_focus_event(&mut self, widget_type: WidgetType, text: impl Into<String>) {
         self.events

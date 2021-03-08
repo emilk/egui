@@ -237,8 +237,8 @@ pub fn handle_output(output: &egui::Output) {
     } = output;
 
     set_cursor_icon(*cursor_icon);
-    if let Some(url) = open_url {
-        crate::open_url(url);
+    if let Some(open) = open_url {
+        crate::open_url(&open.url, open.new_tab);
     }
 
     #[cfg(web_sys_unstable_apis)]
@@ -299,9 +299,11 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     }
 }
 
-pub fn open_url(url: &str) -> Option<()> {
+pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
+    let name = if new_tab { "_blank" } else { "_self" };
+
     web_sys::window()?
-        .open_with_url_and_target(url, "_self")
+        .open_with_url_and_target(url, name)
         .ok()?;
     Some(())
 }

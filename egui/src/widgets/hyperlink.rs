@@ -62,7 +62,11 @@ impl Widget for Hyperlink {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if response.clicked() {
-            ui.ctx().output().open_url = Some(url.clone());
+            let modifiers = ui.ctx().input().modifiers;
+            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+                url: url.clone(),
+                new_tab: modifiers.any(),
+            });
         }
 
         let color = ui.visuals().hyperlink_color;
