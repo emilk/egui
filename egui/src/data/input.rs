@@ -160,6 +160,7 @@ pub struct Modifiers {
 /// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
 /// and are therefor unsuitable as keyboard shortcuts if you want your app to be portable.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
     ArrowDown,
     ArrowLeft,
