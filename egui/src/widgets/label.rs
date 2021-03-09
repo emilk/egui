@@ -159,10 +159,10 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
-        self.paint_galley_kb_focus(ui, pos, galley, false)
+        self.paint_galley_focus(ui, pos, galley, false)
     }
 
-    fn paint_galley_kb_focus(&self, ui: &mut Ui, pos: Pos2, galley: Galley, kb_focus: bool) {
+    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Galley, focus: bool) {
         let Self {
             mut background_color,
             code,
@@ -174,7 +174,7 @@ impl Label {
             ..
         } = *self;
 
-        let underline = underline || kb_focus;
+        let underline = underline || focus;
 
         let text_color = if let Some(text_color) = self.text_color {
             text_color
@@ -287,13 +287,13 @@ impl Widget for Label {
                 response |= ui.interact(rect, id, sense);
             }
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_kb_focus(ui, pos, galley, response.has_kb_focus());
+            self.paint_galley_focus(ui, pos, galley, response.has_focus());
             response
         } else {
             let galley = self.layout(ui);
             let (rect, response) = ui.allocate_exact_size(galley.size, sense);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_kb_focus(ui, rect.min, galley, response.has_kb_focus());
+            self.paint_galley_focus(ui, rect.min, galley, response.has_focus());
             response
         }
     }

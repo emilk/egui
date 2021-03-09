@@ -114,7 +114,7 @@ impl CCursorPair {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
-/// if response.lost_kb_focus() {
+/// if response.lost_focus() {
 ///     // use my_string
 /// }
 /// ```
@@ -140,7 +140,7 @@ impl<'t> TextEdit<'t> {
         Self::multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut String) -> Self {
         TextEdit {
             text,
@@ -248,7 +248,7 @@ impl<'t> Widget for TextEdit<'t> {
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
-            let shape = if response.has_kb_focus() {
+            let shape = if response.has_focus() {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
@@ -347,7 +347,7 @@ impl<'t> TextEdit<'t> {
                     });
                     response.mark_changed();
                 } else if response.hovered() && ui.input().pointer.any_pressed() {
-                    ui.memory().request_kb_focus(id);
+                    ui.memory().request_focus(id);
                     if ui.input().modifiers.shift {
                         if let Some(cursorp) = &mut state.cursorp {
                             cursorp.primary = cursor_at_pointer;
@@ -371,7 +371,7 @@ impl<'t> TextEdit<'t> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        if ui.memory().has_kb_focus(id) && enabled {
+        if ui.memory().has_focus(id) && enabled {
             let mut cursorp = state
                 .cursorp
                 .map(|cursorp| {
@@ -437,7 +437,7 @@ impl<'t> TextEdit<'t> {
                             insert_text(&mut ccursor, text, "\n");
                             Some(CCursorPair::one(ccursor))
                         } else {
-                            ui.memory().surrender_kb_focus(id); // End input with enter
+                            ui.memory().surrender_focus(id); // End input with enter
                             break;
                         }
                     }
@@ -491,7 +491,7 @@ impl<'t> TextEdit<'t> {
                 .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
         }
 
-        if ui.memory().has_kb_focus(id) {
+        if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
                 paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
                 paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);

@@ -243,7 +243,7 @@ pub struct Widgets {
 
 impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
-        if response.is_pointer_button_down_on() || response.has_kb_focus() {
+        if response.is_pointer_button_down_on() || response.has_focus() {
             &self.active
         } else if response.hovered() {
             &self.hovered

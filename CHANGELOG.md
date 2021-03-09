@@ -214,7 +214,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Much improved text editing, with better navigation and selection.
   * Move focus between `TextEdit` widgets with tab and shift-tab.
   * Undo edtis in a `TextEdit`.
-  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_kb_focus`.
+  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
 * You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
 

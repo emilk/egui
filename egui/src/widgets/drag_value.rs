@@ -12,7 +12,7 @@ pub(crate) struct MonoState {
     last_dragged_id: Option<Id>,
     last_dragged_value: Option<f64>,
     /// For temporary edit of a `DragValue` value.
-    /// Couples with [`Interaction::kb_focus_id`].
+    /// Couples with the current focus id.
     edit_string: Option<String>,
 }
 
@@ -208,7 +208,7 @@ impl<'a> Widget for DragValue<'a> {
         };
 
         let kb_edit_id = ui.auto_id_with("edit");
-        let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
+        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
@@ -229,7 +229,7 @@ impl<'a> Widget for DragValue<'a> {
                 set(&mut get_set_value, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_kb_focus(kb_edit_id);
+                ui.memory().surrender_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None;
             } else {
                 ui.memory().drag_value.edit_string = Some(value_text);
@@ -248,7 +248,7 @@ impl<'a> Widget for DragValue<'a> {
             ));
 
             if response.clicked() {
-                ui.memory().request_kb_focus(kb_edit_id);
+                ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
                 let mdelta = response.drag_delta();
@@ -281,7 +281,7 @@ impl<'a> Widget for DragValue<'a> {
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
                 }
-            } else if response.has_kb_focus() {
+            } else if response.has_focus() {
                 let change = ui.input().num_presses(Key::ArrowUp) as f64
                     + ui.input().num_presses(Key::ArrowRight) as f64
                     - ui.input().num_presses(Key::ArrowDown) as f64

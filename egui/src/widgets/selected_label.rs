@@ -66,7 +66,7 @@ impl Widget for SelectableLabel {
 
         let visuals = ui.style().interact_selectable(&response, selected);
 
-        if selected || response.hovered() || response.has_kb_focus() {
+        if selected || response.hovered() || response.has_focus() {
             let rect = rect.expand(visuals.expansion);
 
             let corner_radius = 2.0;

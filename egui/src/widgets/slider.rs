@@ -325,7 +325,7 @@ impl<'a> Slider<'a> {
         let value = self.get_value();
         response.widget_info(|| WidgetInfo::slider(value, &self.text));
 
-        if response.has_kb_focus() {
+        if response.has_focus() {
             let kb_step = ui.input().num_presses(Key::ArrowRight) as f32
                 - ui.input().num_presses(Key::ArrowLeft) as f32;
 

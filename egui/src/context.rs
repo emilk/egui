@@ -198,16 +198,16 @@ impl CtxRef {
 
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            self.memory().surrender_kb_focus(id);
+            self.memory().surrender_focus(id);
             return response;
         }
 
         if sense.focusable {
-            self.memory().interested_in_kb_focus(id);
+            self.memory().interested_in_focus(id);
         }
 
         if sense.click
-            && response.has_kb_focus()
+            && response.has_focus()
             && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
@@ -280,8 +280,8 @@ impl CtxRef {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
-        if response.has_kb_focus() && response.clicked_elsewhere() {
-            self.memory().surrender_kb_focus(id);
+        if response.has_focus() && response.clicked_elsewhere() {
+            self.memory().surrender_focus(id);
         }
 
         response
@@ -657,7 +657,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory().interaction.kb_focus.focused().is_some()
+        self.memory().interaction.focus.focused().is_some()
     }
 
     // ---------------------------------------------------------------------
@@ -756,7 +756,7 @@ impl Context {
             "keyboard focus widget: {}",
             self.memory()
                 .interaction
-                .kb_focus
+                .focus
                 .focused()
                 .as_ref()
                 .map(Id::short_debug_format)

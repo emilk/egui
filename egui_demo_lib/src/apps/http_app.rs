@@ -113,7 +113,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
 
     ui.horizontal(|ui| {
         ui.label("URL:");
-        trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus();
+        trigger_fetch |= ui.text_edit_singleline(url).lost_focus();
         trigger_fetch |= ui.button("GET").clicked();
     });
 

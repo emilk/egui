@@ -840,7 +840,7 @@ impl Ui {
         self.text_edit_multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
     ///
     /// Se also [`TextEdit`].
     pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {

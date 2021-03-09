@@ -151,13 +151,13 @@ impl Response {
     }
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
-    pub fn has_kb_focus(&self) -> bool {
-        self.ctx.memory().has_kb_focus(self.id)
+    pub fn has_focus(&self) -> bool {
+        self.ctx.memory().has_focus(self.id)
     }
 
     /// True if this widget has keyboard focus this frame, but didn't last frame.
-    pub fn gained_kb_focus(&self) -> bool {
-        self.ctx.memory().gained_kb_focus(self.id)
+    pub fn gained_focus(&self) -> bool {
+        self.ctx.memory().gained_focus(self.id)
     }
 
     /// The widget had keyboard focus and lost it,
@@ -169,12 +169,17 @@ impl Response {
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
-    /// if ui.text_edit_singleline(&mut my_text).lost_kb_focus() {
+    /// if ui.text_edit_singleline(&mut my_text).lost_focus() {
     ///     do_request(&my_text);
     /// }
     /// ```
+    pub fn lost_focus(&self) -> bool {
+        self.ctx.memory().lost_focus(self.id)
+    }
+
+    #[deprecated = "Renamed to lost_focus()"]
     pub fn lost_kb_focus(&self) -> bool {
-        self.ctx.memory().lost_kb_focus(self.id)
+        self.lost_focus()
     }
 
     /// The widgets is being dragged.
@@ -340,7 +345,7 @@ impl Response {
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
     pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
-        if self.gained_kb_focus() {
+        if self.gained_focus() {
             use crate::output::{OutputEvent, WidgetEvent};
             let widget_info = make_info();
             let event = OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info);
