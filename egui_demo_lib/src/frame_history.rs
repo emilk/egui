@@ -15,12 +15,12 @@ impl Default for FrameHistory {
 
 impl FrameHistory {
     // Called first
-    pub fn on_new_frame(&mut self, now: f64, previus_frame_time: Option<f32>) {
-        let previus_frame_time = previus_frame_time.unwrap_or_default();
+    pub fn on_new_frame(&mut self, now: f64, previous_frame_time: Option<f32>) {
+        let previous_frame_time = previous_frame_time.unwrap_or_default();
         if let Some(latest) = self.frame_times.latest_mut() {
-            *latest = previus_frame_time; // rewrite history now that we know
+            *latest = previous_frame_time; // rewrite history now that we know
         }
-        self.frame_times.add(now, previus_frame_time); // projected
+        self.frame_times.add(now, previous_frame_time); // projected
     }
 
     pub fn mean_frame_time(&self) -> f32 {
