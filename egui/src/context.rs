@@ -206,10 +206,6 @@ impl CtxRef {
             self.memory().interested_in_kb_focus(id);
         }
 
-        if response.has_kb_focus() && response.clicked_elsewhere() {
-            self.memory().surrender_kb_focus(id);
-        }
-
         if sense.click
             && response.has_kb_focus()
             && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
@@ -220,54 +216,56 @@ impl CtxRef {
 
         self.register_interaction_id(id, rect.min);
 
-        let mut memory = self.memory();
+        if sense.click || sense.drag {
+            let mut memory = self.memory();
 
-        memory.interaction.click_interest |= hovered && sense.click;
-        memory.interaction.drag_interest |= hovered && sense.drag;
+            memory.interaction.click_interest |= hovered && sense.click;
+            memory.interaction.drag_interest |= hovered && sense.drag;
 
-        response.dragged = memory.interaction.drag_id == Some(id);
-        response.is_pointer_button_down_on =
-            memory.interaction.click_id == Some(id) || response.dragged;
+            response.dragged = memory.interaction.drag_id == Some(id);
+            response.is_pointer_button_down_on =
+                memory.interaction.click_id == Some(id) || response.dragged;
 
-        for pointer_event in &self.input.pointer.pointer_events {
-            match pointer_event {
-                PointerEvent::Moved(_) => {}
-                PointerEvent::Pressed(_) => {
-                    if hovered {
-                        if sense.click && memory.interaction.click_id.is_none() {
-                            // potential start of a click
-                            memory.interaction.click_id = Some(id);
-                            response.is_pointer_button_down_on = true;
-                        }
+            for pointer_event in &self.input.pointer.pointer_events {
+                match pointer_event {
+                    PointerEvent::Moved(_) => {}
+                    PointerEvent::Pressed(_) => {
+                        if hovered {
+                            if sense.click && memory.interaction.click_id.is_none() {
+                                // potential start of a click
+                                memory.interaction.click_id = Some(id);
+                                response.is_pointer_button_down_on = true;
+                            }
 
-                        // HACK: windows have low priority on dragging.
-                        // This is so that if you drag a slider in a window,
-                        // the slider will steal the drag away from the window.
-                        // This is needed because we do window interaction first (to prevent frame delay),
-                        // and then do content layout.
-                        if sense.drag
-                            && (memory.interaction.drag_id.is_none()
-                                || memory.interaction.drag_is_window)
-                        {
-                            // potential start of a drag
-                            memory.interaction.drag_id = Some(id);
-                            memory.interaction.drag_is_window = false;
-                            memory.window_interaction = None; // HACK: stop moving windows (if any)
-                            response.is_pointer_button_down_on = true;
-                            response.dragged = true;
+                            // HACK: windows have low priority on dragging.
+                            // This is so that if you drag a slider in a window,
+                            // the slider will steal the drag away from the window.
+                            // This is needed because we do window interaction first (to prevent frame delay),
+                            // and then do content layout.
+                            if sense.drag
+                                && (memory.interaction.drag_id.is_none()
+                                    || memory.interaction.drag_is_window)
+                            {
+                                // potential start of a drag
+                                memory.interaction.drag_id = Some(id);
+                                memory.interaction.drag_is_window = false;
+                                memory.window_interaction = None; // HACK: stop moving windows (if any)
+                                response.is_pointer_button_down_on = true;
+                                response.dragged = true;
+                            }
                         }
                     }
-                }
-                PointerEvent::Released(click) => {
-                    response.drag_released = response.dragged;
-                    response.dragged = false;
+                    PointerEvent::Released(click) => {
+                        response.drag_released = response.dragged;
+                        response.dragged = false;
 
-                    if hovered && response.is_pointer_button_down_on {
-                        if let Some(click) = click {
-                            let clicked = hovered && response.is_pointer_button_down_on;
-                            response.clicked[click.button as usize] = clicked;
-                            response.double_clicked[click.button as usize] =
-                                clicked && click.is_double();
+                        if hovered && response.is_pointer_button_down_on {
+                            if let Some(click) = click {
+                                let clicked = hovered && response.is_pointer_button_down_on;
+                                response.clicked[click.button as usize] = clicked;
+                                response.double_clicked[click.button as usize] =
+                                    clicked && click.is_double();
+                            }
                         }
                     }
                 }
@@ -280,6 +278,10 @@ impl CtxRef {
 
         if self.input.pointer.any_down() {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+        }
+
+        if response.has_kb_focus() && response.clicked_elsewhere() {
+            self.memory().surrender_kb_focus(id);
         }
 
         response
