@@ -7,6 +7,11 @@ pub struct Sense {
 
     /// sliders, windows, scroll bars, scroll areas ...
     pub drag: bool,
+
+    /// this widgets want focus.
+    /// Anything interactive + labels that can be focused
+    /// for the benefit of screen readers.
+    pub focusable: bool,
 }
 
 impl Sense {
@@ -15,6 +20,17 @@ impl Sense {
         Self {
             click: false,
             drag: false,
+            focusable: false,
+        }
+    }
+
+    /// Senses no clicks or drags, but can be focused with the keyboard.
+    /// Used for labels that can be focused for the benefit of screen readers.
+    pub fn focusable_noninteractive() -> Self {
+        Self {
+            click: false,
+            drag: false,
+            focusable: true,
         }
     }
 
@@ -28,6 +44,7 @@ impl Sense {
         Self {
             click: true,
             drag: false,
+            focusable: true,
         }
     }
 
@@ -36,6 +53,7 @@ impl Sense {
         Self {
             click: false,
             drag: true,
+            focusable: true,
         }
     }
 
@@ -44,6 +62,7 @@ impl Sense {
         Self {
             click: true,
             drag: true,
+            focusable: true,
         }
     }
 
@@ -53,6 +72,7 @@ impl Sense {
         Self {
             click: self.click | other.click,
             drag: self.drag | other.drag,
+            focusable: self.focusable | other.focusable,
         }
     }
 }

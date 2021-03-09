@@ -196,13 +196,13 @@ impl CtxRef {
             changed: false, // must be set by the widget itself
         };
 
-        if !enabled || sense == Sense::hover() || !layer_id.allow_interaction() {
+        if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory().surrender_kb_focus(id);
             return response;
         }
 
-        if sense.click {
+        if sense.focusable {
             self.memory().interested_in_kb_focus(id);
         }
 
