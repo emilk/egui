@@ -33,6 +33,9 @@ impl ScreenReader {
 
     #[cfg(feature = "screen_reader")]
     pub fn speak(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
         if let Some(tts) = &mut self.tts {
             eprintln!("Speaking: {:?}", text);
             let interrupt = true;
