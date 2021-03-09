@@ -210,7 +210,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
         let (egui_output, _shapes) = ctx.end_frame();
         let new_cursor_icon = egui_output.cursor_icon;
-        handle_output(egui_output, &display, clipboard.as_mut());
+        handle_output(egui_output, clipboard.as_mut());
 
         display.gl_window().window().set_cursor_icon(translate_cursor(new_cursor_icon));
         previous_cursor_icon = Some(new_cursor_icon);
@@ -283,7 +283,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
             screen_reader.speak(&egui_output.events_description());
             let new_cursor_icon = egui_output.cursor_icon;
-            handle_output(egui_output, &display, clipboard.as_mut());
+            handle_output(egui_output, clipboard.as_mut());
 
             if Some(new_cursor_icon) != previous_cursor_icon {
                 // call only when changed to prevent flickering near frame boundary

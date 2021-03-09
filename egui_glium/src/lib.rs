@@ -279,7 +279,6 @@ pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::Cursor
 
 pub fn handle_output(
     output: egui::Output,
-    display: &glium::backend::glutin::Display,
     clipboard: Option<&mut ClipboardContext>,
 ) {
     if let Some(open) = output.open_url {
