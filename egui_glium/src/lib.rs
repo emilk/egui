@@ -295,11 +295,6 @@ pub fn handle_output(
             }
         }
     }
-
-    display
-        .gl_window()
-        .window()
-        .set_cursor_icon(translate_cursor(output.cursor_icon));
 }
 
 pub fn init_clipboard() -> Option<ClipboardContext> {
