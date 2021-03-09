@@ -11,6 +11,8 @@ repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["glium", "egui", "gui", "gamedev"]
 include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
   "src/shader/*.glsl",

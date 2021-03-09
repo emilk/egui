@@ -11,6 +11,8 @@ repository = "https://github.com/emilk/egui"
 categories = ["mathematics", "gui"]
 keywords = ["math", "gui"]
 include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
 ]

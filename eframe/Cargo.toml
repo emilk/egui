@@ -10,7 +10,12 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [ "**/*.rs", "Cargo.toml"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+]
 
 [lib]
 

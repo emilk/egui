@@ -11,9 +11,12 @@ repository = "https://github.com/emilk/egui"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
 include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
   "fonts/*.ttf",
+  "fonts/*.txt",
 ]
 
 [lib]
