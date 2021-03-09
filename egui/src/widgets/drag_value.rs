@@ -198,7 +198,7 @@ impl<'a> Widget for DragValue<'a> {
         let value = get(&mut get_set_value);
         let value = clamp(value, clamp_range.clone());
         let aim_rad = ui.input().aim_radius() as f64;
-        let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
+        let auto_decimals = clamp((aim_rad / speed.abs()).log10().ceil(), 0.0..=15.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
         let value_text = if value == 0.0 {
