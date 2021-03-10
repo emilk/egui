@@ -22,12 +22,12 @@ pub use backend::*;
 pub use painter::Painter;
 
 use {
-    clipboard::ClipboardProvider,
+    copypasta::ClipboardProvider,
     egui::*,
     glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
 };
 
-pub use clipboard::ClipboardContext; // TODO: remove
+pub use copypasta::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
