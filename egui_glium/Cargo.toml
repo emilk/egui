@@ -19,7 +19,7 @@ include = [
 ]
 
 [dependencies]
-clipboard = "0.5"
+copypasta = "0.7"
 egui = { version = "0.10.0", path = "../egui" }
 epi = { version = "0.10.0", path = "../epi" }
 glium = "0.29"
