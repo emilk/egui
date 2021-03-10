@@ -298,7 +298,7 @@ impl<'open> Window<'open> {
         } else {
             None
         };
-        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect, title_bar_height);
+        let hover_interaction = move_resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect, title_bar_height);
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -523,7 +523,7 @@ fn window_interaction(
     let mut window_interaction = { ctx.memory().window_interaction };
 
     if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect, title_bar_height) {
+        if let Some(hover_window_interaction) = move_resize_hover(ctx, possible, area_layer_id, rect, title_bar_height) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
                 ctx.memory().interaction.drag_id = Some(id);
@@ -545,7 +545,7 @@ fn window_interaction(
     None
 }
 
-fn resize_hover(
+fn move_resize_hover(
     ctx: &Context,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
