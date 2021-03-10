@@ -277,10 +277,7 @@ pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::Cursor
     }
 }
 
-pub fn handle_output(
-    output: egui::Output,
-    clipboard: Option<&mut ClipboardContext>,
-) {
+pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
     if let Some(open) = output.open_url {
         if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);

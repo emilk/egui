@@ -212,7 +212,10 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         let new_cursor_icon = egui_output.cursor_icon;
         handle_output(egui_output, clipboard.as_mut());
 
-        display.gl_window().window().set_cursor_icon(translate_cursor(new_cursor_icon));
+        display
+            .gl_window()
+            .window()
+            .set_cursor_icon(translate_cursor(new_cursor_icon));
         previous_cursor_icon = Some(new_cursor_icon);
 
         // TODO: handle app_output
@@ -288,10 +291,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             if Some(new_cursor_icon) != previous_cursor_icon {
                 // call only when changed to prevent flickering near frame boundary
                 // when Windows OS tries to control cursor icon for window resizing
-                display.gl_window().window().set_cursor_icon(translate_cursor(new_cursor_icon));
+                display
+                    .gl_window()
+                    .window()
+                    .set_cursor_icon(translate_cursor(new_cursor_icon));
                 previous_cursor_icon = Some(new_cursor_icon);
             }
-        
+
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {
                 let now = Instant::now();
