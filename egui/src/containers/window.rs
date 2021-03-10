@@ -263,6 +263,12 @@ impl<'open> Window<'open> {
 
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
 
+        let title_bar_height = if with_title_bar {
+            title_label.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
+        } else {
+            0.0
+        };
+
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable {
@@ -272,14 +278,10 @@ impl<'open> Window<'open> {
                 area_layer_id,
                 area_id.with("frame_resize"),
                 last_frame_outer_rect,
+                title_bar_height,
             )
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    title_label.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
-                } else {
-                    0.0
-                };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
                 let bounds = area.drag_bounds();
 
@@ -296,7 +298,7 @@ impl<'open> Window<'open> {
         } else {
             None
         };
-        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
+        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect, title_bar_height);
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -508,6 +510,7 @@ fn window_interaction(
     area_layer_id: LayerId,
     id: Id,
     rect: Rect,
+    title_bar_height: f32,
 ) -> Option<WindowInteraction> {
     {
         let drag_id = ctx.memory().interaction.drag_id;
@@ -520,7 +523,7 @@ fn window_interaction(
     let mut window_interaction = { ctx.memory().window_interaction };
 
     if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
+        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect, title_bar_height) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
                 ctx.memory().interaction.drag_id = Some(id);
@@ -547,6 +550,7 @@ fn resize_hover(
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     rect: Rect,
+    title_bar_height: f32,
 ) -> Option<WindowInteraction> {
     let pointer_pos = ctx.input().pointer.interact_pos()?;
 
