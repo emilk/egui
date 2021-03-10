@@ -603,13 +603,11 @@ fn move_resize_hover(
             }
         }
     }
-    let any_resize = left || right || top || bottom;
+    let resize_hover = left || right || top || bottom;
 
-    if !any_resize && !possible.movable {
-        return None;
-    }
+    let move_hover = !resize_hover && possible.movable && (0.0 ..= title_bar_height).contains(&(pointer_pos.y - rect.top()));
 
-    if any_resize || possible.movable {
+    if resize_hover || move_hover {
         Some(WindowInteraction {
             area_layer_id,
             start_rect: rect,
