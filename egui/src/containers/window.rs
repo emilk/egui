@@ -298,7 +298,13 @@ impl<'open> Window<'open> {
         } else {
             None
         };
-        let hover_interaction = move_resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect, title_bar_height);
+        let hover_interaction = move_resize_hover(
+            ctx,
+            possible,
+            area_layer_id,
+            last_frame_outer_rect,
+            title_bar_height,
+        );
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -523,7 +529,9 @@ fn window_interaction(
     let mut window_interaction = { ctx.memory().window_interaction };
 
     if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = move_resize_hover(ctx, possible, area_layer_id, rect, title_bar_height) {
+        if let Some(hover_window_interaction) =
+            move_resize_hover(ctx, possible, area_layer_id, rect, title_bar_height)
+        {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
                 ctx.memory().interaction.drag_id = Some(id);
@@ -605,7 +613,9 @@ fn move_resize_hover(
     }
     let resize_hover = left || right || top || bottom;
 
-    let move_hover = !resize_hover && possible.movable && (0.0 ..= title_bar_height).contains(&(pointer_pos.y - rect.top()));
+    let move_hover = !resize_hover
+        && possible.movable
+        && (0.0..=title_bar_height).contains(&(pointer_pos.y - rect.top()));
 
     if resize_hover || move_hover {
         Some(WindowInteraction {
