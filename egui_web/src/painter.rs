@@ -1,5 +1,4 @@
 use wasm_bindgen::prelude::JsValue;
-use web_sys::WebGlTexture;
 
 pub trait Painter {
     fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator;
