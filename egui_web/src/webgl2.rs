@@ -192,10 +192,14 @@ impl WebGl2Painter {
             }
         }
     }
-    pub fn register_webgl_texture(&mut self, texture:WebGlTexture) ->egui::TextureId {
-        let id= self.alloc_user_texture_index();
-        if let Some(Some(user_texture))=self.user_textures.get_mut(id){
-            *user_texture=UserTexture{ size: (0, 0), pixels: vec![], gl_texture: Some(texture) }
+    pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
+        let id = self.alloc_user_texture_index();
+        if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
+            *user_texture = UserTexture {
+                size: (0, 0),
+                pixels: vec![],
+                gl_texture: Some(texture),
+            }
         }
         egui::TextureId::User(id as u64)
     }
