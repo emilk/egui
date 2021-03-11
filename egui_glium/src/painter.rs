@@ -299,7 +299,7 @@ impl Painter {
         }
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         match texture_id {
             egui::TextureId::Egui => self.egui_texture.as_ref(),
             egui::TextureId::User(id) => self
