@@ -74,19 +74,118 @@ impl OpenUrl {
 /// A mouse cursor icon.
 ///
 /// egui emits a [`CursorIcon`] in [`Output`] each frame as a request to the integration.
-#[derive(Clone, Copy, PartialEq)]
+///
+/// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CursorIcon {
+    /// Normal cursor icon, whatever that is.
     Default,
+
+    /// Show no cursor
+    None,
+
+    // ------------------------------------
+    // Links and status:
+    /// A context menu is available
+    ContextMenu,
+
+    /// Question mark
+    Help,
+
     /// Pointing hand, used for e.g. web links
     PointingHand,
-    ResizeHorizontal,
-    ResizeNeSw,
-    ResizeNwSe,
-    ResizeVertical,
+
+    /// Shows that processing is being done, but that the program is still interactive.
+    Progress,
+
+    /// Not yet ready, try later.
+    Wait,
+
+    // ------------------------------------
+    // Selection:
+    /// Hover a cell in a table
+    Cell,
+
+    /// For precision work
+    Crosshair,
+
+    /// Text caret, e.g. "Click here to edit text"
     Text,
-    /// Used when moving
+
+    /// Vertical text caret, e.g. "Click here to edit vertical text"
+    VerticalText,
+
+    // ------------------------------------
+    // Drag-and-drop:
+    /// Indicated an alias, e.g. a shortcut
+    Alias,
+
+    /// Indicate that a copy will be made
+    Copy,
+
+    /// Omnidirectional move icon (e.g. arrows in all cardinal directions)
+    Move,
+
+    /// Can't drop here
+    NoDrop,
+
+    /// Forbidden
+    NotAllowed,
+
+    /// The thing you are hovering can be grabbed
     Grab,
+
+    /// You are grabbing the thing you are hovering
     Grabbing,
+
+    // ------------------------------------
+    // Resizing and scrolling
+    /// Something can be scrolled in any direction (panned).
+    AllScroll,
+
+    /// Horizontal resize `-` to make something wider or more narrow (left to/from right)
+    ResizeHorizontal,
+    /// Diagonal resize `/` (right-up to/from left-down)
+    ResizeNeSw,
+    /// Diagonal resize `\` (left-up to/from right-down)
+    ResizeNwSe,
+    /// Vertical resize `|` (up-down or down-up)
+    ResizeVertical,
+
+    /// Enhance!
+    ZoomIn,
+    /// Let's get a better overview
+    ZoomOut,
+}
+
+impl CursorIcon {
+    pub const ALL: [CursorIcon; 25] = [
+        CursorIcon::Default,
+        CursorIcon::None,
+        CursorIcon::ContextMenu,
+        CursorIcon::Help,
+        CursorIcon::PointingHand,
+        CursorIcon::Progress,
+        CursorIcon::Wait,
+        CursorIcon::Cell,
+        CursorIcon::Crosshair,
+        CursorIcon::Text,
+        CursorIcon::VerticalText,
+        CursorIcon::Alias,
+        CursorIcon::Copy,
+        CursorIcon::Move,
+        CursorIcon::NoDrop,
+        CursorIcon::NotAllowed,
+        CursorIcon::Grab,
+        CursorIcon::Grabbing,
+        CursorIcon::AllScroll,
+        CursorIcon::ResizeHorizontal,
+        CursorIcon::ResizeNeSw,
+        CursorIcon::ResizeNwSe,
+        CursorIcon::ResizeVertical,
+        CursorIcon::ZoomIn,
+        CursorIcon::ZoomOut,
+    ];
 }
 
 impl Default for CursorIcon {

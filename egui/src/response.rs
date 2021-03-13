@@ -1,6 +1,6 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    PointerButton, NUM_POINTER_BUTTONS,
+    CursorIcon, PointerButton, NUM_POINTER_BUTTONS,
 };
 use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
@@ -300,6 +300,14 @@ impl Response {
     #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
     pub fn tooltip_text(self, text: impl Into<String>) -> Self {
         self.on_hover_text(text)
+    }
+
+    /// When hovered, use this icon for the mouse cursor.
+    pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
+        if self.hovered() {
+            self.ctx.output().cursor_icon = cursor;
+        }
+        self
     }
 
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).

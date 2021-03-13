@@ -263,17 +263,43 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
     })
 }
 
-pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::CursorIcon {
+fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<glutin::window::CursorIcon> {
     match cursor_icon {
-        CursorIcon::Default => glutin::window::CursorIcon::Default,
-        CursorIcon::PointingHand => glutin::window::CursorIcon::Hand,
-        CursorIcon::ResizeHorizontal => glutin::window::CursorIcon::EwResize,
-        CursorIcon::ResizeNeSw => glutin::window::CursorIcon::NeswResize,
-        CursorIcon::ResizeNwSe => glutin::window::CursorIcon::NwseResize,
-        CursorIcon::ResizeVertical => glutin::window::CursorIcon::NsResize,
-        CursorIcon::Text => glutin::window::CursorIcon::Text,
-        CursorIcon::Grab => glutin::window::CursorIcon::Grab,
-        CursorIcon::Grabbing => glutin::window::CursorIcon::Grabbing,
+        CursorIcon::None => None,
+
+        CursorIcon::Alias => Some(glutin::window::CursorIcon::Alias),
+        CursorIcon::AllScroll => Some(glutin::window::CursorIcon::AllScroll),
+        CursorIcon::Cell => Some(glutin::window::CursorIcon::Cell),
+        CursorIcon::ContextMenu => Some(glutin::window::CursorIcon::ContextMenu),
+        CursorIcon::Copy => Some(glutin::window::CursorIcon::Copy),
+        CursorIcon::Crosshair => Some(glutin::window::CursorIcon::Crosshair),
+        CursorIcon::Default => Some(glutin::window::CursorIcon::Default),
+        CursorIcon::Grab => Some(glutin::window::CursorIcon::Grab),
+        CursorIcon::Grabbing => Some(glutin::window::CursorIcon::Grabbing),
+        CursorIcon::Help => Some(glutin::window::CursorIcon::Help),
+        CursorIcon::Move => Some(glutin::window::CursorIcon::Move),
+        CursorIcon::NoDrop => Some(glutin::window::CursorIcon::NoDrop),
+        CursorIcon::NotAllowed => Some(glutin::window::CursorIcon::NotAllowed),
+        CursorIcon::PointingHand => Some(glutin::window::CursorIcon::Hand),
+        CursorIcon::Progress => Some(glutin::window::CursorIcon::Progress),
+        CursorIcon::ResizeHorizontal => Some(glutin::window::CursorIcon::EwResize),
+        CursorIcon::ResizeNeSw => Some(glutin::window::CursorIcon::NeswResize),
+        CursorIcon::ResizeNwSe => Some(glutin::window::CursorIcon::NwseResize),
+        CursorIcon::ResizeVertical => Some(glutin::window::CursorIcon::NsResize),
+        CursorIcon::Text => Some(glutin::window::CursorIcon::Text),
+        CursorIcon::VerticalText => Some(glutin::window::CursorIcon::VerticalText),
+        CursorIcon::Wait => Some(glutin::window::CursorIcon::Wait),
+        CursorIcon::ZoomIn => Some(glutin::window::CursorIcon::ZoomIn),
+        CursorIcon::ZoomOut => Some(glutin::window::CursorIcon::ZoomOut),
+    }
+}
+
+fn set_cursor_icon(display: &glium::backend::glutin::Display, cursor_icon: egui::CursorIcon) {
+    if let Some(cursor_icon) = translate_cursor(cursor_icon) {
+        display.gl_window().window().set_cursor_visible(true);
+        display.gl_window().window().set_cursor_icon(cursor_icon);
+    } else {
+        display.gl_window().window().set_cursor_visible(false);
     }
 }
 

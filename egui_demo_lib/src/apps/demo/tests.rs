@@ -1,4 +1,35 @@
 #[derive(Default)]
+pub struct CursorTest {}
+
+impl super::Demo for CursorTest {
+    fn name(&self) -> &'static str {
+        "Cursor Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for CursorTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Hover to switch cursor icon:");
+        ui.vertical_centered_justified(|ui| {
+            for &cursor_icon in &egui::CursorIcon::ALL {
+                let _ = ui
+                    .button(format!("{:?}", cursor_icon))
+                    .on_hover_cursor(cursor_icon);
+            }
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
 pub struct IdTest {}
 
 impl super::Demo for IdTest {

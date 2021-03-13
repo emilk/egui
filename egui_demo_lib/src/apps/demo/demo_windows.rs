@@ -26,6 +26,7 @@ impl Default for Demos {
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
             // Tests:
+            Box::new(super::tests::CursorTest::default()),
             Box::new(super::tests::IdTest::default()),
             Box::new(super::tests::InputTest::default()),
             Box::new(super::layout_test::LayoutTest::default()),

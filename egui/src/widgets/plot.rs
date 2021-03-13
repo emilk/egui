@@ -475,7 +475,7 @@ impl Widget for Plot {
             prepared.ui(ui, &response);
         }
 
-        response
+        response.on_hover_cursor(CursorIcon::Crosshair)
     }
 }
 

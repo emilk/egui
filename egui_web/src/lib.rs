@@ -283,20 +283,32 @@ where
 }
 
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
-    use egui::CursorIcon::*;
     match cursor {
-        Default => "default",
-        PointingHand => "pointer",
-        ResizeHorizontal => "ew-resize",
-        ResizeNeSw => "nesw-resize",
-        ResizeNwSe => "nwse-resize",
-        ResizeVertical => "ns-resize",
-        Text => "text",
-        Grab => "grab",
-        Grabbing => "grabbing",
-        // "no-drop"
-        // "not-allowed"
-        // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move
+        egui::CursorIcon::Alias => "alias",
+        egui::CursorIcon::AllScroll => "all-scroll",
+        egui::CursorIcon::Cell => "cell",
+        egui::CursorIcon::ContextMenu => "context-menu",
+        egui::CursorIcon::Copy => "copy",
+        egui::CursorIcon::Crosshair => "crosshair",
+        egui::CursorIcon::Default => "default",
+        egui::CursorIcon::Grab => "grab",
+        egui::CursorIcon::Grabbing => "grabbing",
+        egui::CursorIcon::Help => "help",
+        egui::CursorIcon::Move => "move",
+        egui::CursorIcon::NoDrop => "no-drop",
+        egui::CursorIcon::None => "none",
+        egui::CursorIcon::NotAllowed => "not-allowed",
+        egui::CursorIcon::PointingHand => "pointer",
+        egui::CursorIcon::Progress => "progress",
+        egui::CursorIcon::ResizeHorizontal => "ew-resize",
+        egui::CursorIcon::ResizeNeSw => "nesw-resize",
+        egui::CursorIcon::ResizeNwSe => "nwse-resize",
+        egui::CursorIcon::ResizeVertical => "ns-resize",
+        egui::CursorIcon::Text => "text",
+        egui::CursorIcon::VerticalText => "vertical-text",
+        egui::CursorIcon::Wait => "wait",
+        egui::CursorIcon::ZoomIn => "zoom-in",
+        egui::CursorIcon::ZoomOut => "zoom-out",
     }
 }
 
