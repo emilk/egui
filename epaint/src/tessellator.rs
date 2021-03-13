@@ -665,7 +665,7 @@ impl Tessellator {
             let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
 
             for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
-                if let Some(col) = color_map.get_color_change_at_index(char_count) {
+                if let Some(col) = color_map.color_change_at_index(char_count) {
                     color = *col;
                 }
 

@@ -33,7 +33,7 @@ impl TextColorMap {
         }
     }
 
-    pub fn get_color_change_at_index(&self, idx: usize) -> Option<&Color32> {
+    pub fn color_change_at_index(&self, idx: usize) -> Option<&Color32> {
         self.color_map.get(&idx)
     }
 }
