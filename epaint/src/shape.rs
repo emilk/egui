@@ -7,7 +7,7 @@ use emath::*;
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
 #[must_use = "Add a Shape to a Painter"]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,

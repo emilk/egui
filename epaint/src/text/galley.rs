@@ -23,7 +23,7 @@ use super::cursor::*;
 use emath::{pos2, NumExt, Rect, Vec2};
 
 /// A collection of text locked into place.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Galley {
     /// The full text, including any an all `\n`.
     pub text: String,
@@ -39,7 +39,7 @@ pub struct Galley {
 }
 
 /// A typeset piece of text on a single row.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     /// The start of each character, probably starting at zero.
     /// The last element is the end of the last character.
