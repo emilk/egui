@@ -29,26 +29,27 @@ impl Widget for &epaint::Texture {
 
             let (tex_w, tex_h) = (self.width as f32, self.height as f32);
 
-            let pointer_pos = response.interact_pointer_pos();
+            response
+                .on_hover_cursor(CursorIcon::ZoomIn)
+                .on_hover_ui_at_pointer(|ui| {
+                    if let Some(pos) = ui.input().pointer.latest_pos() {
+                        let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
+                        let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
+                        let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
 
-            response.on_hover_ui(|ui| {
-                let pos = pointer_pos.unwrap_or_else(|| ui.min_rect().left_top());
-                let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
-                let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
-                let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
+                        let texel_radius = 32.0;
+                        let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
+                        let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
 
-                let texel_radius = 32.0;
-                let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
-                let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
-
-                let uv_rect = Rect::from_min_max(
-                    pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
-                    pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
-                );
-                let mut mesh = Mesh::default();
-                mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-                ui.painter().add(Shape::mesh(mesh));
-            });
+                        let uv_rect = Rect::from_min_max(
+                            pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
+                            pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
+                        );
+                        let mut mesh = Mesh::default();
+                        mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
+                        ui.painter().add(Shape::mesh(mesh));
+                    }
+                });
         })
         .response
     }

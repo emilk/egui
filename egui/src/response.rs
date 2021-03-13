@@ -267,6 +267,18 @@ impl Response {
         self
     }
 
+    /// Like `on_hover_ui`, but show the ui next to cursor.
+    pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+        if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_at_pointer(
+                &self.ctx,
+                self.id.with("__tooltip"),
+                add_contents,
+            );
+        }
+        self
+    }
+
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory().everything_is_visible() {
             true
