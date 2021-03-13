@@ -173,6 +173,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut previous_frame_time = None;
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
+    let mut previous_cursor_icon = None;
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
@@ -208,7 +209,15 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         ctx.clear_animations();
 
         let (egui_output, _shapes) = ctx.end_frame();
-        handle_output(egui_output, &display, clipboard.as_mut());
+        let new_cursor_icon = egui_output.cursor_icon;
+        handle_output(egui_output, clipboard.as_mut());
+
+        display
+            .gl_window()
+            .window()
+            .set_cursor_icon(translate_cursor(new_cursor_icon));
+        previous_cursor_icon = Some(new_cursor_icon);
+
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
     }
@@ -276,7 +285,18 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             }
 
             screen_reader.speak(&egui_output.events_description());
-            handle_output(egui_output, &display, clipboard.as_mut());
+            let new_cursor_icon = egui_output.cursor_icon;
+            handle_output(egui_output, clipboard.as_mut());
+
+            if Some(new_cursor_icon) != previous_cursor_icon {
+                // call only when changed to prevent flickering near frame boundary
+                // when Windows OS tries to control cursor icon for window resizing
+                display
+                    .gl_window()
+                    .window()
+                    .set_cursor_icon(translate_cursor(new_cursor_icon));
+                previous_cursor_icon = Some(new_cursor_icon);
+            }
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {

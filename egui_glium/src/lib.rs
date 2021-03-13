@@ -277,11 +277,7 @@ pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::Cursor
     }
 }
 
-pub fn handle_output(
-    output: egui::Output,
-    display: &glium::backend::glutin::Display,
-    clipboard: Option<&mut ClipboardContext>,
-) {
+pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
     if let Some(open) = output.open_url {
         if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
@@ -295,11 +291,6 @@ pub fn handle_output(
             }
         }
     }
-
-    display
-        .gl_window()
-        .window()
-        .set_cursor_icon(translate_cursor(output.cursor_icon));
 }
 
 pub fn init_clipboard() -> Option<ClipboardContext> {
