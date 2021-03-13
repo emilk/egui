@@ -1,6 +1,7 @@
 use crate::color::Color32;
 use std::collections::BTreeMap;
 
+/// Used to assign colors to different parts of a text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextColorMap {
     color_map: BTreeMap<usize, Color32>,
