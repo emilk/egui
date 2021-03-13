@@ -119,7 +119,7 @@ impl CtxRef {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(pointer_pos) = self.input.pointer.tooltip_pos() {
+                if let Some(pointer_pos) = self.input.pointer.hover_pos() {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
@@ -179,9 +179,6 @@ impl CtxRef {
     ) -> Response {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
-        let has_kb_focus = self.memory().has_kb_focus(id);
-        let lost_kb_focus = self.memory().lost_kb_focus(id);
-
         let mut response = Response {
             ctx: self.clone(),
             layer_id,
@@ -196,65 +193,79 @@ impl CtxRef {
             drag_released: false,
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
-            has_kb_focus,
-            lost_kb_focus,
+            changed: false, // must be set by the widget itself
         };
 
-        if !enabled || sense == Sense::hover() || !layer_id.allow_interaction() {
+        if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
+            self.memory().surrender_focus(id);
             return response;
+        }
+
+        if sense.focusable {
+            self.memory().interested_in_focus(id);
+        }
+
+        if sense.click
+            && response.has_focus()
+            && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
+        {
+            // Space/enter works like a primary click for e.g. selected buttons
+            response.clicked[PointerButton::Primary as usize] = true;
         }
 
         self.register_interaction_id(id, rect.min);
 
-        let mut memory = self.memory();
+        if sense.click || sense.drag {
+            let mut memory = self.memory();
 
-        memory.interaction.click_interest |= hovered && sense.click;
-        memory.interaction.drag_interest |= hovered && sense.drag;
+            memory.interaction.click_interest |= hovered && sense.click;
+            memory.interaction.drag_interest |= hovered && sense.drag;
 
-        response.dragged = memory.interaction.drag_id == Some(id);
-        response.is_pointer_button_down_on =
-            memory.interaction.click_id == Some(id) || response.dragged;
+            response.dragged = memory.interaction.drag_id == Some(id);
+            response.is_pointer_button_down_on =
+                memory.interaction.click_id == Some(id) || response.dragged;
 
-        for pointer_event in &self.input.pointer.pointer_events {
-            match pointer_event {
-                PointerEvent::Moved(_) => {}
-                PointerEvent::Pressed(_) => {
-                    if hovered {
-                        if sense.click && memory.interaction.click_id.is_none() {
-                            // potential start of a click
-                            memory.interaction.click_id = Some(id);
-                            response.is_pointer_button_down_on = true;
-                        }
+            for pointer_event in &self.input.pointer.pointer_events {
+                match pointer_event {
+                    PointerEvent::Moved(_) => {}
+                    PointerEvent::Pressed(_) => {
+                        if hovered {
+                            if sense.click && memory.interaction.click_id.is_none() {
+                                // potential start of a click
+                                memory.interaction.click_id = Some(id);
+                                response.is_pointer_button_down_on = true;
+                            }
 
-                        // HACK: windows have low priority on dragging.
-                        // This is so that if you drag a slider in a window,
-                        // the slider will steal the drag away from the window.
-                        // This is needed because we do window interaction first (to prevent frame delay),
-                        // and then do content layout.
-                        if sense.drag
-                            && (memory.interaction.drag_id.is_none()
-                                || memory.interaction.drag_is_window)
-                        {
-                            // potential start of a drag
-                            memory.interaction.drag_id = Some(id);
-                            memory.interaction.drag_is_window = false;
-                            memory.window_interaction = None; // HACK: stop moving windows (if any)
-                            response.is_pointer_button_down_on = true;
-                            response.dragged = true;
+                            // HACK: windows have low priority on dragging.
+                            // This is so that if you drag a slider in a window,
+                            // the slider will steal the drag away from the window.
+                            // This is needed because we do window interaction first (to prevent frame delay),
+                            // and then do content layout.
+                            if sense.drag
+                                && (memory.interaction.drag_id.is_none()
+                                    || memory.interaction.drag_is_window)
+                            {
+                                // potential start of a drag
+                                memory.interaction.drag_id = Some(id);
+                                memory.interaction.drag_is_window = false;
+                                memory.window_interaction = None; // HACK: stop moving windows (if any)
+                                response.is_pointer_button_down_on = true;
+                                response.dragged = true;
+                            }
                         }
                     }
-                }
-                PointerEvent::Released(click) => {
-                    response.drag_released = response.dragged;
-                    response.dragged = false;
+                    PointerEvent::Released(click) => {
+                        response.drag_released = response.dragged;
+                        response.dragged = false;
 
-                    if hovered && response.is_pointer_button_down_on {
-                        if let Some(click) = click {
-                            let clicked = hovered && response.is_pointer_button_down_on;
-                            response.clicked[click.button as usize] = clicked;
-                            response.double_clicked[click.button as usize] =
-                                clicked && click.is_double();
+                        if hovered && response.is_pointer_button_down_on {
+                            if let Some(click) = click {
+                                let clicked = hovered && response.is_pointer_button_down_on;
+                                response.clicked[click.button as usize] = clicked;
+                                response.double_clicked[click.button as usize] =
+                                    clicked && click.is_double();
+                            }
                         }
                     }
                 }
@@ -267,6 +278,10 @@ impl CtxRef {
 
         if self.input.pointer.any_down() {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+        }
+
+        if response.has_focus() && response.clicked_elsewhere() {
+            self.memory().surrender_focus(id);
         }
 
         response
@@ -463,33 +478,37 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Constraint the position of a window/area
+    /// Constrain the position of a window/area
     /// so it fits within the screen.
     pub(crate) fn constrain_window_rect(&self, window: Rect) -> Rect {
-        let mut screen = self.available_rect();
+        self.constrain_window_rect_to_area(window, self.available_rect())
+    }
 
-        if window.width() > screen.width() {
+    /// Constrain the position of a window/area
+    /// so it fits within the provided boundary.
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, mut area: Rect) -> Rect {
+        if window.width() > area.width() {
             // Allow overlapping side bars.
             // This is important for small screens, e.g. mobiles running the web demo.
-            screen.max.x = self.input().screen_rect().max.x;
-            screen.min.x = self.input().screen_rect().min.x;
+            area.max.x = self.input().screen_rect().max.x;
+            area.min.x = self.input().screen_rect().min.x;
         }
-        if window.height() > screen.height() {
+        if window.height() > area.height() {
             // Allow overlapping top/bottom bars:
-            screen.max.y = self.input().screen_rect().max.y;
-            screen.min.y = self.input().screen_rect().min.y;
+            area.max.y = self.input().screen_rect().max.y;
+            area.min.y = self.input().screen_rect().min.y;
         }
 
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
-        let margin_x = (window.width() - screen.width()).at_least(0.0);
-        let margin_y = (window.height() - screen.height()).at_least(0.0);
+        let margin_x = (window.width() - area.width()).at_least(0.0);
+        let margin_y = (window.height() - area.height()).at_least(0.0);
 
-        pos.x = pos.x.at_most(screen.right() + margin_x - window.width()); // move left if needed
-        pos.x = pos.x.at_least(screen.left() - margin_x); // move right if needed
-        pos.y = pos.y.at_most(screen.bottom() + margin_y - window.height()); // move right if needed
-        pos.y = pos.y.at_least(screen.top() - margin_y); // move down if needed
+        pos.x = pos.x.at_most(area.right() + margin_x - window.width()); // move left if needed
+        pos.x = pos.x.at_least(area.left() - margin_x); // move right if needed
+        pos.y = pos.y.at_most(area.bottom() + margin_y - window.height()); // move right if needed
+        pos.y = pos.y.at_least(area.top() - margin_y); // move down if needed
 
         pos = self.round_pos_to_pixels(pos);
 
@@ -638,7 +657,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory().interaction.kb_focus_id.is_some()
+        self.memory().interaction.focus.focused().is_some()
     }
 
     // ---------------------------------------------------------------------
@@ -731,6 +750,17 @@ impl Context {
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
+        ))
+        .on_hover_text("Is egui currently listening for text input");
+        ui.label(format!(
+            "keyboard focus widget: {}",
+            self.memory()
+                .interaction
+                .focus
+                .focused()
+                .as_ref()
+                .map(Id::short_debug_format)
+                .unwrap_or_default()
         ))
         .on_hover_text("Is egui currently listening for text input");
         ui.advance_cursor(16.0);

@@ -322,6 +322,30 @@ impl<'a> Slider<'a> {
             self.set_value(new_value);
         }
 
+        let value = self.get_value();
+        response.widget_info(|| WidgetInfo::slider(value, &self.text));
+
+        if response.has_focus() {
+            let kb_step = ui.input().num_presses(Key::ArrowRight) as f32
+                - ui.input().num_presses(Key::ArrowLeft) as f32;
+
+            if kb_step != 0.0 {
+                let prev_value = self.get_value();
+                let prev_x = self.x_from_value(prev_value, x_range.clone());
+                let new_x = prev_x + kb_step;
+                let new_value = if self.smart_aim {
+                    let aim_radius = ui.input().aim_radius();
+                    emath::smart_aim::best_in_range_f64(
+                        self.value_from_x(new_x - aim_radius, x_range.clone()),
+                        self.value_from_x(new_x + aim_radius, x_range.clone()),
+                    )
+                } else {
+                    self.value_from_x(new_x, x_range.clone())
+                };
+                self.set_value(new_value);
+            }
+        }
+
         // Paint it:
         {
             let value = self.get_value();
@@ -396,6 +420,8 @@ impl<'a> Widget for Slider<'a> {
         let font = &ui.fonts()[text_style];
         let height = font.row_height().at_least(ui.spacing().interact_size.y);
 
+        let old_value = self.get_value();
+
         let inner_response = ui.horizontal(|ui| {
             let slider_response = self.allocate_slider_space(ui, height);
             self.slider_ui(ui, &slider_response);
@@ -410,7 +436,10 @@ impl<'a> Widget for Slider<'a> {
             }
             slider_response
         });
-        inner_response.inner | inner_response.response
+
+        let mut response = inner_response.inner | inner_response.response;
+        response.changed = self.get_value() != old_value;
+        response
     }
 }
 

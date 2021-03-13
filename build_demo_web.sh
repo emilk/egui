@@ -13,7 +13,17 @@ rm -f docs/${CRATE_NAME}_bg.wasm
 
 echo "Building rust…"
 BUILD=release
-cargo build --release --all-features -p ${CRATE_NAME} --lib --target wasm32-unknown-unknown
+FEATURES="http,persistence" # screen_reader is experimental
+# FEATURES="http,persistence,screen_reader" # screen_reader is experimental
+
+(
+  cd egui_demo_app && cargo build \
+    -p ${CRATE_NAME} \
+    --release \
+    --lib \
+    --target wasm32-unknown-unknown \
+    --features ${FEATURES}
+)
 
 echo "Generating JS bindings for wasm…"
 TARGET_NAME="${CRATE_NAME}.wasm"

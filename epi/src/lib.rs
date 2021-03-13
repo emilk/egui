@@ -76,6 +76,12 @@ pub trait App {
     fn load(&mut self, _storage: &dyn Storage) {}
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    ///
+    /// On web the states is stored to "Local Storage".
+    /// On native the path is picked using [`directories_next::ProjectDirs`](https://docs.rs/directories-next/latest/directories_next/struct.ProjectDirs.html) which is:
+    /// * Linux:   `/home/UserName/.config/appname`
+    /// * macOS:   `/Users/UserName/Library/Application Support/appname`
+    /// * Windows: `C:\Users\UserName\AppData\Roaming\appname`
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown (before or after `save()`)
@@ -150,9 +156,9 @@ impl<'a> Frame<'a> {
         &self.0.info
     }
 
-    /// A way to allocate textures (on integrations that support it).
-    pub fn tex_allocator(&mut self) -> &mut Option<&'a mut dyn TextureAllocator> {
-        &mut self.0.tex_allocator
+    /// A way to allocate textures.
+    pub fn tex_allocator(&mut self) -> &mut dyn TextureAllocator {
+        self.0.tex_allocator
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
@@ -362,7 +368,7 @@ pub mod backend {
         /// Information about the integration.
         pub info: IntegrationInfo,
         /// A way to allocate textures (on integrations that support it).
-        pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
+        pub tex_allocator: &'a mut dyn TextureAllocator,
         /// Do http requests.
         #[cfg(feature = "http")]
         pub http: std::sync::Arc<dyn backend::Http>,

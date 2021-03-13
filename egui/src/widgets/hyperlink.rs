@@ -53,18 +53,23 @@ impl Widget for Hyperlink {
         let Hyperlink { url, label } = self;
         let galley = label.layout(ui);
         let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, &galley.text));
 
         if response.hovered() {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
         if response.clicked() {
-            ui.ctx().output().open_url = Some(url.clone());
+            let modifiers = ui.ctx().input().modifiers;
+            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+                url: url.clone(),
+                new_tab: modifiers.any(),
+            });
         }
 
         let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
 
-        if response.hovered() {
+        if response.hovered() || response.has_focus() {
             // Underline:
             for row in &galley.rows {
                 let rect = row.rect().translate(rect.min.to_vec2());

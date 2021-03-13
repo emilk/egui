@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
@@ -10,12 +10,18 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["glium", "egui", "gui", "gamedev"]
-include = [ "**/*.rs", "Cargo.toml"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "src/shader/*.glsl",
+]
 
 [dependencies]
-clipboard = "0.5"
-egui = { version = "0.9.0", path = "../egui" }
-epi = { version = "0.9.0", path = "../epi" }
+copypasta = "0.7"
+egui = { version = "0.10.0", path = "../egui" }
+epi = { version = "0.10.0", path = "../epi" }
 glium = "0.29"
 webbrowser = "0.5"
 
@@ -26,6 +32,9 @@ ureq = { version = "2.0", optional = true }
 directories-next = { version = "2", optional = true }
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
+
+# feature screen_reader
+tts = { version = "0.14", optional = true }
 
 # feature "time"
 chrono = { version = "0.4", optional = true }
@@ -42,3 +51,4 @@ persistence = [
     "serde",
 ]
 time = ["chrono"] # for seconds_since_midnight
+screen_reader = ["tts"] # experimental

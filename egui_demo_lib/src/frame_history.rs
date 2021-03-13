@@ -15,12 +15,12 @@ impl Default for FrameHistory {
 
 impl FrameHistory {
     // Called first
-    pub fn on_new_frame(&mut self, now: f64, previus_frame_time: Option<f32>) {
-        let previus_frame_time = previus_frame_time.unwrap_or_default();
+    pub fn on_new_frame(&mut self, now: f64, previous_frame_time: Option<f32>) {
+        let previous_frame_time = previous_frame_time.unwrap_or_default();
         if let Some(latest) = self.frame_times.latest_mut() {
-            *latest = previus_frame_time; // rewrite history now that we know
+            *latest = previous_frame_time; // rewrite history now that we know
         }
-        self.frame_times.add(now, previus_frame_time); // projected
+        self.frame_times.add(now, previous_frame_time); // projected
     }
 
     pub fn mean_frame_time(&self) -> f32 {
@@ -84,24 +84,22 @@ impl FrameHistory {
         let color = ui.visuals().text_color();
         let line_stroke = Stroke::new(1.0, color);
 
-        if let Some(pointer_pos) = ui.input().pointer.tooltip_pos() {
-            if rect.contains(pointer_pos) {
-                let y = pointer_pos.y;
-                shapes.push(Shape::line_segment(
-                    [pos2(rect.left(), y), pos2(rect.right(), y)],
-                    line_stroke,
-                ));
-                let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
-                let text = format!("{:.1} ms", 1e3 * cpu_usage);
-                shapes.push(Shape::text(
-                    ui.fonts(),
-                    pos2(rect.left(), y),
-                    egui::Align2::LEFT_BOTTOM,
-                    text,
-                    TextStyle::Monospace,
-                    color,
-                ));
-            }
+        if let Some(pointer_pos) = response.hover_pos() {
+            let y = pointer_pos.y;
+            shapes.push(Shape::line_segment(
+                [pos2(rect.left(), y), pos2(rect.right(), y)],
+                line_stroke,
+            ));
+            let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
+            let text = format!("{:.1} ms", 1e3 * cpu_usage);
+            shapes.push(Shape::text(
+                ui.fonts(),
+                pos2(rect.left(), y),
+                egui::Align2::LEFT_BOTTOM,
+                text,
+                TextStyle::Monospace,
+                color,
+            ));
         }
 
         let circle_color = color;

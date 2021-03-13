@@ -55,6 +55,9 @@ impl Widget for SelectableLabel {
         let mut desired_size = total_extra + galley.size;
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
+        response.widget_info(|| {
+            WidgetInfo::selected(WidgetType::SelectableLabel, selected, &galley.text)
+        });
 
         let text_cursor = ui
             .layout()
@@ -63,7 +66,7 @@ impl Widget for SelectableLabel {
 
         let visuals = ui.style().interact_selectable(&response, selected);
 
-        if selected || response.hovered() {
+        if selected || response.hovered() || response.has_focus() {
             let rect = rect.expand(visuals.expansion);
 
             let corner_radius = 2.0;

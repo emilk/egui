@@ -15,18 +15,19 @@ pub mod http;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;
+pub mod screen_reader;
 pub mod window_settings;
 
 pub use backend::*;
 pub use painter::Painter;
 
 use {
-    clipboard::ClipboardProvider,
+    copypasta::ClipboardProvider,
     egui::*,
     glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
 };
 
-pub use clipboard::ClipboardContext; // TODO: remove
+pub use copypasta::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
@@ -262,27 +263,49 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
     })
 }
 
-pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::CursorIcon {
+fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<glutin::window::CursorIcon> {
     match cursor_icon {
-        CursorIcon::Default => glutin::window::CursorIcon::Default,
-        CursorIcon::PointingHand => glutin::window::CursorIcon::Hand,
-        CursorIcon::ResizeHorizontal => glutin::window::CursorIcon::EwResize,
-        CursorIcon::ResizeNeSw => glutin::window::CursorIcon::NeswResize,
-        CursorIcon::ResizeNwSe => glutin::window::CursorIcon::NwseResize,
-        CursorIcon::ResizeVertical => glutin::window::CursorIcon::NsResize,
-        CursorIcon::Text => glutin::window::CursorIcon::Text,
-        CursorIcon::Grab => glutin::window::CursorIcon::Grab,
-        CursorIcon::Grabbing => glutin::window::CursorIcon::Grabbing,
+        CursorIcon::None => None,
+
+        CursorIcon::Alias => Some(glutin::window::CursorIcon::Alias),
+        CursorIcon::AllScroll => Some(glutin::window::CursorIcon::AllScroll),
+        CursorIcon::Cell => Some(glutin::window::CursorIcon::Cell),
+        CursorIcon::ContextMenu => Some(glutin::window::CursorIcon::ContextMenu),
+        CursorIcon::Copy => Some(glutin::window::CursorIcon::Copy),
+        CursorIcon::Crosshair => Some(glutin::window::CursorIcon::Crosshair),
+        CursorIcon::Default => Some(glutin::window::CursorIcon::Default),
+        CursorIcon::Grab => Some(glutin::window::CursorIcon::Grab),
+        CursorIcon::Grabbing => Some(glutin::window::CursorIcon::Grabbing),
+        CursorIcon::Help => Some(glutin::window::CursorIcon::Help),
+        CursorIcon::Move => Some(glutin::window::CursorIcon::Move),
+        CursorIcon::NoDrop => Some(glutin::window::CursorIcon::NoDrop),
+        CursorIcon::NotAllowed => Some(glutin::window::CursorIcon::NotAllowed),
+        CursorIcon::PointingHand => Some(glutin::window::CursorIcon::Hand),
+        CursorIcon::Progress => Some(glutin::window::CursorIcon::Progress),
+        CursorIcon::ResizeHorizontal => Some(glutin::window::CursorIcon::EwResize),
+        CursorIcon::ResizeNeSw => Some(glutin::window::CursorIcon::NeswResize),
+        CursorIcon::ResizeNwSe => Some(glutin::window::CursorIcon::NwseResize),
+        CursorIcon::ResizeVertical => Some(glutin::window::CursorIcon::NsResize),
+        CursorIcon::Text => Some(glutin::window::CursorIcon::Text),
+        CursorIcon::VerticalText => Some(glutin::window::CursorIcon::VerticalText),
+        CursorIcon::Wait => Some(glutin::window::CursorIcon::Wait),
+        CursorIcon::ZoomIn => Some(glutin::window::CursorIcon::ZoomIn),
+        CursorIcon::ZoomOut => Some(glutin::window::CursorIcon::ZoomOut),
     }
 }
 
-pub fn handle_output(
-    output: egui::Output,
-    display: &glium::backend::glutin::Display,
-    clipboard: Option<&mut ClipboardContext>,
-) {
-    if let Some(url) = output.open_url {
-        if let Err(err) = webbrowser::open(&url) {
+fn set_cursor_icon(display: &glium::backend::glutin::Display, cursor_icon: egui::CursorIcon) {
+    if let Some(cursor_icon) = translate_cursor(cursor_icon) {
+        display.gl_window().window().set_cursor_visible(true);
+        display.gl_window().window().set_cursor_icon(cursor_icon);
+    } else {
+        display.gl_window().window().set_cursor_visible(false);
+    }
+}
+
+pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
+    if let Some(open) = output.open_url {
+        if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
         }
     }
@@ -294,11 +317,6 @@ pub fn handle_output(
             }
         }
     }
-
-    display
-        .gl_window()
-        .window()
-        .set_cursor_icon(translate_cursor(output.cursor_icon));
 }
 
 pub fn init_clipboard() -> Option<ClipboardContext> {

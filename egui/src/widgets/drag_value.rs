@@ -12,7 +12,7 @@ pub(crate) struct MonoState {
     last_dragged_id: Option<Id>,
     last_dragged_value: Option<f64>,
     /// For temporary edit of a `DragValue` value.
-    /// Couples with [`Interaction::kb_focus_id`].
+    /// Couples with the current focus id.
     edit_string: Option<String>,
 }
 
@@ -198,7 +198,7 @@ impl<'a> Widget for DragValue<'a> {
         let value = get(&mut get_set_value);
         let value = clamp(value, clamp_range.clone());
         let aim_rad = ui.input().aim_radius() as f64;
-        let auto_decimals = (aim_rad / speed.abs()).log10().ceil().at_least(0.0) as usize;
+        let auto_decimals = clamp((aim_rad / speed.abs()).log10().ceil(), 0.0..=15.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
         let value_text = if value == 0.0 {
@@ -208,9 +208,9 @@ impl<'a> Widget for DragValue<'a> {
         };
 
         let kb_edit_id = ui.auto_id_with("edit");
-        let is_kb_editing = ui.memory().has_kb_focus(kb_edit_id);
+        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
-        if is_kb_editing {
+        let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
                 .memory()
@@ -229,7 +229,7 @@ impl<'a> Widget for DragValue<'a> {
                 set(&mut get_set_value, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_kb_focus(kb_edit_id);
+                ui.memory().surrender_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None;
             } else {
                 ui.memory().drag_value.edit_string = Some(value_text);
@@ -248,10 +248,10 @@ impl<'a> Widget for DragValue<'a> {
             ));
 
             if response.clicked() {
-                ui.memory().request_kb_focus(kb_edit_id);
+                ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
-                let mdelta = ui.input().pointer.delta();
+                let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
                 let delta_value = delta_points as f64 * speed;
                 if delta_value != 0.0 {
@@ -281,8 +281,29 @@ impl<'a> Widget for DragValue<'a> {
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
                 }
+            } else if response.has_focus() {
+                let change = ui.input().num_presses(Key::ArrowUp) as f64
+                    + ui.input().num_presses(Key::ArrowRight) as f64
+                    - ui.input().num_presses(Key::ArrowDown) as f64
+                    - ui.input().num_presses(Key::ArrowLeft) as f64;
+
+                if change != 0.0 {
+                    let new_value = value + speed * change;
+                    let new_value = emath::round_to_decimals(new_value, auto_decimals);
+                    let new_value = clamp(new_value, clamp_range);
+                    set(&mut get_set_value, new_value);
+                }
             }
+
             response
+        };
+
+        #[allow(clippy::float_cmp)]
+        {
+            response.changed = get(&mut get_set_value) != value;
         }
+
+        response.widget_info(|| WidgetInfo::drag_value(value));
+        response
     }
 }

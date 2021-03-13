@@ -113,7 +113,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
 
     ui.horizontal(|ui| {
         ui.label("URL:");
-        trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus();
+        trigger_fetch |= ui.text_edit_singleline(url).lost_focus();
         trigger_fetch |= ui.button("GET").clicked();
     });
 
@@ -278,14 +278,16 @@ impl TexMngr {
         url: &str,
         image: &Image,
     ) -> Option<egui::TextureId> {
-        let tex_allocator = frame.tex_allocator().as_mut()?;
         if self.loaded_url != url {
             if let Some(texture_id) = self.texture_id.take() {
-                tex_allocator.free(texture_id);
+                frame.tex_allocator().free(texture_id);
             }
 
-            self.texture_id =
-                Some(tex_allocator.alloc_srgba_premultiplied(image.size, &image.pixels));
+            self.texture_id = Some(
+                frame
+                    .tex_allocator()
+                    .alloc_srgba_premultiplied(image.size, &image.pixels),
+            );
             self.loaded_url = url.to_owned();
         }
         self.texture_id

@@ -34,7 +34,7 @@ impl super::Demo for PlotDemo {
         use super::View;
         Window::new(self.name())
             .open(open)
-            .default_size(vec2(512.0, 512.0))
+            .default_size(vec2(400.0, 400.0))
             .scroll(false)
             .show(ctx, |ui| self.ui(ui));
     }
@@ -62,23 +62,29 @@ impl PlotDemo {
                 ui.vertical(|ui| {
                     ui.label("Circle:");
                     ui.add(
-                        egui::Slider::f32(circle_radius, 1e-4..=1e4)
-                            .logarithmic(true)
-                            .smallest_positive(1e-2)
-                            .text("radius"),
+                        egui::DragValue::f32(circle_radius)
+                            .speed(0.1)
+                            .clamp_range(0.0..=f32::INFINITY)
+                            // .logarithmic(true)
+                            // .smallest_positive(1e-2)
+                            .prefix("r: "),
                     );
-                    ui.add(
-                        egui::Slider::f32(&mut circle_center.x, -1e4..=1e4)
-                            .logarithmic(true)
-                            .smallest_positive(1e-2)
-                            .text("center x"),
-                    );
-                    ui.add(
-                        egui::Slider::f32(&mut circle_center.y, -1e4..=1e4)
-                            .logarithmic(true)
-                            .smallest_positive(1e-2)
-                            .text("center y"),
-                    );
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::f32(&mut circle_center.x)
+                                .speed(0.1)
+                                // .logarithmic(true)
+                                // .smallest_positive(1e-2)
+                                .prefix("x: "),
+                        );
+                        ui.add(
+                            egui::DragValue::f32(&mut circle_center.y)
+                                .speed(1.0)
+                                // .logarithmic(true)
+                                // .smallest_positive(1e-2)
+                                .prefix("y: "),
+                        );
+                    });
                 });
             });
 
@@ -143,7 +149,7 @@ impl super::View for PlotDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .min_size(Vec2::new(400.0, 300.0));
+            .min_size(Vec2::new(256.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);
         }

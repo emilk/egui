@@ -159,6 +159,10 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
+        self.paint_galley_focus(ui, pos, galley, false)
+    }
+
+    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Galley, focus: bool) {
         let Self {
             mut background_color,
             code,
@@ -169,6 +173,8 @@ impl Label {
             italics,
             ..
         } = *self;
+
+        let underline = underline || focus;
 
         let text_color = if let Some(text_color) = self.text_color {
             text_color
@@ -237,6 +243,8 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
+        let sense = Sense::focusable_noninteractive();
+
         if self.should_wrap(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
@@ -260,7 +268,7 @@ impl Widget for Label {
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
             let id = ui.advance_cursor_after_rect(rect);
-            let mut total_response = ui.interact(rect, id, Sense::hover());
+            let mut response = ui.interact(rect, id, sense);
 
             let mut y_translation = 0.0;
             if let Some(row) = galley.rows.get(1) {
@@ -276,15 +284,16 @@ impl Widget for Label {
                 row.y_max += y_translation;
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
                 ui.advance_cursor_after_rect(rect);
-                total_response |= ui.interact(rect, id, Sense::hover());
+                response |= ui.interact(rect, id, sense);
             }
-
-            self.paint_galley(ui, pos, galley);
-            total_response
+            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
+            self.paint_galley_focus(ui, pos, galley, response.has_focus());
+            response
         } else {
             let galley = self.layout(ui);
-            let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
-            self.paint_galley(ui, rect.min, galley);
+            let (rect, response) = ui.allocate_exact_size(galley.size, sense);
+            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
+            self.paint_galley_focus(ui, rect.min, galley, response.has_focus());
             response
         }
     }

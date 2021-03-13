@@ -1,4 +1,35 @@
 #[derive(Default)]
+pub struct CursorTest {}
+
+impl super::Demo for CursorTest {
+    fn name(&self) -> &'static str {
+        "Cursor Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for CursorTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Hover to switch cursor icon:");
+        ui.vertical_centered_justified(|ui| {
+            for &cursor_icon in &egui::CursorIcon::ALL {
+                let _ = ui
+                    .button(format!("{:?}", cursor_icon))
+                    .on_hover_cursor(cursor_icon);
+            }
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
 pub struct IdTest {}
 
 impl super::Demo for IdTest {
@@ -93,8 +124,8 @@ impl super::Demo for ManualLayoutTest {
 
 impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        use egui::*;
-        reset_button(ui, self);
+        egui::reset_button(ui, self);
+
         let Self {
             widget_offset,
             widget_size,
@@ -107,29 +138,33 @@ impl super::View for ManualLayoutTest {
             ui.radio_value(widget_type, WidgetType::Label, "Label");
             ui.radio_value(widget_type, WidgetType::TextEdit, "TextEdit");
         });
-        Grid::new("pos_size").show(ui, |ui| {
+        egui::Grid::new("pos_size").show(ui, |ui| {
             ui.label("Widget position:");
-            ui.add(Slider::f32(&mut widget_offset.x, 0.0..=400.0));
-            ui.add(Slider::f32(&mut widget_offset.y, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_offset.x, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_offset.y, 0.0..=400.0));
             ui.end_row();
 
             ui.label("Widget size:");
-            ui.add(Slider::f32(&mut widget_size.x, 0.0..=400.0));
-            ui.add(Slider::f32(&mut widget_size.y, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_size.x, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_size.y, 0.0..=400.0));
             ui.end_row();
         });
-        let widget_rect = Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
+
+        let widget_rect =
+            egui::Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
+
+        ui.add(crate::__egui_github_link_file!());
 
         // Showing how to place a widget anywhere in the `Ui`:
         match *widget_type {
             WidgetType::Button => {
-                ui.put(widget_rect, Button::new("Example button"));
+                ui.put(widget_rect, egui::Button::new("Example button"));
             }
             WidgetType::Label => {
-                ui.put(widget_rect, Label::new("Example label"));
+                ui.put(widget_rect, egui::Label::new("Example label"));
             }
             WidgetType::TextEdit => {
-                ui.put(widget_rect, TextEdit::multiline(text_edit_contents));
+                ui.put(widget_rect, egui::TextEdit::multiline(text_edit_contents));
             }
         }
     }
@@ -137,6 +172,7 @@ impl super::View for ManualLayoutTest {
 
 // ----------------------------------------------------------------------------
 
+#[derive(PartialEq)]
 pub struct TableTest {
     num_cols: usize,
     num_rows: usize,
@@ -209,6 +245,11 @@ impl super::View for TableTest {
                     ui.end_row();
                 }
             });
+
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
     }
 }
 
@@ -238,6 +279,10 @@ impl super::Demo for InputTest {
 
 impl super::View for InputTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         let response = ui.add(
             egui::Button::new("Click, double-click or drag me with any mouse button")
                 .sense(egui::Sense::click_and_drag()),
@@ -255,8 +300,12 @@ impl super::View for InputTest {
             if response.double_clicked_by(button) {
                 new_info += &format!("Double-clicked by {:?}\n", button);
             }
-            if response.dragged() && ui.input().pointer.button_down(button) {
-                new_info += &format!("Dragged by {:?}\n", button);
+            if response.dragged_by(button) {
+                new_info += &format!(
+                    "Dragged by {:?}, delta: {:?}\n",
+                    button,
+                    response.drag_delta()
+                );
             }
         }
         if !new_info.is_empty() {
@@ -280,31 +329,16 @@ impl super::Demo for WindowResizeTest {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         use egui::*;
 
-        Window::new("↔ resizable")
+        Window::new("↔ auto-sized")
             .open(open)
-            .scroll(false)
-            .resizable(true)
+            .auto_sized()
             .show(ctx, |ui| {
-                assert!(ui.enabled()); // TODO: remove
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM);
-            });
-
-        Window::new("↔ resizable + embedded scroll")
-            .open(open)
-            .scroll(false)
-            .resizable(true)
-            .default_height(300.0)
-            .show(ctx, |ui| {
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.heading("We have a sub-region with scroll bar:");
-                ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM_LONG);
-                    ui.label(crate::LOREM_IPSUM_LONG);
+                ui.label("This window will auto-size based on its contents.");
+                ui.heading("Resize this area:");
+                Resize::default().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM);
                 });
-                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+                ui.heading("Resize the above area!");
             });
 
         Window::new("↔ resizable + scroll")
@@ -313,21 +347,38 @@ impl super::Demo for WindowResizeTest {
             .resizable(true)
             .default_height(300.0)
             .show(ctx, |ui| {
-                ui.label("scroll:    YES");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM_LONG);
+                ui.label(
+                    "This window is resizable and has a scroll area. You can shrink it to any size",
+                );
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM_LONG);
             });
 
-        Window::new("↔ auto_sized")
+        Window::new("↔ resizable + embedded scroll")
             .open(open)
-            .auto_sized()
+            .scroll(false)
+            .resizable(true)
+            .default_height(300.0)
             .show(ctx, |ui| {
-                ui.label("This window will auto-size based on its contents.");
-                ui.heading("Resize this area:");
-                Resize::default().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM);
+                ui.label("This window is resizable but has no built-in scroll area.");
+                ui.label("However, we have a sub-region with a scroll bar:");
+                ui.separator();
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM_LONG);
+                    ui.code(crate::LOREM_IPSUM_LONG);
                 });
-                ui.heading("Resize the above area!");
+                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+            });
+
+        Window::new("↔ resizable without scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.label("This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.");
+                ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM);
             });
     }
 }

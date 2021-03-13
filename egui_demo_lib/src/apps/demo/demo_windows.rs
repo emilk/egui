@@ -26,6 +26,7 @@ impl Default for Demos {
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
             // Tests:
+            Box::new(super::tests::CursorTest::default()),
             Box::new(super::tests::IdTest::default()),
             Box::new(super::tests::InputTest::default()),
             Box::new(super::layout_test::LayoutTest::default()),
@@ -83,8 +84,6 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 pub struct DemoWindows {
     open_windows: OpenWindows,
 
-    demo_window: super::DemoWindow,
-
     /// open, title, view
     demos: Demos,
 }
@@ -93,7 +92,7 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        egui::SidePanel::left("side_panel", 185.0).show(ctx, |ui| {
+        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
             ui.heading("✒ egui demos");
 
             ui.separator();

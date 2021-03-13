@@ -93,7 +93,7 @@ impl epi::App for WrapApp {
                     {
                         self.selected_anchor = anchor.to_owned();
                         if frame.is_web() {
-                            ui.output().open_url = Some(format!("#{}", anchor));
+                            ui.output().open_url(format!("#{}", anchor));
                         }
                     }
                 }
@@ -105,7 +105,7 @@ impl epi::App for WrapApp {
                             if clock_button(ui, seconds_since_midnight).clicked() {
                                 self.selected_anchor = "clock".to_owned();
                                 if frame.is_web() {
-                                    ui.output().open_url = Some("#clock".to_owned());
+                                    ui.output().open_url("#clock");
                                 }
                             }
                         }
@@ -117,6 +117,7 @@ impl epi::App for WrapApp {
         });
 
         self.backend_panel.update(ctx, frame);
+
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
@@ -128,6 +129,8 @@ impl epi::App for WrapApp {
                 app.update(ctx, frame);
             }
         }
+
+        self.backend_panel.end_of_frame(ctx);
     }
 }
 
@@ -216,6 +219,9 @@ struct BackendPanel {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
 }
 
 impl Default for BackendPanel {
@@ -227,6 +233,7 @@ impl Default for BackendPanel {
             max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
             max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
             frame_history: Default::default(),
+            output_event_history: Default::default(),
         }
     }
 }
@@ -239,6 +246,15 @@ impl BackendPanel {
         if self.run_mode == RunMode::Continuous {
             // Tell the backend to repaint as soon as possible
             ctx.request_repaint();
+        }
+    }
+
+    fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
+        for event in &ctx.output().events {
+            self.output_event_history.push_back(event.clone());
+        }
+        while self.output_event_history.len() > 10 {
+            self.output_event_history.pop_front();
         }
     }
 
@@ -298,6 +314,15 @@ impl BackendPanel {
                 frame.quit();
             }
         }
+
+        ui.collapsing("Output events", |ui| {
+            ui.set_max_width(450.0);
+            ui.label("Recent output events from egui:");
+            ui.advance_cursor(8.0);
+            for event in &self.output_event_history {
+                ui.label(format!("{:?}", event));
+            }
+        });
     }
 
     fn pixels_per_point_ui(

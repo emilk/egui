@@ -2,7 +2,7 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: `epi`, `eframe`, `egui_web` and `egui_glium` has their own changelogs!
+NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
@@ -11,10 +11,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
+* You can now give focus to any clickable widget with tab/shift-tab.
+  * Use space or enter to click the selected widget.
+  * Use arrow keys to adjust sliders and `DragValue`s.
+* egui will now output events when widgets gain keyboard focus.
+  * This can be hooked up to a screen reader to aid the visually impaired
+* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
+
+### Fixed 🐛
+
+* Fixed secondary-click to open a menu
+
+
+## 0.10.0 - 2021-02-28 - Plot and polish
+
+<img src="media/egui-0.10-plot.gif" width="50%">
+
+### Added ⭐
+
 * Add `egui::plot::Plot` to plot some 2D data.
 * Add `Ui::hyperlink_to(label, url)`.
 * Sliders can now have a value prefix and suffix (e.g. the suffix `"°"` works like a unit).
 * `Context::set_pixels_per_point` to control the scale of the UI.
+* Add `Response::changed()` to query if e.g. a slider was dragged, text was entered or a checkbox was clicked.
 * Add support for all integers in `DragValue` and `Slider` (except 128-bit).
 
 ### Changed 🔧
@@ -195,7 +214,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Much improved text editing, with better navigation and selection.
   * Move focus between `TextEdit` widgets with tab and shift-tab.
   * Undo edtis in a `TextEdit`.
-  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_kb_focus`.
+  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
 * You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
 

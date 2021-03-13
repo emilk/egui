@@ -1,6 +1,6 @@
 [package]
 name = "epi"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
@@ -10,12 +10,17 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [ "**/*.rs", "Cargo.toml"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+]
 
 [lib]
 
 [dependencies]
-egui = { version = "0.9.0", path = "../egui" }
+egui = { version = "0.10.0", path = "../egui" }
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
 

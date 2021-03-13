@@ -173,12 +173,15 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut previous_frame_time = None;
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
+    let mut current_cursor_icon = CursorIcon::Default;
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
 
     #[cfg(feature = "http")]
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
+
+    let mut screen_reader = crate::screen_reader::ScreenReader::default();
 
     if app.warm_up_enabled() {
         // let warm_up_start = Instant::now();
@@ -191,7 +194,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(&display, None),
-            tex_allocator: Some(&mut painter),
+            tex_allocator: &mut painter,
             #[cfg(feature = "http")]
             http: http.clone(),
             output: &mut app_output,
@@ -206,7 +209,11 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         ctx.clear_animations();
 
         let (egui_output, _shapes) = ctx.end_frame();
-        handle_output(egui_output, &display, clipboard.as_mut());
+
+        set_cursor_icon(&display, egui_output.cursor_icon);
+        current_cursor_icon = egui_output.cursor_icon;
+        handle_output(egui_output, clipboard.as_mut());
+
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
     }
@@ -229,7 +236,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
-                tex_allocator: Some(&mut painter),
+                tex_allocator: &mut painter,
                 #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,
@@ -273,7 +280,14 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 };
             }
 
-            handle_output(egui_output, &display, clipboard.as_mut());
+            screen_reader.speak(&egui_output.events_description());
+            if current_cursor_icon != egui_output.cursor_icon {
+                // call only when changed to prevent flickering near frame boundary
+                // when Windows OS tries to control cursor icon for window resizing
+                set_cursor_icon(&display, egui_output.cursor_icon);
+                current_cursor_icon = egui_output.cursor_icon;
+            }
+            handle_output(egui_output, clipboard.as_mut());
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {

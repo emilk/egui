@@ -5,7 +5,7 @@ use emath::*;
 ///
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -21,7 +21,7 @@ pub struct Vertex {
 }
 
 /// Textured triangles in two dimensions.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
     ///

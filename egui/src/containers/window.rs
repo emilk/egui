@@ -204,6 +204,12 @@ impl<'open> Window<'open> {
         }
         self
     }
+
+    /// Constrain the area up to which the window can be dragged.
+    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
+        self.area = self.area.drag_bounds(bounds);
+        self
+    }
 }
 
 impl<'open> Window<'open> {
@@ -275,6 +281,7 @@ impl<'open> Window<'open> {
                     0.0
                 };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
+                let bounds = area.drag_bounds();
 
                 interact(
                     window_interaction,
@@ -283,6 +290,7 @@ impl<'open> Window<'open> {
                     area_layer_id,
                     area.state_mut(),
                     resize_id,
+                    bounds,
                 )
             })
         } else {
@@ -435,10 +443,16 @@ fn interact(
     area_layer_id: LayerId,
     area_state: &mut area::State,
     resize_id: Id,
+    drag_bounds: Option<Rect>,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
-    let new_rect = ctx.constrain_window_rect(new_rect);
+
+    let new_rect = if let Some(bounds) = drag_bounds {
+        ctx.constrain_window_rect_to_area(new_rect, bounds)
+    } else {
+        ctx.constrain_window_rect(new_rect)
+    };
 
     // TODO: add this to a Window state instead as a command "move here next frame"
     area_state.pos = new_rect.min;
