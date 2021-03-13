@@ -1,7 +1,7 @@
 use crate::color::Color32;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TextColorMap {
     color_map: BTreeMap<usize, Color32>,
 }
