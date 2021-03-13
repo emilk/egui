@@ -250,7 +250,23 @@ impl Painter {
         self.user_textures.push(Some(Default::default()));
         id
     }
-
+    /// register glium texture as egui texture
+    /// Usable for render to image rectangle
+    pub fn register_glium_texture(
+        &mut self,
+        texture: glium::texture::SrgbTexture2d,
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    pixels: vec![],
+                    gl_texture: Some(texture),
+                }
+            }
+        }
+        id
+    }
     pub fn set_user_texture(
         &mut self,
         id: egui::TextureId,
@@ -283,7 +299,7 @@ impl Painter {
         }
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         match texture_id {
             egui::TextureId::Egui => self.egui_texture.as_ref(),
             egui::TextureId::User(id) => self

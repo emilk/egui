@@ -136,8 +136,7 @@ impl WebGlPainter {
             }
         }
     }
-
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
         match texture_id {
             egui::TextureId::Egui => Some(&self.egui_texture),
             egui::TextureId::User(id) => self
@@ -190,7 +189,17 @@ impl WebGlPainter {
             }
         }
     }
-
+    pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
+        let id = self.alloc_user_texture_index();
+        if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
+            *user_texture = UserTexture {
+                size: (0, 0),
+                pixels: vec![],
+                gl_texture: Some(texture),
+            }
+        }
+        egui::TextureId::User(id as u64)
+    }
     fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
         debug_assert!(mesh.is_valid());
 
