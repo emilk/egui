@@ -1,9 +1,9 @@
 #[derive(Default)]
-pub struct Tests {}
+pub struct CursorTest {}
 
-impl super::Demo for Tests {
-    fn name(&self) -> &str {
-        "📋 Tests"
+impl super::Demo for CursorTest {
+    fn name(&self) -> &'static str {
+        "Cursor Test"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
@@ -14,7 +14,38 @@ impl super::Demo for Tests {
     }
 }
 
-impl super::View for Tests {
+impl super::View for CursorTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Hover to switch cursor icon:");
+        ui.vertical_centered_justified(|ui| {
+            for &cursor_icon in &egui::CursorIcon::ALL {
+                let _ = ui
+                    .button(format!("{:?}", cursor_icon))
+                    .on_hover_cursor(cursor_icon);
+            }
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+pub struct IdTest {}
+
+impl super::Demo for IdTest {
+    fn name(&self) -> &'static str {
+        "ID Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for IdTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Name collision example");
 
@@ -47,5 +78,307 @@ impl super::View for Tests {
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum WidgetType {
+    Label,
+    Button,
+    TextEdit,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ManualLayoutTest {
+    widget_offset: egui::Vec2,
+    widget_size: egui::Vec2,
+    widget_type: WidgetType,
+    text_edit_contents: String,
+}
+
+impl Default for ManualLayoutTest {
+    fn default() -> Self {
+        Self {
+            widget_offset: egui::Vec2::splat(150.0),
+            widget_size: egui::Vec2::new(200.0, 100.0),
+            widget_type: WidgetType::Button,
+            text_edit_contents: crate::LOREM_IPSUM.to_owned(),
+        }
+    }
+}
+
+impl super::Demo for ManualLayoutTest {
+    fn name(&self) -> &'static str {
+        "Manual Layout Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for ManualLayoutTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        egui::reset_button(ui, self);
+
+        let Self {
+            widget_offset,
+            widget_size,
+            widget_type,
+            text_edit_contents,
+        } = self;
+        ui.horizontal(|ui| {
+            ui.label("Test widget:");
+            ui.radio_value(widget_type, WidgetType::Button, "Button");
+            ui.radio_value(widget_type, WidgetType::Label, "Label");
+            ui.radio_value(widget_type, WidgetType::TextEdit, "TextEdit");
+        });
+        egui::Grid::new("pos_size").show(ui, |ui| {
+            ui.label("Widget position:");
+            ui.add(egui::Slider::f32(&mut widget_offset.x, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_offset.y, 0.0..=400.0));
+            ui.end_row();
+
+            ui.label("Widget size:");
+            ui.add(egui::Slider::f32(&mut widget_size.x, 0.0..=400.0));
+            ui.add(egui::Slider::f32(&mut widget_size.y, 0.0..=400.0));
+            ui.end_row();
+        });
+
+        let widget_rect =
+            egui::Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
+
+        ui.add(crate::__egui_github_link_file!());
+
+        // Showing how to place a widget anywhere in the `Ui`:
+        match *widget_type {
+            WidgetType::Button => {
+                ui.put(widget_rect, egui::Button::new("Example button"));
+            }
+            WidgetType::Label => {
+                ui.put(widget_rect, egui::Label::new("Example label"));
+            }
+            WidgetType::TextEdit => {
+                ui.put(widget_rect, egui::TextEdit::multiline(text_edit_contents));
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(PartialEq)]
+pub struct TableTest {
+    num_cols: usize,
+    num_rows: usize,
+    min_col_width: f32,
+    max_col_width: f32,
+}
+
+impl Default for TableTest {
+    fn default() -> Self {
+        Self {
+            num_cols: 4,
+            num_rows: 4,
+            min_col_width: 10.0,
+            max_col_width: 200.0,
+        }
+    }
+}
+
+impl super::Demo for TableTest {
+    fn name(&self) -> &'static str {
+        "Table Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View;
+            self.ui(ui);
+        });
+    }
+}
+
+impl super::View for TableTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(
+            egui::Slider::f32(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
+        );
+        ui.add(
+            egui::Slider::f32(&mut self.max_col_width, 0.0..=400.0).text("Maximum column width"),
+        );
+        ui.add(egui::Slider::usize(&mut self.num_cols, 0..=5).text("Columns"));
+        ui.add(egui::Slider::usize(&mut self.num_rows, 0..=20).text("Rows"));
+
+        ui.separator();
+
+        let words = [
+            "random", "words", "in", "a", "random", "order", "that", "just", "keeps", "going",
+            "with", "some", "more",
+        ];
+
+        egui::Grid::new("my_grid")
+            .striped(true)
+            .min_col_width(self.min_col_width)
+            .max_col_width(self.max_col_width)
+            .show(ui, |ui| {
+                for row in 0..self.num_rows {
+                    for col in 0..self.num_cols {
+                        if col == 0 {
+                            ui.label(format!("row {}", row));
+                        } else {
+                            let word_idx = row * 3 + col * 5;
+                            let word_count = (row * 5 + col * 75) % 13;
+                            let mut string = String::new();
+                            for word in words.iter().cycle().skip(word_idx).take(word_count) {
+                                string += word;
+                                string += " ";
+                            }
+                            ui.label(string);
+                        }
+                    }
+                    ui.end_row();
+                }
+            });
+
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default)]
+pub struct InputTest {
+    info: String,
+}
+
+impl super::Demo for InputTest {
+    fn name(&self) -> &'static str {
+        "Input Test"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                use super::View;
+                self.ui(ui);
+            });
+    }
+}
+
+impl super::View for InputTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
+        let response = ui.add(
+            egui::Button::new("Click, double-click or drag me with any mouse button")
+                .sense(egui::Sense::click_and_drag()),
+        );
+
+        let mut new_info = String::new();
+        for &button in &[
+            egui::PointerButton::Primary,
+            egui::PointerButton::Secondary,
+            egui::PointerButton::Middle,
+        ] {
+            if response.clicked_by(button) {
+                new_info += &format!("Clicked by {:?}\n", button);
+            }
+            if response.double_clicked_by(button) {
+                new_info += &format!("Double-clicked by {:?}\n", button);
+            }
+            if response.dragged_by(button) {
+                new_info += &format!(
+                    "Dragged by {:?}, delta: {:?}\n",
+                    button,
+                    response.drag_delta()
+                );
+            }
+        }
+        if !new_info.is_empty() {
+            self.info = new_info;
+        }
+
+        ui.label(&self.info);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+pub struct WindowResizeTest {}
+
+impl super::Demo for WindowResizeTest {
+    fn name(&self) -> &'static str {
+        "↔ Window Resize"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        use egui::*;
+
+        Window::new("↔ auto-sized")
+            .open(open)
+            .auto_sized()
+            .show(ctx, |ui| {
+                ui.label("This window will auto-size based on its contents.");
+                ui.heading("Resize this area:");
+                Resize::default().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM);
+                });
+                ui.heading("Resize the above area!");
+            });
+
+        Window::new("↔ resizable + scroll")
+            .open(open)
+            .scroll(true)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label(
+                    "This window is resizable and has a scroll area. You can shrink it to any size",
+                );
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM_LONG);
+            });
+
+        Window::new("↔ resizable + embedded scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                ui.label("This window is resizable but has no built-in scroll area.");
+                ui.label("However, we have a sub-region with a scroll bar:");
+                ui.separator();
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.code(crate::LOREM_IPSUM_LONG);
+                    ui.code(crate::LOREM_IPSUM_LONG);
+                });
+                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
+            });
+
+        Window::new("↔ resizable without scroll")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.label("This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.");
+                ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
+                ui.separator();
+                ui.code(crate::LOREM_IPSUM);
+            });
     }
 }

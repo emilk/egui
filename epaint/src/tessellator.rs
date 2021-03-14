@@ -1,19 +1,13 @@
 //! Converts graphics primitives into textured triangles.
 //!
 //! This module converts lines, circles, text and more represented by [`Shape`]
-//! into textured triangles represented by [`Triangles`].
+//! into textured triangles represented by [`Mesh`].
 
 #![allow(clippy::identity_op)]
 
 use crate::{text::Fonts, *};
 use emath::*;
 use std::f32::consts::TAU;
-
-/// A clip triangle and some textured triangles.
-pub type PaintJob = (Rect, Triangles);
-
-/// Grouped by clip rectangles, in pixel coordinates
-pub type PaintJobs = Vec<PaintJob>;
 
 // ----------------------------------------------------------------------------
 
@@ -87,15 +81,27 @@ impl Path {
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
                 // Handle duplicated points (but not triplicated...):
-                if n0 == Vec2::zero() {
+                if n0 == Vec2::ZERO {
                     n0 = n1;
-                } else if n1 == Vec2::zero() {
+                } else if n1 == Vec2::ZERO {
                     n1 = n0;
                 }
 
-                let v = (n0 + n1) / 2.0;
-                let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
-                self.add_point(points[i], normal);
+                let normal = (n0 + n1) / 2.0;
+                let length_sq = normal.length_sq();
+                let right_angle_length_sq = 0.5;
+                let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
+                if sharper_than_a_right_angle {
+                    // cut off the sharp corner
+                    let center_normal = normal.normalized();
+                    let n0c = (n0 + center_normal) / 2.0;
+                    let n1c = (n1 + center_normal) / 2.0;
+                    self.add_point(points[i], n0c / n0c.length_sq());
+                    self.add_point(points[i], n1c / n1c.length_sq());
+                } else {
+                    // miter join
+                    self.add_point(points[i], normal / length_sq);
+                }
             }
             self.add_point(
                 points[n - 1],
@@ -115,18 +121,27 @@ impl Path {
             let mut n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
 
             // Handle duplicated points (but not triplicated...):
-            if n0 == Vec2::zero() {
+            if n0 == Vec2::ZERO {
                 n0 = n1;
-            } else if n1 == Vec2::zero() {
+            } else if n1 == Vec2::ZERO {
                 n1 = n0;
             }
 
-            // if n1 == Vec2::zero() {
-            //     continue
-            // }
-            let v = (n0 + n1) / 2.0;
-            let normal = v / v.length_sq(); // TODO: handle VERY sharp turns better
-            self.add_point(points[i], normal);
+            let normal = (n0 + n1) / 2.0;
+            let length_sq = normal.length_sq();
+            let right_angle_length_sq = 0.5;
+            let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
+            if sharper_than_a_right_angle {
+                // cut off the sharp corner
+                let center_normal = normal.normalized();
+                let n0c = (n0 + center_normal) / 2.0;
+                let n1c = (n1 + center_normal) / 2.0;
+                self.add_point(points[i], n0c / n0c.length_sq());
+                self.add_point(points[i], n1c / n1c.length_sq());
+            } else {
+                // miter join
+                self.add_point(points[i], normal / length_sq);
+            }
         }
     }
 }
@@ -245,7 +260,7 @@ fn fill_closed_path(
     path: &[PathPoint],
     color: Color32,
     options: TessellationOptions,
-    out: &mut Triangles,
+    out: &mut Mesh,
 ) {
     if color == Color32::TRANSPARENT {
         return;
@@ -291,7 +306,7 @@ fn stroke_path(
     path_type: PathType,
     stroke: Stroke,
     options: TessellationOptions,
-    out: &mut Triangles,
+    out: &mut Mesh,
 ) {
     if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
         return;
@@ -426,13 +441,14 @@ fn stroke_path(
 
 fn mul_color(color: Color32, factor: f32) -> Color32 {
     debug_assert!(0.0 <= factor && factor <= 1.0);
-    // sRGBA correct fading requires conversion to linear space and back again because of premultiplied alpha
-    Rgba::from(color).multiply(factor).into()
+    // As an unfortunate side-effect of using premultiplied alpha
+    // we need a somewhat expensive conversion to linear space and back.
+    color.linear_multiply(factor)
 }
 
 // ----------------------------------------------------------------------------
 
-/// Converts [`Shape`]s into [`Triangles`].
+/// Converts [`Shape`]s into [`Mesh`].
 pub struct Tessellator {
     options: TessellationOptions,
     /// Only used for culling
@@ -445,13 +461,13 @@ impl Tessellator {
     pub fn from_options(options: TessellationOptions) -> Self {
         Self {
             options,
-            clip_rect: Rect::everything(),
+            clip_rect: Rect::EVERYTHING,
             scratchpad_points: Default::default(),
             scratchpad_path: Default::default(),
         }
     }
 
-    /// Tessellate a single [`Shape`] into a [`Triangles`].
+    /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
     /// * `shape`: the shape to tessellate
     /// * `options`: tessellation quality
@@ -459,7 +475,7 @@ impl Tessellator {
     /// * `out`: where the triangles are put
     /// * `scratchpad_path`: if you plan to run `tessellate_shape`
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Triangles) {
+    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
         let options = self.options;
 
@@ -492,11 +508,11 @@ impl Tessellator {
                 fill_closed_path(&path.0, fill, options, out);
                 stroke_path(&path.0, Closed, stroke, options, out);
             }
-            Shape::Triangles(triangles) => {
-                if triangles.is_valid() {
-                    out.append(triangles);
+            Shape::Mesh(mesh) => {
+                if mesh.is_valid() {
+                    out.append(mesh);
                 } else {
-                    debug_assert!(false, "Invalid Triangles in Shape::Triangles");
+                    debug_assert!(false, "Invalid Mesh in Shape::Mesh");
                 }
             }
             Shape::LineSegment { points, stroke } => {
@@ -550,6 +566,7 @@ impl Tessellator {
                 galley,
                 text_style,
                 color,
+                fake_italics,
             } => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
@@ -562,12 +579,12 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(fonts, pos, &galley, text_style, color, out);
+                self.tessellate_text(fonts, pos, &galley, text_style, color, fake_italics, out);
             }
         }
     }
 
-    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Triangles) {
+    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Mesh) {
         let PaintRect {
             mut rect,
             corner_radius,
@@ -597,6 +614,7 @@ impl Tessellator {
         stroke_path(&path.0, Closed, stroke, self.options, out);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn tessellate_text(
         &mut self,
         fonts: &Fonts,
@@ -604,7 +622,8 @@ impl Tessellator {
         galley: &super::Galley,
         text_style: super::TextStyle,
         color: Color32,
-        out: &mut Triangles,
+        fake_italics: bool,
+        out: &mut Mesh,
     ) {
         if color == Color32::TRANSPARENT {
             return;
@@ -641,12 +660,42 @@ impl Tessellator {
                     left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
                     left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
 
-                    let pos = Rect::from_min_max(left_top, left_top + glyph.size);
+                    let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
                         pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
                         pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
                     );
-                    out.add_rect_with_uv(pos, uv, color);
+
+                    if fake_italics {
+                        let idx = out.vertices.len() as u32;
+                        out.add_triangle(idx, idx + 1, idx + 2);
+                        out.add_triangle(idx + 2, idx + 1, idx + 3);
+
+                        let top_offset = rect.height() * 0.25 * Vec2::X;
+
+                        out.vertices.push(Vertex {
+                            pos: rect.left_top() + top_offset,
+                            uv: uv.left_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_top() + top_offset,
+                            uv: uv.right_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.left_bottom(),
+                            uv: uv.left_bottom(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_bottom(),
+                            uv: uv.right_bottom(),
+                            color,
+                        });
+                    } else {
+                        out.add_rect_with_uv(rect, uv, color);
+                    }
                 }
             }
             if line.ends_with_newline {
@@ -668,33 +717,34 @@ impl Tessellator {
 /// * `fonts`: font source when tessellating text
 ///
 /// ## Returns
-/// A list of clip rectangles with matching [`Triangles`].
+/// A list of clip rectangles with matching [`Mesh`].
 pub fn tessellate_shapes(
-    shapes: Vec<(Rect, Shape)>,
+    shapes: Vec<ClippedShape>,
     options: TessellationOptions,
     fonts: &Fonts,
-) -> Vec<(Rect, Triangles)> {
+) -> Vec<ClippedMesh> {
     let mut tessellator = Tessellator::from_options(options);
 
-    let mut jobs = PaintJobs::default();
-    for (clip_rect, shape) in shapes {
-        let start_new_job = match jobs.last() {
+    let mut clipped_meshes: Vec<ClippedMesh> = Vec::default();
+
+    for ClippedShape(clip_rect, shape) in shapes {
+        let start_new_mesh = match clipped_meshes.last() {
             None => true,
-            Some(job) => job.0 != clip_rect || job.1.texture_id != shape.texture_id(),
+            Some(cm) => cm.0 != clip_rect || cm.1.texture_id != shape.texture_id(),
         };
 
-        if start_new_job {
-            jobs.push((clip_rect, Triangles::default()));
+        if start_new_mesh {
+            clipped_meshes.push(ClippedMesh(clip_rect, Mesh::default()));
         }
 
-        let out = &mut jobs.last_mut().unwrap().1;
+        let out = &mut clipped_meshes.last_mut().unwrap().1;
         tessellator.clip_rect = clip_rect;
         tessellator.tessellate_shape(fonts, shape, out);
     }
 
     if options.debug_paint_clip_rects {
-        for (clip_rect, triangles) in &mut jobs {
-            tessellator.clip_rect = Rect::everything();
+        for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
+            tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
                 fonts,
                 Shape::Rect {
@@ -703,23 +753,20 @@ pub fn tessellate_shapes(
                     fill: Default::default(),
                     stroke: Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
                 },
-                triangles,
+                mesh,
             )
         }
     }
 
     if options.debug_ignore_clip_rects {
-        for (clip_rect, _) in &mut jobs {
-            *clip_rect = Rect::everything();
+        for ClippedMesh(clip_rect, _) in &mut clipped_meshes {
+            *clip_rect = Rect::EVERYTHING;
         }
     }
 
-    for (_, triangles) in &jobs {
-        debug_assert!(
-            triangles.is_valid(),
-            "Tessellator generated invalid Triangles"
-        );
+    for ClippedMesh(_, mesh) in &clipped_meshes {
+        debug_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
     }
 
-    jobs
+    clipped_meshes
 }

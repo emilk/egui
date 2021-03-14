@@ -15,26 +15,29 @@ pub mod http;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;
+pub mod screen_reader;
 pub mod window_settings;
 
 pub use backend::*;
 pub use painter::Painter;
 
 use {
-    clipboard::ClipboardProvider,
+    copypasta::ClipboardProvider,
     egui::*,
     glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
 };
 
-pub use clipboard::ClipboardContext; // TODO: remove
+pub use copypasta::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
+    pub pointer_pos_in_points: Option<Pos2>,
     pub raw: egui::RawInput,
 }
 
 impl GliumInputState {
     pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
         Self {
+            pointer_pos_in_points: Default::default(),
             raw: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
@@ -44,41 +47,61 @@ impl GliumInputState {
 }
 
 pub fn input_to_egui(
+    pixels_per_point: f32,
     event: glutin::event::WindowEvent<'_>,
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
     control_flow: &mut ControlFlow,
 ) {
-    use glutin::event::WindowEvent::*;
+    use glutin::event::WindowEvent;
     match event {
-        CloseRequested | Destroyed => *control_flow = ControlFlow::Exit,
-        MouseInput { state, .. } => {
-            input_state.raw.mouse_down = state == glutin::event::ElementState::Pressed;
+        WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
+        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+            input_state.raw.pixels_per_point = Some(scale_factor as f32);
         }
-        CursorMoved {
+        WindowEvent::MouseInput { state, button, .. } => {
+            if let Some(pos_in_points) = input_state.pointer_pos_in_points {
+                if let Some(button) = translate_mouse_button(button) {
+                    input_state.raw.events.push(egui::Event::PointerButton {
+                        pos: pos_in_points,
+                        button,
+                        pressed: state == glutin::event::ElementState::Pressed,
+                        modifiers: input_state.raw.modifiers,
+                    });
+                }
+            }
+        }
+        WindowEvent::CursorMoved {
             position: pos_in_pixels,
             ..
         } => {
-            input_state.raw.mouse_pos = Some(pos2(
-                pos_in_pixels.x as f32 / input_state.raw.pixels_per_point.unwrap(),
-                pos_in_pixels.y as f32 / input_state.raw.pixels_per_point.unwrap(),
-            ));
+            let pos_in_points = pos2(
+                pos_in_pixels.x as f32 / pixels_per_point,
+                pos_in_pixels.y as f32 / pixels_per_point,
+            );
+            input_state.pointer_pos_in_points = Some(pos_in_points);
+            input_state
+                .raw
+                .events
+                .push(egui::Event::PointerMoved(pos_in_points));
         }
-        CursorLeft { .. } => {
-            input_state.raw.mouse_pos = None;
+        WindowEvent::CursorLeft { .. } => {
+            input_state.pointer_pos_in_points = None;
+            input_state.raw.events.push(egui::Event::PointerGone);
         }
-        ReceivedCharacter(ch) => {
-            if printable_char(ch)
+        WindowEvent::ReceivedCharacter(ch) => {
+            if is_printable_char(ch)
                 && !input_state.raw.modifiers.ctrl
                 && !input_state.raw.modifiers.mac_cmd
             {
                 input_state.raw.events.push(Event::Text(ch.to_string()));
             }
         }
-        KeyboardInput { input, .. } => {
+        WindowEvent::KeyboardInput { input, .. } => {
             if let Some(keycode) = input.virtual_keycode {
                 let pressed = input.state == glutin::event::ElementState::Pressed;
 
+                // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
                 if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
                     input_state.raw.modifiers.alt = pressed;
                 }
@@ -135,7 +158,7 @@ pub fn input_to_egui(
                 }
             }
         }
-        MouseWheel { delta, .. } => {
+        WindowEvent::MouseWheel { delta, .. } => {
             match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 24.0; // TODO
@@ -157,12 +180,21 @@ pub fn input_to_egui(
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
 /// Newlines are handled by the `Key::Enter` event.
-fn printable_char(chr: char) -> bool {
+fn is_printable_char(chr: char) -> bool {
     let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
         || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
         || '\u{100000}' <= chr && chr <= '\u{10fffd}';
 
     !is_in_private_use_area && !chr.is_ascii_control()
+}
+
+pub fn translate_mouse_button(button: glutin::event::MouseButton) -> Option<egui::PointerButton> {
+    match button {
+        glutin::event::MouseButton::Left => Some(egui::PointerButton::Primary),
+        glutin::event::MouseButton::Right => Some(egui::PointerButton::Secondary),
+        glutin::event::MouseButton::Middle => Some(egui::PointerButton::Middle),
+        _ => None,
+    }
 }
 
 pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
@@ -231,27 +263,49 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
     })
 }
 
-pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glutin::window::CursorIcon {
+fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<glutin::window::CursorIcon> {
     match cursor_icon {
-        CursorIcon::Default => glutin::window::CursorIcon::Default,
-        CursorIcon::PointingHand => glutin::window::CursorIcon::Hand,
-        CursorIcon::ResizeHorizontal => glutin::window::CursorIcon::EwResize,
-        CursorIcon::ResizeNeSw => glutin::window::CursorIcon::NeswResize,
-        CursorIcon::ResizeNwSe => glutin::window::CursorIcon::NwseResize,
-        CursorIcon::ResizeVertical => glutin::window::CursorIcon::NsResize,
-        CursorIcon::Text => glutin::window::CursorIcon::Text,
-        CursorIcon::Grab => glutin::window::CursorIcon::Grab,
-        CursorIcon::Grabbing => glutin::window::CursorIcon::Grabbing,
+        CursorIcon::None => None,
+
+        CursorIcon::Alias => Some(glutin::window::CursorIcon::Alias),
+        CursorIcon::AllScroll => Some(glutin::window::CursorIcon::AllScroll),
+        CursorIcon::Cell => Some(glutin::window::CursorIcon::Cell),
+        CursorIcon::ContextMenu => Some(glutin::window::CursorIcon::ContextMenu),
+        CursorIcon::Copy => Some(glutin::window::CursorIcon::Copy),
+        CursorIcon::Crosshair => Some(glutin::window::CursorIcon::Crosshair),
+        CursorIcon::Default => Some(glutin::window::CursorIcon::Default),
+        CursorIcon::Grab => Some(glutin::window::CursorIcon::Grab),
+        CursorIcon::Grabbing => Some(glutin::window::CursorIcon::Grabbing),
+        CursorIcon::Help => Some(glutin::window::CursorIcon::Help),
+        CursorIcon::Move => Some(glutin::window::CursorIcon::Move),
+        CursorIcon::NoDrop => Some(glutin::window::CursorIcon::NoDrop),
+        CursorIcon::NotAllowed => Some(glutin::window::CursorIcon::NotAllowed),
+        CursorIcon::PointingHand => Some(glutin::window::CursorIcon::Hand),
+        CursorIcon::Progress => Some(glutin::window::CursorIcon::Progress),
+        CursorIcon::ResizeHorizontal => Some(glutin::window::CursorIcon::EwResize),
+        CursorIcon::ResizeNeSw => Some(glutin::window::CursorIcon::NeswResize),
+        CursorIcon::ResizeNwSe => Some(glutin::window::CursorIcon::NwseResize),
+        CursorIcon::ResizeVertical => Some(glutin::window::CursorIcon::NsResize),
+        CursorIcon::Text => Some(glutin::window::CursorIcon::Text),
+        CursorIcon::VerticalText => Some(glutin::window::CursorIcon::VerticalText),
+        CursorIcon::Wait => Some(glutin::window::CursorIcon::Wait),
+        CursorIcon::ZoomIn => Some(glutin::window::CursorIcon::ZoomIn),
+        CursorIcon::ZoomOut => Some(glutin::window::CursorIcon::ZoomOut),
     }
 }
 
-pub fn handle_output(
-    output: egui::Output,
-    display: &glium::backend::glutin::Display,
-    clipboard: Option<&mut ClipboardContext>,
-) {
-    if let Some(url) = output.open_url {
-        if let Err(err) = webbrowser::open(&url) {
+fn set_cursor_icon(display: &glium::backend::glutin::Display, cursor_icon: egui::CursorIcon) {
+    if let Some(cursor_icon) = translate_cursor(cursor_icon) {
+        display.gl_window().window().set_cursor_visible(true);
+        display.gl_window().window().set_cursor_icon(cursor_icon);
+    } else {
+        display.gl_window().window().set_cursor_visible(false);
+    }
+}
+
+pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
+    if let Some(open) = output.open_url {
+        if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
         }
     }
@@ -263,11 +317,6 @@ pub fn handle_output(
             }
         }
     }
-
-    display
-        .gl_window()
-        .window()
-        .set_cursor_icon(translate_cursor(output.cursor_icon));
 }
 
 pub fn init_clipboard() -> Option<ClipboardContext> {

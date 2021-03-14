@@ -2,7 +2,7 @@
 
 use crate::*;
 
-/// left/center/right or top/center/bottom alignment for e.g. anchors and `Layout`s.
+/// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -19,20 +19,29 @@ pub enum Align {
 
 impl Align {
     /// Convenience for [`Self::Min`]
-    pub fn left() -> Self {
-        Self::Min
-    }
+    pub const LEFT: Self = Self::Min;
     /// Convenience for [`Self::Max`]
-    pub fn right() -> Self {
-        Self::Max
-    }
+    pub const RIGHT: Self = Self::Max;
     /// Convenience for [`Self::Min`]
-    pub fn top() -> Self {
-        Self::Min
-    }
+    pub const TOP: Self = Self::Min;
     /// Convenience for [`Self::Max`]
+    pub const BOTTOM: Self = Self::Max;
+
+    #[deprecated = "Use Self::LEFT"]
+    pub fn left() -> Self {
+        Self::LEFT
+    }
+    #[deprecated = "Use Self::RIGHT"]
+    pub fn right() -> Self {
+        Self::RIGHT
+    }
+    #[deprecated = "Use Self::TOP"]
+    pub fn top() -> Self {
+        Self::TOP
+    }
+    #[deprecated = "Use Self::BOTTOM"]
     pub fn bottom() -> Self {
-        Self::Max
+        Self::BOTTOM
     }
 
     /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.

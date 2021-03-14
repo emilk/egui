@@ -1,46 +1,77 @@
-use egui::{CtxRef, Resize, ScrollArea, Ui, Window};
+use egui::{CtxRef, ScrollArea, Ui, Window};
+use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 struct Demos {
-    open: Vec<bool>,
-
     #[cfg_attr(feature = "persistence", serde(skip))]
     demos: Vec<Box<dyn super::Demo>>,
+
+    open: BTreeSet<String>,
 }
 impl Default for Demos {
     fn default() -> Self {
         let demos: Vec<Box<dyn super::Demo>> = vec![
-            Box::new(super::WidgetGallery::default()),
-            Box::new(super::FontBook::default()),
-            Box::new(super::Painting::default()),
-            Box::new(super::DancingStrings::default()),
-            Box::new(super::DragAndDropDemo::default()),
-            Box::new(super::Tests::default()),
-            Box::new(super::WindowOptions::default()),
+            Box::new(super::dancing_strings::DancingStrings::default()),
+            Box::new(super::drag_and_drop::DragAndDropDemo::default()),
+            Box::new(super::font_book::FontBook::default()),
+            Box::new(super::DemoWindow::default()),
+            Box::new(super::painting::Painting::default()),
+            Box::new(super::plot_demo::PlotDemo::default()),
+            Box::new(super::scrolling::Scrolling::default()),
+            Box::new(super::sliders::Sliders::default()),
+            Box::new(super::widget_gallery::WidgetGallery::default()),
+            Box::new(super::window_options::WindowOptions::default()),
+            Box::new(super::tests::WindowResizeTest::default()),
+            // Tests:
+            Box::new(super::tests::CursorTest::default()),
+            Box::new(super::tests::IdTest::default()),
+            Box::new(super::tests::InputTest::default()),
+            Box::new(super::layout_test::LayoutTest::default()),
+            Box::new(super::tests::ManualLayoutTest::default()),
+            Box::new(super::tests::TableTest::default()),
         ];
-        Self {
-            open: vec![false; demos.len()],
-            demos,
-        }
+
+        use crate::apps::demo::Demo;
+        let mut open = BTreeSet::new();
+        open.insert(
+            super::widget_gallery::WidgetGallery::default()
+                .name()
+                .to_owned(),
+        );
+
+        Self { open, demos }
     }
 }
 impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { open, demos } = self;
-        for (ref mut open, demo) in open.iter_mut().zip(demos.iter()) {
-            ui.checkbox(open, demo.name());
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            ui.checkbox(&mut is_open, demo.name());
+            set_open(open, demo.name(), is_open);
         }
     }
 
     pub fn show(&mut self, ctx: &CtxRef) {
         let Self { open, demos } = self;
-        open.resize(demos.len(), false); // Handle deserialization of old data.
-        for (ref mut open, demo) in open.iter_mut().zip(demos.iter_mut()) {
-            demo.show(ctx, open);
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            demo.show(ctx, &mut is_open);
+            set_open(open, demo.name(), is_open);
         }
+    }
+}
+
+fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
+    if is_open {
+        if !open.contains(key) {
+            open.insert(key.to_owned());
+        }
+    } else {
+        open.remove(key);
     }
 }
 
@@ -53,8 +84,6 @@ impl Demos {
 pub struct DemoWindows {
     open_windows: OpenWindows,
 
-    demo_window: super::DemoWindow,
-
     /// open, title, view
     demos: Demos,
 }
@@ -63,30 +92,34 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        egui::SidePanel::left("side_panel", 200.0).show(ctx, |ui| {
-            ui.heading("✒ Egui Demo");
+        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
+            ui.heading("✒ egui demos");
 
             ui.separator();
 
             ScrollArea::auto_sized().show(ui, |ui| {
-                ui.label("Egui is an immediate mode GUI library written in Rust.");
-                ui.add(
-                    egui::Hyperlink::new("https://github.com/emilk/egui").text(" Egui home page"),
+                use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+
+                ui.label("egui is an immediate mode GUI library written in Rust.");
+                ui.hyperlink_to(
+                    format!("{} egui home page", GITHUB),
+                    "https://github.com/emilk/egui",
                 );
 
-                ui.label("Egui can be run on the web, or natively on 🐧");
+                ui.label(format!(
+                    "egui can be run on the web, or natively on {}{}{}",
+                    OS_APPLE, OS_LINUX, OS_WINDOWS,
+                ));
 
                 ui.separator();
 
                 ui.heading("Windows:");
-                ui.indent("windows", |ui| {
-                    self.open_windows.checkboxes(ui);
-                    self.demos.checkboxes(ui);
-                });
+                self.demos.checkboxes(ui);
+                self.open_windows.checkboxes(ui);
 
                 ui.separator();
 
-                if ui.button("Organize windows").clicked {
+                if ui.button("Organize windows").clicked() {
                     ui.ctx().memory().reset_areas();
                 }
             });
@@ -96,6 +129,13 @@ impl DemoWindows {
             show_menu_bar(ui);
         });
 
+        // Just get a background to put the windows on instead of using whatever the clear color is
+        let frame = egui::Frame {
+            fill: ctx.style().visuals.extreme_bg_color,
+            ..egui::Frame::none()
+        };
+        egui::CentralPanel::default().frame(frame).show(ctx, |_| {});
+
         self.windows(ctx);
     }
 
@@ -103,17 +143,9 @@ impl DemoWindows {
     fn windows(&mut self, ctx: &CtxRef) {
         let Self {
             open_windows,
-            demo_window,
             demos,
             ..
         } = self;
-
-        Window::new("✨ Demo")
-            .open(&mut open_windows.demo)
-            .scroll(true)
-            .show(ctx, |ui| {
-                demo_window.ui(ui);
-            });
 
         Window::new("🔧 Settings")
             .open(&mut open_windows.settings)
@@ -137,61 +169,6 @@ impl DemoWindows {
             });
 
         demos.show(ctx);
-
-        self.resize_windows(ctx);
-    }
-
-    fn resize_windows(&mut self, ctx: &CtxRef) {
-        let open = &mut self.open_windows.resize;
-
-        Window::new("resizable")
-            .open(open)
-            .scroll(false)
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM);
-            });
-
-        Window::new("resizable + embedded scroll")
-            .open(open)
-            .scroll(false)
-            .resizable(true)
-            .default_height(300.0)
-            .show(ctx, |ui| {
-                ui.label("scroll:    NO");
-                ui.label("resizable: YES");
-                ui.heading("We have a sub-region with scroll bar:");
-                ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM_LONG);
-                    ui.label(crate::LOREM_IPSUM_LONG);
-                });
-                // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
-            });
-
-        Window::new("resizable + scroll")
-            .open(open)
-            .scroll(true)
-            .resizable(true)
-            .default_height(300.0)
-            .show(ctx, |ui| {
-                ui.label("scroll:    YES");
-                ui.label("resizable: YES");
-                ui.label(crate::LOREM_IPSUM_LONG);
-            });
-
-        Window::new("auto_sized")
-            .open(open)
-            .auto_sized()
-            .show(ctx, |ui| {
-                ui.label("This window will auto-size based on its contents.");
-                ui.heading("Resize this area:");
-                Resize::default().show(ui, |ui| {
-                    ui.label(crate::LOREM_IPSUM);
-                });
-                ui.heading("Resize the above area!");
-            });
     }
 }
 
@@ -199,54 +176,39 @@ impl DemoWindows {
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct OpenWindows {
-    demo: bool,
-
     // egui stuff:
     settings: bool,
     inspection: bool,
     memory: bool,
-    resize: bool,
 }
 
 impl Default for OpenWindows {
     fn default() -> Self {
-        Self {
-            demo: true,
-            ..OpenWindows::none()
-        }
+        OpenWindows::none()
     }
 }
 
 impl OpenWindows {
     fn none() -> Self {
         Self {
-            demo: false,
-
             settings: false,
             inspection: false,
             memory: false,
-            resize: false,
         }
     }
 
     fn checkboxes(&mut self, ui: &mut Ui) {
         let Self {
-            demo,
             settings,
             inspection,
             memory,
-            resize,
         } = self;
-        ui.label("Egui:");
+
+        ui.separator();
+        ui.label("egui:");
         ui.checkbox(settings, "🔧 Settings");
         ui.checkbox(inspection, "🔍 Inspection");
         ui.checkbox(memory, "📝 Memory");
-        ui.separator();
-        ui.checkbox(demo, "✨ Demo");
-        ui.separator();
-        ui.checkbox(resize, "↔ Resize examples");
-        ui.separator();
-        ui.label("Misc:");
     }
 }
 
@@ -255,13 +217,13 @@ fn show_menu_bar(ui: &mut Ui) {
 
     menu::bar(ui, |ui| {
         menu::menu(ui, "File", |ui| {
-            if ui.button("Organize windows").clicked {
+            if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .button("Clear Egui memory")
+                .button("Clear egui memory")
                 .on_hover_text("Forget scroll, collapsing headers etc")
-                .clicked
+                .clicked()
             {
                 *ui.ctx().memory() = Default::default();
             }

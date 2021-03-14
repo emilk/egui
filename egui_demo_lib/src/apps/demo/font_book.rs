@@ -31,7 +31,7 @@ impl FontBook {
                     ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                 };
 
-                if ui.add(button).on_hover_ui(tooltip_ui).clicked {
+                if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
                     ui.output().copied_text = chr.to_string();
                 }
             }
@@ -40,7 +40,7 @@ impl FontBook {
 }
 
 impl super::Demo for FontBook {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "🔤 Font Book"
     }
 
@@ -58,7 +58,7 @@ impl super::View for FontBook {
         use super::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
 
         ui.label(format!(
-            "Egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
+            "egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
             UBUNTU_FONT_CHARACTERS.len(),
             FULL_EMOJI_LIST.len(),
         ));
@@ -81,7 +81,7 @@ impl super::View for FontBook {
             ui.label("Filter:");
             ui.text_edit_singleline(&mut self.filter);
             self.filter = self.filter.to_lowercase();
-            if ui.button("ｘ").clicked {
+            if ui.button("ｘ").clicked() {
                 self.filter.clear();
             }
         });
@@ -90,7 +90,7 @@ impl super::View for FontBook {
 
         egui::ScrollArea::auto_sized().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.style_mut().spacing.item_spacing = egui::Vec2::splat(2.0);
+                ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
                 if self.standard {
                     self.characters_ui(ui, UBUNTU_FONT_CHARACTERS);

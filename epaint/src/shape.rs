@@ -1,12 +1,13 @@
 use crate::{
     text::{Fonts, Galley, TextStyle},
-    Color32, Stroke, Triangles,
+    Color32, Mesh, Stroke,
 };
 use emath::*;
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
-#[derive(Clone, Debug)]
+#[must_use = "Add a Shape to a Painter"]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -45,8 +46,10 @@ pub enum Shape {
         galley: Galley,
         text_style: TextStyle, // TODO: Font?
         color: Color32,
+        /// If true, tilt the letters for an ugly italics effect
+        fake_italics: bool,
     },
-    Triangles(Triangles),
+    Mesh(Mesh),
 }
 
 /// ## Constructors
@@ -137,20 +140,26 @@ impl Shape {
             galley,
             text_style,
             color,
+            fake_italics: false,
         }
     }
 }
 
 /// ## Operations
 impl Shape {
-    pub fn triangles(triangles: Triangles) -> Self {
-        debug_assert!(triangles.is_valid());
-        Self::Triangles(triangles)
+    pub fn mesh(mesh: Mesh) -> Self {
+        debug_assert!(mesh.is_valid());
+        Self::Mesh(mesh)
+    }
+
+    #[deprecated = "Renamed `mesh`"]
+    pub fn triangles(mesh: Mesh) -> Self {
+        Self::mesh(mesh)
     }
 
     pub fn texture_id(&self) -> super::TextureId {
-        if let Shape::Triangles(triangles) = self {
-            triangles.texture_id
+        if let Shape::Mesh(mesh) = self {
+            mesh.texture_id
         } else {
             super::TextureId::Egui
         }
@@ -184,8 +193,8 @@ impl Shape {
             Shape::Text { pos, .. } => {
                 *pos += delta;
             }
-            Shape::Triangles(triangles) => {
-                triangles.translate(delta);
+            Shape::Mesh(mesh) => {
+                mesh.translate(delta);
             }
         }
     }

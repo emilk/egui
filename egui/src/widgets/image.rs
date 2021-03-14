@@ -1,6 +1,15 @@
 use crate::*;
 
 /// An widget to show an image of a given size.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// # let my_texture_id = egui::TextureId::User(0);
+/// ui.add(egui::Image::new(my_texture_id, [640.0, 480.0]));
+///
+/// // Shorter version:
+/// ui.image(my_texture_id, [640.0, 480.0]);
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
 pub struct Image {
@@ -47,7 +56,7 @@ impl Image {
     }
 
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
-        use paint::*;
+        use epaint::*;
         let Self {
             texture_id,
             uv,
@@ -57,16 +66,16 @@ impl Image {
         } = self;
 
         if *bg_fill != Default::default() {
-            let mut triangles = Triangles::default();
-            triangles.add_colored_rect(rect, *bg_fill);
-            ui.painter().add(Shape::triangles(triangles));
+            let mut mesh = Mesh::default();
+            mesh.add_colored_rect(rect, *bg_fill);
+            ui.painter().add(Shape::mesh(mesh));
         }
 
         {
-            // TODO: builder pattern for Triangles
-            let mut triangles = Triangles::with_texture(*texture_id);
-            triangles.add_rect_with_uv(rect, *uv, *tint);
-            ui.painter().add(Shape::triangles(triangles));
+            // TODO: builder pattern for Mesh
+            let mut mesh = Mesh::with_texture(*texture_id);
+            mesh.add_rect_with_uv(rect, *uv, *tint);
+            ui.painter().add(Shape::mesh(mesh));
         }
     }
 }

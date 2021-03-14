@@ -1,8 +1,5 @@
-use crate::{
-    paint::{text::cursor::*, *},
-    util::undoer::Undoer,
-    *,
-};
+use crate::{util::undoer::Undoer, *};
+use epaint::{text::cursor::*, *};
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -109,13 +106,15 @@ impl CCursorPair {
 
 /// A text region that the user can edit the contents of.
 ///
+/// Se also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
+///
 /// Example:
 ///
 /// ```
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
-/// if response.lost_kb_focus {
+/// if response.lost_focus() {
 ///     // use my_string
 /// }
 /// ```
@@ -123,6 +122,7 @@ impl CCursorPair {
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
+    hint_text: String,
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
@@ -140,10 +140,11 @@ impl<'t> TextEdit<'t> {
         Self::multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_kb_focus`).
+    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut String) -> Self {
         TextEdit {
             text,
+            hint_text: Default::default(),
             id: None,
             id_source: None,
             text_style: None,
@@ -160,6 +161,7 @@ impl<'t> TextEdit<'t> {
     pub fn multiline(text: &'t mut String) -> Self {
         TextEdit {
             text,
+            hint_text: Default::default(),
             id: None,
             id_source: None,
             text_style: None,
@@ -180,6 +182,12 @@ impl<'t> TextEdit<'t> {
     /// A source for the unique `Id`, e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
+        self
+    }
+
+    /// Show a faint hint text when the text field is empty.
+    pub fn hint_text(mut self, hint_text: impl Into<String>) -> Self {
+        self.hint_text = hint_text.into();
         self
     }
 
@@ -235,24 +243,24 @@ impl<'t> Widget for TextEdit<'t> {
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
         let frame_rect = response.rect.expand2(margin);
-        let response = response | ui.allocate_rect(frame_rect, Sense::click());
+        let response = response | ui.allocate_rect(frame_rect, Sense::hover());
 
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
-            let shape = if response.has_kb_focus {
+            let shape = if response.has_focus() {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
-                    // fill: ui.style().visuals.selection.bg_fill,
-                    fill: ui.style().visuals.dark_bg_color,
-                    stroke: ui.style().visuals.selection.stroke,
+                    // fill: ui.visuals().selection.bg_fill,
+                    fill: ui.visuals().extreme_bg_color,
+                    stroke: ui.visuals().selection.stroke,
                 }
             } else {
                 Shape::Rect {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
-                    fill: ui.style().visuals.dark_bg_color,
+                    fill: ui.visuals().extreme_bg_color,
                     stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
                 }
             };
@@ -268,6 +276,7 @@ impl<'t> TextEdit<'t> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
+            hint_text,
             id,
             id_source,
             text_style,
@@ -289,7 +298,7 @@ impl<'t> TextEdit<'t> {
             font.layout_single_line(text.clone())
         };
 
-        let desired_width = desired_width.unwrap_or_else(|| ui.style().spacing.text_edit_width);
+        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(
             galley.size.x.max(desired_width.min(available_width)),
@@ -311,65 +320,58 @@ impl<'t> TextEdit<'t> {
         } else {
             Sense::hover()
         };
-        let response = ui.interact(rect, id, sense);
+        let mut response = ui.interact(rect, id, sense);
 
         if enabled {
-            ui.memory().interested_in_kb_focus(id);
-        }
-
-        if enabled {
-            if let Some(mouse_pos) = ui.input().mouse.pos {
+            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-                let cursor_at_mouse = galley.cursor_from_pos(mouse_pos - response.rect.min);
+                let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
 
-                if response.hovered {
+                if ui.visuals().text_cursor_preview
+                    && response.hovered()
+                    && ui.input().pointer.is_moving()
+                {
                     // preview:
-                    paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_mouse);
+                    paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
-                if response.hovered && response.double_clicked {
+                if response.double_clicked() {
                     // Select word:
-                    let center = cursor_at_mouse;
+                    let center = cursor_at_pointer;
                     let ccursorp = select_word_at(text, center.ccursor);
                     state.cursorp = Some(CursorPair {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                } else if response.hovered && ui.input().mouse.pressed {
-                    ui.memory().request_kb_focus(id);
+                    response.mark_changed();
+                } else if response.hovered() && ui.input().pointer.any_pressed() {
+                    ui.memory().request_focus(id);
                     if ui.input().modifiers.shift {
                         if let Some(cursorp) = &mut state.cursorp {
-                            cursorp.primary = cursor_at_mouse;
+                            cursorp.primary = cursor_at_pointer;
                         } else {
-                            state.cursorp = Some(CursorPair::one(cursor_at_mouse));
+                            state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                         }
                     } else {
-                        state.cursorp = Some(CursorPair::one(cursor_at_mouse));
+                        state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                } else if ui.input().mouse.down && response.active {
+                    response.mark_changed();
+                } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
-                        cursorp.primary = cursor_at_mouse;
+                        cursorp.primary = cursor_at_pointer;
+                        response.mark_changed();
                     }
                 }
             }
         }
 
-        if ui.input().mouse.pressed && !response.hovered {
-            // User clicked somewhere else
-            ui.memory().surrender_kb_focus(id);
-        }
-
-        if !enabled {
-            ui.memory().surrender_kb_focus(id);
-        }
-
-        if response.hovered && enabled {
+        if response.hovered() && enabled {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        if ui.memory().has_kb_focus(id) && enabled {
+        if ui.memory().has_focus(id) && enabled {
             let mut cursorp = state
                 .cursorp
                 .map(|cursorp| {
@@ -435,20 +437,10 @@ impl<'t> TextEdit<'t> {
                             insert_text(&mut ccursor, text, "\n");
                             Some(CCursorPair::one(ccursor))
                         } else {
-                            // Common to end input with enter
-                            ui.memory().surrender_kb_focus(id);
+                            ui.memory().surrender_focus(id); // End input with enter
                             break;
                         }
                     }
-                    Event::Key {
-                        key: Key::Escape,
-                        pressed: true,
-                        ..
-                    } => {
-                        ui.memory().surrender_kb_focus(id);
-                        break;
-                    }
-
                     Event::Key {
                         key: Key::Z,
                         pressed: true,
@@ -471,10 +463,12 @@ impl<'t> TextEdit<'t> {
                         modifiers,
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
 
-                    Event::Key { .. } => None,
+                    _ => None,
                 };
 
                 if let Some(new_ccursorp) = did_mutate_text {
+                    response.mark_changed();
+
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
                     let font = &ui.fonts()[text_style];
                     galley = if multiline {
@@ -497,7 +491,7 @@ impl<'t> TextEdit<'t> {
                 .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
         }
 
-        if ui.memory().has_kb_focus(id) {
+        if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
                 paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
                 paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);
@@ -505,25 +499,35 @@ impl<'t> TextEdit<'t> {
         }
 
         let text_color = text_color
-            .or(ui.style().visuals.override_text_color)
+            .or(ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
-            .unwrap_or_else(|| ui.style().visuals.widgets.inactive.text_color());
+            .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
         ui.painter()
             .galley(response.rect.min, galley, text_style, text_color);
 
+        if text.is_empty() && !hint_text.is_empty() {
+            let font = &ui.fonts()[text_style];
+            let galley = if multiline {
+                font.layout_multiline(hint_text, available_width)
+            } else {
+                font.layout_single_line(hint_text)
+            };
+            let hint_text_color = ui.visuals().weak_text_color();
+            ui.painter()
+                .galley(response.rect.min, galley, text_style, hint_text_color);
+        }
+
         ui.memory().text_edit.insert(id, state);
 
-        Response {
-            lost_kb_focus: ui.memory().lost_kb_focus(id), // we may have lost it during the course of this function
-            ..response
-        }
+        response.widget_info(|| WidgetInfo::text_edit(&*text));
+        response
     }
 }
 
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(ui: &mut Ui, pos: Pos2, galley: &Galley, cursorp: &CursorPair) {
-    let color = ui.style().visuals.selection.bg_fill;
+    let color = ui.visuals().selection.bg_fill;
     if cursorp.is_empty() {
         return;
     }
@@ -554,7 +558,7 @@ fn paint_cursor_selection(ui: &mut Ui, pos: Pos2, galley: &Galley, cursorp: &Cur
 }
 
 fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
-    let stroke = ui.style().visuals.selection.stroke;
+    let stroke = ui.visuals().selection.stroke;
 
     let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     let cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
@@ -564,7 +568,7 @@ fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
 
     ui.painter().line_segment(
         [top, bottom],
-        (ui.style().visuals.text_cursor_width, stroke.color),
+        (ui.visuals().text_cursor_width, stroke.color),
     );
 
     if false {

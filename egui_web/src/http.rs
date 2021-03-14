@@ -13,7 +13,7 @@ pub async fn fetch_async(request: &Request) -> Result<Response, String> {
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
 async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
-    let Request { method, url } = request;
+    let Request { method, url, body } = request;
 
     // https://rustwasm.github.io/wasm-bindgen/examples/fetch.html
 
@@ -23,6 +23,10 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
     let mut opts = web_sys::RequestInit::new();
     opts.method(method);
     opts.mode(web_sys::RequestMode::Cors);
+
+    if !body.is_empty() {
+        opts.body(Some(&JsValue::from_str(body)));
+    }
 
     let request = web_sys::Request::new_with_str_and_init(&url, &opts)?;
     request.headers().set("Accept", "*/*")?;

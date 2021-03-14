@@ -11,14 +11,18 @@
 pub mod backend;
 #[cfg(feature = "http")]
 pub mod http;
-pub mod webgl;
+mod painter;
+pub mod screen_reader;
+pub mod webgl1;
+pub mod webgl2;
 
 pub use backend::*;
 
+use egui::mutex::Mutex;
 pub use wasm_bindgen;
 pub use web_sys;
 
-use egui::mutex::Mutex;
+pub use painter::Painter;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
@@ -94,6 +98,15 @@ pub fn pos_from_mouse_event(canvas_id: &str, event: &web_sys::MouseEvent) -> egu
     }
 }
 
+pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::PointerButton> {
+    match event.button() {
+        0 => Some(egui::PointerButton::Primary),
+        1 => Some(egui::PointerButton::Middle),
+        2 => Some(egui::PointerButton::Secondary),
+        _ => None,
+    }
+}
+
 pub fn pos_from_touch_event(event: &web_sys::TouchEvent) -> egui::Pos2 {
     let t = event.touches().get(0).unwrap();
     egui::Pos2 {
@@ -111,28 +124,41 @@ pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-pub fn resize_canvas_to_screen_size(canvas_id: &str) -> Option<()> {
+pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
 
     let screen_size_points = screen_size_in_native_points()?;
     let pixels_per_point = native_pixels_per_point();
 
+    let max_size_pixels = pixels_per_point * max_size_points;
+
     let canvas_size_pixels = pixels_per_point * screen_size_points;
-    // Some browsers get slow with huge WebGL canvases, so we limit the size:
-    let max_size_pixels = egui::vec2(2048.0, 4096.0);
     let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
     let canvas_size_points = canvas_size_pixels / pixels_per_point;
 
+    // Make sure that the height and width are always even numbers.
+    // otherwise, the page renders blurry on some platforms.
+    // See https://github.com/emilk/egui/issues/103
+    fn round_to_even(v: f32) -> f32 {
+        (v / 2.0).round() * 2.0
+    }
+
     canvas
         .style()
-        .set_property("width", &format!("{}px", canvas_size_points.x))
+        .set_property(
+            "width",
+            &format!("{}px", round_to_even(canvas_size_points.x)),
+        )
         .ok()?;
     canvas
         .style()
-        .set_property("height", &format!("{}px", canvas_size_points.y))
+        .set_property(
+            "height",
+            &format!("{}px", round_to_even(canvas_size_points.y)),
+        )
         .ok()?;
-    canvas.set_width(canvas_size_pixels.x.round() as u32);
-    canvas.set_height(canvas_size_pixels.y.round() as u32);
+    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
+    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
 
     Some(())
 }
@@ -208,11 +234,12 @@ pub fn handle_output(output: &egui::Output) {
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
+        events: _,        // we ignore these (TODO: accessibility screen reader)
     } = output;
 
     set_cursor_icon(*cursor_icon);
-    if let Some(url) = open_url {
-        crate::open_url(url);
+    if let Some(open) = open_url {
+        crate::open_url(&open.url, open.new_tab);
     }
 
     #[cfg(web_sys_unstable_apis)]
@@ -256,26 +283,40 @@ where
 }
 
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
-    use egui::CursorIcon::*;
     match cursor {
-        Default => "default",
-        PointingHand => "pointer",
-        ResizeHorizontal => "ew-resize",
-        ResizeNeSw => "nesw-resize",
-        ResizeNwSe => "nwse-resize",
-        ResizeVertical => "ns-resize",
-        Text => "text",
-        Grab => "grab",
-        Grabbing => "grabbing",
-        // "no-drop"
-        // "not-allowed"
-        // default, help, pointer, progress, wait, cell, crosshair, text, alias, copy, move
+        egui::CursorIcon::Alias => "alias",
+        egui::CursorIcon::AllScroll => "all-scroll",
+        egui::CursorIcon::Cell => "cell",
+        egui::CursorIcon::ContextMenu => "context-menu",
+        egui::CursorIcon::Copy => "copy",
+        egui::CursorIcon::Crosshair => "crosshair",
+        egui::CursorIcon::Default => "default",
+        egui::CursorIcon::Grab => "grab",
+        egui::CursorIcon::Grabbing => "grabbing",
+        egui::CursorIcon::Help => "help",
+        egui::CursorIcon::Move => "move",
+        egui::CursorIcon::NoDrop => "no-drop",
+        egui::CursorIcon::None => "none",
+        egui::CursorIcon::NotAllowed => "not-allowed",
+        egui::CursorIcon::PointingHand => "pointer",
+        egui::CursorIcon::Progress => "progress",
+        egui::CursorIcon::ResizeHorizontal => "ew-resize",
+        egui::CursorIcon::ResizeNeSw => "nesw-resize",
+        egui::CursorIcon::ResizeNwSe => "nwse-resize",
+        egui::CursorIcon::ResizeVertical => "ns-resize",
+        egui::CursorIcon::Text => "text",
+        egui::CursorIcon::VerticalText => "vertical-text",
+        egui::CursorIcon::Wait => "wait",
+        egui::CursorIcon::ZoomIn => "zoom-in",
+        egui::CursorIcon::ZoomOut => "zoom-out",
     }
 }
 
-pub fn open_url(url: &str) -> Option<()> {
+pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
+    let name = if new_tab { "_blank" } else { "_self" };
+
     web_sys::window()?
-        .open_with_url_and_target(url, "_self")
+        .open_with_url_and_target(url, name)
         .ok()?;
     Some(())
 }
@@ -333,7 +374,7 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "Tab" => Some(egui::Key::Tab),
         "Backspace" => Some(egui::Key::Backspace),
         "Enter" => Some(egui::Key::Enter),
-        "Space" => Some(egui::Key::Space),
+        "Space" | " " => Some(egui::Key::Space),
 
         "Help" | "Insert" => Some(egui::Key::Insert),
         "Delete" => Some(egui::Key::Delete),
@@ -393,8 +434,8 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (output, paint_jobs) = runner_lock.logic()?;
-            runner_lock.paint(paint_jobs)?;
+            let (output, clipped_meshes) = runner_lock.logic()?;
+            runner_lock.paint(clipped_meshes)?;
             if output.needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
@@ -449,25 +490,34 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
             runner_lock.needs_repaint.set_true();
 
-            // So, shall we call prevent_default?
-            // YES:
-            // * Tab  (move to next text field)
-            //
-            // SOMETIMES:
-            // * Backspace - when entering text we don't want to go back one page.
-            //
-            // NO:
-            // * F5 / cmd-R (refresh)
-            // * cmd-shift-C (debug tools)
-            // * ...
-            //
-            // NOTE: if we call prevent_default for cmd-c/v/x, we will prevent copy/paste/cut events.
-            // Let's do things manually for now:
-            if matches!(
-                event.key().as_str(),
-                "Backspace"  // so we don't go back to previous page when deleting text
-                | "Tab" // so that e.g. tab doesn't move focus to url bar
-            ) {
+            let egui_wants_keyboard = runner_lock.egui_ctx().wants_keyboard_input();
+
+            let prevent_default = if matches!(event.key().as_str(), "Tab") {
+                // Always prevent moving cursor to url bar.
+                // egui wants to use tab to move to the next text field.
+                true
+            } else if egui_wants_keyboard {
+                matches!(
+                    event.key().as_str(),
+                    "Backspace" // so we don't go back to previous page when deleting text
+                | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp" // cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
+                )
+            } else {
+                // We never want to prevent:
+                // * F5 / cmd-R (refresh)
+                // * cmd-shift-C (debug tools)
+                // * cmd/ctrl-c/v/x (or we stop copy/past/cut events)
+                false
+            };
+
+            // console_log(format!(
+            //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
+            //     event.key().as_str(),
+            //     egui_wants_keyboard,
+            //     prevent_default
+            // ));
+
+            if prevent_default {
                 event.prevent_default();
             }
         }) as Box<dyn FnMut(_)>);
@@ -588,18 +638,39 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_ref.0.lock().canvas_id()).unwrap();
 
     {
+        // By default, right-clicks open a context menu.
+        // We don't want to do that (right clicks is handled by egui):
+        let event_name = "contextmenu";
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            event.prevent_default();
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
         let event_name = "mousedown";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
-                    Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.input.raw.mouse_down = true;
-                runner_lock.logic().unwrap(); // in case we get "mouseup" the same frame. TODO: handle via events instead
-                runner_lock.needs_repaint.set_true();
-                event.stop_propagation();
-                event.prevent_default();
+                if let Some(button) = button_from_mouse_event(&event) {
+                    let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+                    let modifiers = runner_lock.input.raw.modifiers;
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::PointerButton {
+                            pos,
+                            button,
+                            pressed: true,
+                            modifiers,
+                        });
+                    runner_lock.needs_repaint.set_true();
+                    event.stop_propagation();
+                    event.prevent_default();
+                }
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -612,8 +683,12 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
-                    Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
+                let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::PointerMoved(pos));
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
@@ -629,12 +704,23 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos =
-                    Some(pos_from_mouse_event(runner_lock.canvas_id(), &event));
-                runner_lock.input.raw.mouse_down = false;
-                runner_lock.needs_repaint.set_true();
-                event.stop_propagation();
-                event.prevent_default();
+                if let Some(button) = button_from_mouse_event(&event) {
+                    let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+                    let modifiers = runner_lock.input.raw.modifiers;
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::PointerButton {
+                            pos,
+                            button,
+                            pressed: false,
+                            modifiers,
+                        });
+                    runner_lock.needs_repaint.set_true();
+                    event.stop_propagation();
+                    event.prevent_default();
+                }
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -647,7 +733,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
             if !runner_lock.input.is_touch {
-                runner_lock.input.raw.mouse_pos = None;
+                runner_lock.input.raw.events.push(egui::Event::PointerGone);
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
@@ -661,10 +747,21 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchstart";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
+            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_pos = Some(pos_from_touch_event(&event));
-            runner_lock.input.raw.mouse_down = true;
+            let modifiers = runner_lock.input.raw.modifiers;
+            runner_lock
+                .input
+                .raw
+                .events
+                .push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers,
+                });
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -677,9 +774,15 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchmove";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
+            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_pos = Some(pos_from_touch_event(&event));
+            runner_lock
+                .input
+                .raw
+                .events
+                .push(egui::Event::PointerMoved(pos));
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -694,12 +797,25 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
             runner_lock.input.is_touch = true;
-            runner_lock.input.raw.mouse_down = false; // First release mouse to click...
-            runner_lock.logic().unwrap(); // ...do the clicking... (TODO: handle via events instead)
-            runner_lock.input.raw.mouse_pos = None; // ...remove hover effect
-            runner_lock.needs_repaint.set_true();
-            event.stop_propagation();
-            event.prevent_default();
+            if let Some(pos) = runner_lock.input.latest_touch_pos {
+                let modifiers = runner_lock.input.raw.modifiers;
+                // First release mouse to click:
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed: false,
+                        modifiers,
+                    });
+                // Then remove hover effect:
+                runner_lock.input.raw.events.push(egui::Event::PointerGone);
+                runner_lock.needs_repaint.set_true();
+                event.stop_propagation();
+                event.prevent_default();
+            }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();

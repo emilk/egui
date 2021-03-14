@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
+    easy_mark_editor: crate::apps::EasyMarkEditor,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
@@ -14,6 +15,7 @@ impl Apps {
     fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut dyn epi::App)> {
         vec![
             ("demo", &mut self.demo as &mut dyn epi::App),
+            ("easymark", &mut self.easy_mark_editor as &mut dyn epi::App),
             #[cfg(feature = "http")]
             ("http", &mut self.http as &mut dyn epi::App),
             ("clock", &mut self.clock as &mut dyn epi::App),
@@ -35,7 +37,7 @@ pub struct WrapApp {
 
 impl epi::App for WrapApp {
     fn name(&self) -> &str {
-        "Egui Demo Apps"
+        "egui demo apps"
     }
 
     #[cfg(feature = "persistence")]
@@ -48,8 +50,20 @@ impl epi::App for WrapApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
+    fn max_size_points(&self) -> egui::Vec2 {
+        self.backend_panel.max_size_points_active
+    }
+
     fn warm_up_enabled(&self) -> bool {
-        true // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open.
+        // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
+        #[cfg(debug_assertions)]
+        {
+            false // debug
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            true // release
+        }
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
@@ -67,17 +81,19 @@ impl epi::App for WrapApp {
             // A menu-bar is a horizontal layout with some special styles applied.
             // egui::menu::bar(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
+                dark_light_mode_switch(ui);
+
                 ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
                 ui.separator();
 
                 for (anchor, app) in self.apps.iter_mut() {
                     if ui
                         .selectable_label(self.selected_anchor == anchor, app.name())
-                        .clicked
+                        .clicked()
                     {
                         self.selected_anchor = anchor.to_owned();
                         if frame.is_web() {
-                            ui.output().open_url = Some(format!("#{}", anchor));
+                            ui.output().open_url(format!("#{}", anchor));
                         }
                     }
                 }
@@ -86,10 +102,10 @@ impl epi::App for WrapApp {
                     if false {
                         // TODO: fix the overlap on small screens
                         if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
-                            if clock_button(ui, seconds_since_midnight).clicked {
+                            if clock_button(ui, seconds_since_midnight).clicked() {
                                 self.selected_anchor = "clock".to_owned();
                                 if frame.is_web() {
-                                    ui.output().open_url = Some("#clock".to_owned());
+                                    ui.output().open_url("#clock");
                                 }
                             }
                         }
@@ -101,6 +117,7 @@ impl epi::App for WrapApp {
         });
 
         self.backend_panel.update(ctx, frame);
+
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
@@ -112,6 +129,8 @@ impl epi::App for WrapApp {
                 app.update(ctx, frame);
             }
         }
+
+        self.backend_panel.end_of_frame(ctx);
     }
 }
 
@@ -128,6 +147,15 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
     ui.add(egui::Button::new(time).text_style(egui::TextStyle::Monospace))
 }
 
+/// Show a button to switch to/from dark/light mode (globally).
+fn dark_light_mode_switch(ui: &mut egui::Ui) {
+    let style: egui::Style = (*ui.ctx().style()).clone();
+    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
+    if let Some(visuals) = new_visuals {
+        ui.ctx().set_visuals(visuals);
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// How often we repaint the demo app by default
@@ -135,7 +163,7 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
 enum RunMode {
     /// This is the default for the demo.
     ///
-    /// If this is selected, Egui is only updated if are input events
+    /// If this is selected, egui is only updated if are input events
     /// (like mouse movements) or there are some animations in the GUI.
     ///
     /// Reactive mode saves CPU.
@@ -151,13 +179,13 @@ enum RunMode {
     /// This will call `egui::Context::request_repaint()` at the end of each frame
     /// to request the backend to repaint as soon as possible.
     ///
-    /// On most platforms this will mean that Egui will run at the display refresh rate of e.g. 60 Hz.
+    /// On most platforms this will mean that egui will run at the display refresh rate of e.g. 60 Hz.
     ///
     /// For this demo it is not any reason to do so except to
-    /// demonstrate how quickly Egui runs.
+    /// demonstrate how quickly egui runs.
     ///
     /// For games or other interactive apps, this is probably what you want to do.
-    /// It will guarantee that Egui is always up-to-date.
+    /// It will guarantee that egui is always up-to-date.
     Continuous,
 }
 
@@ -173,7 +201,6 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 struct BackendPanel {
@@ -186,8 +213,29 @@ struct BackendPanel {
     /// current slider value for current gui scale
     pixels_per_point: Option<f32>,
 
+    /// maximum size of the web browser canvas
+    max_size_points_ui: egui::Vec2,
+    max_size_points_active: egui::Vec2,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
+}
+
+impl Default for BackendPanel {
+    fn default() -> Self {
+        Self {
+            open: false,
+            run_mode: Default::default(),
+            pixels_per_point: Default::default(),
+            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
+            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
+            frame_history: Default::default(),
+            output_event_history: Default::default(),
+        }
+    }
 }
 
 impl BackendPanel {
@@ -201,6 +249,15 @@ impl BackendPanel {
         }
     }
 
+    fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
+        for event in &ctx.output().events {
+            self.output_event_history.push_back(event.clone());
+        }
+        while self.output_event_history.len() > 10 {
+            self.output_event_history.pop_front();
+        }
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
         ui.heading("💻 Backend");
 
@@ -210,18 +267,20 @@ impl BackendPanel {
 
         self.frame_history.ui(ui);
 
-        if !frame.is_web() {
-            // web browsers have their own way of zooming, which egui_web respects
+        // For instance: `egui_web` sets `pixels_per_point` every frame to force
+        // egui to use the same scale as the web zoom factor.
+        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
+        if !integration_controls_pixels_per_point {
             ui.separator();
             if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
-                frame.set_pixels_per_point(new_pixels_per_point);
+                ui.ctx().set_pixels_per_point(new_pixels_per_point);
             }
         }
 
         ui.separator();
 
         if frame.is_web() {
-            ui.label("Egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
                 "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
                 This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
@@ -230,18 +289,40 @@ impl BackendPanel {
                 ui.label("Project home page:");
                 ui.hyperlink("https://github.com/emilk/egui");
             });
+
+            ui.separator();
+
+            ui.add(
+                egui::Slider::f32(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                    .logarithmic(true)
+                    .largest_finite(8192.0)
+                    .text("Max width"),
+            )
+            .on_hover_text("Maximum width of the egui region of the web page.");
+            if !ui.ctx().is_using_pointer() {
+                self.max_size_points_active = self.max_size_points_ui;
+            }
         } else {
             if ui
                 .button("📱 Phone Size")
                 .on_hover_text("Resize the window to be small like a phone.")
-                .clicked
+                .clicked()
             {
                 frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
             }
-            if ui.button("Quit").clicked {
+            if ui.button("Quit").clicked() {
                 frame.quit();
             }
         }
+
+        ui.collapsing("Output events", |ui| {
+            ui.set_max_width(450.0);
+            ui.label("Recent output events from egui:");
+            ui.advance_cursor(8.0);
+            for event in &self.output_event_history {
+                ui.label(format!("{:?}", event));
+            }
+        });
     }
 
     fn pixels_per_point_ui(
@@ -259,7 +340,7 @@ impl BackendPanel {
         let pixels_per_point = self.pixels_per_point.as_mut()?;
 
         ui.horizontal(|ui| {
-            ui.style_mut().spacing.slider_width = 90.0;
+            ui.spacing_mut().slider_width = 90.0;
             ui.add(
                 egui::Slider::f32(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
@@ -275,7 +356,7 @@ impl BackendPanel {
                         "Reset scale to native value ({:.1})",
                         native_pixels_per_point
                     ))
-                    .clicked
+                    .clicked()
                 {
                     *pixels_per_point = native_pixels_per_point;
                 }
@@ -283,7 +364,7 @@ impl BackendPanel {
         });
 
         // We wait until mouse release to activate:
-        if ui.ctx().is_using_mouse() {
+        if ui.ctx().is_using_pointer() {
             None
         } else {
             Some(*pixels_per_point)

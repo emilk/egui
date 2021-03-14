@@ -1,4 +1,5 @@
-use crate::{paint::Shape, style::WidgetVisuals, *};
+use crate::{style::WidgetVisuals, *};
+use epaint::Shape;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -26,10 +27,11 @@ pub fn combo_box_with_label(
 
     ui.horizontal(|ui| {
         let mut response = combo_box(ui, button_id, selected, menu_contents);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
         response |= ui.add(label);
         response
     })
-    .0
+    .inner
 }
 
 /// A drop-down selection menu.
@@ -54,26 +56,24 @@ pub fn combo_box(
     selected: impl Into<String>,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
-    const MAX_COMBO_HEIGHT: f32 = 128.0;
-
     let popup_id = button_id.with("popup");
 
     let button_active = ui.memory().is_popup_open(popup_id);
     let button_response = button_frame(ui, button_id, button_active, Sense::click(), |ui| {
         // We don't want to change width when user selects something new
-        let full_minimum_width = ui.style().spacing.slider_width;
-        let icon_size = Vec2::splat(ui.style().spacing.icon_width);
+        let full_minimum_width = ui.spacing().slider_width;
+        let icon_size = Vec2::splat(ui.spacing().icon_width);
 
         let text_style = TextStyle::Button;
         let font = &ui.fonts()[text_style];
-        let galley = font.layout_single_line(selected.into());
+        let galley = font.layout_no_wrap(selected.into());
 
-        let width = galley.size.x + ui.style().spacing.item_spacing.x + icon_size.x;
+        let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
         let height = galley.size.y.max(icon_size.y);
 
         let (_, rect) = ui.allocate_space(Vec2::new(width, height));
-        let button_rect = ui.min_rect().expand2(ui.style().spacing.button_padding);
+        let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
         let response = ui.interact(button_rect, button_id, Sense::click());
         // response.active |= button_active;
 
@@ -85,33 +85,14 @@ pub fn combo_box(
         ui.painter()
             .galley(text_rect.min, galley, text_style, visuals.text_color());
     });
-    if button_response.clicked {
+
+    if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-
-    if ui.memory().is_popup_open(popup_id) {
-        let parent_clip_rect = ui.clip_rect();
-
-        Area::new(popup_id)
-            .order(Order::Foreground)
-            .fixed_pos(button_response.rect.left_bottom())
-            .show(ui.ctx(), |ui| {
-                ui.set_clip_rect(parent_clip_rect); // for when the combo-box is in a scroll area.
-                let frame = Frame::popup(ui.style());
-                let frame_margin = frame.margin;
-                frame.show(ui, |ui| {
-                    ui.with_layout(Layout::top_down_justified(Align::left()), |ui| {
-                        ui.set_width(button_response.rect.width() - 2.0 * frame_margin.x);
-                        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents);
-                    });
-                });
-            });
-
-        if ui.input().key_pressed(Key::Escape) || ui.input().mouse.click && !button_response.clicked
-        {
-            ui.memory().close_popup();
-        }
-    }
+    const MAX_COMBO_HEIGHT: f32 = 128.0;
+    crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
+        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents)
+    });
 
     button_response
 }
@@ -125,8 +106,8 @@ fn button_frame(
 ) -> Response {
     let where_to_put_background = ui.painter().add(Shape::Noop);
 
-    let margin = ui.style().spacing.button_padding;
-    let interact_size = ui.style().spacing.interact_size;
+    let margin = ui.spacing().button_padding;
+    let interact_size = ui.spacing().interact_size;
 
     let mut outer_rect = ui.available_rect_before_wrap();
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
@@ -139,7 +120,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let mut response = ui.interact(outer_rect, id, sense);
-    response.active |= button_active;
+    response.is_pointer_button_down_on |= button_active;
     let visuals = ui.style().interact(&response);
 
     ui.painter().set(

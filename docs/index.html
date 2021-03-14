@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <head>
-    <title>Egui – An experimental immediate mode GUI written in Rust</title>
+    <title>egui – An experimental immediate mode GUI written in Rust</title>
     <style>
         html {
             /* Remove touch delay: */
@@ -14,8 +14,9 @@
         }
 
         body {
-            /* Background color for what is not covered by the canvas, and where the canvas is translucent. */
-            background: #202020;
+            /* Background color for what is not covered by the egui canvas,
+            or where the egui canvas is translucent. */
+            background: #404040;
         }
 
         /* Allow canvas to fill entire web page: */
@@ -26,15 +27,15 @@
             padding: 0 !important;
         }
 
-        /* Center canvas vertically and horizontally: */
+        /* Position canvas in center-top: */
         canvas {
             margin-right: auto;
             margin-left: auto;
             display: block;
             position: absolute;
-            top: 50%;
+            top: 0%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, 0%);
         }
     </style>
 </head>
@@ -74,3 +75,5 @@
 </body>
 
 </html>
+
+<!-- Powered by egui: https://github.com/emilk/egui/ -->

@@ -6,7 +6,7 @@ pub use egui::{pos2, Color32};
 
 pub struct WebBackend {
     ctx: egui::CtxRef,
-    painter: webgl::Painter,
+    painter: Box<dyn Painter>,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
 }
@@ -14,9 +14,19 @@ pub struct WebBackend {
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
+
+        let painter: Box<dyn Painter> =
+            if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
+                console_log("Using WebGL2 backend");
+                Box::new(webgl2_painter)
+            } else {
+                console_log("Falling back to WebGL1 backend");
+                Box::new(webgl1::WebGlPainter::new(canvas_id)?)
+            };
+
         Ok(Self {
             ctx,
-            painter: webgl::Painter::new(canvas_id)?,
+            painter,
             previous_frame_time: None,
             frame_start: None,
         })
@@ -32,52 +42,34 @@ impl WebBackend {
         self.ctx.begin_frame(raw_input)
     }
 
-    pub fn end_frame(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
+    pub fn end_frame(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
         let frame_start = self
             .frame_start
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
         let (output, shapes) = self.ctx.end_frame();
-        let paint_jobs = self.ctx.tessellate(shapes);
+        let clipped_meshes = self.ctx.tessellate(shapes);
 
         let now = now_sec();
         self.previous_frame_time = Some((now - frame_start) as f32);
 
-        Ok((output, paint_jobs))
+        Ok((output, clipped_meshes))
     }
 
     pub fn paint(
         &mut self,
         clear_color: egui::Rgba,
-        paint_jobs: egui::PaintJobs,
+        clipped_meshes: Vec<egui::ClippedMesh>,
     ) -> Result<(), JsValue> {
-        self.painter.paint_jobs(
-            clear_color,
-            paint_jobs,
-            &self.ctx.texture(),
-            self.ctx.pixels_per_point(),
-        )
+        self.painter.upload_egui_texture(&self.ctx.texture());
+        self.painter.clear(clear_color);
+        self.painter
+            .paint_meshes(clipped_meshes, self.ctx.pixels_per_point())
     }
 
     pub fn painter_debug_info(&self) -> String {
         self.painter.debug_info()
-    }
-}
-
-impl epi::TextureAllocator for webgl::Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
     }
 }
 
@@ -89,6 +81,9 @@ pub struct WebInput {
     /// Is this a touch screen? If so, we ignore mouse events.
     pub is_touch: bool,
 
+    /// Required because we don't get a position on touched
+    pub latest_touch_pos: Option<egui::Pos2>,
+
     pub raw: egui::RawInput,
 }
 
@@ -96,7 +91,7 @@ impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(native_pixels_per_point()),
+            pixels_per_point: Some(native_pixels_per_point()), // We ALWAYS use the native pixels-per-point
             time: Some(now_sec()),
             ..self.raw.take()
         }
@@ -140,6 +135,7 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
     last_save_time: f64,
+    screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
     http: Arc<http::WebHttp>,
 }
@@ -157,9 +153,14 @@ impl AppRunner {
             needs_repaint: Default::default(),
             storage,
             last_save_time: now_sec(),
+            screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
         })
+    }
+
+    pub fn egui_ctx(&self) -> &egui::CtxRef {
+        &self.web_backend.ctx
     }
 
     pub fn auto_save(&mut self) {
@@ -191,8 +192,8 @@ impl AppRunner {
         Ok(())
     }
 
-    pub fn logic(&mut self) -> Result<(egui::Output, egui::PaintJobs), JsValue> {
-        resize_canvas_to_screen_size(self.web_backend.canvas_id());
+    pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
+        resize_canvas_to_screen_size(self.web_backend.canvas_id(), self.app.max_size_points());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
         self.web_backend.begin_frame(raw_input);
@@ -207,7 +208,7 @@ impl AppRunner {
                 seconds_since_midnight: Some(seconds_since_midnight()),
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
-            tex_allocator: Some(&mut self.web_backend.painter),
+            tex_allocator: self.web_backend.painter.as_tex_allocator(),
             #[cfg(feature = "http")]
             http: self.http.clone(),
             output: &mut app_output,
@@ -217,22 +218,23 @@ impl AppRunner {
 
         let egui_ctx = &self.web_backend.ctx;
         self.app.update(egui_ctx, &mut frame);
-        let (egui_output, paint_jobs) = self.web_backend.end_frame()?;
+        let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
+        self.screen_reader.speak(&egui_output.events_description());
         handle_output(&egui_output);
 
         {
             let epi::backend::AppOutput {
-                quit: _,             // Can't quit a web page
-                window_size: _,      // Can't resize a web page
-                pixels_per_point: _, // Can't zoom from within the app (we respect the web browser's zoom level)
+                quit: _,        // Can't quit a web page
+                window_size: _, // Can't resize a web page
             } = app_output;
         }
 
-        Ok((egui_output, paint_jobs))
+        Ok((egui_output, clipped_meshes))
     }
 
-    pub fn paint(&mut self, paint_jobs: egui::PaintJobs) -> Result<(), JsValue> {
-        self.web_backend.paint(self.app.clear_color(), paint_jobs)
+    pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
+        self.web_backend
+            .paint(self.app.clear_color(), clipped_meshes)
     }
 }
 

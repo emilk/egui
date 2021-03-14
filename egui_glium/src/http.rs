@@ -3,9 +3,15 @@ pub use epi::http::{Request, Response};
 /// NOTE: Ok(..) is returned on network error.
 /// Err is only for failure to use the fetch api.
 pub fn fetch_blocking(request: &Request) -> Result<Response, String> {
-    let Request { method, url } = request;
+    let Request { method, url, body } = request;
 
-    let resp = ureq::request(method, url).set("Accept", "*/*").call();
+    let req = ureq::request(method, url).set("Accept", "*/*");
+    let resp = if body.is_empty() {
+        req.call()
+    } else {
+        req.set("Content-Type", "text/plain; charset=utf-8")
+            .send_string(body)
+    };
 
     let (ok, resp) = match resp {
         Ok(resp) => (true, resp),

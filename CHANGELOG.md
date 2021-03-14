@@ -1,13 +1,91 @@
-# Egui Changelog
+# egui changelog
 
-All notable changes to the Egui crate will be documented in this file.
+All notable changes to the egui crate will be documented in this file.
 
-NOTE: `epi`, `eframe`, `egui_web` and `egui_glium` has their own changelogs!
+NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ## Unreleased
+
+### Added ⭐
+
+* You can now give focus to any clickable widget with tab/shift-tab.
+  * Use space or enter to click the selected widget.
+  * Use arrow keys to adjust sliders and `DragValue`s.
+* egui will now output events when widgets gain keyboard focus.
+  * This can be hooked up to a screen reader to aid the visually impaired
+* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
+
+### Fixed 🐛
+
+* Fixed secondary-click to open a menu
+
+
+## 0.10.0 - 2021-02-28 - Plot and polish
+
+<img src="media/egui-0.10-plot.gif" width="50%">
+
+### Added ⭐
+
+* Add `egui::plot::Plot` to plot some 2D data.
+* Add `Ui::hyperlink_to(label, url)`.
+* Sliders can now have a value prefix and suffix (e.g. the suffix `"°"` works like a unit).
+* `Context::set_pixels_per_point` to control the scale of the UI.
+* Add `Response::changed()` to query if e.g. a slider was dragged, text was entered or a checkbox was clicked.
+* Add support for all integers in `DragValue` and `Slider` (except 128-bit).
+
+### Changed 🔧
+
+* Improve the positioning of tooltips.
+* Only show tooltips if mouse is still.
+* `Slider` will now show the value display by default, unless turned off with `.show_value(false)`.
+* The `Slider` value is now a `DragValue` which when dragged can pick values outside of the slider range (unless `clamp_to_range` is set).
+
+
+## 0.9.0 - 2021-02-07 - Light Mode and much more
+
+<img src="media/0.9.0-disabled.gif" width="50%">
+
+### Added ⭐
+
+* Add support for secondary and middle mouse buttons.
+* Add `Label` methods for code, strong, strikethrough, underline and italics.
+* Add `ui.group(|ui| { … })` to visually group some widgets within a frame.
+* Add `Ui` helpers for doing manual layout (`ui.put`, `ui.allocate_ui_at_rect` and more).
+* Add `ui.set_enabled(false)` to disable all widgets in a `Ui` (grayed out and non-interactive).
+* Add `TextEdit::hint_text` for showing a weak hint text when empty.
+* `egui::popup::popup_below_widget`: show a popup area below another widget.
+* Add `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
+* Add: `ui.spacing()`, `ui.spacing_mut()`, `ui.visuals()`, `ui.visuals_mut()`.
+* Add: `ctx.set_visuals()`.
+* You can now control text wrapping with `Style::wrap`.
+* Add `Grid::max_col_width`.
+
+### Changed 🔧
+
+* Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
+* Widgets will now always line break at `\n` characters.
+* Widgets will now more intelligently choose wether or not to wrap text.
+* `mouse` has been renamed `pointer` everywhere (to make it clear it includes touches too).
+* Most parts of `Response` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
+* `Response::active` is now gone. You can use `response.dragged()` or `response.clicked()` instead.
+* Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
+* `DragValue::range` is now called `clamp_range` and also clamps incoming values.
+* Renamed `Triangles` to `Mesh`.
+* The tesselator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
+* `Mesh::split_to_u16` now returns a 16-bit indexed `Mesh16`.
+
+### Fixed 🐛
+
+* It is now possible to click widgets even when FPS is very low.
+* Tessellator: handle sharp path corners better (switch to bevel instead of miter joints for > 90°).
+
+
+## 0.8.0 - 2021-01-17 - Grid layout & new visual style
+
+<img src="media/widget_gallery_0.8.0.gif" width="50%">
 
 ### Added ⭐
 
@@ -19,9 +97,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed 🔧
 
 * New simpler and sleeker look!
-* Center window titles.
-* Tweak size and alignment of some emojis to match other text.
 * Rename `PaintCmd` to `Shape`.
+* Replace tuple `(Rect, Shape)` with tuple-struct `ClippedShape`.
 * Rename feature `"serde"` to `"persistence"`.
 * Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 
@@ -29,6 +106,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Fixed a bug that would sometimes trigger a "Mismatching panels" panic in debug builds.
 * `Image` and `ImageButton` will no longer stretch to fill a justified layout.
+
 
 ## 0.7.0 - 2021-01-04
 
@@ -63,7 +141,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
 * `ui.allocate_painter` helper.
 * Mouse-over explanation to duplicate ID warning.
-* You can now easily constrain Egui to a portion of the screen using `RawInput::screen_rect`.
+* You can now easily constrain egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
 * Add `egui::math::Rot2`: rotation helper.
 * `Response` now contains the `Id` of the widget it pertains to.
@@ -136,7 +214,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Much improved text editing, with better navigation and selection.
   * Move focus between `TextEdit` widgets with tab and shift-tab.
   * Undo edtis in a `TextEdit`.
-  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_kb_focus`.
+  * You can now check if a `TextEdit` lost keyboard focus with `response.lost_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
 * You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
 
@@ -145,7 +223,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.
 * You must now be explicit when creating a `TextEdit` if you want it to be singeline or multiline.
 * Improved automatic `Id` generation, making `Id` clashes less likely.
-* Egui now requires modifier key state from the integration
+* egui now requires modifier key state from the integration
 * Added, renamed and removed some keys in the `Key` enum.
 * Fixed incorrect text wrapping width on radio buttons
 
@@ -159,10 +237,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added ⭐
 
 * Panels: you can now create panels using `SidePanel`, `TopPanel` and `CentralPanel`.
-* You can now override the default Egui fonts.
+* You can now override the default egui fonts.
 * Add ability to override text color with `visuals.override_text_color`.
 * The demo now includes a simple drag-and-drop example.
-* The demo app now has a slider to scale all of Egui.
+* The demo app now has a slider to scale all of egui.
 
 ### Changed 🔧
 

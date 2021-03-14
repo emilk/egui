@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{math::remap_clamp, Id, InputState};
+use crate::{emath::remap_clamp, Id, InputState};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {

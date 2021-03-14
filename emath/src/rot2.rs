@@ -8,7 +8,9 @@ use super::Vec2;
 // `vec2(c,s)` represents where the X axis will end up after rotation.
 //
 /// Represents a rotation in the 2D plane.
+//
 /// A rotation of 𝞃/4 = 90° rotates the X axis to the Y axis.
+//
 /// Normally a `Rot2` is normalized (unit-length).
 /// If not, it will also scale vectors.
 #[derive(Clone, Copy, PartialEq)]
@@ -28,8 +30,12 @@ impl Default for Rot2 {
 }
 
 impl Rot2 {
+    /// The identity rotation: nothing rotates
+    pub const IDENTITY: Self = Self { s: 0.0, c: 1.0 };
+
+    #[deprecated = "Use Rot2::IDENTITY"]
     pub fn identity() -> Self {
-        Self { s: 0.0, c: 1.0 }
+        Self::IDENTITY
     }
 
     /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
@@ -100,6 +106,7 @@ impl std::ops::Mul<Rot2> for Rot2 {
     }
 }
 
+/// Rotates (and maybe scales) the vector.
 impl std::ops::Mul<Vec2> for Rot2 {
     type Output = Vec2;
     fn mul(self, v: Vec2) -> Vec2 {
@@ -110,6 +117,7 @@ impl std::ops::Mul<Vec2> for Rot2 {
     }
 }
 
+/// Scales the rotor.
 impl std::ops::Mul<Rot2> for f32 {
     type Output = Rot2;
     fn mul(self, r: Rot2) -> Rot2 {
@@ -120,6 +128,7 @@ impl std::ops::Mul<Rot2> for f32 {
     }
 }
 
+/// Scales the rotor.
 impl std::ops::Mul<f32> for Rot2 {
     type Output = Rot2;
     fn mul(self, r: f32) -> Rot2 {
@@ -130,6 +139,7 @@ impl std::ops::Mul<f32> for Rot2 {
     }
 }
 
+/// Scales the rotor.
 impl std::ops::Div<f32> for Rot2 {
     type Output = Rot2;
     fn div(self, r: f32) -> Rot2 {

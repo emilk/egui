@@ -1,4 +1,4 @@
-//! Demo-code for showing how Egui is used.
+//! Demo-code for showing how egui is used.
 //!
 //! The demo-code is also used in benchmarks and tests.
 
@@ -49,6 +49,7 @@ mod apps;
 pub(crate) mod frame_history;
 mod wrap_app;
 
+pub use apps::ColorTest; // used for tests
 pub use apps::DemoWindows; // used for tests
 pub use wrap_app::WrapApp;
 
@@ -99,7 +100,7 @@ fn test_egui_e2e() {
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);
         let (_output, shapes) = ctx.end_frame();
-        let paint_jobs = ctx.tessellate(shapes);
-        assert!(!paint_jobs.is_empty());
+        let clipped_meshes = ctx.tessellate(shapes);
+        assert!(!clipped_meshes.is_empty());
     }
 }

@@ -16,20 +16,20 @@ impl Default for MyApp {
 
 impl epi::App for MyApp {
     fn name(&self) -> &str {
-        "My Egui App"
+        "My egui App"
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         let Self { name, age } = self;
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("My Egui Application");
+            ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 ui.label("Your name: ");
                 ui.text_edit_singleline(name);
             });
             ui.add(egui::Slider::u32(age, 0..=120).text("age"));
-            if ui.button("Click each year").clicked {
+            if ui.button("Click each year").clicked() {
                 *age += 1;
             }
             ui.label(format!("Hello '{}', age {}", name, age));

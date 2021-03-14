@@ -1,11 +1,12 @@
 //! Frame container
 
-use crate::{layers::ShapeIdx, paint::*, *};
+use crate::{layers::ShapeIdx, *};
+use epaint::*;
 
-/// Adds a rectangular frame and background to some [`Ui`].
+/// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Frame {
-    // On each side
+    /// On each side
     pub margin: Vec2,
     pub corner_radius: f32,
     pub shadow: Shadow,
@@ -18,21 +19,31 @@ impl Frame {
         Self::default()
     }
 
-    pub(crate) fn panel(style: &Style) -> Self {
+    /// For when you want to group a few widgets together within a frame.
+    pub fn group(style: &Style) -> Self {
         Self {
-            margin: Vec2::new(8.0, 2.0),
-            corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            margin: Vec2::new(8.0, 6.0),
+            corner_radius: 4.0,
+            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }
 
-    pub fn central_panel(style: &Style) -> Self {
+    pub(crate) fn side_top_panel(style: &Style) -> Self {
+        Self {
+            margin: Vec2::new(8.0, 2.0),
+            corner_radius: 0.0,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 8.0),
             corner_radius: 0.0,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
+            fill: style.visuals.window_fill(),
             stroke: Default::default(),
             ..Default::default()
         }
@@ -43,8 +54,8 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.window_corner_radius,
             shadow: style.visuals.window_shadow,
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -53,8 +64,8 @@ impl Frame {
             margin: Vec2::splat(1.0),
             corner_radius: 2.0,
             shadow: Shadow::small(),
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -63,8 +74,8 @@ impl Frame {
             margin: style.spacing.window_padding,
             corner_radius: 5.0,
             shadow: Shadow::small(),
-            fill: style.visuals.widgets.noninteractive.bg_fill,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            fill: style.visuals.window_fill(),
+            stroke: style.visuals.window_stroke(),
         }
     }
 
@@ -74,7 +85,7 @@ impl Frame {
             margin: Vec2::new(10.0, 10.0),
             corner_radius: 5.0,
             fill: Color32::from_black_alpha(250),
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }
@@ -88,6 +99,13 @@ impl Frame {
 
     pub fn stroke(mut self, stroke: Stroke) -> Self {
         self.stroke = stroke;
+        self
+    }
+
+    pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
+        self.fill = self.fill.linear_multiply(opacity);
+        self.stroke.color = self.stroke.color.linear_multiply(opacity);
+        self.shadow.color = self.shadow.color.linear_multiply(opacity);
         self
     }
 }
@@ -122,6 +140,31 @@ impl Frame {
         prepared.end(ui);
         ret
     }
+
+    pub fn paint(&self, outer_rect: Rect) -> Shape {
+        let Self {
+            margin: _,
+            corner_radius,
+            shadow,
+            fill,
+            stroke,
+        } = *self;
+
+        let frame_shape = Shape::Rect {
+            rect: outer_rect,
+            corner_radius,
+            fill,
+            stroke,
+        };
+
+        if shadow == Default::default() {
+            frame_shape
+        } else {
+            let shadow = shadow.tessellate(outer_rect, corner_radius);
+            let shadow = Shape::Mesh(shadow);
+            Shape::Vec(vec![shadow, frame_shape])
+        }
+    }
 }
 
 impl Prepared {
@@ -141,26 +184,9 @@ impl Prepared {
             ..
         } = self;
 
-        let frame_shape = Shape::Rect {
-            rect: outer_rect,
-            corner_radius: frame.corner_radius,
-            fill: frame.fill,
-            stroke: frame.stroke,
-        };
-
-        if frame.shadow == Default::default() {
-            ui.painter().set(where_to_put_background, frame_shape);
-        } else {
-            let shadow = frame.shadow.tessellate(outer_rect, frame.corner_radius);
-            let shadow = Shape::Triangles(shadow);
-            ui.painter().set(
-                where_to_put_background,
-                Shape::Vec(vec![shadow, frame_shape]),
-            )
-        };
-
+        let shape = frame.paint(outer_rect);
+        ui.painter().set(where_to_put_background, shape);
         ui.advance_cursor_after_rect(outer_rect);
-
         outer_rect
     }
 }

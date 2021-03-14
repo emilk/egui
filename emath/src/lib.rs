@@ -1,4 +1,6 @@
-//! Vectors, positions, rectangles etc.
+//! Opinionated 2D math library for building GUIs.
+//!
+//! Includes vectors, positions, rectangles etc.
 //!
 //! Conventions (unless otherwise specified):
 //!
@@ -58,6 +60,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 pub mod align;
 mod pos2;
 mod rect;
+mod rect_transform;
 mod rot2;
 pub mod smart_aim;
 mod vec2;
@@ -66,6 +69,7 @@ pub use {
     align::{Align, Align2},
     pos2::*,
     rect::*,
+    rect_transform::*,
     rot2::*,
     vec2::*,
 };
@@ -127,7 +131,7 @@ where
     lerp(to, t)
 }
 
-/// Like `remap`, but also clamps the value so that the returned value is always in the `to` range.
+/// Like [`remap`], but also clamps the value so that the returned value is always in the `to` range.
 pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,

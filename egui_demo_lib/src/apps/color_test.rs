@@ -45,7 +45,7 @@ impl epi::App for ColorTest {
                 ui.separator();
             }
             ScrollArea::auto_sized().show(ui, |ui| {
-                self.ui(ui, frame.tex_allocator());
+                self.ui(ui, &mut Some(frame.tex_allocator()));
             });
         });
     }
@@ -57,7 +57,11 @@ impl ColorTest {
         ui: &mut Ui,
         mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
-        ui.label("This is made to test that the Egui painter backend is set up correctly, so that all colors are interpolated and blended in linear space with premultiplied alpha.");
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
+        ui.label("This is made to test that the egui painter backend is set up correctly, so that all colors are interpolated and blended in linear space with premultiplied alpha.");
         ui.label("If everything is set up correctly, all groups of gradients will look uniform");
 
         ui.checkbox(&mut self.vertex_gradients, "Vertex gradients");
@@ -67,7 +71,7 @@ impl ColorTest {
         ui.heading("sRGB color test");
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
             self.tex_gradient(
@@ -83,13 +87,13 @@ impl ColorTest {
 
         ui.label("Test that vertex color times texture color is done in linear space:");
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
 
             let tex_color = Rgba::from_rgb(1.0, 0.25, 0.25);
             let vertex_color = Rgba::from_rgb(0.5, 0.75, 0.75);
 
             ui.horizontal(|ui| {
-                let color_size = ui.style().spacing.interact_size;
+                let color_size = ui.spacing().interact_size;
                 ui.label("texture");
                 show_color(ui, tex_color, color_size);
                 ui.label(" * ");
@@ -170,7 +174,7 @@ impl ColorTest {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
         ui.horizontal(|ui| {
-            let color_size = ui.style().spacing.interact_size;
+            let color_size = ui.spacing().interact_size;
             if !is_opaque {
                 ui.label("Background:");
                 show_color(ui, bg_fill, color_size);
@@ -182,7 +186,7 @@ impl ColorTest {
         });
 
         ui.wrap(|ui| {
-            ui.style_mut().spacing.item_spacing.y = 0.0; // No spacing between gradients
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             if is_opaque {
                 let g = Gradient::ground_truth_linear_gradient(left, right);
                 self.vertex_gradient(ui, "Ground Truth (CPU gradient) - vertices", bg_fill, &g);
@@ -295,29 +299,29 @@ impl ColorTest {
 }
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
-    use egui::paint::*;
+    use egui::epaint::*;
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
-        let mut triangles = Triangles::default();
-        triangles.add_colored_rect(rect, bg_fill);
-        ui.painter().add(Shape::triangles(triangles));
+        let mut mesh = Mesh::default();
+        mesh.add_colored_rect(rect, bg_fill);
+        ui.painter().add(Shape::mesh(mesh));
     }
     {
         let n = gradient.0.len();
         assert!(n >= 2);
-        let mut triangles = Triangles::default();
+        let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
             let x = lerp(rect.x_range(), t);
-            triangles.colored_vertex(pos2(x, rect.top()), color);
-            triangles.colored_vertex(pos2(x, rect.bottom()), color);
+            mesh.colored_vertex(pos2(x, rect.top()), color);
+            mesh.colored_vertex(pos2(x, rect.bottom()), color);
             if i < n - 1 {
                 let i = i as u32;
-                triangles.add_triangle(2 * i, 2 * i + 1, 2 * i + 2);
-                triangles.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
+                mesh.add_triangle(2 * i, 2 * i + 1, 2 * i + 2);
+                mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(Shape::triangles(triangles));
+        ui.painter().add(Shape::mesh(mesh));
     }
     response
 }

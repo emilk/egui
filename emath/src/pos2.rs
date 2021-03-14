@@ -8,7 +8,7 @@ use crate::*;
 ///
 /// Mathematically this is known as a "point", but the term position was chosen so not to
 /// conflict with the unit (one point = X physical pixels).
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pos2 {
     pub x: f32,
@@ -22,6 +22,9 @@ pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
 }
 
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from [f32; 2]:
+
 impl From<[f32; 2]> for Pos2 {
     fn from(v: [f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
@@ -34,7 +37,58 @@ impl From<&[f32; 2]> for Pos2 {
     }
 }
 
+impl From<Pos2> for [f32; 2] {
+    fn from(v: Pos2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+impl From<&Pos2> for [f32; 2] {
+    fn from(v: &Pos2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from (f32, f32):
+
+impl From<(f32, f32)> for Pos2 {
+    fn from(v: (f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<&(f32, f32)> for Pos2 {
+    fn from(v: &(f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<Pos2> for (f32, f32) {
+    fn from(v: Pos2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+impl From<&Pos2> for (f32, f32) {
+    fn from(v: &Pos2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 impl Pos2 {
+    /// The zero position, the origin.
+    /// The top left corner in a GUI.
+    /// Same as `Pos2::default()`.
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+
+    #[deprecated = "Use Pos2::ZERO instead"]
+    pub const fn zero() -> Self {
+        Self::ZERO
+    }
+
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
@@ -91,11 +145,27 @@ impl Pos2 {
     }
 }
 
-impl PartialEq for Pos2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+impl std::ops::Index<usize> for Pos2 {
+    type Output = f32;
+    fn index(&self, index: usize) -> &f32 {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Pos2 index out of bounds: {}", index),
+        }
     }
 }
+
+impl std::ops::IndexMut<usize> for Pos2 {
+    fn index_mut(&mut self, index: usize) -> &mut f32 {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Pos2 index out of bounds: {}", index),
+        }
+    }
+}
+
 impl Eq for Pos2 {}
 
 impl AddAssign<Vec2> for Pos2 {

@@ -1,11 +1,15 @@
-//! eframe - the Egui Framework crate
+//! eframe - the egui framework crate
 //!
-//! You write your application code for [`epi`] (implementing [`epi::App`]) and then
-//! use eframe to either compile and run it natively, or compile it as a web app.
+//! If you are planning to write an app for web or native,
+//! and are happy with just using egui for all visuals,
+//! Then `eframe` is for you!
 //!
 //! To get started, look at <https://github.com/emilk/egui_template>.
 //!
-//! eframe is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
+//! You write your application code for [`epi`] (implementing [`epi::App`]) and then
+//! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
+//!
+//! `eframe` is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
@@ -23,7 +27,7 @@ pub use egui_web::wasm_bindgen;
 /// and start running the given app.
 ///
 /// Usage:
-/// ``` ignore
+/// ``` no_run
 /// #[cfg(target_arch = "wasm32")]
 /// use wasm_bindgen::prelude::*;
 ///

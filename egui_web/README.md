@@ -5,6 +5,6 @@
 
 # egui_web
 
-This crates allows you to compile GUI code written with [Egui](https://crates.io/crates/egui) to [WASM](https://en.wikipedia.org/wiki/WebAssembly) to run on a web page.
+This crates allows you to compile GUI code written with [egui](https://crates.io/crates/egui) to [WASM](https://en.wikipedia.org/wiki/WebAssembly) to run on a web page.
 
 Check out [egui_template](https://github.com/emilk/egui_template) for an example of how to set it up.

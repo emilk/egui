@@ -1,4 +1,4 @@
-use crate::{math::*, Align};
+use crate::{emath::*, Align};
 
 // ----------------------------------------------------------------------------
 
@@ -60,6 +60,16 @@ impl Region {
         self.min_rect = self.min_rect.union(rect);
         self.max_rect = self.max_rect.union(rect);
     }
+
+    /// Ensure we are big enough to contain the given x-coordinate.
+    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    pub fn expand_to_include_x(&mut self, x: f32) {
+        self.min_rect.min.x = self.min_rect.min.x.min(x);
+        self.min_rect.max.x = self.min_rect.max.x.max(x);
+
+        self.max_rect.min.x = self.max_rect.min.x.min(x);
+        self.max_rect.max.x = self.max_rect.max.x.max(x);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -105,6 +115,12 @@ pub struct Layout {
     /// wrap to a new row when we reach the right side of the `max_rect`.
     main_wrap: bool,
 
+    /// How to align things on the main axis.
+    main_align: Align,
+
+    /// Justify the main axis?
+    main_justify: bool,
+
     /// How to align things on the cross axis.
     /// For vertical layouts: put things to left, center or right?
     /// For horizontal layouts: put things to top, center or bottom?
@@ -123,7 +139,9 @@ impl Default for Layout {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
-            cross_align: Align::left(),
+            main_align: Align::TOP,
+            main_justify: false,
+            cross_align: Align::LEFT,
             cross_justify: false,
         }
     }
@@ -135,6 +153,8 @@ impl Layout {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: false,
+            main_align: Align::Center, // looks best to e.g. center text within a button
+            main_justify: false,
             cross_align: Align::Center,
             cross_justify: false,
         }
@@ -144,6 +164,8 @@ impl Layout {
         Self {
             main_dir: Direction::RightToLeft,
             main_wrap: false,
+            main_align: Align::Center, // looks best to e.g. center text within a button
+            main_justify: false,
             cross_align: Align::Center,
             cross_justify: false,
         }
@@ -153,6 +175,8 @@ impl Layout {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
+            main_align: Align::Center, // looks best to e.g. center text within a button
+            main_justify: false,
             cross_align,
             cross_justify: false,
         }
@@ -167,6 +191,8 @@ impl Layout {
         Self {
             main_dir: Direction::BottomUp,
             main_wrap: false,
+            main_align: Align::Center, // looks best to e.g. center text within a button
+            main_justify: false,
             cross_align,
             cross_justify: false,
         }
@@ -176,8 +202,21 @@ impl Layout {
         Self {
             main_dir,
             main_wrap: false,
+            main_align: Align::Center, // looks best to e.g. center text within a button
+            main_justify: false,
             cross_align,
             cross_justify: false,
+        }
+    }
+
+    pub fn centered_and_justified(main_dir: Direction) -> Self {
+        Self {
+            main_dir,
+            main_wrap: false,
+            main_align: Align::Center,
+            main_justify: true,
+            cross_align: Align::Center,
+            cross_justify: true,
         }
     }
 
@@ -242,22 +281,38 @@ impl Layout {
     }
 
     fn horizontal_align(&self) -> Align {
-        match self.main_dir {
-            // Direction::LeftToRight => Align::left(),
-            // Direction::RightToLeft => Align::right(),
-            Direction::LeftToRight | Direction::RightToLeft => Align::Center, // looks better to e.g. center text within a button
-
-            Direction::TopDown | Direction::BottomUp => self.cross_align,
+        if self.is_horizontal() {
+            self.main_align
+        } else {
+            self.cross_align
         }
     }
 
     fn vertical_align(&self) -> Align {
-        match self.main_dir {
-            // Direction::TopDown => Align::top(),
-            // Direction::BottomUp => Align::bottom(),
-            Direction::TopDown | Direction::BottomUp => Align::Center, // looks better to e.g. center text within a button
+        if self.is_vertical() {
+            self.main_align
+        } else {
+            self.cross_align
+        }
+    }
 
-            Direction::LeftToRight | Direction::RightToLeft => self.cross_align,
+    fn align2(&self) -> Align2 {
+        Align2([self.horizontal_align(), self.vertical_align()])
+    }
+
+    fn horizontal_justify(&self) -> bool {
+        if self.is_horizontal() {
+            self.main_justify
+        } else {
+            self.cross_justify
+        }
+    }
+
+    fn vertical_justify(&self) -> bool {
+        if self.is_vertical() {
+            self.main_justify
+        } else {
+            self.cross_justify
         }
     }
 }
@@ -265,18 +320,7 @@ impl Layout {
 /// ## Doing layout
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        let x = match self.horizontal_align() {
-            Align::Min => outer.left(),
-            Align::Center => outer.center().x - size.x / 2.0,
-            Align::Max => outer.right() - size.x,
-        };
-        let y = match self.vertical_align() {
-            Align::Min => outer.top(),
-            Align::Center => outer.center().y - size.y / 2.0,
-            Align::Max => outer.bottom() - size.y,
-        };
-
-        Rect::from_min_size(Pos2::new(x, y), size)
+        self.align2().align_size_within_rect(size, outer)
     }
 
     fn initial_cursor(&self, max_rect: Rect) -> Pos2 {
@@ -290,7 +334,7 @@ impl Layout {
 
     pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
         let cursor = self.initial_cursor(max_rect);
-        let min_rect = Rect::from_min_size(cursor, Vec2::zero());
+        let min_rect = Rect::from_min_size(cursor, Vec2::ZERO);
         Region {
             min_rect,
             max_rect,
@@ -359,7 +403,7 @@ impl Layout {
     /// Returns where to put the next widget that is of the given size.
     /// The returned `frame_rect` `Rect` will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
-    /// Use `justify_or_align` to get the inner `widget_rect`.
+    /// Use `justify_and_align` to get the inner `widget_rect`.
     #[allow(clippy::collapsible_if)]
     pub(crate) fn next_space(
         &self,
@@ -412,12 +456,12 @@ impl Layout {
         }
 
         let available_size = self.available_size_before_wrap_finite(region);
-        if self.main_dir.is_horizontal() {
-            // Fill full height
-            child_size.y = child_size.y.max(available_size.y);
-        } else {
-            // Fill full width
-            child_size.x = child_size.x.max(available_size.x);
+
+        if self.is_vertical() || self.horizontal_justify() {
+            child_size.x = child_size.x.at_least(available_size.x); // fill full width
+        }
+        if self.is_horizontal() || self.vertical_justify() {
+            child_size.y = child_size.y.at_least(available_size.y); // fill full height
         }
 
         let child_pos = match self.main_dir {
@@ -430,30 +474,15 @@ impl Layout {
         Rect::from_min_size(child_pos, child_size)
     }
 
-    /// Apply justify or alignment after calling `next_space`.
-    pub(crate) fn justify_or_align(&self, rect: Rect, mut child_size: Vec2) -> Rect {
-        if self.cross_justify {
-            if self.main_dir.is_horizontal() {
-                child_size.y = rect.height(); // fill full height
-            } else {
-                child_size.x = rect.width(); //  fill full width
-            }
+    /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
+    pub(crate) fn justify_and_align(&self, rect: Rect, mut child_size: Vec2) -> Rect {
+        if self.horizontal_justify() {
+            child_size.x = child_size.x.at_least(rect.width()); // fill full width
         }
-
-        match self.main_dir {
-            Direction::LeftToRight => {
-                Align2([Align::Min, self.cross_align]).align_size_within_rect(child_size, rect)
-            }
-            Direction::RightToLeft => {
-                Align2([Align::Max, self.cross_align]).align_size_within_rect(child_size, rect)
-            }
-            Direction::TopDown => {
-                Align2([self.cross_align, Align::Min]).align_size_within_rect(child_size, rect)
-            }
-            Direction::BottomUp => {
-                Align2([self.cross_align, Align::Max]).align_size_within_rect(child_size, rect)
-            }
+        if self.vertical_justify() {
+            child_size.y = child_size.y.at_least(rect.height()); // fill full height
         }
+        self.align_size_within_rect(child_size, rect)
     }
 
     /// Advance the cursor by this many points.
@@ -509,7 +538,7 @@ impl Layout {
         stroke: epaint::Stroke,
         painter: &crate::Painter,
     ) {
-        use crate::paint::*;
+        use epaint::*;
 
         let cursor = region.cursor;
 

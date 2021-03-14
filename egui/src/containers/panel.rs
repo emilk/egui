@@ -35,7 +35,11 @@ impl SidePanel {
 }
 
 impl SidePanel {
-    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
         let Self { id, max_width } = self;
 
         let mut panel_rect = ctx.available_rect();
@@ -46,7 +50,7 @@ impl SidePanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::panel(&ctx.style());
+        let frame = Frame::side_top_panel(&ctx.style());
         let (r, used_space) = frame.show(&mut panel_ui, |ui| {
             let r = add_contents(ui);
             let used_space = ui.min_rect();
@@ -61,7 +65,7 @@ impl SidePanel {
         ctx.frame_state()
             .allocate_left_panel(used_space.expand2(frame.margin));
 
-        (r, response)
+        InnerResponse::new(r, response)
     }
 }
 
@@ -97,7 +101,11 @@ impl TopPanel {
 }
 
 impl TopPanel {
-    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
         let Self { id, max_height } = self;
         let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
@@ -109,7 +117,7 @@ impl TopPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::panel(&ctx.style());
+        let frame = Frame::side_top_panel(&ctx.style());
         let (r, used_space) = frame.show(&mut panel_ui, |ui| {
             let r = add_contents(ui);
             let used_space = ui.min_rect();
@@ -124,7 +132,7 @@ impl TopPanel {
         ctx.frame_state()
             .allocate_top_panel(used_space.expand2(frame.margin));
 
-        (r, response)
+        InnerResponse::new(r, response)
     }
 }
 
@@ -150,6 +158,7 @@ pub struct CentralPanel {
 }
 
 impl CentralPanel {
+    /// Change the background color, margins, etc.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -157,7 +166,11 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
-    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui) -> R) -> (R, Response) {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
         let Self { frame } = self;
 
         let panel_rect = ctx.available_rect();
@@ -184,6 +197,6 @@ impl CentralPanel {
         ctx.frame_state()
             .allocate_central_panel(used_space.expand2(frame.margin));
 
-        (r, response)
+        InnerResponse::new(r, response)
     }
 }

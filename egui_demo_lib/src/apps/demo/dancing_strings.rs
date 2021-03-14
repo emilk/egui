@@ -11,7 +11,7 @@ impl Default for DancingStrings {
 }
 
 impl super::Demo for DancingStrings {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "♫ Dancing Strings"
     }
 
@@ -34,6 +34,9 @@ impl super::View for DancingStrings {
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
             let (_id, rect) = ui.allocate_space(desired_size);
 
+            let to_screen =
+                emath::RectTransform::from_to(Rect::from_x_y_ranges(0.0..=1.0, -1.0..=1.0), rect);
+
             let mut shapes = vec![];
 
             for &mode in &[2, 3, 5] {
@@ -46,16 +49,12 @@ impl super::View for DancingStrings {
                         let t = i as f32 / (n as f32);
                         let amp = (time as f32 * speed * mode).sin() / mode;
                         let y = amp * (t * std::f32::consts::TAU / 2.0 * mode).sin();
-
-                        pos2(
-                            lerp(rect.x_range(), t),
-                            remap(y, -1.0..=1.0, rect.y_range()),
-                        )
+                        to_screen * pos2(t, y)
                     })
                     .collect();
 
                 let thickness = 10.0 / mode;
-                shapes.push(paint::Shape::line(
+                shapes.push(epaint::Shape::line(
                     points,
                     Stroke::new(thickness, Color32::from_additive_luminance(196)),
                 ));

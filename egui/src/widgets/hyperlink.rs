@@ -1,33 +1,45 @@
 use crate::*;
 
 /// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
+///
+/// See also [`Ui::hyperlink`] and [`Ui::hyperlink_to`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.hyperlink("https://github.com/emilk/egui");
+/// ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text("My favorite repo").small());
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Hyperlink {
-    // TODO: wrap Label
     url: String,
-    text: String,
-    pub(crate) text_style: Option<TextStyle>,
+    label: Label,
 }
 
 impl Hyperlink {
     pub fn new(url: impl Into<String>) -> Self {
         let url = url.into();
         Self {
-            text: url.clone(),
-            url,
-            text_style: None,
+            url: url.clone(),
+            label: Label::new(url),
+        }
+    }
+
+    pub fn from_label_and_url(label: impl Into<Label>, url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            label: label.into(),
         }
     }
 
     /// Show some other text than the url
     pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.text = text.into();
+        self.label.text = text.into();
         self
     }
 
-    /// If you do not set a `TextStyle`, the default `style.text_style`.
+    /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = Some(text_style);
+        self.label = self.label.text_style(text_style);
         self
     }
 
@@ -38,42 +50,38 @@ impl Hyperlink {
 
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Hyperlink {
-            url,
-            text,
-            text_style,
-        } = self;
-        let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
-        let font = &ui.fonts()[text_style];
-        let galley = font.layout_multiline(text, ui.available_width());
+        let Hyperlink { url, label } = self;
+        let galley = label.layout(ui);
         let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, &galley.text));
 
-        if response.hovered {
+        if response.hovered() {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
-        if response.clicked {
-            ui.ctx().output().open_url = Some(url.clone());
+        if response.clicked() {
+            let modifiers = ui.ctx().input().modifiers;
+            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+                url: url.clone(),
+                new_tab: modifiers.any(),
+            });
         }
 
-        let color = ui.style().visuals.hyperlink_color;
+        let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
 
-        if response.hovered {
+        if response.hovered() || response.has_focus() {
             // Underline:
-            for line in &galley.rows {
-                let pos = rect.min;
-                let y = pos.y + line.y_max;
-                let y = ui.painter().round_to_pixel(y);
-                let min_x = pos.x + line.min_x();
-                let max_x = pos.x + line.max_x();
+            for row in &galley.rows {
+                let rect = row.rect().translate(rect.min.to_vec2());
                 ui.painter().line_segment(
-                    [pos2(min_x, y), pos2(max_x, y)],
+                    [rect.left_bottom(), rect.right_bottom()],
                     (visuals.fg_stroke.width, color),
                 );
             }
         }
 
-        ui.painter().galley(rect.min, galley, text_style, color);
+        let label = label.text_color(color);
+        label.paint_galley(ui, rect.min, galley);
 
         response.on_hover_text(url)
     }

@@ -96,7 +96,7 @@ impl epi::App for HttpApp {
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
-                        ui_resouce(ui, frame, &mut self.tex_mngr, resource);
+                        ui_resource(ui, frame, &mut self.tex_mngr, resource);
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
@@ -113,8 +113,8 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
 
     ui.horizontal(|ui| {
         ui.label("URL:");
-        trigger_fetch |= ui.text_edit_singleline(url).lost_kb_focus;
-        trigger_fetch |= ui.button("GET").clicked;
+        trigger_fetch |= ui.text_edit_singleline(url).lost_focus();
+        trigger_fetch |= ui.button("GET").clicked();
     });
 
     if frame.is_web() {
@@ -122,14 +122,14 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
     }
 
     ui.horizontal(|ui| {
-        if ui.button("Source code for this example").clicked {
+        if ui.button("Source code for this example").clicked() {
             *url = format!(
                 "https://raw.githubusercontent.com/emilk/egui/master/{}",
                 file!()
             );
             trigger_fetch = true;
         }
-        if ui.button("Random image").clicked {
+        if ui.button("Random image").clicked() {
             let seed = ui.input().time;
             let width = 640;
             let height = 480;
@@ -145,7 +145,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> Op
     }
 }
 
-fn ui_resouce(
+fn ui_resource(
     ui: &mut egui::Ui,
     frame: &mut epi::Frame<'_>,
     tex_mngr: &mut TexMngr,
@@ -170,7 +170,7 @@ fn ui_resouce(
 
     if let Some(text) = &response.text {
         let tooltip = "Click to copy the response body";
-        if ui.button("📋").on_hover_text(tooltip).clicked {
+        if ui.button("📋").on_hover_text(tooltip).clicked() {
             ui.output().copied_text = text.clone();
         }
     }
@@ -196,6 +196,7 @@ fn ui_resouce(
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
+#[cfg(feature = "syntect")]
 fn syntax_highlighting(response: &Response) -> Option<ColoredText> {
     let text = response.text.as_ref()?;
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
@@ -204,8 +205,10 @@ fn syntax_highlighting(response: &Response) -> Option<ColoredText> {
 }
 
 /// Lines of text fragments
+#[cfg(feature = "syntect")]
 struct ColoredText(Vec<Vec<(syntect::highlighting::Style, String)>>);
 
+#[cfg(feature = "syntect")]
 impl ColoredText {
     /// e.g. `text_with_extension("fn foo() {}", "rs")`
     pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
@@ -236,7 +239,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
         for line in &self.0 {
             ui.horizontal_wrapped_for_text(egui::TextStyle::Monospace, |ui| {
-                ui.style_mut().spacing.item_spacing.x = 0.0;
+                ui.spacing_mut().item_spacing.x = 0.0;
                 for (style, range) in line {
                     let fg = style.foreground;
                     let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
@@ -245,6 +248,17 @@ impl ColoredText {
             });
         }
     }
+}
+
+#[cfg(not(feature = "syntect"))]
+fn syntax_highlighting(_: &Response) -> Option<ColoredText> {
+    None
+}
+#[cfg(not(feature = "syntect"))]
+struct ColoredText();
+#[cfg(not(feature = "syntect"))]
+impl ColoredText {
+    pub fn ui(&self, _ui: &mut egui::Ui) {}
 }
 
 // ----------------------------------------------------------------------------
@@ -264,14 +278,16 @@ impl TexMngr {
         url: &str,
         image: &Image,
     ) -> Option<egui::TextureId> {
-        let tex_allocator = frame.tex_allocator().as_mut()?;
         if self.loaded_url != url {
             if let Some(texture_id) = self.texture_id.take() {
-                tex_allocator.free(texture_id);
+                frame.tex_allocator().free(texture_id);
             }
 
-            self.texture_id =
-                Some(tex_allocator.alloc_srgba_premultiplied(image.size, &image.pixels));
+            self.texture_id = Some(
+                frame
+                    .tex_allocator()
+                    .alloc_srgba_premultiplied(image.size, &image.pixels),
+            );
             self.loaded_url = url.to_owned();
         }
         self.texture_id

@@ -1,4 +1,4 @@
-# epaint - Egui Paint Library
+# epaint - egui paint library
 
 A bare-bones 2D graphics library for turning simple 2D shapes and text into textured triangles.
 

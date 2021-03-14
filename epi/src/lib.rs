@@ -2,7 +2,7 @@
 //!
 //! `epi` provides interfaces for window management, serialization and http requests.
 //! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
-//! the Egui framework crate.
+//! the egui framework crate.
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
@@ -76,6 +76,12 @@ pub trait App {
     fn load(&mut self, _storage: &dyn Storage) {}
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    ///
+    /// On web the states is stored to "Local Storage".
+    /// On native the path is picked using [`directories_next::ProjectDirs`](https://docs.rs/directories-next/latest/directories_next/struct.ProjectDirs.html) which is:
+    /// * Linux:   `/home/UserName/.config/appname`
+    /// * macOS:   `/Users/UserName/Library/Application Support/appname`
+    /// * Windows: `C:\Users\UserName\AppData\Roaming\appname`
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown (before or after `save()`)
@@ -87,6 +93,11 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
+    /// The initial size of the native window in points (logical pixels).
+    fn initial_window_size(&self) -> Option<egui::Vec2> {
+        None
+    }
+
     /// Time between automatic calls to `save()`
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
@@ -97,12 +108,35 @@ pub trait App {
         true
     }
 
+    /// The size limit of the web app canvas
+    fn max_size_points(&self) -> egui::Vec2 {
+        // Some browsers get slow with huge WebGL canvases, so we limit the size:
+        egui::Vec2::new(1024.0, 2048.0)
+    }
+
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.
     /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         egui::Color32::from_rgb(12, 12, 12).into()
     }
+
+    /// The application icon, e.g. in the Windows task bar etc.
+    fn icon_data(&self) -> Option<IconData> {
+        None
+    }
+}
+
+/// Image data for the icon.
+pub struct IconData {
+    /// RGBA pixels.
+    pub rgba: Vec<u8>,
+
+    /// Image width. This should be a multiple of 4.
+    pub width: u32,
+
+    /// Image height. This should be a multiple of 4.
+    pub height: u32,
 }
 
 /// Represents the surroundings of your app.
@@ -122,9 +156,9 @@ impl<'a> Frame<'a> {
         &self.0.info
     }
 
-    /// A way to allocate textures (on integrations that support it).
-    pub fn tex_allocator(&mut self) -> &mut Option<&'a mut dyn TextureAllocator> {
-        &mut self.0.tex_allocator
+    /// A way to allocate textures.
+    pub fn tex_allocator(&mut self) -> &mut dyn TextureAllocator {
+        self.0.tex_allocator
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
@@ -138,10 +172,9 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
-    /// Change the `pixels_per_point` of [`egui`] to this next frame.
-    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
-        self.0.output.pixels_per_point = Some(pixels_per_point);
-    }
+    /// Use [`egui::Context::set_pixels_per_point`] instead
+    #[deprecated = "Use egui::Context::set_pixels_per_point instead"]
+    pub fn set_pixels_per_point(&mut self, _: f32) {}
 
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
@@ -160,7 +193,7 @@ impl<'a> Frame<'a> {
     }
 }
 
-/// Information about the web environment
+/// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {
     /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
@@ -263,6 +296,8 @@ pub mod http {
         pub method: String,
         /// https://…
         pub url: String,
+        /// x-www-form-urlencoded body
+        pub body: String,
     }
 
     impl Request {
@@ -271,6 +306,16 @@ pub mod http {
             Self {
                 method: "GET".to_owned(),
                 url: url.into(),
+                body: "".to_string(),
+            }
+        }
+
+        /// Create a `POST` requests with the give url and body.
+        pub fn post(url: impl Into<String>, body: impl Into<String>) -> Self {
+            Self {
+                method: "POST".to_owned(),
+                url: url.into(),
+                body: body.into(),
             }
         }
     }
@@ -323,7 +368,7 @@ pub mod backend {
         /// Information about the integration.
         pub info: IntegrationInfo,
         /// A way to allocate textures (on integrations that support it).
-        pub tex_allocator: Option<&'a mut dyn TextureAllocator>,
+        pub tex_allocator: &'a mut dyn TextureAllocator,
         /// Do http requests.
         #[cfg(feature = "http")]
         pub http: std::sync::Arc<dyn backend::Http>,
@@ -349,8 +394,5 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
-
-        /// If the app sets this, change the `pixels_per_point` of [`egui`] to this next frame.
-        pub pixels_per_point: Option<f32>,
     }
 }

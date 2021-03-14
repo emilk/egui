@@ -13,6 +13,7 @@ pub struct FractalClock {
     length_factor: f32,
     luminance_factor: f32,
     width_factor: f32,
+    line_count: usize,
 }
 
 impl Default for FractalClock {
@@ -26,6 +27,7 @@ impl Default for FractalClock {
             length_factor: 0.8,
             luminance_factor: 0.8,
             width_factor: 0.9,
+            line_count: 0,
         }
     }
 }
@@ -59,7 +61,6 @@ impl FractalClock {
         ui.expand_to_include_rect(painter.clip_rect());
 
         Frame::popup(ui.style())
-            .fill(Rgba::from_luminance_alpha(0.02, 0.5).into())
             .stroke(Stroke::none())
             .show(ui, |ui| {
                 ui.set_max_width(270.0);
@@ -80,6 +81,7 @@ impl FractalClock {
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
         };
+        ui.label(format!("Painted line count: {}", self.line_count));
 
         ui.checkbox(&mut self.paused, "Paused");
         ui.add(Slider::f32(&mut self.zoom, 0.0..=1.0).text("zoom"));
@@ -91,15 +93,13 @@ impl FractalClock {
 
         egui::reset_button(ui, self);
 
-        ui.add(
-            Hyperlink::new("http://www.dqd.com/~mayoff/programs/FractalClock/")
-                .text("Inspired by a screensaver by Rob Mayoff"),
+        ui.hyperlink_to(
+            "Inspired by a screensaver by Rob Mayoff",
+            "http://www.dqd.com/~mayoff/programs/FractalClock/",
         );
     }
 
     fn paint(&mut self, painter: &Painter) {
-        let rect = painter.clip_rect();
-
         struct Hand {
             length: f32,
             angle: f32,
@@ -128,14 +128,21 @@ impl FractalClock {
             Hand::from_length_angle(0.5, angle_from_period(12.0 * 60.0 * 60.0)),
         ];
 
-        let scale = self.zoom * rect.width().min(rect.height());
-        let paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
-            let line = [
-                rect.center() + scale * points[0].to_vec2(),
-                rect.center() + scale * points[1].to_vec2(),
-            ];
+        let mut shapes: Vec<Shape> = Vec::new();
 
-            painter.line_segment([line[0], line[1]], (width, color));
+        let rect = painter.clip_rect();
+        let to_screen = emath::RectTransform::from_to(
+            Rect::from_center_size(Pos2::ZERO, rect.square_proportions() / self.zoom),
+            rect,
+        );
+
+        let mut paint_line = |points: [Pos2; 2], color: Color32, width: f32| {
+            let line = [to_screen * points[0], to_screen * points[1]];
+
+            // culling
+            if rect.intersects(Rect::from_two_pos(line[0], line[1])) {
+                shapes.push(Shape::line_segment(line, (width, color)));
+            }
         };
 
         let hand_rotations = [
@@ -144,8 +151,8 @@ impl FractalClock {
         ];
 
         let hand_rotors = [
-            hands[0].length * math::Rot2::from_angle(hand_rotations[0]),
-            hands[1].length * math::Rot2::from_angle(hand_rotations[1]),
+            hands[0].length * emath::Rot2::from_angle(hand_rotations[0]),
+            hands[1].length * emath::Rot2::from_angle(hand_rotations[1]),
         ];
 
         #[derive(Clone, Copy)]
@@ -181,6 +188,9 @@ impl FractalClock {
             width *= self.width_factor;
 
             let luminance_u8 = (255.0 * luminance).round() as u8;
+            if luminance_u8 == 0 {
+                break;
+            }
 
             for &rotor in &hand_rotors {
                 for a in &nodes {
@@ -200,5 +210,7 @@ impl FractalClock {
 
             std::mem::swap(&mut nodes, &mut new_nodes);
         }
+        self.line_count = shapes.len();
+        painter.extend(shapes);
     }
 }

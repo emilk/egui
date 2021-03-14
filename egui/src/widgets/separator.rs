@@ -1,6 +1,15 @@
 use crate::*;
 
 /// A visual separator. A horizontal or vertical line (depending on [`Layout`]).
+///
+/// Usually you'd use the shorter version [`Ui::separator`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// // These are equivalent:
+/// ui.separator();
+/// ui.add(egui::Separator::new());
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
     spacing: f32,
@@ -45,8 +54,8 @@ impl Widget for Separator {
             is_horizontal_line,
         } = self;
 
-        let is_horizontal_line =
-            is_horizontal_line.unwrap_or_else(|| !ui.layout().main_dir().is_horizontal());
+        let is_horizontal_line = is_horizontal_line
+            .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
 
         let available_space = ui.available_size_before_wrap_finite();
 
@@ -68,7 +77,7 @@ impl Widget for Separator {
                 pos2(rect.center().x, rect.bottom()),
             ]
         };
-        let stroke = ui.style().visuals.widgets.noninteractive.bg_stroke;
+        let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
         ui.painter().line_segment(points, stroke);
         response
     }

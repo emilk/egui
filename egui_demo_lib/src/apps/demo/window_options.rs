@@ -7,6 +7,7 @@ pub struct WindowOptions {
     collapsible: bool,
     resizable: bool,
     scroll: bool,
+    disabled_time: f64,
 }
 
 impl Default for WindowOptions {
@@ -18,14 +19,14 @@ impl Default for WindowOptions {
             collapsible: true,
             resizable: true,
             scroll: false,
+            disabled_time: f64::NEG_INFINITY,
         }
     }
 }
 
 impl super::Demo for WindowOptions {
-    fn name(&self) -> &str {
-        // "🗖 Window Options"
-        &self.title
+    fn name(&self) -> &'static str {
+        "🗖 Window Options"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
@@ -36,7 +37,13 @@ impl super::Demo for WindowOptions {
             collapsible,
             resizable,
             scroll,
+            disabled_time,
         } = self.clone();
+
+        let enabled = ctx.input().time - disabled_time > 2.0;
+        if !enabled {
+            ctx.request_repaint();
+        }
 
         use super::View;
         let mut window = egui::Window::new(title)
@@ -44,7 +51,8 @@ impl super::Demo for WindowOptions {
             .resizable(resizable)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll(scroll);
+            .scroll(scroll)
+            .enabled(enabled);
         if closable {
             window = window.open(open);
         }
@@ -54,8 +62,6 @@ impl super::Demo for WindowOptions {
 
 impl super::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::reset_button(ui, self);
-
         let Self {
             title,
             title_bar,
@@ -63,6 +69,7 @@ impl super::View for WindowOptions {
             collapsible,
             resizable,
             scroll,
+            disabled_time,
         } = self;
 
         ui.horizontal(|ui| {
@@ -74,7 +81,13 @@ impl super::View for WindowOptions {
         ui.checkbox(collapsible, "collapsible");
         ui.checkbox(resizable, "resizable");
         ui.checkbox(scroll, "scroll");
+
+        if ui.button("Disable for 2 seconds").clicked() {
+            *disabled_time = ui.input().time;
+        }
+
         ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
     }

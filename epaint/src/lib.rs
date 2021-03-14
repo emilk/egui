@@ -45,46 +45,47 @@
 #![allow(clippy::manual_range_contains)]
 
 pub mod color;
+mod mesh;
 pub mod mutex;
 mod shadow;
-pub mod shape;
+mod shape;
+pub mod shape_transform;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
 pub mod text;
 mod texture_atlas;
-mod triangles;
 
 pub use {
     color::{Color32, Rgba},
+    mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::Shape,
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::{PaintJob, PaintJobs, TessellationOptions},
+    tessellator::{TessellationOptions, Tessellator},
     text::{Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
-    triangles::{Triangles, Vertex},
 };
 
 pub use ahash;
 pub use emath;
 
 /// The UV coordinate of a white region of the texture mesh.
-/// The default Egui texture has the top-left corner pixel fully white.
+/// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
 pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
-/// What texture to use in a [`Triangles`] mesh.
+/// What texture to use in a [`Mesh`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextureId {
-    /// The Egui font texture.
+    /// The egui font texture.
     /// If you don't want to use a texture, pick this and the [`WHITE_UV`] for uv-coord.
     Egui,
 
     /// Your own texture, defined in any which way you want.
-    /// Egui won't care. The backend renderer will presumably use this to look up what texture to use.
+    /// egui won't care. The backend renderer will presumably use this to look up what texture to use.
     User(u64),
 }
 
@@ -101,3 +102,27 @@ pub(crate) struct PaintRect {
     pub fill: Color32,
     pub stroke: Stroke,
 }
+
+/// A [`Shape`] within a clip rectangle.
+///
+/// Everything is using logical points.
+#[derive(Clone, Debug)]
+pub struct ClippedShape(
+    /// Clip / scissor rectangle.
+    /// Only show the part of the [`Shape`] that falls within this.
+    pub emath::Rect,
+    /// The shape
+    pub Shape,
+);
+
+/// A [`Mesh`] within a clip rectangle.
+///
+/// Everything is using logical points.
+#[derive(Clone, Debug)]
+pub struct ClippedMesh(
+    /// Clip / scissor rectangle.
+    /// Only show the part of the [`Mesh`] that falls within this.
+    pub emath::Rect,
+    /// The shape
+    pub Mesh,
+);

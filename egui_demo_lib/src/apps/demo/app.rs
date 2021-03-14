@@ -1,4 +1,4 @@
-/// Demonstrates how to make an app using Egui.
+/// Demonstrates how to make an app using egui.
 ///
 /// Implements `epi::App` so it can be used with
 /// [`egui_glium`](https://crates.io/crates/egui_glium) and [`egui_web`](https://crates.io/crates/egui_web).
@@ -11,7 +11,7 @@ pub struct DemoApp {
 
 impl epi::App for DemoApp {
     fn name(&self) -> &str {
-        "✨ Egui Demo"
+        "✨ Demos"
     }
 
     #[cfg(feature = "persistence")]

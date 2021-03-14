@@ -1,8 +1,8 @@
-# Egui Demo Library
+# egui demo library
 
-This crate contains example code for Egui.
+this crate contains example code for egui.
 
-It is in a separate crate for two reasons:
+it is in a separate crate for two reasons:
 
-* To ensure it only uses the public `egui` API.
-* To remove the amount of code in `egui` proper.
+* to ensure it only uses the public `egui` api.
+* to remove the amount of code in `egui` proper.

@@ -142,13 +142,6 @@ impl FontImpl {
 
 type FontIndex = usize;
 
-#[inline]
-fn is_chinese(c: char) -> bool {
-    (c >= '\u{4E00}' && c <= '\u{9FFF}')
-        || (c >= '\u{3400}' && c <= '\u{4DBF}')
-        || (c >= '\u{2B740}' && c <= '\u{2B81F}')
-}
-
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 #[derive(Default)]
@@ -225,8 +218,8 @@ impl Font {
     /// `\n` will (intentionally) show up as the replacement character.
     fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
         {
-            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
-                return *glyph_info;
+            if let Some(font_index_glyph_info) = self.glyph_info_cache.read().get(&c) {
+                return *font_index_glyph_info;
             }
         }
 
@@ -282,6 +275,9 @@ impl Font {
     /// Typeset the given text onto one row.
     /// Any `\n` will show up as the replacement character.
     /// Always returns exactly one `Row` in the `Galley`.
+    ///
+    /// Most often you probably want `\n` to produce a new row,
+    /// and so [`Self::layout_no_wrap`] may be a better choice.
     pub fn layout_single_line(&self, text: String) -> Galley {
         let x_offsets = self.layout_single_row_fragment(&text);
         let row = Row {
@@ -302,6 +298,13 @@ impl Font {
     }
 
     /// Always returns at least one row.
+    /// Will line break at `\n`.
+    pub fn layout_no_wrap(&self, text: String) -> Galley {
+        self.layout_multiline(text, f32::INFINITY)
+    }
+
+    /// Always returns at least one row.
+    /// Will wrap text at the given width.
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
         self.layout_multiline_with_indentation_and_max_width(text, 0.0, max_width_in_points)
     }
@@ -347,14 +350,21 @@ impl Font {
                 row.y_max += cursor_y;
             }
             cursor_y = paragraph_rows.last().unwrap().y_max;
-            cursor_y += row_height * 0.4; // Extra spacing between paragraphs. TODO: less hacky
+            cursor_y += row_height * 0.2; // Extra spacing between paragraphs. TODO: less hacky
 
             rows.append(&mut paragraph_rows);
 
             paragraph_start = paragraph_end + 1;
         }
 
-        if text.is_empty() || text.ends_with('\n') {
+        if text.is_empty() {
+            rows.push(Row {
+                x_offsets: vec![first_row_indentation],
+                y_min: cursor_y,
+                y_max: cursor_y + row_height,
+                ends_with_newline: false,
+            });
+        } else if text.ends_with('\n') {
             rows.push(Row {
                 x_offsets: vec![0.0],
                 y_min: cursor_y,
@@ -399,8 +409,8 @@ impl Font {
         let mut cursor_y = 0.0;
         let mut row_start_idx = 0;
 
-        // start index of the last space or hieroglyphs. A candidate for a new row.
-        let mut newline_mark = None;
+        // Keeps track of good places to insert row break if we exceed `max_width_in_points`.
+        let mut row_break_candidates = RowBreakCandidates::default();
 
         let mut out_rows = vec![];
 
@@ -409,27 +419,13 @@ impl Font {
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
-                if let Some(last_space_idx) = newline_mark {
-                    // We include the trailing space in the row:
-                    let row = Row {
-                        x_offsets: full_x_offsets[row_start_idx..=last_space_idx + 1]
-                            .iter()
-                            .map(|x| first_row_indentation + x - row_start_x)
-                            .collect(),
-                        y_min: cursor_y,
-                        y_max: cursor_y + self.row_height(),
-                        ends_with_newline: false,
-                    };
-                    row.sanity_check();
-                    out_rows.push(row);
-
-                    row_start_idx = last_space_idx + 1;
-                    row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
-                    newline_mark = None;
-                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
-                } else if out_rows.is_empty() && first_row_indentation > 0.0 {
-                    assert_eq!(row_start_idx, 0);
+                let is_first_row = out_rows.is_empty();
+                if is_first_row
+                    && first_row_indentation > 0.0
+                    && !row_break_candidates.has_word_boundary()
+                {
                     // Allow the first row to be completely empty, because we know there will be more space on the next row:
+                    assert_eq!(row_start_idx, 0);
                     let row = Row {
                         x_offsets: vec![first_row_indentation],
                         y_min: cursor_y,
@@ -440,13 +436,27 @@ impl Font {
                     out_rows.push(row);
                     cursor_y = self.round_to_pixel(cursor_y + self.row_height());
                     first_row_indentation = 0.0; // Continue all other rows as if there is no indentation
+                } else if let Some(last_kept_index) = row_break_candidates.get() {
+                    let row = Row {
+                        x_offsets: full_x_offsets[row_start_idx..=last_kept_index + 1]
+                            .iter()
+                            .map(|x| first_row_indentation + x - row_start_x)
+                            .collect(),
+                        y_min: cursor_y,
+                        y_max: cursor_y + self.row_height(),
+                        ends_with_newline: false,
+                    };
+                    row.sanity_check();
+                    out_rows.push(row);
+
+                    row_start_idx = last_kept_index + 1;
+                    row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
+                    row_break_candidates = Default::default();
+                    cursor_y = self.round_to_pixel(cursor_y + self.row_height());
                 }
             }
 
-            const NON_BREAKING_SPACE: char = '\u{A0}';
-            if (chr.is_whitespace() && chr != NON_BREAKING_SPACE) || is_chinese(chr) {
-                newline_mark = Some(i);
-            }
+            row_break_candidates.add(i, chr);
         }
 
         if row_start_idx + 1 < full_x_offsets.len() {
@@ -465,6 +475,62 @@ impl Font {
 
         out_rows
     }
+}
+
+/// Keeps track of good places to break a long row of text.
+/// Will focus primarily on spaces, secondarily on things like `-`
+#[derive(Clone, Copy, Default)]
+struct RowBreakCandidates {
+    /// Breaking at ` ` or other whitespace
+    /// is always the primary candidate.
+    space: Option<usize>,
+    /// Logogram (single character representing a whole word) are good candidates for line break.
+    logogram: Option<usize>,
+    /// Breaking at a dash is super-
+    /// good idea.
+    dash: Option<usize>,
+    /// This is nicer for things like URLs, e.g. www.
+    /// example.com.
+    punctuation: Option<usize>,
+    /// Breaking after just random character is some
+    /// times necessary.
+    any: Option<usize>,
+}
+
+impl RowBreakCandidates {
+    fn add(&mut self, index: usize, chr: char) {
+        const NON_BREAKING_SPACE: char = '\u{A0}';
+        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+            self.space = Some(index);
+        } else if is_chinese(chr) {
+            self.logogram = Some(index);
+        } else if chr == '-' {
+            self.dash = Some(index);
+        } else if chr.is_ascii_punctuation() {
+            self.punctuation = Some(index);
+        } else {
+            self.any = Some(index);
+        }
+    }
+
+    fn has_word_boundary(&self) -> bool {
+        self.space.is_some() || self.logogram.is_some()
+    }
+
+    fn get(&self) -> Option<usize> {
+        self.space
+            .or(self.logogram)
+            .or(self.dash)
+            .or(self.punctuation)
+            .or(self.any)
+    }
+}
+
+#[inline]
+fn is_chinese(c: char) -> bool {
+    ('\u{4E00}' <= c && c <= '\u{9FFF}')
+        || ('\u{3400}' <= c && c <= '\u{4DBF}')
+        || ('\u{2B740}' <= c && c <= '\u{2B81F}')
 }
 
 fn allocate_glyph(

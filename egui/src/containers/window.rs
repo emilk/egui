@@ -1,6 +1,7 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::{paint::*, widgets::*, *};
+use crate::{widgets::*, *};
+use epaint::*;
 
 use super::*;
 
@@ -38,9 +39,7 @@ impl<'open> Window<'open> {
     pub fn new(title: impl Into<String>) -> Self {
         let title = title.into();
         let area = Area::new(&title);
-        let title_label = Label::new(title)
-            .text_style(TextStyle::Heading)
-            .multiline(false);
+        let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
         Self {
             title_label,
             open: None,
@@ -72,6 +71,12 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// If `false` the window will be grayed out and non-interactive.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        self.area = self.area.enabled(enabled);
+        self
+    }
+
     /// Usage: `Window::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
@@ -86,8 +91,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Usage: `Window::new(...).frame(|f| f.fill(Some(BLUE)))`
-    /// Not sure this is a good interface for this.
+    /// Change the background color, margins, etc.
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -200,6 +204,12 @@ impl<'open> Window<'open> {
         }
         self
     }
+
+    /// Constrain the area up to which the window can be dragged.
+    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
+        self.area = self.area.drag_bounds(bounds);
+        self
+    }
 }
 
 impl<'open> Window<'open> {
@@ -224,7 +234,12 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        if matches!(open, Some(false)) && !ctx.memory().everything_is_visible() {
+        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+
+        let is_open = !matches!(open, Some(false)) || ctx.memory().everything_is_visible();
+        area.show_open_close_animation(ctx, &frame, is_open);
+
+        if !is_open {
             return None;
         }
 
@@ -236,15 +251,13 @@ impl<'open> Window<'open> {
         let is_maximized = !with_title_bar
             || collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions {
-            movable: area.is_movable(),
-            resizable: resize.is_resizable() && is_maximized,
+            movable: area.is_enabled() && area.is_movable(),
+            resizable: area.is_enabled() && resize.is_resizable() && is_maximized,
         };
 
         let area = area.movable(false); // We move it manually
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
-
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let mut area = area.begin(ctx);
 
@@ -268,6 +281,7 @@ impl<'open> Window<'open> {
                     0.0
                 };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
+                let bounds = area.drag_bounds();
 
                 interact(
                     window_interaction,
@@ -276,6 +290,7 @@ impl<'open> Window<'open> {
                     area_layer_id,
                     area.state_mut(),
                     resize_id,
+                    bounds,
                 )
             })
         } else {
@@ -326,7 +341,7 @@ impl<'open> Window<'open> {
                         }
                     })
                 })
-                .map(|ri| ri.1);
+                .map(|ir| ir.response);
 
             let outer_rect = frame.end(&mut area_content_ui);
 
@@ -341,7 +356,6 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     &content_response,
-                    &interaction,
                     open,
                     &mut collapsing,
                     collapsible,
@@ -361,12 +375,14 @@ impl<'open> Window<'open> {
                     ctx.style().visuals.widgets.active,
                 );
             } else if let Some(hover_interaction) = hover_interaction {
-                paint_frame_interaction(
-                    &mut area_content_ui,
-                    outer_rect,
-                    hover_interaction,
-                    ctx.style().visuals.widgets.hovered,
-                );
+                if ctx.input().pointer.has_pointer() {
+                    paint_frame_interaction(
+                        &mut area_content_ui,
+                        outer_rect,
+                        hover_interaction,
+                        ctx.style().visuals.widgets.hovered,
+                    );
+                }
             }
         }
         let full_response = area.end(ctx, area_content_ui);
@@ -376,7 +392,7 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, stroke: Stroke) {
-    let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
+    let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let handle_offset = -Vec2::splat(2.0);
     let corner_rect =
         Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
@@ -391,6 +407,7 @@ struct PossibleInteractions {
     resizable: bool,
 }
 
+/// Either a move or resize
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WindowInteraction {
     pub(crate) area_layer_id: LayerId,
@@ -426,10 +443,16 @@ fn interact(
     area_layer_id: LayerId,
     area_state: &mut area::State,
     resize_id: Id,
+    drag_bounds: Option<Rect>,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
-    let new_rect = ctx.constrain_window_rect(new_rect);
+
+    let new_rect = if let Some(bounds) = drag_bounds {
+        ctx.constrain_window_rect_to_area(new_rect, bounds)
+    } else {
+        ctx.constrain_window_rect(new_rect)
+    };
 
     // TODO: add this to a Window state instead as a command "move here next frame"
     area_state.pos = new_rect.min;
@@ -446,29 +469,39 @@ fn interact(
 
 fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
-    let mouse_pos = ctx.input().mouse.pos?;
+    let pointer_pos = ctx.input().pointer.interact_pos()?;
     let mut rect = window_interaction.start_rect; // prevent drift
 
     if window_interaction.is_resize() {
         if window_interaction.left {
-            rect.min.x = ctx.round_to_pixel(mouse_pos.x);
+            rect.min.x = ctx.round_to_pixel(pointer_pos.x);
         } else if window_interaction.right {
-            rect.max.x = ctx.round_to_pixel(mouse_pos.x);
+            rect.max.x = ctx.round_to_pixel(pointer_pos.x);
         }
 
         if window_interaction.top {
-            rect.min.y = ctx.round_to_pixel(mouse_pos.y);
+            rect.min.y = ctx.round_to_pixel(pointer_pos.y);
         } else if window_interaction.bottom {
-            rect.max.y = ctx.round_to_pixel(mouse_pos.y);
+            rect.max.y = ctx.round_to_pixel(pointer_pos.y);
         }
     } else {
-        // movement
-        rect = rect.translate(mouse_pos - ctx.input().mouse.press_origin?);
+        // Movement.
+
+        // We do window interaction first (to avoid frame delay),
+        // but we want anything interactive in the window (e.g. slider) to steal
+        // the drag from us. It is therefor important not to move the window the first frame,
+        // but instead let other widgets to the steal. HACK.
+        if !ctx.input().pointer.any_pressed() {
+            let press_origin = ctx.input().pointer.press_origin()?;
+            let delta = pointer_pos - press_origin;
+            rect = rect.translate(delta);
+        }
     }
 
     Some(rect)
 }
 
+/// Returns `Some` if there is a move or resize
 fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
@@ -489,7 +522,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().mouse.pressed {
+            if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
                 ctx.memory().interaction.drag_id = Some(id);
                 ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
@@ -515,13 +548,13 @@ fn resize_hover(
     area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    let mouse_pos = ctx.input().mouse.pos?;
+    let pointer_pos = ctx.input().pointer.interact_pos()?;
 
-    if ctx.input().mouse.down && !ctx.input().mouse.pressed {
+    if ctx.input().pointer.any_down() && !ctx.input().pointer.any_pressed() {
         return None; // already dragging (something)
     }
 
-    if let Some(top_layer_id) = ctx.layer_id_at(mouse_pos) {
+    if let Some(top_layer_id) = ctx.layer_id_at(pointer_pos) {
         if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
             return None; // Another window is on top here
         }
@@ -534,33 +567,33 @@ fn resize_hover(
 
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
-    if !rect.expand(side_grab_radius).contains(mouse_pos) {
+    if !rect.expand(side_grab_radius).contains(pointer_pos) {
         return None;
     }
 
     let (mut left, mut right, mut top, mut bottom) = Default::default();
     if possible.resizable {
-        right = (rect.right() - mouse_pos.x).abs() <= side_grab_radius;
-        bottom = (rect.bottom() - mouse_pos.y).abs() <= side_grab_radius;
+        right = (rect.right() - pointer_pos.x).abs() <= side_grab_radius;
+        bottom = (rect.bottom() - pointer_pos.y).abs() <= side_grab_radius;
 
-        if rect.right_bottom().distance(mouse_pos) < corner_grab_radius {
+        if rect.right_bottom().distance(pointer_pos) < corner_grab_radius {
             right = true;
             bottom = true;
         }
 
         if possible.movable {
-            left = (rect.left() - mouse_pos.x).abs() <= side_grab_radius;
-            top = (rect.top() - mouse_pos.y).abs() <= side_grab_radius;
+            left = (rect.left() - pointer_pos.x).abs() <= side_grab_radius;
+            top = (rect.top() - pointer_pos.y).abs() <= side_grab_radius;
 
-            if rect.right_top().distance(mouse_pos) < corner_grab_radius {
+            if rect.right_top().distance(pointer_pos) < corner_grab_radius {
                 right = true;
                 top = true;
             }
-            if rect.left_top().distance(mouse_pos) < corner_grab_radius {
+            if rect.left_top().distance(pointer_pos) < corner_grab_radius {
                 left = true;
                 top = true;
             }
-            if rect.left_bottom().distance(mouse_pos) < corner_grab_radius {
+            if rect.left_bottom().distance(pointer_pos) < corner_grab_radius {
                 left = true;
                 bottom = true;
             }
@@ -593,9 +626,9 @@ fn paint_frame_interaction(
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,
 ) {
-    use paint::tessellator::path::add_circle_quadrant;
+    use epaint::tessellator::path::add_circle_quadrant;
 
-    let cr = ui.style().visuals.window_corner_radius;
+    let cr = ui.visuals().window_corner_radius;
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
@@ -653,14 +686,14 @@ fn show_title_bar(
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
-    let (title_bar, response) = ui.horizontal(|ui| {
+    let inner_response = ui.horizontal(|ui| {
         let height = title_label
             .font_height(ui.fonts(), ui.style())
-            .max(ui.style().spacing.interact_size.y);
+            .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
 
-        let item_spacing = ui.style().spacing.item_spacing;
-        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+        let item_spacing = ui.spacing().item_spacing;
+        let button_size = Vec2::splat(ui.spacing().icon_width);
 
         let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
@@ -669,7 +702,7 @@ fn show_title_bar(
 
             let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
-            if collapse_button_response.clicked {
+            if collapse_button_response.clicked() {
                 collapsing.toggle(ui);
             }
             let openness = collapsing.openness(ui.ctx(), collapsing_id);
@@ -692,24 +725,22 @@ fn show_title_bar(
             title_label,
             title_galley,
             min_rect,
-            rect: Rect::invalid(), // Will be filled in later
+            rect: Rect::NAN, // Will be filled in later
         }
     });
 
-    TitleBar {
-        rect: response.rect,
-        ..title_bar
-    }
+    let title_bar = inner_response.inner;
+    let rect = inner_response.response.rect;
+
+    TitleBar { rect, ..title_bar }
 }
 
 impl TitleBar {
-    #[allow(clippy::too_many_arguments)] // TODO
     fn ui(
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
         content_response: &Option<Response>,
-        interaction: &Option<WindowInteraction>,
         open: Option<&mut bool>,
         collapsing: &mut collapsing_header::State,
         collapsible: bool,
@@ -721,24 +752,19 @@ impl TitleBar {
 
         if let Some(open) = open {
             // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked {
+            if self.close_button_ui(ui).clicked() {
                 *open = false;
             }
         }
 
-        let is_moving_window = interaction
-            .map(|interaction| !interaction.is_resize())
-            .unwrap_or(false);
-        let style = if is_moving_window {
-            ui.style().visuals.widgets.hovered
-        } else {
-            ui.style().visuals.widgets.inactive
-        };
+        // Always have inactive style for the window.
+        // It is VERY annoying to e.g. change it when moving the window.
+        let style = ui.visuals().widgets.inactive;
 
         self.title_label = self.title_label.text_color(style.fg_stroke.color);
 
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
-        let text_pos = math::align::center_size_in_rect(self.title_galley.size, full_top_rect);
+        let text_pos = emath::align::center_size_in_rect(self.title_galley.size, full_top_rect);
         let text_pos = text_pos.left_top() - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         self.title_label
             .paint_galley(ui, text_pos, self.title_galley);
@@ -747,17 +773,17 @@ impl TitleBar {
             // paint separator between title and content:
             let left = outer_rect.left();
             let right = outer_rect.right();
-            let y = content_response.rect.top() + ui.style().spacing.item_spacing.y * 0.5;
+            let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             ui.painter().line_segment(
                 [pos2(left, y), pos2(right, y)],
-                ui.style().visuals.widgets.noninteractive.bg_stroke,
+                ui.visuals().widgets.noninteractive.bg_stroke,
             );
         }
 
         if ui
             .interact(self.rect, self.id, Sense::click())
-            .double_clicked
+            .double_clicked()
             && collapsible
         {
             collapsing.toggle(ui);
@@ -765,7 +791,7 @@ impl TitleBar {
     }
 
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
-        let button_size = Vec2::splat(ui.style().spacing.icon_width);
+        let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
             pos2(

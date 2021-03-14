@@ -1,11 +1,11 @@
 use crate::*;
 use emath::*;
 
-/// The vertex type.
+/// The 2D vertex type.
 ///
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -20,25 +20,36 @@ pub struct Vertex {
     pub color: Color32, // 32 bit
 }
 
-/// Textured triangles.
-#[derive(Clone, Debug, Default)]
-pub struct Triangles {
+/// Textured triangles in two dimensions.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
+    ///
+    /// If you only support 16-bit indices you can use [`Mesh::split_to_u16`].
+    ///
+    /// egui is NOT consistent with what winding order it uses, so turn off backface culling.
     pub indices: Vec<u32>,
 
     /// The vertex data indexed by `indices`.
     pub vertices: Vec<Vertex>,
 
-    /// The texture to use when drawing these triangles
+    /// The texture to use when drawing these triangles.
     pub texture_id: TextureId,
 }
 
-impl Triangles {
+impl Mesh {
     pub fn with_texture(texture_id: TextureId) -> Self {
         Self {
             texture_id,
             ..Default::default()
         }
+    }
+
+    /// Restore to default state, but without freeing memory.
+    pub fn clear(&mut self) {
+        self.indices.clear();
+        self.vertices.clear();
+        self.vertices = Default::default();
     }
 
     pub fn bytes_used(&self) -> usize {
@@ -49,8 +60,12 @@ impl Triangles {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        let n = self.vertices.len() as u32;
-        self.indices.iter().all(|&i| i < n)
+        if self.vertices.len() <= u32::MAX as usize {
+            let n = self.vertices.len() as u32;
+            self.indices.iter().all(|&i| i < n)
+        } else {
+            false
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -58,7 +73,7 @@ impl Triangles {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
-    pub fn append(&mut self, other: Triangles) {
+    pub fn append(&mut self, other: Mesh) {
         debug_assert!(other.is_valid());
 
         if self.is_empty() {
@@ -66,7 +81,7 @@ impl Triangles {
         } else {
             assert_eq!(
                 self.texture_id, other.texture_id,
-                "Can't merge Triangles using different textures"
+                "Can't merge Mesh using different textures"
             );
 
             let index_offset = self.vertices.len() as u32;
@@ -106,37 +121,33 @@ impl Triangles {
     }
 
     /// Rectangle with a texture and color.
-    pub fn add_rect_with_uv(&mut self, pos: Rect, uv: Rect, color: Color32) {
+    pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
         #![allow(clippy::identity_op)]
 
         let idx = self.vertices.len() as u32;
         self.add_triangle(idx + 0, idx + 1, idx + 2);
         self.add_triangle(idx + 2, idx + 1, idx + 3);
 
-        let right_top = Vertex {
-            pos: pos.right_top(),
-            uv: uv.right_top(),
-            color,
-        };
-        let left_top = Vertex {
-            pos: pos.left_top(),
+        self.vertices.push(Vertex {
+            pos: rect.left_top(),
             uv: uv.left_top(),
             color,
-        };
-        let left_bottom = Vertex {
-            pos: pos.left_bottom(),
+        });
+        self.vertices.push(Vertex {
+            pos: rect.right_top(),
+            uv: uv.right_top(),
+            color,
+        });
+        self.vertices.push(Vertex {
+            pos: rect.left_bottom(),
             uv: uv.left_bottom(),
             color,
-        };
-        let right_bottom = Vertex {
-            pos: pos.right_bottom(),
+        });
+        self.vertices.push(Vertex {
+            pos: rect.right_bottom(),
             uv: uv.right_bottom(),
             color,
-        };
-        self.vertices.push(left_top);
-        self.vertices.push(right_top);
-        self.vertices.push(left_bottom);
-        self.vertices.push(right_bottom);
+        });
     }
 
     /// Uniformly colored rectangle.
@@ -147,13 +158,20 @@ impl Triangles {
 
     /// This is for platforms that only support 16-bit index buffers.
     ///
-    /// Splits this mesh into many smaller meshes (if needed).
-    /// All the returned meshes will have indices that fit into a `u16`.
-    pub fn split_to_u16(self) -> Vec<Triangles> {
+    /// Splits this mesh into many smaller meshes (if needed)
+    /// where the smaller meshes have 16-bit indices.
+    pub fn split_to_u16(self) -> Vec<Mesh16> {
+        debug_assert!(self.is_valid());
+
         const MAX_SIZE: u32 = 1 << 16;
 
         if self.vertices.len() < MAX_SIZE as usize {
-            return vec![self]; // Common-case optimization
+            // Common-case optimization:
+            return vec![Mesh16 {
+                indices: self.indices.iter().map(|&i| i as u16).collect(),
+                vertices: self.vertices,
+                texture_id: self.texture_id,
+            }];
         }
 
         let mut output = vec![];
@@ -188,14 +206,17 @@ impl Triangles {
                 MAX_SIZE
             );
 
-            output.push(Triangles {
+            use std::convert::TryFrom;
+            let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| vi - min_vindex)
+                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
-            });
+            };
+            debug_assert!(mesh.is_valid());
+            output.push(mesh);
         }
         output
     }
@@ -204,6 +225,36 @@ impl Triangles {
     pub fn translate(&mut self, delta: Vec2) {
         for v in &mut self.vertices {
             v.pos += delta;
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A version of [`Mesh`] that uses 16-bit indices.
+///
+/// This is produced by [`Mesh::split_to_u16`] and is meant to be used for legacy render backends.
+pub struct Mesh16 {
+    /// Draw as triangles (i.e. the length is always multiple of three).
+    ///
+    /// egui is NOT consistent with what winding order it uses, so turn off backface culling.
+    pub indices: Vec<u16>,
+
+    /// The vertex data indexed by `indices`.
+    pub vertices: Vec<Vertex>,
+
+    /// The texture to use when drawing these triangles.
+    pub texture_id: TextureId,
+}
+
+impl Mesh16 {
+    /// Are all indices within the bounds of the contained vertices?
+    pub fn is_valid(&self) -> bool {
+        if self.vertices.len() <= u16::MAX as usize {
+            let n = self.vertices.len() as u16;
+            self.indices.iter().all(|&i| i < n)
+        } else {
+            false
         }
     }
 }

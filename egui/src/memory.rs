@@ -1,17 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    area, collapsing_header, menu,
-    paint::color::{Color32, Hsva},
-    resize, scroll_area,
-    util::Cache,
-    widgets::text_edit,
-    window, Id, LayerId, Pos2, Rect, Style,
+    area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
+    Id, InputState, LayerId, Pos2, Rect, Style,
 };
+use epaint::color::{Color32, Hsva};
 
 // ----------------------------------------------------------------------------
 
-/// The data that Egui persists between frames.
+/// The data that egui persists between frames.
 ///
 /// This includes window positions and sizes,
 /// how far the user has scrolled in a `ScrollArea` etc.
@@ -22,6 +19,9 @@ use crate::{
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub(crate) options: Options,
+
+    /// new scale that will be applied at the start of the next frame
+    pub(crate) new_pixels_per_point: Option<f32>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
@@ -38,10 +38,11 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    /// For temporary edit of e.g. a slider value.
-    /// Couples with [`Interaction::kb_focus_id`].
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) temp_edit_string: Option<String>,
+    pub(crate) drag_value: crate::widgets::drag_value::MonoState,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) tooltip: crate::containers::popup::MonoState,
 
     pub(crate) areas: Areas,
 
@@ -65,11 +66,12 @@ pub struct Memory {
 #[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct Options {
     /// The default style for new `Ui`:s.
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
-    pub(crate) tessellation_options: crate::paint::TessellationOptions,
+    pub(crate) tessellation_options: epaint::TessellationOptions,
     /// Font sizes etc.
-    pub(crate) font_definitions: crate::paint::text::FontDefinitions,
+    pub(crate) font_definitions: epaint::text::FontDefinitions,
 }
 
 // ----------------------------------------------------------------------------
@@ -89,23 +91,7 @@ pub(crate) struct Interaction {
     /// A widget interested in drags that has a mouse press on it.
     pub drag_id: Option<Id>,
 
-    /// The widget with keyboard focus (i.e. a text input field).
-    pub kb_focus_id: Option<Id>,
-
-    /// What had keyboard focus previous frame?
-    pub kb_focus_id_previous_frame: Option<Id>,
-
-    /// If set, the next widget that is interested in kb_focus will automatically get it.
-    /// Probably because the user pressed Tab.
-    pub kb_focus_give_to_next: bool,
-
-    /// The last widget interested in kb focus.
-    pub kb_focus_last_interested: Option<Id>,
-
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_tab: bool,
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_shift_tab: bool,
+    pub focus: Focus,
 
     /// HACK: windows have low priority on dragging.
     /// This is so that if you drag a slider in a window,
@@ -123,35 +109,88 @@ pub(crate) struct Interaction {
     pub drag_interest: bool,
 }
 
+/// Keeps tracks of what widget has keyboard focus
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Focus {
+    /// The widget with keyboard focus (i.e. a text input field).
+    id: Option<Id>,
+
+    /// What had keyboard focus previous frame?
+    id_previous_frame: Option<Id>,
+
+    /// Give focus to this widget next frame
+    id_next_frame: Option<Id>,
+
+    /// If set, the next widget that is interested in focus will automatically get it.
+    /// Probably because the user pressed Tab.
+    give_to_next: bool,
+
+    /// The last widget interested in focus.
+    last_interested: Option<Id>,
+
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_tab: bool,
+    /// Set at the beginning of the frame, set to `false` when "used".
+    pressed_shift_tab: bool,
+}
+
 impl Interaction {
-    pub fn is_using_mouse(&self) -> bool {
+    /// Are we currently clicking or dragging an egui widget?
+    pub fn is_using_pointer(&self) -> bool {
         self.click_id.is_some() || self.drag_id.is_some()
     }
 
     fn begin_frame(
         &mut self,
-        prev_input: &crate::input::InputState,
-        new_input: &crate::input::RawInput,
+        prev_input: &crate::input_state::InputState,
+        new_input: &crate::data::input::RawInput,
     ) {
-        self.kb_focus_id_previous_frame = self.kb_focus_id;
         self.click_interest = false;
         self.drag_interest = false;
 
-        if !prev_input.mouse.could_be_click {
+        if !prev_input.pointer.could_any_button_be_click() {
             self.click_id = None;
         }
 
-        if !prev_input.mouse.down || prev_input.mouse.pos.is_none() {
-            // mouse was not down last frame
+        if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
+            // pointer button was not down last frame
             self.click_id = None;
             self.drag_id = None;
+        }
+
+        self.focus.begin_frame(new_input);
+    }
+}
+
+impl Focus {
+    /// Which widget currently has keyboard focus?
+    pub fn focused(&self) -> Option<Id> {
+        self.id
+    }
+
+    fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
+        self.id_previous_frame = self.id;
+        if let Some(id) = self.id_next_frame.take() {
+            self.id = Some(id);
         }
 
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
-            if let crate::input::Event::Key {
-                key: crate::input::Key::Tab,
+            if matches!(
+                event,
+                crate::Event::Key {
+                    key: crate::Key::Escape,
+                    pressed: true,
+                    modifiers: _,
+                }
+            ) {
+                self.id = None;
+                break;
+            }
+
+            if let crate::Event::Key {
+                key: crate::Key::Tab,
                 pressed: true,
                 modifiers,
             } = event
@@ -164,82 +203,110 @@ impl Interaction {
             }
         }
     }
+
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+        if let Some(id) = self.id {
+            // Allow calling `request_focus` one frame and not using it until next frame
+            let recently_gained_focus = self.id_previous_frame != Some(id);
+
+            if !recently_gained_focus && !used_ids.contains_key(&id) {
+                // Dead-mans-switch: the widget with focus has disappeared!
+                self.id = None;
+            }
+        }
+    }
+
+    pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
+        self.id_previous_frame == Some(id)
+    }
+
+    fn interested_in_focus(&mut self, id: Id) {
+        if self.give_to_next && !self.had_focus_last_frame(id) {
+            self.id = Some(id);
+            self.give_to_next = false;
+        } else if self.id == Some(id) {
+            if self.pressed_tab {
+                self.id = None;
+                self.give_to_next = true;
+                self.pressed_tab = false;
+            } else if self.pressed_shift_tab {
+                self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
+                self.pressed_shift_tab = false;
+            }
+        } else if self.pressed_tab && self.id == None && !self.give_to_next {
+            // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
+            self.id = Some(id);
+        }
+
+        self.last_interested = Some(id);
+    }
 }
 
 impl Memory {
     pub(crate) fn begin_frame(
         &mut self,
-        prev_input: &crate::input::InputState,
-        new_input: &crate::input::RawInput,
+        prev_input: &crate::input_state::InputState,
+        new_input: &crate::data::input::RawInput,
     ) {
         self.interaction.begin_frame(prev_input, new_input);
 
-        if !prev_input.mouse.down {
+        if !prev_input.pointer.any_down() {
             self.window_interaction = None;
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(
+        &mut self,
+        input: &InputState,
+        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
+    ) {
         self.areas.end_frame();
-
-        if let Some(kb_focus_id) = self.interaction.kb_focus_id {
-            // Allow calling `request_kb_focus` one frame and not using it until next frame
-            let recently_gained_kb_focus =
-                self.interaction.kb_focus_id_previous_frame != Some(kb_focus_id);
-
-            if !recently_gained_kb_focus && !used_ids.contains_key(&kb_focus_id) {
-                // Dead-mans-switch: the widget with kb focus has disappeared!
-                self.interaction.kb_focus_id = None;
-            }
-        }
+        self.interaction.focus.end_frame(used_ids);
+        self.drag_value.end_frame(input);
     }
 
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
+    pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
+        self.interaction.focus.id_previous_frame == Some(id)
+    }
+
     /// True if the given widget had keyboard focus last frame, but not this one.
-    pub fn lost_kb_focus(&self, id: Id) -> bool {
-        self.interaction.kb_focus_id_previous_frame == Some(id) && !self.has_kb_focus(id)
+    pub(crate) fn lost_focus(&self, id: Id) -> bool {
+        self.had_focus_last_frame(id) && !self.has_focus(id)
     }
 
-    pub fn has_kb_focus(&self, id: Id) -> bool {
-        self.interaction.kb_focus_id == Some(id)
+    /// True if the given widget has keyboard focus this frame, but didn't last frame.
+    pub(crate) fn gained_focus(&self, id: Id) -> bool {
+        !self.had_focus_last_frame(id) && self.has_focus(id)
     }
 
-    pub fn request_kb_focus(&mut self, id: Id) {
-        self.interaction.kb_focus_id = Some(id);
+    pub(crate) fn has_focus(&self, id: Id) -> bool {
+        self.interaction.focus.id == Some(id)
     }
 
-    pub fn surrender_kb_focus(&mut self, id: Id) {
-        if self.interaction.kb_focus_id == Some(id) {
-            self.interaction.kb_focus_id = None;
+    /// Give keyboard focus to a specific widget
+    pub fn request_focus(&mut self, id: Id) {
+        self.interaction.focus.id = Some(id);
+    }
+
+    pub fn surrender_focus(&mut self, id: Id) {
+        if self.interaction.focus.id == Some(id) {
+            self.interaction.focus.id = None;
         }
     }
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
-    pub fn interested_in_kb_focus(&mut self, id: Id) {
-        if self.interaction.kb_focus_give_to_next {
-            self.interaction.kb_focus_id = Some(id);
-            self.interaction.kb_focus_give_to_next = false;
-        } else if self.has_kb_focus(id) {
-            if self.interaction.pressed_tab {
-                self.interaction.kb_focus_id = None;
-                self.interaction.kb_focus_give_to_next = true;
-                self.interaction.pressed_tab = false;
-            } else if self.interaction.pressed_shift_tab {
-                self.interaction.kb_focus_id = self.interaction.kb_focus_last_interested;
-                self.interaction.pressed_shift_tab = false;
-            }
-        }
-
-        self.interaction.kb_focus_last_interested = Some(id);
+    pub(crate) fn interested_in_focus(&mut self, id: Id) {
+        self.interaction.focus.interested_in_focus(id);
     }
 
     /// Stop editing of active `TextEdit` (if any).
     pub fn stop_text_input(&mut self) {
-        self.interaction.kb_focus_id = None;
+        self.interaction.focus.id = None;
     }
 
     pub fn is_anything_being_dragged(&self) -> bool {
@@ -380,7 +447,7 @@ impl Areas {
     pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
         self.visible_layer_ids()
             .iter()
-            .filter(|layer| layer.order == crate::layers::Order::Middle)
+            .filter(|layer| layer.order == crate::Order::Middle)
             .filter_map(|layer| self.get(layer.id))
             .collect()
     }

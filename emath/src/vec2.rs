@@ -5,10 +5,10 @@ use crate::*;
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
 ///
-/// Egui represents positions using [`Pos2`].
+/// emath represents positions using [`Pos2`].
 ///
 /// Normally the units are points (logical pixels).
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2 {
     pub x: f32,
@@ -20,6 +20,9 @@ pub struct Vec2 {
 pub const fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
+
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from [f32; 2]:
 
 impl From<[f32; 2]> for Vec2 {
     fn from(v: [f32; 2]) -> Self {
@@ -33,27 +36,70 @@ impl From<&[f32; 2]> for Vec2 {
     }
 }
 
+impl From<Vec2> for [f32; 2] {
+    fn from(v: Vec2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+impl From<&Vec2> for [f32; 2] {
+    fn from(v: &Vec2) -> Self {
+        [v.x, v.y]
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from (f32, f32):
+
+impl From<(f32, f32)> for Vec2 {
+    fn from(v: (f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<&(f32, f32)> for Vec2 {
+    fn from(v: &(f32, f32)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<Vec2> for (f32, f32) {
+    fn from(v: Vec2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+impl From<&Vec2> for (f32, f32) {
+    fn from(v: &Vec2) -> Self {
+        (v.x, v.y)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 impl Vec2 {
     pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };
     pub const Y: Vec2 = Vec2 { x: 0.0, y: 1.0 };
 
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    pub const INFINITY: Self = Self::splat(f32::INFINITY);
+
+    #[deprecated = "Use Vec2::ZERO instead"]
     pub fn zero() -> Self {
-        Self { x: 0.0, y: 0.0 }
+        Self::ZERO
     }
 
+    #[deprecated = "Use Vec2::INFINITY instead"]
     pub fn infinity() -> Self {
-        Self {
-            x: f32::INFINITY,
-            y: f32::INFINITY,
-        }
+        Self::INFINITY
     }
 
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    pub fn splat(v: impl Into<f32>) -> Self {
-        let v: f32 = v.into();
+    /// Set both `x` and `y` to the same value.
+    pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
     }
 
@@ -68,7 +114,7 @@ impl Vec2 {
     }
 
     /// Rotates the vector by 90°, i.e positive X to positive Y
-    /// (clockwise in Egui coordinates).
+    /// (clockwise in egui coordinates).
     #[inline(always)]
     pub fn rot90(self) -> Self {
         vec2(self.y, -self.x)
@@ -140,11 +186,27 @@ impl Vec2 {
     }
 }
 
-impl PartialEq for Vec2 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+impl std::ops::Index<usize> for Vec2 {
+    type Output = f32;
+    fn index(&self, index: usize) -> &f32 {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Vec2 index out of bounds: {}", index),
+        }
     }
 }
+
+impl std::ops::IndexMut<usize> for Vec2 {
+    fn index_mut(&mut self, index: usize) -> &mut f32 {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Vec2 index out of bounds: {}", index),
+        }
+    }
+}
+
 impl Eq for Vec2 {}
 
 impl Neg for Vec2 {
@@ -189,6 +251,28 @@ impl Sub for Vec2 {
         Vec2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
+        }
+    }
+}
+
+/// Element-wise multiplication
+impl Mul<Vec2> for Vec2 {
+    type Output = Vec2;
+    fn mul(self, vec: Vec2) -> Vec2 {
+        Vec2 {
+            x: self.x * vec.x,
+            y: self.y * vec.y,
+        }
+    }
+}
+
+/// Element-wise division
+impl Div<Vec2> for Vec2 {
+    type Output = Vec2;
+    fn div(self, rhs: Vec2) -> Vec2 {
+        Vec2 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
         }
     }
 }

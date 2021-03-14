@@ -124,7 +124,7 @@ impl Resize {
     /// Not manually resizable, just takes the size of its contents.
     /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(self) -> Self {
-        self.min_size(Vec2::zero())
+        self.min_size(Vec2::ZERO)
             .default_size(Vec2::splat(f32::INFINITY))
             .resizable(false)
     }
@@ -167,7 +167,7 @@ impl Resize {
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.input().screen_rect().size() - 2.0 * ui.style().spacing.window_padding, // hack for windows
+                    ui.input().screen_rect().size() - 2.0 * ui.spacing().window_padding, // hack for windows
                 );
 
             State {
@@ -186,17 +186,16 @@ impl Resize {
 
         let corner_response = if self.resizable {
             // Resize-corner:
-            let corner_size = Vec2::splat(ui.style().visuals.resize_corner_size);
+            let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
             let corner_rect =
                 Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
             let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
-            if corner_response.active {
-                if let Some(mouse_pos) = ui.input().mouse.pos {
-                    user_requested_size =
-                        Some(mouse_pos - position + 0.5 * corner_response.rect.size());
-                }
+            if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
+                user_requested_size =
+                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
             }
+
             Some(corner_response)
         } else {
             None
@@ -220,7 +219,7 @@ impl Resize {
 
         let inner_rect = Rect::from_min_size(position, state.desired_size);
 
-        let mut content_clip_rect = inner_rect.expand(ui.style().visuals.clip_rect_margin);
+        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
 
         // If we pull the resize handle to shrink, we want to TRY to shrink it.
         // After laying out the contents, we might be much bigger.
@@ -228,9 +227,7 @@ impl Resize {
         // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
         // So we use the memory of last_content_size to make the clip rect large enough.
         content_clip_rect.max = content_clip_rect.max.max(
-            inner_rect.min
-                + state.last_content_size
-                + Vec2::splat(ui.style().visuals.clip_rect_margin),
+            inner_rect.min + state.last_content_size + Vec2::splat(ui.visuals().clip_rect_margin),
         );
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
@@ -284,18 +281,18 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(paint::Shape::Rect {
+            ui.painter().add(epaint::Shape::Rect {
                 rect,
                 corner_radius: 3.0,
                 fill: Default::default(),
-                stroke: ui.style().visuals.widgets.noninteractive.bg_stroke,
+                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
             });
         }
 
         if let Some(corner_response) = corner_response {
             paint_resize_corner(ui, &corner_response);
 
-            if corner_response.hovered || corner_response.active {
+            if corner_response.hovered() || corner_response.dragged() {
                 ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }
@@ -317,7 +314,7 @@ impl Resize {
     }
 }
 
-use crate::paint::Stroke;
+use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;

@@ -7,6 +7,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added ⭐
+
+* Hold down a modifier key when clicking a link to open it in a new tab.
+
+
+## 0.10.0 - 2021-02-28
+
+### Added ⭐
+
+* You can control the maximum egui canvas size with `App::max_size_points`.
+
+
+## 0.9.0 - 2021-02-07
+
+### Added ⭐
+
+* Right-clicks will no longer open browser context menu.
+
+### Fixed ⭐
+
+* Fix a bug where one couldn't select items in a combo box on a touch screen.
+
+
+## 0.8.0 - 2021-01-17
+
+### Added ⭐
+
+* WebGL2 is now supported, with improved texture sampler. WebGL1 will be used as a fallback.
+
+### Changed
+
+* Slightly improved alpha-blending (work-around for non-existing linear-space blending).
+
+### Fixed ⭐
+
+* Call prevent_default for arrow keys when entering text
+
 
 ## 0.7.0 - 2021-01-04
 

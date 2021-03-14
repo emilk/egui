@@ -7,9 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+
+## 0.10.0 - 2021-02-28
+
+* [Add shaders for GLSL 1.2, GLSL ES 1.0 and 3.0](https://github.com/emilk/egui/pull/187)
+  - now `egui` works well on old hardware which supports OpenGL 2.1 only like Raspberry Pi 1 and Zero.
+
+
+## 0.9.0 - 2021-02-07
+
+* Nothing new
+
+
+## 0.8.0 - 2021-01-17
+
 ### Fixed 🐛
 
-* Fix a bug where key releases weren't sent to Egui
+* Fix a bug where key releases weren't sent to egui
+* Fix `set_window_size` for non-native `pixels_per_point`.
 
 
 ## 0.7.0 - 2021-01-04

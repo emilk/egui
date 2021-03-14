@@ -1,3 +1,4 @@
+use std::f32::INFINITY;
 use std::ops::RangeInclusive;
 
 use crate::*;
@@ -13,7 +14,44 @@ pub struct Rect {
 }
 
 impl Rect {
-    /// Infinite rectangle that contains everything
+    /// Infinite rectangle that contains everything.
+    pub const EVERYTHING: Self = Self {
+        min: pos2(-INFINITY, -INFINITY),
+        max: pos2(INFINITY, INFINITY),
+    };
+
+    /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
+    /// Contains no points.
+    ///
+    /// This is useful as the seed for bounding bounding boxes.
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let inf = f32::INFINITY;
+    /// assert!(Rect::NOTHING.size() == Vec2::splat(-inf));
+    /// assert!(Rect::NOTHING.contains(pos2(0.0, 0.0)) == false);
+    /// ```
+    ///
+    /// # Example:
+    /// ```
+    /// # use emath::*;
+    /// let mut rect = Rect::NOTHING;
+    /// rect.extend_with(pos2(2.0, 1.0));
+    /// rect.extend_with(pos2(0.0, 3.0));
+    /// assert_eq!(rect, Rect::from_min_max(pos2(0.0, 1.0), pos2(2.0, 3.0)))
+    /// ```
+    pub const NOTHING: Self = Self {
+        min: pos2(INFINITY, INFINITY),
+        max: pos2(-INFINITY, -INFINITY),
+    };
+
+    /// An invalid `Rect` filled with [`f32::NAN`];
+    pub const NAN: Self = Self {
+        min: pos2(f32::NAN, f32::NAN),
+        max: pos2(-f32::NAN, -f32::NAN),
+    };
+
+    #[deprecated = "Use Rect::EVERYTHING"]
     pub fn everything() -> Self {
         let inf = f32::INFINITY;
         Self {
@@ -22,6 +60,7 @@ impl Rect {
         }
     }
 
+    #[deprecated = "Use Rect::NOTHING"]
     pub fn nothing() -> Self {
         let inf = f32::INFINITY;
         Self {
@@ -30,15 +69,12 @@ impl Rect {
         }
     }
 
-    /// invalid, NAN filled Rect.
+    #[deprecated = "Use Rect::NAN"]
     pub fn invalid() -> Self {
-        Self {
-            min: pos2(f32::NAN, f32::NAN),
-            max: pos2(f32::NAN, f32::NAN),
-        }
+        Self::NAN
     }
 
-    pub fn from_min_max(min: Pos2, max: Pos2) -> Self {
+    pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
     }
 
@@ -60,6 +96,13 @@ impl Rect {
         Rect {
             min: pos2(*x_range.start(), *y_range.start()),
             max: pos2(*x_range.end(), *y_range.end()),
+        }
+    }
+
+    pub fn from_two_pos(a: Pos2, b: Pos2) -> Self {
+        Rect {
+            min: pos2(a.x.min(b.x), a.y.min(b.y)),
+            max: pos2(a.x.max(b.x), a.y.max(b.y)),
         }
     }
 
@@ -131,9 +174,29 @@ impl Rect {
             && p.y <= self.min.y + self.size().y
     }
 
+    /// Return the given points clamped to be inside the rectangle
+    #[must_use]
+    pub fn clamp(&self, mut p: Pos2) -> Pos2 {
+        p.x = clamp(p.x, self.x_range());
+        p.y = clamp(p.y, self.y_range());
+        p
+    }
+
     pub fn extend_with(&mut self, p: Pos2) {
         self.min = self.min.min(p);
         self.max = self.max.max(p);
+    }
+
+    /// Expand to include the given x coordinate
+    pub fn extend_with_x(&mut self, x: f32) {
+        self.min.x = self.min.x.min(x);
+        self.max.x = self.max.x.max(x);
+    }
+
+    /// Expand to include the given y coordinate
+    pub fn extend_with_y(&mut self, y: f32) {
+        self.min.y = self.min.y.min(y);
+        self.max.y = self.max.y.max(y);
     }
 
     pub fn union(self, other: Rect) -> Rect {
@@ -158,6 +221,29 @@ impl Rect {
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
     }
+
+    /// Width / height
+    ///
+    /// * `aspect_ratio < 1`: portrait / high
+    /// * `aspect_ratio = 1`: square
+    /// * `aspect_ratio > 1`: landscape / wide
+    pub fn aspect_ratio(&self) -> f32 {
+        self.width() / self.height()
+    }
+
+    /// `[2, 1]` for wide screen, and `[1, 2]` for portrait, etc.
+    /// At least one dimension = 1, the other >= 1
+    /// Returns the proportions required to letter-box a square view area.
+    pub fn square_proportions(&self) -> Vec2 {
+        let w = self.width();
+        let h = self.height();
+        if w > h {
+            vec2(w / h, 1.0)
+        } else {
+            vec2(1.0, h / w)
+        }
+    }
+
     pub fn area(&self) -> f32 {
         self.width() * self.height()
     }

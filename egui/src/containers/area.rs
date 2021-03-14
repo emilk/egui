@@ -45,9 +45,11 @@ pub struct Area {
     pub(crate) id: Id,
     movable: bool,
     interactable: bool,
+    enabled: bool,
     order: Order,
     default_pos: Option<Pos2>,
     new_pos: Option<Pos2>,
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -56,9 +58,11 @@ impl Area {
             id: Id::new(id_source),
             movable: true,
             interactable: true,
+            enabled: true,
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
+            drag_bounds: None,
         }
     }
 
@@ -71,6 +75,15 @@ impl Area {
         LayerId::new(self.order, self.id)
     }
 
+    /// If false, no content responds to click
+    /// and widgets will be shown grayed out.
+    /// You won't be able to move the window.
+    /// Default: `true`.
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
     /// moveable by dragging the area?
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
@@ -78,8 +91,12 @@ impl Area {
         self
     }
 
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     pub fn is_movable(&self) -> bool {
-        self.movable
+        self.movable && self.enabled
     }
 
     /// If false, clicks goes straight through to what is behind us.
@@ -115,12 +132,20 @@ impl Area {
         self.new_pos = Some(current_pos);
         self
     }
+
+    /// Constrain the area up to which the window can be dragged.
+    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
+        self.drag_bounds = Some(bounds);
+        self
+    }
 }
 
 pub(crate) struct Prepared {
     layer_id: LayerId,
     state: State,
     movable: bool,
+    enabled: bool,
+    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -130,8 +155,10 @@ impl Area {
             movable,
             order,
             interactable,
+            enabled,
             default_pos,
             new_pos,
+            drag_bounds,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -139,7 +166,7 @@ impl Area {
         let state = ctx.memory().areas.get(id).cloned();
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
-            size: Vec2::zero(),
+            size: Vec2::ZERO,
             interactable,
         });
         state.pos = new_pos.unwrap_or(state.pos);
@@ -149,6 +176,8 @@ impl Area {
             layer_id,
             state,
             movable,
+            enabled,
+            drag_bounds,
         }
     }
 
@@ -157,6 +186,34 @@ impl Area {
         let mut content_ui = prepared.content_ui(ctx);
         add_contents(&mut content_ui);
         prepared.end(ctx, content_ui)
+    }
+
+    pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {
+        // must be called first so animation managers know the latest state
+        let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
+
+        if is_open {
+            // we actually only show close animations.
+            // when opening a window we show it right away.
+            return;
+        }
+        if visibility_factor <= 0.0 {
+            return;
+        }
+
+        let layer_id = LayerId::new(self.order, self.id);
+        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
+        if let Some(area_rect) = area_rect {
+            let clip_rect = ctx.available_rect();
+            let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
+
+            // shrinkage: looks kinda a bad on its own
+            // let area_rect =
+            //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
+
+            let frame = frame.multiply_with_opacity(visibility_factor);
+            painter.add(frame.paint(area_rect));
+        }
     }
 }
 
@@ -169,13 +226,19 @@ impl Prepared {
         &mut self.state
     }
 
+    pub(crate) fn drag_bounds(&self) -> Option<Rect> {
+        self.drag_bounds
+    }
+
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.pos, Vec2::infinity());
+        let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
+        let bounds = self.drag_bounds.unwrap_or_else(|| ctx.input().screen_rect);
+
         let mut clip_rect = max_rect
             .expand(ctx.style().visuals.clip_rect_margin)
             .expand(shadow_radius)
-            .intersect(ctx.input().screen_rect);
+            .intersect(bounds);
 
         // Windows are constrained to central area,
         // (except in rare cases where they don't fit).
@@ -186,13 +249,16 @@ impl Prepared {
             clip_rect = clip_rect.intersect(central_area);
         }
 
-        Ui::new(
+        let mut ui = Ui::new(
             ctx.clone(),
             self.layer_id,
             self.layer_id.id,
             max_rect,
             clip_rect,
-        )
+        );
+        ui.set_enabled(self.enabled);
+
+        ui
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
@@ -201,6 +267,8 @@ impl Prepared {
             layer_id,
             mut state,
             movable,
+            enabled,
+            drag_bounds,
         } = self;
 
         state.size = content_ui.min_rect().size();
@@ -213,22 +281,27 @@ impl Prepared {
         };
 
         let move_response = ctx.interact(
-            Rect::everything(),
+            Rect::EVERYTHING,
             ctx.style().spacing.item_spacing,
             layer_id,
             interact_id,
             state.rect(),
             sense,
+            enabled,
         );
 
-        if move_response.active && movable {
-            state.pos += ctx.input().mouse.delta;
+        if move_response.dragged() && movable {
+            state.pos += ctx.input().pointer.delta();
         }
 
-        state.pos = ctx.constrain_window_rect(state.rect()).min;
+        if let Some(bounds) = drag_bounds {
+            state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
+        } else {
+            state.pos = ctx.constrain_window_rect(state.rect()).min;
+        }
 
-        if (move_response.active || move_response.clicked)
-            || mouse_pressed_on_area(ctx, layer_id)
+        if (move_response.dragged() || move_response.clicked())
+            || pointer_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
         {
             ctx.memory().areas.move_to_top(layer_id);
@@ -240,9 +313,9 @@ impl Prepared {
     }
 }
 
-fn mouse_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(mouse_pos) = ctx.input().mouse.pos {
-        ctx.input().mouse.pressed && ctx.layer_id_at(mouse_pos) == Some(layer_id)
+fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
+    if let Some(pointer_pos) = ctx.input().pointer.interact_pos() {
+        ctx.input().pointer.any_pressed() && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {
         false
     }
