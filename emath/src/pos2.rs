@@ -122,8 +122,14 @@ impl Pos2 {
         pos2(self.x.ceil(), self.y.ceil())
     }
 
+    /// True if all members are also finite.
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
+    }
+
+    /// True if any member is NaN.
+    pub fn any_nan(self) -> bool {
+        self.x.is_nan() || self.y.is_nan()
     }
 
     #[must_use]

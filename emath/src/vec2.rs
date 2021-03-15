@@ -155,6 +155,11 @@ impl Vec2 {
         self.x.is_finite() && self.y.is_finite()
     }
 
+    /// True if any member is NaN.
+    pub fn any_nan(self) -> bool {
+        self.x.is_nan() || self.y.is_nan()
+    }
+
     #[must_use]
     pub fn min(self, other: Self) -> Self {
         vec2(self.x.min(other.x), self.y.min(other.y))
