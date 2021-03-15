@@ -163,6 +163,7 @@ impl Rect {
         Rect::from_min_size(self.min + amnt, self.size())
     }
 
+    /// The intersection of two `Rect`, i.e. the area covered by both.
     #[must_use]
     pub fn intersect(self, other: Rect) -> Self {
         Self {
@@ -290,8 +291,14 @@ impl Rect {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
 
+    /// True if all members are also finite.
     pub fn is_finite(&self) -> bool {
         self.min.is_finite() && self.max.is_finite()
+    }
+
+    /// True if any member is NaN.
+    pub fn any_nan(self) -> bool {
+        self.min.any_nan() || self.max.any_nan()
     }
 }
 
