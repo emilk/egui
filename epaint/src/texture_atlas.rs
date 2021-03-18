@@ -82,7 +82,12 @@ impl TextureAtlas {
         /// On modern high-precision GPUs this is not needed.
         const PADDING: usize = 1;
 
-        assert!(w <= self.texture.width);
+        assert!(
+            w <= self.texture.width,
+            "Tried to allocate a {} wide glyph in a {} wide texture atlas",
+            w,
+            self.texture.width
+        );
         if self.cursor.0 + w > self.texture.width {
             // New row:
             self.cursor.0 = 0;
