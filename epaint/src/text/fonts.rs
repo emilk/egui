@@ -106,7 +106,7 @@ impl Default for FontDefinitions {
 
         let mut fonts_for_family = BTreeMap::new();
 
-        #[cfg(feature = "default_fonts")]
+        #[cfg(not(feature = "custom_fonts"))]
         {
             // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
 
@@ -150,7 +150,7 @@ impl Default for FontDefinitions {
             );
         }
 
-        #[cfg(not(feature = "default_fonts"))]
+        #[cfg(feature = "custom_fonts")]
         {
             fonts_for_family.insert(FontFamily::Monospace, vec![]);
             fonts_for_family.insert(FontFamily::Proportional, vec![]);

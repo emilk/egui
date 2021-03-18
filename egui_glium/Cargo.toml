@@ -52,3 +52,4 @@ persistence = [
 ]
 time = ["chrono"] # for seconds_since_midnight
 screen_reader = ["tts"] # experimental
+custom_fonts = ["egui/custom_fonts", "epi/custom_fonts"]

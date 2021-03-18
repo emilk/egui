@@ -37,6 +37,7 @@ criterion = { version = "0.3", default-features = false }
 default = []
 http = ["image", "epi/http"]
 persistence = ["epi/persistence", "serde"]
+custom_fonts = ["egui/custom_fonts", "epi/custom_fonts"]
 
 [[bench]]
 name = "benchmark"
