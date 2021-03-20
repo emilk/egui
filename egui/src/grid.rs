@@ -61,6 +61,15 @@ impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id) -> Self {
         let prev_state = ui.memory().grid.get(&id).cloned().unwrap_or_default();
 
+        // TODO: respect current layout
+
+        let available = ui.placer().max_rect().intersect(ui.cursor());
+        let initial_x = available.min.x;
+        assert!(
+            initial_x.is_finite(),
+            "Grid not yet available for right-to-left layouts"
+        );
+
         Self {
             ctx: ui.ctx().clone(),
             style: ui.style().clone(),
@@ -69,7 +78,7 @@ impl GridLayout {
             curr_state: State::default(),
             spacing: ui.spacing().item_spacing,
             striped: false,
-            initial_x: ui.cursor().x,
+            initial_x,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
             col: 0,
@@ -95,10 +104,6 @@ impl GridLayout {
     }
 
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
-        // let mut rect = Rect::from_min_max(region.cursor, region.max_rect.max);
-        // rect.set_height(rect.height().at_least(self.min_cell_size.y));
-        // rect
-
         // required for putting CollapsingHeader in anything but the last column:
         self.available_rect_finite(region)
     }
@@ -116,19 +121,21 @@ impl GridLayout {
                 .unwrap_or(self.min_cell_size.x)
         };
 
-        let height = region.max_rect_finite().max.y - region.cursor.y;
+        let available = region.max_rect.intersect(region.cursor);
+
+        let height = region.max_rect_finite().max.y - available.top();
         let height = height
             .at_least(self.min_cell_size.y)
             .at_most(self.max_cell_size.y);
 
-        Rect::from_min_size(region.cursor, vec2(width, height))
+        Rect::from_min_size(available.min, vec2(width, height))
     }
 
-    pub(crate) fn next_cell(&self, cursor: Pos2, child_size: Vec2) -> Rect {
+    pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
         let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
-        Rect::from_min_size(cursor, size)
+        Rect::from_min_size(cursor.min, size)
     }
 
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
@@ -140,7 +147,7 @@ impl GridLayout {
         self.align_size_within_rect(size, frame)
     }
 
-    pub(crate) fn advance(&mut self, cursor: &mut Pos2, frame_rect: Rect, widget_rect: Rect) {
+    pub(crate) fn advance(&mut self, cursor: &mut Rect, frame_rect: Rect, widget_rect: Rect) {
         let debug_expand_width = self.style.visuals.debug_expand_width;
         let debug_expand_height = self.style.visuals.debug_expand_height;
         if debug_expand_width || debug_expand_height {
@@ -171,14 +178,14 @@ impl GridLayout {
         );
 
         self.col += 1;
-        cursor.x += frame_rect.width() + self.spacing.x;
+        cursor.min.x += frame_rect.width() + self.spacing.x;
     }
 
-    pub(crate) fn end_row(&mut self, cursor: &mut Pos2, painter: &Painter) {
+    pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         let row_height = self.prev_row_height(self.row);
 
-        cursor.x = self.initial_x;
-        cursor.y += row_height + self.spacing.y;
+        cursor.min.x = self.initial_x;
+        cursor.min.y += row_height + self.spacing.y;
         self.col = 0;
         self.row += 1;
 
@@ -186,7 +193,7 @@ impl GridLayout {
             if let Some(height) = self.prev_state.row_height(self.row) {
                 // Paint background for coming row:
                 let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-                let rect = Rect::from_min_size(*cursor, size);
+                let rect = Rect::from_min_size(cursor.min, size);
                 let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
                 let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
