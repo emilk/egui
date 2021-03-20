@@ -482,10 +482,14 @@ impl Layout {
 
         let mut frame_size = child_size;
 
-        if self.is_vertical() || self.horizontal_justify() {
+        if (self.is_vertical() && self.horizontal_align() == Align::Center)
+            || self.horizontal_justify()
+        {
             frame_size.x = frame_size.x.at_least(available_rect.width()); // fill full width
         }
-        if self.is_horizontal() || self.vertical_justify() {
+        if (self.is_horizontal() && self.vertical_align() == Align::Center)
+            || self.vertical_justify()
+        {
             frame_size.y = frame_size.y.at_least(available_rect.height()); // fill full height
         }
 
