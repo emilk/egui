@@ -263,7 +263,7 @@ impl Widget for Label {
                 max_width,
             );
 
-            let pos = pos2(ui.min_rect().left(), ui.cursor().y);
+            let pos = pos2(ui.min_rect().left(), ui.cursor().top());
 
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
