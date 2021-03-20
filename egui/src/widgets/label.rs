@@ -283,8 +283,7 @@ impl Widget for Label {
                 row.y_min += y_translation;
                 row.y_max += y_translation;
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
-                ui.advance_cursor_after_rect(rect);
-                response |= ui.interact(rect, id, sense);
+                response |= ui.allocate_rect(rect, sense);
             }
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
             self.paint_galley_focus(ui, pos, galley, response.has_focus());
