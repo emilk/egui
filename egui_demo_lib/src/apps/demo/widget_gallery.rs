@@ -13,6 +13,7 @@ pub struct WidgetGallery {
     radio: Enum,
     scalar: f32,
     string: String,
+    string_multiline: String,
     color: egui::Color32,
 }
 
@@ -24,6 +25,7 @@ impl Default for WidgetGallery {
             radio: Enum::First,
             scalar: 42.0,
             string: Default::default(),
+            string_multiline: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
         }
     }
@@ -85,6 +87,7 @@ impl WidgetGallery {
             radio,
             scalar,
             string,
+            string_multiline,
             color,
         } = self;
 
@@ -104,6 +107,10 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("TextEdit", "TextEdit,text_edit"));
         ui.add(egui::TextEdit::singleline(string).hint_text("Write something here"));
+        ui.end_row();
+
+        ui.add(doc_link_label("TextEdit", "TextEdit,text_edit"));
+        ui.add(egui::TextEdit::multiline(string_multiline).hint_text("Write something here"));
         ui.end_row();
 
         ui.add(doc_link_label("Button", "button"));
