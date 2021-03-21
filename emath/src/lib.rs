@@ -159,6 +159,7 @@ where
 /// Returns `range.start()` if `x <= range.start()`,
 /// returns `range.end()` if `x >= range.end()`
 /// and returns `x` elsewhen.
+#[deprecated = "Use f32::clamp instead"]
 pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
 where
     T: Copy + PartialOrd,
