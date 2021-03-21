@@ -305,7 +305,7 @@ impl Grid {
 }
 
 impl Grid {
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
             striped,
@@ -337,6 +337,5 @@ impl Grid {
             ui.save_grid();
             r
         })
-        .inner
     }
 }
