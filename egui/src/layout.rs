@@ -332,6 +332,8 @@ impl Layout {
 /// ## Doing layout
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
+        debug_assert!(size.x >= 0.0 && size.y >= 0.0);
+        debug_assert!(outer.is_non_negative());
         self.align2().align_size_within_rect(size, outer)
     }
 
@@ -393,7 +395,25 @@ impl Layout {
 
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    fn available_from_cursor_max_rect(&self, cursor: Rect, max_rect: Rect) -> Rect {
+    fn available_from_cursor_max_rect(&self, cursor: Rect, mut max_rect: Rect) -> Rect {
+        // NOTE: in normal top-down layout the cursor has moved below the current max_rect,
+        // but the available shouldn't be negative.
+
+        match self.main_dir {
+            Direction::LeftToRight => {
+                max_rect.max.x = max_rect.max.x.max(cursor.min.x);
+            }
+            Direction::RightToLeft => {
+                max_rect.min.x = max_rect.min.x.min(cursor.max.x);
+            }
+            Direction::TopDown => {
+                max_rect.max.y = max_rect.max.y.max(cursor.min.y);
+            }
+            Direction::BottomUp => {
+                max_rect.min.y = max_rect.min.y.min(cursor.max.y);
+            }
+        }
+
         max_rect.intersect(cursor)
     }
 
@@ -402,6 +422,8 @@ impl Layout {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
+        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+
         if self.main_wrap {
             let available_size = self.available_rect_before_wrap(region).size();
 
@@ -478,6 +500,8 @@ impl Layout {
     }
 
     fn next_frame_ignore_wrap(&self, region: &Region, child_size: Vec2) -> Rect {
+        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+
         let available_rect = self.available_rect_before_wrap_finite(region);
 
         let mut frame_size = child_size;
@@ -485,12 +509,12 @@ impl Layout {
         if (self.is_vertical() && self.horizontal_align() == Align::Center)
             || self.horizontal_justify()
         {
-            frame_size.x = frame_size.x.at_least(available_rect.width()); // fill full width
+            frame_size.x = frame_size.x.max(available_rect.width()); // fill full width
         }
         if (self.is_horizontal() && self.vertical_align() == Align::Center)
             || self.vertical_justify()
         {
-            frame_size.y = frame_size.y.at_least(available_rect.height()); // fill full height
+            frame_size.y = frame_size.y.max(available_rect.height()); // fill full height
         }
 
         let align2 = match self.main_dir {
@@ -500,11 +524,23 @@ impl Layout {
             Direction::BottomUp => Align2([self.horizontal_align(), Align::BOTTOM]),
         };
 
-        align2.align_size_within_rect(frame_size, available_rect)
+        let mut frame_rect = align2.align_size_within_rect(frame_size, available_rect);
+
+        if self.is_horizontal() && frame_rect.top() < region.cursor.top() {
+            // for horizontal layouts we always want to expand down,
+            // or we will overlap the row above.
+            // This is a bit hacky. Maybe we should do it for vertical layouts too.
+            frame_rect = frame_rect.translate(Vec2::Y * (region.cursor.top() - frame_rect.top()));
+        }
+
+        frame_rect
     }
 
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, frame: Rect, mut child_size: Vec2) -> Rect {
+        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(frame.is_non_negative());
+
         if self.horizontal_justify() {
             child_size.x = child_size.x.at_least(frame.width()); // fill full width
         }
@@ -601,16 +637,16 @@ impl Layout {
 
         match self.main_dir {
             Direction::LeftToRight => {
-                cursor.min.x = widget_rect.right() + item_spacing.x;
+                cursor.min.x = widget_rect.max.x + item_spacing.x;
             }
             Direction::RightToLeft => {
-                cursor.max.x = widget_rect.left() - item_spacing.x;
+                cursor.max.x = widget_rect.min.x - item_spacing.x;
             }
             Direction::TopDown => {
-                cursor.min.y = widget_rect.bottom() + item_spacing.y;
+                cursor.min.y = widget_rect.max.y + item_spacing.y;
             }
             Direction::BottomUp => {
-                cursor.max.y = widget_rect.top() - item_spacing.y;
+                cursor.max.y = widget_rect.min.y - item_spacing.y;
             }
         };
     }
