@@ -343,7 +343,7 @@ impl<'open> Window<'open> {
                 })
                 .map(|ir| ir.response);
 
-            let outer_rect = frame.end(&mut area_content_ui);
+            let outer_rect = frame.end(&mut area_content_ui).rect;
 
             if possible.resizable {
                 paint_resize_corner(&mut area_content_ui, outer_rect, frame_stroke);

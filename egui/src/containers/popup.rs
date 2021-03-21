@@ -139,7 +139,7 @@ fn show_tooltip_area(
             Frame::popup(&ctx.style()).show(ui, |ui| {
                 ui.set_max_width(ui.spacing().tooltip_width);
                 add_contents(ui);
-            })
+            });
         })
 }
 

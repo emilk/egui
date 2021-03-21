@@ -1121,7 +1121,7 @@ impl Ui {
     ///     ui.label("Within a frame");
     /// });
     /// ```
-    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
