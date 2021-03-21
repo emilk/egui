@@ -698,6 +698,13 @@ impl Layout {
             }
         }
     }
+
+    /// Set row height in horizontal wrapping layout.
+    pub(crate) fn set_row_height(&mut self, region: &mut Region, height: f32) {
+        if self.main_wrap && self.is_horizontal() {
+            region.cursor.max.y = region.cursor.min.y + height;
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

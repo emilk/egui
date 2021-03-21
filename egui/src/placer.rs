@@ -177,6 +177,11 @@ impl Placer {
             self.layout.end_row(&mut self.region, item_spacing)
         }
     }
+
+    /// Set row height in horizontal wrapping layout.
+    pub(crate) fn set_row_height(&mut self, height: f32) {
+        self.layout.set_row_height(&mut self.region, height);
+    }
 }
 
 impl Placer {
