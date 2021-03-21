@@ -59,16 +59,16 @@ impl super::View for Sliders {
 
         ui.label("You can click a slider value to edit it with the keyboard.");
 
-        let full_range = if *integer {
-            (i32::MIN as f64)..=(i32::MAX as f64)
+        let (type_min, type_max) = if *integer {
+            ((i32::MIN as f64), (i32::MAX as f64))
         } else if *logarithmic {
-            -INFINITY..=INFINITY
+            (-INFINITY, INFINITY)
         } else {
-            -1e5..=1e5 // linear sliders make little sense with huge numbers
+            (-1e5, 1e5) // linear sliders make little sense with huge numbers
         };
 
-        *min = clamp(*min, full_range.clone());
-        *max = clamp(*max, full_range.clone());
+        *min = min.clamp(type_min, type_max);
+        *max = max.clamp(type_min, type_max);
 
         if *integer {
             let mut value_i32 = *value as i32;
@@ -102,13 +102,13 @@ impl super::View for Sliders {
         ui.separator();
         ui.label("Slider range:");
         ui.add(
-            Slider::f64(min, full_range.clone())
+            Slider::f64(min, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("left"),
         );
         ui.add(
-            Slider::f64(max, full_range)
+            Slider::f64(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("right"),

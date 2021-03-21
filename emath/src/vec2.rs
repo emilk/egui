@@ -1,11 +1,9 @@
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, RangeInclusive, Sub, SubAssign};
-
-use crate::*;
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
 ///
-/// emath represents positions using [`Pos2`].
+/// emath represents positions using [`crate::Pos2`].
 ///
 /// Normally the units are points (logical pixels).
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -183,10 +181,10 @@ impl Vec2 {
     }
 
     #[must_use]
-    pub fn clamp(self, range: RangeInclusive<Self>) -> Self {
+    pub fn clamp(self, min: Self, max: Self) -> Self {
         Self {
-            x: clamp(self.x, range.start().x..=range.end().x),
-            y: clamp(self.y, range.start().y..=range.end().y),
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
         }
     }
 }

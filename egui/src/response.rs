@@ -162,7 +162,7 @@ impl Response {
 
     /// The widget had keyboard focus and lost it,
     /// either because the user pressed tab or clicked somewhere else,
-    /// or (in case of a [`TextEdit`]) because the user pressed enter.
+    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
     ///
     /// ```
     /// # let mut ui = egui::Ui::__test();

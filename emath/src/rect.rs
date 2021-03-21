@@ -204,11 +204,10 @@ impl Rect {
     }
 
     /// Return the given points clamped to be inside the rectangle
+    /// Panics if [`Self::is_negative`].
     #[must_use]
-    pub fn clamp(&self, mut p: Pos2) -> Pos2 {
-        p.x = clamp(p.x, self.x_range());
-        p.y = clamp(p.y, self.y_range());
-        p
+    pub fn clamp(&self, p: Pos2) -> Pos2 {
+        p.clamp(self.min, self.max)
     }
 
     pub fn extend_with(&mut self, p: Pos2) {

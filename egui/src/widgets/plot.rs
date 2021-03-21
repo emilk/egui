@@ -602,7 +602,7 @@ impl Prepared {
         let step_size_in_points = (self.dpos_dvalue()[axis] * step_size) as f32;
 
         // Where on the cross-dimension to show the label values
-        let value_cross = clamp(0.0, bounds.min[1 - axis]..=bounds.max[1 - axis]);
+        let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
         for i in 0.. {
             let value_main = step_size * (bounds.min[axis] / step_size + i as f64).floor();

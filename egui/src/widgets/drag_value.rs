@@ -196,11 +196,11 @@ impl<'a> Widget for DragValue<'a> {
         } = self;
 
         let value = get(&mut get_set_value);
-        let value = clamp(value, clamp_range.clone());
+        let value = clamp_to_range(value, clamp_range.clone());
         let aim_rad = ui.input().aim_radius() as f64;
-        let auto_decimals = clamp((aim_rad / speed.abs()).log10().ceil(), 0.0..=15.0) as usize;
+        let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
-        let auto_decimals = clamp(auto_decimals, min_decimals..=max_decimals);
+        let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
         let value_text = if value == 0.0 {
             "0".to_owned()
         } else {
@@ -225,7 +225,7 @@ impl<'a> Widget for DragValue<'a> {
                     .text_style(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {
-                let parsed_value = clamp(parsed_value, clamp_range);
+                let parsed_value = clamp_to_range(parsed_value, clamp_range);
                 set(&mut get_set_value, parsed_value)
             }
             if ui.input().key_pressed(Key::Enter) {
@@ -263,7 +263,7 @@ impl<'a> Widget for DragValue<'a> {
                         .flatten();
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value as f64;
-                    let stored_value = clamp(stored_value, clamp_range.clone());
+                    let stored_value = clamp_to_range(stored_value, clamp_range.clone());
 
                     let rounded_new_value = stored_value;
 
@@ -274,7 +274,7 @@ impl<'a> Widget for DragValue<'a> {
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
-                    let rounded_new_value = clamp(rounded_new_value, clamp_range);
+                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range);
                     set(&mut get_set_value, rounded_new_value);
 
                     drag_state.last_dragged_id = Some(response.id);
@@ -290,7 +290,7 @@ impl<'a> Widget for DragValue<'a> {
                 if change != 0.0 {
                     let new_value = value + speed * change;
                     let new_value = emath::round_to_decimals(new_value, auto_decimals);
-                    let new_value = clamp(new_value, clamp_range);
+                    let new_value = clamp_to_range(new_value, clamp_range);
                     set(&mut get_set_value, new_value);
                 }
             }
@@ -306,4 +306,11 @@ impl<'a> Widget for DragValue<'a> {
         response.widget_info(|| WidgetInfo::drag_value(value));
         response
     }
+}
+
+fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
+    x.clamp(
+        range.start().min(*range.end()),
+        range.start().max(*range.end()),
+    )
 }
