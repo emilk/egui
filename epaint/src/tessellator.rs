@@ -597,7 +597,7 @@ impl Tessellator {
         {
             return;
         }
-        if rect.is_empty() {
+        if rect.is_negative() {
             return;
         }
 
