@@ -32,6 +32,11 @@ Browse through [`ARCHITECTURE.md`](https://github.com/emilk/egui/blob/master/ARC
 When you have something that works, open a draft PR. You may get some helpful feedback early!
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
 
+Please keep pull requests small and focused.
+
+Do not include the `.js` and `.wasm` build artifacts generated for building for web.
+`git` is not great at storing large files like these, so we only commit a new web demo after a new egui release.
+
 
 ## Creating an integration for egui
 
