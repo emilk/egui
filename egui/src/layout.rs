@@ -395,26 +395,49 @@ impl Layout {
 
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
-    fn available_from_cursor_max_rect(&self, cursor: Rect, mut max_rect: Rect) -> Rect {
+    fn available_from_cursor_max_rect(&self, cursor: Rect, max_rect: Rect) -> Rect {
         // NOTE: in normal top-down layout the cursor has moved below the current max_rect,
         // but the available shouldn't be negative.
 
+        // ALSO: with wrapping layouts, cursor jumps to new row before expanding max_rect
+
+        let mut avail = max_rect;
+
         match self.main_dir {
             Direction::LeftToRight => {
-                max_rect.max.x = max_rect.max.x.max(cursor.min.x);
+                avail.min.x = cursor.min.x;
+                avail.max.x = avail.max.x.max(cursor.min.x);
+                if self.main_wrap {
+                    avail.min.y = cursor.min.y;
+                    avail.max.y = cursor.max.y;
+                }
             }
             Direction::RightToLeft => {
-                max_rect.min.x = max_rect.min.x.min(cursor.max.x);
+                avail.max.x = cursor.max.x;
+                avail.min.x = avail.min.x.min(cursor.max.x);
+                if self.main_wrap {
+                    avail.min.y = cursor.min.y;
+                    avail.max.y = cursor.max.y;
+                }
             }
             Direction::TopDown => {
-                max_rect.max.y = max_rect.max.y.max(cursor.min.y);
+                avail.min.y = cursor.min.y;
+                avail.max.y = avail.max.y.max(cursor.min.y);
+                if self.main_wrap {
+                    avail.min.x = cursor.min.x;
+                    avail.max.x = cursor.max.x;
+                }
             }
             Direction::BottomUp => {
-                max_rect.min.y = max_rect.min.y.min(cursor.max.y);
+                avail.min.y = avail.min.y.min(cursor.max.y);
+                if self.main_wrap {
+                    avail.min.x = cursor.min.x;
+                    avail.max.x = cursor.max.x;
+                }
             }
         }
 
-        max_rect.intersect(cursor)
+        avail
     }
 
     /// Returns where to put the next widget that is of the given size.
@@ -438,9 +461,11 @@ impl Layout {
                     if available_size.x < child_size.x && max_rect.left() < cursor.left() {
                         // New row
                         let new_row_height = cursor.height().max(child_size.y);
+                        // let new_top = cursor.bottom() + spacing.y;
+                        let new_top = min_rect.bottom() + spacing.y; // tighter packing
                         cursor = Rect::from_min_max(
-                            pos2(max_rect.left(), cursor.bottom() + spacing.y),
-                            pos2(INFINITY, cursor.bottom() + spacing.y + new_row_height),
+                            pos2(max_rect.left(), new_top),
+                            pos2(INFINITY, new_top + new_row_height),
                         );
                         max_rect.max.y = max_rect.max.y.max(cursor.max.y);
                     }
@@ -449,12 +474,11 @@ impl Layout {
                     if available_size.x < child_size.x && cursor.right() < max_rect.right() {
                         // New row
                         let new_row_height = cursor.height().max(child_size.y);
+                        // let new_top = cursor.bottom() + spacing.y;
+                        let new_top = min_rect.bottom() + spacing.y; // tighter packing
                         cursor = Rect::from_min_max(
-                            pos2(-INFINITY, cursor.bottom() + spacing.y),
-                            pos2(
-                                max_rect.right(),
-                                cursor.bottom() + spacing.y + new_row_height,
-                            ),
+                            pos2(-INFINITY, new_top),
+                            pos2(max_rect.right(), new_top + new_row_height),
                         );
                         max_rect.max.y = max_rect.max.y.max(cursor.max.y);
                     }
@@ -601,7 +625,7 @@ impl Layout {
         item_spacing: Vec2,
     ) {
         if self.main_wrap {
-            if cursor.intersects(frame_rect) {
+            if cursor.intersects(frame_rect.shrink(1.0)) {
                 // make row/column larger if necessary
                 *cursor = cursor.union(frame_rect);
             } else {

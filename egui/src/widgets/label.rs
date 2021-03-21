@@ -249,9 +249,10 @@ impl Widget for Label {
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
         {
-            // On a wrapping horizontal layout we want text to start after the last widget,
+            // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
 
+            let cursor = ui.cursor();
             let max_width = ui.available_width();
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
@@ -263,25 +264,30 @@ impl Widget for Label {
                 max_width,
             );
 
-            let pos = pos2(ui.min_rect().left(), ui.cursor().top());
+            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
 
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
-            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
-            let id = ui.advance_cursor_after_rect(rect);
-            let mut response = ui.interact(rect, id, sense);
 
-            let mut y_translation = 0.0;
-            if let Some(row) = galley.rows.get(1) {
-                // We could be sharing the first row with e.g. a button, that is higher than text.
-                // So we need to compensate for that:
-                if pos.y + row.y_min < ui.min_rect().bottom() {
-                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
+            // Center first row within the cursor:
+            let dy = 0.5 * (cursor.height() - galley.rows[0].height());
+            galley.rows[0].translate_y(dy);
+
+            // We could be sharing the first row with e.g. a button which is higher than text.
+            // So we need to compensate for that:
+            if let Some(row) = galley.rows.get_mut(1) {
+                if pos.y + row.y_min < cursor.bottom() {
+                    let y_translation = cursor.bottom() - row.y_min - pos.y;
+                    if y_translation != 0.0 {
+                        for row in galley.rows.iter_mut().skip(1) {
+                            row.translate_y(y_translation);
+                        }
+                    }
                 }
             }
 
-            for row in galley.rows.iter_mut().skip(1) {
-                row.y_min += y_translation;
-                row.y_max += y_translation;
+            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
+            let mut response = ui.allocate_rect(rect, sense);
+            for row in galley.rows.iter().skip(1) {
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
