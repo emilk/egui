@@ -65,6 +65,12 @@ impl Widget for Hyperlink {
                 new_tab: modifiers.any(),
             });
         }
+        if response.middle_clicked() {
+            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+                url: url.clone(),
+                new_tab: true,
+            });
+        }
 
         let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
