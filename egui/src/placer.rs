@@ -164,6 +164,7 @@ impl Placer {
                 item_spacing,
             )
         }
+
         self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
     }
 
@@ -233,7 +234,7 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter) {
-        let color = Color32::GREEN;
+        let color = Color32::GREEN.linear_multiply(0.5);
         let stroke = Stroke::new(2.0, color);
 
         if let Some(grid) = &self.grid {
