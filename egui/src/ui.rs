@@ -599,6 +599,12 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
+
         let debug_expand_width = self.visuals().debug_expand_width;
         let debug_expand_height = self.visuals().debug_expand_height;
 
@@ -649,7 +655,7 @@ impl Ui {
     ///
     /// Ignore the layout of the `Ui‘: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
-    pub(crate) fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -657,6 +663,12 @@ impl Ui {
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
 
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         Id::new(self.next_auto_id)
@@ -684,6 +696,7 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -692,11 +705,16 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
-        self.placer.advance_after_rects(
-            frame_rect.union(final_child_rect),
-            final_child_rect,
-            item_spacing,
-        );
+        let final_frame = frame_rect.union(final_child_rect);
+        self.placer
+            .advance_after_rects(final_frame, final_child_rect, item_spacing);
+
+        if self.visuals().debug_widgets && self.rect_contains_pointer(final_frame) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         InnerResponse::new(ret, response)
@@ -1324,6 +1342,13 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
+
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 

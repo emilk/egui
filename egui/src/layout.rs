@@ -689,7 +689,8 @@ impl Layout {
     ) {
         use epaint::*;
 
-        let cursor = self.next_widget_position(region);
+        let cursor = region.cursor;
+        let next_pos = self.next_widget_position(region);
 
         let align;
 
@@ -697,23 +698,33 @@ impl Layout {
 
         match self.main_dir {
             Direction::LeftToRight => {
-                painter.arrow(cursor, vec2(l, 0.0), stroke);
-                align = Align2::LEFT_TOP;
+                painter.line_segment([cursor.left_top(), cursor.left_bottom()], stroke);
+                painter.arrow(next_pos, vec2(l, 0.0), stroke);
+                align = Align2([Align::LEFT, self.vertical_align()]);
             }
             Direction::RightToLeft => {
-                painter.arrow(cursor, vec2(-l, 0.0), stroke);
-                align = Align2::RIGHT_TOP;
+                painter.line_segment([cursor.right_top(), cursor.right_bottom()], stroke);
+                painter.arrow(next_pos, vec2(-l, 0.0), stroke);
+                align = Align2([Align::RIGHT, self.vertical_align()]);
             }
             Direction::TopDown => {
-                painter.arrow(cursor, vec2(0.0, l), stroke);
-                align = Align2::LEFT_TOP;
+                painter.line_segment([cursor.left_top(), cursor.right_top()], stroke);
+                painter.arrow(next_pos, vec2(0.0, l), stroke);
+                align = Align2([self.horizontal_align(), Align::TOP]);
             }
             Direction::BottomUp => {
-                painter.arrow(cursor, vec2(0.0, -l), stroke);
-                align = Align2::LEFT_BOTTOM;
+                painter.line_segment([cursor.left_bottom(), cursor.right_bottom()], stroke);
+                painter.arrow(next_pos, vec2(0.0, -l), stroke);
+                align = Align2([self.horizontal_align(), Align::BOTTOM]);
             }
         }
 
-        painter.text(cursor, align, "cursor", TextStyle::Monospace, stroke.color);
+        painter.text(
+            next_pos,
+            align,
+            "cursor",
+            TextStyle::Monospace,
+            Color32::WHITE,
+        );
     }
 }
