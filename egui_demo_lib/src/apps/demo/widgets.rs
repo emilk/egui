@@ -128,8 +128,8 @@ impl Widgets {
         ui.horizontal(|ui| {
             ui.label("Single line text input:");
             let response = ui.text_edit_singleline(&mut self.single_line_text_input);
-            if response.lost_focus() {
-                // The user pressed enter.
+            if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+                // …
             }
         });
 

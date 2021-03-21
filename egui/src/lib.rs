@@ -215,6 +215,11 @@
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
 //!
+//! ui.group(|ui|{
+//!     ui.label("Within a frame");
+//!     ui.set_min_height(200.0);
+//! });
+//!
 //! // Change test color on subsequent widgets:
 //! ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!
