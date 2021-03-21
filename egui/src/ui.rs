@@ -1222,6 +1222,7 @@ impl Ui {
     /// In particular, the space between widgets is the same width as the space character.
     ///
     /// You can still add any widgets to the layout (not only Labels).
+    #[deprecated = "Use horizontal instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
     pub fn horizontal_for_text<R>(
         &mut self,
         text_style: TextStyle,
@@ -1266,6 +1267,7 @@ impl Ui {
     /// and the line spacing is the same as that for text.
     ///
     /// You can still add any widgets to the layout (not only Labels).
+    #[deprecated = "Use horizontal_wrapped instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
     pub fn horizontal_wrapped_for_text<R>(
         &mut self,
         text_style: TextStyle,
