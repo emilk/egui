@@ -114,8 +114,11 @@ impl CCursorPair {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
-/// if response.lost_focus() {
-///     // use my_string
+/// if response.changed() {
+///     // …
+/// }
+/// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+///     // …
 /// }
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]

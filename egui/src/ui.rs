@@ -463,6 +463,7 @@ impl Ui {
 
 /// # Interaction
 impl Ui {
+    /// Check for clicks, drags and/or hover on a specific region of this `Ui`.
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
             self.clip_rect(),
@@ -1112,7 +1113,14 @@ impl Ui {
 
 /// # Adding Containers / Sub-uis:
 impl Ui {
-    /// Put into a `Frame::group`, visually grouping the contents together
+    /// Put into a [`Frame::group`], visually grouping the contents together
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.group(|ui|{
+    ///     ui.label("Within a frame");
+    /// });
+    /// ```
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
@@ -1213,6 +1221,14 @@ impl Ui {
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.horizontal(|ui|{
+    ///     ui.label("Same");
+    ///     ui.label("row");
+    /// });
+    /// ```
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
     }
@@ -1309,12 +1325,28 @@ impl Ui {
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be horizontally centered.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical_centered(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1324,6 +1356,14 @@ impl Ui {
 
     /// Start a ui with vertical layout.
     /// Widgets will be horizontally centered and justified (fill full width).
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical_centered_justified(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical_centered_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
