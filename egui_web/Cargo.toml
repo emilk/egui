@@ -76,4 +76,11 @@ features = [
   "WebGlUniformLocation",
   "WheelEvent",
   "Window",
+  "HtmlTextAreaElement",
+  "InputEvent",
+  "FocusEvent",
+  "CompositionEvent",
+  "EventListener", 
+  "EventTarget",
+  "Event",
 ]

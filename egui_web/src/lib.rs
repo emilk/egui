@@ -23,8 +23,12 @@ pub use wasm_bindgen;
 pub use web_sys;
 
 pub use painter::Painter;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
+
+static AGENT_ID: &str = "keyboard_agent";
 
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
@@ -326,6 +330,7 @@ pub fn location_hash() -> Option<String> {
     web_sys::window()?.location().hash().ok()
 }
 
+/*
 /// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 fn should_ignore_key(key: &str) -> bool {
@@ -360,6 +365,7 @@ fn should_ignore_key(key: &str) -> bool {
                 | "Tab"
         )
 }
+*/
 
 /// Web sends all all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
@@ -484,9 +490,6 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     pressed: true,
                     modifiers,
                 });
-            }
-            if !modifiers.ctrl && !modifiers.command && !should_ignore_key(&key) {
-                runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
             runner_lock.needs_repaint.set_true();
 
@@ -631,6 +634,83 @@ fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
         // but this works good enough for now.
         command: event.ctrl_key() || event.meta_key(),
     }
+}
+
+///
+/// Text event handler,
+fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+    use wasm_bindgen::JsCast;
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+    let body = document.body().expect("document should have a body");
+    let tae = document
+        .create_element("textarea")?
+        .dyn_into::<web_sys::HtmlTextAreaElement>()?;
+    let tae = std::rc::Rc::new(tae);
+    tae.set_id(AGENT_ID);
+    let is_composing = Rc::new(Cell::new(false));
+    tae.set_autofocus(true);
+    {
+        // When IME is off
+        let tae_clone = tae.clone();
+        let runner_ref = runner_ref.clone();
+        let is_composing = is_composing.clone();
+        let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
+            let text = tae_clone.value();
+            if text.len() > 0 && !is_composing.get() {
+                tae_clone.set_value("");
+                let mut runner_lock = runner_ref.0.lock();
+                runner_lock.input.raw.events.push(egui::Event::Text(text));
+                runner_lock.needs_repaint.set_true();
+            }
+        }) as Box<dyn FnMut(_)>);
+        tae.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
+        on_input.forget();
+    }
+    {
+        // When IME is on, handle composition event
+        let tae_clone = tae.clone();
+        let runner_ref = runner_ref.clone();
+        let is_composing = is_composing.clone();
+        let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
+            // let event_type = event.type_();
+            match event.type_().as_ref() {
+                "compositionstart" => {
+                    is_composing.set(true);
+                    tae_clone.set_value("");
+                }
+                "compositionend" => {
+                    is_composing.set(false);
+                    tae_clone.set_value("");
+                    if let Some(text) = event.data() {
+                        let mut runner_lock = runner_ref.0.lock();
+                        runner_lock.input.raw.events.push(egui::Event::Text(text));
+                        runner_lock.needs_repaint.set_true();
+                    }
+                }
+                "compositionupdate" => {}
+                _s => panic!("Unknown type"),
+            }
+        }) as Box<dyn FnMut(_)>);
+        let f = on_compositionend.as_ref().unchecked_ref();
+        tae.add_event_listener_with_callback("compositionstart", f)?;
+        tae.add_event_listener_with_callback("compositionupdate", f)?;
+        tae.add_event_listener_with_callback("compositionend", f)?;
+        on_compositionend.forget();
+    }
+    {
+        // When tae lost focus, focus on it again immediately
+        let tae_clone = tae.clone();
+        let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+            tae_clone
+                .focus()
+                .expect("Can't focus on hidden textarea element");
+        }) as Box<dyn FnMut(_)>);
+        tae.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
+        on_focusout.forget();
+    }
+    body.append_child(&tae)?;
+    Ok(())
 }
 
 fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
