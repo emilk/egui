@@ -383,6 +383,10 @@ impl<'t> TextEdit<'t> {
         }
 
         if ui.memory().has_focus(id) && enabled {
+            if multiline {
+                ui.memory().lock_focus(id);
+            }
+
             let mut cursorp = state
                 .cursorp
                 .map(|cursorp| {
@@ -433,6 +437,19 @@ impl<'t> TextEdit<'t> {
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, text_to_insert);
+                            Some(CCursorPair::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+                    Event::Key {
+                        key: Key::Tab,
+                        pressed: true,
+                        ..
+                    } => {
+                        if multiline {
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            insert_text(&mut ccursor, text, "\t");
                             Some(CCursorPair::one(ccursor))
                         } else {
                             None

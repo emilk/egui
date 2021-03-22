@@ -129,7 +129,11 @@ pub(crate) struct Focus {
     last_interested: Option<Id>,
 
     /// Set at the beginning of the frame, set to `false` when "used".
+    is_focus_locked: bool,
+
+    /// Set at the beginning of the frame, set to `false` when "used".
     pressed_tab: bool,
+
     /// Set at the beginning of the frame, set to `false` when "used".
     pressed_shift_tab: bool,
 }
@@ -195,10 +199,12 @@ impl Focus {
                 modifiers,
             } = event
             {
-                if modifiers.shift {
-                    self.pressed_shift_tab = true;
-                } else {
-                    self.pressed_tab = true;
+                if !self.is_focus_locked {
+                    if modifiers.shift {
+                        self.pressed_shift_tab = true;
+                    } else {
+                        self.pressed_tab = true;
+                    }
                 }
             }
         }
@@ -225,11 +231,11 @@ impl Focus {
             self.id = Some(id);
             self.give_to_next = false;
         } else if self.id == Some(id) {
-            if self.pressed_tab {
+            if self.pressed_tab && !self.is_focus_locked {
                 self.id = None;
                 self.give_to_next = true;
                 self.pressed_tab = false;
-            } else if self.pressed_shift_tab {
+            } else if self.pressed_shift_tab && !self.is_focus_locked {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.pressed_shift_tab = false;
             }
@@ -287,14 +293,22 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
+    pub(crate) fn lock_focus(&mut self, id: Id) {
+        if self.had_focus_last_frame(id) && self.has_focus(id) {
+            self.interaction.focus.is_focus_locked = true;
+        }
+    }
+
     /// Give keyboard focus to a specific widget
     pub fn request_focus(&mut self, id: Id) {
         self.interaction.focus.id = Some(id);
+        self.interaction.focus.is_focus_locked = false;
     }
 
     pub fn surrender_focus(&mut self, id: Id) {
         if self.interaction.focus.id == Some(id) {
             self.interaction.focus.id = None;
+            self.interaction.focus.is_focus_locked = false;
         }
     }
 
