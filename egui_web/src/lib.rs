@@ -643,33 +643,37 @@ fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
-    let tae = document
-        .create_element("textarea")?
-        .dyn_into::<web_sys::HtmlTextAreaElement>()?;
-    let tae = std::rc::Rc::new(tae);
-    tae.set_id(AGENT_ID);
+    let input = document
+        .create_element("input")?
+        .dyn_into::<web_sys::HtmlInputElement>()?;
+    let input = std::rc::Rc::new(input);
+    input.set_id(AGENT_ID);
     let is_composing = Rc::new(Cell::new(false));
-    tae.set_autofocus(true);
+    // Hide input.
+    input.style().set_property("opacity", "0").unwrap();
+    // Set size as small as possible, in case user may click on it.
+    input.set_width(1);
+    input.set_autofocus(true);
     {
         // When IME is off
-        let tae_clone = tae.clone();
+        let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
         let is_composing = is_composing.clone();
         let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
-            let text = tae_clone.value();
+            let text = input_clone.value();
             if text.len() > 0 && !is_composing.get() {
-                tae_clone.set_value("");
+                input_clone.set_value("");
                 let mut runner_lock = runner_ref.0.lock();
                 runner_lock.input.raw.events.push(egui::Event::Text(text));
                 runner_lock.needs_repaint.set_true();
             }
         }) as Box<dyn FnMut(_)>);
-        tae.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
+        input.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
         on_input.forget();
     }
     {
         // When IME is on, handle composition event
-        let tae_clone = tae.clone();
+        let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
         let is_composing = is_composing.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
@@ -677,11 +681,11 @@ fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             match event.type_().as_ref() {
                 "compositionstart" => {
                     is_composing.set(true);
-                    tae_clone.set_value("");
+                    input_clone.set_value("");
                 }
                 "compositionend" => {
                     is_composing.set(false);
-                    tae_clone.set_value("");
+                    input_clone.set_value("");
                     if let Some(text) = event.data() {
                         let mut runner_lock = runner_ref.0.lock();
                         runner_lock.input.raw.events.push(egui::Event::Text(text));
@@ -693,23 +697,27 @@ fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
         }) as Box<dyn FnMut(_)>);
         let f = on_compositionend.as_ref().unchecked_ref();
-        tae.add_event_listener_with_callback("compositionstart", f)?;
-        tae.add_event_listener_with_callback("compositionupdate", f)?;
-        tae.add_event_listener_with_callback("compositionend", f)?;
+        input.add_event_listener_with_callback("compositionstart", f)?;
+        input.add_event_listener_with_callback("compositionupdate", f)?;
+        input.add_event_listener_with_callback("compositionend", f)?;
         on_compositionend.forget();
     }
     {
-        // When tae lost focus, focus on it again immediately
-        let tae_clone = tae.clone();
+        // When input lost focus, focus on it again.
         let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
-            tae_clone
-                .focus()
-                .expect("Can't focus on hidden textarea element");
+            // Delay 10 ms, and focus again.
+            let func = js_sys::Function::new_no_args(&format!(
+                "document.getElementById('{}').focus()",
+                AGENT_ID
+            ));
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
+                .unwrap();
         }) as Box<dyn FnMut(_)>);
-        tae.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
+        input.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
         on_focusout.forget();
     }
-    body.append_child(&tae)?;
+    body.append_child(&input)?;
     Ok(())
 }
 
@@ -801,6 +809,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.stop_propagation();
                     event.prevent_default();
                 }
+                manipulate_agent();
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -895,6 +904,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
+
+                // Finally, focus or blur on agent to toggle keyboard
+                manipulate_agent();
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -917,4 +929,17 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     Ok(())
+}
+
+fn manipulate_agent() -> Option<()> {
+    use wasm_bindgen::JsCast;
+    use web_sys::HtmlInputElement;
+    let document = web_sys::window()?.document()?;
+    let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
+    let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
+    if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
+        input.focus().ok()
+    } else {
+        input.blur().ok()
+    }
 }
