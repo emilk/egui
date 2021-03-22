@@ -239,6 +239,7 @@ pub fn handle_output(output: &egui::Output) {
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
+        text_cursor: cursor,
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -253,6 +254,8 @@ pub fn handle_output(output: &egui::Output) {
 
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
+
+    handle_text_cursor(cursor);
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -649,10 +652,16 @@ fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let input = std::rc::Rc::new(input);
     input.set_id(AGENT_ID);
     let is_composing = Rc::new(Cell::new(false));
-    // Hide input.
-    input.style().set_property("opacity", "0").unwrap();
+    {
+        let style = input.style();
+        style.set_property("position", "absolute").unwrap();
+        // Transparent
+        style.set_property("opacity", "0").unwrap();
+        // Hide under canvas
+        style.set_property("z-index", "-1").unwrap();
+    }
     // Set size as small as possible, in case user may click on it.
-    input.set_width(1);
+    input.set_size(1);
     input.set_autofocus(true);
     {
         // When IME is off
@@ -938,8 +947,23 @@ fn manipulate_agent() -> Option<()> {
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
     let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
     if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
+        input.scroll_into_view_with_bool(true);
         input.focus().ok()
     } else {
+        input.scroll_into_view_with_bool(false);
         input.blur().ok()
     }
+}
+
+fn handle_text_cursor(cursor: &Option<egui::Pos2>) -> Option<()> {
+    use wasm_bindgen::JsCast;
+    use web_sys::HtmlInputElement;
+    cursor.as_ref().and_then(|p| {
+        let egui::Pos2 { x, y } = *p;
+        let document = web_sys::window()?.document()?;
+        let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
+        let style = input.style();
+        style.set_property("top", &(y.to_string() + "px")).ok()?;
+        style.set_property("left", &(x.to_string() + "px")).ok()
+    })
 }

@@ -23,6 +23,9 @@ pub struct Output {
 
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
+
+    /// Position of text widgts' cursor
+    pub text_cursor: Option<crate::Pos2>,
 }
 
 impl Output {
