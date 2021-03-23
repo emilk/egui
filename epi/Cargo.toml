@@ -27,5 +27,4 @@ serde_json = { version = "1", optional = true }
 [features]
 default = []
 http = []
-custom_fonts = ["egui/custom_fonts"]
 persistence = ["serde", "serde_json"]

@@ -37,4 +37,3 @@ http = ["egui_glium/http", "egui_web/http"]
 persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
 screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"] # experimental
 time = ["egui_glium/time"] # for seconds_since_midnight
-custom_fonts = ["egui/custom_fonts", "epi/custom_fonts"]
