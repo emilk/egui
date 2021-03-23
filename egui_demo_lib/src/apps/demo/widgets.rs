@@ -23,6 +23,8 @@ pub struct Widgets {
     angle: f32,
     color: Color32,
     single_line_text_input: String,
+    tab_size: usize,
+    tab_as_spaces: bool,
     multiline_text_input: String,
 }
 
@@ -35,7 +37,16 @@ impl Default for Widgets {
             angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
-            multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
+
+            tab_size: 4,
+            tab_as_spaces: true,
+            multiline_text_input: r#"Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.
+This is the start of the next paragraph.
+
+Existing	tabs	are	kept	as	tabs.
+Use the configs above to set how new tabs should be handled and test by pressing Tab.
+
+Click me to edit me!"#.to_owned(),
         }
     }
 }
@@ -133,7 +144,22 @@ impl Widgets {
             }
         });
 
-        ui.label("Multiline text input:");
-        ui.text_edit_multiline(&mut self.multiline_text_input);
+        ui.horizontal(|ui| {
+            ui.label("Multiline text input:");
+
+            ui.separator();
+
+            ui.add(egui::Slider::usize(&mut self.tab_size, 2..=8).text("Tab size"));
+
+            ui.separator();
+
+            ui.checkbox(&mut self.tab_as_spaces, "Tabs as spaces");
+        });
+
+        ui.add(
+            egui::TextEdit::multiline(&mut self.multiline_text_input)
+                .tab_as_spaces(self.tab_as_spaces)
+                .tab_size(self.tab_size),
+        );
     }
 }
