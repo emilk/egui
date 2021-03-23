@@ -299,6 +299,9 @@ impl<'t> TextEdit<'t> {
             desired_height_rows,
         } = self;
 
+        // Tabs are represented as 4 spaces for now
+        *text = text.replace("\t", "    ");
+
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let font = &ui.fonts()[text_style];
         let line_spacing = font.row_height();
@@ -436,6 +439,7 @@ impl<'t> TextEdit<'t> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
+
                             insert_text(&mut ccursor, text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -450,7 +454,10 @@ impl<'t> TextEdit<'t> {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, "\t");
-                            Some(CCursorPair::one(ccursor))
+
+                            // Because we add a tab and the tab is represented
+                            // as 4 spaces we must advance the cursor
+                            Some(CCursorPair::one(ccursor + 3))
                         } else {
                             None
                         }
