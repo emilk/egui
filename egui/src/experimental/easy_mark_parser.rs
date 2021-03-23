@@ -13,6 +13,7 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Item<'a> {
     /// `\n`
+    // TODO: add Style here so empty heading still uses up the right amount of space.
     Newline,
     ///
     Text(Style, &'a str),
@@ -48,6 +49,10 @@ pub struct Style {
     pub strikethrough: bool,
     /// /italics/
     pub italics: bool,
+    /// $small$
+    pub small: bool,
+    /// ^raised^
+    pub raised: bool,
 }
 
 /// Parser for the `EasyMark` markup language.
@@ -292,6 +297,18 @@ impl<'a> Iterator for Parser<'a> {
                 self.style.italics = !self.style.italics;
                 continue;
             }
+            if let Some(rest) = self.s.strip_prefix('$') {
+                self.s = rest;
+                self.start_of_line = false;
+                self.style.small = !self.style.small;
+                continue;
+            }
+            if let Some(rest) = self.s.strip_prefix('^') {
+                self.s = rest;
+                self.start_of_line = false;
+                self.style.raised = !self.style.raised;
+                continue;
+            }
 
             // `<url>` or `[link](url)`
             if let Some(item) = self.url() {
@@ -301,7 +318,7 @@ impl<'a> Iterator for Parser<'a> {
             // Swallow everything up to the next special character:
             let end = self
                 .s
-                .find(&['*', '`', '~', '_', '/', '\\', '<', '[', '\n'][..])
+                .find(&['*', '`', '~', '_', '/', '$', '^', '\\', '<', '[', '\n'][..])
                 .map(|special| special.max(1)) // make sure we swallow at least one character
                 .unwrap_or_else(|| self.s.len());
 

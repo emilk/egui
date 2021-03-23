@@ -106,6 +106,34 @@ impl Rect {
         }
     }
 
+    /// A `Rect` that contains every point to the right of the given X coordinate.
+    pub fn everything_right_of(left_x: f32) -> Self {
+        let mut rect = Self::EVERYTHING;
+        rect.set_left(left_x);
+        rect
+    }
+
+    /// A `Rect` that contains every point to the left of the given X coordinate.
+    pub fn everything_left_of(right_x: f32) -> Self {
+        let mut rect = Self::EVERYTHING;
+        rect.set_right(right_x);
+        rect
+    }
+
+    /// A `Rect` that contains every point below a certain y coordinate
+    pub fn everything_below(top_y: f32) -> Self {
+        let mut rect = Self::EVERYTHING;
+        rect.set_top(top_y);
+        rect
+    }
+
+    /// A `Rect` that contains every point above a certain y coordinate
+    pub fn everything_above(bottom_y: f32) -> Self {
+        let mut rect = Self::EVERYTHING;
+        rect.set_bottom(bottom_y);
+        rect
+    }
+
     /// Expand by this much in each direction, keeping the center
     #[must_use]
     pub fn expand(self, amnt: f32) -> Self {
@@ -135,6 +163,7 @@ impl Rect {
         Rect::from_min_size(self.min + amnt, self.size())
     }
 
+    /// The intersection of two `Rect`, i.e. the area covered by both.
     #[must_use]
     pub fn intersect(self, other: Rect) -> Self {
         Self {
@@ -175,11 +204,10 @@ impl Rect {
     }
 
     /// Return the given points clamped to be inside the rectangle
+    /// Panics if [`Self::is_negative`].
     #[must_use]
-    pub fn clamp(&self, mut p: Pos2) -> Pos2 {
-        p.x = clamp(p.x, self.x_range());
-        p.y = clamp(p.y, self.y_range());
-        p
+    pub fn clamp(&self, p: Pos2) -> Pos2 {
+        p.clamp(self.min, self.max)
     }
 
     pub fn extend_with(&mut self, p: Pos2) {
@@ -258,27 +286,86 @@ impl Rect {
         self.max.y..=self.min.y
     }
 
+    #[deprecated = "Use is_negative instead"]
     pub fn is_empty(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
 
+    /// `max.x < min.x` or `max.y < min.y`.
+    pub fn is_negative(&self) -> bool {
+        self.max.x < self.min.x || self.max.y < self.min.y
+    }
+
+    /// `min.x <= max.x && min.y <= max.y`.
+    pub fn is_non_negative(&self) -> bool {
+        self.min.x <= self.max.x && self.min.y <= self.max.y
+    }
+
+    /// True if all members are also finite.
     pub fn is_finite(&self) -> bool {
         self.min.is_finite() && self.max.is_finite()
     }
 
-    // Convenience functions (assumes origin is towards left top):
+    /// True if any member is NaN.
+    pub fn any_nan(self) -> bool {
+        self.min.any_nan() || self.max.any_nan()
+    }
+}
+
+/// ## Convenience functions (assumes origin is towards left top):
+impl Rect {
+    /// `min.x`
     pub fn left(&self) -> f32 {
         self.min.x
     }
+    /// `min.x`
+    pub fn left_mut(&mut self) -> &mut f32 {
+        &mut self.min.x
+    }
+    /// `min.x`
+    pub fn set_left(&mut self, x: f32) {
+        self.min.x = x;
+    }
+
+    /// `max.x`
     pub fn right(&self) -> f32 {
         self.max.x
     }
+    /// `max.x`
+    pub fn right_mut(&mut self) -> &mut f32 {
+        &mut self.max.x
+    }
+    /// `max.x`
+    pub fn set_right(&mut self, x: f32) {
+        self.max.x = x;
+    }
+
+    /// `min.y`
     pub fn top(&self) -> f32 {
         self.min.y
     }
+    /// `min.y`
+    pub fn top_mut(&mut self) -> &mut f32 {
+        &mut self.min.y
+    }
+    /// `min.y`
+    pub fn set_top(&mut self, y: f32) {
+        self.min.y = y;
+    }
+
+    /// `max.y`
     pub fn bottom(&self) -> f32 {
         self.max.y
     }
+    /// `max.y`
+    pub fn bottom_mut(&mut self) -> &mut f32 {
+        &mut self.max.y
+    }
+    /// `max.y`
+    pub fn set_bottom(&mut self, y: f32) {
+        self.max.y = y;
+    }
+
     pub fn left_top(&self) -> Pos2 {
         pos2(self.left(), self.top())
     }

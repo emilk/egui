@@ -8,7 +8,9 @@ pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = Vec2::ZERO;
+        ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+        ui.set_row_height(ui.fonts()[TextStyle::Body].row_height());
+
         for item in items {
             item_ui(ui, item);
         }
@@ -24,6 +26,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             // ui.label("\n"); // too much spacing (paragraph spacing)
             ui.allocate_exact_size(vec2(0.0, row_height), Sense::hover()); // make sure we take up some height
             ui.end_row();
+            ui.set_row_height(row_height);
         }
 
         easy_mark::Item::Text(style, text) => {
@@ -84,11 +87,18 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
         underline,
         strikethrough,
         italics,
+        small,
+        raised,
     } = *style;
 
+    let small = small || raised; // Raised text is also smaller
+
     let mut label = Label::new(text);
-    if heading {
+    if heading && !small {
         label = label.heading().strong();
+    }
+    if small && !heading {
+        label = label.small();
     }
     if code {
         label = label.code();
@@ -106,6 +116,9 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
     }
     if italics {
         label = label.italics();
+    }
+    if raised {
+        label = label.raised();
     }
     label
 }

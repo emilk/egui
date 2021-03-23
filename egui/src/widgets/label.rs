@@ -23,6 +23,7 @@ pub struct Label {
     strikethrough: bool,
     underline: bool,
     italics: bool,
+    raised: bool,
 }
 
 impl Label {
@@ -39,6 +40,7 @@ impl Label {
             strikethrough: false,
             underline: false,
             italics: false,
+            raised: false,
         }
     }
 
@@ -112,8 +114,20 @@ impl Label {
         self
     }
 
+    /// Smaller text
     pub fn small(self) -> Self {
         self.text_style(TextStyle::Small)
+    }
+
+    /// For e.g. exponents
+    pub fn small_raised(self) -> Self {
+        self.text_style(TextStyle::Small).raised()
+    }
+
+    /// Align text to top. Only applicable together with [`Self::small()`].
+    pub fn raised(mut self) -> Self {
+        self.raised = true;
+        self
     }
 
     /// Fill-color behind the text
@@ -142,7 +156,8 @@ impl Label {
         } else {
             f32::INFINITY
         };
-        font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
+        let galley = font.layout_multiline(self.text.clone(), wrap_width); // TODO: avoid clone
+        self.valign_galley(ui, text_style, galley)
     }
 
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
@@ -171,6 +186,7 @@ impl Label {
             strikethrough,
             underline,
             italics,
+            raised: _,
             ..
         } = *self;
 
@@ -239,6 +255,26 @@ impl Label {
             }
         })
     }
+
+    fn valign_galley(&self, ui: &Ui, text_style: TextStyle, mut galley: Galley) -> Galley {
+        if text_style == TextStyle::Small {
+            // Hacky McHackface strikes again:
+            let dy = if self.raised {
+                -2.0
+            } else {
+                let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height();
+                let font_height = ui.fonts()[text_style].row_height();
+                (normal_text_heigth - font_height) / 2.0 - 1.0 // center
+
+                // normal_text_heigth - font_height // align bottom
+            };
+
+            for row in &mut galley.rows {
+                row.translate_y(dy);
+            }
+        }
+        galley
+    }
 }
 
 impl Widget for Label {
@@ -249,9 +285,10 @@ impl Widget for Label {
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
         {
-            // On a wrapping horizontal layout we want text to start after the last widget,
+            // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
 
+            let cursor = ui.cursor();
             let max_width = ui.available_width();
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
@@ -263,28 +300,34 @@ impl Widget for Label {
                 max_width,
             );
 
-            let pos = pos2(ui.min_rect().left(), ui.cursor().y);
+            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
 
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
-            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
-            let id = ui.advance_cursor_after_rect(rect);
-            let mut response = ui.interact(rect, id, sense);
 
-            let mut y_translation = 0.0;
-            if let Some(row) = galley.rows.get(1) {
-                // We could be sharing the first row with e.g. a button, that is higher than text.
-                // So we need to compensate for that:
-                if pos.y + row.y_min < ui.min_rect().bottom() {
-                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
+            // Center first row within the cursor:
+            let dy = 0.5 * (cursor.height() - galley.rows[0].height());
+            galley.rows[0].translate_y(dy);
+
+            // We could be sharing the first row with e.g. a button which is higher than text.
+            // So we need to compensate for that:
+            if let Some(row) = galley.rows.get_mut(1) {
+                if pos.y + row.y_min < cursor.bottom() {
+                    let y_translation = cursor.bottom() - row.y_min - pos.y;
+                    if y_translation != 0.0 {
+                        for row in galley.rows.iter_mut().skip(1) {
+                            row.translate_y(y_translation);
+                        }
+                    }
                 }
             }
 
-            for row in galley.rows.iter_mut().skip(1) {
-                row.y_min += y_translation;
-                row.y_max += y_translation;
+            let galley = self.valign_galley(ui, text_style, galley);
+
+            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
+            let mut response = ui.allocate_rect(rect, sense);
+            for row in galley.rows.iter().skip(1) {
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
-                ui.advance_cursor_after_rect(rect);
-                response |= ui.interact(rect, id, sense);
+                response |= ui.allocate_rect(rect, sense);
             }
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
             self.paint_galley_focus(ui, pos, galley, response.has_focus());

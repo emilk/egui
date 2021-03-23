@@ -59,7 +59,7 @@ impl Placer {
         self.region.min_rect = min_rect;
     }
 
-    pub(crate) fn cursor(&self) -> Pos2 {
+    pub(crate) fn cursor(&self) -> Rect {
         self.region.cursor
     }
 }
@@ -108,12 +108,24 @@ impl Placer {
             grid.next_cell(self.region.cursor, child_size)
         } else {
             self.layout
-                .next_space(&self.region, child_size, item_spacing)
+                .next_frame(&self.region, child_size, item_spacing)
+        }
+    }
+
+    /// Where do we expect a zero-sized widget to be placed?
+    pub(crate) fn next_widget_position(&self) -> Pos2 {
+        if let Some(grid) = &self.grid {
+            grid.next_cell(self.region.cursor, Vec2::ZERO).center()
+        } else {
+            self.layout.next_widget_position(&self.region)
         }
     }
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
+        debug_assert!(!rect.any_nan());
+        debug_assert!(!child_size.any_nan());
+
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
         } else {
@@ -128,10 +140,7 @@ impl Placer {
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
-        self.layout.advance_cursor(&mut self.region.cursor, amount);
-
-        self.region
-            .expand_to_include_rect(Rect::from_min_size(self.cursor(), Vec2::ZERO));
+        self.layout.advance_cursor(&mut self.region, amount);
     }
 
     /// Advance cursor after a widget was added to a specific rectangle
@@ -155,7 +164,8 @@ impl Placer {
                 item_spacing,
             )
         }
-        self.region.expand_to_include_rect(widget_rect);
+
+        self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
@@ -166,6 +176,11 @@ impl Placer {
         } else {
             self.layout.end_row(&mut self.region, item_spacing)
         }
+    }
+
+    /// Set row height in horizontal wrapping layout.
+    pub(crate) fn set_row_height(&mut self, height: f32) {
+        self.layout.set_row_height(&mut self.region, height);
     }
 }
 
@@ -180,74 +195,51 @@ impl Placer {
         self.region.expand_to_include_x(x);
     }
 
+    fn next_widget_space_ignore_wrap_justify(&self, size: Vec2) -> Rect {
+        self.layout
+            .next_widget_space_ignore_wrap_justify(&self.region, size)
+    }
+
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_width(&mut self, width: f32) {
-        #![allow(clippy::float_cmp)]
-        let Self { layout, region, .. } = self;
-        if layout.main_dir() == Direction::RightToLeft {
-            debug_assert_eq!(region.min_rect.max.x, region.max_rect.max.x);
-            region.max_rect.min.x = region.max_rect.max.x - width.at_least(region.min_rect.width());
-        } else {
-            debug_assert_eq!(region.min_rect.min.x, region.max_rect.min.x);
-            region.max_rect.max.x = region.max_rect.min.x + width.at_least(region.min_rect.width());
-        }
+        let rect = self.next_widget_space_ignore_wrap_justify(vec2(width, 0.0));
+        let region = &mut self.region;
+        region.max_rect.min.x = rect.min.x;
+        region.max_rect.max.x = rect.max.x;
+        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
     }
 
     /// Set the maximum height of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_height(&mut self, height: f32) {
-        #![allow(clippy::float_cmp)]
-        let Self { layout, region, .. } = self;
-        if layout.main_dir() == Direction::BottomUp {
-            debug_assert_eq!(region.min_rect.max.y, region.max_rect.max.y);
-            region.max_rect.min.y =
-                region.max_rect.max.y - height.at_least(region.min_rect.height());
-        } else {
-            debug_assert_eq!(region.min_rect.min.y, region.max_rect.min.y);
-            region.max_rect.max.y =
-                region.max_rect.min.y + height.at_least(region.min_rect.height());
-        }
+        let rect = self.next_widget_space_ignore_wrap_justify(vec2(0.0, height));
+        let region = &mut self.region;
+        region.max_rect.min.y = rect.min.y;
+        region.max_rect.max.y = rect.max.y;
+        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
     }
 
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_width(&mut self, width: f32) {
-        #![allow(clippy::float_cmp)]
-        let Self { layout, region, .. } = self;
-        if layout.main_dir() == Direction::RightToLeft {
-            debug_assert_eq!(region.min_rect.max.x, region.max_rect.max.x);
-            let min_rect = &mut region.min_rect;
-            min_rect.min.x = min_rect.min.x.min(min_rect.max.x - width);
-        } else {
-            debug_assert_eq!(region.min_rect.min.x, region.max_rect.min.x);
-            let min_rect = &mut region.min_rect;
-            min_rect.max.x = min_rect.max.x.max(min_rect.min.x + width);
-        }
-        region.max_rect = region.max_rect.union(region.min_rect);
+        let rect = self.next_widget_space_ignore_wrap_justify(vec2(width, 0.0));
+        self.region.expand_to_include_x(rect.min.x);
+        self.region.expand_to_include_x(rect.max.x);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_height(&mut self, height: f32) {
-        #![allow(clippy::float_cmp)]
-        let Self { layout, region, .. } = self;
-        if layout.main_dir() == Direction::BottomUp {
-            debug_assert_eq!(region.min_rect.max.y, region.max_rect.max.y);
-            let min_rect = &mut region.min_rect;
-            min_rect.min.y = min_rect.min.y.min(min_rect.max.y - height);
-        } else {
-            debug_assert_eq!(region.min_rect.min.y, region.max_rect.min.y);
-            let min_rect = &mut region.min_rect;
-            min_rect.max.y = min_rect.max.y.max(min_rect.min.y + height);
-        }
-        region.max_rect = region.max_rect.union(region.min_rect);
+        let rect = self.next_widget_space_ignore_wrap_justify(vec2(0.0, height));
+        self.region.expand_to_include_y(rect.min.y);
+        self.region.expand_to_include_y(rect.max.y);
     }
 }
 
 impl Placer {
     pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter) {
-        let color = Color32::GREEN;
+        let color = Color32::GREEN.linear_multiply(0.5);
         let stroke = Stroke::new(2.0, color);
 
         if let Some(grid) = &self.grid {

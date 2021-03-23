@@ -281,43 +281,40 @@ impl CollapsingHeader {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        let header_enabled = self.enabled;
-        ui.wrap(|ui| {
-            ui.set_enabled(header_enabled);
+        // Make sure contents are bellow header,
+        // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
+        ui.vertical(|ui| {
+            ui.set_enabled(self.enabled);
 
-            // Make sure contents are bellow header,
-            // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
-            ui.vertical(|ui| {
-                let Prepared {
-                    id,
+            let Prepared {
+                id,
+                header_response,
+                mut state,
+            } = self.begin(ui);
+
+            let ret_response = state.add_contents(ui, id, |ui| {
+                ui.indent(id, |ui| {
+                    // make as wide as the header:
+                    ui.expand_to_include_x(header_response.rect.right());
+                    add_contents(ui)
+                })
+                .inner
+            });
+            ui.memory().collapsing_headers.insert(id, state);
+
+            if let Some(ret_response) = ret_response {
+                CollapsingResponse {
                     header_response,
-                    mut state,
-                } = self.begin(ui);
-                let ret_response = state.add_contents(ui, id, |ui| {
-                    ui.indent(id, |ui| {
-                        // make as wide as the header:
-                        ui.expand_to_include_x(header_response.rect.right());
-                        add_contents(ui)
-                    })
-                    .inner
-                });
-                ui.memory().collapsing_headers.insert(id, state);
-
-                if let Some(ret_response) = ret_response {
-                    CollapsingResponse {
-                        header_response,
-                        body_response: Some(ret_response.response),
-                        body_returned: Some(ret_response.inner),
-                    }
-                } else {
-                    CollapsingResponse {
-                        header_response,
-                        body_response: None,
-                        body_returned: None,
-                    }
+                    body_response: Some(ret_response.response),
+                    body_returned: Some(ret_response.inner),
                 }
-            })
-            .inner
+            } else {
+                CollapsingResponse {
+                    header_response,
+                    body_response: None,
+                    body_returned: None,
+                }
+            }
         })
         .inner
     }

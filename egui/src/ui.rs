@@ -73,6 +73,7 @@ impl Ui {
     }
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
+        debug_assert!(!max_rect.any_nan());
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
 
         Ui {
@@ -462,6 +463,7 @@ impl Ui {
 
 /// # Interaction
 impl Ui {
+    /// Check for clicks, drags and/or hover on a specific region of this `Ui`.
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
             self.clip_rect(),
@@ -598,6 +600,12 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
+
         let debug_expand_width = self.visuals().debug_expand_width;
         let debug_expand_height = self.visuals().debug_expand_height;
 
@@ -645,8 +653,10 @@ impl Ui {
     }
 
     /// Allocate a specific part of the `Ui‘.
+    ///
     /// Ignore the layout of the `Ui‘: just put my widget here!
-    pub(crate) fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+    /// The layout cursor will advance to past this `rect`.
+    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -655,12 +665,27 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
+
         self.next_auto_id = self.next_auto_id.wrapping_add(1);
         Id::new(self.next_auto_id)
     }
 
-    pub(crate) fn cursor(&self) -> Pos2 {
+    pub(crate) fn placer(&self) -> &Placer {
+        &self.placer
+    }
+
+    pub(crate) fn cursor(&self) -> Rect {
         self.placer.cursor()
+    }
+
+    /// Where do we expect a zero-sized widget to be placed?
+    pub(crate) fn next_widget_position(&self) -> Pos2 {
+        self.placer.next_widget_position()
     }
 
     /// Allocated the given space and then adds content to that space.
@@ -672,21 +697,25 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
-        let outer_child_rect = self.placer.next_space(desired_size, item_spacing);
-        let inner_child_rect = self
-            .placer
-            .justify_and_align(outer_child_rect, desired_size);
+        let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(inner_child_rect, *self.layout());
+        let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
-        self.placer.advance_after_rects(
-            outer_child_rect.union(final_child_rect),
-            final_child_rect,
-            item_spacing,
-        );
+        let final_frame = frame_rect.union(final_child_rect);
+        self.placer
+            .advance_after_rects(final_frame, final_child_rect, item_spacing);
+
+        if self.visuals().debug_widgets && self.rect_contains_pointer(final_frame) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
         InnerResponse::new(ret, response)
@@ -740,8 +769,8 @@ impl Ui {
     /// });
     /// ```
     pub fn scroll_to_cursor(&mut self, align: Align) {
-        let scroll_y = self.cursor().y;
-        self.ctx().frame_state().scroll_target = Some((scroll_y, align));
+        let target_y = self.next_widget_position().y;
+        self.ctx().frame_state().scroll_target = Some((target_y, align));
     }
 }
 
@@ -1084,8 +1113,15 @@ impl Ui {
 
 /// # Adding Containers / Sub-uis:
 impl Ui {
-    /// Put into a `Frame::group`, visually grouping the contents together
-    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    /// Put into a [`Frame::group`], visually grouping the contents together
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.group(|ui|{
+    ///     ui.label("Within a frame");
+    /// });
+    /// ```
+    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
@@ -1094,8 +1130,7 @@ impl Ui {
         let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
-        let size = child_ui.min_size();
-        let response = self.allocate_response(size, Sense::hover());
+        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -1140,8 +1175,11 @@ impl Ui {
             "You can only indent vertical layouts, found {:?}",
             self.layout()
         );
-        let indent = vec2(self.spacing().indent, 0.0);
-        let child_rect = Rect::from_min_max(self.cursor() + indent, self.max_rect().right_bottom()); // TODO: wrong for reversed layouts
+
+        let indent = self.spacing().indent;
+        let mut child_rect = self.placer.available_rect_before_wrap();
+        child_rect.min.x += indent;
+
         let mut child_ui = Self {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, *self.layout())
@@ -1153,13 +1191,11 @@ impl Ui {
             child_ui.advance_cursor(4.0);
         }
 
-        let size = child_ui.min_size();
-
         // draw a faint line on the left to mark the indented section
         let stroke = self.visuals().widgets.noninteractive.bg_stroke;
-        let left_top = child_rect.min - indent * 0.5;
+        let left_top = child_rect.min - 0.5 * indent * Vec2::X;
         let left_top = self.painter().round_pos_to_pixels(left_top);
-        let left_bottom = pos2(left_top.x, left_top.y + size.y - 2.0);
+        let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
         let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
         self.painter.line_segment([left_top, left_bottom], stroke);
         if end_with_horizontal_line {
@@ -1169,43 +1205,8 @@ impl Ui {
                 .line_segment([left_bottom, right_bottom], stroke);
         }
 
-        let response = self.allocate_response(indent + size, Sense::hover());
+        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
-    }
-
-    #[deprecated]
-    pub fn left_column(&mut self, width: f32) -> Self {
-        #[allow(deprecated)]
-        self.column(Align::Min, width)
-    }
-
-    #[deprecated]
-    pub fn centered_column(&mut self, width: f32) -> Self {
-        #[allow(deprecated)]
-        self.column(Align::Center, width)
-    }
-
-    #[deprecated]
-    pub fn right_column(&mut self, width: f32) -> Self {
-        #[allow(deprecated)]
-        self.column(Align::Max, width)
-    }
-
-    /// A column ui with a given width.
-    #[deprecated]
-    pub fn column(&mut self, column_position: Align, width: f32) -> Self {
-        let x = match column_position {
-            Align::Min => 0.0,
-            Align::Center => self.available_width() / 2.0 - width / 2.0,
-            Align::Max => self.available_width() - width,
-        };
-        self.child_ui(
-            Rect::from_min_size(
-                self.cursor() + vec2(x, 0.0),
-                vec2(width, self.available_size_before_wrap().y),
-            ),
-            *self.layout(),
-        )
     }
 
     /// Start a ui with horizontal layout.
@@ -1220,6 +1221,14 @@ impl Ui {
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.horizontal(|ui|{
+    ///     ui.label("Same");
+    ///     ui.label("row");
+    /// });
+    /// ```
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
     }
@@ -1229,6 +1238,7 @@ impl Ui {
     /// In particular, the space between widgets is the same width as the space character.
     ///
     /// You can still add any widgets to the layout (not only Labels).
+    #[deprecated = "Use horizontal instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
     pub fn horizontal_for_text<R>(
         &mut self,
         text_style: TextStyle,
@@ -1273,6 +1283,7 @@ impl Ui {
     /// and the line spacing is the same as that for text.
     ///
     /// You can still add any widgets to the layout (not only Labels).
+    #[deprecated = "Use horizontal_wrapped instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
     pub fn horizontal_wrapped_for_text<R>(
         &mut self,
         text_style: TextStyle,
@@ -1314,12 +1325,28 @@ impl Ui {
 
     /// Start a ui with vertical layout.
     /// Widgets will be left-justified.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
 
     /// Start a ui with vertical layout.
     /// Widgets will be horizontally centered.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical_centered(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1329,6 +1356,14 @@ impl Ui {
 
     /// Start a ui with vertical layout.
     /// Widgets will be horizontally centered and justified (fill full width).
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.vertical_centered_justified(|ui|{
+    ///     ui.label("over");
+    ///     ui.label("under");
+    /// });
+    /// ```
     pub fn vertical_centered_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1349,6 +1384,13 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+
+        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+            let painter = self.ctx().debug_painter();
+            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(&painter);
+        }
+
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
@@ -1386,6 +1428,11 @@ impl Ui {
             .end_row(self.spacing().item_spacing, &self.painter().clone());
     }
 
+    /// Set row height in horizontal wrapping layout.
+    pub fn set_row_height(&mut self, height: f32) {
+        self.placer.set_row_height(height);
+    }
+
     /// Temporarily split split an Ui into several columns.
     ///
     /// ```
@@ -1403,7 +1450,7 @@ impl Ui {
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
-        let top_left = self.cursor();
+        let top_left = self.cursor().min;
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {

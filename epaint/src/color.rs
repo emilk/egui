@@ -4,8 +4,6 @@
 //! If you want to manipulate RGBA colors use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
 
-use emath::clamp;
-
 /// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better
@@ -363,7 +361,7 @@ pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
 /// linear [0, 1] -> linear [0, 255] (clamped).
 /// Useful for alpha-channel.
 pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
-    clamp(a * 255.0, 0.0..=255.0).round() as u8
+    (a * 255.0).round() as u8 // rust does a saturating cast since 1.45
 }
 
 #[test]
@@ -593,7 +591,7 @@ pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
 pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
     #![allow(clippy::many_single_char_names)]
     let h = (h.fract() + 1.0).fract(); // wrap
-    let s = clamp(s, 0.0..=1.0);
+    let s = s.clamp(0.0, 1.0);
 
     let f = h * 6.0 - (h * 6.0).floor();
     let p = v * (1.0 - s);

@@ -46,7 +46,10 @@ impl Widgets {
             ui.add(crate::__egui_github_link_file_line!());
         });
 
-        ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            // Trick so we don't have to add spaces in the text below:
+            ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
+
             ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
@@ -104,7 +107,7 @@ impl Widgets {
 
         ui.separator();
 
-        ui.horizontal_for_text(TextStyle::Body, |ui| {
+        ui.horizontal(|ui| {
             ui.label("An angle:");
             ui.drag_angle(&mut self.angle);
             ui.label(format!("≈ {:.3}τ", self.angle / std::f32::consts::TAU))
@@ -125,8 +128,8 @@ impl Widgets {
         ui.horizontal(|ui| {
             ui.label("Single line text input:");
             let response = ui.text_edit_singleline(&mut self.single_line_text_input);
-            if response.lost_focus() {
-                // The user pressed enter.
+            if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+                // …
             }
         });
 

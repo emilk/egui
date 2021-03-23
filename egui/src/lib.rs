@@ -2,6 +2,9 @@
 //!
 //! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
 //!
+//! `egui` is in heavy development, with each new version having breaking changes.
+//! You need to have the latest stable version of `rustc` to use `egui`.
+//!
 //! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
@@ -212,6 +215,11 @@
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
 //!
+//! ui.group(|ui|{
+//!     ui.label("Within a frame");
+//!     ui.set_min_height(200.0);
+//! });
+//!
 //! // Change test color on subsequent widgets:
 //! ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!
@@ -295,9 +303,7 @@ pub use epaint as paint; // historical reasons
 // Can't add deprecation notice due to https://github.com/rust-lang/rust/issues/30827
 pub use emath as math; // historical reasons
 
-pub use emath::{
-    clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2,
-};
+pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
     text::{FontDefinitions, FontFamily, TextStyle},

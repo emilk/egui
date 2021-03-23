@@ -13,7 +13,7 @@ pub(crate) struct State {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct CursorPair {
+pub struct CursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
     /// Note that the two ends can come in any order, and also be equal (no selection).
@@ -114,8 +114,11 @@ impl CCursorPair {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
-/// if response.lost_focus() {
-///     // use my_string
+/// if response.changed() {
+///     // …
+/// }
+/// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+///     // …
 /// }
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
@@ -132,6 +135,14 @@ pub struct TextEdit<'t> {
     enabled: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
+}
+impl<'t> TextEdit<'t> {
+    pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
+        ui.memory()
+            .text_edit
+            .get(&id)
+            .and_then(|state| state.cursorp)
+    }
 }
 
 impl<'t> TextEdit<'t> {

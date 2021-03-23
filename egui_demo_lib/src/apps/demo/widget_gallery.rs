@@ -176,7 +176,7 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("CollapsingHeader", "collapsing"));
         ui.collapsing("Click to see what is hidden!", |ui| {
-            ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(
                     "Not much, as it turns out - but here is a gold star for you for checking:",
                 );

@@ -290,7 +290,15 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         let HsvaGamma { h, s, v, a: _ } = hsva;
 
-        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into());
+        color_slider_1d(ui, h, |h| {
+            HsvaGamma {
+                h,
+                s: 1.0,
+                v: 1.0,
+                a: 1.0,
+            }
+            .into()
+        });
         ui.label("Hue");
         ui.end_row();
 
@@ -339,7 +347,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                     if color_picker_hsva_2d(ui, hsva, alpha) {
                         button_response.mark_changed();
                     }
-                })
+                });
             });
 
         if !button_response.clicked()

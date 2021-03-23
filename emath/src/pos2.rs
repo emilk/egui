@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::*;
 
@@ -122,8 +122,14 @@ impl Pos2 {
         pos2(self.x.ceil(), self.y.ceil())
     }
 
+    /// True if all members are also finite.
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
+    }
+
+    /// True if any member is NaN.
+    pub fn any_nan(self) -> bool {
+        self.x.is_nan() || self.y.is_nan()
     }
 
     #[must_use]
@@ -137,10 +143,10 @@ impl Pos2 {
     }
 
     #[must_use]
-    pub fn clamp(self, range: RangeInclusive<Self>) -> Self {
+    pub fn clamp(self, min: Self, max: Self) -> Self {
         Self {
-            x: clamp(self.x, range.start().x..=range.end().x),
-            y: clamp(self.y, range.start().y..=range.end().y),
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
         }
     }
 }

@@ -115,6 +115,12 @@ impl Row {
     pub fn x_offset(&self, column: usize) -> f32 {
         self.x_offsets[column.min(self.x_offsets.len() - 1)]
     }
+
+    // Move down this much
+    pub fn translate_y(&mut self, dy: f32) {
+        self.y_min += dy;
+        self.y_max += dy;
+    }
 }
 
 impl Galley {

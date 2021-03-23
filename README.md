@@ -44,9 +44,11 @@ To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
 The native backend is currently using [`glium`](https://github.com/glium/glium) ([though there are plans to change that](https://github.com/emilk/egui/issues/93)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`
+`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev`
 
-**NOTE**: egui itself is completely platform agnostic.
+On Fedora Rawhide you need to run `dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel`
+
+**NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
 ### Example
 
@@ -167,7 +169,8 @@ The same code can be compiled to a native app or a web app.
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad).
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
-* [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backed for [Vulkano](https://github.com/vulkano-rs/vulkano).
+* [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
+* [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_ash_vk_mem`](https://crates.io/crates/egui_winit_ash_vk_mem) for for [winit](https://github.com/rust-windowing/winit), [ash](https://github.com/MaikKlein/ash) and [vk_mem](https://github.com/gwihlidal/vk-mem-rs).
 * [`egui_winit_platform`](https://github.com/hasenbanck/egui_winit_platform) provides bindings between [winit](https://crates.io/crates/winit) and egui. It only provides the first half of an egui integration (IO). Painting can be done with e.g. [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend).
 * For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):

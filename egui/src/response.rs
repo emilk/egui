@@ -161,15 +161,15 @@ impl Response {
     }
 
     /// The widget had keyboard focus and lost it,
-    /// perhaps because the user pressed enter.
-    /// If you want to do an action when a user presses enter in a text field,
-    /// use this.
+    /// either because the user pressed tab or clicked somewhere else,
+    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
     ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
-    /// if ui.text_edit_singleline(&mut my_text).lost_focus() {
+    /// let response = ui.text_edit_singleline(&mut my_text);
+    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
     ///     do_request(&my_text);
     /// }
     /// ```

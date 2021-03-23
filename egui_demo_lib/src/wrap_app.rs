@@ -285,7 +285,7 @@ impl BackendPanel {
                 "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
                 This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
             ui.label("This is also work in progress, and not ready for production... yet :)");
-            ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label("Project home page:");
                 ui.hyperlink("https://github.com/emilk/egui");
             });
