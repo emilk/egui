@@ -666,7 +666,6 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let is_composing = Rc::new(Cell::new(false));
     {
         let style = input.style();
-        style.set_property("position", "absolute").unwrap();
         // Transparent
         style.set_property("opacity", "0").unwrap();
         // Hide under canvas
@@ -674,8 +673,8 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
     // Set size as small as possible, in case user may click on it.
     input.set_size(1);
-    input.scroll_into_view_with_bool(true);
     input.set_autofocus(true);
+    input.set_hidden(true);
     {
         // When IME is off
         let input_clone = input.clone();
@@ -726,6 +725,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
     {
         // When input lost focus, focus on it again.
+        // It is useful when user click somewhere outside canvas.
         let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
             // Delay 10 ms, and focus again.
             let func = js_sys::Function::new_no_args(&format!(
