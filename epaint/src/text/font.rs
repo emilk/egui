@@ -107,13 +107,20 @@ impl FontImpl {
         if glyph.id().0 == 0 {
             None
         } else {
-            let glyph_info = allocate_glyph(
+            let mut glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
                 glyph,
                 self.scale_in_pixels,
                 self.y_offset,
                 self.pixels_per_point,
             );
+
+            if c == '\t' {
+                if let Some(space) = self.glyph_info(' ') {
+                    glyph_info.advance_width = 4.0 * space.advance_width;
+                }
+            }
+
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
         }

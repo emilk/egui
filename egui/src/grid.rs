@@ -138,6 +138,7 @@ impl GridLayout {
         Rect::from_min_size(cursor.min, size)
     }
 
+    #[allow(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO: allow this alignment to be customized
         Align2::LEFT_CENTER.align_size_within_rect(size, frame)
@@ -305,7 +306,7 @@ impl Grid {
 }
 
 impl Grid {
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
             striped,
@@ -337,6 +338,5 @@ impl Grid {
             ui.save_grid();
             r
         })
-        .inner
     }
 }

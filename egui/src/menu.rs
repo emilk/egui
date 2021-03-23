@@ -113,7 +113,7 @@ fn menu_impl<'c>(
                 style.visuals.widgets.inactive.bg_stroke = Stroke::none();
                 ui.set_style(style);
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents);
-            })
+            });
         });
 
         // TODO: this prevents sub-menus in menus. We should fix that.

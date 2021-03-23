@@ -303,6 +303,7 @@ fn x_range(rect: &Rect) -> RangeInclusive<f32> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
+    #[allow(clippy::unused_self)]
     fn allocate_slider_space(&self, ui: &mut Ui, height: f32) -> Response {
         let desired_size = vec2(ui.spacing().slider_width, height);
         ui.allocate_response(desired_size, Sense::click_and_drag())

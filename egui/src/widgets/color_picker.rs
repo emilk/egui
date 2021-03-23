@@ -347,7 +347,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                     if color_picker_hsva_2d(ui, hsva, alpha) {
                         button_response.mark_changed();
                     }
-                })
+                });
             });
 
         if !button_response.clicked()
