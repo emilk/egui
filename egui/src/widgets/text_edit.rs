@@ -371,7 +371,6 @@ impl<'t> TextEdit<'t> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        let mut text_cursor = None;
         if ui.memory().has_focus(id) && enabled {
             let mut cursorp = state
                 .cursorp
@@ -485,7 +484,6 @@ impl<'t> TextEdit<'t> {
                     };
                 }
             }
-            text_cursor = Some(cursorp);
             state.cursorp = Some(cursorp);
 
             state
@@ -494,15 +492,6 @@ impl<'t> TextEdit<'t> {
         }
 
         if ui.memory().has_focus(id) {
-            {
-                let mut output = ui.ctx().output();
-                output.text_cursor = text_cursor.map(|c| {
-                    galley
-                        .pos_from_cursor(&c.primary)
-                        .translate(response.rect.min.to_vec2())
-                        .left_top()
-                });
-            }
             if let Some(cursorp) = state.cursorp {
                 paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
                 paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);

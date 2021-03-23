@@ -220,7 +220,7 @@ impl AppRunner {
         self.app.update(egui_ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
         self.screen_reader.speak(&egui_output.events_description());
-        handle_output(&egui_output);
+        handle_output(&egui_output, self.canvas_id());
 
         {
             let epi::backend::AppOutput {

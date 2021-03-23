@@ -111,11 +111,13 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
     }
 }
 
-pub fn pos_from_touch_event(event: &web_sys::TouchEvent) -> egui::Pos2 {
+pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
+    let canvas = canvas_element(canvas_id).unwrap();
+    let rect = canvas.get_bounding_client_rect();
     let t = event.touches().get(0).unwrap();
     egui::Pos2 {
-        x: t.page_x() as f32,
-        y: t.page_y() as f32,
+        x: t.page_x() as f32 - rect.left() as f32,
+        y: t.page_y() as f32 - rect.top() as f32,
     }
 }
 
@@ -232,14 +234,13 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output) {
+pub fn handle_output(output: &egui::Output, _canvas_id: &str) {
     let egui::Output {
         cursor_icon,
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
-        text_cursor: cursor,
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -255,7 +256,7 @@ pub fn handle_output(output: &egui::Output) {
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
 
-    handle_text_cursor(cursor);
+    // handle_text_cursor(cursor, canvas_id);
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -662,6 +663,7 @@ fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
     // Set size as small as possible, in case user may click on it.
     input.set_size(1);
+    input.scroll_into_view_with_bool(true);
     input.set_autofocus(true);
     {
         // When IME is off
@@ -818,7 +820,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.stop_propagation();
                     event.prevent_default();
                 }
-                manipulate_agent();
+                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -845,8 +847,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchstart";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             let modifiers = runner_lock.input.raw.modifiers;
@@ -872,8 +874,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchmove";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             runner_lock
@@ -915,7 +917,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 event.prevent_default();
 
                 // Finally, focus or blur on agent to toggle keyboard
-                manipulate_agent();
+                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -940,22 +942,39 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn manipulate_agent() -> Option<()> {
+fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
-    let document = web_sys::window()?.document()?;
+    let window = web_sys::window()?;
+    let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
     let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
+    let style = canvas_element(canvas_id)?.style();
     if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
-        input.scroll_into_view_with_bool(true);
-        input.focus().ok()
+        input.set_hidden(false);
+        input.focus().ok()?;
+        // Panning canvas so that text edit is shown at 30%
+        // Only on touch screens
+        if let Some(p) = latest_cursor {
+            let inner_height = window.inner_height().ok()?.as_f64()?;
+            let new_pos = ((0.8 - p.y / inner_height as f32) * 100.0).floor();
+            if new_pos < 50.0 {
+                style.set_property("position", "absolute").ok()?;
+                let new_pos = new_pos.to_string() + "%";
+                style.set_property("top", &new_pos).ok()?;
+            }
+        }
     } else {
-        input.scroll_into_view_with_bool(false);
-        input.blur().ok()
+        input.blur().ok()?;
+        input.set_hidden(true);
+        style.set_property("position", "absolute").unwrap();
+        style.set_property("top", "50%").ok()?;
     }
+    Some(())
 }
 
-fn handle_text_cursor(cursor: &Option<egui::Pos2>) -> Option<()> {
+/*
+fn handle_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     cursor.as_ref().and_then(|p| {
@@ -963,7 +982,9 @@ fn handle_text_cursor(cursor: &Option<egui::Pos2>) -> Option<()> {
         let document = web_sys::window()?.document()?;
         let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
         let style = input.style();
+        let y = y + canvas_element(canvas_id)?.scroll_top() as f32;
         style.set_property("top", &(y.to_string() + "px")).ok()?;
         style.set_property("left", &(x.to_string() + "px")).ok()
     })
 }
+*/
