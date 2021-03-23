@@ -24,12 +24,12 @@ epaint = { version = "0.10.0", path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
-default = ["single_threaded"]
+default = ["default_fonts", "single_threaded"]
 persistence = ["serde", "epaint/persistence"]
 
-# If not set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts, just enable this feature.
-custom_fonts = ["epaint/custom_fonts"]
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["epaint/default_fonts"]
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
 single_threaded = ["epaint/single_threaded"]

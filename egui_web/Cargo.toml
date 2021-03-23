@@ -43,7 +43,6 @@ http = [
 ]
 persistence = ["serde", "serde_json"]
 screen_reader = ["tts"] # experimental
-custom_fonts = ["egui/custom_fonts", "epi/custom_fonts"]
 
 [dependencies.web-sys]
 version = "0.3"

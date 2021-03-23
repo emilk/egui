@@ -31,12 +31,12 @@ rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
-default = ["multi_threaded"]
+default = ["multi_threaded", "default_fonts"]
 persistence = ["serde", "emath/serde"]
 
-# If not set, epaint will use `include_bytes!` to bundle some fonts.
-# If set, you MUST specifying your own fonts.
-custom_fonts = []
+# If set, epaint will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = []
 
 single_threaded = ["atomic_refcell"]
 
