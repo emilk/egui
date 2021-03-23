@@ -28,7 +28,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
-static AGENT_ID: &str = "keyboard_agent";
+static AGENT_ID: &str = "text_agent";
 
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
@@ -255,8 +255,6 @@ pub fn handle_output(output: &egui::Output, _canvas_id: &str) {
 
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
-
-    // handle_text_cursor(cursor, canvas_id);
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -334,7 +332,6 @@ pub fn location_hash() -> Option<String> {
     web_sys::window()?.location().hash().ok()
 }
 
-/*
 /// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 fn should_ignore_key(key: &str) -> bool {
@@ -369,7 +366,6 @@ fn should_ignore_key(key: &str) -> bool {
                 | "Tab"
         )
 }
-*/
 
 /// Web sends all all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
@@ -494,6 +490,21 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     pressed: true,
                     modifiers,
                 });
+            }
+            if !modifiers.ctrl
+                && !modifiers.command
+                && !should_ignore_key(&key)
+                && web_sys::window()
+                    .unwrap()
+                    .document()
+                    .unwrap()
+                    .get_element_by_id(AGENT_ID)
+                    .unwrap()
+                    .dyn_into::<web_sys::HtmlInputElement>()
+                    .unwrap()
+                    .hidden()
+            {
+                runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
             runner_lock.needs_repaint.set_true();
 
@@ -642,7 +653,7 @@ fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
 
 ///
 /// Text event handler,
-fn install_ime(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -954,7 +965,7 @@ fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Optio
         input.set_hidden(false);
         input.focus().ok()?;
         // Panning canvas so that text edit is shown at 30%
-        // Only on touch screens
+        // Only on touch screens, when keyboard popups
         if let Some(p) = latest_cursor {
             let inner_height = window.inner_height().ok()?.as_f64()?;
             let new_pos = ((0.8 - p.y / inner_height as f32) * 100.0).floor();
@@ -972,19 +983,3 @@ fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Optio
     }
     Some(())
 }
-
-/*
-fn handle_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
-    use wasm_bindgen::JsCast;
-    use web_sys::HtmlInputElement;
-    cursor.as_ref().and_then(|p| {
-        let egui::Pos2 { x, y } = *p;
-        let document = web_sys::window()?.document()?;
-        let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-        let style = input.style();
-        let y = y + canvas_element(canvas_id)?.scroll_top() as f32;
-        style.set_property("top", &(y.to_string() + "px")).ok()?;
-        style.set_property("left", &(x.to_string() + "px")).ok()
-    })
-}
-*/
