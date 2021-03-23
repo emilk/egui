@@ -57,7 +57,7 @@ impl super::View for LayoutTest {
                                 ui.available_size_before_wrap_finite().x,
                                 self.wrap_row_height,
                             ),
-                            |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
+                            |ui| ui.with_layout(self.layout(), demo_ui),
                         );
                     } else {
                         ui.allocate_ui(
@@ -65,11 +65,11 @@ impl super::View for LayoutTest {
                                 self.wrap_column_width,
                                 ui.available_size_before_wrap_finite().y,
                             ),
-                            |ui| ui.with_layout(self.layout(), |ui| self.demo_ui(ui)),
+                            |ui| ui.with_layout(self.layout(), demo_ui),
                         );
                     }
                 } else {
-                    ui.with_layout(self.layout(), |ui| self.demo_ui(ui));
+                    ui.with_layout(self.layout(), demo_ui);
                 }
             });
         ui.label("Resize to see effect");
@@ -138,18 +138,18 @@ impl LayoutTest {
         ui.checkbox(&mut self.cross_justify, "Cross Justified")
             .on_hover_text("Try to fill full width/height (e.g. buttons)");
     }
+}
 
-    pub fn demo_ui(&mut self, ui: &mut Ui) {
-        ui.monospace("Example widgets:");
-        for _ in 0..3 {
-            ui.label("label");
-        }
-        for _ in 0..3 {
-            let mut dummy = false;
-            ui.checkbox(&mut dummy, "checkbox");
-        }
-        for _ in 0..3 {
-            let _ = ui.button("button");
-        }
+fn demo_ui(ui: &mut Ui) {
+    ui.monospace("Example widgets:");
+    for _ in 0..3 {
+        ui.label("label");
+    }
+    for _ in 0..3 {
+        let mut dummy = false;
+        ui.checkbox(&mut dummy, "checkbox");
+    }
+    for _ in 0..3 {
+        let _ = ui.button("button");
     }
 }
