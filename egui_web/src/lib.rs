@@ -967,19 +967,26 @@ fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Optio
         // Panning canvas so that text edit is shown at 30%
         // Only on touch screens, when keyboard popups
         if let Some(p) = latest_cursor {
-            let inner_height = window.inner_height().ok()?.as_f64()?;
-            let new_pos = ((0.8 - p.y / inner_height as f32) * 100.0).floor();
-            if new_pos < 50.0 {
+            let inner_height = window.inner_height().ok()?.as_f64()? as f32;
+            let current_rel = p.y / inner_height;
+
+            if current_rel > 0.5 {
+                // probably below the keyboard
+
+                let target_rel = 0.3;
+
+                let delta = target_rel - current_rel;
+                let new_pos_percent = format!("{}%", (delta * 100.0).round());
+
                 style.set_property("position", "absolute").ok()?;
-                let new_pos = new_pos.to_string() + "%";
-                style.set_property("top", &new_pos).ok()?;
+                style.set_property("top", &new_pos_percent).ok()?;
             }
         }
     } else {
         input.blur().ok()?;
         input.set_hidden(true);
-        style.set_property("position", "absolute").unwrap();
-        style.set_property("top", "50%").ok()?;
+        style.set_property("position", "absolute").ok()?;
+        style.set_property("top", "0%").ok()?; // move back to normal position
     }
     Some(())
 }
