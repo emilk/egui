@@ -190,6 +190,7 @@ impl Focus {
                 }
             ) {
                 self.id = None;
+                self.is_focus_locked = false;
                 break;
             }
 
@@ -293,9 +294,17 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
-    pub(crate) fn lock_focus(&mut self, id: Id) {
+    pub(crate) fn lock_focus(&mut self, id: Id, b: bool) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked = true;
+            self.interaction.focus.is_focus_locked = b;
+        }
+    }
+
+    pub(crate) fn has_lock_focus(&mut self, id: Id) -> bool {
+        if self.had_focus_last_frame(id) && self.has_focus(id) {
+            self.interaction.focus.is_focus_locked
+        } else {
+            false
         }
     }
 

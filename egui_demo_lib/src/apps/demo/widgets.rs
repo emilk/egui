@@ -25,6 +25,7 @@ pub struct Widgets {
     single_line_text_input: String,
     tab_size: usize,
     tab_as_spaces: bool,
+    tab_moves_focus: bool,
     multiline_text_input: String,
 }
 
@@ -40,6 +41,7 @@ impl Default for Widgets {
 
             tab_size: 4,
             tab_as_spaces: true,
+            tab_moves_focus: false,
             multiline_text_input: r#"Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.
 This is the start of the next paragraph.
 
@@ -149,17 +151,14 @@ impl Widgets {
 
             ui.separator();
 
-            ui.add(egui::Slider::usize(&mut self.tab_size, 2..=8).text("Tab size"));
-
-            ui.separator();
-
             ui.checkbox(&mut self.tab_as_spaces, "Tabs as spaces");
+            ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
         });
 
         ui.add(
             egui::TextEdit::multiline(&mut self.multiline_text_input)
-                .tab_as_spaces(self.tab_as_spaces)
-                .tab_size(self.tab_size),
+                .tab_moves_focus(self.tab_moves_focus)
+                .tab_as_spaces(self.tab_as_spaces),
         );
     }
 }

@@ -136,7 +136,7 @@ pub struct TextEdit<'t> {
     desired_width: Option<f32>,
     desired_height_rows: usize,
     tab_as_spaces: bool,
-    tab_size: usize,
+    tab_moves_focus: bool,
 }
 impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
@@ -167,8 +167,8 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 1,
-            tab_as_spaces: true,
-            tab_size: 4,
+            tab_as_spaces: false,
+            tab_moves_focus: true,
         }
     }
 
@@ -186,8 +186,8 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 4,
-            tab_as_spaces: true,
-            tab_size: 4,
+            tab_as_spaces: false,
+            tab_moves_focus: true,
         }
     }
 
@@ -202,14 +202,18 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Registers if this widget will insert spaces instead of tab char
+    /// When this is true, then pass focus to the next
+    /// widget.
+    ///
+    /// When this is false, then insert identation based on the value of
+    /// `tab_as_spaces` property.
     ///
     /// ```rust, ignore
     /// ui.add(egui::TextEdit::multiline(&mut self.multiline_text_input)
-    ///     .tab_size(4));
+    ///     .tab_moves_focus(true));
     /// ```
-    pub fn tab_size(mut self, size: usize) -> Self {
-        self.tab_size = size;
+    pub fn tab_moves_focus(mut self, b: bool) -> Self {
+        self.tab_moves_focus = b;
         self
     }
 
@@ -326,7 +330,7 @@ impl<'t> TextEdit<'t> {
             desired_width,
             desired_height_rows,
             tab_as_spaces,
-            tab_size,
+            tab_moves_focus,
         } = self;
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
@@ -413,9 +417,7 @@ impl<'t> TextEdit<'t> {
         }
 
         if ui.memory().has_focus(id) && enabled {
-            if multiline {
-                ui.memory().lock_focus(id);
-            }
+            ui.memory().lock_focus(id, !tab_moves_focus);
 
             let mut cursorp = state
                 .cursorp
@@ -481,16 +483,12 @@ impl<'t> TextEdit<'t> {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
 
-                            if tab_as_spaces {
-                                let mut spaces = String::with_capacity(tab_size);
-
-                                for _ in 0..tab_size {
-                                    spaces.push(' ');
+                            if ui.memory().has_lock_focus(id) {
+                                if tab_as_spaces {
+                                    insert_text(&mut ccursor, text, "    ");
+                                } else {
+                                    insert_text(&mut ccursor, text, "\t");
                                 }
-
-                                insert_text(&mut ccursor, text, &spaces);
-                            } else {
-                                insert_text(&mut ccursor, text, "\t");
                             }
 
                             Some(CCursorPair::one(ccursor))
