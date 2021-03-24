@@ -357,6 +357,8 @@ impl Context {
         self.frame_state.lock().available_rect()
     }
 
+    /// Stores all the egui state.
+    /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.memory.lock()
     }
@@ -365,6 +367,7 @@ impl Context {
         self.graphics.lock()
     }
 
+    /// What egui outputs each frame.
     pub fn output(&self) -> MutexGuard<'_, Output> {
         self.output.lock()
     }

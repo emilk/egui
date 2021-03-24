@@ -234,7 +234,7 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output, _canvas_id: &str) {
+pub fn handle_output(output: &egui::Output) {
     let egui::Output {
         cursor_icon,
         open_url,
