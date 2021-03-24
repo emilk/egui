@@ -27,6 +27,7 @@ pub struct Widgets {
     tab_as_spaces: bool,
     tab_moves_focus: bool,
     multiline_text_input: String,
+    code_snippet: String,
 }
 
 impl Default for Widgets {
@@ -46,9 +47,14 @@ impl Default for Widgets {
 This is the start of the next paragraph.
 
 Existing	tabs	are	kept	as	tabs.
-Use the configs above to set how new tabs should be handled and test by pressing Tab.
 
 Click me to edit me!"#.to_owned(),
+            code_snippet: r#"
+// Use the configs above to play with the tab management
+fn main() {
+    println!("Hello world!");
+}
+"#.to_owned(),
         }
     }
 }
@@ -146,8 +152,15 @@ impl Widgets {
             }
         });
 
+        ui.separator();
+
+        ui.label("Multiline text input:");
+        ui.text_edit_multiline(&mut self.multiline_text_input);
+
+        ui.separator();
+
         ui.horizontal(|ui| {
-            ui.label("Multiline text input:");
+            ui.label("Code editor:");
 
             ui.separator();
 
@@ -155,10 +168,10 @@ impl Widgets {
             ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
         });
 
-        ui.add(
-            egui::TextEdit::multiline(&mut self.multiline_text_input)
-                .tab_moves_focus(self.tab_moves_focus)
-                .tab_as_spaces(self.tab_as_spaces),
+        ui.code_editor_with_config(
+            &mut self.code_snippet,
+            self.tab_as_spaces,
+            self.tab_moves_focus,
         );
     }
 }

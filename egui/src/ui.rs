@@ -883,6 +883,25 @@ impl Ui {
         self.add(TextEdit::multiline(text))
     }
 
+    /// A `TextEdit` for code editing.
+    ///
+    /// Se also [`TextEdit::code_editor`].
+    pub fn code_editor(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::multiline(text).code_editor())
+    }
+
+    /// A `TextEdit` for code editing with configurable `Tab` management.
+    ///
+    /// Se also [`TextEdit::code_editor_with_config`].
+    pub fn code_editor_with_config(
+        &mut self,
+        text: &mut String,
+        tab_as_spaces: bool,
+        tab_moves_focus: bool,
+    ) -> Response {
+        self.add(TextEdit::multiline(text).code_editor_with_config(tab_as_spaces, tab_moves_focus))
+    }
+
     /// Usage: `if ui.button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text))`

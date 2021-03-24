@@ -217,6 +217,40 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Build a `TextEdit` focused on code editing.
+    /// By default it comes with:
+    /// - monospaced font
+    /// - focus lock
+    /// - tab as spaces
+    ///
+    /// Shortcut for:
+    /// ```rust, ignore
+    /// egui::TextEdit::multiline(code_snippet)
+    ///     .text_style(TextStyle::Monospace)
+    ///     .tab_as_spaces(true)
+    ///     .tab_moves_focus(false);
+    /// ```
+    pub fn code_editor(self) -> Self {
+        self.text_style(TextStyle::Monospace)
+            .tab_as_spaces(true)
+            .tab_moves_focus(false)
+    }
+
+    /// Build a `TextEdit` focused on code editing with configurable `Tab` management.
+    ///
+    /// Shortcut for:
+    /// ```rust, ignore
+    /// egui::TextEdit::multiline(code_snippet)
+    ///     .code_editor()
+    ///     .tab_as_spaces(tab_as_spaces)
+    ///     .tab_moves_focus(tab_moves_focus);
+    /// ```
+    pub fn code_editor_with_config(self, tab_as_spaces: bool, tab_moves_focus: bool) -> Self {
+        self.code_editor()
+            .tab_as_spaces(tab_as_spaces)
+            .tab_moves_focus(tab_moves_focus)
+    }
+
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
