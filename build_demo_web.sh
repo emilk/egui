@@ -37,4 +37,13 @@ echo "Optimizing wasm…"
 wasm-opt docs/egui_demo_app_bg.wasm -O2 --fast-math -o docs/egui_demo_app_bg.wasm # add -g to get debug symbols
 echo "Finished docs/${CRATE_NAME}_bg.wasm"
 
-open http://localhost:8888/index.html
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  # Linux, ex: Fedora
+  xdg-open http://localhost:8888/index.html
+elif [[ "$OSTYPE" == "msys" ]]; then
+  # Windows
+  start http://localhost:8888/index.html
+else
+  # Darmin aka MacOS or something else
+  open http://localhost:8888/index.html
+fi
