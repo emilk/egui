@@ -14,7 +14,7 @@ eframe = { version = "0.10.0", path = "../eframe", features = ["time"] }
 egui_demo_lib = { version = "0.10.0", path = "../egui_demo_lib" }
 
 [features]
-default = ["persistence"]
+default = ["persistence", "screen_reader"]
 http = ["eframe/http", "egui_demo_lib/http"]
 persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
 screen_reader = ["eframe/screen_reader"] # experimental

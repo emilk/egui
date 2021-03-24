@@ -18,7 +18,7 @@ use epaint::color::{Color32, Hsva};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
-    pub(crate) options: Options,
+    pub options: Options,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
@@ -61,10 +61,11 @@ pub struct Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Some global options that you can read and write.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct Options {
+pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
@@ -72,6 +73,11 @@ pub(crate) struct Options {
     pub(crate) tessellation_options: epaint::TessellationOptions,
     /// Font sizes etc.
     pub(crate) font_definitions: epaint::text::FontDefinitions,
+
+    /// This does not at all change the behavior of egui,
+    /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
+    /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    pub screen_reader: bool,
 }
 
 // ----------------------------------------------------------------------------

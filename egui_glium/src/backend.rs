@@ -280,7 +280,9 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 };
             }
 
-            screen_reader.speak(&egui_output.events_description());
+            if ctx.memory().options.screen_reader {
+                screen_reader.speak(&egui_output.events_description());
+            }
             if current_cursor_icon != egui_output.cursor_icon {
                 // call only when changed to prevent flickering near frame boundary
                 // when Windows OS tries to control cursor icon for window resizing

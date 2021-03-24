@@ -219,7 +219,9 @@ impl AppRunner {
         let egui_ctx = &self.web_backend.ctx;
         self.app.update(egui_ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
-        self.screen_reader.speak(&egui_output.events_description());
+        if self.web_backend.ctx.memory().options.screen_reader {
+            self.screen_reader.speak(&egui_output.events_description());
+        }
         handle_output(&egui_output);
 
         {
