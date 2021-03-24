@@ -23,7 +23,6 @@ pub struct Widgets {
     angle: f32,
     color: Color32,
     single_line_text_input: String,
-    tab_size: usize,
     tab_as_spaces: bool,
     tab_moves_focus: bool,
     multiline_text_input: String,
@@ -40,17 +39,15 @@ impl Default for Widgets {
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
 
-            tab_size: 4,
             tab_as_spaces: true,
             tab_moves_focus: false,
             multiline_text_input: r#"Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.
 This is the start of the next paragraph.
 
-Existing	tabs	are	kept	as	tabs.
-
 Click me to edit me!"#.to_owned(),
             code_snippet: r#"
 // Use the configs above to play with the tab management
+// Also existing	tabs	are	kept	as	tabs.
 fn main() {
     println!("Hello world!");
 }
@@ -164,8 +161,10 @@ impl Widgets {
 
             ui.separator();
 
-            ui.checkbox(&mut self.tab_as_spaces, "Tabs as spaces");
             ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
+            if !self.tab_moves_focus {
+                ui.checkbox(&mut self.tab_as_spaces, "Tabs as spaces");
+            }
         });
 
         ui.code_editor_with_config(

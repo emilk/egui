@@ -39,6 +39,6 @@ elif [[ "$OSTYPE" == "msys" ]]; then
   # Windows
   start http://localhost:8888/index.html
 else
-  # Darmin aka MacOS or something else
+  # Darwin aka MacOS or something else
   open http://localhost:8888/index.html
 fi

@@ -885,7 +885,9 @@ impl Ui {
 
     /// A `TextEdit` for code editing.
     ///
-    /// Se also [`TextEdit::code_editor`].
+    /// This will be multiline, monospace, and will insert tabs instead of moving focus.
+    ///
+    /// See also [`TextEdit::code_editor`].
     pub fn code_editor(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::multiline(text).code_editor())
     }

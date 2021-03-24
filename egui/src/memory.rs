@@ -128,7 +128,7 @@ pub(crate) struct Focus {
     /// The last widget interested in focus.
     last_interested: Option<Id>,
 
-    /// Set at the beginning of the frame, set to `false` when "used".
+    /// If `true`, pressing tab will NOT move focus away from the current widget.
     is_focus_locked: bool,
 
     /// Set at the beginning of the frame, set to `false` when "used".
