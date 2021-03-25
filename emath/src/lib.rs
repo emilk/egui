@@ -9,6 +9,7 @@
 //! * (0,0) is left top.
 //! * Dimension order is always `x y`
 
+#![cfg_attr(not(debug_assertions), deny(rustdoc::missing_doc_code_examples))] 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![forbid(unsafe_code)]
 #![warn(
@@ -56,7 +57,6 @@
     clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    rustdoc::missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]
