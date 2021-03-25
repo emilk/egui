@@ -464,6 +464,19 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     request_animation_frame(runner_ref)
 }
 
+fn text_agent_hiddeh() -> bool {
+    use wasm_bindgen::JsCast;
+    web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .get_element_by_id(AGENT_ID)
+        .unwrap()
+        .dyn_into::<web_sys::HtmlInputElement>()
+        .unwrap()
+        .hidden()
+}
+
 fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
@@ -494,15 +507,8 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if !modifiers.ctrl
                 && !modifiers.command
                 && !should_ignore_key(&key)
-                && web_sys::window()
-                    .unwrap()
-                    .document()
-                    .unwrap()
-                    .get_element_by_id(AGENT_ID)
-                    .unwrap()
-                    .dyn_into::<web_sys::HtmlInputElement>()
-                    .unwrap()
-                    .hidden()
+                // When text agent is shown, it sends text event instead.
+                && text_agent_hiddeh()
             {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
@@ -682,7 +688,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let is_composing = is_composing.clone();
         let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
             let text = input_clone.value();
-            if text.len() > 0 && !is_composing.get() {
+            if !text.is_empty() && !is_composing.get() {
                 input_clone.set_value("");
                 let mut runner_lock = runner_ref.0.lock();
                 runner_lock.input.raw.events.push(egui::Event::Text(text));
@@ -696,7 +702,6 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         // When IME is on, handle composition event
         let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
-        let is_composing = is_composing.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
             // let event_type = event.type_();
             match event.type_().as_ref() {
@@ -976,7 +981,7 @@ fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Optio
                 let target_rel = 0.3;
 
                 let delta = target_rel - current_rel;
-                let new_pos_percent = format!("{}%", (delta * 100.0).round());
+                let new_pos_percent = (delta * 100.0).round().to_string() + "%";
 
                 style.set_property("position", "absolute").ok()?;
                 style.set_property("top", &new_pos_percent).ok()?;
