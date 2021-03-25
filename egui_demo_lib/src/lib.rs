@@ -49,7 +49,7 @@
     clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    missing_crate_level_docs,
+    rustdoc::missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]
