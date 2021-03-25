@@ -342,20 +342,20 @@ impl Widget for Label {
     }
 }
 
-impl Into<Label> for &str {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&str> for Label {
+    fn from(s: &str) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for &String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&String> for Label {
+    fn from(s: &String) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<String> for Label {
+    fn from(s: String) -> Label {
+        Label::new(s)
     }
 }
