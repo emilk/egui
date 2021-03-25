@@ -619,7 +619,7 @@ impl Visuals {
     /// Show small toggle-button for light and dark mode.
     #[must_use]
     pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_if)]
+        #![allow(clippy::collapsible_else_if)]
         if self.dark_mode {
             if ui
                 .add(Button::new("☀").frame(false))
