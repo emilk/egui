@@ -19,6 +19,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - run: sudo apt-get install libspeechd-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -114,6 +115,7 @@ jobs:
           toolchain: stable
           override: true
       - run: rustup component add clippy
+      - run: sudo apt-get install libspeechd-dev
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
