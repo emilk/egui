@@ -255,6 +255,7 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let runner_ref = AppRunnerRef(Arc::new(Mutex::new(app_runner)));
     install_canvas_events(&runner_ref)?;
     install_document_events(&runner_ref)?;
+    install_text_agent(&runner_ref)?;
     repaint_every_ms(&runner_ref, 1000)?; // just in case. TODO: make it a parameter
     paint_and_schedule(runner_ref.clone())?;
     Ok(runner_ref)
