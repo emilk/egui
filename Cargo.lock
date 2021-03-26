@@ -757,6 +757,7 @@ version = "0.11.0"
 dependencies = [
  "epaint",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

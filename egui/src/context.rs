@@ -856,10 +856,12 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} collapsing headers",
-                self.memory().collapsing_headers.len()
+                self.memory()
+                    .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().collapsing_headers = Default::default();
+                self.memory()
+                    .reset_all::<containers::collapsing_header::State>();
             }
         });
 

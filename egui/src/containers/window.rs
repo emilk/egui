@@ -362,10 +362,7 @@ impl<'open> Window<'open> {
                 );
             }
 
-            area_content_ui
-                .memory()
-                .collapsing_headers
-                .insert(collapsing_id, collapsing);
+            area_content_ui.memory().set(collapsing_id, collapsing);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
