@@ -327,7 +327,6 @@ impl WidgetInfo {
 
         // TODO: localization
         let widget_name = match typ {
-            WidgetType::Label => "",
             WidgetType::Hyperlink => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
@@ -340,7 +339,7 @@ impl WidgetInfo {
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
             WidgetType::CollapsingHeader => "collapsing header",
-            WidgetType::Other => "",
+            WidgetType::Label | WidgetType::Other => "",
         };
 
         let mut description = widget_name.to_owned();

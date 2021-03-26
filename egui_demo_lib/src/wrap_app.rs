@@ -315,9 +315,17 @@ impl BackendPanel {
             }
         }
 
+        let mut screen_reader = ui.ctx().memory().options.screen_reader;
+        ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
+        ui.ctx().memory().options.screen_reader = screen_reader;
+
         ui.collapsing("Output events", |ui| {
             ui.set_max_width(450.0);
-            ui.label("Recent output events from egui:");
+            ui.label(
+                "Recent output events from egui. \
+            These are emitted when you switch selected widget with tab, \
+            and can be hooked up to a screen reader on supported platforms.",
+            );
             ui.advance_cursor(8.0);
             for event in &self.output_event_history {
                 ui.label(format!("{:?}", event));
