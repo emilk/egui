@@ -23,8 +23,12 @@ pub use wasm_bindgen;
 pub use web_sys;
 
 pub use painter::Painter;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
+
+static AGENT_ID: &str = "text_agent";
 
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
@@ -107,11 +111,13 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
     }
 }
 
-pub fn pos_from_touch_event(event: &web_sys::TouchEvent) -> egui::Pos2 {
+pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
+    let canvas = canvas_element(canvas_id).unwrap();
+    let rect = canvas.get_bounding_client_rect();
     let t = event.touches().get(0).unwrap();
     egui::Pos2 {
-        x: t.page_x() as f32,
-        y: t.page_y() as f32,
+        x: t.page_x() as f32 - rect.left() as f32,
+        y: t.page_y() as f32 - rect.top() as f32,
     }
 }
 
@@ -458,6 +464,19 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     request_animation_frame(runner_ref)
 }
 
+fn text_agent_hidden() -> bool {
+    use wasm_bindgen::JsCast;
+    web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .get_element_by_id(AGENT_ID)
+        .unwrap()
+        .dyn_into::<web_sys::HtmlInputElement>()
+        .unwrap()
+        .hidden()
+}
+
 fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
@@ -485,7 +504,12 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     modifiers,
                 });
             }
-            if !modifiers.ctrl && !modifiers.command && !should_ignore_key(&key) {
+            if !modifiers.ctrl
+                && !modifiers.command
+                && !should_ignore_key(&key)
+                // When text agent is shown, it sends text event instead.
+                && text_agent_hidden()
+            {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
             runner_lock.needs_repaint.set_true();
@@ -633,6 +657,97 @@ fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
     }
 }
 
+///
+/// Text event handler,
+fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+    use wasm_bindgen::JsCast;
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+    let body = document.body().expect("document should have a body");
+    let input = document
+        .create_element("input")?
+        .dyn_into::<web_sys::HtmlInputElement>()?;
+    let input = std::rc::Rc::new(input);
+    input.set_id(AGENT_ID);
+    let is_composing = Rc::new(Cell::new(false));
+    {
+        let style = input.style();
+        // Transparent
+        style.set_property("opacity", "0").unwrap();
+        // Hide under canvas
+        style.set_property("z-index", "-1").unwrap();
+    }
+    // Set size as small as possible, in case user may click on it.
+    input.set_size(1);
+    input.set_autofocus(true);
+    input.set_hidden(true);
+    {
+        // When IME is off
+        let input_clone = input.clone();
+        let runner_ref = runner_ref.clone();
+        let is_composing = is_composing.clone();
+        let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
+            let text = input_clone.value();
+            if !text.is_empty() && !is_composing.get() {
+                input_clone.set_value("");
+                let mut runner_lock = runner_ref.0.lock();
+                runner_lock.input.raw.events.push(egui::Event::Text(text));
+                runner_lock.needs_repaint.set_true();
+            }
+        }) as Box<dyn FnMut(_)>);
+        input.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
+        on_input.forget();
+    }
+    {
+        // When IME is on, handle composition event
+        let input_clone = input.clone();
+        let runner_ref = runner_ref.clone();
+        let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
+            // let event_type = event.type_();
+            match event.type_().as_ref() {
+                "compositionstart" => {
+                    is_composing.set(true);
+                    input_clone.set_value("");
+                }
+                "compositionend" => {
+                    is_composing.set(false);
+                    input_clone.set_value("");
+                    if let Some(text) = event.data() {
+                        let mut runner_lock = runner_ref.0.lock();
+                        runner_lock.input.raw.events.push(egui::Event::Text(text));
+                        runner_lock.needs_repaint.set_true();
+                    }
+                }
+                "compositionupdate" => {}
+                _s => panic!("Unknown type"),
+            }
+        }) as Box<dyn FnMut(_)>);
+        let f = on_compositionend.as_ref().unchecked_ref();
+        input.add_event_listener_with_callback("compositionstart", f)?;
+        input.add_event_listener_with_callback("compositionupdate", f)?;
+        input.add_event_listener_with_callback("compositionend", f)?;
+        on_compositionend.forget();
+    }
+    {
+        // When input lost focus, focus on it again.
+        // It is useful when user click somewhere outside canvas.
+        let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+            // Delay 10 ms, and focus again.
+            let func = js_sys::Function::new_no_args(&format!(
+                "document.getElementById('{}').focus()",
+                AGENT_ID
+            ));
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
+                .unwrap();
+        }) as Box<dyn FnMut(_)>);
+        input.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
+        on_focusout.forget();
+    }
+    body.append_child(&input)?;
+    Ok(())
+}
+
 fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let canvas = canvas_element(runner_ref.0.lock().canvas_id()).unwrap();
@@ -721,6 +836,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.stop_propagation();
                     event.prevent_default();
                 }
+                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -747,8 +863,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchstart";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             let modifiers = runner_lock.input.raw.modifiers;
@@ -774,8 +890,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "touchmove";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let pos = pos_from_touch_event(&event);
             let mut runner_lock = runner_ref.0.lock();
+            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             runner_lock
@@ -815,6 +931,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
+
+                // Finally, focus or blur on agent to toggle keyboard
+                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -837,4 +956,42 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     Ok(())
+}
+
+fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Option<()> {
+    use wasm_bindgen::JsCast;
+    use web_sys::HtmlInputElement;
+    let window = web_sys::window()?;
+    let document = window.document()?;
+    let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
+    let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
+    let style = canvas_element(canvas_id)?.style();
+    if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
+        input.set_hidden(false);
+        input.focus().ok()?;
+        // Panning canvas so that text edit is shown at 30%
+        // Only on touch screens, when keyboard popups
+        if let Some(p) = latest_cursor {
+            let inner_height = window.inner_height().ok()?.as_f64()? as f32;
+            let current_rel = p.y / inner_height;
+
+            if current_rel > 0.5 {
+                // probably below the keyboard
+
+                let target_rel = 0.3;
+
+                let delta = target_rel - current_rel;
+                let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+
+                style.set_property("position", "absolute").ok()?;
+                style.set_property("top", &new_pos_percent).ok()?;
+            }
+        }
+    } else {
+        input.blur().ok()?;
+        input.set_hidden(true);
+        style.set_property("position", "absolute").ok()?;
+        style.set_property("top", "0%").ok()?; // move back to normal position
+    }
+    Some(())
 }
