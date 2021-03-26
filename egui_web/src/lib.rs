@@ -464,7 +464,7 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     request_animation_frame(runner_ref)
 }
 
-fn text_agent_hiddeh() -> bool {
+fn text_agent_hidden() -> bool {
     use wasm_bindgen::JsCast;
     web_sys::window()
         .unwrap()
@@ -508,7 +508,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 && !modifiers.command
                 && !should_ignore_key(&key)
                 // When text agent is shown, it sends text event instead.
-                && text_agent_hiddeh()
+                && text_agent_hidden()
             {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
