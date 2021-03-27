@@ -68,6 +68,7 @@ macro_rules! impl_integer_constructor {
             })
             .max_decimals(0)
             .clamp_range_f64(($int::MIN as f64)..=($int::MAX as f64))
+            .speed(0.25)
         }
     };
 }
