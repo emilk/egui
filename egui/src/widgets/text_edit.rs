@@ -521,7 +521,7 @@ impl<'t> TextEdit<'t> {
                                 if modifiers.shift {
                                     remove_identation(&mut ccursor, text, tab_as_spaces);
                                 } else if tab_as_spaces {
-                                    insert_text(&mut ccursor, text, "    ");
+                                    insert_spaces_identation(&mut ccursor, text);
                                 } else {
                                     insert_text(&mut ccursor, text, "\t");
                                 }
@@ -733,7 +733,7 @@ fn find_line_start(text: &str, current_index: usize) -> usize {
 fn convert_identation_to_spaces(ccursor: &mut CCursor, identation: &mut String) {
     // Because we convert tabs to spaces we add a bit more capacity
     // Hopefuly it will be enough and no other alloc will be done
-    let mut new_identation = String::with_capacity(identation.len() + 4 * 5);
+    let mut new_identation = String::with_capacity(identation.len() + 5 * text::MAX_TAB_SIZE);
 
     let mut char_it = identation.chars().peekable();
 
@@ -896,6 +896,57 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
     }
 
     new_text.extend(char_it);
+
+    *text = new_text;
+}
+
+fn insert_spaces_identation(ccursor: &mut CCursor, text: &mut String) {
+    let mut new_text = String::with_capacity(text.len() + 5 * text::MAX_TAB_SIZE);
+
+    let line_start_index = find_line_start(text, ccursor.index);
+
+    let mut char_it = text.chars().enumerate().peekable();
+    for _ in 0..line_start_index {
+        let (_, c) = char_it.next().unwrap();
+        new_text.push(c);
+    }
+
+    let mut column = 0;
+    let mut tab_size = text::MAX_TAB_SIZE;
+    while let Some((index, c)) = char_it.peek() {
+        if *index == ccursor.index {
+            break;
+        } else if *c == '\t' {
+            char_it.next();
+            new_text.push('\t');
+            column += tab_size;
+
+            if tab_size != text::MAX_TAB_SIZE {
+                tab_size = text::MAX_TAB_SIZE;
+            }
+        } else {
+            new_text.push(*c);
+            char_it.next();
+            tab_size -= 1;
+            column += 1;
+
+            if tab_size == 0 {
+                tab_size = text::MAX_TAB_SIZE;
+            }
+        }
+    }
+
+    let mut spaces_to_insert = text::MAX_TAB_SIZE;
+    spaces_to_insert -= column % text::MAX_TAB_SIZE;
+
+    for _ in 0..spaces_to_insert {
+        new_text.push(' ');
+        *ccursor += 1;
+    }
+
+    for (_, c) in char_it {
+        new_text.push(c);
+    }
 
     *text = new_text;
 }
@@ -1221,6 +1272,43 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_line_start() {
+        assert_eq!(0, find_line_start("", 0));
+        assert_eq!(0, find_line_start("ASDF", 4));
+
+        assert_eq!(5, find_line_start("ASDF\nASDF", 9));
+
+        assert_eq!(1, find_line_start("\n\n\n", 1));
+    }
+
+    #[test]
+    fn test_insert_identation_tabs_as_spaces() {
+        // Insert in front
+        check_insert_spaces_identation(0, "ASDF", 4, "    ASDF");
+
+        check_insert_spaces_identation(2, "  ASDF", 4, "    ASDF");
+
+        check_insert_spaces_identation(1, "\tASDF", 5, "\t    ASDF");
+
+        check_insert_spaces_identation(3, "\t  ASDF", 5, "\t    ASDF");
+
+        check_insert_spaces_identation(3, "  \tASDF", 7, "  \t    ASDF");
+
+        // Insert in the middle or at the end
+        check_insert_spaces_identation(2, "ASDF", 4, "AS  DF");
+
+        check_insert_spaces_identation(6, "  ASDF", 8, "  ASDF  ");
+
+        check_insert_spaces_identation(3, "\tASDF", 5, "\tAS  DF");
+
+        check_insert_spaces_identation(5, "\t  ASDF", 9, "\t  AS    DF");
+
+        check_insert_spaces_identation(5, "  \tASDF", 7, "  \tAS  DF");
+
+        check_insert_spaces_identation(4, "   \tASDF", 8, "   \t    ASDF");
+    }
+
+    #[test]
     fn test_remove_identation_tabs_as_spaces() {
         check_remove_identation(true, 2, "ASDF", 2, "ASDF");
 
@@ -1308,6 +1396,21 @@ mod test {
 
         // Spaces Tab -> Tab Tab
         check_convert_to_tabs(5, "    \t", 2, "\t\t");
+    }
+
+    fn check_insert_spaces_identation(
+        input_index: usize,
+        input_identation: &str,
+        expected_index: usize,
+        expected_text: &str,
+    ) {
+        let mut cursor = CCursor::new(input_index);
+        let mut actual_identation = String::from(input_identation);
+
+        insert_spaces_identation(&mut cursor, &mut actual_identation);
+
+        assert_eq!(expected_index, cursor.index);
+        assert_eq!(expected_text, actual_identation);
     }
 
     fn check_remove_identation(
