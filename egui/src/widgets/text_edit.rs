@@ -847,16 +847,18 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
         //
         // 2. ____ ____let x = 1; <- Here we remove a full spaces block
 
-        if spaces_count % text::MAX_TAB_SIZE == 0 {
-            for _ in 0..text::MAX_TAB_SIZE {
-                ident_it.next();
-                *ccursor -= 1;
-            }
-        } else {
-            while spaces_count % text::MAX_TAB_SIZE != 0 {
-                ident_it.next();
-                spaces_count -= 1;
-                *ccursor -= 1;
+        if spaces_count > 0 {
+            if spaces_count % text::MAX_TAB_SIZE == 0 {
+                for _ in 0..text::MAX_TAB_SIZE {
+                    ident_it.next();
+                    *ccursor -= 1;
+                }
+            } else {
+                while spaces_count % text::MAX_TAB_SIZE != 0 {
+                    ident_it.next();
+                    spaces_count -= 1;
+                    *ccursor -= 1;
+                }
             }
         }
 
@@ -885,7 +887,7 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
         }
 
         // Case 2: We remove a tab
-        if spaces_removed == 0 {
+        if spaces_removed == 0 && !identation.is_empty() {
             rev_ident_it.next();
             *ccursor -= 1
         }
@@ -1219,28 +1221,76 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_remove_identation_tabs_as_spaces() {
+        check_remove_identation(true, 2, "ASDF", 2, "ASDF");
+
+        check_remove_identation(true, 1, " ASDF", 0, "ASDF");
+
+        check_remove_identation(true, 2, "  ASDF", 0, "ASDF");
+
+        check_remove_identation(true, 3, "   ASDF", 0, "ASDF");
+
+        check_remove_identation(true, 5, "    ASDF", 1, "ASDF");
+
+        check_remove_identation(true, 3, "\tASDF", 2, "ASDF");
+
+        check_remove_identation(true, 9, "        ASDF", 5, "    ASDF");
+
+        check_remove_identation(true, 6, "    \tASDF", 5, "    ASDF");
+
+        check_remove_identation(true, 6, "\t    ASDF", 5, "    ASDF");
+    }
+
+    #[test]
+    fn test_remove_identation_tabs_as_tabs() {
+        check_remove_identation(false, 2, "ASDF", 2, "ASDF");
+
+        check_remove_identation(false, 1, " ASDF", 0, "ASDF");
+
+        check_remove_identation(false, 2, "  ASDF", 0, "ASDF");
+
+        check_remove_identation(false, 3, "   ASDF", 0, "ASDF");
+
+        check_remove_identation(false, 5, "    ASDF", 1, "ASDF");
+
+        check_remove_identation(false, 3, "\tASDF", 2, "ASDF");
+
+        check_remove_identation(false, 9, "        ASDF", 2, "\tASDF");
+
+        check_remove_identation(false, 6, "    \tASDF", 2, "\tASDF");
+
+        check_remove_identation(false, 6, "\t    ASDF", 2, "\tASDF");
+    }
+
+    #[test]
     fn test_convert_identation_to_spaces() {
+        // Nothing -> Nothing
+        check_convert_identation_to_spaces(0, "", 0, "");
+
         // Space -> Space
-        check_convert_to_space(1, " ", 1, " ");
+        check_convert_identation_to_spaces(1, " ", 1, " ");
 
         // Space Space -> Space Space
-        check_convert_to_space(1, "  ", 1, "  ");
+        check_convert_identation_to_spaces(2, "  ", 2, "  ");
 
         // Space Space Space -> Space Space Space
-        check_convert_to_space(2, "   ", 2, "   ");
+        check_convert_identation_to_spaces(3, "   ", 3, "   ");
 
         // Spaces Spaces -> Spaces Space
-        check_convert_to_space(7, "        ", 7, "        ");
+        check_convert_identation_to_spaces(8, "        ", 8, "        ");
 
         // Tab Spaces -> Spaces Spaces
-        check_convert_to_space(4, "\t    ", 7, "        ");
+        check_convert_identation_to_spaces(5, "\t    ", 8, "        ");
 
         // Spaces Tab -> Spaces Spaces
-        check_convert_to_space(4, "    \t", 7, "        ");
+        check_convert_identation_to_spaces(5, "    \t", 8, "        ");
     }
 
     #[test]
     fn test_convert_identation_to_tabs() {
+        // Nothing -> Nothing
+        check_convert_to_tabs(0, "", 0, "");
+
         // Space -> Space
         check_convert_to_tabs(1, " ", 1, " ");
 
@@ -1251,16 +1301,32 @@ mod test {
         check_convert_to_tabs(3, "   ", 3, "   ");
 
         // Spaces Spaces -> Tab Tab
-        check_convert_to_tabs(7, "        ", 1, "\t\t");
+        check_convert_to_tabs(8, "        ", 2, "\t\t");
 
         // Tab Spaces -> Tab Tab
-        check_convert_to_tabs(4, "\t    ", 1, "\t\t");
+        check_convert_to_tabs(5, "\t    ", 2, "\t\t");
 
         // Spaces Tab -> Tab Tab
-        check_convert_to_tabs(4, "    \t", 1, "\t\t");
+        check_convert_to_tabs(5, "    \t", 2, "\t\t");
     }
 
-    fn check_convert_to_space(
+    fn check_remove_identation(
+        tab_as_spaces: bool,
+        input_index: usize,
+        input_identation: &str,
+        expected_index: usize,
+        expected_text: &str,
+    ) {
+        let mut cursor = CCursor::new(input_index);
+        let mut actual_identation = String::from(input_identation);
+
+        remove_identation(&mut cursor, &mut actual_identation, tab_as_spaces);
+
+        assert_eq!(expected_index, cursor.index);
+        assert_eq!(expected_text, actual_identation);
+    }
+
+    fn check_convert_identation_to_spaces(
         input_index: usize,
         input_identation: &str,
         expected_index: usize,
