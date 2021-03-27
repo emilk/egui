@@ -9,7 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added ⭐
 
+* [Fix mobile and IME text input](https://github.com/emilk/egui/pull/253)
 * Hold down a modifier key when clicking a link to open it in a new tab.
+
+Contributors: [n2](https://github.com/n2)
 
 
 ## 0.10.0 - 2021-02-28
