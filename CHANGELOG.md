@@ -18,6 +18,7 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Add `ui.set_row_height`.
 * Add `Visuals::debug_widgets` to debug layouting by hovering widgets.
 * Add `ComboBox` to more easily customize combo boxes.
+* Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
 
 ### Changed 🔧
 * `kb_focus` is now just called `focus`
@@ -29,7 +30,8 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Fix false id clash error for wrapping text
 
 ### Deprecated ☢️
-* Removed `combo_box_with_label` in favor of new `ComboBox`.
+* Deprectated `combo_box_with_label` in favor of new `ComboBox`.
+* Deprectated type-specific constructors for `Slider` and `DragValue` (`Slider::f32`, `DragValue::usize` etc).
 
 
 ## 0.10.0 - 2021-02-28 - Plot and polish
