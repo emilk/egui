@@ -857,11 +857,13 @@ impl Context {
             ui.label(format!(
                 "{} collapsing headers",
                 self.memory()
+                    .data
                     .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory()
-                    .reset_all::<containers::collapsing_header::State>();
+                    .data
+                    .reset::<containers::collapsing_header::State>();
             }
         });
 

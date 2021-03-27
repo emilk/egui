@@ -19,6 +19,7 @@ use epaint::color::{Color32, Hsva};
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
+    pub data: AnyMap,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
@@ -59,8 +60,6 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
-
-    data: HashMap<Id, DataElement>,
 }
 
 // ----------------------------------------------------------------------------
@@ -375,44 +374,6 @@ impl Memory {
     /// Experimental feature!
     pub fn set_everything_is_visible(&mut self, value: bool) {
         self.everything_is_visible = value;
-    }
-}
-
-impl Memory {
-    pub fn get<T: DataElementTrait>(&mut self, id: Id) -> Option<&T> {
-        self.data.get_mut(&id)?.get()
-    }
-
-    pub fn get_or_insert<T: DataElementTrait>(&mut self, id: Id, or_insert: T) -> Option<&T> {
-        self.data
-            .entry(id)
-            .or_insert_with(|| DataElement::new(or_insert))
-            .get()
-    }
-
-    pub fn set<T: DataElementTrait>(&mut self, id: Id, set: T) {
-        self.data.insert(id, DataElement::new(set));
-    }
-
-    // Not all can be resetted, if it's not deserialized
-    pub fn reset_all<T: DataElementTrait>(&mut self) {
-        self.data
-            .retain(|_, v| (*v).type_id() == Some(std::any::TypeId::of::<T>()));
-    }
-
-    // Not anything can be counted
-    pub fn count<T: DataElementTrait>(&mut self) -> usize {
-        self.data
-            .iter()
-            .filter(|(_, v)| (*v).type_id() == Some(std::any::TypeId::of::<T>()))
-            .count()
-    }
-
-    pub fn count_unknown(&mut self) -> usize {
-        self.data
-            .iter()
-            .filter(|(_, v)| (*v).type_id().is_some())
-            .count()
     }
 }
 

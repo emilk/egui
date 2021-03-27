@@ -1,23 +1,128 @@
-pub use inner::*;
+use crate::Id;
+use std::collections::HashMap;
+
+/// This storage can store any object that implements `Any` and `'static`, but also can be cloned and serialized/deserialized. The temporary data for widgets is stored here. TODO
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct AnyMap(HashMap<SerializableTypeId, HashMap<Id, AnyMapElement>>);
+
+/// We need this because `TypeId` can't be deserialized or serialized directly, but this can be done using hashing. However, there is small possibility that different types will have intersection by hashes of their type ids.
+#[derive(Clone, Debug, Copy, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+struct SerializableTypeId(u64);
+
+impl SerializableTypeId {
+    fn new<T: AnyMapTrait>() -> Self {
+        use std::any::TypeId;
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        TypeId::of::<T>().hash(&mut hasher);
+        SerializableTypeId(hasher.finish())
+    }
+}
+
+impl AnyMap {
+    pub fn get<T: AnyMapTrait>(&mut self, id: Id) -> Option<&T> {
+        self.get_mut(id).map(|x| &*x)
+    }
+
+    pub fn get_mut<T: AnyMapTrait>(&mut self, id: Id) -> Option<&mut T> {
+        self.0
+            .entry(SerializableTypeId::new::<T>())
+            .or_default()
+            .get_mut(&id)?
+            .get_mut()
+    }
+
+    pub fn get_or_insert_with<T: AnyMapTrait>(
+        &mut self,
+        id: Id,
+        or_insert_with: impl FnOnce() -> T,
+    ) -> &T {
+        &*self.get_mut_or_insert_with(id, or_insert_with)
+    }
+
+    pub fn get_or_default<T: AnyMapTrait + Default>(&mut self, id: Id) -> &T {
+        self.get_or_insert_with(id, || Default::default())
+    }
+
+    pub fn get_mut_or_insert_with<T: AnyMapTrait>(
+        &mut self,
+        id: Id,
+        or_insert_with: impl FnOnce() -> T,
+    ) -> &mut T {
+        use std::collections::hash_map::Entry;
+        match self
+            .0
+            .entry(SerializableTypeId::new::<T>())
+            .or_default()
+            .entry(id)
+        {
+            Entry::Vacant(vacant) => vacant
+                .insert(AnyMapElement::new(or_insert_with()))
+                .get_mut()
+                .unwrap(), // this unwrap will never panic, because we insert correct type right now
+            Entry::Occupied(occupied) => occupied.into_mut().get_mut_or_set_with(or_insert_with),
+        }
+    }
+
+    pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self, id: Id) -> &mut T {
+        self.get_mut_or_insert_with(id, || Default::default())
+    }
+
+    pub fn insert<T: AnyMapTrait>(&mut self, id: Id, element: T) {
+        self.0
+            .entry(SerializableTypeId::new::<T>())
+            .or_default()
+            .insert(id, AnyMapElement::new(element));
+    }
+
+    pub fn count<T: AnyMapTrait>(&mut self) -> usize {
+        self.0
+            .get(&SerializableTypeId::new::<T>())
+            .map(|map| map.len())
+            .unwrap_or(0)
+    }
+
+    pub fn count_all(&mut self) -> usize {
+        self.0.iter().map(|(_, map)| map.len()).sum()
+    }
+
+    pub fn reset<T: AnyMapTrait>(&mut self) {
+        if let Some(map) = self.0.get_mut(&SerializableTypeId::new::<T>()) {
+            map.clear();
+        }
+    }
+
+    pub fn reset_all(&mut self) {
+        self.0.clear();
+    }
+}
+
+use element_impl::*;
+
+// ----------------------------------------------------------------------------
 
 #[cfg(feature = "persistence")]
-mod inner {
+mod element_impl {
     use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
-    use std::any::{Any, TypeId};
+    use std::any::Any;
     use std::fmt;
-    use DataElement::*;
+    use AnyMapElement::*;
 
-    pub enum DataElement {
+    pub enum AnyMapElement {
         Deserialized {
             value: Box<dyn Any + 'static>,
             clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
 
-            serialize_fn: fn(&Box<dyn Any + 'static>) -> String,
+            serialize_fn: fn(&Box<dyn Any + 'static>) -> Result<String, serde_json::Error>,
         },
         ToDeserialize(String),
     }
 
-    impl Serialize for DataElement {
+    impl Serialize for AnyMapElement {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
@@ -27,13 +132,16 @@ mod inner {
                     value,
                     serialize_fn,
                     ..
-                } => serializer.serialize_str(&serialize_fn(value)),
+                } => {
+                    let s = serialize_fn(value).map_err(|err| serde::ser::Error::custom(err))?;
+                    serializer.serialize_str(&s)
+                }
                 ToDeserialize(s) => serializer.serialize_str(s),
             }
         }
     }
 
-    impl<'de> Deserialize<'de> for DataElement {
+    impl<'de> Deserialize<'de> for AnyMapElement {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: Deserializer<'de>,
@@ -52,28 +160,28 @@ mod inner {
                 }
             }
 
-            Ok(DataElement::ToDeserialize(
+            Ok(AnyMapElement::ToDeserialize(
                 deserializer.deserialize_str(StrVisitor)?.to_owned(),
             ))
         }
     }
 
-    impl fmt::Debug for DataElement {
+    impl fmt::Debug for AnyMapElement {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
                 Deserialized { value, .. } => f
-                    .debug_struct("DataElement_Deserialized")
+                    .debug_struct("AnyMapElement_Deserialized")
                     .field("value_type_id", &value.type_id())
                     .finish(),
                 ToDeserialize(s) => f
-                    .debug_tuple("DataElement_ToDeserialize")
+                    .debug_tuple("AnyMapElement_ToDeserialize")
                     .field(&s)
                     .finish(),
             }
         }
     }
 
-    impl Clone for DataElement {
+    impl Clone for AnyMapElement {
         fn clone(&self) -> Self {
             match self {
                 Deserialized {
@@ -90,106 +198,120 @@ mod inner {
         }
     }
 
-    pub trait DataElementTrait:
-        'static + Any + Clone + Serialize + for<'a> Deserialize<'a>
-    {
-    }
-    impl<T: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a>> DataElementTrait for T {}
+    pub trait AnyMapTrait: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a> {}
+    impl<T: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a>> AnyMapTrait for T {}
 
-    impl DataElement {
-        pub fn new<T: DataElementTrait>(t: T) -> Self {
+    impl AnyMapElement {
+        pub fn new<T: AnyMapTrait>(t: T) -> Self {
             Deserialized {
                 value: Box::new(t),
-                clone_fn: |x| Box::new(x.downcast_ref::<T>().unwrap().clone()),
+                clone_fn: |x| {
+                    let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
+                    Box::new(x.clone())
+                },
 
-                serialize_fn: |x| serde_json::to_string(x.downcast_ref::<T>().unwrap()).unwrap(),
+                serialize_fn: |x| {
+                    let x = x.downcast_ref::<T>().unwrap(); // This will never panic too, for same reason.
+                    serde_json::to_string(x)
+                },
             }
         }
 
-        fn deserialize<T: DataElementTrait>(&mut self) {
+        pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
             match self {
-                Deserialized { .. } => {}
+                Deserialized { value, .. } => value.downcast_mut(),
                 ToDeserialize(s) => {
-                    *self = Self::new(serde_json::from_str::<T>(s).unwrap());
+                    *self = Self::new(serde_json::from_str::<T>(s).ok()?);
+                    match self {
+                        Deserialized { value, .. } => value.downcast_mut(),
+                        ToDeserialize(_) => unreachable!(),
+                    }
                 }
             }
         }
 
-        pub fn get<T: DataElementTrait>(&mut self) -> Option<&T> {
-            self.deserialize::<T>();
+        pub fn get_mut_or_set_with<T: AnyMapTrait>(
+            &mut self,
+            set_with: impl FnOnce() -> T,
+        ) -> &mut T {
             match self {
-                Deserialized { value, .. } => value.downcast_ref(),
-                ToDeserialize(_) => unreachable!(),
+                Deserialized { value, .. } => {
+                    if !value.is::<T>() {
+                        *self = Self::new(set_with());
+                    }
+                }
+                ToDeserialize(s) => {
+                    *self = Self::new(serde_json::from_str::<T>(s).unwrap_or_else(|_| set_with()));
+                }
             }
-        }
 
-        pub fn get_mut<T: DataElementTrait>(&mut self) -> Option<&mut T> {
-            self.deserialize::<T>();
             match self {
-                Deserialized { value, .. } => value.downcast_mut(),
+                Deserialized { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
                 ToDeserialize(_) => unreachable!(),
-            }
-        }
-
-        pub fn type_id(&self) -> Option<TypeId> {
-            match self {
-                Deserialized { value, .. } => Some(value.type_id()),
-                ToDeserialize(_) => None,
             }
         }
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[cfg(not(feature = "persistence"))]
-mod inner {
-    use std::any::{Any, TypeId};
+mod element_impl {
+    use std::any::Any;
     use std::fmt;
 
-    pub struct DataElement {
+    pub struct AnyMapElement {
         value: Box<dyn Any + 'static>,
         clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
     }
 
-    impl fmt::Debug for DataElement {
+    impl fmt::Debug for AnyMapElement {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("DataElement")
+            f.debug_struct("AnyMapElement")
                 .field("value_type_id", &self.value.type_id())
                 .finish()
         }
     }
 
-    impl Clone for DataElement {
+    impl Clone for AnyMapElement {
         fn clone(&self) -> Self {
-            DataElement {
+            AnyMapElement {
                 value: (self.clone_fn)(&self.value),
                 clone_fn: self.clone_fn,
             }
         }
     }
 
-    pub trait DataElementTrait: 'static + Any + Clone {}
+    pub trait AnyMapTrait: 'static + Any + Clone {}
 
-    impl<T: 'static + Any + Clone> DataElementTrait for T {}
+    impl<T: 'static + Any + Clone> AnyMapTrait for T {}
 
-    impl DataElement {
-        pub fn new<T: DataElementTrait>(t: T) -> Self {
-            DataElement {
+    impl AnyMapElement {
+        pub fn new<T: AnyMapTrait>(t: T) -> Self {
+            AnyMapElement {
                 value: Box::new(t),
-                clone_fn: |x| Box::new(x.downcast_ref::<T>().unwrap().clone()),
+                clone_fn: |x| {
+                    let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with type `T`, so type cannot change.
+                    Box::new(x.clone())
+                },
             }
         }
 
-        /// mut is needed to deserialization purposes under a feature
-        pub fn get<T: DataElementTrait>(&mut self) -> Option<&T> {
-            self.value.downcast_ref()
-        }
+        // We have no `get -> Option<&T>` methods here, because it has no benefits compared to `get_mut`, because under `persistence` feature we will modify contents of element even with `get`.
 
-        pub fn get_mut<T: DataElementTrait>(&mut self) -> Option<&mut T> {
+        pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
             self.value.downcast_mut()
         }
 
-        pub fn type_id(&self) -> Option<TypeId> {
-            Some(self.value.type_id())
+        pub fn get_mut_or_set_with<T: AnyMapTrait>(
+            &mut self,
+            set_with: impl FnOnce() -> T,
+        ) -> &mut T {
+            if !self.value.is::<T>() {
+                *self = Self::new(set_with());
+            }
+
+            self.value.downcast_mut().unwrap() // This unwrap will never panic because we already converted object to required type
         }
     }
 }

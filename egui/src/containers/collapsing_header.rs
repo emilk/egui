@@ -24,15 +24,10 @@ impl Default for State {
 
 impl State {
     pub fn from_memory_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
-        *ctx.memory()
-            .get_or_insert(
-                id,
-                State {
-                    open: default_open,
-                    ..Default::default()
-                },
-            )
-            .unwrap()
+        *ctx.memory().data.get_or_insert_with(id, || State {
+            open: default_open,
+            ..Default::default()
+        })
     }
 
     // Helper
@@ -40,7 +35,7 @@ impl State {
         if ctx.memory().everything_is_visible() {
             Some(true)
         } else {
-            ctx.memory().get::<State>(id).map(|state| state.open)
+            ctx.memory().data.get::<State>(id).map(|state| state.open)
         }
     }
 
@@ -297,7 +292,7 @@ impl CollapsingHeader {
                 })
                 .inner
             });
-            ui.memory().set(id, state);
+            ui.memory().data.insert(id, state);
 
             if let Some(ret_response) = ret_response {
                 CollapsingResponse {
