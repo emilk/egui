@@ -87,11 +87,13 @@ impl Widgets {
                 ui.radio_value(&mut self.radio, Enum::Third, "Third");
             });
 
-            egui::combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
-                ui.selectable_value(&mut self.radio, Enum::First, "First");
-                ui.selectable_value(&mut self.radio, Enum::Second, "Second");
-                ui.selectable_value(&mut self.radio, Enum::Third, "Third");
-            });
+            egui::ComboBox::from_label("Combo Box")
+                .selected_text(format!("{:?}", self.radio))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.radio, Enum::First, "First");
+                    ui.selectable_value(&mut self.radio, Enum::Second, "Second");
+                    ui.selectable_value(&mut self.radio, Enum::Third, "Third");
+                });
         });
 
         ui.horizontal(|ui| {

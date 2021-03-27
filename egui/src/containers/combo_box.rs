@@ -1,9 +1,139 @@
 use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
+// TODO: this should be builder struct so we can set options like width.
+
 /// A drop-down selection menu with a descriptive label.
 ///
-/// See also [`combo_box`].
+/// ```
+/// # #[derive(Debug, PartialEq)]
+/// # enum Enum { First, Second, Third }
+/// # let mut selected = Enum::First;
+/// # let mut ui = &mut egui::Ui::__test();
+/// egui::ComboBox::from_label( "Select one!")
+///     .selected_text(format!("{:?}", selected))
+///     .show_ui(ui, |ui| {
+///         ui.selectable_value(&mut selected, Enum::First, "First");
+///         ui.selectable_value(&mut selected, Enum::Second, "Second");
+///         ui.selectable_value(&mut selected, Enum::Third, "Third");
+///     }
+/// );
+/// ```
+pub struct ComboBox {
+    id_source: Id,
+    label: Option<Label>,
+    selected_text: String,
+    width: Option<f32>,
+}
+
+impl ComboBox {
+    /// Label shown next to the combo box
+    pub fn from_label(label: impl Into<Label>) -> Self {
+        let label = label.into();
+        Self {
+            id_source: Id::new(label.text()),
+            label: Some(label),
+            selected_text: Default::default(),
+            width: None,
+        }
+    }
+
+    /// Without label.
+    pub fn from_id_source(id_source: impl std::hash::Hash) -> Self {
+        Self {
+            id_source: Id::new(id_source),
+            label: Default::default(),
+            selected_text: Default::default(),
+            width: None,
+        }
+    }
+
+    /// Set the width of the button and menu
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    /// What we show as the currently selected value
+    pub fn selected_text(mut self, selected_text: impl Into<String>) -> Self {
+        self.selected_text = selected_text.into();
+        self
+    }
+
+    /// Show the combo box, with the given ui code for the menu contents.
+    pub fn show_ui(self, ui: &mut Ui, menu_contents: impl FnOnce(&mut Ui)) -> Response {
+        let Self {
+            id_source,
+            label,
+            selected_text,
+            width,
+        } = self;
+
+        let button_id = ui.make_persistent_id(id_source);
+
+        ui.horizontal(|ui| {
+            if let Some(width) = width {
+                ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
+            }
+            let mut response = combo_box(ui, button_id, selected_text, menu_contents);
+            if let Some(label) = label {
+                response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
+                response |= ui.add(label);
+            } else {
+                response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
+            }
+            response
+        })
+        .inner
+    }
+
+    /// Show a list of items with the given selected index.
+    ///
+    ///
+    /// ```
+    /// # #[derive(Debug, PartialEq)]
+    /// # enum Enum { First, Second, Third }
+    /// # let mut selected = Enum::First;
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// let alternatives = ["a", "b", "c", "d"];
+    /// let mut selected = 2;
+    /// egui::ComboBox::from_label( "Select one!").show_index(
+    ///     ui,
+    ///     &mut selected,
+    ///     alternatives.len(),
+    ///     |i| alternatives[i].to_owned()
+    /// );
+    /// ```
+    pub fn show_index(
+        self,
+        ui: &mut Ui,
+        selected: &mut usize,
+        len: usize,
+        get: impl Fn(usize) -> String,
+    ) -> Response {
+        let slf = self.selected_text(get(*selected));
+
+        let mut changed = false;
+
+        let mut response = slf.show_ui(ui, |ui| {
+            for i in 0..len {
+                if ui.selectable_label(i == *selected, get(i)).clicked() {
+                    *selected = i;
+                    changed = true;
+                }
+            }
+        });
+
+        if changed {
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+/// A drop-down selection menu with a descriptive label.
+///
+/// Deprecated! Use [`ComboBox`] instead!
 ///
 /// ```
 /// # #[derive(Debug, PartialEq)]
@@ -16,6 +146,7 @@ use epaint::Shape;
 ///     ui.selectable_value(&mut selected, Enum::Third, "Third");
 /// });
 /// ```
+#[deprecated = "Use egui::ComboBox::from_label instead"]
 pub fn combo_box_with_label(
     ui: &mut Ui,
     label: impl Into<Label>,
@@ -34,23 +165,7 @@ pub fn combo_box_with_label(
     .inner
 }
 
-/// A drop-down selection menu.
-///
-/// See also [`combo_box_with_label`].
-///
-/// ```
-/// # #[derive(Debug, PartialEq)]
-/// # enum Enum { First, Second, Third }
-/// # let mut selected = Enum::First;
-/// # let mut ui = &mut egui::Ui::__test();
-/// let id = ui.make_persistent_id("my_combo_box");
-/// egui::combo_box(ui, id, format!("{:?}", selected), |ui| {
-///     ui.selectable_value(&mut selected, Enum::First, "First");
-///     ui.selectable_value(&mut selected, Enum::Second, "Second");
-///     ui.selectable_value(&mut selected, Enum::Third, "Third");
-/// });
-/// ```
-pub fn combo_box(
+fn combo_box(
     ui: &mut Ui,
     button_id: Id,
     selected: impl Into<String>,
