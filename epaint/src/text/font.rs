@@ -61,6 +61,7 @@ pub struct FontImpl {
     y_offset: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
+    tab_glyph_info_cache: RwLock<AHashMap<usize, GlyphInfo>>,
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -90,12 +91,16 @@ impl FontImpl {
             y_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
+            tab_glyph_info_cache: Default::default(),
             atlas,
         }
     }
 
     /// `\n` will result in `None`
+    /// For `\t` use the specialized [`tab_glyph_info`]
     fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
+        assert!(c != '\t');
+
         {
             if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
                 return Some(*glyph_info);
@@ -107,7 +112,7 @@ impl FontImpl {
         if glyph.id().0 == 0 {
             None
         } else {
-            let mut glyph_info = allocate_glyph(
+            let glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
                 glyph,
                 self.scale_in_pixels,
@@ -115,14 +120,29 @@ impl FontImpl {
                 self.pixels_per_point,
             );
 
-            if c == '\t' {
-                if let Some(space) = self.glyph_info(' ') {
-                    glyph_info.advance_width = 4.0 * space.advance_width;
-                }
-            }
-
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
+        }
+    }
+
+    fn tab_glyph_info(&self, tab_size: usize) -> Option<GlyphInfo> {
+        {
+            if let Some(glyph_info) = self.tab_glyph_info_cache.read().get(&tab_size) {
+                return Some(*glyph_info);
+            }
+        }
+
+        match self.glyph_info(' ') {
+            None => None,
+            Some(mut glyph_info) => {
+                glyph_info.advance_width *= tab_size as f32;
+
+                self.tab_glyph_info_cache
+                    .write()
+                    .insert(tab_size, glyph_info);
+
+                Some(glyph_info)
+            }
         }
     }
 
@@ -158,6 +178,7 @@ pub struct Font {
     pixels_per_point: f32,
     row_height: f32,
     glyph_info_cache: RwLock<AHashMap<char, (FontIndex, GlyphInfo)>>,
+    tab_glyph_info_cache: RwLock<AHashMap<usize, (FontIndex, GlyphInfo)>>,
 }
 
 impl Font {
@@ -175,6 +196,7 @@ impl Font {
             pixels_per_point,
             row_height,
             glyph_info_cache: Default::default(),
+            tab_glyph_info_cache: Default::default(),
         };
 
         const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
@@ -198,6 +220,10 @@ impl Font {
             slf.glyph_info(c);
         }
         slf.glyph_info('°');
+
+        for tab_size in 1..=super::MAX_TAB_SIZE {
+            slf.tab_glyph_info(tab_size);
+        }
 
         slf
     }
@@ -250,6 +276,40 @@ impl Font {
         None
     }
 
+    fn tab_glyph_info_no_cache_or_fallback(
+        &self,
+        tab_size: usize,
+    ) -> Option<(FontIndex, GlyphInfo)> {
+        for (font_index, font_impl) in self.fonts.iter().enumerate() {
+            if let Some(glyph_info) = font_impl.tab_glyph_info(tab_size) {
+                self.tab_glyph_info_cache
+                    .write()
+                    .insert(tab_size, (font_index, glyph_info));
+
+                return Some((font_index, glyph_info));
+            }
+        }
+        None
+    }
+
+    fn tab_glyph_info(&self, tab_size: usize) -> (FontIndex, GlyphInfo) {
+        {
+            if let Some(font_index_tab_glyph_info) = self.tab_glyph_info_cache.read().get(&tab_size)
+            {
+                return *font_index_tab_glyph_info;
+            }
+        }
+
+        let font_index_tab_glyph_info = self.tab_glyph_info_no_cache_or_fallback(tab_size);
+        let font_index_tab_glyph_info = font_index_tab_glyph_info.unwrap_or(self.replacement_glyph);
+
+        self.tab_glyph_info_cache
+            .write()
+            .insert(tab_size, font_index_tab_glyph_info);
+
+        font_index_tab_glyph_info
+    }
+
     /// Typeset the given text onto one row.
     /// Assumes there are no `\n` in the text.
     /// Return `x_offsets`, one longer than the number of characters in the text.
@@ -260,9 +320,21 @@ impl Font {
         let mut cursor_x_in_points = 0.0f32;
         let mut last_glyph_id = None;
 
+        let mut tab_size = super::MAX_TAB_SIZE;
+
         for c in text.chars() {
             if !self.fonts.is_empty() {
-                let (font_index, glyph_info) = self.glyph_info(c);
+                let (font_index, glyph_info) = if c == '\t' {
+                    self.tab_glyph_info(tab_size)
+                } else {
+                    tab_size -= 1;
+                    self.glyph_info(c)
+                };
+
+                if c == '\n' || tab_size == 0 {
+                    tab_size = super::MAX_TAB_SIZE;
+                }
+
                 let font_impl = &self.fonts[font_index];
 
                 if let Some(last_glyph_id) = last_glyph_id {

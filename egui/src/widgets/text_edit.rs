@@ -512,13 +512,15 @@ impl<'t> TextEdit<'t> {
                     Event::Key {
                         key: Key::Tab,
                         pressed: true,
-                        ..
+                        modifiers,
                     } => {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
 
                             if ui.memory().has_lock_focus(id) {
-                                if tab_as_spaces {
+                                if modifiers.shift {
+                                    remove_identation(&mut ccursor, text, tab_as_spaces);
+                                } else if tab_as_spaces {
                                     insert_text(&mut ccursor, text, "    ");
                                 } else {
                                     insert_text(&mut ccursor, text, "\t");
@@ -705,6 +707,195 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
         }
     }
     s.len()
+}
+
+/// Accepts and returns character offset (NOT byte offset!).
+fn find_line_start(text: &str, current_index: usize) -> usize {
+    // We know that new lines, '\n', are a single byte char, but we have to
+    // work with char offsets because before the new line there may be any
+    // number of multi byte chars.
+    // We need to know the char index to be able to correctly set the cursor
+    // later.
+    let chars_count = text.chars().count();
+
+    let position = text
+        .chars()
+        .rev()
+        .skip(chars_count - current_index)
+        .position(|x| x == '\n');
+
+    match position {
+        Some(pos) => current_index - pos,
+        None => 0,
+    }
+}
+
+fn convert_identation_to_spaces(ccursor: &mut CCursor, identation: &mut String) {
+    // Because we convert tabs to spaces we add a bit more capacity
+    // Hopefuly it will be enough and no other alloc will be done
+    let mut new_identation = String::with_capacity(identation.len() + 4 * 5);
+
+    let mut char_it = identation.chars().peekable();
+
+    let mut tab_size: usize = text::MAX_TAB_SIZE;
+    while let Some(c) = char_it.peek() {
+        if *c == ' ' {
+            char_it.next();
+            new_identation += " ";
+
+            tab_size -= 1;
+
+            if tab_size == 0 {
+                tab_size = text::MAX_TAB_SIZE;
+            }
+        } else if *c == '\t' {
+            char_it.next();
+
+            if tab_size == 0 {
+                tab_size = text::MAX_TAB_SIZE;
+            }
+
+            for _ in 0..tab_size {
+                new_identation += " ";
+            }
+
+            *ccursor += tab_size.saturating_sub(1);
+        } else {
+            break;
+        }
+    }
+
+    new_identation.extend(char_it);
+
+    *identation = new_identation;
+}
+
+fn convert_identation_to_tabs(ccursor: &mut CCursor, identation: &mut String) {
+    let mut new_identation = String::with_capacity(identation.len());
+
+    let mut char_it = identation.chars().peekable();
+    let mut tab_size: usize = text::MAX_TAB_SIZE;
+    while let Some(c) = char_it.peek() {
+        if *c == ' ' {
+            char_it.next();
+            *ccursor -= 1;
+            tab_size -= 1;
+
+            if tab_size == 0 {
+                new_identation.push('\t');
+                *ccursor += 1;
+                tab_size = text::MAX_TAB_SIZE;
+            }
+        } else if *c == '\t' {
+            char_it.next();
+            new_identation.push('\t');
+
+            if tab_size != text::MAX_TAB_SIZE {
+                tab_size = text::MAX_TAB_SIZE;
+            }
+        }
+    }
+
+    // We do this because we might have something like this
+    // --->__let x = 4;
+    //
+    // As you can see the second tab chunck contains:
+    // __le
+    //
+    // We have to put those spaces back
+    for _ in 0..(text::MAX_TAB_SIZE - tab_size) {
+        new_identation.push(' ');
+        *ccursor += 1;
+    }
+
+    *identation = new_identation;
+}
+
+fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bool) {
+    let mut new_text = String::with_capacity(text.len());
+
+    let line_start_index = find_line_start(text, ccursor.index);
+
+    let mut char_it = text.chars().peekable();
+    for _ in 0..line_start_index {
+        let c = char_it.next().unwrap();
+        new_text.push(c);
+    }
+
+    // Alloc space for 5 levels of indentation with spaces
+    let mut identation = String::with_capacity(5 * text::MAX_TAB_SIZE);
+
+    while let Some(c) = char_it.peek() {
+        if *c == ' ' || *c == '\t' {
+            identation.push(*c);
+            char_it.next();
+        } else {
+            break;
+        }
+    }
+
+    if tab_as_spaces {
+        convert_identation_to_spaces(ccursor, &mut identation);
+
+        let mut spaces_count = identation.chars().count();
+        let mut ident_it = identation.chars();
+
+        // With spaces we have two cases
+        // 1. ____ __let x = 2;   <- Here we remove the spaces
+        //                           between the full spaces block
+        //                           and `let`.
+        //
+        // 2. ____ ____let x = 1; <- Here we remove a full spaces block
+
+        if spaces_count % text::MAX_TAB_SIZE == 0 {
+            for _ in 0..text::MAX_TAB_SIZE {
+                ident_it.next();
+                *ccursor -= 1;
+            }
+        } else {
+            while spaces_count % text::MAX_TAB_SIZE != 0 {
+                ident_it.next();
+                spaces_count -= 1;
+                *ccursor -= 1;
+            }
+        }
+
+        new_text.extend(ident_it);
+    } else {
+        convert_identation_to_tabs(ccursor, &mut identation);
+
+        // With tabs we have two cases
+        // 1. --->__let x = 2;   <- Here we remove the spaces
+        //                          between the tab and `let`
+        //
+        // 2. --->--->let x = 1; <- Here we remove a tab
+
+        let mut spaces_removed = 0;
+        let mut rev_ident_it = identation.chars().rev().peekable();
+
+        // Case 1: We remove potential spaces
+        while let Some(c) = rev_ident_it.peek() {
+            if *c == ' ' {
+                rev_ident_it.next();
+                spaces_removed += 1;
+                *ccursor -= 1;
+            } else {
+                break;
+            }
+        }
+
+        // Case 2: We remove a tab
+        if spaces_removed == 0 {
+            rev_ident_it.next();
+            *ccursor -= 1
+        }
+
+        new_text.extend(rev_ident_it);
+    }
+
+    new_text.extend(char_it);
+
+    *text = new_text;
 }
 
 fn insert_text(ccursor: &mut CCursor, text: &mut String, text_to_insert: &str) {
@@ -1021,4 +1212,81 @@ fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
 
 fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_convert_identation_to_spaces() {
+        // Space -> Space
+        check_convert_to_space(1, " ", 1, " ");
+
+        // Space Space -> Space Space
+        check_convert_to_space(1, "  ", 1, "  ");
+
+        // Space Space Space -> Space Space Space
+        check_convert_to_space(2, "   ", 2, "   ");
+
+        // Spaces Spaces -> Spaces Space
+        check_convert_to_space(7, "        ", 7, "        ");
+
+        // Tab Spaces -> Spaces Spaces
+        check_convert_to_space(4, "\t    ", 7, "        ");
+
+        // Spaces Tab -> Spaces Spaces
+        check_convert_to_space(4, "    \t", 7, "        ");
+    }
+
+    #[test]
+    fn test_convert_identation_to_tabs() {
+        // Space -> Space
+        check_convert_to_tabs(1, " ", 1, " ");
+
+        // Space Space -> Space Space
+        check_convert_to_tabs(2, "  ", 2, "  ");
+
+        // Space Space Space -> Space Space Space
+        check_convert_to_tabs(3, "   ", 3, "   ");
+
+        // Spaces Spaces -> Tab Tab
+        check_convert_to_tabs(7, "        ", 1, "\t\t");
+
+        // Tab Spaces -> Tab Tab
+        check_convert_to_tabs(4, "\t    ", 1, "\t\t");
+
+        // Spaces Tab -> Tab Tab
+        check_convert_to_tabs(4, "    \t", 1, "\t\t");
+    }
+
+    fn check_convert_to_space(
+        input_index: usize,
+        input_identation: &str,
+        expected_index: usize,
+        expected_identation: &str,
+    ) {
+        let mut cursor = CCursor::new(input_index);
+        let mut actual_identation = String::from(input_identation);
+
+        convert_identation_to_spaces(&mut cursor, &mut actual_identation);
+
+        assert_eq!(expected_index, cursor.index);
+        assert_eq!(expected_identation, actual_identation);
+    }
+
+    fn check_convert_to_tabs(
+        input_index: usize,
+        input_identation: &str,
+        expected_index: usize,
+        expected_identation: &str,
+    ) {
+        let mut cursor = CCursor::new(input_index);
+        let mut actual_identation = String::from(input_identation);
+
+        convert_identation_to_tabs(&mut cursor, &mut actual_identation);
+
+        assert_eq!(expected_index, cursor.index);
+        assert_eq!(expected_identation, actual_identation);
+    }
 }

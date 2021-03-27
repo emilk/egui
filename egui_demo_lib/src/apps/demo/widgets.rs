@@ -45,9 +45,23 @@ impl Default for Widgets {
 This is the start of the next paragraph.
 
 Click me to edit me!"#.to_owned(),
-            code_snippet: r#"
+            code_snippet: r#"// Full identation blocks
+            // Spaces Spaces Spaces
+			// Tab Tab Tab
+    	    // Spaces Tab Spaces
+	    	// Tab Spaces Tab
+
+// Partial identation blocks
+ 	// Space Tab
+  	// Space Space Tab
+   	// Space Space Space Tab
+ // Space / / Space
+  // Space Space / /
+   // Space Space Space /
+
 // Use the configs above to play with the tab management
-// Also existing	tabs	are	kept	as	tabs.
+// Also existing	tabs	are	kept				as	tabs.
+
 fn main() {
     println!("Hello world!");
 }
