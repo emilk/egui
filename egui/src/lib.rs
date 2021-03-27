@@ -289,6 +289,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+pub mod any_storage;
 pub mod containers;
 mod context;
 mod data;

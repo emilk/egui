@@ -1,93 +1,10 @@
-use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 
 use crate::{
-    area, menu, resize, scroll_area, util::Cache, widgets::text_edit, window, Id, InputState,
-    LayerId, Pos2, Rect, Style,
+    any_storage::*, area, menu, resize, scroll_area, util::Cache, widgets::text_edit, window, Id,
+    InputState, LayerId, Pos2, Rect, Style,
 };
 use epaint::color::{Color32, Hsva};
-
-// ----------------------------------------------------------------------------
-
-struct DataElement {
-    value: Box<dyn Any + 'static>,
-    clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
-
-    #[cfg(feature = "persistence")]
-    serialize_fn: fn(&Box<dyn Any + 'static>) -> String,
-}
-
-#[cfg(feature = "persistence")]
-impl serde::Serialize for DataElement {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        (self.serialize_fn)(&self.value).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "persistence")]
-impl<'de> serde::Deserialize<'de> for DataElement {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // impossible
-        todo!()
-    }
-}
-
-impl fmt::Debug for DataElement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DataElement")
-            .field("value_type_id", &self.value.type_id())
-            .finish()
-    }
-}
-
-impl Clone for DataElement {
-    fn clone(&self) -> Self {
-        DataElement {
-            value: (self.clone_fn)(&self.value),
-            clone_fn: self.clone_fn,
-
-            #[cfg(feature = "persistence")]
-            serialize_fn: self.serialize_fn,
-        }
-    }
-}
-
-#[cfg(feature = "persistence")]
-pub trait DataElementTrait:
-    'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a>
-{
-}
-
-#[cfg(not(feature = "persistence"))]
-pub trait DataElementTrait: 'static + Any + Clone {}
-
-#[cfg(feature = "persistence")]
-impl<T: 'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a>> DataElementTrait
-    for T
-{
-}
-
-#[cfg(not(feature = "persistence"))]
-impl<T: 'static + Any + Clone> DataElementTrait for T {}
-
-impl DataElement {
-    fn new<T: DataElementTrait>(t: T) -> Self {
-        DataElement {
-            value: Box::new(t),
-            clone_fn: |x| Box::new(x.downcast_ref::<T>().unwrap().clone()),
-
-            #[cfg(feature = "persistence")]
-            serialize_fn: |x| serde_json::to_string(x.downcast_ref::<T>().unwrap()).unwrap(),
-        }
-    }
-}
 
 // ----------------------------------------------------------------------------
 
@@ -143,7 +60,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
     data: HashMap<Id, DataElement>,
 }
 
@@ -463,30 +379,39 @@ impl Memory {
 }
 
 impl Memory {
-    pub fn get<T: Any + 'static>(&mut self, id: Id) -> Option<&T> {
-        self.data.get(&id)?.value.downcast_ref()
+    pub fn get<T: DataElementTrait>(&mut self, id: Id) -> Option<&T> {
+        self.data.get_mut(&id)?.get()
     }
 
     pub fn get_or_insert<T: DataElementTrait>(&mut self, id: Id, or_insert: T) -> Option<&T> {
         self.data
             .entry(id)
             .or_insert_with(|| DataElement::new(or_insert))
-            .value
-            .downcast_ref()
+            .get()
     }
 
     pub fn set<T: DataElementTrait>(&mut self, id: Id, set: T) {
         self.data.insert(id, DataElement::new(set));
     }
 
-    pub fn reset_all<T: Any + 'static>(&mut self) {
-        self.data.retain(|_, v| (*v).type_id() == TypeId::of::<T>());
+    // Not all can be resetted, if it's not deserialized
+    pub fn reset_all<T: DataElementTrait>(&mut self) {
+        self.data
+            .retain(|_, v| (*v).type_id() == Some(std::any::TypeId::of::<T>()));
     }
 
-    pub fn count<T: Any + 'static>(&mut self) -> usize {
+    // Not anything can be counted
+    pub fn count<T: DataElementTrait>(&mut self) -> usize {
         self.data
             .iter()
-            .filter(|(_, v)| (*v).type_id() == TypeId::of::<T>())
+            .filter(|(_, v)| (*v).type_id() == Some(std::any::TypeId::of::<T>()))
+            .count()
+    }
+
+    pub fn count_unknown(&mut self) -> usize {
+        self.data
+            .iter()
+            .filter(|(_, v)| (*v).type_id().is_some())
             .count()
     }
 }
