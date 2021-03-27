@@ -234,7 +234,7 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output, canvas_id: &str) {
+pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
     let egui::Output {
         cursor_icon,
         open_url,
@@ -257,7 +257,10 @@ pub fn handle_output(output: &egui::Output, canvas_id: &str) {
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
 
-    handle_text_cursor(cursor, canvas_id);
+    if &runner.text_cursor != cursor {
+        move_text_cursor(cursor, runner.canvas_id());
+        runner.text_cursor = *cursor;
+    }
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -705,7 +708,6 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            // let event_type = event.type_();
             match event.type_().as_ref() {
                 "compositionstart" => {
                     is_composing.set(true);
@@ -1009,7 +1011,7 @@ fn is_mobile() -> Option<bool> {
 // Move angnt to text cursor's position, on desktop/laptop, candidate window moves following text elemt(agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-fn handle_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
     // Note: movint agent on mobile devices will lead to unpreditable scroll.
     if is_mobile() == Some(false) {
