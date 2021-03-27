@@ -135,7 +135,15 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        !self.clicked() && self.ctx.input().pointer.any_click()
+        // We do not use self.clicked(), because we want to catch all click within our frame,
+        // even if we aren't clickable. This is important for windows and such that should close
+        // then the user clicks elsewhere.
+        let pointer = &self.ctx.input().pointer;
+        if let Some(pos) = pointer.latest_pos() {
+            pointer.any_click() && !self.rect.contains(pos)
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?

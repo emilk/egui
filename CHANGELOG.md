@@ -21,13 +21,14 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
 
 ### Changed 🔧
-* `kb_focus` is now just called `focus`
+* `kb_focus` is now just called `focus`.
 
 ### Fixed 🐛
-* Fix some bugs related to centered layouts
-* Fixed secondary-click to open a menu
-* [Fix panic for zero-range sliders and zero-speed drag values](https://github.com/emilk/egui/pull/216)
-* Fix false id clash error for wrapping text
+* Fix some bugs related to centered layouts.
+* Fixed secondary-click to open a menu.
+* [Fix panic for zero-range sliders and zero-speed drag values](https://github.com/emilk/egui/pull/216).
+* Fix false id clash error for wrapping text.
+* Fix bug that would close a popup (e.g. the color picker) when clicking inside of it.
 
 ### Deprecated ☢️
 * Deprectated `combo_box_with_label` in favor of new `ComboBox`.
