@@ -263,14 +263,11 @@ impl<'a> Widget for DragValue<'a> {
                         .flatten();
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value as f64;
-                    let stored_value = clamp_to_range(stored_value, clamp_range.clone());
-
-                    let rounded_new_value = stored_value;
 
                     let aim_delta = aim_rad * speed;
                     let rounded_new_value = emath::smart_aim::best_in_range_f64(
-                        rounded_new_value - aim_delta,
-                        rounded_new_value + aim_delta,
+                        stored_value - aim_delta,
+                        stored_value + aim_delta,
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
