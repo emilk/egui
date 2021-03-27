@@ -47,7 +47,7 @@ impl super::View for Scrolling {
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific item index:");
             track_item |= ui
-                .add(Slider::usize(&mut self.track_item, 1..=50).text("Track Item"))
+                .add(Slider::new(&mut self.track_item, 1..=50).text("Track Item"))
                 .dragged();
         });
 

@@ -784,7 +784,7 @@ impl Ui {
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_value = 42;
-    /// let response = ui.add(egui::Slider::i32(&mut my_value, 0..=100));
+    /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
     /// response.on_hover_text("Drag me!");
     /// ```
     pub fn add(&mut self, widget: impl Widget) -> Response {

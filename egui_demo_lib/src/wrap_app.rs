@@ -293,7 +293,7 @@ impl BackendPanel {
             ui.separator();
 
             ui.add(
-                egui::Slider::f32(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
                     .logarithmic(true)
                     .largest_finite(8192.0)
                     .text("Max width"),
@@ -350,7 +350,7 @@ impl BackendPanel {
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
             ui.add(
-                egui::Slider::f32(pixels_per_point, 0.5..=5.0)
+                egui::Slider::new(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
                     .text("Scale"),
             )

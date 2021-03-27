@@ -58,7 +58,7 @@ ui.horizontal(|ui| {
     ui.label("Your name: ");
     ui.text_edit_singleline(&mut name);
 });
-ui.add(egui::Slider::u32(&mut age, 0..=120).text("age"));
+ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
 if ui.button("Click each year").clicked() {
     age += 1;
 }

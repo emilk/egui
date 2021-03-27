@@ -47,7 +47,7 @@ struct SliderSpec {
 /// ```
 /// # let ui = &mut egui::Ui::__test();
 /// # let mut my_f32: f32 = 0.0;
-/// ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0).text("My value"));
+/// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
@@ -67,6 +67,7 @@ pub struct Slider<'a> {
 
 macro_rules! impl_integer_constructor {
     ($int:ident) => {
+        #[deprecated = "Use Slider::new instead"]
         pub fn $int(value: &'a mut $int, range: RangeInclusive<$int>) -> Self {
             let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
             Self::from_get_set(range_f64, move |v: Option<f64>| {
@@ -97,6 +98,7 @@ impl<'a> Slider<'a> {
         }
     }
 
+    #[deprecated = "Use Slider::new instead"]
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
         Self::from_get_set(range_f64, move |v: Option<f64>| {
@@ -107,6 +109,7 @@ impl<'a> Slider<'a> {
         })
     }
 
+    #[deprecated = "Use Slider::new instead"]
     pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
         Self::from_get_set(range, move |v: Option<f64>| {
             if let Some(v) = v {

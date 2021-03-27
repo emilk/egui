@@ -491,7 +491,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.add(Slider::f32(animation_time, 0.0..=1.0).text("animation_time"));
+        ui.add(Slider::new(animation_time, 0.0..=1.0).text("animation_time"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -517,12 +517,12 @@ impl Spacing {
         ui.add(slider_vec2(button_padding, 0.0..=10.0, "button_padding"));
         ui.add(slider_vec2(interact_size, 0.0..=60.0, "interact_size"))
             .on_hover_text("Minimum size of an interactive widget");
-        ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
-        ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
-        ui.add(Slider::f32(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
-        ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
-        ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
-        ui.add(Slider::f32(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
+        ui.add(Slider::new(indent, 0.0..=100.0).text("indent"));
+        ui.add(Slider::new(slider_width, 0.0..=1000.0).text("slider_width"));
+        ui.add(Slider::new(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
+        ui.add(Slider::new(icon_width, 0.0..=60.0).text("icon_width"));
+        ui.add(Slider::new(icon_spacing, 0.0..=10.0).text("icon_spacing"));
+        ui.add(Slider::new(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -535,9 +535,9 @@ impl Interaction {
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
         } = self;
-        ui.add(Slider::f32(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
+        ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
-            Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
+            Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
         );
         ui.checkbox(
             show_tooltips_only_when_still,
@@ -599,9 +599,9 @@ impl WidgetVisuals {
 
         ui_color(ui, bg_fill, "bg_fill");
         stroke_ui(ui, bg_stroke, "bg_stroke");
-        ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
+        ui.add(Slider::new(corner_radius, 0.0..=10.0).text("corner_radius"));
         stroke_ui(ui, fg_stroke, "fg_stroke (text)");
-        ui.add(Slider::f32(expansion, -5.0..=5.0).text("expansion"));
+        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"));
     }
 }
 
@@ -669,7 +669,7 @@ impl Visuals {
             // Common shortcuts
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
-            ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
+            ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
             shadow_ui(ui, window_shadow, "Shadow");
         });
         ui_color(
@@ -681,10 +681,10 @@ impl Visuals {
         ui_color(ui, extreme_bg_color, "extreme_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui_color(ui, code_bg_color, "code_bg_color");
-        ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
+        ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
+        ui.add(Slider::new(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.checkbox(text_cursor_preview, "text_cursor_preview");
-        ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
+        ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.group(|ui| {
             ui.label("DEBUG:");
@@ -712,8 +712,8 @@ fn slider_vec2<'a>(
 ) -> impl Widget + 'a {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
-            ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
-            ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
+            ui.add(Slider::new(&mut value.x, range.clone()).text("w"));
+            ui.add(Slider::new(&mut value.y, range.clone()).text("h"));
             ui.label(text);
         })
         .response

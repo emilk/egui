@@ -67,7 +67,7 @@
 //! ui.hyperlink("https://github.com/emilk/egui");
 //! ui.text_edit_singleline(&mut my_string);
 //! if ui.button("Click me").clicked() { }
-//! ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0));
+//! ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0));
 //! ui.add(egui::DragValue::f32(&mut my_f32));
 //!
 //! ui.checkbox(&mut my_boolean, "Checkbox");

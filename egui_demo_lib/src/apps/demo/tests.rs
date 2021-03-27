@@ -140,13 +140,13 @@ impl super::View for ManualLayoutTest {
         });
         egui::Grid::new("pos_size").show(ui, |ui| {
             ui.label("Widget position:");
-            ui.add(egui::Slider::f32(&mut widget_offset.x, 0.0..=400.0));
-            ui.add(egui::Slider::f32(&mut widget_offset.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0));
             ui.end_row();
 
             ui.label("Widget size:");
-            ui.add(egui::Slider::f32(&mut widget_size.x, 0.0..=400.0));
-            ui.add(egui::Slider::f32(&mut widget_size.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0));
             ui.end_row();
         });
 
@@ -207,13 +207,13 @@ impl super::Demo for TableTest {
 impl super::View for TableTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(
-            egui::Slider::f32(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
+            egui::Slider::new(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
         );
         ui.add(
-            egui::Slider::f32(&mut self.max_col_width, 0.0..=400.0).text("Maximum column width"),
+            egui::Slider::new(&mut self.max_col_width, 0.0..=400.0).text("Maximum column width"),
         );
-        ui.add(egui::Slider::usize(&mut self.num_cols, 0..=5).text("Columns"));
-        ui.add(egui::Slider::usize(&mut self.num_rows, 0..=20).text("Rows"));
+        ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
+        ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
         ui.separator();
 

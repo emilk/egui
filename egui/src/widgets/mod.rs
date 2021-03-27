@@ -48,8 +48,8 @@ pub trait Widget {
 /// pub fn slider_vec2(value: &mut egui::Vec2) -> impl egui::Widget + '_ {
 ///    move |ui: &mut egui::Ui| {
 ///        ui.horizontal(|ui| {
-///            ui.add(egui::Slider::f32(&mut value.x, 0.0..=1.0).text("x"));
-///            ui.add(egui::Slider::f32(&mut value.y, 0.0..=1.0).text("y"));
+///            ui.add(egui::Slider::new(&mut value.x, 0.0..=1.0).text("x"));
+///            ui.add(egui::Slider::new(&mut value.y, 0.0..=1.0).text("y"));
 ///        })
 ///        .response
 ///    }
