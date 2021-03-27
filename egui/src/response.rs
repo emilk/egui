@@ -416,7 +416,7 @@ impl Response {
 /// ```
 /// use egui::*;
 /// fn draw_vec2(ui: &mut Ui, v: &mut Vec2) -> Response {
-///     ui.add(DragValue::f32(&mut v.x)) | ui.add(DragValue::f32(&mut v.y))
+///     ui.add(DragValue::new(&mut v.x)) | ui.add(DragValue::new(&mut v.y))
 /// }
 /// ```
 ///

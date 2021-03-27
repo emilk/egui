@@ -83,7 +83,7 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
-        ui.add(DragValue::f32(width).speed(0.1).clamp_range(0.0..=5.0))
+        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
             .on_hover_text("Width");
         ui.color_edit_button_srgba(color);
         ui.label(text);
@@ -101,7 +101,7 @@ pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
     ui.horizontal(|ui| {
         ui.label(text);
         ui.add(
-            DragValue::f32(extrusion)
+            DragValue::new(extrusion)
                 .speed(1.0)
                 .clamp_range(0.0..=100.0),
         )

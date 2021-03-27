@@ -413,7 +413,7 @@ impl<'a> Slider<'a> {
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
         let mut value = self.get_value();
         ui.add(
-            DragValue::f64(&mut value)
+            DragValue::new(&mut value)
                 .speed(self.current_gradient(&x_range))
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)

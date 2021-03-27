@@ -44,7 +44,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// ```
 /// # let ui = &mut egui::Ui::__test();
 /// # let mut my_f32: f32 = 0.0;
-/// ui.add(egui::DragValue::f32(&mut my_f32).speed(0.1));
+/// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
@@ -59,6 +59,7 @@ pub struct DragValue<'a> {
 
 macro_rules! impl_integer_constructor {
     ($int:ident) => {
+        #[deprecated = "Use DragValue::new instead"]
         pub fn $int(value: &'a mut $int) -> Self {
             Self::from_get_set(move |v: Option<f64>| {
                 if let Some(v) = v {
@@ -91,6 +92,7 @@ impl<'a> DragValue<'a> {
         }
     }
 
+    #[deprecated = "Use DragValue::new instead"]
     pub fn f32(value: &'a mut f32) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -100,6 +102,7 @@ impl<'a> DragValue<'a> {
         })
     }
 
+    #[deprecated = "Use DragValue::new instead"]
     pub fn f64(value: &'a mut f64) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {

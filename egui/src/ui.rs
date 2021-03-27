@@ -985,7 +985,7 @@ impl Ui {
         #![allow(clippy::float_cmp)]
 
         let mut degrees = radians.to_degrees();
-        let mut response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
+        let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
@@ -1006,7 +1006,7 @@ impl Ui {
 
         let mut taus = *radians / TAU;
         let mut response = self
-            .add(DragValue::f32(&mut taus).speed(0.01).suffix("τ"))
+            .add(DragValue::new(&mut taus).speed(0.01).suffix("τ"))
             .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
 
         // only touch `*radians` if we actually changed the value

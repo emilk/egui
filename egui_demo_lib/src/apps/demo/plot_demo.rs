@@ -62,7 +62,7 @@ impl PlotDemo {
                 ui.vertical(|ui| {
                     ui.label("Circle:");
                     ui.add(
-                        egui::DragValue::f32(circle_radius)
+                        egui::DragValue::new(circle_radius)
                             .speed(0.1)
                             .clamp_range(0.0..=f32::INFINITY)
                             // .logarithmic(true)
@@ -71,14 +71,14 @@ impl PlotDemo {
                     );
                     ui.horizontal(|ui| {
                         ui.add(
-                            egui::DragValue::f32(&mut circle_center.x)
+                            egui::DragValue::new(&mut circle_center.x)
                                 .speed(0.1)
                                 // .logarithmic(true)
                                 // .smallest_positive(1e-2)
                                 .prefix("x: "),
                         );
                         ui.add(
-                            egui::DragValue::f32(&mut circle_center.y)
+                            egui::DragValue::new(&mut circle_center.y)
                                 .speed(1.0)
                                 // .logarithmic(true)
                                 // .smallest_positive(1e-2)

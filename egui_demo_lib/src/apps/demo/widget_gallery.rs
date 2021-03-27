@@ -151,7 +151,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::f32(scalar).speed(1.0));
+        ui.add(egui::DragValue::new(scalar).speed(1.0));
         ui.end_row();
 
         ui.add(doc_link_label("Color picker", "color_edit"));
