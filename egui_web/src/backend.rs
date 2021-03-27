@@ -222,7 +222,7 @@ impl AppRunner {
         if self.web_backend.ctx.memory().options.screen_reader {
             self.screen_reader.speak(&egui_output.events_description());
         }
-        handle_output(&egui_output);
+        handle_output(&egui_output, self.canvas_id());
 
         {
             let epi::backend::AppOutput {
