@@ -212,7 +212,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
         set_cursor_icon(&display, egui_output.cursor_icon);
         current_cursor_icon = egui_output.cursor_icon;
-        handle_output(egui_output, clipboard.as_mut());
+        handle_output(egui_output, clipboard.as_mut(), &display);
 
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
@@ -289,7 +289,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 set_cursor_icon(&display, egui_output.cursor_icon);
                 current_cursor_icon = egui_output.cursor_icon;
             }
-            handle_output(egui_output, clipboard.as_mut());
+            handle_output(egui_output, clipboard.as_mut(), &display);
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {
