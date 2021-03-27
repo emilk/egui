@@ -81,6 +81,22 @@ macro_rules! impl_integer_constructor {
 }
 
 impl<'a> Slider<'a> {
+    pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
+        let range_f64 = range.start().to_f64()..=range.end().to_f64();
+        let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = Num::from_f64(v)
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL {
+            slf.integer()
+        } else {
+            slf
+        }
+    }
+
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
         Self::from_get_set(range_f64, move |v: Option<f64>| {
@@ -396,7 +412,7 @@ impl<'a> Slider<'a> {
         ui.add(
             DragValue::f64(&mut value)
                 .speed(self.current_gradient(&x_range))
-                .clamp_range_f64(self.clamp_range())
+                .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())

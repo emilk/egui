@@ -67,6 +67,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 // ----------------------------------------------------------------------------
 
 pub mod align;
+mod numeric;
 mod pos2;
 mod rect;
 mod rect_transform;
@@ -76,6 +77,7 @@ mod vec2;
 
 pub use {
     align::{Align, Align2},
+    numeric::*,
     pos2::*,
     rect::*,
     rect_transform::*,

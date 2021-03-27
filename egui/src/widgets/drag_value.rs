@@ -67,13 +67,30 @@ macro_rules! impl_integer_constructor {
                 *value as f64
             })
             .max_decimals(0)
-            .clamp_range_f64(($int::MIN as f64)..=($int::MAX as f64))
+            .clamp_range($int::MIN..=$int::MAX)
             .speed(0.25)
         }
     };
 }
 
 impl<'a> DragValue<'a> {
+    pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
+        let slf = Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = Num::from_f64(v)
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL {
+            slf.max_decimals(0)
+                .clamp_range(Num::MIN..=Num::MAX)
+                .speed(0.25)
+        } else {
+            slf
+        }
+    }
+
     pub fn f32(value: &'a mut f32) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -122,11 +139,12 @@ impl<'a> DragValue<'a> {
     }
 
     /// Clamp incoming and outgoing values to this range.
-    pub fn clamp_range(mut self, clamp_range: RangeInclusive<f32>) -> Self {
-        self.clamp_range = *clamp_range.start() as f64..=*clamp_range.end() as f64;
+    pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
+        self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
     }
 
+    #[deprecated = "Use clamp_range"]
     pub fn clamp_range_f64(mut self, clamp_range: RangeInclusive<f64>) -> Self {
         self.clamp_range = clamp_range;
         self
