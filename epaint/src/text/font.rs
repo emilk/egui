@@ -138,10 +138,12 @@ impl FontImpl {
     }
 
     /// Height of one row of text. In points
+    #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.height_in_points
     }
 
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
@@ -202,11 +204,13 @@ impl Font {
         slf
     }
 
+    #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
+    #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.row_height
     }

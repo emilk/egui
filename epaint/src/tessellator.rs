@@ -34,10 +34,12 @@ pub struct PathPoint {
 struct Path(Vec<PathPoint>);
 
 impl Path {
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.0.clear();
     }
 
+    #[inline(always)]
     pub fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional)
     }
