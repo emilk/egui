@@ -70,12 +70,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
 
         let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
-        let mut tesselator = egui::epaint::Tessellator::from_options(Default::default());
+        let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
-        c.bench_function("tesselate text", |b| {
+        c.bench_function("tessellate text", |b| {
             b.iter(|| {
                 let fake_italics = false;
-                tesselator.tessellate_text(
+                tessellator.tessellate_text(
                     &fonts,
                     egui::Pos2::ZERO,
                     &galley,

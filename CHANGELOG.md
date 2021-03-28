@@ -82,7 +82,7 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
 * `DragValue::range` is now called `clamp_range` and also clamps incoming values.
 * Renamed `Triangles` to `Mesh`.
-* The tesselator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
+* The tessellator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
 * `Mesh::split_to_u16` now returns a 16-bit indexed `Mesh16`.
 
 ### Fixed 🐛
