@@ -12,7 +12,11 @@ use {
     std::any::TypeId,
 };
 
-/// Stores object of any type and can be de/serialized.
+/// Maps types to a single instance of that type.
+///
+/// Used to store state per widget type. In effect a sort of singleton storage.
+/// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/) but allows serialization
+/// (if compiled with the `persistence` feature).
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct AnyMap(HashMap<TypeId, AnyMapElement>);

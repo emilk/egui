@@ -45,7 +45,7 @@ impl<'de> Deserialize<'de> for AnyMapElement {
             type Value = String;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("string that contains data json")
+                formatter.write_str("string that contains RON (Rust Object Notation)")
             }
 
             fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {

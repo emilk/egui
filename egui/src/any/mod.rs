@@ -8,7 +8,7 @@
 //!
 //! If you want to store your type here, it must implement `Clone` and `Any` and be `'static`, which means it must not contain references. If you want to store your data in serializable storage, it must implement `serde::Serialize` and `serde::Deserialize` under the `persistent` feature.
 //!
-//! # `AnyMap`
+//! # [`AnyMap`]
 //!
 //! It stores everything by just type. You should use this map for your widget when all instances of your widgets can have only one state. E.g. for popup windows, for color picker.
 //!
@@ -17,7 +17,7 @@
 //! struct MyEditBool(pub bool);
 //! ```
 //!
-//! # `AnyMapId`
+//! # [`AnyMapId`]
 //!
 //! [`AnyMap`] and [`AnyMapId`] has a quite similar interface, except for [`AnyMapId`] you should pass [`Id`] to get and insert things.
 //!

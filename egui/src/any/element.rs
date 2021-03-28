@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 use std::fmt;
 
+/// Like [`std::any::Any`], but also implements `Clone`.
 pub(crate) struct AnyMapElement {
     value: Box<dyn Any + 'static>,
     clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,

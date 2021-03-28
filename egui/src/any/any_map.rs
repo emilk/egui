@@ -2,7 +2,11 @@ use crate::any::element::{AnyMapElement, AnyMapTrait};
 use std::any::TypeId;
 use std::collections::HashMap;
 
-/// Stores object of any type.
+/// Maps types to a single instance of that type.
+///
+/// Used to store state per widget type. In effect a sort of singleton storage.
+/// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/) but allows serialization
+/// (if compiled with the `persistence` feature).
 #[derive(Clone, Debug, Default)]
 pub struct AnyMap(HashMap<TypeId, AnyMapElement>);
 
