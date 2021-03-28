@@ -458,9 +458,11 @@ fn interact(
     area_state.pos = new_rect.min;
 
     if window_interaction.is_resize() {
-        let mut resize_state = ctx.memory().resize.get(&resize_id).cloned().unwrap();
-        resize_state.requested_size = Some(new_rect.size() - margins);
-        ctx.memory().resize.insert(resize_id, resize_state);
+        ctx.memory()
+            .data
+            .get_mut::<resize::State>(resize_id)
+            .unwrap()
+            .requested_size = Some(new_rect.size() - margins);
     }
 
     ctx.memory().areas.move_to_top(area_layer_id);

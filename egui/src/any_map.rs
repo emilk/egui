@@ -31,10 +31,7 @@ impl AnyMap {
     }
 
     pub fn get_mut<T: AnyMapTrait>(&mut self, id: Id) -> Option<&mut T> {
-        self.0
-            .get_mut(&id)?
-            .0
-            .get_mut()
+        self.0.get_mut(&id)?.0.get_mut()
     }
 
     pub fn get_or_insert_with<T: AnyMapTrait>(
@@ -55,12 +52,12 @@ impl AnyMap {
         or_insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         use std::collections::hash_map::Entry;
-        match self
-            .0
-            .entry(id)
-        {
+        match self.0.entry(id) {
             Entry::Vacant(vacant) => vacant
-                .insert((AnyMapElement::new(or_insert_with()), SerializableTypeId::new::<T>()))
+                .insert((
+                    AnyMapElement::new(or_insert_with()),
+                    SerializableTypeId::new::<T>(),
+                ))
                 .0
                 .get_mut()
                 .unwrap(), // this unwrap will never panic, because we insert correct type right now
@@ -73,8 +70,10 @@ impl AnyMap {
     }
 
     pub fn insert<T: AnyMapTrait>(&mut self, id: Id, element: T) {
-        self.0
-            .insert(id, (AnyMapElement::new(element), SerializableTypeId::new::<T>()));
+        self.0.insert(
+            id,
+            (AnyMapElement::new(element), SerializableTypeId::new::<T>()),
+        );
     }
 
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {

@@ -868,23 +868,32 @@ impl Context {
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} menu bars", self.memory().menu_bar.len()));
+            ui.label(format!(
+                "{} menu bars",
+                self.memory().data_temp.count::<menu::BarState>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().menu_bar = Default::default();
+                self.memory().data_temp.reset::<menu::BarState>();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} scroll areas", self.memory().scroll_areas.len()));
+            ui.label(format!(
+                "{} scroll areas",
+                self.memory().data.count::<scroll_area::State>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().scroll_areas = Default::default();
+                self.memory().data_temp.reset::<scroll_area::State>();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} resize areas", self.memory().resize.len()));
+            ui.label(format!(
+                "{} resize areas",
+                self.memory().data.count::<resize::State>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().resize = Default::default();
+                self.memory().data_temp.reset::<resize::State>();
             }
         });
 

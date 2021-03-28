@@ -140,8 +140,8 @@ pub struct TextEdit<'t> {
 impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
-            .text_edit
-            .get(&id)
+            .data
+            .get::<State>(id)
             .and_then(|state| state.cursorp)
     }
 }
@@ -352,7 +352,7 @@ impl<'t> TextEdit<'t> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
+        let mut state = ui.memory().data.get_or_default::<State>(id).clone();
 
         let sense = if enabled {
             Sense::click_and_drag()
@@ -561,7 +561,7 @@ impl<'t> TextEdit<'t> {
                 .galley(response.rect.min, galley, hint_text_color);
         }
 
-        ui.memory().text_edit.insert(id, state);
+        ui.memory().data.insert(id, state);
 
         response.widget_info(|| WidgetInfo::text_edit(&*text));
         response

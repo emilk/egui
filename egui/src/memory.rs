@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    any_storage::*, area, menu, resize, scroll_area, util::Cache, widgets::text_edit, window, Id,
-    InputState, LayerId, Pos2, Rect, Style,
-};
+use crate::{any_map::*, area, util::Cache, window, Id, InputState, LayerId, Pos2, Rect, Style};
 use epaint::color::{Color32, Hsva};
 
 // ----------------------------------------------------------------------------
@@ -19,7 +16,13 @@ use epaint::color::{Color32, Hsva};
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
+
+    /// This map stores current states for any different widgets. This will be saved between different program runs if you use `persistence` feature.
     pub data: AnyMap,
+
+    /// Same as `data`, but this data will not be saved between runs.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub data_temp: AnyMap,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
@@ -29,14 +32,6 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
-
-    // states of various types of widgets
-    pub(crate) grid: HashMap<Id, crate::grid::State>,
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) menu_bar: HashMap<Id, menu::BarState>,
-    pub(crate) resize: HashMap<Id, resize::State>,
-    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
-    pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
