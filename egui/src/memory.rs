@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{any_map::*, area, util::Cache, window, Id, InputState, LayerId, Pos2, Rect, Style};
-use epaint::color::{Color32, Hsva};
+use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -11,18 +10,27 @@ use epaint::color::{Color32, Hsva};
 /// how far the user has scrolled in a `ScrollArea` etc.
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
+///
+/// If you want to store data for your widgets, you should look at `data`/`data_temp` and `id_data`/`id_data_temp` fields, and read documentation of [`any`] module.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for any different widgets. This will be saved between different program runs if you use `persistence` feature.
-    pub data: AnyMap,
+    /// This map stores current states for widgets that does not require `Id`. This will be saved between different program runs if you use `persistence` feature.
+    pub data: any::serializable::AnyMap,
 
     /// Same as `data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub data_temp: AnyMap,
+    pub data_temp: any::AnyMap,
+
+    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use `persistence` feature.
+    pub id_data: any::serializable::AnyMapId,
+
+    /// Same as `id_data`, but this data will not be saved between runs.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub id_data_temp: any::AnyMapId,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
@@ -39,14 +47,7 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) tooltip: crate::containers::popup::MonoState,
-
     pub(crate) areas: Areas,
-
-    /// Used by color picker
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) color_cache: Cache<Color32, Hsva>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.

@@ -159,7 +159,7 @@ impl Resize {
             ui.make_persistent_id(id_source)
         });
 
-        let mut state = *ui.memory().data.get_or_insert_with(id, || {
+        let mut state = *ui.memory().id_data.get_or_insert_with(id, || {
             ui.ctx().request_repaint(); // counter frame delay
 
             let default_size = self
@@ -297,7 +297,7 @@ impl Resize {
             }
         }
 
-        ui.memory().data.insert(id, state);
+        ui.memory().id_data.insert(id, state);
 
         if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(

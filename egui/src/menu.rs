@@ -28,11 +28,11 @@ pub(crate) struct BarState {
 
 impl BarState {
     fn load(ctx: &Context, bar_id: &Id) -> Self {
-        *ctx.memory().data_temp.get_or_default(*bar_id)
+        *ctx.memory().id_data_temp.get_or_default(*bar_id)
     }
 
     fn save(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().data_temp.insert(bar_id, self);
+        ctx.memory().id_data_temp.insert(bar_id, self);
     }
 }
 

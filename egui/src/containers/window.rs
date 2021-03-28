@@ -364,7 +364,7 @@ impl<'open> Window<'open> {
 
             area_content_ui
                 .memory()
-                .data
+                .id_data
                 .insert(collapsing_id, collapsing);
 
             if let Some(interaction) = interaction {
@@ -459,7 +459,7 @@ fn interact(
 
     if window_interaction.is_resize() {
         ctx.memory()
-            .data
+            .id_data
             .get_mut::<resize::State>(resize_id)
             .unwrap()
             .requested_size = Some(new_rect.size() - margins);

@@ -756,8 +756,8 @@ name = "egui"
 version = "0.11.0"
 dependencies = [
  "epaint",
+ "ron",
  "serde",
- "serde_json",
 ]
 
 [[package]]

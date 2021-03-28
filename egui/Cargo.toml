@@ -22,7 +22,7 @@ include = [
 [dependencies]
 epaint = { version = "0.11.0", path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
-serde_json = { version = "1", optional = true }
+ron = { version = "0.6.4", optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]
@@ -31,7 +31,7 @@ default = ["default_fonts", "single_threaded"]
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
-persistence = ["serde", "epaint/persistence"]
+persistence = ["serde", "epaint/persistence", "ron"]
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
 single_threaded = ["epaint/single_threaded"]

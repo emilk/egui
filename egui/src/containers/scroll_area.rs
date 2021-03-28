@@ -98,7 +98,7 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let mut state = *ctx.memory().data.get_or_default::<State>(id);
+        let mut state = *ctx.memory().id_data.get_or_default::<State>(id);
 
         if let Some(offset) = offset {
             state.offset = offset;
@@ -352,7 +352,7 @@ impl Prepared {
         state.offset.y = state.offset.y.max(0.0);
         state.show_scroll = show_scroll_this_frame;
 
-        ui.memory().data.insert(id, state);
+        ui.memory().id_data.insert(id, state);
     }
 }
 

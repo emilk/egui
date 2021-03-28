@@ -857,7 +857,7 @@ impl Context {
             ui.label(format!(
                 "{} collapsing headers",
                 self.memory()
-                    .data
+                    .id_data
                     .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
@@ -870,7 +870,7 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.memory().data_temp.count::<menu::BarState>()
+                self.memory().id_data_temp.count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory().data_temp.reset::<menu::BarState>();
@@ -880,7 +880,7 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} scroll areas",
-                self.memory().data.count::<scroll_area::State>()
+                self.memory().id_data.count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory().data_temp.reset::<scroll_area::State>();
@@ -890,7 +890,7 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} resize areas",
-                self.memory().data.count::<resize::State>()
+                self.memory().id_data.count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory().data_temp.reset::<resize::State>();
