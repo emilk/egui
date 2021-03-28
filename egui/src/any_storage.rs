@@ -4,7 +4,7 @@ use std::collections::HashMap;
 /// This storage can store any object that implements `Any` and `'static`, but also can be cloned and serialized/deserialized. The temporary data for widgets is stored here. TODO
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-pub struct AnyMap(HashMap<SerializableTypeId, HashMap<Id, AnyMapElement>>);
+pub struct AnyMap(HashMap<Id, (AnyMapElement, SerializableTypeId)>);
 
 /// We need this because `TypeId` can't be deserialized or serialized directly, but this can be done using hashing. However, there is small possibility that different types will have intersection by hashes of their type ids.
 #[derive(Clone, Debug, Copy, Eq, PartialEq, Hash)]
@@ -23,6 +23,8 @@ impl SerializableTypeId {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 impl AnyMap {
     pub fn get<T: AnyMapTrait>(&mut self, id: Id) -> Option<&T> {
         self.get_mut(id).map(|x| &*x)
@@ -30,9 +32,8 @@ impl AnyMap {
 
     pub fn get_mut<T: AnyMapTrait>(&mut self, id: Id) -> Option<&mut T> {
         self.0
-            .entry(SerializableTypeId::new::<T>())
-            .or_default()
             .get_mut(&id)?
+            .0
             .get_mut()
     }
 
@@ -45,7 +46,7 @@ impl AnyMap {
     }
 
     pub fn get_or_default<T: AnyMapTrait + Default>(&mut self, id: Id) -> &T {
-        self.get_or_insert_with(id, || Default::default())
+        self.get_or_insert_with(id, Default::default)
     }
 
     pub fn get_mut_or_insert_with<T: AnyMapTrait>(
@@ -56,44 +57,38 @@ impl AnyMap {
         use std::collections::hash_map::Entry;
         match self
             .0
-            .entry(SerializableTypeId::new::<T>())
-            .or_default()
             .entry(id)
         {
             Entry::Vacant(vacant) => vacant
-                .insert(AnyMapElement::new(or_insert_with()))
+                .insert((AnyMapElement::new(or_insert_with()), SerializableTypeId::new::<T>()))
+                .0
                 .get_mut()
                 .unwrap(), // this unwrap will never panic, because we insert correct type right now
-            Entry::Occupied(occupied) => occupied.into_mut().get_mut_or_set_with(or_insert_with),
+            Entry::Occupied(occupied) => occupied.into_mut().0.get_mut_or_set_with(or_insert_with),
         }
     }
 
     pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self, id: Id) -> &mut T {
-        self.get_mut_or_insert_with(id, || Default::default())
+        self.get_mut_or_insert_with(id, Default::default)
     }
 
     pub fn insert<T: AnyMapTrait>(&mut self, id: Id, element: T) {
         self.0
-            .entry(SerializableTypeId::new::<T>())
-            .or_default()
-            .insert(id, AnyMapElement::new(element));
+            .insert(id, (AnyMapElement::new(element), SerializableTypeId::new::<T>()));
     }
 
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {
-        self.0
-            .get(&SerializableTypeId::new::<T>())
-            .map(|map| map.len())
-            .unwrap_or(0)
+        let id = SerializableTypeId::new::<T>();
+        self.0.iter().filter(|(_, v)| v.1 == id).count()
     }
 
     pub fn count_all(&mut self) -> usize {
-        self.0.iter().map(|(_, map)| map.len()).sum()
+        self.0.len()
     }
 
     pub fn reset<T: AnyMapTrait>(&mut self) {
-        if let Some(map) = self.0.get_mut(&SerializableTypeId::new::<T>()) {
-            map.clear();
-        }
+        let id = SerializableTypeId::new::<T>();
+        self.0.retain(|_, v| v.1 == id);
     }
 
     pub fn reset_all(&mut self) {
@@ -110,7 +105,7 @@ mod element_impl {
     use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
     use std::any::Any;
     use std::fmt;
-    use AnyMapElement::*;
+    use AnyMapElement::{Deserialized, ToDeserialize};
 
     pub enum AnyMapElement {
         Deserialized {
@@ -133,7 +128,7 @@ mod element_impl {
                     serialize_fn,
                     ..
                 } => {
-                    let s = serialize_fn(value).map_err(|err| serde::ser::Error::custom(err))?;
+                    let s = serialize_fn(value).map_err(serde::ser::Error::custom)?;
                     serializer.serialize_str(&s)
                 }
                 ToDeserialize(s) => serializer.serialize_str(s),
@@ -161,7 +156,7 @@ mod element_impl {
             }
 
             Ok(AnyMapElement::ToDeserialize(
-                deserializer.deserialize_str(StrVisitor)?.to_owned(),
+                deserializer.deserialize_str(StrVisitor)?,
             ))
         }
     }
