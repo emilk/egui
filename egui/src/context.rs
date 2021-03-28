@@ -407,7 +407,14 @@ impl Context {
 
     /// Will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        self.memory().options.font_definitions = font_definitions;
+        if let Some(current_fonts) = &self.fonts {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            if current_fonts.definitions() == &font_definitions {
+                return; // no change - save us from reloading font textures
+            }
+        }
+
+        self.memory().new_font_definitions = Some(font_definitions);
     }
 
     /// The [`Style`] used by all subsequent windows, panels etc.
@@ -531,20 +538,24 @@ impl Context {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        let font_definitions = self.memory().options.font_definitions.clone();
-        let pixels_per_point = self.input.pixels_per_point();
-        let same_as_current = match &self.fonts {
-            None => false,
-            Some(fonts) => {
-                *fonts.definitions() == font_definitions
-                    && (fonts.pixels_per_point() - pixels_per_point).abs() < 1e-3
+        {
+            // Load new fonts if required:
+            let new_font_definitions = self.memory().new_font_definitions.take();
+            let pixels_per_point = self.input.pixels_per_point();
+
+            let pixels_per_point_changed = match &self.fonts {
+                None => true,
+                Some(current_fonts) => {
+                    (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+                }
+            };
+
+            if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
+                self.fonts = Some(Arc::new(Fonts::from_definitions(
+                    pixels_per_point,
+                    new_font_definitions.unwrap_or_default(),
+                )));
             }
-        };
-        if !same_as_current {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(
-                pixels_per_point,
-                font_definitions,
-            )));
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:

@@ -23,6 +23,9 @@ pub struct Memory {
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
 
+    /// new fonts that will be applied at the start of the next frame
+    pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 
@@ -71,8 +74,6 @@ pub struct Options {
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
     pub(crate) tessellation_options: epaint::TessellationOptions,
-    /// Font sizes etc.
-    pub(crate) font_definitions: epaint::text::FontDefinitions,
 
     /// This does not at all change the behavior of egui,
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
