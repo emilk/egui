@@ -11,21 +11,21 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
 ///
-/// If you want to store data for your widgets, you should look at `data`/`data_temp` and `id_data`/`id_data_temp` fields, and read documentation of [`any`] module.
+/// If you want to store data for your widgets, you should look at `data`/`data_temp` and `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for widgets that does not require `Id`. This will be saved between different program runs if you use `persistence` feature.
+    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
     pub data: any::serializable::AnyMap,
 
     /// Same as `data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub data_temp: any::AnyMap,
 
-    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use `persistence` feature.
+    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
     pub id_data: any::serializable::AnyMapId,
 
     /// Same as `id_data`, but this data will not be saved between runs.

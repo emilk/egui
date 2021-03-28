@@ -12,7 +12,7 @@ use {
     std::any::TypeId,
 };
 
-/// Stores object with any type, and can be de/serialized.
+/// Stores object of any type and can be de/serialized.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct AnyMap(HashMap<TypeId, AnyMapElement>);

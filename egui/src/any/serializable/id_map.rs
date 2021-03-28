@@ -72,7 +72,7 @@ impl AnyMapId {
 }
 
 impl AnyMapId {
-    /// You could use this function to find is there some leak or misusage. Note, that result of this function could broke between runs, if you upgraded Rust version or for other reasons.
+    /// You could use this function to find is there some leak or misusage. Note, that result of this function could break between runs, if you upgraded the Rust version or for other reasons.
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {
         let id = TypeId::of::<T>();
         self.0.iter().filter(|(_, v)| v.1 == id).count()
@@ -82,10 +82,10 @@ impl AnyMapId {
         self.0.len()
     }
 
-    /// Note that this function could not reset all needed types between runs because, if you upgraded Rust version or for other reasons.
+    /// Note that this function could not reset all needed types between runs because if you upgraded the Rust version or for other reasons.
     pub fn reset<T: AnyMapTrait>(&mut self) {
         let id = TypeId::of::<T>();
-        self.0.retain(|_, v| v.1 == id);
+        self.0.retain(|_, v| v.1 != id);
     }
 
     pub fn reset_all(&mut self) {

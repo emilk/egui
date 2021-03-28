@@ -71,7 +71,7 @@ impl AnyMapId {
 
     pub fn reset<T: AnyMapTrait>(&mut self) {
         let id = TypeId::of::<T>();
-        self.0.retain(|_, v| v.type_id() == id);
+        self.0.retain(|_, v| v.type_id() != id);
     }
 
     pub fn reset_all(&mut self) {

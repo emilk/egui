@@ -2,7 +2,7 @@ use crate::any::element::{AnyMapElement, AnyMapTrait};
 use std::any::TypeId;
 use std::collections::HashMap;
 
-/// Stores object with any type.
+/// Stores object of any type.
 #[derive(Clone, Debug, Default)]
 pub struct AnyMap(HashMap<TypeId, AnyMapElement>);
 
