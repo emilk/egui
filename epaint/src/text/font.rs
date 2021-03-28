@@ -325,7 +325,9 @@ impl Font {
         for c in text.chars() {
             if !self.fonts.is_empty() {
                 let (font_index, glyph_info) = if c == '\t' {
-                    self.tab_glyph_info(tab_size)
+                    let result = self.tab_glyph_info(tab_size);
+                    tab_size = super::MAX_TAB_SIZE;
+                    result
                 } else {
                     tab_size -= 1;
                     self.glyph_info(c)
