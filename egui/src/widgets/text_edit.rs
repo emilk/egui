@@ -710,32 +710,45 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
 }
 
 /// Accepts and returns character offset (NOT byte offset!).
-fn find_line_start(text: &str, current_index: usize) -> usize {
+/// Returns tuple with the indexes of the identation block from
+/// current line
+fn find_identation_start_and_end(text: &str, cursor: CCursor) -> (usize, usize) {
     // We know that new lines, '\n', are a single byte char, but we have to
     // work with char offsets because before the new line there may be any
     // number of multi byte chars.
     // We need to know the char index to be able to correctly set the cursor
     // later.
+    let index = cursor.index;
     let chars_count = text.chars().count();
 
-    let position = text
+    let start = text
         .chars()
         .rev()
-        .skip(chars_count - current_index)
-        .position(|x| x == '\n');
+        .skip(chars_count - index)
+        .position(|x| x == '\n')
+        .unwrap_or(0);
 
-    match position {
-        Some(pos) => current_index - pos,
-        None => 0,
-    }
+    let end = text
+        .chars()
+        .skip(index)
+        .take_while(|x| *x == ' ' || *x == '\t')
+        .fold(index, |index, _| index + 1);
+
+    (start, end)
 }
 
-fn convert_identation_to_spaces(ccursor: &mut CCursor, identation: &mut String) {
+fn convert_identation_to_spaces(
+    mut ident_end: usize,
+    ccursor: &mut CCursor,
+    identation: &mut String,
+) {
     // Because we convert tabs to spaces we add a bit more capacity
     // Hopefuly it will be enough and no other alloc will be done
     let mut new_identation = String::with_capacity(identation.len() + 5 * text::MAX_TAB_SIZE);
 
-    let mut char_it = identation.chars().peekable();
+    let mut char_it = identation
+        .chars()
+        .peekable();
 
     let mut tab_size: usize = text::MAX_TAB_SIZE;
     while let Some(c) = char_it.peek() {
@@ -749,8 +762,6 @@ fn convert_identation_to_spaces(ccursor: &mut CCursor, identation: &mut String) 
                 tab_size = text::MAX_TAB_SIZE;
             }
         } else if *c == '\t' {
-            char_it.next();
-
             if tab_size == 0 {
                 tab_size = text::MAX_TAB_SIZE;
             }
@@ -759,33 +770,52 @@ fn convert_identation_to_spaces(ccursor: &mut CCursor, identation: &mut String) 
                 new_identation += " ";
             }
 
-            *ccursor += tab_size.saturating_sub(1);
+            if ccursor.index < ident_end {
+                *ccursor += tab_size.saturating_sub(1);
+                ident_end = ident_end.saturating_sub(1);
+            }
+
+            char_it.next();
         } else {
             break;
         }
     }
 
-    new_identation.extend(char_it);
-
     *identation = new_identation;
 }
 
-fn convert_identation_to_tabs(ccursor: &mut CCursor, identation: &mut String) {
+fn convert_identation_to_tabs(
+    mut ident_end: usize,
+    ccursor: &mut CCursor,
+    identation: &mut String
+) {
     let mut new_identation = String::with_capacity(identation.len());
 
-    let mut char_it = identation.chars().peekable();
+    let mut char_it = identation
+        .chars()
+        .peekable();
+
     let mut tab_size: usize = text::MAX_TAB_SIZE;
     while let Some(c) = char_it.peek() {
         if *c == ' ' {
-            char_it.next();
-            *ccursor -= 1;
             tab_size -= 1;
+
+            if ccursor.index > ident_end {
+                *ccursor -= 1;
+                ident_end = ident_end.saturating_sub(1);
+            }
 
             if tab_size == 0 {
                 new_identation.push('\t');
-                *ccursor += 1;
                 tab_size = text::MAX_TAB_SIZE;
+
+                if ccursor.index > ident_end {
+                    *ccursor += 1;
+                    ident_end = ident_end.saturating_add(1);
+                }
             }
+
+            char_it.next();
         } else if *c == '\t' {
             char_it.next();
             new_identation.push('\t');
@@ -805,7 +835,11 @@ fn convert_identation_to_tabs(ccursor: &mut CCursor, identation: &mut String) {
     // We have to put those spaces back
     for _ in 0..(text::MAX_TAB_SIZE - tab_size) {
         new_identation.push(' ');
-        *ccursor += 1;
+
+        if ccursor.index > ident_end {
+            *ccursor += 1;
+            ident_end = ident_end.saturating_add(1);
+        }
     }
 
     *identation = new_identation;
@@ -814,10 +848,10 @@ fn convert_identation_to_tabs(ccursor: &mut CCursor, identation: &mut String) {
 fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bool) {
     let mut new_text = String::with_capacity(text.len());
 
-    let line_start_index = find_line_start(text, ccursor.index);
+    let (ident_start, ident_end) = find_identation_start_and_end(text, *ccursor);
 
     let mut char_it = text.chars().peekable();
-    for _ in 0..line_start_index {
+    for _ in 0..ident_start {
         let c = char_it.next().unwrap();
         new_text.push(c);
     }
@@ -835,7 +869,7 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
     }
 
     if tab_as_spaces {
-        convert_identation_to_spaces(ccursor, &mut identation);
+        convert_identation_to_spaces(ident_end, ccursor, &mut identation);
 
         let mut spaces_count = identation.chars().count();
         let mut ident_it = identation.chars();
@@ -864,7 +898,7 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
 
         new_text.extend(ident_it);
     } else {
-        convert_identation_to_tabs(ccursor, &mut identation);
+        convert_identation_to_tabs(ident_end, ccursor, &mut identation);
 
         // With tabs we have two cases
         // 1. --->__let x = 2;   <- Here we remove the spaces
@@ -903,10 +937,10 @@ fn remove_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bo
 fn insert_spaces_identation(ccursor: &mut CCursor, text: &mut String) {
     let mut new_text = String::with_capacity(text.len() + 5 * text::MAX_TAB_SIZE);
 
-    let line_start_index = find_line_start(text, ccursor.index);
+    let (ident_start, ident_end) = find_identation_start_and_end(text, *ccursor);
 
     let mut char_it = text.chars().enumerate().peekable();
-    for _ in 0..line_start_index {
+    for _ in 0..ident_start {
         let (_, c) = char_it.next().unwrap();
         new_text.push(c);
     }
@@ -941,6 +975,8 @@ fn insert_spaces_identation(ccursor: &mut CCursor, text: &mut String) {
 
     for _ in 0..spaces_to_insert {
         new_text.push(' ');
+
+        if ident_end
         *ccursor += 1;
     }
 
@@ -1272,190 +1308,203 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_line_start() {
-        assert_eq!(0, find_line_start("", 0));
-        assert_eq!(0, find_line_start("ASDF", 4));
+    fn test_find_line_start() {
+        assert_eq!((0, 0), find_identation_start_and_end("", CCursor::new(0)));
+        assert_eq!((0, 0), find_identation_start_and_end("ASDF", CCursor::new(4)));
 
-        assert_eq!(5, find_line_start("ASDF\nASDF", 9));
+        assert_eq!((5, 9), find_identation_start_and_end("ASDF\n    ASDF", CCursor::new(13)));
 
-        assert_eq!(1, find_line_start("\n\n\n", 1));
+        assert_eq!((1, 1), find_identation_start_and_end("\n\n\n", CCursor::new(1)));
     }
 
     #[test]
     fn test_insert_identation_tabs_as_spaces() {
         // Insert in front
-        check_insert_spaces_identation(0, "ASDF", 4, "    ASDF");
+        check_insert_spaces_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "ASDF",
+                input_cursor_index: 0,
+                expected_text: "    ASDF",
+                expected_cursor_index: 4,
+            });
 
-        check_insert_spaces_identation(2, "  ASDF", 4, "    ASDF");
+        check_insert_spaces_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "  ASDF",
+                input_cursor_index: 2,
+                expected_text: "    ASDF",
+                expected_cursor_index: 4,
+            });
 
-        check_insert_spaces_identation(1, "\tASDF", 5, "\t    ASDF");
+        check_insert_spaces_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\tASDF",
+                input_cursor_index: 1,
+                expected_text: "\t    ASDF",
+                expected_cursor_index: 5,
+            });
 
-        check_insert_spaces_identation(3, "\t  ASDF", 5, "\t    ASDF");
+        check_insert_spaces_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\t  ASDF",
+                input_cursor_index: 3,
+                expected_text: "\t    ASDF",
+                expected_cursor_index: 5,
+            });
 
-        check_insert_spaces_identation(3, "  \tASDF", 7, "  \t    ASDF");
-
-        // Insert in the middle or at the end
-        check_insert_spaces_identation(2, "ASDF", 4, "AS  DF");
-
-        check_insert_spaces_identation(6, "  ASDF", 8, "  ASDF  ");
-
-        check_insert_spaces_identation(3, "\tASDF", 5, "\tAS  DF");
-
-        check_insert_spaces_identation(5, "\t  ASDF", 9, "\t  AS    DF");
-
-        check_insert_spaces_identation(5, "  \tASDF", 7, "  \tAS  DF");
-
-        check_insert_spaces_identation(4, "   \tASDF", 8, "   \t    ASDF");
+        check_insert_spaces_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "  \tASDF",
+                input_cursor_index: 3,
+                expected_text: "  \t    ASDF",
+                expected_cursor_index: 7,
+            });
     }
 
     #[test]
     fn test_remove_identation_tabs_as_spaces() {
-        check_remove_identation(true, 2, "ASDF", 2, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\nASDF",
+                input_cursor_index: 3,
+                expected_text: "\nASDF",
+                expected_cursor_index: 3,
+            });
 
-        check_remove_identation(true, 1, " ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\n ASDF",
+                input_cursor_index: 1,
+                expected_text: "\nASDF",
+                expected_cursor_index: 1,
+            });
 
-        check_remove_identation(true, 2, "  ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\n    ASDF",
+                input_cursor_index: 1,
+                expected_text: "\nASDF",
+                expected_cursor_index: 1,
+            });
 
-        check_remove_identation(true, 3, "   ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\n\t    ASDF",
+                input_cursor_index: 1,
+                expected_text: "\n    ASDF",
+                expected_cursor_index: 1,
+            });
 
-        check_remove_identation(true, 5, "    ASDF", 1, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\n    \tASDF",
+                input_cursor_index: 1,
+                expected_text: "\n    ASDF",
+                expected_cursor_index: 1,
+            });
 
-        check_remove_identation(true, 3, "\tASDF", 2, "ASDF");
-
-        check_remove_identation(true, 9, "        ASDF", 5, "    ASDF");
-
-        check_remove_identation(true, 6, "    \tASDF", 5, "    ASDF");
-
-        check_remove_identation(true, 6, "\t    ASDF", 5, "    ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: true,
+                input_text: "\n\t\tASDF",
+                input_cursor_index: 7,
+                expected_text: "\n    ASDF",
+                expected_cursor_index: 9,
+            });
     }
 
     #[test]
     fn test_remove_identation_tabs_as_tabs() {
-        check_remove_identation(false, 2, "ASDF", 2, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: "ASDF",
+                input_cursor_index: 2,
+                expected_text: "ASDF",
+                expected_cursor_index: 2,
+            });
 
-        check_remove_identation(false, 1, " ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: " ASDF",
+                input_cursor_index: 0,
+                expected_text: "ASDF",
+                expected_cursor_index: 0,
+            });
 
-        check_remove_identation(false, 2, "  ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: "    ASDF",
+                input_cursor_index: 0,
+                expected_text: "ASDF",
+                expected_cursor_index: 0,
+            });
 
-        check_remove_identation(false, 3, "   ASDF", 0, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: "\t    ASDF",
+                input_cursor_index: 0,
+                expected_text: "\tASDF",
+                expected_cursor_index: 0,
+            });
 
-        check_remove_identation(false, 5, "    ASDF", 1, "ASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: "    \tASDF",
+                input_cursor_index: 0,
+                expected_text: "\tASDF",
+                expected_cursor_index: 0,
+            });
 
-        check_remove_identation(false, 3, "\tASDF", 2, "ASDF");
-
-        check_remove_identation(false, 9, "        ASDF", 2, "\tASDF");
-
-        check_remove_identation(false, 6, "    \tASDF", 2, "\tASDF");
-
-        check_remove_identation(false, 6, "\t    ASDF", 2, "\tASDF");
+        check_remove_identation(
+            &TestData {
+                tabs_as_spaces: false,
+                input_text: "\t\tASDF",
+                input_cursor_index: 6,
+                expected_text: "\tASDF",
+                expected_cursor_index: 5,
+            });
     }
 
-    #[test]
-    fn test_convert_identation_to_spaces() {
-        // Nothing -> Nothing
-        check_convert_identation_to_spaces(0, "", 0, "");
-
-        // Space -> Space
-        check_convert_identation_to_spaces(1, " ", 1, " ");
-
-        // Space Space -> Space Space
-        check_convert_identation_to_spaces(2, "  ", 2, "  ");
-
-        // Space Space Space -> Space Space Space
-        check_convert_identation_to_spaces(3, "   ", 3, "   ");
-
-        // Spaces Spaces -> Spaces Space
-        check_convert_identation_to_spaces(8, "        ", 8, "        ");
-
-        // Tab Spaces -> Spaces Spaces
-        check_convert_identation_to_spaces(5, "\t    ", 8, "        ");
-
-        // Spaces Tab -> Spaces Spaces
-        check_convert_identation_to_spaces(5, "    \t", 8, "        ");
+    struct TestData<'a> {
+        pub tabs_as_spaces: bool,
+        pub input_text: &'a str,
+        pub input_cursor_index: usize,
+        pub expected_text: &'a str,
+        pub expected_cursor_index: usize,
     }
 
-    #[test]
-    fn test_convert_identation_to_tabs() {
-        // Nothing -> Nothing
-        check_convert_to_tabs(0, "", 0, "");
+    fn check_insert_spaces_identation(data: &TestData<'_>) {
+        let mut text = String::from(data.input_text);
+        let mut cursor = CCursor::new(data.input_cursor_index);
 
-        // Space -> Space
-        check_convert_to_tabs(1, " ", 1, " ");
+        insert_spaces_identation(&mut cursor, &mut text);
 
-        // Space Space -> Space Space
-        check_convert_to_tabs(2, "  ", 2, "  ");
-
-        // Space Space Space -> Space Space Space
-        check_convert_to_tabs(3, "   ", 3, "   ");
-
-        // Spaces Spaces -> Tab Tab
-        check_convert_to_tabs(8, "        ", 2, "\t\t");
-
-        // Tab Spaces -> Tab Tab
-        check_convert_to_tabs(5, "\t    ", 2, "\t\t");
-
-        // Spaces Tab -> Tab Tab
-        check_convert_to_tabs(5, "    \t", 2, "\t\t");
+        assert_eq!(data.expected_cursor_index, cursor.index);
+        assert_eq!(data.expected_text, text);
     }
 
-    fn check_insert_spaces_identation(
-        input_index: usize,
-        input_identation: &str,
-        expected_index: usize,
-        expected_text: &str,
-    ) {
-        let mut cursor = CCursor::new(input_index);
-        let mut actual_identation = String::from(input_identation);
+    fn check_remove_identation(data: &TestData<'_>) {
+        let mut text = String::from(data.input_text);
+        let mut cursor = CCursor::new(data.input_cursor_index);
 
-        insert_spaces_identation(&mut cursor, &mut actual_identation);
+        remove_identation(&mut cursor, &mut text, data.tabs_as_spaces);
 
-        assert_eq!(expected_index, cursor.index);
-        assert_eq!(expected_text, actual_identation);
-    }
-
-    fn check_remove_identation(
-        tab_as_spaces: bool,
-        input_index: usize,
-        input_identation: &str,
-        expected_index: usize,
-        expected_text: &str,
-    ) {
-        let mut cursor = CCursor::new(input_index);
-        let mut actual_identation = String::from(input_identation);
-
-        remove_identation(&mut cursor, &mut actual_identation, tab_as_spaces);
-
-        assert_eq!(expected_index, cursor.index);
-        assert_eq!(expected_text, actual_identation);
-    }
-
-    fn check_convert_identation_to_spaces(
-        input_index: usize,
-        input_identation: &str,
-        expected_index: usize,
-        expected_identation: &str,
-    ) {
-        let mut cursor = CCursor::new(input_index);
-        let mut actual_identation = String::from(input_identation);
-
-        convert_identation_to_spaces(&mut cursor, &mut actual_identation);
-
-        assert_eq!(expected_index, cursor.index);
-        assert_eq!(expected_identation, actual_identation);
-    }
-
-    fn check_convert_to_tabs(
-        input_index: usize,
-        input_identation: &str,
-        expected_index: usize,
-        expected_identation: &str,
-    ) {
-        let mut cursor = CCursor::new(input_index);
-        let mut actual_identation = String::from(input_identation);
-
-        convert_identation_to_tabs(&mut cursor, &mut actual_identation);
-
-        assert_eq!(expected_index, cursor.index);
-        assert_eq!(expected_identation, actual_identation);
+        assert_eq!(data.expected_cursor_index, cursor.index);
+        assert_eq!(data.expected_text, text);
     }
 }
