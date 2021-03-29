@@ -9,7 +9,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut ctx = egui::CtxRef::default();
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
-        c.bench_function("demo_windows_minimal", |b| {
+        // The most end-to-end benchmark.
+        c.bench_function("demo_windows_minimal with tesselation (realistic)", |b| {
+            b.iter(|| {
+                ctx.begin_frame(raw_input.clone());
+                demo_windows.ui(&ctx);
+                let (_, shapes) = ctx.end_frame();
+                ctx.tessellate(shapes)
+            })
+        });
+
+        c.bench_function("demo_windows_minimal (no tesselation)", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
