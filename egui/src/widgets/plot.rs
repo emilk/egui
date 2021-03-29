@@ -661,7 +661,6 @@ impl Prepared {
             shapes.push(Shape::Text {
                 pos: text_pos,
                 galley,
-                text_style,
                 color: ui.visuals().text_color(),
                 fake_italics: false,
             });

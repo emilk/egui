@@ -172,10 +172,11 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let text_style = TextStyle::Monospace;
-        let galley =
-            self.fonts()
-                .layout_multiline(text_style, format!("🔥 {}", text), f32::INFINITY);
+        let galley = self.fonts().layout_multiline(
+            TextStyle::Monospace,
+            format!("🔥 {}", text),
+            f32::INFINITY,
+        );
         let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -184,7 +185,7 @@ impl Painter {
             fill: Color32::from_black_alpha(240),
             stroke: Stroke::new(1.0, Color32::RED),
         });
-        self.galley(rect.min, galley, text_style, Color32::RED);
+        self.galley(rect.min, galley, Color32::RED);
         frame_rect
     }
 }
@@ -296,27 +297,25 @@ impl Painter {
             .fonts()
             .layout_multiline(text_style, text.into(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        self.galley(rect.min, galley, text_style, text_color);
+        self.galley(rect.min, galley, text_color);
         rect
     }
 
     /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color: Color32) {
-        self.galley_with_italics(pos, galley, text_style, color, false)
+    pub fn galley(&self, pos: Pos2, galley: Galley, color: Color32) {
+        self.galley_with_italics(pos, galley, color, false)
     }
 
     pub fn galley_with_italics(
         &self,
         pos: Pos2,
         galley: Galley,
-        text_style: TextStyle,
         color: Color32,
         fake_italics: bool,
     ) {
         self.add(Shape::Text {
             pos,
             galley,
-            text_style,
             color,
             fake_italics,
         });

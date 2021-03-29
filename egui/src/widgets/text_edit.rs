@@ -513,8 +513,7 @@ impl<'t> TextEdit<'t> {
             .or(ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
-        ui.painter()
-            .galley(response.rect.min, galley, text_style, text_color);
+        ui.painter().galley(response.rect.min, galley, text_color);
 
         if text.is_empty() && !hint_text.is_empty() {
             let galley = if multiline {
@@ -525,7 +524,7 @@ impl<'t> TextEdit<'t> {
             };
             let hint_text_color = ui.visuals().weak_text_color();
             ui.painter()
-                .galley(response.rect.min, galley, text_style, hint_text_color);
+                .galley(response.rect.min, galley, hint_text_color);
         }
 
         ui.memory().text_edit.insert(id, state);

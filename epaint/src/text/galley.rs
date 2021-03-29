@@ -23,8 +23,11 @@ use super::cursor::*;
 use emath::{pos2, NumExt, Rect, Vec2};
 
 /// A collection of text locked into place.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Galley {
+    /// The [`crate::TextStyle`] (font) used.
+    pub text_style: crate::TextStyle,
+
     /// The full text, including any an all `\n`.
     pub text: String,
 

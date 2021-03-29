@@ -79,7 +79,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     &fonts,
                     egui::Pos2::ZERO,
                     &galley,
-                    text_style,
                     egui::Color32::WHITE,
                     fake_italics,
                     &mut mesh,

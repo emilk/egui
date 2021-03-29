@@ -40,13 +40,13 @@ pub enum Shape {
         stroke: Stroke,
     },
     Text {
-        /// Top left corner of the first character.
+        /// Top left corner of the first character..
         pos: Pos2,
-        /// The layed out text
+        /// The layed out text.
         galley: Galley,
-        text_style: TextStyle, // TODO: Font?
+        /// Text color (foreground).
         color: Color32,
-        /// If true, tilt the letters for an ugly italics effect
+        /// If true, tilt the letters for a hacky italics effect.
         fake_italics: bool,
     },
     Mesh(Mesh),
@@ -137,7 +137,6 @@ impl Shape {
         Self::Text {
             pos: rect.min,
             galley,
-            text_style,
             color,
             fake_italics: false,
         }

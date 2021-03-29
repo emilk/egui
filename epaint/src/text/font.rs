@@ -7,7 +7,10 @@ use {
 
 use crate::{
     mutex::{Mutex, RwLock},
-    text::galley::{Galley, Row},
+    text::{
+        galley::{Galley, Row},
+        TextStyle,
+    },
     TextureAtlas,
 };
 use emath::{vec2, Vec2};
@@ -153,8 +156,8 @@ type FontIndex = usize;
 
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
-#[derive(Default)]
 pub struct Font {
+    text_style: TextStyle,
     fonts: Vec<Arc<FontImpl>>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
@@ -163,15 +166,23 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
+    pub fn new(text_style: TextStyle, fonts: Vec<Arc<FontImpl>>) -> Self {
         if fonts.is_empty() {
-            return Default::default();
+            return Self {
+                text_style,
+                fonts,
+                replacement_glyph: Default::default(),
+                pixels_per_point: 0.0,
+                row_height: 0.0,
+                glyph_info_cache: Default::default(),
+            };
         }
 
         let pixels_per_point = fonts[0].pixels_per_point();
         let row_height = fonts[0].row_height();
 
         let mut slf = Self {
+            text_style,
             fonts,
             replacement_glyph: Default::default(),
             pixels_per_point,
@@ -202,6 +213,11 @@ impl Font {
         slf.glyph_info('°');
 
         slf
+    }
+
+    #[inline(always)]
+    pub fn text_style(&self) -> TextStyle {
+        self.text_style
     }
 
     #[inline]
@@ -301,6 +317,7 @@ impl Font {
         let width = row.max_x();
         let size = vec2(width, self.row_height());
         let galley = Galley {
+            text_style: self.text_style,
             text,
             rows: vec![row],
             size,
@@ -391,7 +408,13 @@ impl Font {
         }
         let size = vec2(widest_row, rows.last().unwrap().y_max);
 
-        let galley = Galley { text, rows, size };
+        let text_style = self.text_style;
+        let galley = Galley {
+            text_style,
+            text,
+            rows,
+            size,
+        };
         galley.sanity_check();
         galley
     }

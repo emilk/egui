@@ -566,7 +566,6 @@ impl Tessellator {
             Shape::Text {
                 pos,
                 galley,
-                text_style,
                 color,
                 fake_italics,
             } => {
@@ -581,7 +580,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(fonts, pos, &galley, text_style, color, fake_italics, out);
+                self.tessellate_text(fonts, pos, &galley, color, fake_italics, out);
             }
         }
     }
@@ -622,7 +621,6 @@ impl Tessellator {
         fonts: &Fonts,
         pos: Pos2,
         galley: &super::Galley,
-        text_style: super::TextStyle,
         color: Color32,
         fake_italics: bool,
         out: &mut Mesh,
@@ -641,7 +639,7 @@ impl Tessellator {
 
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
-        let font = &fonts[text_style];
+        let font = &fonts[galley.text_style];
         let mut chars = galley.text.chars();
         for line in &galley.rows {
             let line_min_y = pos.y + line.y_min;

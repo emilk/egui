@@ -221,7 +221,7 @@ impl Fonts {
                     .map(|font_name| font_impl_cache.font_impl(font_name, scale_in_points))
                     .collect();
 
-                (text_style, Font::new(fonts))
+                (text_style, Font::new(text_style, fonts))
             })
             .collect();
 

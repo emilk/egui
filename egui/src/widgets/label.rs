@@ -163,7 +163,7 @@ impl Label {
 
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].row_height()
+        fonts.row_height(text_style)
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -234,9 +234,8 @@ impl Label {
             }
         }
 
-        let text_style = self.text_style_or_default(ui.style());
         ui.painter()
-            .galley_with_italics(pos, galley, text_style, text_color, italics);
+            .galley_with_italics(pos, galley, text_color, italics);
 
         ui.painter().extend(lines);
     }
