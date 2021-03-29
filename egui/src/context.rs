@@ -582,6 +582,8 @@ impl Context {
         self.memory()
             .end_frame(&self.input, &self.frame_state().used_ids);
 
+        self.fonts().end_frame();
+
         let mut output: Output = std::mem::take(&mut self.output());
         if self.repaint_requests.load(SeqCst) > 0 {
             self.repaint_requests.fetch_sub(1, SeqCst);
@@ -765,7 +767,7 @@ impl Context {
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
         ))
-        .on_hover_text("Is egui currently listening for text input");
+        .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "keyboard focus widget: {}",
             self.memory()
@@ -776,7 +778,14 @@ impl Context {
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
         ))
-        .on_hover_text("Is egui currently listening for text input");
+        .on_hover_text("Is egui currently listening for text input?");
+        ui.advance_cursor(16.0);
+
+        ui.label(format!(
+            "There are {} text galleys in the layout cache",
+            self.fonts().num_galleys_in_cache()
+        ))
+        .on_hover_text("This is approximately the number of text strings on screen");
         ui.advance_cursor(16.0);
 
         CollapsingHeader::new("📥 Input")
