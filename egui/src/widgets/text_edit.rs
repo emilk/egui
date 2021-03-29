@@ -515,7 +515,7 @@ impl<'t> TextEdit<'t> {
                         modifiers,
                     } => {
                         if multiline && ui.memory().has_lock_focus(id) {
-                            let [mut min, max] = cursorp.sorted();
+                            let [mut min, mut max] = cursorp.sorted();
 
                             if min.ccursor == max.ccursor {
                                 // Handle single line identation
@@ -527,8 +527,11 @@ impl<'t> TextEdit<'t> {
                                 }
                             } else {
                                 // Handle single line selection
-                                if min.rcursor.row == max.rcursor.row {
-                                    // replace selected content with identation
+                                if min.pcursor.paragraph == max.pcursor.paragraph {
+                                    min.ccursor = delete_selected(text, &cursorp);
+                                    max.ccursor = min.ccursor;
+
+                                    insert_identation(&mut min.ccursor, text, tab_as_spaces);
                                 } else {
                                     // Handle multiple selected lines
                                     if modifiers.shift {
