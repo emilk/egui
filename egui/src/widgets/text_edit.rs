@@ -514,20 +514,32 @@ impl<'t> TextEdit<'t> {
                         pressed: true,
                         modifiers,
                     } => {
-                        if multiline {
-                            let mut ccursor = delete_selected(text, &cursorp);
+                        if multiline && ui.memory().has_lock_focus(id) {
+                            let [mut min, max] = cursorp.sorted();
 
-                            if ui.memory().has_lock_focus(id) {
+                            if min.ccursor == max.ccursor {
+                                // Handle single line identation
                                 if modifiers.shift {
-                                    todo!("remove_identation");
-                                } else if tab_as_spaces {
-                                    todo!("insert_spaces_identation");
+                                    // convert identation to spaces or tabs, then delete identation at the end of identation block
                                 } else {
-                                    insert_text(&mut ccursor, text, "\t");
+                                    // insert identation at cursor
+                                    insert_identation(&mut min.ccursor, text, tab_as_spaces);
+                                }
+                            } else {
+                                // Handle single line selection
+                                if min.rcursor.row == max.rcursor.row {
+                                    // replace selected content with identation
+                                } else {
+                                    // Handle multiple selected lines
+                                    if modifiers.shift {
+                                        // convert identation to spaces or tabs, then delete identation from each selected line
+                                    } else {
+                                        // convert identation to spaces or tabs, then add identation to each slected line
+                                    }
                                 }
                             }
 
-                            Some(CCursorPair::one(ccursor))
+                            Some(CCursorPair::one(min.ccursor))
                         } else {
                             None
                         }
@@ -720,6 +732,24 @@ fn insert_text(ccursor: &mut CCursor, text: &mut String, text_to_insert: &str) {
     new_text += text_to_insert;
     new_text.extend(char_it);
     *text = new_text;
+}
+
+fn insert_identation(ccursor: &mut CCursor, text: &mut String, tab_as_spaces: bool) {
+     if tab_as_spaces {
+        let line_start = ccursor_paragraph_start(text, *ccursor);
+
+        let virtual_columns_count = virtual_columns_count(text::MAX_TAB_SIZE, text, line_start, *ccursor);
+        let mut spaces_to_insert = text::MAX_TAB_SIZE;
+        spaces_to_insert -= virtual_columns_count % text::MAX_TAB_SIZE;
+
+        for _ in 0..spaces_to_insert {
+            insert_text(ccursor, text, " ");
+        }
+
+        return;
+     }
+
+     insert_text(ccursor, text, "\t");
 }
 
 // ----------------------------------------------------------------------------
@@ -987,6 +1017,21 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorPair {
     }
 }
 
+fn ccursor_paragraph_start(text:& str, ccursor: CCursor) -> CCursor {
+    let num_chars = text.chars().count();
+    let line_start = text.chars()
+        .rev()
+        .skip(num_chars - ccursor.index)
+        .position(|x| x == '\n');
+
+    let line_start = match line_start {
+        Some(ls) => ccursor.index - ls,
+        None => 0
+    };
+
+    CCursor::new(line_start)
+}
+
 fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
         index: next_word_boundary_char_index(text.chars(), ccursor.index),
@@ -1025,5 +1070,61 @@ fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
+/// Virtal columns keep track of tabs and how many columns they are using
+fn virtual_columns_count(tab_size: usize, text: &str, line_start: CCursor, current_position: CCursor) -> usize {
+    text.chars()
+        .enumerate()
+        .skip(line_start.index)
+        .take_while(|(idx, _)| *idx < current_position.index)
+        .fold(0, |columns, (idx, x) | {
+            if x == '\t' {
+                columns + (tab_size - idx % tab_size)
+            } else {
+                columns + 1
+            }
+        })
+}
+
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_ccursor_line_start() {
+        let test = ccursor_paragraph_start("", CCursor::new(0));
+        assert_eq!(0, test.index);
+
+        let test = ccursor_paragraph_start("\n", CCursor::new(1));
+        assert_eq!(1, test.index);
+
+        let test = ccursor_paragraph_start("ASDF", CCursor::new(2));
+        assert_eq!(0, test.index);
+
+        let test = ccursor_paragraph_start("\nASDF", CCursor::new(3));
+        assert_eq!(1, test.index);
+
+        let test = ccursor_paragraph_start("\n\n\n", CCursor::new(2));
+        assert_eq!(2, test.index);
+    }
+
+    #[test]
+    fn test_identation_virtual_columns_count() {
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, "", CCursor::new(0), CCursor::new(0));
+        assert_eq!(0, test);
+
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, "   ", CCursor::new(0), CCursor::new(3));
+        assert_eq!(3, test);
+
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, "\t", CCursor::new(0), CCursor::new(1));
+        assert_eq!(text::MAX_TAB_SIZE, test);
+
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, " \t", CCursor::new(0), CCursor::new(2));
+        assert_eq!(text::MAX_TAB_SIZE, test);
+
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, "  \t", CCursor::new(0), CCursor::new(3));
+        assert_eq!(text::MAX_TAB_SIZE, test);
+
+        let test = virtual_columns_count(text::MAX_TAB_SIZE, "   \t", CCursor::new(0), CCursor::new(4));
+        assert_eq!(text::MAX_TAB_SIZE, test);
+    }
+}
