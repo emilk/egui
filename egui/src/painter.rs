@@ -302,14 +302,14 @@ impl Painter {
     }
 
     /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: Galley, color: Color32) {
+    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
         self.galley_with_italics(pos, galley, color, false)
     }
 
     pub fn galley_with_italics(
         &self,
         pos: Pos2,
-        galley: Galley,
+        galley: std::sync::Arc<Galley>,
         color: Color32,
         fake_italics: bool,
     ) {

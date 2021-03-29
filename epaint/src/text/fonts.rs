@@ -278,7 +278,7 @@ impl Fonts {
 
     /// Always returns at least one row.
     /// Will line break at `\n`.
-    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Galley {
+    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
         self.layout_multiline(text_style, text, f32::INFINITY)
     }
 
@@ -288,7 +288,7 @@ impl Fonts {
     ///
     /// Most often you probably want `\n` to produce a new row,
     /// and so [`Self::layout_no_wrap`] may be a better choice.
-    pub fn layout_single_line(&self, text_style: TextStyle, text: String) -> Galley {
+    pub fn layout_single_line(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
         self.galley_cache.lock().layout(
             &self.fonts,
             LayoutJob {
@@ -306,7 +306,7 @@ impl Fonts {
         text_style: TextStyle,
         text: String,
         max_width_in_points: f32,
-    ) -> Galley {
+    ) -> Arc<Galley> {
         self.layout_multiline_with_indentation_and_max_width(
             text_style,
             text,
@@ -324,7 +324,7 @@ impl Fonts {
         text: String,
         first_row_indentation: f32,
         max_width_in_points: f32,
-    ) -> Galley {
+    ) -> Arc<Galley> {
         self.galley_cache.lock().layout(
             &self.fonts,
             LayoutJob {
@@ -377,7 +377,7 @@ struct LayoutJob {
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
-    galley: Galley, // TODO: use an Arc instead!
+    galley: Arc<Galley>,
 }
 
 #[derive(Default)]
@@ -388,7 +388,7 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &BTreeMap<TextStyle, Font>, job: LayoutJob) -> Galley {
+    fn layout(&mut self, fonts: &BTreeMap<TextStyle, Font>, job: LayoutJob) -> Arc<Galley> {
         if let Some(cached) = self.cache.get_mut(&job) {
             cached.last_used = self.generation;
             cached.galley.clone()
@@ -410,6 +410,7 @@ impl GalleyCache {
                     max_width_in_points.into_inner(),
                 ),
             };
+            let galley = Arc::new(galley);
             self.cache.insert(
                 job,
                 CachedGalley {

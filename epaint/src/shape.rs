@@ -43,7 +43,7 @@ pub enum Shape {
         /// Top left corner of the first character..
         pos: Pos2,
         /// The layed out text.
-        galley: Galley,
+        galley: std::sync::Arc<Galley>,
         /// Text color (foreground).
         color: Color32,
         /// If true, tilt the letters for a hacky italics effect.

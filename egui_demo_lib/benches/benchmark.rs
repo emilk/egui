@@ -75,8 +75,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             egui::FontDefinitions::default(),
         );
         let font = &fonts[text_style];
-        c.bench_function("text layout", |b| {
+        c.bench_function("text layout (uncached)", |b| {
             b.iter(|| font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width))
+        });
+        c.bench_function("text layout (cached)", |b| {
+            b.iter(|| fonts.layout_multiline(text_style, LOREM_IPSUM_LONG.to_owned(), wrap_width))
         });
 
         let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
