@@ -222,6 +222,7 @@ impl Font {
             .and_then(|gi| gi.1.uv_rect)
     }
 
+    /// Width of this character in points.
     pub fn glyph_width(&self, c: char) -> f32 {
         self.glyph_info(c).1.advance_width
     }

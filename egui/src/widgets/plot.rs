@@ -649,8 +649,7 @@ impl Prepared {
 
             let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-            let font = &ui.fonts()[text_style];
-            let galley = font.layout_multiline(text, f32::INFINITY);
+            let galley = ui.fonts().layout_multiline(text_style, text, f32::INFINITY);
 
             let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 

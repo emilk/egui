@@ -132,8 +132,7 @@ impl Shape {
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let font = &fonts[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
+        let galley = fonts.layout_multiline(text_style, text.into(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,

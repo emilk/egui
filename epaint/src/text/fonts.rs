@@ -6,7 +6,10 @@ use std::{
 
 use crate::{
     mutex::Mutex,
-    text::font::{Font, FontImpl},
+    text::{
+        font::{Font, FontImpl},
+        Galley,
+    },
     Texture, TextureAtlas,
 };
 
@@ -258,6 +261,65 @@ impl Fonts {
         }
 
         buffered_texture.clone()
+    }
+
+    /// Width of this character in points.
+    pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
+        self.fonts[&text_style].glyph_width(c)
+    }
+
+    /// Height of one row of text. In points
+    pub fn row_height(&self, text_style: TextStyle) -> f32 {
+        self.fonts[&text_style].row_height()
+    }
+
+    /// Always returns at least one row.
+    /// Will line break at `\n`.
+    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Galley {
+        self.layout_multiline(text_style, text, f32::INFINITY)
+    }
+
+    /// Typeset the given text onto one row.
+    /// Any `\n` will show up as the replacement character.
+    /// Always returns exactly one `Row` in the `Galley`.
+    ///
+    /// Most often you probably want `\n` to produce a new row,
+    /// and so [`Self::layout_no_wrap`] may be a better choice.
+    pub fn layout_single_line(&self, text_style: TextStyle, text: String) -> Galley {
+        self.fonts[&text_style].layout_single_line(text)
+    }
+
+    /// Always returns at least one row.
+    /// Will wrap text at the given width.
+    pub fn layout_multiline(
+        &self,
+        text_style: TextStyle,
+        text: String,
+        max_width_in_points: f32,
+    ) -> Galley {
+        self.layout_multiline_with_indentation_and_max_width(
+            text_style,
+            text,
+            0.0,
+            max_width_in_points,
+        )
+    }
+
+    /// * `first_row_indentation`: extra space before the very first character (in points).
+    /// * `max_width_in_points`: wrapping width.
+    /// Always returns at least one row.
+    pub fn layout_multiline_with_indentation_and_max_width(
+        &self,
+        text_style: TextStyle,
+        text: String,
+        first_row_indentation: f32,
+        max_width_in_points: f32,
+    ) -> Galley {
+        self.fonts[&text_style].layout_multiline_with_indentation_and_max_width(
+            text,
+            first_row_indentation,
+            max_width_in_points,
+        )
     }
 }
 

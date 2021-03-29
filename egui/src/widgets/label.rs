@@ -150,13 +150,14 @@ impl Label {
 
     pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
         let text_style = self.text_style_or_default(ui.style());
-        let font = &ui.fonts()[text_style];
         let wrap_width = if self.should_wrap(ui) {
             max_width
         } else {
             f32::INFINITY
         };
-        let galley = font.layout_multiline(self.text.clone(), wrap_width); // TODO: avoid clone
+        let galley = ui
+            .fonts()
+            .layout_multiline(text_style, self.text.clone(), wrap_width); // TODO: avoid clone
         self.valign_galley(ui, text_style, galley)
     }
 
@@ -263,7 +264,7 @@ impl Label {
                 -2.0
             } else {
                 let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height();
-                let font_height = ui.fonts()[text_style].row_height();
+                let font_height = ui.fonts().row_height(text_style);
                 (normal_text_heigth - font_height) / 2.0 - 1.0 // center
 
                 // normal_text_heigth - font_height // align bottom
@@ -293,8 +294,8 @@ impl Widget for Label {
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
             let text_style = self.text_style_or_default(ui.style());
-            let font = &ui.fonts()[text_style];
-            let mut galley = font.layout_multiline_with_indentation_and_max_width(
+            let mut galley = ui.fonts().layout_multiline_with_indentation_and_max_width(
+                text_style,
                 self.text.clone(),
                 first_row_indentation,
                 max_width,

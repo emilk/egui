@@ -173,8 +173,9 @@ impl Painter {
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
         let text_style = TextStyle::Monospace;
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
+        let galley =
+            self.fonts()
+                .layout_multiline(text_style, format!("🔥 {}", text), f32::INFINITY);
         let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -291,8 +292,9 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
+        let galley = self
+            .fonts()
+            .layout_multiline(text_style, text.into(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley, text_style, text_color);
         rect

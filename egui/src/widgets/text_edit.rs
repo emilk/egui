@@ -300,13 +300,13 @@ impl<'t> TextEdit<'t> {
         } = self;
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
-        let font = &ui.fonts()[text_style];
-        let line_spacing = font.row_height();
+        let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
         let mut galley = if multiline {
-            font.layout_multiline(text.clone(), available_width)
+            ui.fonts()
+                .layout_multiline(text_style, text.clone(), available_width)
         } else {
-            font.layout_single_line(text.clone())
+            ui.fonts().layout_single_line(text_style, text.clone())
         };
 
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -481,11 +481,11 @@ impl<'t> TextEdit<'t> {
                     response.mark_changed();
 
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-                    let font = &ui.fonts()[text_style];
                     galley = if multiline {
-                        font.layout_multiline(text.clone(), available_width)
+                        ui.fonts()
+                            .layout_multiline(text_style, text.clone(), available_width)
                     } else {
-                        font.layout_single_line(text.clone())
+                        ui.fonts().layout_single_line(text_style, text.clone())
                     };
 
                     // Set cursorp using new galley:
@@ -517,11 +517,11 @@ impl<'t> TextEdit<'t> {
             .galley(response.rect.min, galley, text_style, text_color);
 
         if text.is_empty() && !hint_text.is_empty() {
-            let font = &ui.fonts()[text_style];
             let galley = if multiline {
-                font.layout_multiline(hint_text, available_width)
+                ui.fonts()
+                    .layout_multiline(text_style, hint_text, available_width)
             } else {
-                font.layout_single_line(hint_text)
+                ui.fonts().layout_single_line(text_style, hint_text)
             };
             let hint_text_color = ui.visuals().weak_text_color();
             ui.painter()

@@ -1245,9 +1245,8 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.wrap(|ui| {
-            let font = &ui.fonts()[text_style];
-            let row_height = font.row_height();
-            let space_width = font.glyph_width(' ');
+            let row_height = ui.fonts().row_height(text_style);
+            let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
@@ -1290,9 +1289,8 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.wrap(|ui| {
-            let font = &ui.fonts()[text_style];
-            let row_height = font.row_height();
-            let space_width = font.glyph_width(' ');
+            let row_height = ui.fonts().row_height(text_style);
+            let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
