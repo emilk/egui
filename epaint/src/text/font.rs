@@ -17,7 +17,7 @@ use emath::{vec2, Vec2};
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UvRect {
     /// X/Y offset for nice rendering (unit: points).
     pub offset: Vec2,
@@ -220,7 +220,7 @@ impl Font {
         self.text_style
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
@@ -310,6 +310,7 @@ impl Font {
         let x_offsets = self.layout_single_row_fragment(&text);
         let row = Row {
             x_offsets,
+            uv_rects: vec![], // will be filled in later
             y_min: 0.0,
             y_max: self.row_height(),
             ends_with_newline: false,
@@ -322,8 +323,7 @@ impl Font {
             rows: vec![row],
             size,
         };
-        galley.sanity_check();
-        galley
+        self.finalize_galley(galley)
     }
 
     /// Always returns at least one row.
@@ -389,6 +389,7 @@ impl Font {
         if text.is_empty() {
             rows.push(Row {
                 x_offsets: vec![first_row_indentation],
+                uv_rects: vec![],
                 y_min: cursor_y,
                 y_max: cursor_y + row_height,
                 ends_with_newline: false,
@@ -396,6 +397,7 @@ impl Font {
         } else if text.ends_with('\n') {
             rows.push(Row {
                 x_offsets: vec![0.0],
+                uv_rects: vec![],
                 y_min: cursor_y,
                 y_max: cursor_y + row_height,
                 ends_with_newline: false,
@@ -415,8 +417,7 @@ impl Font {
             rows,
             size,
         };
-        galley.sanity_check();
-        galley
+        self.finalize_galley(galley)
     }
 
     /// A paragraph is text with no line break character in it.
@@ -431,6 +432,7 @@ impl Font {
         if text.is_empty() {
             return vec![Row {
                 x_offsets: vec![first_row_indentation],
+                uv_rects: vec![],
                 y_min: 0.0,
                 y_max: self.row_height(),
                 ends_with_newline: false,
@@ -461,28 +463,26 @@ impl Font {
                 {
                     // Allow the first row to be completely empty, because we know there will be more space on the next row:
                     assert_eq!(row_start_idx, 0);
-                    let row = Row {
+                    out_rows.push(Row {
                         x_offsets: vec![first_row_indentation],
+                        uv_rects: vec![],
                         y_min: cursor_y,
                         y_max: cursor_y + self.row_height(),
                         ends_with_newline: false,
-                    };
-                    row.sanity_check();
-                    out_rows.push(row);
+                    });
                     cursor_y = self.round_to_pixel(cursor_y + self.row_height());
                     first_row_indentation = 0.0; // Continue all other rows as if there is no indentation
                 } else if let Some(last_kept_index) = row_break_candidates.get() {
-                    let row = Row {
+                    out_rows.push(Row {
                         x_offsets: full_x_offsets[row_start_idx..=last_kept_index + 1]
                             .iter()
                             .map(|x| first_row_indentation + x - row_start_x)
                             .collect(),
+                        uv_rects: vec![], // Will be filled in later!
                         y_min: cursor_y,
                         y_max: cursor_y + self.row_height(),
                         ends_with_newline: false,
-                    };
-                    row.sanity_check();
-                    out_rows.push(row);
+                    });
 
                     row_start_idx = last_kept_index + 1;
                     row_start_x = first_row_indentation + full_x_offsets[row_start_idx];
@@ -495,20 +495,38 @@ impl Font {
         }
 
         if row_start_idx + 1 < full_x_offsets.len() {
-            let row = Row {
+            out_rows.push(Row {
                 x_offsets: full_x_offsets[row_start_idx..]
                     .iter()
                     .map(|x| first_row_indentation + x - row_start_x)
                     .collect(),
+                uv_rects: vec![], // Will be filled in later!
                 y_min: cursor_y,
                 y_max: cursor_y + self.row_height(),
                 ends_with_newline: false,
-            };
-            row.sanity_check();
-            out_rows.push(row);
+            });
         }
 
         out_rows
+    }
+
+    fn finalize_galley(&self, mut galley: Galley) -> Galley {
+        let mut chars = galley.text.chars();
+        for row in &mut galley.rows {
+            row.uv_rects.clear();
+            row.uv_rects.reserve(row.char_count_excluding_newline());
+            for _ in 0..row.char_count_excluding_newline() {
+                let c = chars.next().unwrap();
+                row.uv_rects.push(self.uv_rect(c));
+            }
+            if row.ends_with_newline {
+                let newline = chars.next().unwrap();
+                assert_eq!(newline, '\n');
+            }
+        }
+        assert_eq!(chars.next(), None);
+        galley.sanity_check();
+        galley
     }
 }
 

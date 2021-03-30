@@ -19,7 +19,7 @@
 //! and the start of the second row.
 //! [`CCursor::prefer_next_row`] etc selects which.
 
-use super::cursor::*;
+use super::{cursor::*, font::UvRect};
 use emath::{pos2, NumExt, Rect, Vec2};
 
 /// A collection of text locked into place.
@@ -52,6 +52,9 @@ pub struct Row {
     /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
     pub x_offsets: Vec<f32>,
 
+    /// Per-character. Used when rendering.
+    pub uv_rects: Vec<Option<UvRect>>,
+
     /// Top of the row, offset within the Galley.
     /// Unit: points.
     pub y_min: f32,
@@ -71,6 +74,7 @@ pub struct Row {
 impl Row {
     pub fn sanity_check(&self) {
         assert!(!self.x_offsets.is_empty());
+        assert!(self.x_offsets.len() == self.uv_rects.len() + 1);
     }
 
     /// Excludes the implicit `\n` after the `Row`, if any.

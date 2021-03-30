@@ -634,36 +634,38 @@ impl Tessellator {
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);
 
-        let tex_w = fonts.texture().width as f32;
-        let tex_h = fonts.texture().height as f32;
+        let inv_tex_w = 1.0 / fonts.texture().width as f32;
+        let inv_tex_h = 1.0 / fonts.texture().height as f32;
 
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
-        let font = &fonts[galley.text_style];
-        let mut chars = galley.text.chars();
-        for line in &galley.rows {
-            let line_min_y = pos.y + line.y_min;
-            let line_max_y = line_min_y + font.row_height();
-            let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
+        for row in &galley.rows {
+            let row_min_y = pos.y + row.y_min;
+            let row_max_y = pos.y + row.y_max;
+            let is_line_visible = row_max_y >= clip_rect.min.y && row_min_y <= clip_rect.max.y;
 
-            for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
-                let c = chars.next().unwrap();
+            if self.options.coarse_tessellation_culling && !is_line_visible {
+                // culling individual lines of text is important, since a single `Shape::Text`
+                // can span hundreds of lines.
+                continue;
+            }
 
-                if self.options.coarse_tessellation_culling && !is_line_visible {
-                    // culling individual lines of text is important, since a single `Shape::Text`
-                    // can span hundreds of lines.
-                    continue;
-                }
-
-                if let Some(glyph) = font.uv_rect(c) {
-                    let mut left_top = pos + glyph.offset + vec2(*x_offset, line.y_min);
-                    left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
-                    left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
+            for (x_offset, uv_rect) in row.x_offsets.iter().zip(&row.uv_rects) {
+                if let Some(glyph) = uv_rect {
+                    let mut left_top = pos + glyph.offset + vec2(*x_offset, row.y_min);
+                    left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
+                    left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
 
                     let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
-                        pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
-                        pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
+                        pos2(
+                            glyph.min.0 as f32 * inv_tex_w,
+                            glyph.min.1 as f32 * inv_tex_h,
+                        ),
+                        pos2(
+                            glyph.max.0 as f32 * inv_tex_w,
+                            glyph.max.1 as f32 * inv_tex_h,
+                        ),
                     );
 
                     if fake_italics {
@@ -698,12 +700,7 @@ impl Tessellator {
                     }
                 }
             }
-            if line.ends_with_newline {
-                let newline = chars.next().unwrap();
-                debug_assert_eq!(newline, '\n');
-            }
         }
-        assert_eq!(chars.next(), None);
     }
 }
 
