@@ -75,11 +75,10 @@ impl Path {
             // Common case optimization:
             self.add_line_segment([points[0], points[1]]);
         } else {
-            // TODO: optimize
             self.reserve(n);
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
+            let mut n0 = (points[1] - points[0]).normalized().rot90();
             for i in 1..n - 1 {
-                let mut n0 = (points[i] - points[i - 1]).normalized().rot90();
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
                 // Handle duplicated points (but not triplicated...):
@@ -104,6 +103,8 @@ impl Path {
                     // miter join
                     self.add_point(points[i], normal / length_sq);
                 }
+
+                n0 = n1;
             }
             self.add_point(
                 points[n - 1],
@@ -117,10 +118,11 @@ impl Path {
         assert!(n >= 2);
         self.reserve(n);
 
-        // TODO: optimize
+        let mut n0 = (points[0] - points[n - 1]).normalized().rot90();
+
         for i in 0..n {
-            let mut n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
-            let mut n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
+            let next_i = if i + 1 == n { 0 } else { i + 1 };
+            let mut n1 = (points[next_i] - points[i]).normalized().rot90();
 
             // Handle duplicated points (but not triplicated...):
             if n0 == Vec2::ZERO {
@@ -144,6 +146,8 @@ impl Path {
                 // miter join
                 self.add_point(points[i], normal / length_sq);
             }
+
+            n0 = n1;
         }
     }
 }
@@ -291,7 +295,7 @@ fn fill_closed_path(
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
-            let dm = p1.normal * options.aa_size * 0.5;
+            let dm = 0.5 * options.aa_size * p1.normal;
             out.colored_vertex(p1.pos - dm, color);
             out.colored_vertex(p1.pos + dm, color_outer);
             out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);

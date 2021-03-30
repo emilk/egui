@@ -44,13 +44,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        ctx.memory().set_everything_is_visible(true); // give us everything
+        // ctx.memory().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);
         let (_, shapes) = ctx.end_frame();
 
-        c.bench_function("tessellate", |b| b.iter(|| ctx.tessellate(shapes.clone())));
+        c.bench_function("demo_windows_minimal_tessellate", |b| {
+            b.iter(|| ctx.tessellate(shapes.clone()))
+        });
     }
 
     {
