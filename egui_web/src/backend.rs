@@ -138,6 +138,7 @@ pub struct AppRunner {
     screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
     http: Arc<http::WebHttp>,
+    pub(crate) text_cursor: Option<egui::Pos2>,
 }
 
 impl AppRunner {
@@ -156,6 +157,7 @@ impl AppRunner {
             screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
+            text_cursor: None,
         })
     }
 
@@ -222,7 +224,7 @@ impl AppRunner {
         if self.web_backend.ctx.memory().options.screen_reader {
             self.screen_reader.speak(&egui_output.events_description());
         }
-        handle_output(&egui_output);
+        handle_output(&egui_output, self);
 
         {
             let epi::backend::AppOutput {
