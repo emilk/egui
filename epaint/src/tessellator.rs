@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use crate::{text::Fonts, *};
+use crate::*;
 use emath::*;
 use std::f32::consts::TAU;
 
@@ -229,7 +229,9 @@ use self::PathType::{Closed, Open};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct TessellationOptions {
-    /// Size of a pixel in points, e.g. 0.5
+    /// Size of a point in pixels, e.g. 2.0. Used to snap text to pixel boundaries.
+    pub pixels_per_point: f32,
+    /// Size of a pixel in points, e.g. 0.5, or larger if you want more blurry edges.
     pub aa_size: f32,
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
     /// By default this is enabled in release builds and disabled in debug builds.
@@ -247,6 +249,7 @@ pub struct TessellationOptions {
 impl Default for TessellationOptions {
     fn default() -> Self {
         Self {
+            pixels_per_point: 1.0,
             aa_size: 1.0,
             anti_alias: true,
             coarse_tessellation_culling: true,
@@ -254,6 +257,13 @@ impl Default for TessellationOptions {
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
         }
+    }
+}
+
+impl TessellationOptions {
+    #[inline(always)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 }
 
@@ -473,11 +483,11 @@ impl Tessellator {
     ///
     /// * `shape`: the shape to tessellate
     /// * `options`: tessellation quality
-    /// * `fonts`: font source when tessellating text
+    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
     /// * `out`: where the triangles are put
     /// * `scratchpad_path`: if you plan to run `tessellate_shape`
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Mesh) {
+    pub fn tessellate_shape(&mut self, tex_size: [usize; 2], shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
         let options = self.options;
 
@@ -485,7 +495,7 @@ impl Tessellator {
             Shape::Noop => {}
             Shape::Vec(vec) => {
                 for shape in vec {
-                    self.tessellate_shape(fonts, shape, out)
+                    self.tessellate_shape(tex_size, shape, out)
                 }
             }
             Shape::Circle {
@@ -580,7 +590,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(fonts, pos, &galley, color, fake_italics, out);
+                self.tessellate_text(tex_size, pos, &galley, color, fake_italics, out);
             }
         }
     }
@@ -615,10 +625,9 @@ impl Tessellator {
         stroke_path(&path.0, Closed, stroke, self.options, out);
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn tessellate_text(
         &mut self,
-        fonts: &Fonts,
+        tex_size: [usize; 2],
         pos: Pos2,
         galley: &super::Galley,
         color: Color32,
@@ -634,8 +643,8 @@ impl Tessellator {
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);
 
-        let inv_tex_w = 1.0 / fonts.texture().width as f32;
-        let inv_tex_h = 1.0 / fonts.texture().height as f32;
+        let inv_tex_w = 1.0 / tex_size[0] as f32;
+        let inv_tex_h = 1.0 / tex_size[1] as f32;
 
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
@@ -653,8 +662,8 @@ impl Tessellator {
             for (x_offset, uv_rect) in row.x_offsets.iter().zip(&row.uv_rects) {
                 if let Some(glyph) = uv_rect {
                     let mut left_top = pos + glyph.offset + vec2(*x_offset, row.y_min);
-                    left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
-                    left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
+                    left_top.x = self.options.round_to_pixel(left_top.x); // Pixel-perfection.
+                    left_top.y = self.options.round_to_pixel(left_top.y); // Pixel-perfection.
 
                     let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
@@ -711,14 +720,14 @@ impl Tessellator {
 ///
 /// * `shapes`: the shape to tessellate
 /// * `options`: tessellation quality
-/// * `fonts`: font source when tessellating text
+/// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
 ///
 /// ## Returns
 /// A list of clip rectangles with matching [`Mesh`].
 pub fn tessellate_shapes(
     shapes: Vec<ClippedShape>,
     options: TessellationOptions,
-    fonts: &Fonts,
+    tex_size: [usize; 2],
 ) -> Vec<ClippedMesh> {
     let mut tessellator = Tessellator::from_options(options);
 
@@ -736,14 +745,14 @@ pub fn tessellate_shapes(
 
         let out = &mut clipped_meshes.last_mut().unwrap().1;
         tessellator.clip_rect = clip_rect;
-        tessellator.tessellate_shape(fonts, shape, out);
+        tessellator.tessellate_shape(tex_size, shape, out);
     }
 
     if options.debug_paint_clip_rects {
         for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
             tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
-                fonts,
+                tex_size,
                 Shape::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,

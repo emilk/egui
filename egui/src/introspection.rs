@@ -124,6 +124,7 @@ impl Widget for &mut epaint::TessellationOptions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
+                pixels_per_point: _,
                 aa_size: _,
                 anti_alias,
                 coarse_tessellation_culling,

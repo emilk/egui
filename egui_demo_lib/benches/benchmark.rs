@@ -89,7 +89,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let fake_italics = false;
                 tessellator.tessellate_text(
-                    &fonts,
+                    fonts.texture().size(),
                     egui::Pos2::ZERO,
                     &galley,
                     egui::Color32::WHITE,

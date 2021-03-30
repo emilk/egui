@@ -12,6 +12,10 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn size(&self) -> [usize; 2] {
+        [self.width, self.height]
+    }
+
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
     pub fn srgba_pixels(&'_ self) -> impl Iterator<Item = super::Color32> + '_ {
         use super::Color32;

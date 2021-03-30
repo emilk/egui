@@ -602,10 +602,14 @@ impl Context {
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedMesh> {
         let mut tessellation_options = self.memory().options.tessellation_options;
+        tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations
-        let clipped_meshes =
-            tessellator::tessellate_shapes(shapes, tessellation_options, self.fonts());
+        let clipped_meshes = tessellator::tessellate_shapes(
+            shapes,
+            tessellation_options,
+            self.fonts().texture().size(),
+        );
         *self.paint_stats.lock() = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
     }
