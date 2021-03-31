@@ -24,8 +24,10 @@ egui = { version = "0.10.0", path = "../egui" }
 epi = { version = "0.10.0", path = "../epi" }
 
 # feature "http":
-image = { version = "0.23", default_features = false, features = ["jpeg", "png"], optional = true }
-syntect = { version = "4", default_features = false, features = ["default-fancy"], optional = true } # optional syntax highlighting
+image = { version = "0.23", default-features = false, features = ["jpeg", "png"], optional = true }
+
+# feature "syntax_highlighting":
+syntect = { version = "4", default-features = false, features = ["default-fancy"], optional = true }
 
 # feature "persistence":
 serde = { version = "1", features = ["derive"], optional = true }
@@ -37,6 +39,7 @@ criterion = { version = "0.3", default-features = false }
 default = []
 http = ["image", "epi/http"]
 persistence = ["epi/persistence", "serde"]
+syntax_highlighting = ["syntect"]
 
 [[bench]]
 name = "benchmark"

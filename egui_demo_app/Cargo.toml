@@ -18,4 +18,4 @@ default = ["persistence", "screen_reader"]
 http = ["eframe/http", "egui_demo_lib/http"]
 persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
 screen_reader = ["eframe/screen_reader"] # experimental
-syntect = ["egui_demo_lib/syntect"]
+syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
