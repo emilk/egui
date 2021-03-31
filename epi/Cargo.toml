@@ -20,7 +20,7 @@ include = [
 [lib]
 
 [dependencies]
-egui = { version = "0.11.0", path = "../egui" }
+egui = { version = "0.11.0", path = "../egui", default-features = false }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
