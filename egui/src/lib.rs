@@ -201,6 +201,15 @@
 //! }
 //! ```
 //!
+//! ## Sizes
+//! You can control the size of widgets using [`Ui::add_sized`].
+//!
+//! ```
+//! # let ui = &mut egui::Ui::__test();
+//! # let mut my_value = 0.0_f32;
+//! ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+//! ```
+//!
 //! ## Code snippets
 //!
 //! ```

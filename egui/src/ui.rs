@@ -781,6 +781,8 @@ impl Ui {
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
     ///
+    /// See also [`Self::add_sized`] and [`Self::put`].
+    ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_value = 42;
@@ -791,15 +793,26 @@ impl Ui {
         widget.ui(self)
     }
 
-    /// Add a [`Widget`] to this `Ui` with a given max size.
-    pub fn add_sized(&mut self, max_size: Vec2, widget: impl Widget) -> Response {
-        self.allocate_ui(max_size, |ui| {
+    /// Add a [`Widget`] to this `Ui` with a given size.
+    /// The widget will attempt to fit within the given size, but some widgets may overflow.
+    ///
+    /// See also [`Self::add`] and [`Self::put`].
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// # let mut my_value = 42;
+    /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+    /// ```
+    pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
+        self.allocate_ui(max_size.into(), |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
         .inner
     }
 
     /// Add a [`Widget`] to this `Ui` at a specific location (manual layout).
+    ///
+    /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.allocate_ui_at_rect(max_rect, |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
