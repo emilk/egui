@@ -56,19 +56,19 @@ impl epi::RepaintSignal for GliumRepaintSignal {
 }
 
 fn create_display(
-    title: &str,
-    initial_size_points: Option<Vec2>,
+    app: &dyn epi::App,
     window_settings: Option<WindowSettings>,
-    is_resizable: bool,
     window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_decorations(true)
-        .with_resizable(is_resizable)
-        .with_title(title)
+        .with_decorations(app.decorated())
+        .with_resizable(app.is_resizable())
+        .with_title(app.name())
         .with_window_icon(window_icon)
-        .with_transparent(false);
+        .with_transparent(app.transparent());
+
+    let initial_size_points = app.initial_window_size();
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
@@ -149,14 +149,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let icon = load_icon(app.icon_data());
-    let display = create_display(
-        app.name(),
-        app.initial_window_size(),
-        window_settings,
-        app.is_resizable(),
-        icon,
-        &event_loop,
-    );
+    let display = create_display(&*app, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),

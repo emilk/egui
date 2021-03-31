@@ -130,12 +130,27 @@ pub trait App {
     /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
-        egui::Color32::from_rgb(12, 12, 12).into()
+        // We use a bit of transparency so that if the user switches on the
+        // `transparent()` option they get immediate results.
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
 
     /// The application icon, e.g. in the Windows task bar etc.
     fn icon_data(&self) -> Option<IconData> {
         None
+    }
+
+    /// On desktop: add window decorations (i.e. a frame around your app)?
+    /// If false it will be difficult to move and resize the app.
+    fn decorated(&self) -> bool {
+        true
+    }
+
+    /// On desktop: make the window transparent.
+    /// You control the transparency with [`Self::clear_color()`].
+    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
+    fn transparent(&self) -> bool {
+        false
     }
 }
 

@@ -54,6 +54,14 @@ impl epi::App for WrapApp {
         self.backend_panel.max_size_points_active
     }
 
+    // Let's show off that we support transparent windows (on native):
+    fn transparent(&self) -> bool {
+        true
+    }
+    fn clear_color(&self) -> egui::Rgba {
+        egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
+    }
+
     fn warm_up_enabled(&self) -> bool {
         // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
         #[cfg(debug_assertions)]
