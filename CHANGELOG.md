@@ -16,7 +16,7 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
 * Add support for small and raised text.
 * Add `ui.set_row_height`.
-* Add `Visuals::debug_widgets` to debug layouting by hovering widgets.
+* Add `DebugOptions::show_widgets` to debug layouting by hovering widgets.
 * Add `ComboBox` to more easily customize combo boxes.
 * Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
 
@@ -210,7 +210,7 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
   * Undo edtis in a `TextEdit`.
   * You can now check if a `TextEdit` lost keyboard focus with `response.lost_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
-* You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
+* You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().debug.show_expand_width = true;`
 
 ### Changed 🔧
 * Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.

@@ -149,8 +149,8 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Rect, frame_rect: Rect, widget_rect: Rect) {
-        let debug_expand_width = self.style.visuals.debug_expand_width;
-        let debug_expand_height = self.style.visuals.debug_expand_height;
+        let debug_expand_width = self.style.debug.show_expand_width;
+        let debug_expand_height = self.style.debug.show_expand_height;
         if debug_expand_width || debug_expand_height {
             let rect = widget_rect;
             let too_wide = rect.width() > self.prev_col_width(self.col);

@@ -600,14 +600,14 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);
         }
 
-        let debug_expand_width = self.visuals().debug_expand_width;
-        let debug_expand_height = self.visuals().debug_expand_height;
+        let debug_expand_width = self.style().debug.show_expand_width;
+        let debug_expand_height = self.style().debug.show_expand_height;
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
@@ -665,7 +665,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);
@@ -710,7 +710,7 @@ impl Ui {
         self.placer
             .advance_after_rects(final_frame, final_child_rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(final_frame) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(final_frame) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
@@ -1396,7 +1396,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);
