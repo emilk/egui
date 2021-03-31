@@ -685,7 +685,9 @@ impl Context {
     /// Move all the graphics at the given layer.
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
-        self.graphics().list(layer_id).translate(delta);
+        if delta != Vec2::ZERO {
+            self.graphics().list(layer_id).lock().translate(delta);
+        }
     }
 
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
