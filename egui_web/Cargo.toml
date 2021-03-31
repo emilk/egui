@@ -41,7 +41,7 @@ http = [
   "web-sys/RequestMode",
   "web-sys/Response",
 ]
-persistence = ["serde", "serde_json"]
+persistence = ["egui/persistence", "serde", "serde_json"]
 screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]
@@ -57,7 +57,7 @@ features = [
   "DomRect",
   "Element",
   "Event",
-  "EventListener", 
+  "EventListener",
   "EventTarget",
   "FocusEvent",
   "HtmlCanvasElement",
