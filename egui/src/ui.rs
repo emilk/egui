@@ -532,7 +532,7 @@ impl Ui {
     ///
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
-    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
@@ -554,7 +554,7 @@ impl Ui {
     /// Returns a `Rect` with exactly what you asked for.
     ///
     /// The response rect will be larger if this is part of a justified layout or similar.
-    /// This means that iof this is a narrow widget in a wide justified layout, then
+    /// This means that if this is a narrow widget in a wide justified layout, then
     /// the widget will react to interactions outside the returned `Rect`.
     pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
         let response = self.allocate_response(desired_size, sense);
@@ -577,7 +577,7 @@ impl Ui {
     ///
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
-    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
@@ -809,7 +809,7 @@ impl Ui {
 
     /// Shortcut for `add(Label::new(text))`
     ///
-    /// Se also [`Label`].
+    /// See also [`Label`].
     pub fn label(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into())
     }
@@ -847,7 +847,7 @@ impl Ui {
 
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
-    /// Se also [`Hyperlink`].
+    /// See also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
     }
@@ -859,7 +859,7 @@ impl Ui {
     /// ui.hyperlink_to("egui on GitHub", "https://www.github.com/emilk/egui/");
     /// ```
     ///
-    /// Se also [`Hyperlink`].
+    /// See also [`Hyperlink`].
     pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url).text(label))
     }
@@ -869,16 +869,16 @@ impl Ui {
         self.text_edit_multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     ///
-    /// Se also [`TextEdit`].
+    /// See also [`TextEdit`].
     pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::singleline(text))
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     ///
-    /// Se also [`TextEdit`].
+    /// See also [`TextEdit`].
     pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::multiline(text))
     }
@@ -887,7 +887,7 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text))`
     ///
-    /// Se also [`Button`].
+    /// See also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
@@ -948,7 +948,7 @@ impl Ui {
 
     /// Show a label which can be selected or not.
     ///
-    /// Se also [`SelectableLabel`].
+    /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
         self.add(SelectableLabel::new(checked, text))
@@ -959,7 +959,7 @@ impl Ui {
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     ///
-    /// Se also [`SelectableLabel`].
+    /// See also [`SelectableLabel`].
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
