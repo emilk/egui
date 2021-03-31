@@ -697,12 +697,25 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        self.allocate_ui_with_layout(desired_size, *self.layout(), add_contents)
+    }
+
+    /// Allocated the given space and then adds content to that space.
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_ui_with_layout<R>(
+        &mut self,
+        desired_size: Vec2,
+        layout: Layout,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
         debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(child_rect, *self.layout());
+        let mut child_ui = self.child_ui(child_rect, layout);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -804,10 +817,10 @@ impl Ui {
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
-        self.allocate_ui(max_size.into(), |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).inner
-        })
-        .inner
+        // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
+        let layout = Layout::centered_and_justified(self.layout().main_dir());
+        self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
+            .inner
     }
 
     /// Add a [`Widget`] to this `Ui` at a specific location (manual layout).
