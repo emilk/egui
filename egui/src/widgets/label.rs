@@ -268,11 +268,11 @@ impl Label {
             let dy = if self.raised {
                 -2.0
             } else {
-                let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height();
+                let normal_text_height = ui.fonts()[TextStyle::Body].row_height();
                 let font_height = ui.fonts().row_height(text_style);
-                (normal_text_heigth - font_height) / 2.0 - 1.0 // center
+                (normal_text_height - font_height) / 2.0 - 1.0 // center
 
-                // normal_text_heigth - font_height // align bottom
+                // normal_text_height - font_height // align bottom
             };
 
             if dy != 0.0 {

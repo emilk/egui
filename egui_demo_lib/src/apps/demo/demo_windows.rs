@@ -83,8 +83,6 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoWindows {
     open_windows: OpenWindows,
-
-    /// open, title, view
     demos: Demos,
 }
 
@@ -115,6 +113,10 @@ impl DemoWindows {
 
                 ui.heading("Windows:");
                 self.demos.checkboxes(ui);
+
+                ui.separator();
+
+                ui.label("egui:");
                 self.open_windows.checkboxes(ui);
 
                 ui.separator();
@@ -209,8 +211,6 @@ impl OpenWindows {
             memory,
         } = self;
 
-        ui.separator();
-        ui.label("egui:");
         ui.checkbox(settings, "🔧 Settings");
         ui.checkbox(inspection, "🔍 Inspection");
         ui.checkbox(memory, "📝 Memory");

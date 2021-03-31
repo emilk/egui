@@ -1000,9 +1000,9 @@ impl Ui {
         response
     }
 
-    /// Shortcut for `add(Separator::new())` (see [`Separator`]).
+    /// Shortcut for `add(Separator::default())` (see [`Separator`]).
     pub fn separator(&mut self) -> Response {
-        self.add(Separator::new())
+        self.add(Separator::default())
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.

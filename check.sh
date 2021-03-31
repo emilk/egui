@@ -13,7 +13,7 @@ CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --all-features --  -D
 cargo test --workspace --all-targets --all-features
 cargo fmt --all -- --check
 
-# TODO: doesn't error, but at least prints a warning.
+# TODO: make cargo doc produce a proper error (it only prints a warning at the moment).
 cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_glium --lib --no-deps
 cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps
 

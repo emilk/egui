@@ -24,7 +24,7 @@ pub struct InputState {
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
 
     /// Time in seconds. Relative to whatever. Used for animation.
@@ -79,7 +79,7 @@ impl InputState {
         let unstable_dt = (time - self.time) as f32;
         let screen_rect = new.screen_rect.unwrap_or_else(|| {
             if new.screen_size != Default::default() {
-                Rect::from_min_size(Default::default(), new.screen_size) // backwards compatability
+                Rect::from_min_size(Default::default(), new.screen_size) // backwards compatibility
             } else {
                 self.screen_rect
             }
@@ -159,7 +159,7 @@ impl InputState {
         })
     }
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
@@ -257,8 +257,6 @@ pub struct PointerState {
     /// Used to check for double-clicks.
     last_click_time: f64,
 
-    // /// All clicks that occurred this frame
-    // clicks: Vec<Click>,
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 }

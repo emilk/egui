@@ -43,6 +43,7 @@ pub struct Response {
     /// The pointer clicked this thing this frame.
     pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
 
+    // TODO: `released` for sliders
     /// The thing was double-clicked.
     pub(crate) double_clicked: [bool; NUM_POINTER_BUTTONS],
 
