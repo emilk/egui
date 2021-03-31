@@ -102,21 +102,21 @@ fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 #[cfg(feature = "persistence")]
 fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
     if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
-        let data_dir = proj_dirs.data_dir().to_path_buf();
-        if let Err(err) = std::fs::create_dir_all(&data_dir) {
+        let config_dir = proj_dirs.config_dir().to_path_buf();
+        if let Err(err) = std::fs::create_dir_all(&config_dir) {
             eprintln!(
                 "Saving disabled: Failed to create app path at {:?}: {}",
-                data_dir, err
+                config_dir, err
             );
             None
         } else {
-            let mut config_dir = data_dir;
-            config_dir.push("app.json");
-            let storage = crate::persistence::FileStorage::from_path(config_dir);
+            let mut config_file_path = config_dir;
+            config_file_path.push("app.json");
+            let storage = crate::persistence::FileStorage::from_path(config_file_path);
             Some(Box::new(storage))
         }
     } else {
-        eprintln!("Saving disabled: Failed to find path to data_dir.");
+        eprintln!("Saving disabled: Failed to find path to config_dir.");
         None
     }
 }
