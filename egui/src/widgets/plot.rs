@@ -22,6 +22,7 @@ pub struct Value {
 }
 
 impl Value {
+    #[inline(always)]
     pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
         Self {
             x: x.into(),

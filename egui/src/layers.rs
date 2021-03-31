@@ -34,6 +34,7 @@ impl Order {
         Self::Debug,
     ];
 
+    #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         match self {
             Self::Background | Self::Middle | Self::Foreground | Self::Debug => true,
@@ -70,6 +71,7 @@ impl LayerId {
         }
     }
 
+    #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }
@@ -84,11 +86,13 @@ pub struct ShapeIdx(usize);
 pub struct PaintList(Vec<ClippedShape>);
 
 impl PaintList {
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
+    #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
         self.0.push(ClippedShape(clip_rect, shape));
@@ -107,8 +111,8 @@ impl PaintList {
     ///
     /// The solution is to allocate a `Shape` using `let idx = paint_list.add(cr, Shape::Noop);`
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
+    #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
-        assert!(idx.0 < self.0.len());
         self.0[idx.0] = ClippedShape(clip_rect, shape);
     }
 

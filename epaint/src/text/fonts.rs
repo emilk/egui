@@ -1,8 +1,10 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     hash::{Hash, Hasher},
     sync::Arc,
 };
+
+use ahash::AHashMap;
 
 use crate::{
     mutex::Mutex,
@@ -390,7 +392,7 @@ struct CachedGalley {
 struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
-    cache: HashMap<LayoutJob, CachedGalley>,
+    cache: AHashMap<LayoutJob, CachedGalley>,
 }
 
 impl GalleyCache {

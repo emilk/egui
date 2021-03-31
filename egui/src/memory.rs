@@ -299,6 +299,7 @@ impl Memory {
         self.interaction.focus.id = Some(id);
     }
 
+    #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
         if self.interaction.focus.id == Some(id) {
             self.interaction.focus.id = None;
@@ -307,6 +308,7 @@ impl Memory {
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
+    #[inline(always)]
     pub(crate) fn interested_in_focus(&mut self, id: Id) {
         self.interaction.focus.interested_in_focus(id);
     }
@@ -360,6 +362,7 @@ impl Memory {
     /// This is useful for testing, benchmarking, pre-caching, etc.
     ///
     /// Experimental feature!
+    #[inline(always)]
     pub fn everything_is_visible(&self) -> bool {
         self.everything_is_visible
     }

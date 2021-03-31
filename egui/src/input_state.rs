@@ -393,28 +393,33 @@ impl PointerState {
     }
 
     /// How much the pointer moved compared to last frame, in points.
+    #[inline(always)]
     pub fn delta(&self) -> Vec2 {
         self.delta
     }
 
     /// Current velocity of pointer.
+    #[inline(always)]
     pub fn velocity(&self) -> Vec2 {
         self.velocity
     }
 
     /// Where did the current click/drag originate?
     /// `None` if no mouse button is down.
+    #[inline(always)]
     pub fn press_origin(&self) -> Option<Pos2> {
         self.press_origin
     }
 
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
+    #[inline(always)]
     pub(crate) fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
+    #[inline(always)]
     pub fn hover_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
@@ -424,6 +429,7 @@ impl PointerState {
     /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
     /// if there were interactions this frame.
     /// When tapping a touch screen, this will be the location of the touch.
+    #[inline(always)]
     pub fn interact_pos(&self) -> Option<Pos2> {
         self.interact_pos
     }
@@ -431,12 +437,14 @@ impl PointerState {
     /// Do we have a pointer?
     ///
     /// `false` if the mouse is not over the egui area, or if no touches are down on touch screens.
+    #[inline(always)]
     pub fn has_pointer(&self) -> bool {
         self.latest_pos.is_some()
     }
 
     /// Is the pointer currently still?
     /// This is smoothed so a few frames of stillness is required before this returns `true`.
+    #[inline(always)]
     pub fn is_still(&self) -> bool {
         self.velocity == Vec2::ZERO
     }

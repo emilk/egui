@@ -385,6 +385,7 @@ impl Context {
         self.repaint_requests.store(times_to_repaint, SeqCst);
     }
 
+    #[inline(always)]
     pub fn input(&self) -> &InputState {
         &self.input
     }

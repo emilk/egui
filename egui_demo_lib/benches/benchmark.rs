@@ -19,7 +19,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
 
-        c.bench_function("demo_windows_minimal (no tesselation)", |b| {
+        c.bench_function("demo_windows_minimal_no_tesselation", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
