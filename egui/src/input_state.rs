@@ -33,7 +33,7 @@ pub struct InputState {
     /// Time since last frame, in seconds.
     ///
     /// This can be very unstable in reactive mode (when we don't paint each frame)
-    /// so it can be smart ot use e.g. `unstable_dt.min(1.0 / 30.0)`.
+    /// so it can be smart to use e.g. `unstable_dt.min(1.0 / 30.0)`.
     pub unstable_dt: f32,
 
     /// Used for animations to get instant feedback (avoid frame delay).

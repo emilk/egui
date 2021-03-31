@@ -106,7 +106,7 @@ impl CCursorPair {
 
 /// A text region that the user can edit the contents of.
 ///
-/// Se also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
+/// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
 ///
 /// Example:
 ///
@@ -151,7 +151,7 @@ impl<'t> TextEdit<'t> {
         Self::multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut String) -> Self {
         TextEdit {
             text,
