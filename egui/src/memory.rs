@@ -18,10 +18,13 @@ use epaint::color::{Color32, Hsva};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
-    pub(crate) options: Options,
+    pub options: Options,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
+
+    /// new fonts that will be applied at the start of the next frame
+    pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
@@ -61,17 +64,21 @@ pub struct Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Some global options that you can read and write.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct Options {
+pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
     pub(crate) tessellation_options: epaint::TessellationOptions,
-    /// Font sizes etc.
-    pub(crate) font_definitions: epaint::text::FontDefinitions,
+
+    /// This does not at all change the behavior of egui,
+    /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
+    /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    pub screen_reader: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -314,6 +321,7 @@ impl Memory {
         self.interaction.focus.is_focus_locked = false;
     }
 
+    #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
         if self.interaction.focus.id == Some(id) {
             self.interaction.focus.id = None;
@@ -323,6 +331,7 @@ impl Memory {
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
+    #[inline(always)]
     pub(crate) fn interested_in_focus(&mut self, id: Id) {
         self.interaction.focus.interested_in_focus(id);
     }
@@ -376,6 +385,7 @@ impl Memory {
     /// This is useful for testing, benchmarking, pre-caching, etc.
     ///
     /// Experimental feature!
+    #[inline(always)]
     pub fn everything_is_visible(&self) -> bool {
         self.everything_is_visible
     }

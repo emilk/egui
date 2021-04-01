@@ -1,14 +1,9 @@
 use egui::{containers::*, *};
 
+#[derive(Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct DancingStrings {}
-
-impl Default for DancingStrings {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl super::Demo for DancingStrings {
     fn name(&self) -> &'static str {

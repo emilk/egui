@@ -56,19 +56,19 @@ impl epi::RepaintSignal for GliumRepaintSignal {
 }
 
 fn create_display(
-    title: &str,
-    initial_size_points: Option<Vec2>,
+    app: &dyn epi::App,
     window_settings: Option<WindowSettings>,
-    is_resizable: bool,
     window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_decorations(true)
-        .with_resizable(is_resizable)
-        .with_title(title)
+        .with_decorations(app.decorated())
+        .with_resizable(app.is_resizable())
+        .with_title(app.name())
         .with_window_icon(window_icon)
-        .with_transparent(false);
+        .with_transparent(app.transparent());
+
+    let initial_size_points = app.initial_window_size();
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
@@ -149,14 +149,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let icon = load_icon(app.icon_data());
-    let display = create_display(
-        app.name(),
-        app.initial_window_size(),
-        window_settings,
-        app.is_resizable(),
-        icon,
-        &event_loop,
-    );
+    let display = create_display(&*app, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -212,7 +205,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
         set_cursor_icon(&display, egui_output.cursor_icon);
         current_cursor_icon = egui_output.cursor_icon;
-        handle_output(egui_output, clipboard.as_mut());
+        handle_output(egui_output, clipboard.as_mut(), &display);
 
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
@@ -280,14 +273,16 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 };
             }
 
-            screen_reader.speak(&egui_output.events_description());
+            if ctx.memory().options.screen_reader {
+                screen_reader.speak(&egui_output.events_description());
+            }
             if current_cursor_icon != egui_output.cursor_icon {
                 // call only when changed to prevent flickering near frame boundary
                 // when Windows OS tries to control cursor icon for window resizing
                 set_cursor_icon(&display, egui_output.cursor_icon);
                 current_cursor_icon = egui_output.cursor_icon;
             }
-            handle_output(egui_output, clipboard.as_mut());
+            handle_output(egui_output, clipboard.as_mut(), &display);
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {

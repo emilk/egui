@@ -25,8 +25,8 @@ pub struct RawInput {
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
-    /// If text looks blurry on high resolution screens, you probably forgot to set this.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
+    /// If text looks blurry you probably forgot to set this.
     /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
 

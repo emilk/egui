@@ -100,19 +100,27 @@ impl Color32 {
         Self([l, l, l, 0])
     }
 
+    #[inline(always)]
     pub fn is_opaque(&self) -> bool {
         self.a() == 255
     }
 
+    #[inline(always)]
     pub fn r(&self) -> u8 {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn g(&self) -> u8 {
         self.0[1]
     }
+
+    #[inline(always)]
     pub fn b(&self) -> u8 {
         self.0[2]
     }
+
+    #[inline(always)]
     pub fn a(&self) -> u8 {
         self.0[3]
     }
@@ -129,11 +137,13 @@ impl Color32 {
     }
 
     /// Premultiplied RGBA
+    #[inline(always)]
     pub fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
+    #[inline(always)]
     pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
@@ -212,6 +222,7 @@ impl Rgba {
     }
 
     /// Multiply with e.g. 0.5 to make us half transparent
+    #[inline(always)]
     pub fn multiply(self, alpha: f32) -> Self {
         Self([
             alpha * self[0],
@@ -221,15 +232,22 @@ impl Rgba {
         ])
     }
 
+    #[inline(always)]
     pub fn r(&self) -> f32 {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn g(&self) -> f32 {
         self.0[1]
     }
+
+    #[inline(always)]
     pub fn b(&self) -> f32 {
         self.0[2]
     }
+
+    #[inline(always)]
     pub fn a(&self) -> f32 {
         self.0[3]
     }
@@ -258,6 +276,8 @@ impl Rgba {
 
 impl std::ops::Add for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn add(self, rhs: Rgba) -> Rgba {
         Rgba([
             self[0] + rhs[0],
@@ -270,6 +290,8 @@ impl std::ops::Add for Rgba {
 
 impl std::ops::Mul<Rgba> for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, other: Rgba) -> Rgba {
         Rgba([
             self[0] * other[0],
@@ -282,6 +304,8 @@ impl std::ops::Mul<Rgba> for Rgba {
 
 impl std::ops::Mul<f32> for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, factor: f32) -> Rgba {
         Rgba([
             self[0] * factor,
@@ -294,6 +318,8 @@ impl std::ops::Mul<f32> for Rgba {
 
 impl std::ops::Mul<Rgba> for f32 {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, rgba: Rgba) -> Rgba {
         Rgba([
             self * rgba[0],

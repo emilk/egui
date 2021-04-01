@@ -23,24 +23,28 @@ pub const fn vec2(x: f32, y: f32) -> Vec2 {
 // Compatibility and convenience conversions to and from [f32; 2]:
 
 impl From<[f32; 2]> for Vec2 {
+    #[inline(always)]
     fn from(v: [f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
     }
 }
 
 impl From<&[f32; 2]> for Vec2 {
+    #[inline(always)]
     fn from(v: &[f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
     }
 }
 
 impl From<Vec2> for [f32; 2] {
+    #[inline(always)]
     fn from(v: Vec2) -> Self {
         [v.x, v.y]
     }
 }
 
 impl From<&Vec2> for [f32; 2] {
+    #[inline(always)]
     fn from(v: &Vec2) -> Self {
         [v.x, v.y]
     }
@@ -50,24 +54,28 @@ impl From<&Vec2> for [f32; 2] {
 // Compatibility and convenience conversions to and from (f32, f32):
 
 impl From<(f32, f32)> for Vec2 {
+    #[inline(always)]
     fn from(v: (f32, f32)) -> Self {
         Self { x: v.0, y: v.1 }
     }
 }
 
 impl From<&(f32, f32)> for Vec2 {
+    #[inline(always)]
     fn from(v: &(f32, f32)) -> Self {
         Self { x: v.0, y: v.1 }
     }
 }
 
 impl From<Vec2> for (f32, f32) {
+    #[inline(always)]
     fn from(v: Vec2) -> Self {
         (v.x, v.y)
     }
 }
 
 impl From<&Vec2> for (f32, f32) {
+    #[inline(always)]
     fn from(v: &Vec2) -> Self {
         (v.x, v.y)
     }
@@ -92,16 +100,20 @@ impl Vec2 {
         Self::INFINITY
     }
 
+    #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
     /// Set both `x` and `y` to the same value.
+    #[inline(always)]
     pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
     }
 
+    /// Safe normalize: returns zero if input is zero.
     #[must_use]
+    #[inline(always)]
     pub fn normalized(self) -> Self {
         let len = self.length();
         if len <= 0.0 {
@@ -118,10 +130,12 @@ impl Vec2 {
         vec2(self.y, -self.x)
     }
 
+    #[inline(always)]
     pub fn length(self) -> f32 {
         self.x.hypot(self.y)
     }
 
+    #[inline(always)]
     pub fn length_sq(self) -> f32 {
         self.x * self.x + self.y * self.y
     }
@@ -129,6 +143,7 @@ impl Vec2 {
     /// Create a unit vector with the given angle (in radians).
     /// * An angle of zero gives the unit X axis.
     /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
+    #[inline(always)]
     pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
     }
@@ -191,6 +206,7 @@ impl Vec2 {
 
 impl std::ops::Index<usize> for Vec2 {
     type Output = f32;
+
     fn index(&self, index: usize) -> &f32 {
         match index {
             0 => &self.x,
@@ -215,12 +231,14 @@ impl Eq for Vec2 {}
 impl Neg for Vec2 {
     type Output = Vec2;
 
+    #[inline(always)]
     fn neg(self) -> Vec2 {
         vec2(-self.x, -self.y)
     }
 }
 
 impl AddAssign for Vec2 {
+    #[inline(always)]
     fn add_assign(&mut self, rhs: Vec2) {
         *self = Vec2 {
             x: self.x + rhs.x,
@@ -230,6 +248,7 @@ impl AddAssign for Vec2 {
 }
 
 impl SubAssign for Vec2 {
+    #[inline(always)]
     fn sub_assign(&mut self, rhs: Vec2) {
         *self = Vec2 {
             x: self.x - rhs.x,
@@ -240,6 +259,8 @@ impl SubAssign for Vec2 {
 
 impl Add for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn add(self, rhs: Vec2) -> Vec2 {
         Vec2 {
             x: self.x + rhs.x,
@@ -250,6 +271,8 @@ impl Add for Vec2 {
 
 impl Sub for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn sub(self, rhs: Vec2) -> Vec2 {
         Vec2 {
             x: self.x - rhs.x,
@@ -261,6 +284,8 @@ impl Sub for Vec2 {
 /// Element-wise multiplication
 impl Mul<Vec2> for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn mul(self, vec: Vec2) -> Vec2 {
         Vec2 {
             x: self.x * vec.x,
@@ -272,6 +297,8 @@ impl Mul<Vec2> for Vec2 {
 /// Element-wise division
 impl Div<Vec2> for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn div(self, rhs: Vec2) -> Vec2 {
         Vec2 {
             x: self.x / rhs.x,
@@ -281,6 +308,7 @@ impl Div<Vec2> for Vec2 {
 }
 
 impl MulAssign<f32> for Vec2 {
+    #[inline(always)]
     fn mul_assign(&mut self, rhs: f32) {
         self.x *= rhs;
         self.y *= rhs;
@@ -289,6 +317,8 @@ impl MulAssign<f32> for Vec2 {
 
 impl Mul<f32> for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn mul(self, factor: f32) -> Vec2 {
         Vec2 {
             x: self.x * factor,
@@ -299,6 +329,8 @@ impl Mul<f32> for Vec2 {
 
 impl Mul<Vec2> for f32 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn mul(self, vec: Vec2) -> Vec2 {
         Vec2 {
             x: self * vec.x,
@@ -309,6 +341,8 @@ impl Mul<Vec2> for f32 {
 
 impl Div<f32> for Vec2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn div(self, factor: f32) -> Vec2 {
         Vec2 {
             x: self.x / factor,

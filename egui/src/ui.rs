@@ -532,7 +532,7 @@ impl Ui {
     ///
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
-    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
@@ -554,7 +554,7 @@ impl Ui {
     /// Returns a `Rect` with exactly what you asked for.
     ///
     /// The response rect will be larger if this is part of a justified layout or similar.
-    /// This means that iof this is a narrow widget in a wide justified layout, then
+    /// This means that if this is a narrow widget in a wide justified layout, then
     /// the widget will react to interactions outside the returned `Rect`.
     pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
         let response = self.allocate_response(desired_size, sense);
@@ -577,7 +577,7 @@ impl Ui {
     ///
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
-    /// When asking for space, ask AT LEAST for you minimum, and don't ask for more than you need.
+    /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
     /// If you want to fill the space, ask about `available().size()` and use that.
     ///
     /// You may get MORE space than you asked for, for instance
@@ -600,14 +600,14 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);
         }
 
-        let debug_expand_width = self.visuals().debug_expand_width;
-        let debug_expand_height = self.visuals().debug_expand_height;
+        let debug_expand_width = self.style().debug.show_expand_width;
+        let debug_expand_height = self.style().debug.show_expand_height;
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
@@ -665,7 +665,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);
@@ -697,12 +697,25 @@ impl Ui {
         desired_size: Vec2,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        self.allocate_ui_with_layout(desired_size, *self.layout(), add_contents)
+    }
+
+    /// Allocated the given space and then adds content to that space.
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_ui_with_layout<R>(
+        &mut self,
+        desired_size: Vec2,
+        layout: Layout,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
         debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(child_rect, *self.layout());
+        let mut child_ui = self.child_ui(child_rect, layout);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -710,7 +723,7 @@ impl Ui {
         self.placer
             .advance_after_rects(final_frame, final_child_rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(final_frame) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(final_frame) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
@@ -781,25 +794,38 @@ impl Ui {
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
     ///
+    /// See also [`Self::add_sized`] and [`Self::put`].
+    ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_value = 42;
-    /// let response = ui.add(egui::Slider::i32(&mut my_value, 0..=100));
+    /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
     /// response.on_hover_text("Drag me!");
     /// ```
     pub fn add(&mut self, widget: impl Widget) -> Response {
         widget.ui(self)
     }
 
-    /// Add a [`Widget`] to this `Ui` with a given max size.
-    pub fn add_sized(&mut self, max_size: Vec2, widget: impl Widget) -> Response {
-        self.allocate_ui(max_size, |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).inner
-        })
-        .inner
+    /// Add a [`Widget`] to this `Ui` with a given size.
+    /// The widget will attempt to fit within the given size, but some widgets may overflow.
+    ///
+    /// See also [`Self::add`] and [`Self::put`].
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// # let mut my_value = 42;
+    /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+    /// ```
+    pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
+        // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
+        let layout = Layout::centered_and_justified(self.layout().main_dir());
+        self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
+            .inner
     }
 
     /// Add a [`Widget`] to this `Ui` at a specific location (manual layout).
+    ///
+    /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.allocate_ui_at_rect(max_rect, |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
@@ -809,7 +835,7 @@ impl Ui {
 
     /// Shortcut for `add(Label::new(text))`
     ///
-    /// Se also [`Label`].
+    /// See also [`Label`].
     pub fn label(&mut self, label: impl Into<Label>) -> Response {
         self.add(label.into())
     }
@@ -847,7 +873,7 @@ impl Ui {
 
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
-    /// Se also [`Hyperlink`].
+    /// See also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url))
     }
@@ -859,7 +885,7 @@ impl Ui {
     /// ui.hyperlink_to("egui on GitHub", "https://www.github.com/emilk/egui/");
     /// ```
     ///
-    /// Se also [`Hyperlink`].
+    /// See also [`Hyperlink`].
     pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
         self.add(Hyperlink::new(url).text(label))
     }
@@ -869,16 +895,16 @@ impl Ui {
         self.text_edit_multiline(text)
     }
 
-    /// Now newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` loosing focus (`response.lost_focus`).
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     ///
-    /// Se also [`TextEdit`].
+    /// See also [`TextEdit`].
     pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::singleline(text))
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     ///
-    /// Se also [`TextEdit`].
+    /// See also [`TextEdit`].
     pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
         self.add(TextEdit::multiline(text))
     }
@@ -908,7 +934,7 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text))`
     ///
-    /// Se also [`Button`].
+    /// See also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
         self.add(Button::new(text))
@@ -969,7 +995,7 @@ impl Ui {
 
     /// Show a label which can be selected or not.
     ///
-    /// Se also [`SelectableLabel`].
+    /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
         self.add(SelectableLabel::new(checked, text))
@@ -980,7 +1006,7 @@ impl Ui {
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     ///
-    /// Se also [`SelectableLabel`].
+    /// See also [`SelectableLabel`].
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
@@ -995,9 +1021,9 @@ impl Ui {
         response
     }
 
-    /// Shortcut for `add(Separator::new())` (see [`Separator`]).
+    /// Shortcut for `add(Separator::default())` (see [`Separator`]).
     pub fn separator(&mut self) -> Response {
-        self.add(Separator::new())
+        self.add(Separator::default())
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
@@ -1006,7 +1032,7 @@ impl Ui {
         #![allow(clippy::float_cmp)]
 
         let mut degrees = radians.to_degrees();
-        let mut response = self.add(DragValue::f32(&mut degrees).speed(1.0).suffix("°"));
+        let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
@@ -1027,7 +1053,7 @@ impl Ui {
 
         let mut taus = *radians / TAU;
         let mut response = self
-            .add(DragValue::f32(&mut taus).speed(0.01).suffix("τ"))
+            .add(DragValue::new(&mut taus).speed(0.01).suffix("τ"))
             .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
 
         // only touch `*radians` if we actually changed the value
@@ -1266,9 +1292,8 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.wrap(|ui| {
-            let font = &ui.fonts()[text_style];
-            let row_height = font.row_height();
-            let space_width = font.glyph_width(' ');
+            let row_height = ui.fonts().row_height(text_style);
+            let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
@@ -1311,9 +1336,8 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.wrap(|ui| {
-            let font = &ui.fonts()[text_style];
-            let row_height = font.row_height();
-            let space_width = font.glyph_width(' ');
+            let row_height = ui.fonts().row_height(text_style);
+            let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
             spacing.interact_size.y = row_height;
             spacing.item_spacing.x = space_width;
@@ -1406,7 +1430,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.visuals().debug_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter);

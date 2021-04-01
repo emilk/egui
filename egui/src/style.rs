@@ -28,6 +28,9 @@ pub struct Style {
 
     /// How many seconds a typical animation should last
     pub animation_time: f32,
+
+    /// Options to help debug why egui behaves strangely.
+    pub debug: DebugOptions,
 }
 
 impl Style {
@@ -71,7 +74,7 @@ pub struct Spacing {
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Minimum size of e.g. a button (including padding).
+    /// Minimum size of a `DragValue`, color picker button, and other small widgets.
     /// `interact_size.y` is the default height of button, slider, etc.
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
@@ -178,16 +181,6 @@ pub struct Visuals {
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
-
-    // -----------------------------------------------
-    // Debug rendering:
-    /// however over widgets to see their rectangles
-    pub debug_widgets: bool,
-    /// Show which widgets make their parent wider
-    pub debug_expand_width: bool,
-    /// Show which widgets make their parent higher
-    pub debug_expand_height: bool,
-    pub debug_resize: bool,
 }
 
 impl Visuals {
@@ -283,6 +276,19 @@ impl WidgetVisuals {
     }
 }
 
+/// Options for help debug egui by adding extra visualization
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct DebugOptions {
+    /// However over widgets to see their rectangles
+    pub show_widgets: bool,
+    /// Show which widgets make their parent wider
+    pub show_expand_width: bool,
+    /// Show which widgets make their parent higher
+    pub show_expand_height: bool,
+    pub show_resize: bool,
+}
+
 // ----------------------------------------------------------------------------
 
 impl Default for Style {
@@ -294,6 +300,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
+            debug: Default::default(),
         }
     }
 }
@@ -342,10 +349,6 @@ impl Visuals {
             text_cursor_width: 2.0,
             text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
-            debug_widgets: false,
-            debug_expand_width: false,
-            debug_expand_height: false,
-            debug_resize: false,
         }
     }
 
@@ -478,6 +481,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            debug,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -488,10 +492,16 @@ impl Style {
                 ui.radio_value(body_text_style, value, format!("{:?}", value));
             }
         });
+        ui.add(
+            Slider::new(animation_time, 0.0..=1.0)
+                .text("animation durations")
+                .suffix(" s"),
+        );
+
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.add(Slider::f32(animation_time, 0.0..=1.0).text("animation_time"));
+        ui.collapsing("⁉ Debug", |ui| debug.ui(ui));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -517,12 +527,12 @@ impl Spacing {
         ui.add(slider_vec2(button_padding, 0.0..=10.0, "button_padding"));
         ui.add(slider_vec2(interact_size, 0.0..=60.0, "interact_size"))
             .on_hover_text("Minimum size of an interactive widget");
-        ui.add(Slider::f32(indent, 0.0..=100.0).text("indent"));
-        ui.add(Slider::f32(slider_width, 0.0..=1000.0).text("slider_width"));
-        ui.add(Slider::f32(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
-        ui.add(Slider::f32(icon_width, 0.0..=60.0).text("icon_width"));
-        ui.add(Slider::f32(icon_spacing, 0.0..=10.0).text("icon_spacing"));
-        ui.add(Slider::f32(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
+        ui.add(Slider::new(indent, 0.0..=100.0).text("indent"));
+        ui.add(Slider::new(slider_width, 0.0..=1000.0).text("slider_width"));
+        ui.add(Slider::new(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
+        ui.add(Slider::new(icon_width, 0.0..=60.0).text("icon_width"));
+        ui.add(Slider::new(icon_spacing, 0.0..=10.0).text("icon_spacing"));
+        ui.add(Slider::new(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -535,9 +545,9 @@ impl Interaction {
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
         } = self;
-        ui.add(Slider::f32(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
+        ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
-            Slider::f32(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
+            Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
         );
         ui.checkbox(
             show_tooltips_only_when_still,
@@ -599,9 +609,9 @@ impl WidgetVisuals {
 
         ui_color(ui, bg_fill, "bg_fill");
         stroke_ui(ui, bg_stroke, "bg_stroke");
-        ui.add(Slider::f32(corner_radius, 0.0..=10.0).text("corner_radius"));
+        ui.add(Slider::new(corner_radius, 0.0..=10.0).text("corner_radius"));
         stroke_ui(ui, fg_stroke, "fg_stroke (text)");
-        ui.add(Slider::f32(expansion, -5.0..=5.0).text("expansion"));
+        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"));
     }
 }
 
@@ -619,7 +629,7 @@ impl Visuals {
     /// Show small toggle-button for light and dark mode.
     #[must_use]
     pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_if)]
+        #![allow(clippy::collapsible_else_if)]
         if self.dark_mode {
             if ui
                 .add(Button::new("☀").frame(false))
@@ -655,10 +665,6 @@ impl Visuals {
             text_cursor_width,
             text_cursor_preview,
             clip_rect_margin,
-            debug_widgets,
-            debug_expand_width,
-            debug_expand_height,
-            debug_resize,
         } = self;
 
         ui.collapsing("widgets", |ui| widgets.ui(ui));
@@ -669,7 +675,7 @@ impl Visuals {
             // Common shortcuts
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
-            ui.add(Slider::f32(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
+            ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
             shadow_ui(ui, window_shadow, "Shadow");
         });
         ui_color(
@@ -681,24 +687,34 @@ impl Visuals {
         ui_color(ui, extreme_bg_color, "extreme_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui_color(ui, code_bg_color, "code_bg_color");
-        ui.add(Slider::f32(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::f32(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
+        ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
+        ui.add(Slider::new(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
         ui.checkbox(text_cursor_preview, "text_cursor_preview");
-        ui.add(Slider::f32(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
+        ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.group(|ui| {
-            ui.label("DEBUG:");
-            ui.checkbox(debug_widgets, "Show widget bounds on hover");
-            ui.checkbox(
-                debug_expand_width,
-                "Show which widgets make their parent wider",
-            );
-            ui.checkbox(
-                debug_expand_height,
-                "Show which widgets make their parent higher",
-            );
-            ui.checkbox(debug_resize, "Debug Resize");
-        });
+        ui.vertical_centered(|ui| reset_button(ui, self));
+    }
+}
+
+impl DebugOptions {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            show_widgets: debug_widgets,
+            show_expand_width: debug_expand_width,
+            show_expand_height: debug_expand_height,
+            show_resize: debug_resize,
+        } = self;
+
+        ui.checkbox(debug_widgets, "Show widget bounds on hover");
+        ui.checkbox(
+            debug_expand_width,
+            "Show which widgets make their parent wider",
+        );
+        ui.checkbox(
+            debug_expand_height,
+            "Show which widgets make their parent higher",
+        );
+        ui.checkbox(debug_resize, "Debug Resize");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -712,8 +728,8 @@ fn slider_vec2<'a>(
 ) -> impl Widget + 'a {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
-            ui.add(Slider::f32(&mut value.x, range.clone()).text("w"));
-            ui.add(Slider::f32(&mut value.y, range.clone()).text("h"));
+            ui.add(Slider::new(&mut value.x, range.clone()).text("w"));
+            ui.add(Slider::new(&mut value.y, range.clone()).text("h"));
             ui.label(text);
         })
         .response

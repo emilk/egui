@@ -44,7 +44,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// ```
 /// # let ui = &mut egui::Ui::__test();
 /// # let mut my_f32: f32 = 0.0;
-/// ui.add(egui::DragValue::f32(&mut my_f32).speed(0.1));
+/// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
@@ -59,6 +59,7 @@ pub struct DragValue<'a> {
 
 macro_rules! impl_integer_constructor {
     ($int:ident) => {
+        #[deprecated = "Use DragValue::new instead"]
         pub fn $int(value: &'a mut $int) -> Self {
             Self::from_get_set(move |v: Option<f64>| {
                 if let Some(v) = v {
@@ -67,12 +68,31 @@ macro_rules! impl_integer_constructor {
                 *value as f64
             })
             .max_decimals(0)
-            .clamp_range_f64(($int::MIN as f64)..=($int::MAX as f64))
+            .clamp_range($int::MIN..=$int::MAX)
+            .speed(0.25)
         }
     };
 }
 
 impl<'a> DragValue<'a> {
+    pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
+        let slf = Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = Num::from_f64(v)
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL {
+            slf.max_decimals(0)
+                .clamp_range(Num::MIN..=Num::MAX)
+                .speed(0.25)
+        } else {
+            slf
+        }
+    }
+
+    #[deprecated = "Use DragValue::new instead"]
     pub fn f32(value: &'a mut f32) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -82,6 +102,7 @@ impl<'a> DragValue<'a> {
         })
     }
 
+    #[deprecated = "Use DragValue::new instead"]
     pub fn f64(value: &'a mut f64) -> Self {
         Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -121,11 +142,12 @@ impl<'a> DragValue<'a> {
     }
 
     /// Clamp incoming and outgoing values to this range.
-    pub fn clamp_range(mut self, clamp_range: RangeInclusive<f32>) -> Self {
-        self.clamp_range = *clamp_range.start() as f64..=*clamp_range.end() as f64;
+    pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
+        self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
     }
 
+    #[deprecated = "Use clamp_range"]
     pub fn clamp_range_f64(mut self, clamp_range: RangeInclusive<f64>) -> Self {
         self.clamp_range = clamp_range;
         self
@@ -239,7 +261,7 @@ impl<'a> Widget for DragValue<'a> {
             let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace);
-            let response = ui.add(button);
+            let response = ui.add_sized(ui.spacing().interact_size, button);
             let response = response.on_hover_text(format!(
                 "{}{}{}\nDrag to edit or click to enter a value.",
                 prefix,
@@ -263,14 +285,11 @@ impl<'a> Widget for DragValue<'a> {
                         .flatten();
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value as f64;
-                    let stored_value = clamp_to_range(stored_value, clamp_range.clone());
-
-                    let rounded_new_value = stored_value;
 
                     let aim_delta = aim_rad * speed;
                     let rounded_new_value = emath::smart_aim::best_in_range_f64(
-                        rounded_new_value - aim_delta,
-                        rounded_new_value + aim_delta,
+                        stored_value - aim_delta,
+                        stored_value + aim_delta,
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);

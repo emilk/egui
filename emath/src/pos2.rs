@@ -26,24 +26,28 @@ pub const fn pos2(x: f32, y: f32) -> Pos2 {
 // Compatibility and convenience conversions to and from [f32; 2]:
 
 impl From<[f32; 2]> for Pos2 {
+    #[inline(always)]
     fn from(v: [f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
     }
 }
 
 impl From<&[f32; 2]> for Pos2 {
+    #[inline(always)]
     fn from(v: &[f32; 2]) -> Self {
         Self { x: v[0], y: v[1] }
     }
 }
 
 impl From<Pos2> for [f32; 2] {
+    #[inline(always)]
     fn from(v: Pos2) -> Self {
         [v.x, v.y]
     }
 }
 
 impl From<&Pos2> for [f32; 2] {
+    #[inline(always)]
     fn from(v: &Pos2) -> Self {
         [v.x, v.y]
     }
@@ -53,24 +57,28 @@ impl From<&Pos2> for [f32; 2] {
 // Compatibility and convenience conversions to and from (f32, f32):
 
 impl From<(f32, f32)> for Pos2 {
+    #[inline(always)]
     fn from(v: (f32, f32)) -> Self {
         Self { x: v.0, y: v.1 }
     }
 }
 
 impl From<&(f32, f32)> for Pos2 {
+    #[inline(always)]
     fn from(v: &(f32, f32)) -> Self {
         Self { x: v.0, y: v.1 }
     }
 }
 
 impl From<Pos2> for (f32, f32) {
+    #[inline(always)]
     fn from(v: Pos2) -> Self {
         (v.x, v.y)
     }
 }
 
 impl From<&Pos2> for (f32, f32) {
+    #[inline(always)]
     fn from(v: &Pos2) -> Self {
         (v.x, v.y)
     }
@@ -95,6 +103,7 @@ impl Pos2 {
 
     /// The vector from origin to this position.
     /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
+    #[inline(always)]
     pub fn to_vec2(self) -> Vec2 {
         Vec2 {
             x: self.x,
@@ -153,6 +162,7 @@ impl Pos2 {
 
 impl std::ops::Index<usize> for Pos2 {
     type Output = f32;
+
     fn index(&self, index: usize) -> &f32 {
         match index {
             0 => &self.x,
@@ -175,6 +185,7 @@ impl std::ops::IndexMut<usize> for Pos2 {
 impl Eq for Pos2 {}
 
 impl AddAssign<Vec2> for Pos2 {
+    #[inline(always)]
     fn add_assign(&mut self, rhs: Vec2) {
         *self = Pos2 {
             x: self.x + rhs.x,
@@ -184,6 +195,7 @@ impl AddAssign<Vec2> for Pos2 {
 }
 
 impl SubAssign<Vec2> for Pos2 {
+    #[inline(always)]
     fn sub_assign(&mut self, rhs: Vec2) {
         *self = Pos2 {
             x: self.x - rhs.x,
@@ -194,6 +206,8 @@ impl SubAssign<Vec2> for Pos2 {
 
 impl Add<Vec2> for Pos2 {
     type Output = Pos2;
+
+    #[inline(always)]
     fn add(self, rhs: Vec2) -> Pos2 {
         Pos2 {
             x: self.x + rhs.x,
@@ -204,6 +218,8 @@ impl Add<Vec2> for Pos2 {
 
 impl Sub for Pos2 {
     type Output = Vec2;
+
+    #[inline(always)]
     fn sub(self, rhs: Pos2) -> Vec2 {
         Vec2 {
             x: self.x - rhs.x,
@@ -214,6 +230,8 @@ impl Sub for Pos2 {
 
 impl Sub<Vec2> for Pos2 {
     type Output = Pos2;
+
+    #[inline(always)]
     fn sub(self, rhs: Vec2) -> Pos2 {
         Pos2 {
             x: self.x - rhs.x,

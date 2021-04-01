@@ -106,11 +106,11 @@ impl Button {
         }
         let total_extra = button_padding + button_padding;
 
-        let font = &ui.fonts()[text_style];
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = galley.size + 2.0 * button_padding;
@@ -141,8 +141,7 @@ impl Button {
             let text_color = text_color
                 .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
-            ui.painter()
-                .galley(text_cursor, galley, text_style, text_color);
+            ui.painter().galley(text_cursor, galley, text_color);
         }
 
         response
@@ -210,19 +209,18 @@ impl<'a> Widget for Checkbox<'a> {
             text_color,
         } = self;
 
-        let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
+        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = total_extra + galley.size;
@@ -265,8 +263,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+        ui.painter().galley(text_cursor, galley, text_color);
         response
     }
 }
@@ -322,18 +319,17 @@ impl Widget for RadioButton {
             text_color,
         } = self;
 
-        let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-
         let icon_width = ui.spacing().icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
+        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = total_extra + galley.size;
@@ -375,7 +371,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_cursor, galley, text_style, text_color);
+        painter.galley(text_cursor, galley, text_color);
         response
     }
 }

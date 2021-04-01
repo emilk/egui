@@ -138,6 +138,7 @@ pub struct AppRunner {
     screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
     http: Arc<http::WebHttp>,
+    pub(crate) text_cursor: Option<egui::Pos2>,
 }
 
 impl AppRunner {
@@ -156,6 +157,7 @@ impl AppRunner {
             screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
+            text_cursor: None,
         })
     }
 
@@ -219,8 +221,10 @@ impl AppRunner {
         let egui_ctx = &self.web_backend.ctx;
         self.app.update(egui_ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
-        self.screen_reader.speak(&egui_output.events_description());
-        handle_output(&egui_output);
+        if self.web_backend.ctx.memory().options.screen_reader {
+            self.screen_reader.speak(&egui_output.events_description());
+        }
+        handle_output(&egui_output, self);
 
         {
             let epi::backend::AppOutput {
@@ -253,6 +257,7 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let runner_ref = AppRunnerRef(Arc::new(Mutex::new(app_runner)));
     install_canvas_events(&runner_ref)?;
     install_document_events(&runner_ref)?;
+    install_text_agent(&runner_ref)?;
     repaint_every_ms(&runner_ref, 1000)?; // just in case. TODO: make it a parameter
     paint_and_schedule(runner_ref.clone())?;
     Ok(runner_ref)

@@ -41,7 +41,7 @@ http = [
   "web-sys/RequestMode",
   "web-sys/Response",
 ]
-persistence = ["serde", "serde_json"]
+persistence = ["egui/persistence", "serde", "serde_json"]
 screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]
@@ -50,13 +50,20 @@ features = [
   "Clipboard",
   "ClipboardEvent",
   "console",
+  "CompositionEvent",
   "CssStyleDeclaration",
   "DataTransfer",
   "Document",
   "DomRect",
   "Element",
+  "Event",
+  "EventListener",
+  "EventTarget",
+  "FocusEvent",
   "HtmlCanvasElement",
   "HtmlElement",
+  "HtmlInputElement",
+  "InputEvent",
   "KeyboardEvent",
   "Location",
   "MouseEvent",

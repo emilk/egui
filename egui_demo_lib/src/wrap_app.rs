@@ -54,6 +54,14 @@ impl epi::App for WrapApp {
         self.backend_panel.max_size_points_active
     }
 
+    // Let's show off that we support transparent windows (on native):
+    fn transparent(&self) -> bool {
+        true
+    }
+    fn clear_color(&self) -> egui::Rgba {
+        egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
+    }
+
     fn warm_up_enabled(&self) -> bool {
         // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
         #[cfg(debug_assertions)]
@@ -293,7 +301,7 @@ impl BackendPanel {
             ui.separator();
 
             ui.add(
-                egui::Slider::f32(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
                     .logarithmic(true)
                     .largest_finite(8192.0)
                     .text("Max width"),
@@ -315,9 +323,17 @@ impl BackendPanel {
             }
         }
 
+        let mut screen_reader = ui.ctx().memory().options.screen_reader;
+        ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
+        ui.ctx().memory().options.screen_reader = screen_reader;
+
         ui.collapsing("Output events", |ui| {
             ui.set_max_width(450.0);
-            ui.label("Recent output events from egui:");
+            ui.label(
+                "Recent output events from egui. \
+            These are emitted when you switch selected widget with tab, \
+            and can be hooked up to a screen reader on supported platforms.",
+            );
             ui.advance_cursor(8.0);
             for event in &self.output_event_history {
                 ui.label(format!("{:?}", event));
@@ -342,7 +358,7 @@ impl BackendPanel {
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
             ui.add(
-                egui::Slider::f32(pixels_per_point, 0.5..=5.0)
+                egui::Slider::new(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
                     .text("Scale"),
             )

@@ -61,6 +61,7 @@ impl Id {
         format!("{:04X}", self.0 as u16)
     }
 
+    #[inline(always)]
     pub(crate) fn value(&self) -> u64 {
         self.0
     }

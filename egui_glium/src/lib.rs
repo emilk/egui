@@ -306,7 +306,11 @@ fn set_cursor_icon(display: &glium::backend::glutin::Display, cursor_icon: egui:
     }
 }
 
-pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
+pub fn handle_output(
+    output: egui::Output,
+    clipboard: Option<&mut ClipboardContext>,
+    display: &glium::Display,
+) {
     if let Some(open) = output.open_url {
         if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
@@ -319,6 +323,13 @@ pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardConte
                 eprintln!("Copy/Cut error: {}", err);
             }
         }
+    }
+
+    if let Some(egui::Pos2 { x, y }) = output.text_cursor {
+        display
+            .gl_window()
+            .window()
+            .set_ime_position(glium::glutin::dpi::LogicalPosition { x, y })
     }
 }
 
