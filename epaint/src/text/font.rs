@@ -196,6 +196,7 @@ impl Font {
                 pixels_per_point: 0.0,
                 row_height: 0.0,
                 glyph_info_cache: Default::default(),
+                tab_glyph_info_cache: Default::default(),
             };
         }
 
