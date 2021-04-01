@@ -887,12 +887,12 @@ fn convert_identation_to_tabs(
         if *c == ' ' {
             tab_size -= 1;
 
+            let offset = paragraph_offset + index;
+            *cursorp = update_selection_delete(*cursorp, offset, 1);
+
             if tab_size == 0 {
                 new_identation.push('\t');
-
-                let delete_offset = paragraph_offset + index.saturating_sub(max_tab_size) + 1;
-                update_selection_delete(*cursorp, delete_offset, tab_size);
-
+                *cursorp = update_selection_insert(*cursorp, offset, 1);
                 tab_size = max_tab_size;
             }
 
