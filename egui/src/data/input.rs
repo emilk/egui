@@ -190,7 +190,7 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    LeftBracket, // Used for Ctrl+[
+    LeftBracket,  // Used for Ctrl+[
     RightBracket, // Used for Ctrl+]
 
     /// Either from the main row or from the numpad.

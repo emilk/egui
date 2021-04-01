@@ -513,7 +513,7 @@ impl<'t> TextEdit<'t> {
                         key: Key::LeftBracket,
                         pressed: true,
                         modifiers,
-                    } if modifiers.command && !modifiers.shift && !modifiers.alt  => {
+                    } if modifiers.command && !modifiers.shift && !modifiers.alt => {
                         let cursorp = handle_remove_paragraphs_identation(
                             tab_as_spaces,
                             text::MAX_TAB_SIZE,
@@ -527,7 +527,7 @@ impl<'t> TextEdit<'t> {
                         key: Key::RightBracket,
                         pressed: true,
                         modifiers,
-                    } if modifiers.command && !modifiers.shift && !modifiers.alt  => {
+                    } if modifiers.command && !modifiers.shift && !modifiers.alt => {
                         let cursorp = handle_insert_paragraphs_identation(
                             tab_as_spaces,
                             text::MAX_TAB_SIZE,
@@ -552,7 +552,8 @@ impl<'t> TextEdit<'t> {
 
                             let is_remove_identation = modifiers.shift && !modifiers.command;
 
-                            let is_add_identation = modifiers.is_none() && min.pcursor.paragraph != max.pcursor.paragraph;
+                            let is_add_identation = modifiers.is_none()
+                                && min.pcursor.paragraph != max.pcursor.paragraph;
 
                             if is_insert_identation {
                                 let ccursor = handle_identation_insert(
@@ -990,7 +991,10 @@ fn decrease_identation(
         );
 
         if spaces_count > 0 {
-            let delete_offset = paragraph_offset + spaces_count.saturating_sub(1).saturating_sub(spaces_to_remove);
+            let delete_offset = paragraph_offset
+                + spaces_count
+                    .saturating_sub(1)
+                    .saturating_sub(spaces_to_remove);
             *cursorp = update_selection_delete(*cursorp, delete_offset, spaces_to_remove);
         }
     } else {
@@ -1547,7 +1551,11 @@ fn virtual_columns_count(
         })
 }
 
-fn update_selection_insert(ccursorp: CCursorPair, insert_offset: usize, amount: usize) -> CCursorPair {
+fn update_selection_insert(
+    ccursorp: CCursorPair,
+    insert_offset: usize,
+    amount: usize,
+) -> CCursorPair {
     let (mut min, mut max) = if ccursorp.primary.index < ccursorp.secondary.index {
         (ccursorp.primary.index, ccursorp.secondary.index)
     } else {
@@ -1579,7 +1587,11 @@ fn update_selection_insert(ccursorp: CCursorPair, insert_offset: usize, amount: 
     }
 }
 
-fn update_selection_delete(ccursorp: CCursorPair, delete_offset: usize, amount: usize) -> CCursorPair {
+fn update_selection_delete(
+    ccursorp: CCursorPair,
+    delete_offset: usize,
+    amount: usize,
+) -> CCursorPair {
     let (mut min, mut max) = if ccursorp.primary.index < ccursorp.secondary.index {
         (ccursorp.primary.index, ccursorp.secondary.index)
     } else {
@@ -1602,19 +1614,16 @@ fn update_selection_delete(ccursorp: CCursorPair, delete_offset: usize, amount: 
         && delete_offset + amount < max;
 
     // ----[--(----)--]------>
-    let is_inside_selection_not_overlapping = delete_offset >= min
-        && delete_offset < max
-        && delete_offset + amount < max;
+    let is_inside_selection_not_overlapping =
+        delete_offset >= min && delete_offset < max && delete_offset + amount < max;
 
     // ----[--(-------]--)--->
-    let is_inside_selection_overlapping_max = delete_offset >= min
-        && delete_offset < max
-        && delete_offset + amount >= max;
+    let is_inside_selection_overlapping_max =
+        delete_offset >= min && delete_offset < max && delete_offset + amount >= max;
 
     // ----(--[-------]--)--->
-    let is_before_selection_overlapping_min_and_max = delete_offset < min
-        && delete_offset < max
-        && delete_offset + amount >= max;
+    let is_before_selection_overlapping_min_and_max =
+        delete_offset < min && delete_offset < max && delete_offset + amount >= max;
 
     if is_before_selection {
         min = min.saturating_sub(amount);
@@ -1854,13 +1863,15 @@ mod test {
 
     #[test]
     fn test_update_selection_insert_before_selection() {
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 1, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 1, 5);
         assert_eq!(10, test.secondary.index);
         assert_eq!(15, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 1, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 1, 5);
         assert_eq!(10, test.primary.index);
         assert_eq!(15, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1869,13 +1880,15 @@ mod test {
 
     #[test]
     fn test_update_selection_insert_inside_selection() {
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 6, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 6, 5);
         assert_eq!(5, test.secondary.index);
         assert_eq!(15, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 6, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 6, 5);
         assert_eq!(5, test.primary.index);
         assert_eq!(15, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1884,13 +1897,15 @@ mod test {
 
     #[test]
     fn test_update_selection_insert_after_selection() {
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 15, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 15, 5);
         assert_eq!(5, test.secondary.index);
         assert_eq!(10, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 15, 5);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 15, 5);
         assert_eq!(5, test.primary.index);
         assert_eq!(10, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1899,13 +1914,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_before_selection_not_overlaping() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 0, 5);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 0, 5);
         assert_eq!(0, test.secondary.index);
         assert_eq!(5, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 0, 5);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 0, 5);
         assert_eq!(0, test.primary.index);
         assert_eq!(5, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1914,13 +1931,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_before_selection_overlapping_min_cursor() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 3, 5);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 3, 5);
         assert_eq!(3, test.secondary.index);
         assert_eq!(5, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 3, 5);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 3, 5);
         assert_eq!(3, test.primary.index);
         assert_eq!(5, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1929,13 +1948,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_inside_selection_not_overlapping() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 6, 2);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 6, 2);
         assert_eq!(5, test.secondary.index);
         assert_eq!(8, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 6, 2);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 6, 2);
         assert_eq!(5, test.primary.index);
         assert_eq!(8, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1944,13 +1965,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_inside_selection_overlapping_max() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 7, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 7, 20);
         assert_eq!(5, test.secondary.index);
         assert_eq!(7, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 7, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 7, 20);
         assert_eq!(5, test.primary.index);
         assert_eq!(7, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1959,13 +1982,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_after_selection() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 15, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 15, 20);
         assert_eq!(5, test.secondary.index);
         assert_eq!(10, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 15, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 15, 20);
         assert_eq!(5, test.primary.index);
         assert_eq!(10, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1974,13 +1999,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_before_selection_overlapping_min_and_max() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 3, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 3, 20);
         assert_eq!(3, test.secondary.index);
         assert_eq!(3, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 3, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 3, 20);
         assert_eq!(3, test.primary.index);
         assert_eq!(3, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -1989,13 +2016,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_at_cursor_min_no_max_overlapping() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
         assert_eq!(5, test.secondary.index);
         assert_eq!(7, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
         assert_eq!(5, test.primary.index);
         assert_eq!(7, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -2004,13 +2033,15 @@ mod test {
 
     #[test]
     fn test_update_selection_delete_at_cursor_min_with_max_overlapping() {
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 20);
         assert_eq!(5, test.secondary.index);
         assert_eq!(5, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 20);
+        let test =
+            update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 20);
         assert_eq!(5, test.primary.index);
         assert_eq!(5, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -2019,13 +2050,15 @@ mod test {
 
     #[test]
     fn test_update_selection_insert_at_cursor_min() {
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
         assert_eq!(5, test.secondary.index);
         assert_eq!(13, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
         assert_eq!(5, test.primary.index);
         assert_eq!(13, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
@@ -2034,13 +2067,15 @@ mod test {
 
     #[test]
     fn test_update_selection_insert_at_cursor_max() {
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 10, 3);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 10, 3);
         assert_eq!(5, test.secondary.index);
         assert_eq!(13, test.primary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
 
-        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 10, 3);
+        let test =
+            update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 10, 3);
         assert_eq!(5, test.primary.index);
         assert_eq!(13, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
