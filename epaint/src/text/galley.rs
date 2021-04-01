@@ -72,30 +72,36 @@ pub struct Row {
 }
 
 impl Row {
+    #[inline]
     pub fn sanity_check(&self) {
         assert!(!self.x_offsets.is_empty());
         assert!(self.x_offsets.len() == self.uv_rects.len() + 1);
     }
 
     /// Excludes the implicit `\n` after the `Row`, if any.
+    #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
         assert!(!self.x_offsets.is_empty());
         self.x_offsets.len() - 1
     }
 
     /// Includes the implicit `\n` after the `Row`, if any.
+    #[inline]
     pub fn char_count_including_newline(&self) -> usize {
         self.char_count_excluding_newline() + (self.ends_with_newline as usize)
     }
 
+    #[inline]
     pub fn min_x(&self) -> f32 {
         *self.x_offsets.first().unwrap()
     }
 
+    #[inline]
     pub fn max_x(&self) -> f32 {
         *self.x_offsets.last().unwrap()
     }
 
+    #[inline]
     pub fn height(&self) -> f32 {
         self.y_max - self.y_min
     }
@@ -124,6 +130,7 @@ impl Row {
     }
 
     // Move down this much
+    #[inline(always)]
     pub fn translate_y(&mut self, dy: f32) {
         self.y_min += dy;
         self.y_max += dy;
