@@ -879,7 +879,7 @@ fn convert_identation_to_tabs(
             if tab_size == 0 {
                 new_identation.push('\t');
 
-                let delete_offset = paragraph_offset + index.saturating_sub(max_tab_size);
+                let delete_offset = paragraph_offset + index.saturating_sub(max_tab_size) + 1;
                 update_selection_delete(*cursorp, delete_offset, tab_size);
 
                 tab_size = max_tab_size;
