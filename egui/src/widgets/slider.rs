@@ -47,7 +47,7 @@ struct SliderSpec {
 /// ```
 /// # let ui = &mut egui::Ui::__test();
 /// # let mut my_f32: f32 = 0.0;
-/// ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0).text("My value"));
+/// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
@@ -67,6 +67,7 @@ pub struct Slider<'a> {
 
 macro_rules! impl_integer_constructor {
     ($int:ident) => {
+        #[deprecated = "Use Slider::new instead"]
         pub fn $int(value: &'a mut $int, range: RangeInclusive<$int>) -> Self {
             let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
             Self::from_get_set(range_f64, move |v: Option<f64>| {
@@ -81,6 +82,23 @@ macro_rules! impl_integer_constructor {
 }
 
 impl<'a> Slider<'a> {
+    pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
+        let range_f64 = range.start().to_f64()..=range.end().to_f64();
+        let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = Num::from_f64(v)
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL {
+            slf.integer()
+        } else {
+            slf
+        }
+    }
+
+    #[deprecated = "Use Slider::new instead"]
     pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
         Self::from_get_set(range_f64, move |v: Option<f64>| {
@@ -91,6 +109,7 @@ impl<'a> Slider<'a> {
         })
     }
 
+    #[deprecated = "Use Slider::new instead"]
     pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
         Self::from_get_set(range, move |v: Option<f64>| {
             if let Some(v) = v {
@@ -394,9 +413,9 @@ impl<'a> Slider<'a> {
     fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
         let mut value = self.get_value();
         ui.add(
-            DragValue::f64(&mut value)
+            DragValue::new(&mut value)
                 .speed(self.current_gradient(&x_range))
-                .clamp_range_f64(self.clamp_range())
+                .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
@@ -422,8 +441,10 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-        let height = font.row_height().at_least(ui.spacing().interact_size.y);
+        let height = ui
+            .fonts()
+            .row_height(text_style)
+            .at_least(ui.spacing().interact_size.y);
 
         let old_value = self.get_value();
 

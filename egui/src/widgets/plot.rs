@@ -22,6 +22,7 @@ pub struct Value {
 }
 
 impl Value {
+    #[inline(always)]
     pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
         Self {
             x: x.into(),
@@ -649,8 +650,7 @@ impl Prepared {
 
             let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-            let font = &ui.fonts()[text_style];
-            let galley = font.layout_multiline(text, f32::INFINITY);
+            let galley = ui.fonts().layout_multiline(text_style, text, f32::INFINITY);
 
             let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 
@@ -662,7 +662,6 @@ impl Prepared {
             shapes.push(Shape::Text {
                 pos: text_pos,
                 galley,
-                text_style,
                 color: ui.visuals().text_color(),
                 fake_italics: false,
             });

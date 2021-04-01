@@ -4,23 +4,35 @@ All notable changes to the egui crate will be documented in this file.
 
 NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
 
 ## Unreleased
 
 ### Added ⭐
-
 * You can now give focus to any clickable widget with tab/shift-tab.
   * Use space or enter to click the selected widget.
   * Use arrow keys to adjust sliders and `DragValue`s.
 * egui will now output events when widgets gain keyboard focus.
   * This can be hooked up to a screen reader to aid the visually impaired
 * Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
+* Add support for small and raised text.
+* Add `ui.set_row_height`.
+* Add `DebugOptions::show_widgets` to debug layouting by hovering widgets.
+* Add `ComboBox` to more easily customize combo boxes.
+* Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
+
+### Changed 🔧
+* `kb_focus` is now just called `focus`.
 
 ### Fixed 🐛
+* Fix some bugs related to centered layouts.
+* Fixed secondary-click to open a menu.
+* [Fix panic for zero-range sliders and zero-speed drag values](https://github.com/emilk/egui/pull/216).
+* Fix false id clash error for wrapping text.
+* Fix bug that would close a popup (e.g. the color picker) when clicking inside of it.
 
-* Fixed secondary-click to open a menu
+### Deprecated ☢️
+* Deprectated `combo_box_with_label` in favor of new `ComboBox`.
+* Deprectated type-specific constructors for `Slider` and `DragValue` (`Slider::f32`, `DragValue::usize` etc).
 
 
 ## 0.10.0 - 2021-02-28 - Plot and polish
@@ -28,7 +40,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 <img src="media/egui-0.10-plot.gif" width="50%">
 
 ### Added ⭐
-
 * Add `egui::plot::Plot` to plot some 2D data.
 * Add `Ui::hyperlink_to(label, url)`.
 * Sliders can now have a value prefix and suffix (e.g. the suffix `"°"` works like a unit).
@@ -37,7 +48,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add support for all integers in `DragValue` and `Slider` (except 128-bit).
 
 ### Changed 🔧
-
 * Improve the positioning of tooltips.
 * Only show tooltips if mouse is still.
 * `Slider` will now show the value display by default, unless turned off with `.show_value(false)`.
@@ -49,7 +59,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 <img src="media/0.9.0-disabled.gif" width="50%">
 
 ### Added ⭐
-
 * Add support for secondary and middle mouse buttons.
 * Add `Label` methods for code, strong, strikethrough, underline and italics.
 * Add `ui.group(|ui| { … })` to visually group some widgets within a frame.
@@ -64,7 +73,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `Grid::max_col_width`.
 
 ### Changed 🔧
-
 * Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
 * Widgets will now always line break at `\n` characters.
 * Widgets will now more intelligently choose wether or not to wrap text.
@@ -74,11 +82,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Backend: pointer (mouse/touch) position and buttons are now passed to egui in the event stream.
 * `DragValue::range` is now called `clamp_range` and also clamps incoming values.
 * Renamed `Triangles` to `Mesh`.
-* The tesselator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
+* The tessellator now wraps the clip rectangle and mesh in `struct ClippedMesh(Rect, Mesh)`.
 * `Mesh::split_to_u16` now returns a 16-bit indexed `Mesh16`.
 
 ### Fixed 🐛
-
 * It is now possible to click widgets even when FPS is very low.
 * Tessellator: handle sharp path corners better (switch to bevel instead of miter joints for > 90°).
 
@@ -88,14 +95,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 <img src="media/widget_gallery_0.8.0.gif" width="50%">
 
 ### Added ⭐
-
 * Added a simple grid layout (`Grid`).
 * Added `ui.allocate_at_least` and `ui.allocate_exact_size`.
 * Added function `InputState::key_down`.
 * Added `Window::current_pos` to position a window.
 
 ### Changed 🔧
-
 * New simpler and sleeker look!
 * Rename `PaintCmd` to `Shape`.
 * Replace tuple `(Rect, Shape)` with tuple-struct `ClippedShape`.
@@ -103,7 +108,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 
 ### Fixed 🐛
-
 * Fixed a bug that would sometimes trigger a "Mismatching panels" panic in debug builds.
 * `Image` and `ImageButton` will no longer stretch to fill a justified layout.
 
@@ -111,31 +115,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 0.7.0 - 2021-01-04
 
 ### Added ⭐
-
 * Add `ui.scroll_to_cursor` and `response.scroll_to_me` ([#81](https://github.com/emilk/egui/pull/81) by [lucaspoffo](https://github.com/lucaspoffo)).
 * Add `window.id(…)` and `area.id(…)` for overriding the default `Id`.
 
 ### Changed 🔧
-
 * Renamed `Srgba` to `Color32`.
 * All color contructions now starts with `from_`, e.g. `Color32::from_rgb`.
 * Renamed `FontFamily::VariableWidth` to `FontFamily::Proportional`.
 * Removed `pixels_per_point` from `FontDefinitions`.
 
 ### Fixed 🐛
-
 * `RepaintSignal` now implements `Sync` so it can be sent to a background thread.
 * `TextEdit` widgets are now slightly larger to accommodate their frames.
 
-### Deprecated
-
+### Deprecated ☢️
 * Deprecated `color::srgba`.
 
 
 ## 0.6.0 - 2020-12-26
 
 ### Added ⭐
-
 * Turn off `Window` title bars with `window.title_bar(false)`.
 * `ImageButton` - `ui.add(ImageButton::new(...))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
@@ -149,7 +148,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `response.interact(sense)`, e.g. to check for clicks on labels.
 
 ### Changed 🔧
-
 * `ui.allocate_space` now returns an `(Id, Rect)` tuple.
 * `Arc<Context>` has been replaced with `CtxRef` everywhere.
 * Slight tweak of the default `Style` and font sizes.
@@ -166,11 +164,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Replaced `parking_lot` dependency with `atomic_refcell` by default.
 
 ### Fixed 🐛
-
 * The background for `CentralPanel` will now cover unused space too.
 * `ui.columns`: Improve allocated size estimation.
 
-### Deprecated
+### Deprecated ☢️
 * `RawInput::screen_size` - use `RawInput::screen_rect` instead.
 * left/centered/right column functions on `Ui`.
 * `ui.interact_hover` and `ui.hovered`.
@@ -179,7 +176,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 0.5.0 - 2020-12-13
 
 ### Added ⭐
-
 * Emoji support: 1216 different emojis that work in any text.
   * The Demo app comes with a Font Book to explore the available glyphs.
 * `ui.horizontal_wrapped(|ui| ...)`: Add widgets on a row but wrap at `max_size`.
@@ -193,7 +189,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
 
 ### Changed 🔧
-
 * New default font: [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
 * Make it simpler to override fonts in `FontDefinitions`.
 * Remove minimum button width.
@@ -209,17 +204,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 0.4.0 - 2020-11-28
 
 ### Added ⭐
-
 * `TextEdit` improvements:
   * Much improved text editing, with better navigation and selection.
   * Move focus between `TextEdit` widgets with tab and shift-tab.
   * Undo edtis in a `TextEdit`.
   * You can now check if a `TextEdit` lost keyboard focus with `response.lost_focus`.
   * Added `ui.text_edit_singleline` and `ui.text_edit_multiline`.
-* You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().visuals.debug_expand_width = true;`
+* You can now debug why your `Ui` is unexpectedly wide with `ui.style_mut().debug.show_expand_width = true;`
 
 ### Changed 🔧
-
 * Pressing enter in a single-line `TextEdit` will now surrender keyboard focus for it.
 * You must now be explicit when creating a `TextEdit` if you want it to be singeline or multiline.
 * Improved automatic `Id` generation, making `Id` clashes less likely.
@@ -228,14 +221,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Fixed incorrect text wrapping width on radio buttons
 
 ### Fixed 🐛
-
 * Fixed bug where a lost widget could still retain keyboard focus.
 
 
 ## 0.3.0 - 2020-11-07
 
 ### Added ⭐
-
 * Panels: you can now create panels using `SidePanel`, `TopPanel` and `CentralPanel`.
 * You can now override the default egui fonts.
 * Add ability to override text color with `visuals.override_text_color`.
@@ -243,7 +234,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * The demo app now has a slider to scale all of egui.
 
 ### Changed 🔧
-
 * `ui.horizontal(...)` etc returns `Response`.
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
@@ -256,7 +246,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * You can no longer throw windows.
 
 ### Fixed 🐛
-
 * Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
 
 

@@ -74,6 +74,7 @@ impl Rect {
         Self::NAN
     }
 
+    #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
     }
@@ -196,11 +197,9 @@ impl Rect {
     }
 
     #[must_use]
+    #[inline(always)]
     pub fn contains(&self, p: Pos2) -> bool {
-        self.min.x <= p.x
-            && p.x <= self.min.x + self.size().x
-            && self.min.y <= p.y
-            && p.y <= self.min.y + self.size().y
+        self.min.x <= p.x && p.x <= self.max.x && self.min.y <= p.y && p.y <= self.max.y
     }
 
     /// Return the given points clamped to be inside the rectangle
@@ -234,18 +233,25 @@ impl Rect {
         }
     }
 
+    #[inline(always)]
     pub fn center(&self) -> Pos2 {
         Pos2 {
-            x: self.min.x + self.size().x / 2.0,
-            y: self.min.y + self.size().y / 2.0,
+            x: (self.min.x + self.max.x) / 2.0,
+            y: (self.min.y + self.max.y) / 2.0,
         }
     }
+
+    #[inline(always)]
     pub fn size(&self) -> Vec2 {
         self.max - self.min
     }
+
+    #[inline(always)]
     pub fn width(&self) -> f32 {
         self.max.x - self.min.x
     }
+
+    #[inline(always)]
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
     }
@@ -292,6 +298,7 @@ impl Rect {
     }
 
     /// `max.x < min.x` or `max.y < min.y`.
+    #[inline(always)]
     pub fn is_negative(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
@@ -314,79 +321,106 @@ impl Rect {
 
 /// ## Convenience functions (assumes origin is towards left top):
 impl Rect {
-    /// `min.x`
+    /// `min.x
+    #[inline(always)]
     pub fn left(&self) -> f32 {
         self.min.x
     }
     /// `min.x`
+    #[inline(always)]
     pub fn left_mut(&mut self) -> &mut f32 {
         &mut self.min.x
     }
     /// `min.x`
+    #[inline(always)]
     pub fn set_left(&mut self, x: f32) {
         self.min.x = x;
     }
 
     /// `max.x`
+    #[inline(always)]
     pub fn right(&self) -> f32 {
         self.max.x
     }
     /// `max.x`
+    #[inline(always)]
     pub fn right_mut(&mut self) -> &mut f32 {
         &mut self.max.x
     }
     /// `max.x`
+    #[inline(always)]
     pub fn set_right(&mut self, x: f32) {
         self.max.x = x;
     }
 
     /// `min.y`
+    #[inline(always)]
     pub fn top(&self) -> f32 {
         self.min.y
     }
     /// `min.y`
+    #[inline(always)]
     pub fn top_mut(&mut self) -> &mut f32 {
         &mut self.min.y
     }
     /// `min.y`
+    #[inline(always)]
     pub fn set_top(&mut self, y: f32) {
         self.min.y = y;
     }
 
     /// `max.y`
+    #[inline(always)]
     pub fn bottom(&self) -> f32 {
         self.max.y
     }
     /// `max.y`
+    #[inline(always)]
     pub fn bottom_mut(&mut self) -> &mut f32 {
         &mut self.max.y
     }
     /// `max.y`
+    #[inline(always)]
     pub fn set_bottom(&mut self, y: f32) {
         self.max.y = y;
     }
 
+    #[inline(always)]
     pub fn left_top(&self) -> Pos2 {
         pos2(self.left(), self.top())
     }
+
+    #[inline(always)]
     pub fn center_top(&self) -> Pos2 {
         pos2(self.center().x, self.top())
     }
+
+    #[inline(always)]
     pub fn right_top(&self) -> Pos2 {
         pos2(self.right(), self.top())
     }
+
+    #[inline(always)]
     pub fn left_center(&self) -> Pos2 {
         pos2(self.left(), self.center().y)
     }
+
+    #[inline(always)]
     pub fn right_center(&self) -> Pos2 {
         pos2(self.right(), self.center().y)
     }
+
+    #[inline(always)]
     pub fn left_bottom(&self) -> Pos2 {
         pos2(self.left(), self.bottom())
     }
+
+    #[inline(always)]
     pub fn center_bottom(&self) -> Pos2 {
         pos2(self.center().x, self.bottom())
     }
+
+    #[inline(always)]
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
     }

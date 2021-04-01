@@ -1,5 +1,6 @@
 use crate::*;
 use epaint::Galley;
+use std::sync::Arc;
 
 /// Static text.
 ///
@@ -143,26 +144,27 @@ impl Label {
 }
 
 impl Label {
-    pub fn layout(&self, ui: &Ui) -> Galley {
+    pub fn layout(&self, ui: &Ui) -> Arc<Galley> {
         let max_width = ui.available_width();
         self.layout_width(ui, max_width)
     }
 
-    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
+    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
         let text_style = self.text_style_or_default(ui.style());
-        let font = &ui.fonts()[text_style];
         let wrap_width = if self.should_wrap(ui) {
             max_width
         } else {
             f32::INFINITY
         };
-        let galley = font.layout_multiline(self.text.clone(), wrap_width); // TODO: avoid clone
+        let galley = ui
+            .fonts()
+            .layout_multiline(text_style, self.text.clone(), wrap_width); // TODO: avoid clone
         self.valign_galley(ui, text_style, galley)
     }
 
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].row_height()
+        fonts.row_height(text_style)
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -173,11 +175,11 @@ impl Label {
     // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
 
-    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
+    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Arc<Galley>) {
         self.paint_galley_focus(ui, pos, galley, false)
     }
 
-    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Galley, focus: bool) {
+    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Arc<Galley>, focus: bool) {
         let Self {
             mut background_color,
             code,
@@ -233,9 +235,8 @@ impl Label {
             }
         }
 
-        let text_style = self.text_style_or_default(ui.style());
         ui.painter()
-            .galley_with_italics(pos, galley, text_style, text_color, italics);
+            .galley_with_italics(pos, galley, text_color, italics);
 
         ui.painter().extend(lines);
     }
@@ -256,21 +257,28 @@ impl Label {
         })
     }
 
-    fn valign_galley(&self, ui: &Ui, text_style: TextStyle, mut galley: Galley) -> Galley {
+    fn valign_galley(
+        &self,
+        ui: &Ui,
+        text_style: TextStyle,
+        mut galley: Arc<Galley>,
+    ) -> Arc<Galley> {
         if text_style == TextStyle::Small {
             // Hacky McHackface strikes again:
             let dy = if self.raised {
                 -2.0
             } else {
-                let normal_text_heigth = ui.fonts()[TextStyle::Body].row_height();
-                let font_height = ui.fonts()[text_style].row_height();
-                (normal_text_heigth - font_height) / 2.0 - 1.0 // center
+                let normal_text_height = ui.fonts()[TextStyle::Body].row_height();
+                let font_height = ui.fonts().row_height(text_style);
+                (normal_text_height - font_height) / 2.0 - 1.0 // center
 
-                // normal_text_heigth - font_height // align bottom
+                // normal_text_height - font_height // align bottom
             };
 
-            for row in &mut galley.rows {
-                row.translate_y(dy);
+            if dy != 0.0 {
+                for row in &mut Arc::make_mut(&mut galley).rows {
+                    row.translate_y(dy);
+                }
             }
         }
         galley
@@ -293,12 +301,13 @@ impl Widget for Label {
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
             let text_style = self.text_style_or_default(ui.style());
-            let font = &ui.fonts()[text_style];
-            let mut galley = font.layout_multiline_with_indentation_and_max_width(
+            let galley = ui.fonts().layout_multiline_with_indentation_and_max_width(
+                text_style,
                 self.text.clone(),
                 first_row_indentation,
                 max_width,
             );
+            let mut galley: Galley = (*galley).clone();
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
 
@@ -321,7 +330,7 @@ impl Widget for Label {
                 }
             }
 
-            let galley = self.valign_galley(ui, text_style, galley);
+            let galley = self.valign_galley(ui, text_style, Arc::new(galley));
 
             let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
             let mut response = ui.allocate_rect(rect, sense);
@@ -342,20 +351,20 @@ impl Widget for Label {
     }
 }
 
-impl Into<Label> for &str {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&str> for Label {
+    fn from(s: &str) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for &String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&String> for Label {
+    fn from(s: &String) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<String> for Label {
+    fn from(s: String) -> Label {
+        Label::new(s)
     }
 }

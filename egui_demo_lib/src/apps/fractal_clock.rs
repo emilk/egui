@@ -84,12 +84,12 @@ impl FractalClock {
         ui.label(format!("Painted line count: {}", self.line_count));
 
         ui.checkbox(&mut self.paused, "Paused");
-        ui.add(Slider::f32(&mut self.zoom, 0.0..=1.0).text("zoom"));
-        ui.add(Slider::f32(&mut self.start_line_width, 0.0..=5.0).text("Start line width"));
-        ui.add(Slider::usize(&mut self.depth, 0..=14).text("depth"));
-        ui.add(Slider::f32(&mut self.length_factor, 0.0..=1.0).text("length factor"));
-        ui.add(Slider::f32(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
-        ui.add(Slider::f32(&mut self.width_factor, 0.0..=1.0).text("width factor"));
+        ui.add(Slider::new(&mut self.zoom, 0.0..=1.0).text("zoom"));
+        ui.add(Slider::new(&mut self.start_line_width, 0.0..=5.0).text("Start line width"));
+        ui.add(Slider::new(&mut self.depth, 0..=14).text("depth"));
+        ui.add(Slider::new(&mut self.length_factor, 0.0..=1.0).text("length factor"));
+        ui.add(Slider::new(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
+        ui.add(Slider::new(&mut self.width_factor, 0.0..=1.0).text("width factor"));
 
         egui::reset_button(ui, self);
 

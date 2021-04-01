@@ -136,19 +136,22 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Combo box", "combo_box"));
-        egui::combo_box_with_label(ui, "Take your pick", format!("{:?}", radio), |ui| {
-            ui.selectable_value(radio, Enum::First, "First");
-            ui.selectable_value(radio, Enum::Second, "Second");
-            ui.selectable_value(radio, Enum::Third, "Third");
-        });
+
+        egui::ComboBox::from_label("Take your pick")
+            .selected_text(format!("{:?}", radio))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(radio, Enum::First, "First");
+                ui.selectable_value(radio, Enum::Second, "Second");
+                ui.selectable_value(radio, Enum::Third, "Third");
+            });
         ui.end_row();
 
         ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::f32(scalar, 0.0..=360.0).suffix("°"));
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::f32(scalar).speed(1.0));
+        ui.add(egui::DragValue::new(scalar).speed(1.0));
         ui.end_row();
 
         ui.add(doc_link_label("Color picker", "color_edit"));

@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use crate::{text::Fonts, *};
+use crate::*;
 use emath::*;
 use std::f32::consts::TAU;
 
@@ -34,10 +34,12 @@ pub struct PathPoint {
 struct Path(Vec<PathPoint>);
 
 impl Path {
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.0.clear();
     }
 
+    #[inline(always)]
     pub fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional)
     }
@@ -73,11 +75,10 @@ impl Path {
             // Common case optimization:
             self.add_line_segment([points[0], points[1]]);
         } else {
-            // TODO: optimize
             self.reserve(n);
             self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
+            let mut n0 = (points[1] - points[0]).normalized().rot90();
             for i in 1..n - 1 {
-                let mut n0 = (points[i] - points[i - 1]).normalized().rot90();
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
                 // Handle duplicated points (but not triplicated...):
@@ -102,6 +103,8 @@ impl Path {
                     // miter join
                     self.add_point(points[i], normal / length_sq);
                 }
+
+                n0 = n1;
             }
             self.add_point(
                 points[n - 1],
@@ -115,10 +118,11 @@ impl Path {
         assert!(n >= 2);
         self.reserve(n);
 
-        // TODO: optimize
+        let mut n0 = (points[0] - points[n - 1]).normalized().rot90();
+
         for i in 0..n {
-            let mut n0 = (points[i] - points[(i + n - 1) % n]).normalized().rot90();
-            let mut n1 = (points[(i + 1) % n] - points[i]).normalized().rot90();
+            let next_i = if i + 1 == n { 0 } else { i + 1 };
+            let mut n1 = (points[next_i] - points[i]).normalized().rot90();
 
             // Handle duplicated points (but not triplicated...):
             if n0 == Vec2::ZERO {
@@ -142,6 +146,8 @@ impl Path {
                 // miter join
                 self.add_point(points[i], normal / length_sq);
             }
+
+            n0 = n1;
         }
     }
 }
@@ -227,7 +233,9 @@ use self::PathType::{Closed, Open};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct TessellationOptions {
-    /// Size of a pixel in points, e.g. 0.5
+    /// Size of a point in pixels, e.g. 2.0. Used to snap text to pixel boundaries.
+    pub pixels_per_point: f32,
+    /// Size of a pixel in points, e.g. 0.5, or larger if you want more blurry edges.
     pub aa_size: f32,
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
     /// By default this is enabled in release builds and disabled in debug builds.
@@ -245,6 +253,7 @@ pub struct TessellationOptions {
 impl Default for TessellationOptions {
     fn default() -> Self {
         Self {
+            pixels_per_point: 1.0,
             aa_size: 1.0,
             anti_alias: true,
             coarse_tessellation_culling: true,
@@ -252,6 +261,13 @@ impl Default for TessellationOptions {
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
         }
+    }
+}
+
+impl TessellationOptions {
+    #[inline(always)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 }
 
@@ -279,7 +295,7 @@ fn fill_closed_path(
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
-            let dm = p1.normal * options.aa_size * 0.5;
+            let dm = 0.5 * options.aa_size * p1.normal;
             out.colored_vertex(p1.pos - dm, color);
             out.colored_vertex(p1.pos + dm, color_outer);
             out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
@@ -471,11 +487,11 @@ impl Tessellator {
     ///
     /// * `shape`: the shape to tessellate
     /// * `options`: tessellation quality
-    /// * `fonts`: font source when tessellating text
+    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
     /// * `out`: where the triangles are put
     /// * `scratchpad_path`: if you plan to run `tessellate_shape`
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
-    pub fn tessellate_shape(&mut self, fonts: &Fonts, shape: Shape, out: &mut Mesh) {
+    pub fn tessellate_shape(&mut self, tex_size: [usize; 2], shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
         let options = self.options;
 
@@ -483,7 +499,7 @@ impl Tessellator {
             Shape::Noop => {}
             Shape::Vec(vec) => {
                 for shape in vec {
-                    self.tessellate_shape(fonts, shape, out)
+                    self.tessellate_shape(tex_size, shape, out)
                 }
             }
             Shape::Circle {
@@ -564,7 +580,6 @@ impl Tessellator {
             Shape::Text {
                 pos,
                 galley,
-                text_style,
                 color,
                 fake_italics,
             } => {
@@ -579,7 +594,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(fonts, pos, &galley, text_style, color, fake_italics, out);
+                self.tessellate_text(tex_size, pos, &galley, color, fake_italics, out);
             }
         }
     }
@@ -614,13 +629,11 @@ impl Tessellator {
         stroke_path(&path.0, Closed, stroke, self.options, out);
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn tessellate_text(
         &mut self,
-        fonts: &Fonts,
+        tex_size: [usize; 2],
         pos: Pos2,
         galley: &super::Galley,
-        text_style: super::TextStyle,
         color: Color32,
         fake_italics: bool,
         out: &mut Mesh,
@@ -634,36 +647,38 @@ impl Tessellator {
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);
 
-        let tex_w = fonts.texture().width as f32;
-        let tex_h = fonts.texture().height as f32;
+        let inv_tex_w = 1.0 / tex_size[0] as f32;
+        let inv_tex_h = 1.0 / tex_size[1] as f32;
 
         let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
 
-        let font = &fonts[text_style];
-        let mut chars = galley.text.chars();
-        for line in &galley.rows {
-            let line_min_y = pos.y + line.y_min;
-            let line_max_y = line_min_y + font.row_height();
-            let is_line_visible = line_max_y >= clip_rect.min.y && line_min_y <= clip_rect.max.y;
+        for row in &galley.rows {
+            let row_min_y = pos.y + row.y_min;
+            let row_max_y = pos.y + row.y_max;
+            let is_line_visible = row_max_y >= clip_rect.min.y && row_min_y <= clip_rect.max.y;
 
-            for x_offset in line.x_offsets.iter().take(line.x_offsets.len() - 1) {
-                let c = chars.next().unwrap();
+            if self.options.coarse_tessellation_culling && !is_line_visible {
+                // culling individual lines of text is important, since a single `Shape::Text`
+                // can span hundreds of lines.
+                continue;
+            }
 
-                if self.options.coarse_tessellation_culling && !is_line_visible {
-                    // culling individual lines of text is important, since a single `Shape::Text`
-                    // can span hundreds of lines.
-                    continue;
-                }
-
-                if let Some(glyph) = font.uv_rect(c) {
-                    let mut left_top = pos + glyph.offset + vec2(*x_offset, line.y_min);
-                    left_top.x = font.round_to_pixel(left_top.x); // Pixel-perfection.
-                    left_top.y = font.round_to_pixel(left_top.y); // Pixel-perfection.
+            for (x_offset, uv_rect) in row.x_offsets.iter().zip(&row.uv_rects) {
+                if let Some(glyph) = uv_rect {
+                    let mut left_top = pos + glyph.offset + vec2(*x_offset, row.y_min);
+                    left_top.x = self.options.round_to_pixel(left_top.x); // Pixel-perfection.
+                    left_top.y = self.options.round_to_pixel(left_top.y); // Pixel-perfection.
 
                     let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
-                        pos2(glyph.min.0 as f32 / tex_w, glyph.min.1 as f32 / tex_h),
-                        pos2(glyph.max.0 as f32 / tex_w, glyph.max.1 as f32 / tex_h),
+                        pos2(
+                            glyph.min.0 as f32 * inv_tex_w,
+                            glyph.min.1 as f32 * inv_tex_h,
+                        ),
+                        pos2(
+                            glyph.max.0 as f32 * inv_tex_w,
+                            glyph.max.1 as f32 * inv_tex_h,
+                        ),
                     );
 
                     if fake_italics {
@@ -698,12 +713,7 @@ impl Tessellator {
                     }
                 }
             }
-            if line.ends_with_newline {
-                let newline = chars.next().unwrap();
-                debug_assert_eq!(newline, '\n');
-            }
         }
-        assert_eq!(chars.next(), None);
     }
 }
 
@@ -714,14 +724,14 @@ impl Tessellator {
 ///
 /// * `shapes`: the shape to tessellate
 /// * `options`: tessellation quality
-/// * `fonts`: font source when tessellating text
+/// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
 ///
 /// ## Returns
 /// A list of clip rectangles with matching [`Mesh`].
 pub fn tessellate_shapes(
     shapes: Vec<ClippedShape>,
     options: TessellationOptions,
-    fonts: &Fonts,
+    tex_size: [usize; 2],
 ) -> Vec<ClippedMesh> {
     let mut tessellator = Tessellator::from_options(options);
 
@@ -739,14 +749,14 @@ pub fn tessellate_shapes(
 
         let out = &mut clipped_meshes.last_mut().unwrap().1;
         tessellator.clip_rect = clip_rect;
-        tessellator.tessellate_shape(fonts, shape, out);
+        tessellator.tessellate_shape(tex_size, shape, out);
     }
 
     if options.debug_paint_clip_rects {
         for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
             tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
-                fonts,
+                tex_size,
                 Shape::Rect {
                     rect: *clip_rect,
                     corner_radius: 0.0,

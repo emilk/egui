@@ -262,12 +262,7 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        ui.painter().galley(
-            text_pos,
-            galley,
-            label.text_style_or_default(ui.style()),
-            text_color,
-        );
+        ui.painter().galley(text_pos, galley, text_color);
 
         Prepared {
             id,

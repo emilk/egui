@@ -40,16 +40,15 @@ impl Widget for SelectableLabel {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self { selected, text } = self;
 
-        let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
 
+        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = total_extra + galley.size;
@@ -79,8 +78,7 @@ impl Widget for SelectableLabel {
             .visuals
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+        ui.painter().galley(text_cursor, galley, text_color);
         response
     }
 }

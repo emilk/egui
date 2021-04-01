@@ -73,7 +73,7 @@ impl super::View for Sliders {
         if *integer {
             let mut value_i32 = *value as i32;
             ui.add(
-                Slider::i32(&mut value_i32, (*min as i32)..=(*max as i32))
+                Slider::new(&mut value_i32, (*min as i32)..=(*max as i32))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
@@ -82,7 +82,7 @@ impl super::View for Sliders {
             *value = value_i32 as f64;
         } else {
             ui.add(
-                Slider::f64(value, (*min)..=(*max))
+                Slider::new(value, (*min)..=(*max))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
@@ -102,13 +102,13 @@ impl super::View for Sliders {
         ui.separator();
         ui.label("Slider range:");
         ui.add(
-            Slider::f64(min, type_min..=type_max)
+            Slider::new(min, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("left"),
         );
         ui.add(
-            Slider::f64(max, type_min..=type_max)
+            Slider::new(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("right"),

@@ -357,6 +357,8 @@ impl Context {
         self.frame_state.lock().available_rect()
     }
 
+    /// Stores all the egui state.
+    /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.memory.lock()
     }
@@ -365,6 +367,7 @@ impl Context {
         self.graphics.lock()
     }
 
+    /// What egui outputs each frame.
     pub fn output(&self) -> MutexGuard<'_, Output> {
         self.output.lock()
     }
@@ -382,6 +385,7 @@ impl Context {
         self.repaint_requests.store(times_to_repaint, SeqCst);
     }
 
+    #[inline(always)]
     pub fn input(&self) -> &InputState {
         &self.input
     }
@@ -404,7 +408,14 @@ impl Context {
 
     /// Will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        self.memory().options.font_definitions = font_definitions;
+        if let Some(current_fonts) = &self.fonts {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            if current_fonts.definitions() == &font_definitions {
+                return; // no change - save us from reloading font textures
+            }
+        }
+
+        self.memory().new_font_definitions = Some(font_definitions);
     }
 
     /// The [`Style`] used by all subsequent windows, panels etc.
@@ -528,20 +539,24 @@ impl Context {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        let font_definitions = self.memory().options.font_definitions.clone();
-        let pixels_per_point = self.input.pixels_per_point();
-        let same_as_current = match &self.fonts {
-            None => false,
-            Some(fonts) => {
-                *fonts.definitions() == font_definitions
-                    && (fonts.pixels_per_point() - pixels_per_point).abs() < 1e-3
+        {
+            // Load new fonts if required:
+            let new_font_definitions = self.memory().new_font_definitions.take();
+            let pixels_per_point = self.input.pixels_per_point();
+
+            let pixels_per_point_changed = match &self.fonts {
+                None => true,
+                Some(current_fonts) => {
+                    (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+                }
+            };
+
+            if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
+                self.fonts = Some(Arc::new(Fonts::from_definitions(
+                    pixels_per_point,
+                    new_font_definitions.unwrap_or_default(),
+                )));
             }
-        };
-        if !same_as_current {
-            self.fonts = Some(Arc::new(Fonts::from_definitions(
-                pixels_per_point,
-                font_definitions,
-            )));
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
@@ -568,6 +583,8 @@ impl Context {
         self.memory()
             .end_frame(&self.input, &self.frame_state().used_ids);
 
+        self.fonts().end_frame();
+
         let mut output: Output = std::mem::take(&mut self.output());
         if self.repaint_requests.load(SeqCst) > 0 {
             self.repaint_requests.fetch_sub(1, SeqCst);
@@ -586,10 +603,14 @@ impl Context {
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedMesh> {
         let mut tessellation_options = self.memory().options.tessellation_options;
+        tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations
-        let clipped_meshes =
-            tessellator::tessellate_shapes(shapes, tessellation_options, self.fonts());
+        let clipped_meshes = tessellator::tessellate_shapes(
+            shapes,
+            tessellation_options,
+            self.fonts().texture().size(),
+        );
         *self.paint_stats.lock() = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
     }
@@ -665,7 +686,9 @@ impl Context {
     /// Move all the graphics at the given layer.
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
-        self.graphics().list(layer_id).translate(delta);
+        if delta != Vec2::ZERO {
+            self.graphics().list(layer_id).lock().translate(delta);
+        }
     }
 
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
@@ -751,7 +774,7 @@ impl Context {
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
         ))
-        .on_hover_text("Is egui currently listening for text input");
+        .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "keyboard focus widget: {}",
             self.memory()
@@ -762,7 +785,14 @@ impl Context {
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
         ))
-        .on_hover_text("Is egui currently listening for text input");
+        .on_hover_text("Is egui currently listening for text input?");
+        ui.advance_cursor(16.0);
+
+        ui.label(format!(
+            "There are {} text galleys in the layout cache",
+            self.fonts().num_galleys_in_cache()
+        ))
+        .on_hover_text("This is approximately the number of text strings on screen");
         ui.advance_cursor(16.0);
 
         CollapsingHeader::new("📥 Input")

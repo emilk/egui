@@ -67,8 +67,8 @@
 //! ui.hyperlink("https://github.com/emilk/egui");
 //! ui.text_edit_singleline(&mut my_string);
 //! if ui.button("Click me").clicked() { }
-//! ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0));
-//! ui.add(egui::DragValue::f32(&mut my_f32));
+//! ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0));
+//! ui.add(egui::DragValue::new(&mut my_f32));
 //!
 //! ui.checkbox(&mut my_boolean, "Checkbox");
 //!
@@ -201,6 +201,15 @@
 //! }
 //! ```
 //!
+//! ## Sizes
+//! You can control the size of widgets using [`Ui::add_sized`].
+//!
+//! ```
+//! # let ui = &mut egui::Ui::__test();
+//! # let mut my_value = 0.0_f32;
+//! ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+//! ```
+//!
 //! ## Code snippets
 //!
 //! ```
@@ -274,7 +283,6 @@
     clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]

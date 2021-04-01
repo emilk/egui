@@ -119,10 +119,10 @@ impl LayoutTest {
 
             if self.main_wrap {
                 if self.main_dir.is_horizontal() {
-                    ui.add(Slider::f32(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
+                    ui.add(Slider::new(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
                 } else {
                     ui.add(
-                        Slider::f32(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
+                        Slider::new(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
                     );
                 }
             }

@@ -61,7 +61,7 @@ impl Widget for &mut epaint::text::FontDefinitions {
             for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
                 // TODO: radio button for family
                 ui.add(
-                    Slider::f32(size, 4.0..=40.0)
+                    Slider::new(size, 4.0..=40.0)
                         .max_decimals(0)
                         .text(format!("{:?}", text_style)),
                 );
@@ -124,6 +124,7 @@ impl Widget for &mut epaint::TessellationOptions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
+                pixels_per_point: _,
                 aa_size: _,
                 anti_alias,
                 coarse_tessellation_culling,

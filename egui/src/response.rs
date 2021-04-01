@@ -43,6 +43,7 @@ pub struct Response {
     /// The pointer clicked this thing this frame.
     pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
 
+    // TODO: `released` for sliders
     /// The thing was double-clicked.
     pub(crate) double_clicked: [bool; NUM_POINTER_BUTTONS],
 
@@ -104,6 +105,7 @@ impl std::fmt::Debug for Response {
 
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
+    #[inline(always)]
     pub fn clicked(&self) -> bool {
         self.clicked[PointerButton::Primary as usize]
     }
@@ -135,17 +137,27 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        !self.clicked() && self.ctx.input().pointer.any_click()
+        // We do not use self.clicked(), because we want to catch all click within our frame,
+        // even if we aren't clickable. This is important for windows and such that should close
+        // then the user clicks elsewhere.
+        let pointer = &self.ctx.input().pointer;
+        if let Some(pos) = pointer.latest_pos() {
+            pointer.any_click() && !self.rect.contains(pos)
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?
     /// If false, there was no interaction attempted
     /// and the widget should be drawn in a gray disabled look.
+    #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
     }
@@ -186,6 +198,7 @@ impl Response {
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
     /// (`ui.input().pointer.button_down(…)`).
+    #[inline(always)]
     pub fn dragged(&self) -> bool {
         self.dragged
     }
@@ -231,6 +244,7 @@ impl Response {
 
     /// Is the pointer button currently down on this widget?
     /// This is true if the pointer is pressing down or dragging a widget
+    #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.is_pointer_button_down_on
     }
@@ -241,6 +255,7 @@ impl Response {
     /// Always `false` for something like a `Button`.
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
+    #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
     }
@@ -249,6 +264,7 @@ impl Response {
     ///
     /// This must be called by widgets that represent some mutable data,
     /// e.g. checkboxes, sliders etc.
+    #[inline(always)]
     pub fn mark_changed(&mut self) {
         self.changed = true;
     }
@@ -416,7 +432,7 @@ impl Response {
 /// ```
 /// use egui::*;
 /// fn draw_vec2(ui: &mut Ui, v: &mut Vec2) -> Response {
-///     ui.add(DragValue::f32(&mut v.x)) | ui.add(DragValue::f32(&mut v.y))
+///     ui.add(DragValue::new(&mut v.x)) | ui.add(DragValue::new(&mut v.y))
 /// }
 /// ```
 ///

@@ -13,8 +13,7 @@ rm -f docs/${CRATE_NAME}_bg.wasm
 
 echo "Building rust…"
 BUILD=release
-FEATURES="http,persistence" # screen_reader is experimental
-# FEATURES="http,persistence,screen_reader" # screen_reader is experimental
+FEATURES="http,persistence,screen_reader"
 
 (
   cd egui_demo_app && cargo build \
@@ -30,6 +29,9 @@ TARGET_NAME="${CRATE_NAME}.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
 
-echo "Finished: docs/${CRATE_NAME}.wasm"
+# brew install wabt # to get wasm-strip
+wasm-strip docs/${CRATE_NAME}_bg.wasm
+
+echo "Finished: docs/${CRATE_NAME}_bg.wasm"
 
 open http://localhost:8888/index.html
