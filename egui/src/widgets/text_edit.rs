@@ -510,6 +510,34 @@ impl<'t> TextEdit<'t> {
                         }
                     }
                     Event::Key {
+                        key: Key::LeftBracket,
+                        pressed: true,
+                        modifiers,
+                    } if modifiers.command && !modifiers.shift && !modifiers.alt  => {
+                        let cursorp = handle_remove_paragraphs_identation(
+                            tab_as_spaces,
+                            text::MAX_TAB_SIZE,
+                            &cursorp,
+                            text,
+                        );
+
+                        Some(cursorp)
+                    }
+                    Event::Key {
+                        key: Key::RightBracket,
+                        pressed: true,
+                        modifiers,
+                    } if modifiers.command && !modifiers.shift && !modifiers.alt  => {
+                        let cursorp = handle_insert_paragraphs_identation(
+                            tab_as_spaces,
+                            text::MAX_TAB_SIZE,
+                            &cursorp,
+                            text,
+                        );
+
+                        Some(cursorp)
+                    }
+                    Event::Key {
                         key: Key::Tab,
                         pressed: true,
                         modifiers,
@@ -522,7 +550,9 @@ impl<'t> TextEdit<'t> {
                             let is_insert_identation = modifiers.is_none()
                                 && min.pcursor.paragraph == max.pcursor.paragraph;
 
-                            let is_remove_identation = modifiers.shift;
+                            let is_remove_identation = modifiers.shift && !modifiers.command;
+
+                            let is_add_identation = modifiers.is_none() && min.pcursor.paragraph != max.pcursor.paragraph;
 
                             if is_insert_identation {
                                 let ccursor = handle_identation_insert(
@@ -534,6 +564,15 @@ impl<'t> TextEdit<'t> {
                                 Some(CCursorPair::one(ccursor))
                             } else if is_remove_identation {
                                 let cursorp = handle_remove_paragraphs_identation(
+                                    tab_as_spaces,
+                                    max_tab_size,
+                                    &cursorp,
+                                    text,
+                                );
+
+                                Some(cursorp)
+                            } else if is_add_identation {
+                                let cursorp = handle_insert_paragraphs_identation(
                                     tab_as_spaces,
                                     max_tab_size,
                                     &cursorp,
@@ -962,7 +1001,7 @@ fn decrease_identation(
         // 2. --->--->let x = 1; <- Here we remove a tab
 
         let mut spaces_removed = 0;
-        let mut rev_ident_it = converted_identation.chars().peekable();
+        let mut rev_ident_it = converted_identation.chars().rev().peekable();
 
         // Case 1: We remove potential spaces
         while let Some(c) = rev_ident_it.peek() {
@@ -984,6 +1023,79 @@ fn decrease_identation(
 
         let delete_offset = paragraph_offset + rev_ident_it.clone().count().saturating_sub(1);
         *cursorp = update_selection_delete(*cursorp, delete_offset, chars_removed);
+
+        new_identation.extend(rev_ident_it);
+    }
+
+    new_identation
+}
+
+fn increase_identation(
+    tab_as_spaces: bool,
+    max_tab_size: usize,
+    identation: &str,
+    paragraph_offset: usize,
+    cursorp: &mut CCursorPair,
+) -> String {
+    let converted_identation = convert_identation(
+        tab_as_spaces,
+        max_tab_size,
+        identation,
+        paragraph_offset,
+        cursorp,
+    );
+    let mut new_identation = String::with_capacity(converted_identation.len());
+
+    if tab_as_spaces {
+        // With spaces we have two cases
+        // 1. ____ __let x = 2;   <- Here we add necesary spaces
+        //                           between the full spaces block
+        //                           and `let`.
+        //
+        // 2. ____ ____let x = 1; <- Here we add a full spaces block
+
+        let spaces_count = converted_identation.chars().count();
+        let spaces_to_add = max_tab_size - spaces_count % max_tab_size;
+
+        new_identation = converted_identation;
+
+        for _ in 0..spaces_to_add {
+            new_identation.push(' ')
+        }
+
+        let insert_offset = paragraph_offset + spaces_count + spaces_to_add;
+        *cursorp = update_selection_insert(*cursorp, insert_offset, spaces_to_add);
+    } else {
+        // With tabs we have two cases
+        // 1. --->__let x = 2;   <- Here we remove the spaces
+        //                          between the tab and `let`
+        //                          and then add a tab
+        //
+        // 2. --->--->let x = 1; <- Here we add a tab
+
+        let mut spaces_removed: usize = 0;
+        let mut rev_ident_it = converted_identation.chars().rev().peekable();
+
+        // Case 1: We remove potential spaces
+        while let Some(c) = rev_ident_it.peek() {
+            if *c == ' ' {
+                rev_ident_it.next();
+                spaces_removed += 1;
+            } else {
+                break;
+            }
+        }
+
+        // Case 2: We add a tab
+        new_identation.push('\t');
+        let chars_added = if spaces_removed == 0 {
+            1
+        } else {
+            spaces_removed.saturating_sub(1)
+        };
+
+        let insert_offset = paragraph_offset + rev_ident_it.clone().count().saturating_sub(1);
+        *cursorp = update_selection_insert(*cursorp, insert_offset, chars_added);
 
         new_identation.extend(rev_ident_it);
     }
@@ -1025,6 +1137,51 @@ fn handle_remove_paragraphs_identation(
                 new_paragraph
             } else {
                 paragraph_offset += paragraph.chars().count();
+                paragraph.to_string()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    *text = new_text;
+
+    cursorp
+}
+
+fn handle_insert_paragraphs_identation(
+    tab_as_spaces: bool,
+    max_tab_size: usize,
+    cursorp: &CursorPair,
+    text: &mut String,
+) -> CCursorPair {
+    let [min, max] = cursorp.sorted();
+    let mut cursorp = CCursorPair::two(min.ccursor, max.ccursor);
+
+    let mut paragraph_offset = 0;
+    let new_text = text
+        .lines()
+        .enumerate()
+        .map(|(index, paragraph)| {
+            let is_paragraph_to_ident =
+                index >= min.pcursor.paragraph && index <= max.pcursor.paragraph;
+
+            if is_paragraph_to_ident {
+                let identation = extract_identation(paragraph);
+                let content = extract_content(paragraph);
+
+                let mut new_paragraph = increase_identation(
+                    tab_as_spaces,
+                    max_tab_size,
+                    &identation,
+                    paragraph_offset,
+                    &mut cursorp,
+                );
+                new_paragraph += &content;
+
+                paragraph_offset += new_paragraph.chars().count();
+                new_paragraph
+            } else {
+                paragraph_offset += paragraph.chars().count().saturating_sub(1);
                 paragraph.to_string()
             }
         })
@@ -1401,7 +1558,7 @@ fn update_selection_insert(ccursorp: CCursorPair, insert_offset: usize, amount: 
         min = min.saturating_add(amount);
     }
 
-    if insert_offset < max {
+    if insert_offset <= max {
         max = max.saturating_add(amount);
     }
 
@@ -1629,6 +1786,73 @@ mod test {
     }
 
     #[test]
+    fn test_increase_identation() {
+        let tab_as_spaces = true;
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident = increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "", 0, &mut cursorp);
+        assert_eq!("    ", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "  ", 0, &mut cursorp);
+        assert_eq!("    ", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t", 0, &mut cursorp);
+        assert_eq!("        ", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "    \t", 0, &mut cursorp);
+        assert_eq!("            ", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t    ", 0, &mut cursorp);
+        assert_eq!("            ", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(2));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t\t", 0, &mut cursorp);
+        assert_eq!(8, cursorp.primary.index);
+        assert_eq!(8, cursorp.secondary.index);
+        assert_eq!("            ", new_ident);
+
+        let tab_as_spaces = false;
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident = increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "", 0, &mut cursorp);
+        assert_eq!("\t", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "  ", 0, &mut cursorp);
+        assert_eq!("\t", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t", 0, &mut cursorp);
+        assert_eq!("\t\t", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "    \t", 0, &mut cursorp);
+        assert_eq!("\t\t\t", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(0));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t    ", 0, &mut cursorp);
+        assert_eq!("\t\t\t", new_ident);
+
+        let mut cursorp = CCursorPair::one(CCursor::new(2));
+        let new_ident =
+            increase_identation(tab_as_spaces, text::MAX_TAB_SIZE, "\t\t", 0, &mut cursorp);
+        assert_eq!(3, cursorp.primary.index);
+        assert_eq!(3, cursorp.secondary.index);
+        assert_eq!("\t\t\t", new_ident);
+    }
+
+    #[test]
     fn test_update_selection_insert_before_selection() {
         let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 1, 5);
         assert_eq!(10, test.secondary.index);
@@ -1759,6 +1983,66 @@ mod test {
         let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 3, 20);
         assert_eq!(3, test.primary.index);
         assert_eq!(3, test.secondary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+    }
+
+    #[test]
+    fn test_update_selection_delete_at_cursor_min_no_max_overlapping() {
+        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
+        assert_eq!(5, test.secondary.index);
+        assert_eq!(7, test.primary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+
+        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
+        assert_eq!(5, test.primary.index);
+        assert_eq!(7, test.secondary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+    }
+
+    #[test]
+    fn test_update_selection_delete_at_cursor_min_with_max_overlapping() {
+        let test = update_selection_delete(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 20);
+        assert_eq!(5, test.secondary.index);
+        assert_eq!(5, test.primary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+
+        let test = update_selection_delete(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 20);
+        assert_eq!(5, test.primary.index);
+        assert_eq!(5, test.secondary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+    }
+
+    #[test]
+    fn test_update_selection_insert_at_cursor_min() {
+        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 5, 3);
+        assert_eq!(5, test.secondary.index);
+        assert_eq!(13, test.primary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+
+        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 5, 3);
+        assert_eq!(5, test.primary.index);
+        assert_eq!(13, test.secondary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+    }
+
+    #[test]
+    fn test_update_selection_insert_at_cursor_max() {
+        let test = update_selection_insert(CCursorPair::two(CCursor::new(5), CCursor::new(10)), 10, 3);
+        assert_eq!(5, test.secondary.index);
+        assert_eq!(13, test.primary.index);
+        assert_eq!(false, test.primary.prefer_next_row);
+        assert_eq!(false, test.secondary.prefer_next_row);
+
+        let test = update_selection_insert(CCursorPair::two(CCursor::new(10), CCursor::new(5)), 10, 3);
+        assert_eq!(5, test.primary.index);
+        assert_eq!(13, test.secondary.index);
         assert_eq!(false, test.primary.prefer_next_row);
         assert_eq!(false, test.secondary.prefer_next_row);
     }
