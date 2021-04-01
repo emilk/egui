@@ -29,7 +29,9 @@ TARGET_NAME="${CRATE_NAME}.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
 
-# brew install wabt # to get wasm-strip
+# To get wasm-strip
+# Fedora: sudo dnf install wabt
+# MacOS: brew install wabt
 wasm-strip docs/${CRATE_NAME}_bg.wasm
 
 echo "Finished: docs/${CRATE_NAME}_bg.wasm"
