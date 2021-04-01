@@ -138,13 +138,27 @@ impl Row {
 }
 
 impl Galley {
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
+    #[inline(always)]
+    pub(crate) fn char_count_excluding_newlines(&self) -> usize {
+        let mut char_count = 0;
+        for row in &self.rows {
+            char_count += row.char_count_excluding_newline();
+        }
+        char_count
+    }
+
     pub fn sanity_check(&self) {
         let mut char_count = 0;
         for row in &self.rows {
             row.sanity_check();
             char_count += row.char_count_including_newline();
         }
-        assert_eq!(char_count, self.text.chars().count());
+        debug_assert_eq!(char_count, self.text.chars().count());
         if let Some(last_row) = self.rows.last() {
             debug_assert!(
                 !last_row.ends_with_newline,

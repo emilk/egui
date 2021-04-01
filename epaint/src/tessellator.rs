@@ -638,24 +638,28 @@ impl Tessellator {
         fake_italics: bool,
         out: &mut Mesh,
     ) {
-        if color == Color32::TRANSPARENT {
+        if color == Color32::TRANSPARENT || galley.is_empty() {
             return;
         }
-        galley.sanity_check();
+        if cfg!(debug_assertions) {
+            galley.sanity_check();
+        }
 
-        let num_chars = galley.text.chars().count();
+        let num_chars = galley.char_count_excluding_newlines();
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);
 
         let inv_tex_w = 1.0 / tex_size[0] as f32;
         let inv_tex_h = 1.0 / tex_size[1] as f32;
 
-        let clip_rect = self.clip_rect.expand(2.0); // Some fudge to handle letters that are slightly larger than expected.
+        let clip_slack = 2.0; // Some fudge to handle letters that are slightly larger than expected.
+        let clip_rect_min_y = self.clip_rect.min.y - clip_slack;
+        let clip_rect_max_y = self.clip_rect.max.y + clip_slack;
 
         for row in &galley.rows {
             let row_min_y = pos.y + row.y_min;
             let row_max_y = pos.y + row.y_max;
-            let is_line_visible = row_max_y >= clip_rect.min.y && row_min_y <= clip_rect.max.y;
+            let is_line_visible = clip_rect_min_y <= row_max_y && row_min_y <= clip_rect_max_y;
 
             if self.options.coarse_tessellation_culling && !is_line_visible {
                 // culling individual lines of text is important, since a single `Shape::Text`
