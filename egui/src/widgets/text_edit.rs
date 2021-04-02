@@ -1129,8 +1129,8 @@ fn handle_remove_paragraphs_identation(
     let mut cursorp = CCursorPair::two(min.ccursor, max.ccursor);
 
     let mut paragraph_offset = 0;
-    let new_text = text
-        .lines()
+
+    let new_text = util::LinesWithEnding::new(text)
         .enumerate()
         .map(|(index, paragraph)| {
             let is_paragraph_to_ident =
@@ -1156,8 +1156,10 @@ fn handle_remove_paragraphs_identation(
                 paragraph.to_string()
             }
         })
-        .collect::<Vec<String>>()
-        .join("\n");
+        .fold(String::with_capacity(text.len()), |mut acc, string| {
+            acc.push_str(&string);
+            acc
+        });
 
     *text = new_text;
 
@@ -1174,8 +1176,7 @@ fn handle_insert_paragraphs_identation(
     let mut cursorp = CCursorPair::two(min.ccursor, max.ccursor);
 
     let mut paragraph_offset = 0;
-    let new_text = text
-        .lines()
+    let new_text = util::LinesWithEnding::new(text)
         .enumerate()
         .map(|(index, paragraph)| {
             let is_paragraph_to_ident =
@@ -1201,8 +1202,10 @@ fn handle_insert_paragraphs_identation(
                 paragraph.to_string()
             }
         })
-        .collect::<Vec<String>>()
-        .join("\n");
+        .fold(String::with_capacity(text.len()), |mut acc, string| {
+            acc.push_str(&string);
+            acc
+        });
 
     *text = new_text;
 

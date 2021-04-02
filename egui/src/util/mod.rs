@@ -6,3 +6,6 @@ pub mod undoer;
 
 pub(crate) use cache::Cache;
 pub use history::History;
+
+mod lines_with_ending;
+pub use lines_with_ending::LinesWithEnding;
