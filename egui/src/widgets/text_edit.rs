@@ -130,6 +130,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
     text_color: Option<Color32>,
+    password: bool,
     frame: bool,
     multiline: bool,
     enabled: bool,
@@ -160,6 +161,7 @@ impl<'t> TextEdit<'t> {
             id_source: None,
             text_style: None,
             text_color: None,
+            password: false,
             frame: true,
             multiline: false,
             enabled: true,
@@ -176,8 +178,9 @@ impl<'t> TextEdit<'t> {
             id: None,
             id_source: None,
             text_style: None,
-            frame: true,
             text_color: None,
+            password: false,
+            frame: true,
             multiline: true,
             enabled: true,
             desired_width: None,
@@ -199,6 +202,12 @@ impl<'t> TextEdit<'t> {
     /// Show a faint hint text when the text field is empty.
     pub fn hint_text(mut self, hint_text: impl Into<String>) -> Self {
         self.hint_text = hint_text.into();
+        self
+    }
+
+    /// If true, hide the letters from view and prevent copying from the field.
+    pub fn password(mut self, password: bool) -> Self {
+        self.password = password;
         self
     }
 
@@ -292,6 +301,7 @@ impl<'t> TextEdit<'t> {
             id_source,
             text_style,
             text_color,
+            password,
             frame: _,
             multiline,
             enabled,
@@ -302,12 +312,30 @@ impl<'t> TextEdit<'t> {
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
-        let mut galley = if multiline {
-            ui.fonts()
-                .layout_multiline(text_style, text.clone(), available_width)
-        } else {
-            ui.fonts().layout_single_line(text_style, text.clone())
+
+        let make_galley = |ui: &Ui, text: &str| {
+            let text = if password {
+                std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+                    .take(text.chars().count())
+                    .collect::<String>()
+            } else {
+                text.to_owned()
+            };
+            if multiline {
+                ui.fonts()
+                    .layout_multiline(text_style, text, available_width)
+            } else {
+                ui.fonts().layout_single_line(text_style, text)
+            }
         };
+
+        let copy_if_not_password = |ui: &Ui, text: String| {
+            if !password {
+                ui.ctx().output().copied_text = text;
+            }
+        };
+
+        let mut galley = make_galley(ui, text);
 
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
@@ -411,18 +439,18 @@ impl<'t> TextEdit<'t> {
                 let did_mutate_text = match event {
                     Event::Copy => {
                         if cursorp.is_empty() {
-                            ui.ctx().output().copied_text = text.clone();
+                            copy_if_not_password(ui, text.clone());
                         } else {
-                            ui.ctx().output().copied_text = selected_str(text, &cursorp).to_owned();
+                            copy_if_not_password(ui, selected_str(text, &cursorp).to_owned());
                         }
                         None
                     }
                     Event::Cut => {
                         if cursorp.is_empty() {
-                            ui.ctx().output().copied_text = std::mem::take(text);
+                            copy_if_not_password(ui, std::mem::take(text));
                             Some(CCursorPair::default())
                         } else {
-                            ui.ctx().output().copied_text = selected_str(text, &cursorp).to_owned();
+                            copy_if_not_password(ui, selected_str(text, &cursorp).to_owned());
                             Some(CCursorPair::one(delete_selected(text, &cursorp)))
                         }
                     }
@@ -482,12 +510,7 @@ impl<'t> TextEdit<'t> {
                     response.mark_changed();
 
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-                    galley = if multiline {
-                        ui.fonts()
-                            .layout_multiline(text_style, text.clone(), available_width)
-                    } else {
-                        ui.fonts().layout_single_line(text_style, text.clone())
-                    };
+                    galley = make_galley(ui, text);
 
                     // Set cursorp using new galley:
                     cursorp = CursorPair {
