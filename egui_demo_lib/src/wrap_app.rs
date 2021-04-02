@@ -327,7 +327,7 @@ impl BackendPanel {
             These are emitted when you switch selected widget with tab, \
             and can be hooked up to a screen reader on supported platforms.",
             );
-            ui.advance_cursor(8.0);
+            ui.add_space(8.0);
             for event in &self.output_event_history {
                 ui.label(format!("{:?}", event));
             }

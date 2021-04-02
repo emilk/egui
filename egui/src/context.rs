@@ -791,14 +791,14 @@ impl Context {
                 .unwrap_or_default()
         ))
         .on_hover_text("Is egui currently listening for text input?");
-        ui.advance_cursor(16.0);
+        ui.add_space(16.0);
 
         ui.label(format!(
             "There are {} text galleys in the layout cache",
             self.fonts().num_galleys_in_cache()
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
-        ui.advance_cursor(16.0);
+        ui.add_space(16.0);
 
         CollapsingHeader::new("📥 Input")
             .default_open(false)

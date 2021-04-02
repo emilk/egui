@@ -62,7 +62,12 @@ impl Style {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Spacing {
-    /// Horizontal and vertical spacing between widgets
+    /// Horizontal and vertical spacing between widgets.
+    ///
+    /// To add extra space between widgets, use [`Ui::add_space`].
+    ///
+    /// `item_spacing` is inserted _after_ adding a widget, so to increase the spacing between
+    /// widgets `A` and `B` you need to change `item_spacing` before adding `A`.
     pub item_spacing: Vec2,
 
     /// Horizontal and vertical padding within a window frame.
