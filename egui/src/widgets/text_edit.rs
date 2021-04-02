@@ -797,9 +797,11 @@ fn insert_identation(
     if tab_as_spaces {
         let line_start = ccursor_paragraph_start(text, *ccursor);
 
-        let virtual_columns_count = virtual_columns_count(max_tab_size, text, line_start, *ccursor);
+        let ccursor_virtual_column =
+            ccursor_virtual_column(max_tab_size, text, line_start, *ccursor);
+
         let mut spaces_to_insert = max_tab_size;
-        spaces_to_insert -= virtual_columns_count % max_tab_size;
+        spaces_to_insert -= (ccursor_virtual_column - 1) % max_tab_size;
 
         for _ in 0..spaces_to_insert {
             insert_text(ccursor, text, " ");
@@ -1232,6 +1234,23 @@ fn delete_selected_ccursor_range(text: &mut String, [min, max]: [CCursor; 2]) ->
     }
 }
 
+fn delete_identation(tab_size: usize, text: &mut String, ccursor: CCursor) -> CCursor {
+    let mut new_ccursor = ccursor;
+    let paragraph_start = ccursor_paragraph_start(text, ccursor);
+
+    loop {
+        new_ccursor = delete_previous_char(text, new_ccursor);
+
+        let column = ccursor_virtual_column(tab_size, text, paragraph_start, new_ccursor);
+
+        if column % tab_size == 1 {
+            break;
+        }
+    }
+
+    new_ccursor
+}
+
 fn delete_previous_char(text: &mut String, ccursor: CCursor) -> CCursor {
     if ccursor.index > 0 {
         let max_ccursor = ccursor;
@@ -1307,10 +1326,18 @@ fn on_key_press(
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_before_cursor(text, galley, cursorp)
             } else if let Some(cursor) = cursorp.single() {
-                if modifiers.alt || modifiers.ctrl {
+                let is_delete_previous_word = modifiers.alt || modifiers.ctrl;
+
+                let is_delete_identation = modifiers.is_none()
+                    && is_ccursor_in_identation_block_or_at_edge(text, cursor.ccursor);
+
+                if is_delete_previous_word {
                     // alt on mac, ctrl on windows
                     delete_previous_word(text, cursor.ccursor)
+                } else if is_delete_identation {
+                    delete_identation(text::MAX_TAB_SIZE, text, cursor.ccursor)
                 } else {
+                    // TODO: if deleteing from identation remove spaces until tab limit
                     delete_previous_char(text, cursor.ccursor)
                 }
             } else {
@@ -1542,19 +1569,20 @@ fn is_word_char(c: char) -> bool {
 }
 
 /// Virtal columns keep track of tabs and how many columns they are using
-fn virtual_columns_count(
+fn ccursor_virtual_column(
     tab_size: usize,
     text: &str,
-    line_start: CCursor,
+    paragraph_start: CCursor,
     current_position: CCursor,
 ) -> usize {
-    text.chars()
+    1 + text
+        .chars()
         .enumerate()
-        .skip(line_start.index)
+        .skip(paragraph_start.index)
         .take_while(|(idx, _)| *idx < current_position.index)
-        .fold(0, |columns, (idx, x)| {
+        .fold(0, |columns, (_, x)| {
             if x == '\t' {
-                columns + (tab_size - idx % tab_size)
+                columns + tab_size - columns % tab_size
             } else {
                 columns + 1
             }
@@ -1667,9 +1695,116 @@ fn update_selection_delete(
     }
 }
 
+fn is_ccursor_in_identation_block_or_at_edge(text: &str, ccursor: CCursor) -> bool {
+    let paragraph_start = ccursor_paragraph_start(text, ccursor);
+
+    let is_at_identation_block = (text[ccursor.index..ccursor.index] != *" "
+        || text[ccursor.index..ccursor.index] != *"\t")
+        && text[paragraph_start.index..ccursor.index]
+            .chars()
+            .find(|x| !(*x == ' ' || *x == '\t'))
+            .is_none();
+
+    is_at_identation_block
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_delete_identation() {
+        // Spaces
+        let mut text = "    ".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(0));
+        assert_eq!("    ", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "    ".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(2));
+        assert_eq!("  ", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "    A".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(4));
+        assert_eq!("A", text);
+        assert_eq!(0, new_cursor.index);
+
+        // Tabs
+        let mut text = "\t".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(0));
+        assert_eq!("\t", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "\tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(1));
+        assert_eq!("A", text);
+        assert_eq!(0, new_cursor.index);
+
+        // Tabs and spaces
+        let mut text = " \tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(2));
+        assert_eq!("A", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "  \tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(3));
+        assert_eq!("A", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "   \tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(4));
+        assert_eq!("A", text);
+        assert_eq!(0, new_cursor.index);
+
+        let mut text = "    \tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(5));
+        assert_eq!("    A", text);
+        assert_eq!(4, new_cursor.index);
+
+        // Tab Tab
+        let mut text = "\t\tA".to_string();
+        let new_cursor = delete_identation(text::MAX_TAB_SIZE, &mut text, CCursor::new(2));
+        assert_eq!("\tA", text);
+        assert_eq!(1, new_cursor.index);
+    }
+
+    #[test]
+    fn test_is_ccursor_in_identation_block_or_at_edge() {
+        // Inside identation
+        assert_eq!(
+            true,
+            is_ccursor_in_identation_block_or_at_edge("    ", CCursor::new(0))
+        );
+        assert_eq!(
+            true,
+            is_ccursor_in_identation_block_or_at_edge("\t", CCursor::new(0))
+        );
+        assert_eq!(
+            true,
+            is_ccursor_in_identation_block_or_at_edge("    ", CCursor::new(3))
+        );
+
+        // At edge
+        assert_eq!(
+            true,
+            is_ccursor_in_identation_block_or_at_edge("    A", CCursor::new(4))
+        );
+        assert_eq!(
+            true,
+            is_ccursor_in_identation_block_or_at_edge("\tA", CCursor::new(1))
+        );
+
+        // Else
+        assert_eq!(
+            false,
+            is_ccursor_in_identation_block_or_at_edge("    AB", CCursor::new(5))
+        );
+        assert_eq!(
+            false,
+            is_ccursor_in_identation_block_or_at_edge("\tAB", CCursor::new(2))
+        );
+    }
 
     #[test]
     fn test_ccursor_paragraph_start() {
@@ -1708,33 +1843,37 @@ mod test {
     }
 
     #[test]
-    fn test_identation_virtual_columns_count() {
-        let test = virtual_columns_count(text::MAX_TAB_SIZE, "", CCursor::new(0), CCursor::new(0));
-        assert_eq!(0, test);
+    fn test_ccursor_virtual_column() {
+        let test = ccursor_virtual_column(text::MAX_TAB_SIZE, "", CCursor::new(0), CCursor::new(0));
+        assert_eq!(1, test);
 
         let test =
-            virtual_columns_count(text::MAX_TAB_SIZE, "   ", CCursor::new(0), CCursor::new(3));
-        assert_eq!(3, test);
+            ccursor_virtual_column(text::MAX_TAB_SIZE, "   ", CCursor::new(0), CCursor::new(3));
+        assert_eq!(4, test);
 
         let test =
-            virtual_columns_count(text::MAX_TAB_SIZE, "\t", CCursor::new(0), CCursor::new(1));
-        assert_eq!(text::MAX_TAB_SIZE, test);
+            ccursor_virtual_column(text::MAX_TAB_SIZE, "\t", CCursor::new(0), CCursor::new(1));
+        assert_eq!(text::MAX_TAB_SIZE + 1, test);
 
         let test =
-            virtual_columns_count(text::MAX_TAB_SIZE, " \t", CCursor::new(0), CCursor::new(2));
-        assert_eq!(text::MAX_TAB_SIZE, test);
+            ccursor_virtual_column(text::MAX_TAB_SIZE, "\t\t", CCursor::new(0), CCursor::new(2));
+        assert_eq!(2 * text::MAX_TAB_SIZE + 1, test);
 
         let test =
-            virtual_columns_count(text::MAX_TAB_SIZE, "  \t", CCursor::new(0), CCursor::new(3));
-        assert_eq!(text::MAX_TAB_SIZE, test);
+            ccursor_virtual_column(text::MAX_TAB_SIZE, " \t", CCursor::new(0), CCursor::new(2));
+        assert_eq!(text::MAX_TAB_SIZE + 1, test);
 
-        let test = virtual_columns_count(
+        let test =
+            ccursor_virtual_column(text::MAX_TAB_SIZE, "  \t", CCursor::new(0), CCursor::new(3));
+        assert_eq!(text::MAX_TAB_SIZE + 1, test);
+
+        let test = ccursor_virtual_column(
             text::MAX_TAB_SIZE,
             "   \t",
             CCursor::new(0),
             CCursor::new(4),
         );
-        assert_eq!(text::MAX_TAB_SIZE, test);
+        assert_eq!(text::MAX_TAB_SIZE + 1, test);
     }
 
     #[test]
