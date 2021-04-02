@@ -64,14 +64,7 @@ impl epi::App for WrapApp {
 
     fn warm_up_enabled(&self) -> bool {
         // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
-        #[cfg(debug_assertions)]
-        {
-            false // debug
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            true // release
-        }
+        cfg!(not(debug_assertions))
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
@@ -334,7 +327,7 @@ impl BackendPanel {
             These are emitted when you switch selected widget with tab, \
             and can be hooked up to a screen reader on supported platforms.",
             );
-            ui.advance_cursor(8.0);
+            ui.add_space(8.0);
             for event in &self.output_event_history {
                 ui.label(format!("{:?}", event));
             }

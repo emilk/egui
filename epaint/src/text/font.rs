@@ -234,6 +234,7 @@ impl Font {
             slf.glyph_info(c);
         }
         slf.glyph_info('°');
+        slf.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR); // password replacement character
 
         for tab_size in 1..=super::MAX_TAB_SIZE {
             slf.tab_glyph_info(tab_size);

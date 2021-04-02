@@ -155,6 +155,7 @@ impl Shape {
         Self::mesh(mesh)
     }
 
+    #[inline(always)]
     pub fn texture_id(&self) -> super::TextureId {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id

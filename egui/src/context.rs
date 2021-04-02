@@ -307,6 +307,11 @@ impl CtxRef {
 /// but you are likely the first person to try it.
 #[derive(Default)]
 pub struct Context {
+    // We clone the Context each frame so we can set a new `input`.
+    // This is so we can avoid a mutex lock to access the `InputState`.
+    // This means everything else needs to be behind an Arc.
+    // We can probably come up with a nicer design.
+    //
     /// None until first call to `begin_frame`.
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
@@ -315,13 +320,13 @@ pub struct Context {
     input: InputState,
 
     /// State that is collected during a frame and then cleared
-    frame_state: Mutex<FrameState>,
+    frame_state: Arc<Mutex<FrameState>>,
 
     // The output of a frame:
-    graphics: Mutex<GraphicLayers>,
-    output: Mutex<Output>,
+    graphics: Arc<Mutex<GraphicLayers>>,
+    output: Arc<Mutex<Output>>,
 
-    paint_stats: Mutex<PaintStats>,
+    paint_stats: Arc<Mutex<PaintStats>>,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: AtomicU32,
@@ -786,14 +791,14 @@ impl Context {
                 .unwrap_or_default()
         ))
         .on_hover_text("Is egui currently listening for text input?");
-        ui.advance_cursor(16.0);
+        ui.add_space(16.0);
 
         ui.label(format!(
             "There are {} text galleys in the layout cache",
             self.fonts().num_galleys_in_cache()
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
-        ui.advance_cursor(16.0);
+        ui.add_space(16.0);
 
         CollapsingHeader::new("📥 Input")
             .default_open(false)

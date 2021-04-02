@@ -350,21 +350,9 @@ pub use {
 
 // ----------------------------------------------------------------------------
 
-/// `true` if egui was compiled with debug assertions enabled.
-#[cfg(debug_assertions)]
-pub(crate) const fn has_debug_assertions() -> bool {
-    true
-}
-
-/// `true` if egui was compiled with debug assertions enabled.
-#[cfg(not(debug_assertions))]
-pub(crate) const fn has_debug_assertions() -> bool {
-    false
-}
-
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
-    if crate::has_debug_assertions() {
+    if cfg!(debug_assertions) {
         ui.label(
             crate::Label::new("‼ Debug build ‼")
                 .small()

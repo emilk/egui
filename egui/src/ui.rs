@@ -510,19 +510,6 @@ impl Ui {
     pub fn hovered(&self, rect: Rect) -> bool {
         self.interact(rect, self.id, Sense::hover()).hovered
     }
-
-    // ------------------------------------------------------------------------
-    // Stuff that moves the cursor, i.e. allocates space in this ui!
-
-    /// Advance the cursor (where the next widget is put) by this many points.
-    ///
-    /// The direction is dependent on the layout.
-    /// This is useful for creating some extra space between widgets.
-    ///
-    /// [`Self::min_rect`] will expand to contain the cursor.
-    pub fn advance_cursor(&mut self, amount: f32) {
-        self.placer.advance_cursor(amount);
-    }
 }
 
 /// # Allocating space: where do I put my widgets?
@@ -831,6 +818,21 @@ impl Ui {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
         .inner
+    }
+
+    /// Add extra space before the next widget.
+    ///
+    /// The direction is dependent on the layout.
+    /// This will be in addition to the [`Spacing::item_spacing`}.
+    ///
+    /// [`Self::min_rect`] will expand to contain the space.
+    pub fn add_space(&mut self, amount: f32) {
+        self.placer.advance_cursor(amount);
+    }
+
+    #[deprecated = "Use add_space instead"]
+    pub fn advance_cursor(&mut self, amount: f32) {
+        self.add_space(amount);
     }
 
     /// Shortcut for `add(Label::new(text))`
@@ -1230,7 +1232,7 @@ impl Ui {
 
         let end_with_horizontal_line = true;
         if end_with_horizontal_line {
-            child_ui.advance_cursor(4.0);
+            child_ui.add_space(4.0);
         }
 
         // draw a faint line on the left to mark the indented section

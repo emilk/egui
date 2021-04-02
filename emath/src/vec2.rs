@@ -149,53 +149,63 @@ impl Vec2 {
     }
 
     #[must_use]
+    #[inline(always)]
     pub fn floor(self) -> Self {
         vec2(self.x.floor(), self.y.floor())
     }
 
     #[must_use]
+    #[inline(always)]
     pub fn round(self) -> Self {
         vec2(self.x.round(), self.y.round())
     }
 
     #[must_use]
+    #[inline(always)]
     pub fn ceil(self) -> Self {
         vec2(self.x.ceil(), self.y.ceil())
     }
 
     /// True if all members are also finite.
+    #[inline(always)]
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }
 
     /// True if any member is NaN.
+    #[inline(always)]
     pub fn any_nan(self) -> bool {
         self.x.is_nan() || self.y.is_nan()
     }
 
     #[must_use]
+    #[inline]
     pub fn min(self, other: Self) -> Self {
         vec2(self.x.min(other.x), self.y.min(other.y))
     }
 
     #[must_use]
+    #[inline]
     pub fn max(self, other: Self) -> Self {
         vec2(self.x.max(other.x), self.y.max(other.y))
     }
 
     /// Returns the minimum of `self.x` and `self.y`.
     #[must_use]
+    #[inline(always)]
     pub fn min_elem(self) -> f32 {
         self.x.min(self.y)
     }
 
     /// Returns the maximum of `self.x` and `self.y`.
+    #[inline(always)]
     #[must_use]
     pub fn max_elem(self) -> f32 {
         self.x.max(self.y)
     }
 
     #[must_use]
+    #[inline]
     pub fn clamp(self, min: Self, max: Self) -> Self {
         Self {
             x: self.x.clamp(min.x, max.x),
@@ -207,6 +217,7 @@ impl Vec2 {
 impl std::ops::Index<usize> for Vec2 {
     type Output = f32;
 
+    #[inline(always)]
     fn index(&self, index: usize) -> &f32 {
         match index {
             0 => &self.x,
@@ -217,6 +228,7 @@ impl std::ops::Index<usize> for Vec2 {
 }
 
 impl std::ops::IndexMut<usize> for Vec2 {
+    #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut f32 {
         match index {
             0 => &mut self.x,

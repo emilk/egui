@@ -189,6 +189,7 @@ impl WebGlPainter {
             }
         }
     }
+
     pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
         let id = self.alloc_user_texture_index();
         if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
@@ -200,20 +201,18 @@ impl WebGlPainter {
         }
         egui::TextureId::User(id as u64)
     }
+
     fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
         debug_assert!(mesh.is_valid());
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
         let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
+        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
         for v in &mesh.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
             tex_coords.push(v.uv.x);
             tex_coords.push(v.uv.y);
-        }
-
-        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
-        for v in &mesh.vertices {
             colors.push(v.color[0]);
             colors.push(v.color[1]);
             colors.push(v.color[2]);

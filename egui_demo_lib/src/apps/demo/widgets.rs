@@ -22,10 +22,11 @@ pub struct Widgets {
     radio: Enum,
     angle: f32,
     color: Color32,
+    show_password: bool,
     single_line_text_input: String,
+    multiline_text_input: String,
     tab_as_spaces: bool,
     tab_moves_focus: bool,
-    multiline_text_input: String,
     code_snippet: String,
 }
 
@@ -38,9 +39,10 @@ impl Default for Widgets {
             angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
-
+            show_password: false,
             tab_as_spaces: true,
             tab_moves_focus: false,
+
             multiline_text_input: r#"Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.
 This is the start of the next paragraph.
 
@@ -158,11 +160,15 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label("Single line text input:");
-            let response = ui.text_edit_singleline(&mut self.single_line_text_input);
+            ui.label("Password:");
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut self.single_line_text_input)
+                    .password(!self.show_password),
+            );
             if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
                 // …
             }
+            ui.checkbox(&mut self.show_password, "Show password");
         });
 
         ui.separator();

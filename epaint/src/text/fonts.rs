@@ -359,6 +359,7 @@ impl Fonts {
 impl std::ops::Index<TextStyle> for Fonts {
     type Output = Font;
 
+    #[inline(always)]
     fn index(&self, text_style: TextStyle) -> &Font {
         &self.fonts[&text_style]
     }

@@ -30,6 +30,7 @@ impl Texture {
 impl std::ops::Index<(usize, usize)> for Texture {
     type Output = u8;
 
+    #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &u8 {
         assert!(x < self.width);
         assert!(y < self.height);
@@ -38,6 +39,7 @@ impl std::ops::Index<(usize, usize)> for Texture {
 }
 
 impl std::ops::IndexMut<(usize, usize)> for Texture {
+    #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
         assert!(x < self.width);
         assert!(y < self.height);

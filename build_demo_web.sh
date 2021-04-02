@@ -32,9 +32,12 @@ wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
 # To get wasm-strip
 # Fedora: sudo dnf install wabt
 # MacOS: brew install wabt
-wasm-strip docs/${CRATE_NAME}_bg.wasm
+# wasm-strip docs/${CRATE_NAME}_bg.wasm
 
-echo "Finished: docs/${CRATE_NAME}_bg.wasm"
+echo "Optimizing wasm…"
+# brew install binaryen # to get wasm-opt
+wasm-opt docs/egui_demo_app_bg.wasm -O2 --fast-math -o docs/egui_demo_app_bg.wasm # add -g to get debug symbols
+echo "Finished docs/${CRATE_NAME}_bg.wasm"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   # Linux, ex: Fedora

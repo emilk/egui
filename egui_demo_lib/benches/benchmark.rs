@@ -10,7 +10,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         // The most end-to-end benchmark.
-        c.bench_function("demo_windows_minimal with tesselation (realistic)", |b| {
+        c.bench_function("demo_with_tesselate__realistic", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
@@ -19,53 +19,33 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
 
-        c.bench_function("demo_windows_minimal_no_tesselation", |b| {
+        c.bench_function("demo_no_tesselate", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
                 ctx.end_frame()
             })
         });
-    }
 
-    {
-        let mut ctx = egui::CtxRef::default();
-        ctx.memory().set_everything_is_visible(true); // give us everything
-        let mut demo_windows = egui_demo_lib::DemoWindows::default();
-
-        c.bench_function("demo_windows_full", |b| {
-            b.iter(|| {
-                ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx);
-                ctx.end_frame()
-            })
-        });
-    }
-
-    {
-        let mut ctx = egui::CtxRef::default();
-        // ctx.memory().set_everything_is_visible(true); // give us everything
-        let mut demo_windows = egui_demo_lib::DemoWindows::default();
         ctx.begin_frame(raw_input.clone());
         demo_windows.ui(&ctx);
         let (_, shapes) = ctx.end_frame();
-
-        c.bench_function("demo_windows_minimal_tessellate", |b| {
+        c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(shapes.clone()))
         });
     }
 
-    {
+    if false {
         let mut ctx = egui::CtxRef::default();
-        ctx.begin_frame(raw_input);
-        egui::CentralPanel::default().show(&ctx, |ui| {
-            c.bench_function("label", |b| {
-                b.iter(|| {
-                    ui.label(LOREM_IPSUM_LONG);
-                })
-            });
+        ctx.memory().set_everything_is_visible(true); // give us everything
+        let mut demo_windows = egui_demo_lib::DemoWindows::default();
+        c.bench_function("demo_full_no_tesselate", |b| {
+            b.iter(|| {
+                ctx.begin_frame(raw_input.clone());
+                demo_windows.ui(&ctx);
+                ctx.end_frame()
+            })
         });
-        let _ = ctx.end_frame();
     }
 
     {
@@ -77,17 +57,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             egui::FontDefinitions::default(),
         );
         let font = &fonts[text_style];
-        c.bench_function("text layout (uncached)", |b| {
+        c.bench_function("text_layout_uncached", |b| {
             b.iter(|| font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width))
         });
-        c.bench_function("text layout (cached)", |b| {
+        c.bench_function("text_layout_cached", |b| {
             b.iter(|| fonts.layout_multiline(text_style, LOREM_IPSUM_LONG.to_owned(), wrap_width))
         });
 
         let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
-        c.bench_function("tessellate text", |b| {
+        c.bench_function("tessellate_text", |b| {
             b.iter(|| {
                 let fake_italics = false;
                 tessellator.tessellate_text(

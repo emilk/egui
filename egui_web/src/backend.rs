@@ -198,18 +198,21 @@ impl AppRunner {
         resize_canvas_to_screen_size(self.web_backend.canvas_id(), self.app.max_size_points());
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
+
+        let info = epi::IntegrationInfo {
+            web_info: Some(epi::WebInfo {
+                web_location_hash: location_hash().unwrap_or_default(),
+            }),
+            cpu_usage: self.web_backend.previous_frame_time,
+            seconds_since_midnight: Some(seconds_since_midnight()),
+            native_pixels_per_point: Some(native_pixels_per_point()),
+        };
+
         self.web_backend.begin_frame(raw_input);
 
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
-            info: epi::IntegrationInfo {
-                web_info: Some(epi::WebInfo {
-                    web_location_hash: location_hash().unwrap_or_default(),
-                }),
-                cpu_usage: self.web_backend.previous_frame_time,
-                seconds_since_midnight: Some(seconds_since_midnight()),
-                native_pixels_per_point: Some(native_pixels_per_point()),
-            },
+            info,
             tex_allocator: self.web_backend.painter.as_tex_allocator(),
             #[cfg(feature = "http")]
             http: self.http.clone(),
@@ -218,9 +221,9 @@ impl AppRunner {
         }
         .build();
 
-        let egui_ctx = &self.web_backend.ctx;
-        self.app.update(egui_ctx, &mut frame);
+        self.app.update(&self.web_backend.ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
+
         if self.web_backend.ctx.memory().options.screen_reader {
             self.screen_reader.speak(&egui_output.events_description());
         }

@@ -91,7 +91,7 @@ impl PlotDemo {
             ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
-                ui.advance_cursor(8.0);
+                ui.add_space(8.0);
                 ui.checkbox(square, "square view");
                 ui.checkbox(proportional, "proportional data axes");
             });

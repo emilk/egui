@@ -246,6 +246,9 @@ pub struct IntegrationInfo {
 /// How to allocate textures (images) to use in [`egui`].
 pub trait TextureAllocator {
     /// Allocate a new user texture.
+    ///
+    /// There is no way to change a texture.
+    /// Instead allocate a new texture and free the previous one with [`Self::free`].
     fn alloc_srgba_premultiplied(
         &mut self,
         size: (usize, usize),

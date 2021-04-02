@@ -19,8 +19,10 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 * Add `DebugOptions::show_widgets` to debug layouting by hovering widgets.
 * Add `ComboBox` to more easily customize combo boxes.
 * Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
+* Add `TextEdit::password` to hide input characters.
 
 ### Changed 🔧
+* `ui.advance_cursor` is now called `ui.add_space`.
 * `kb_focus` is now just called `focus`.
 
 ### Fixed 🐛
