@@ -30,8 +30,11 @@ wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
 
 # brew install wabt # to get wasm-strip
-wasm-strip docs/${CRATE_NAME}_bg.wasm
+# wasm-strip docs/${CRATE_NAME}_bg.wasm
 
-echo "Finished: docs/${CRATE_NAME}_bg.wasm"
+echo "Optimizing wasm…"
+# brew install binaryen # to get wasm-opt
+wasm-opt docs/egui_demo_app_bg.wasm -O2 --fast-math -o docs/egui_demo_app_bg.wasm # add -g to get debug symbols
+echo "Finished docs/${CRATE_NAME}_bg.wasm"
 
 open http://localhost:8888/index.html

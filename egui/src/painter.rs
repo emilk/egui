@@ -313,12 +313,14 @@ impl Painter {
         color: Color32,
         fake_italics: bool,
     ) {
-        self.add(Shape::Text {
-            pos,
-            galley,
-            color,
-            fake_italics,
-        });
+        if !galley.is_empty() {
+            self.add(Shape::Text {
+                pos,
+                galley,
+                color,
+                fake_italics,
+            });
+        }
     }
 }
 

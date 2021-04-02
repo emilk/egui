@@ -111,47 +111,57 @@ impl Pos2 {
         }
     }
 
+    #[inline]
     pub fn distance(self, other: Self) -> f32 {
         (self - other).length()
     }
 
+    #[inline]
     pub fn distance_sq(self, other: Self) -> f32 {
         (self - other).length_sq()
     }
 
+    #[inline(always)]
     pub fn floor(self) -> Self {
         pos2(self.x.floor(), self.y.floor())
     }
 
+    #[inline(always)]
     pub fn round(self) -> Self {
         pos2(self.x.round(), self.y.round())
     }
 
+    #[inline(always)]
     pub fn ceil(self) -> Self {
         pos2(self.x.ceil(), self.y.ceil())
     }
 
     /// True if all members are also finite.
+    #[inline(always)]
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite()
     }
 
     /// True if any member is NaN.
+    #[inline(always)]
     pub fn any_nan(self) -> bool {
         self.x.is_nan() || self.y.is_nan()
     }
 
     #[must_use]
+    #[inline]
     pub fn min(self, other: Self) -> Self {
         pos2(self.x.min(other.x), self.y.min(other.y))
     }
 
     #[must_use]
+    #[inline]
     pub fn max(self, other: Self) -> Self {
         pos2(self.x.max(other.x), self.y.max(other.y))
     }
 
     #[must_use]
+    #[inline]
     pub fn clamp(self, min: Self, max: Self) -> Self {
         Self {
             x: self.x.clamp(min.x, max.x),
@@ -163,6 +173,7 @@ impl Pos2 {
 impl std::ops::Index<usize> for Pos2 {
     type Output = f32;
 
+    #[inline(always)]
     fn index(&self, index: usize) -> &f32 {
         match index {
             0 => &self.x,
@@ -173,6 +184,7 @@ impl std::ops::Index<usize> for Pos2 {
 }
 
 impl std::ops::IndexMut<usize> for Pos2 {
+    #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut f32 {
         match index {
             0 => &mut self.x,
