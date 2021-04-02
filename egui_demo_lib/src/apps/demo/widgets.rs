@@ -185,8 +185,10 @@ impl Widgets {
 
         ui.code_editor_with_config(
             &mut self.code_snippet,
-            self.tab_as_spaces,
-            self.tab_moves_focus,
+            CodingConfig {
+                tab_as_spaces: self.tab_as_spaces,
+                tab_moves_focus: self.tab_moves_focus,
+            },
         );
     }
 }

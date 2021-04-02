@@ -921,13 +921,8 @@ impl Ui {
     /// A `TextEdit` for code editing with configurable `Tab` management.
     ///
     /// Se also [`TextEdit::code_editor_with_config`].
-    pub fn code_editor_with_config(
-        &mut self,
-        text: &mut String,
-        tab_as_spaces: bool,
-        tab_moves_focus: bool,
-    ) -> Response {
-        self.add(TextEdit::multiline(text).code_editor_with_config(tab_as_spaces, tab_moves_focus))
+    pub fn code_editor_with_config(&mut self, text: &mut String, config: CodingConfig) -> Response {
+        self.add(TextEdit::multiline(text).code_editor_with_config(config))
     }
 
     /// Usage: `if ui.button("Click me").clicked() { … }`

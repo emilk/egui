@@ -104,6 +104,13 @@ impl CCursorPair {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct CodingConfig {
+    pub tab_as_spaces: bool,
+    pub tab_moves_focus: bool,
+}
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -245,10 +252,10 @@ impl<'t> TextEdit<'t> {
     ///     .tab_as_spaces(tab_as_spaces)
     ///     .tab_moves_focus(tab_moves_focus);
     /// ```
-    pub fn code_editor_with_config(self, tab_as_spaces: bool, tab_moves_focus: bool) -> Self {
+    pub fn code_editor_with_config(self, config: CodingConfig) -> Self {
         self.code_editor()
-            .tab_as_spaces(tab_as_spaces)
-            .tab_moves_focus(tab_moves_focus)
+            .tab_as_spaces(config.tab_as_spaces)
+            .tab_moves_focus(config.tab_moves_focus)
     }
 
     pub fn id(mut self, id: Id) -> Self {
