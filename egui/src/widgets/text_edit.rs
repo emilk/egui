@@ -1548,21 +1548,6 @@ fn ccursor_paragraph_start(text: &str, ccursor: CCursor) -> CCursor {
     CCursor::new(paragraph_start)
 }
 
-#[allow(dead_code)]
-fn ccursor_paragraph_end(text: &str, ccursor: CCursor) -> CCursor {
-    let paragraph_end = text.chars().skip(ccursor.index).position(|x| x == '\n');
-
-    let paragraph_end = match paragraph_end {
-        Some(pe) => pe,
-        None => text.chars().skip(ccursor.index).count(),
-    };
-
-    CCursor {
-        index: ccursor.index + paragraph_end,
-        prefer_next_row: false,
-    }
-}
-
 fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
         index: next_word_boundary_char_index(text.chars(), ccursor.index),
@@ -1854,24 +1839,6 @@ mod test {
         assert_eq!(1, test.index);
 
         let test = ccursor_paragraph_start("\n\n\n", CCursor::new(2));
-        assert_eq!(2, test.index);
-    }
-
-    #[test]
-    fn test_ccursor_paragraph_end() {
-        let test = ccursor_paragraph_end("", CCursor::new(0));
-        assert_eq!(0, test.index);
-
-        let test = ccursor_paragraph_end("ASDF", CCursor::new(2));
-        assert_eq!(4, test.index);
-
-        let test = ccursor_paragraph_end("ASDF\naaa", CCursor::new(4));
-        assert_eq!(4, test.index);
-
-        let test = ccursor_paragraph_end("\nASDF", CCursor::new(3));
-        assert_eq!(5, test.index);
-
-        let test = ccursor_paragraph_end("\n\n\n", CCursor::new(2));
         assert_eq!(2, test.index);
     }
 
