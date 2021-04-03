@@ -21,6 +21,7 @@ pub struct Button {
     sense: Sense,
     small: bool,
     frame: bool,
+    wrap: Option<bool>,
 }
 
 impl Button {
@@ -33,6 +34,7 @@ impl Button {
             sense: Sense::click(),
             small: false,
             frame: true,
+            wrap: None,
         }
     }
 
@@ -86,6 +88,17 @@ impl Button {
         }
         self
     }
+
+    /// If `true`, the text will wrap at the `max_width`.
+    /// By default [`Self::wrap`] will be true in vertical layouts
+    /// and horizontal layouts with wrapping,
+    /// and false on non-wrapping horizontal layouts.
+    ///
+    /// Note that any `\n` in the button text will always produce a new line.
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = Some(wrap);
+        self
+    }
 }
 
 impl Button {
@@ -98,6 +111,7 @@ impl Button {
             sense,
             small,
             frame,
+            wrap,
         } = self;
 
         let mut button_padding = ui.spacing().button_padding;
@@ -106,7 +120,8 @@ impl Button {
         }
         let total_extra = button_padding + button_padding;
 
-        let galley = if ui.wrap_text() {
+        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
+        let galley = if wrap {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
