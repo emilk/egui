@@ -263,12 +263,14 @@ impl<'a> Widget for DragValue<'a> {
                 .text_style(TextStyle::Monospace)
                 .wrap(false);
             let response = ui.add_sized(ui.spacing().interact_size, button);
-            let response = response.on_hover_text(format!(
-                "{}{}{}\nDrag to edit or click to enter a value.",
-                prefix,
-                value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
-                suffix
-            ));
+            let response = response
+                .on_hover_cursor(CursorIcon::ResizeHorizontal)
+                .on_hover_text(format!(
+                    "{}{}{}\nDrag to edit or click to enter a value.",
+                    prefix,
+                    value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
+                    suffix
+                ));
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);
