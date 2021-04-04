@@ -294,6 +294,8 @@ impl<'a> Widget for DragValue<'a> {
                 ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
+                response.ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
+
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
 
