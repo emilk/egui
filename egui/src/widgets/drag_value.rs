@@ -50,6 +50,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
+    is_slow_speed: bool,
     prefix: String,
     suffix: String,
     clamp_range: RangeInclusive<f64>,
@@ -127,6 +128,7 @@ impl<'a> DragValue<'a> {
         Self {
             get_set_value: Box::new(get_set_value),
             speed: 1.0,
+            is_slow_speed: false,
             prefix: Default::default(),
             suffix: Default::default(),
             clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
@@ -138,6 +140,14 @@ impl<'a> DragValue<'a> {
     /// How much the value changes when dragged one point (logical pixel).
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();
+        self
+    }
+
+    /// Enable ability to use slow speed mode.
+    /// Slow speed is computed as [`DragValue::speed()`] / 10.0
+    /// When enabled the `Shift` key can be used to have a better control over the value.
+    pub fn slow_speed(mut self, b: bool) -> Self {
+        self.is_slow_speed = b;
         self
     }
 
@@ -210,6 +220,7 @@ impl<'a> Widget for DragValue<'a> {
         let Self {
             mut get_set_value,
             speed,
+            is_slow_speed,
             clamp_range,
             prefix,
             suffix,
@@ -262,15 +273,22 @@ impl<'a> Widget for DragValue<'a> {
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace)
                 .wrap(false);
+
+            let mut hover_text = format!(
+                "{}{}{}\nDrag to edit or click to enter a value.",
+                prefix,
+                value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
+                suffix
+            );
+
+            if is_slow_speed {
+                hover_text.push_str("\nPress 'Shift' while dragging for better control.");
+            }
+
             let response = ui.add_sized(ui.spacing().interact_size, button);
             let response = response
                 .on_hover_cursor(CursorIcon::ResizeHorizontal)
-                .on_hover_text(format!(
-                    "{}{}{}\nDrag to edit or click to enter a value.",
-                    prefix,
-                    value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
-                    suffix
-                ));
+                .on_hover_text(hover_text);
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);
@@ -278,7 +296,16 @@ impl<'a> Widget for DragValue<'a> {
             } else if response.dragged() {
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
+
+                let is_slow_speed = self.is_slow_speed
+                    && response.ctx.input().modifiers.shift
+                    && !(response.ctx.input().modifiers.alt
+                        || response.ctx.input().modifiers.command);
+
+                let speed = if is_slow_speed { speed / 10.0 } else { speed };
+
                 let delta_value = delta_points as f64 * speed;
+
                 if delta_value != 0.0 {
                     let mut drag_state = std::mem::take(&mut ui.memory().drag_value);
 
