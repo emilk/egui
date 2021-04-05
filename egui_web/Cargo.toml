@@ -25,8 +25,8 @@ crate-type = ["cdylib", "rlib"]
 egui = { version = "0.10.0", path = "../egui" }
 epi = { version = "0.10.0", path = "../epi" }
 js-sys = "0.3"
+ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
-serde_json = { version = "1", optional = true }
 tts = { version = "0.14", optional = true } # feature screen_reader
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
@@ -41,7 +41,7 @@ http = [
   "web-sys/RequestMode",
   "web-sys/Response",
 ]
-persistence = ["egui/persistence", "serde", "serde_json"]
+persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]

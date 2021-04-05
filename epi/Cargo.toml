@@ -21,10 +21,10 @@ include = [
 
 [dependencies]
 egui = { version = "0.10.0", path = "../egui" }
+ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
-serde_json = { version = "1", optional = true }
 
 [features]
 default = []
 http = []
-persistence = ["serde", "serde_json"]
+persistence = ["ron", "serde"]

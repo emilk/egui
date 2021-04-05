@@ -785,8 +785,8 @@ dependencies = [
  "egui",
  "epi",
  "glium",
+ "ron",
  "serde",
- "serde_json",
  "tts",
  "ureq",
  "webbrowser",
@@ -799,8 +799,8 @@ dependencies = [
  "egui",
  "epi",
  "js-sys",
+ "ron",
  "serde",
- "serde_json",
  "tts",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -851,8 +851,8 @@ name = "epi"
 version = "0.10.0"
 dependencies = [
  "egui",
+ "ron",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1863,6 +1863,17 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "ron"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "064ea8613fb712a19faf920022ec8ddf134984f100090764a4e1d768f3827f1f"
+dependencies = [
+ "base64",
+ "bitflags",
+ "serde",
 ]
 
 [[package]]
