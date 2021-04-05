@@ -34,7 +34,7 @@ wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
 
 echo "Optimizing wasm…"
 # to get wasm-opt:  apt/brew/dnf install binaryen
-wasm-opt docs/egui_demo_app_bg.wasm -O2 --fast-math -o docs/egui_demo_app_bg.wasm # add -g to get debug symbols
+wasm-opt docs/${CRATE_NAME}_bg.wasm -O2 --fast-math -o docs/${CRATE_NAME}_bg.wasm # add -g to get debug symbols
 echo "Finished docs/${CRATE_NAME}_bg.wasm"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
