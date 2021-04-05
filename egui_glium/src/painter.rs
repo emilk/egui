@@ -152,11 +152,9 @@ impl Painter {
             glium::VertexBuffer::new(display, &vertices).unwrap()
         };
 
-        let indices: Vec<u32> = mesh.indices.iter().map(|idx| *idx as u32).collect();
-
         // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
         let index_buffer =
-            glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
+            glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &mesh.indices).unwrap();
 
         let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
