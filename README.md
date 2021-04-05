@@ -267,7 +267,7 @@ There are some GUI state that you want the GUI library to retain, even in an imm
 
 `egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
 
-Overall, ID handling is a rare invonvenience, and not a big disadvantage.
+Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
 
 ## FAQ
