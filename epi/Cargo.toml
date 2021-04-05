@@ -1,6 +1,6 @@
 [package]
 name = "epi"
-version = "0.10.0"
+version = "0.11.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
@@ -20,7 +20,7 @@ include = [
 [lib]
 
 [dependencies]
-egui = { version = "0.10.0", path = "../egui" }
+egui = { version = "0.11.0", path = "../egui" }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
