@@ -706,11 +706,10 @@ impl Ui {
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
-        let final_frame = frame_rect.union(final_child_rect);
         self.placer
-            .advance_after_rects(final_frame, final_child_rect, item_spacing);
+            .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
 
-        if self.style().debug.show_widgets && self.rect_contains_pointer(final_frame) {
+        if self.style().debug.show_widgets && self.rect_contains_pointer(final_child_rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
@@ -1360,9 +1359,7 @@ impl Ui {
         }
         .with_main_wrap(main_wrap);
 
-        self.allocate_ui(initial_size, |ui| {
-            ui.with_layout(layout, add_contents).inner
-        })
+        self.allocate_ui_with_layout(initial_size, layout, add_contents)
     }
 
     /// Start a ui with vertical layout.

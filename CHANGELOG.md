@@ -7,6 +7,9 @@ NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
 
 ## Unreleased
 
+
+## 0.11.0 - 2021-04-05 - Optimization, screen reader & new layout logic
+
 ### Added ⭐
 * You can now give focus to any clickable widget with tab/shift-tab.
   * Use space or enter to click the selected widget.

@@ -111,7 +111,7 @@ fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
             None
         } else {
             let mut config_dir = data_dir;
-            config_dir.push("app.json");
+            config_dir.push("app.ron");
             let storage = crate::persistence::FileStorage::from_path(config_dir);
             Some(Box::new(storage))
         }
