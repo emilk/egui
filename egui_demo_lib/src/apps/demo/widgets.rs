@@ -131,7 +131,8 @@ impl Widgets {
 
         ui.horizontal(|ui| {
             ui.label("Password:");
-            let response = ui.add(
+            let response = ui.add_sized(
+                [140.0, 20.0],
                 egui::TextEdit::singleline(&mut self.single_line_text_input)
                     .password(!self.show_password),
             );

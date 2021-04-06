@@ -29,12 +29,12 @@ TARGET_NAME="${CRATE_NAME}.wasm"
 wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
 
-# brew install wabt # to get wasm-strip
+# to get wasm-strip:  apt/brew/dnf install wabt
 # wasm-strip docs/${CRATE_NAME}_bg.wasm
 
 echo "Optimizing wasm…"
-# brew install binaryen # to get wasm-opt
-wasm-opt docs/egui_demo_app_bg.wasm -O2 --fast-math -o docs/egui_demo_app_bg.wasm # add -g to get debug symbols
+# to get wasm-opt:  apt/brew/dnf install binaryen
+wasm-opt docs/${CRATE_NAME}_bg.wasm -O2 --fast-math -o docs/${CRATE_NAME}_bg.wasm # add -g to get debug symbols
 echo "Finished docs/${CRATE_NAME}_bg.wasm"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -44,6 +44,6 @@ elif [[ "$OSTYPE" == "msys" ]]; then
   # Windows
   start http://localhost:8888/index.html
 else
-  # Darmin aka MacOS or something else
+  # Darwin/MacOS, or something else
   open http://localhost:8888/index.html
 fi

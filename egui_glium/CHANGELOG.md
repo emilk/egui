@@ -2,10 +2,13 @@
 
 All notable changes to the `egui_glium` integration will be noted in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
 
 ## Unreleased
+
+## 0.11.0 - 2021-04-05
+* [Position IME candidate window next to text cursor](https://github.com/emilk/egui/pull/258).
+* [Register your own glium textures](https://github.com/emilk/egui/pull/226).
+* [Fix cursor icon flickering on Windows(https://github.com/emilk/egui/pull/218).
 
 
 ## 0.10.0 - 2021-02-28
