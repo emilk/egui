@@ -20,7 +20,7 @@ include = [
 
 [dependencies]
 copypasta = "0.7"
-egui = { version = "0.11.0", path = "../egui" }
+egui = { version = "0.11.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 epi = { version = "0.11.0", path = "../epi" }
 glium = "0.29"
 webbrowser = "0.5"
@@ -40,7 +40,11 @@ tts = { version = "0.15", optional = true }
 chrono = { version = "0.4", optional = true }
 
 [features]
-default = []
+default = ["default_fonts"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
 http = ["ureq"]
 persistence = [
     "directories-next",

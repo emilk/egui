@@ -20,7 +20,7 @@ include = [
 [lib]
 
 [dependencies]
-egui = { version = "0.11.0", path = "../egui" }
+egui = { version = "0.11.0", path = "../egui", default-features = false }
 epi = { version = "0.11.0", path = "../epi" }
 
 # feature "http":
