@@ -719,9 +719,9 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 "compositionend" => {
                     is_composing.set(false);
                     input_clone.set_value("");
-                    event.data().map(|s| egui::Event::CompositionEnd(s))
+                    event.data().map(egui::Event::CompositionEnd)
                 }
-                "compositionupdate" => event.data().map(|s| egui::Event::CompositionUpdate(s)),
+                "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
                 _s => panic!("Unknown type"),
             };
             if let Some(event) = opt_event {
