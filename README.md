@@ -6,10 +6,9 @@
 [![Build Status](https://github.com/emilk/egui/workflows/CI/badge.svg)](https://github.com/emilk/egui/actions?workflow=CI)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
-**dependencies**: [`rusttype`](https://crates.io/crates/rusttype) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ahash`](https://crates.io/crates/ahash)
 
 
-egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and in your favorite game engine (or will soon).
+egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
 egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
 
@@ -80,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
+* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/) [`rusttype`](https://crates.io/crates/rusttype).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -268,7 +267,7 @@ There are some GUI state that you want the GUI library to retain, even in an imm
 
 `egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
 
-Overall, ID handling is a rare invonvenience, and not a big disadvantage.
+Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
 
 ## FAQ
@@ -284,6 +283,9 @@ That is the job of *the integration* or *backend*.
 It is common to use `egui` from a game engine (using e.g. [`bevy_egui`](https://docs.rs/bevy_egui)),
 but you can also use `egui` stand-alone using `eframe`. `eframe` has integration for web and native, and handles input and rendering.
 The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`frame` is a framework, `egui` is a library).
+
+### Why is `egui_web` using so much CPU in Firefox?
+On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again: https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0
 
 
 ## Other

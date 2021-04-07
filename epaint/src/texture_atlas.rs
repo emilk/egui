@@ -12,6 +12,10 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn size(&self) -> [usize; 2] {
+        [self.width, self.height]
+    }
+
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
     pub fn srgba_pixels(&'_ self) -> impl Iterator<Item = super::Color32> + '_ {
         use super::Color32;
@@ -26,6 +30,7 @@ impl Texture {
 impl std::ops::Index<(usize, usize)> for Texture {
     type Output = u8;
 
+    #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &u8 {
         assert!(x < self.width);
         assert!(y < self.height);
@@ -34,6 +39,7 @@ impl std::ops::Index<(usize, usize)> for Texture {
 }
 
 impl std::ops::IndexMut<(usize, usize)> for Texture {
+    #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
         assert!(x < self.width);
         assert!(y < self.height);

@@ -331,7 +331,7 @@ impl<'open> Window<'open> {
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
-                            ui.advance_cursor(title_content_spacing);
+                            ui.add_space(title_content_spacing);
                         }
 
                         if let Some(scroll) = scroll {
@@ -673,7 +673,7 @@ fn paint_frame_interaction(
 struct TitleBar {
     id: Id,
     title_label: Label,
-    title_galley: Galley,
+    title_galley: std::sync::Arc<Galley>,
     min_rect: Rect,
     rect: Rect,
 }
@@ -698,7 +698,7 @@ fn show_title_bar(
         let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
         if collapsible {
-            ui.advance_cursor(pad);
+            ui.add_space(pad);
 
             let (_id, rect) = ui.allocate_space(button_size);
             let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());

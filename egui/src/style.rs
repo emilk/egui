@@ -28,6 +28,9 @@ pub struct Style {
 
     /// How many seconds a typical animation should last
     pub animation_time: f32,
+
+    /// Options to help debug why egui behaves strangely.
+    pub debug: DebugOptions,
 }
 
 impl Style {
@@ -59,7 +62,12 @@ impl Style {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Spacing {
-    /// Horizontal and vertical spacing between widgets
+    /// Horizontal and vertical spacing between widgets.
+    ///
+    /// To add extra space between widgets, use [`Ui::add_space`].
+    ///
+    /// `item_spacing` is inserted _after_ adding a widget, so to increase the spacing between
+    /// widgets `A` and `B` you need to change `item_spacing` before adding `A`.
     pub item_spacing: Vec2,
 
     /// Horizontal and vertical padding within a window frame.
@@ -71,7 +79,7 @@ pub struct Spacing {
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Minimum size of e.g. a button (including padding).
+    /// Minimum size of a `DragValue`, color picker button, and other small widgets.
     /// `interact_size.y` is the default height of button, slider, etc.
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
@@ -178,16 +186,6 @@ pub struct Visuals {
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
-
-    // -----------------------------------------------
-    // Debug rendering:
-    /// however over widgets to see their rectangles
-    pub debug_widgets: bool,
-    /// Show which widgets make their parent wider
-    pub debug_expand_width: bool,
-    /// Show which widgets make their parent higher
-    pub debug_expand_height: bool,
-    pub debug_resize: bool,
 }
 
 impl Visuals {
@@ -283,6 +281,19 @@ impl WidgetVisuals {
     }
 }
 
+/// Options for help debug egui by adding extra visualization
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct DebugOptions {
+    /// However over widgets to see their rectangles
+    pub show_widgets: bool,
+    /// Show which widgets make their parent wider
+    pub show_expand_width: bool,
+    /// Show which widgets make their parent higher
+    pub show_expand_height: bool,
+    pub show_resize: bool,
+}
+
 // ----------------------------------------------------------------------------
 
 impl Default for Style {
@@ -294,6 +305,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
+            debug: Default::default(),
         }
     }
 }
@@ -342,10 +354,6 @@ impl Visuals {
             text_cursor_width: 2.0,
             text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
-            debug_widgets: false,
-            debug_expand_width: false,
-            debug_expand_height: false,
-            debug_resize: false,
         }
     }
 
@@ -478,6 +486,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            debug,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -488,10 +497,16 @@ impl Style {
                 ui.radio_value(body_text_style, value, format!("{:?}", value));
             }
         });
+        ui.add(
+            Slider::new(animation_time, 0.0..=1.0)
+                .text("animation durations")
+                .suffix(" s"),
+        );
+
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.add(Slider::new(animation_time, 0.0..=1.0).text("animation_time"));
+        ui.collapsing("⁉ Debug", |ui| debug.ui(ui));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -655,10 +670,6 @@ impl Visuals {
             text_cursor_width,
             text_cursor_preview,
             clip_rect_margin,
-            debug_widgets,
-            debug_expand_width,
-            debug_expand_height,
-            debug_resize,
         } = self;
 
         ui.collapsing("widgets", |ui| widgets.ui(ui));
@@ -686,19 +697,29 @@ impl Visuals {
         ui.checkbox(text_cursor_preview, "text_cursor_preview");
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.group(|ui| {
-            ui.label("DEBUG:");
-            ui.checkbox(debug_widgets, "Show widget bounds on hover");
-            ui.checkbox(
-                debug_expand_width,
-                "Show which widgets make their parent wider",
-            );
-            ui.checkbox(
-                debug_expand_height,
-                "Show which widgets make their parent higher",
-            );
-            ui.checkbox(debug_resize, "Debug Resize");
-        });
+        ui.vertical_centered(|ui| reset_button(ui, self));
+    }
+}
+
+impl DebugOptions {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            show_widgets: debug_widgets,
+            show_expand_width: debug_expand_width,
+            show_expand_height: debug_expand_height,
+            show_resize: debug_resize,
+        } = self;
+
+        ui.checkbox(debug_widgets, "Show widget bounds on hover");
+        ui.checkbox(
+            debug_expand_width,
+            "Show which widgets make their parent wider",
+        );
+        ui.checkbox(
+            debug_expand_height,
+            "Show which widgets make their parent higher",
+        );
+        ui.checkbox(debug_resize, "Debug Resize");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

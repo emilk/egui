@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use epaint::ahash::AHashMap;
 
 use crate::{emath::remap_clamp, Id, InputState};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {
-    bools: HashMap<Id, BoolAnim>,
+    bools: AHashMap<Id, BoolAnim>,
 }
 
 #[derive(Clone, Debug)]

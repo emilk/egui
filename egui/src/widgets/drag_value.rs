@@ -260,8 +260,9 @@ impl<'a> Widget for DragValue<'a> {
         } else {
             let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
                 .sense(Sense::click_and_drag())
-                .text_style(TextStyle::Monospace);
-            let response = ui.add(button);
+                .text_style(TextStyle::Monospace)
+                .wrap(false);
+            let response = ui.add_sized(ui.spacing().interact_size, button);
             let response = response.on_hover_text(format!(
                 "{}{}{}\nDrag to edit or click to enter a value.",
                 prefix,

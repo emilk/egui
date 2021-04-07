@@ -16,13 +16,14 @@ impl super::Demo for CursorTest {
 
 impl super::View for CursorTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Hover to switch cursor icon:");
         ui.vertical_centered_justified(|ui| {
+            ui.heading("Hover to switch cursor icon:");
             for &cursor_icon in &egui::CursorIcon::ALL {
                 let _ = ui
                     .button(format!("{:?}", cursor_icon))
                     .on_hover_cursor(cursor_icon);
             }
+            ui.add(crate::__egui_github_link_file!());
         });
     }
 }
@@ -295,14 +296,14 @@ impl super::View for InputTest {
             egui::PointerButton::Middle,
         ] {
             if response.clicked_by(button) {
-                new_info += &format!("Clicked by {:?}\n", button);
+                new_info += &format!("Clicked by {:?} button\n", button);
             }
             if response.double_clicked_by(button) {
-                new_info += &format!("Double-clicked by {:?}\n", button);
+                new_info += &format!("Double-clicked by {:?} button\n", button);
             }
             if response.dragged_by(button) {
                 new_info += &format!(
-                    "Dragged by {:?}, delta: {:?}\n",
+                    "Dragged by {:?} button, delta: {:?}\n",
                     button,
                     response.drag_delta()
                 );

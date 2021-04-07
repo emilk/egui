@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_app"
-version = "0.10.0"
+version = "0.11.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -10,12 +10,12 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { version = "0.10.0", path = "../eframe", features = ["time"] }
-egui_demo_lib = { version = "0.10.0", path = "../egui_demo_lib" }
+eframe = { version = "0.11.0", path = "../eframe", features = ["time"] }
+egui_demo_lib = { version = "0.11.0", path = "../egui_demo_lib" }
 
 [features]
 default = ["persistence", "screen_reader"]
 http = ["eframe/http", "egui_demo_lib/http"]
 persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
 screen_reader = ["eframe/screen_reader"] # experimental
-syntect = ["egui_demo_lib/syntect"]
+syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]

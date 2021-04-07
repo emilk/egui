@@ -38,7 +38,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
         }
 
         easy_mark::Item::Separator => {
-            ui.add(Separator::new().horizontal());
+            ui.add(Separator::default().horizontal());
         }
         easy_mark::Item::Indentation(indent) => {
             let indent = indent as f32 * one_indent;

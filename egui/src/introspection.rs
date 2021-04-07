@@ -79,7 +79,7 @@ impl Widget for &epaint::stats::PaintStats {
                 "egui generates intermediate level shapes like circles and text. \
             These are later tessellated into triangles.",
             );
-            ui.advance_cursor(10.0);
+            ui.add_space(10.0);
 
             ui.style_mut().body_text_style = TextStyle::Monospace;
 
@@ -100,14 +100,14 @@ impl Widget for &epaint::stats::PaintStats {
             label(ui, shape_path, "paths");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
-            ui.advance_cursor(10.0);
+            ui.add_space(10.0);
 
             ui.label("Tessellated:");
             label(ui, clipped_meshes, "clipped_meshes")
                 .on_hover_text("Number of separate clip rectangles");
             label(ui, vertices, "vertices");
             label(ui, indices, "indices").on_hover_text("Three 32-bit indices per triangles");
-            ui.advance_cursor(10.0);
+            ui.add_space(10.0);
 
             // ui.label("Total:");
             // ui.label(self.total().format(""));
@@ -124,6 +124,7 @@ impl Widget for &mut epaint::TessellationOptions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
+                pixels_per_point: _,
                 aa_size: _,
                 anti_alias,
                 coarse_tessellation_culling,

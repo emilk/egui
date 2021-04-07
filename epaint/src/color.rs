@@ -17,12 +17,15 @@ pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::ops::Index<usize> for Color32 {
     type Output = u8;
+
+    #[inline(always)]
     fn index(&self, index: usize) -> &u8 {
         &self.0[index]
     }
 }
 
 impl std::ops::IndexMut<usize> for Color32 {
+    #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         &mut self.0[index]
     }
@@ -46,15 +49,18 @@ impl Color32 {
     pub const LIGHT_BLUE: Color32 = Color32::from_rgb(140, 160, 255);
     pub const GOLD: Color32 = Color32::from_rgb(255, 215, 0);
 
+    #[inline(always)]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 255])
     }
 
+    #[inline(always)]
     pub const fn from_rgb_additive(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 0])
     }
 
     /// From `sRGBA` with premultiplied alpha.
+    #[inline(always)]
     pub const fn from_rgba_premultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self([r, g, b, a])
     }
@@ -84,10 +90,12 @@ impl Color32 {
         Self([r, g, b, a])
     }
 
+    #[inline(always)]
     pub const fn from_gray(l: u8) -> Self {
         Self([l, l, l, 255])
     }
 
+    #[inline(always)]
     pub const fn from_black_alpha(a: u8) -> Self {
         Self([0, 0, 0, a])
     }
@@ -96,23 +104,32 @@ impl Color32 {
         Rgba::from_white_alpha(linear_f32_from_linear_u8(a)).into()
     }
 
+    #[inline(always)]
     pub const fn from_additive_luminance(l: u8) -> Self {
         Self([l, l, l, 0])
     }
 
+    #[inline(always)]
     pub fn is_opaque(&self) -> bool {
         self.a() == 255
     }
 
+    #[inline(always)]
     pub fn r(&self) -> u8 {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn g(&self) -> u8 {
         self.0[1]
     }
+
+    #[inline(always)]
     pub fn b(&self) -> u8 {
         self.0[2]
     }
+
+    #[inline(always)]
     pub fn a(&self) -> u8 {
         self.0[3]
     }
@@ -123,17 +140,20 @@ impl Color32 {
     }
 
     /// Returns an additive version of self
+    #[inline(always)]
     pub fn additive(self) -> Self {
         let [r, g, b, _] = self.to_array();
         Self([r, g, b, 0])
     }
 
     /// Premultiplied RGBA
+    #[inline(always)]
     pub fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
+    #[inline(always)]
     pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
@@ -156,12 +176,15 @@ pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
     type Output = f32;
+
+    #[inline(always)]
     fn index(&self, index: usize) -> &f32 {
         &self.0[index]
     }
 }
 
 impl std::ops::IndexMut<usize> for Rgba {
+    #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut f32 {
         &mut self.0[index]
     }
@@ -175,14 +198,17 @@ impl Rgba {
     pub const GREEN: Rgba = Rgba::from_rgb(0.0, 1.0, 0.0);
     pub const BLUE: Rgba = Rgba::from_rgb(0.0, 0.0, 1.0);
 
+    #[inline(always)]
     pub const fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self([r, g, b, a])
     }
 
+    #[inline(always)]
     pub const fn from_rgb(r: f32, g: f32, b: f32) -> Self {
         Self([r, g, b, 1.0])
     }
 
+    #[inline(always)]
     pub const fn from_gray(l: f32) -> Self {
         Self([l, l, l, 1.0])
     }
@@ -194,24 +220,28 @@ impl Rgba {
     }
 
     /// Transparent black
+    #[inline(always)]
     pub fn from_black_alpha(a: f32) -> Self {
         debug_assert!(0.0 <= a && a <= 1.0);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
+    #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
         debug_assert!(0.0 <= a && a <= 1.0);
         Self([a, a, a, a])
     }
 
     /// Return an additive version of this color (alpha = 0)
+    #[inline(always)]
     pub fn additive(self) -> Self {
         let [r, g, b, _] = self.0;
         Self([r, g, b, 0.0])
     }
 
     /// Multiply with e.g. 0.5 to make us half transparent
+    #[inline(always)]
     pub fn multiply(self, alpha: f32) -> Self {
         Self([
             alpha * self[0],
@@ -221,20 +251,28 @@ impl Rgba {
         ])
     }
 
+    #[inline(always)]
     pub fn r(&self) -> f32 {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn g(&self) -> f32 {
         self.0[1]
     }
+
+    #[inline(always)]
     pub fn b(&self) -> f32 {
         self.0[2]
     }
+
+    #[inline(always)]
     pub fn a(&self) -> f32 {
         self.0[3]
     }
 
     /// How perceptually intense (bright) is the color?
+    #[inline]
     pub fn intensity(&self) -> f32 {
         0.3 * self.r() + 0.59 * self.g() + 0.11 * self.b()
     }
@@ -258,6 +296,8 @@ impl Rgba {
 
 impl std::ops::Add for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn add(self, rhs: Rgba) -> Rgba {
         Rgba([
             self[0] + rhs[0],
@@ -270,6 +310,8 @@ impl std::ops::Add for Rgba {
 
 impl std::ops::Mul<Rgba> for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, other: Rgba) -> Rgba {
         Rgba([
             self[0] * other[0],
@@ -282,6 +324,8 @@ impl std::ops::Mul<Rgba> for Rgba {
 
 impl std::ops::Mul<f32> for Rgba {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, factor: f32) -> Rgba {
         Rgba([
             self[0] * factor,
@@ -294,6 +338,8 @@ impl std::ops::Mul<f32> for Rgba {
 
 impl std::ops::Mul<Rgba> for f32 {
     type Output = Rgba;
+
+    #[inline(always)]
     fn mul(self, rgba: Rgba) -> Rgba {
         Rgba([
             self * rgba[0],
@@ -310,10 +356,10 @@ impl std::ops::Mul<Rgba> for f32 {
 impl From<Color32> for Rgba {
     fn from(srgba: Color32) -> Rgba {
         Rgba([
-            linear_f32_from_gamma_u8(srgba[0]),
-            linear_f32_from_gamma_u8(srgba[1]),
-            linear_f32_from_gamma_u8(srgba[2]),
-            linear_f32_from_linear_u8(srgba[3]),
+            linear_f32_from_gamma_u8(srgba.0[0]),
+            linear_f32_from_gamma_u8(srgba.0[1]),
+            linear_f32_from_gamma_u8(srgba.0[2]),
+            linear_f32_from_linear_u8(srgba.0[3]),
         ])
     }
 }
@@ -321,10 +367,10 @@ impl From<Color32> for Rgba {
 impl From<Rgba> for Color32 {
     fn from(rgba: Rgba) -> Color32 {
         Color32([
-            gamma_u8_from_linear_f32(rgba[0]),
-            gamma_u8_from_linear_f32(rgba[1]),
-            gamma_u8_from_linear_f32(rgba[2]),
-            linear_u8_from_linear_f32(rgba[3]),
+            gamma_u8_from_linear_f32(rgba.0[0]),
+            gamma_u8_from_linear_f32(rgba.0[1]),
+            gamma_u8_from_linear_f32(rgba.0[2]),
+            linear_u8_from_linear_f32(rgba.0[3]),
         ])
     }
 }
@@ -340,6 +386,7 @@ pub fn linear_f32_from_gamma_u8(s: u8) -> f32 {
 
 /// linear [0, 255] -> linear [0, 1].
 /// Useful for alpha-channel.
+#[inline(always)]
 pub fn linear_f32_from_linear_u8(a: u8) -> f32 {
     a as f32 / 255.0
 }
@@ -360,6 +407,7 @@ pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
 
 /// linear [0, 1] -> linear [0, 255] (clamped).
 /// Useful for alpha-channel.
+#[inline(always)]
 pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
     (a * 255.0).round() as u8 // rust does a saturating cast since 1.45
 }

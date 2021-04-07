@@ -24,6 +24,7 @@ pub struct Widgets {
     color: Color32,
     single_line_text_input: String,
     multiline_text_input: String,
+    show_password: bool,
 }
 
 impl Default for Widgets {
@@ -36,6 +37,7 @@ impl Default for Widgets {
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
+            show_password: false,
         }
     }
 }
@@ -128,11 +130,16 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label("Single line text input:");
-            let response = ui.text_edit_singleline(&mut self.single_line_text_input);
+            ui.label("Password:");
+            let response = ui.add_sized(
+                [140.0, 20.0],
+                egui::TextEdit::singleline(&mut self.single_line_text_input)
+                    .password(!self.show_password),
+            );
             if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
                 // …
             }
+            ui.checkbox(&mut self.show_password, "Show password");
         });
 
         ui.label("Multiline text input:");

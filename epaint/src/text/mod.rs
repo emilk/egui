@@ -9,3 +9,6 @@ pub use {
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
     galley::{Galley, Row},
 };
+
+/// Suggested character to use to replace those in password text fields.
+pub const PASSWORD_REPLACEMENT_CHAR: char = '•';

@@ -441,8 +441,10 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-        let height = font.row_height().at_least(ui.spacing().interact_size.y);
+        let height = ui
+            .fonts()
+            .row_height(text_style)
+            .at_least(ui.spacing().interact_size.y);
 
         let old_value = self.get_value();
 

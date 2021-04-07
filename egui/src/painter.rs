@@ -1,9 +1,10 @@
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
-    layers::{LayerId, ShapeIdx},
+    layers::{LayerId, PaintList, ShapeIdx},
     Color32, CtxRef,
 };
 use epaint::{
+    mutex::Mutex,
     text::{Fonts, Galley, TextStyle},
     Shape, Stroke,
 };
@@ -19,6 +20,8 @@ pub struct Painter {
     /// Where we paint
     layer_id: LayerId,
 
+    paint_list: std::sync::Arc<Mutex<PaintList>>,
+
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
@@ -30,9 +33,11 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(ctx: CtxRef, layer_id: LayerId, clip_rect: Rect) -> Self {
+        let paint_list = ctx.graphics().list(layer_id).clone();
         Self {
             ctx,
             layer_id,
+            paint_list,
             clip_rect,
             fade_to_color: None,
         }
@@ -40,8 +45,10 @@ impl Painter {
 
     #[must_use]
     pub fn with_layer_id(self, layer_id: LayerId) -> Self {
+        let paint_list = self.ctx.graphics().list(layer_id).clone();
         Self {
             ctx: self.ctx,
+            paint_list,
             layer_id,
             clip_rect: self.clip_rect,
             fade_to_color: None,
@@ -51,6 +58,7 @@ impl Painter {
     /// redirect
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
+        self.paint_list = self.ctx.graphics().list(self.layer_id).clone();
     }
 
     /// If set, colors will be modified to look like this
@@ -66,6 +74,7 @@ impl Painter {
         Self {
             ctx: self.ctx.clone(),
             layer_id: self.layer_id,
+            paint_list: self.paint_list.clone(),
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
         }
@@ -129,10 +138,7 @@ impl Painter {
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, mut shape: Shape) -> ShapeIdx {
         self.transform_shape(&mut shape);
-        self.ctx
-            .graphics()
-            .list(self.layer_id)
-            .add(self.clip_rect, shape)
+        self.paint_list.lock().add(self.clip_rect, shape)
     }
 
     /// Add many shapes at once.
@@ -146,20 +152,14 @@ impl Painter {
                 }
             }
 
-            self.ctx
-                .graphics()
-                .list(self.layer_id)
-                .extend(self.clip_rect, shapes);
+            self.paint_list.lock().extend(self.clip_rect, shapes);
         }
     }
 
     /// Modify an existing [`Shape`].
     pub fn set(&self, idx: ShapeIdx, mut shape: Shape) {
         self.transform_shape(&mut shape);
-        self.ctx
-            .graphics()
-            .list(self.layer_id)
-            .set(idx, self.clip_rect, shape)
+        self.paint_list.lock().set(idx, self.clip_rect, shape)
     }
 }
 
@@ -172,9 +172,11 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let text_style = TextStyle::Monospace;
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(format!("🔥 {}", text), f32::INFINITY);
+        let galley = self.fonts().layout_multiline(
+            TextStyle::Monospace,
+            format!("🔥 {}", text),
+            f32::INFINITY,
+        );
         let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -183,7 +185,7 @@ impl Painter {
             fill: Color32::from_black_alpha(240),
             stroke: Stroke::new(1.0, Color32::RED),
         });
-        self.galley(rect.min, galley, text_style, Color32::RED);
+        self.galley(rect.min, galley, Color32::RED);
         frame_rect
     }
 }
@@ -291,33 +293,34 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let font = &self.fonts()[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
+        let galley = self
+            .fonts()
+            .layout_multiline(text_style, text.into(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        self.galley(rect.min, galley, text_style, text_color);
+        self.galley(rect.min, galley, text_color);
         rect
     }
 
     /// Paint text that has already been layed out in a `Galley`.
-    pub fn galley(&self, pos: Pos2, galley: Galley, text_style: TextStyle, color: Color32) {
-        self.galley_with_italics(pos, galley, text_style, color, false)
+    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
+        self.galley_with_italics(pos, galley, color, false)
     }
 
     pub fn galley_with_italics(
         &self,
         pos: Pos2,
-        galley: Galley,
-        text_style: TextStyle,
+        galley: std::sync::Arc<Galley>,
         color: Color32,
         fake_italics: bool,
     ) {
-        self.add(Shape::Text {
-            pos,
-            galley,
-            text_style,
-            color,
-            fake_italics,
-        });
+        if !galley.is_empty() {
+            self.add(Shape::Text {
+                pos,
+                galley,
+                color,
+                fake_italics,
+            });
+        }
     }
 }
 

@@ -3,7 +3,9 @@
 
 use crate::{Id, *};
 use epaint::ahash::AHashMap;
+use epaint::mutex::Mutex;
 use epaint::{ClippedShape, Shape};
+use std::sync::Arc;
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -32,6 +34,7 @@ impl Order {
         Self::Debug,
     ];
 
+    #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         match self {
             Self::Background | Self::Middle | Self::Foreground | Self::Debug => true,
@@ -68,6 +71,7 @@ impl LayerId {
         }
     }
 
+    #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }
@@ -82,11 +86,13 @@ pub struct ShapeIdx(usize);
 pub struct PaintList(Vec<ClippedShape>);
 
 impl PaintList {
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
+    #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
         self.0.push(ClippedShape(clip_rect, shape));
@@ -105,8 +111,8 @@ impl PaintList {
     ///
     /// The solution is to allocate a `Shape` using `let idx = paint_list.add(cr, Shape::Noop);`
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
+    #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
-        assert!(idx.0 < self.0.len());
         self.0[idx.0] = ClippedShape(clip_rect, shape);
     }
 
@@ -120,10 +126,10 @@ impl PaintList {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct GraphicLayers([AHashMap<Id, PaintList>; Order::COUNT]);
+pub(crate) struct GraphicLayers([AHashMap<Id, Arc<Mutex<PaintList>>>; Order::COUNT]);
 
 impl GraphicLayers {
-    pub fn list(&mut self, layer_id: LayerId) -> &mut PaintList {
+    pub fn list(&mut self, layer_id: LayerId) -> &Arc<Mutex<PaintList>> {
         self.0[layer_id.order as usize]
             .entry(layer_id.id)
             .or_default()
@@ -138,20 +144,20 @@ impl GraphicLayers {
             // If a layer is empty at the start of the frame
             // the nobody has added to it, and it is old and defunct.
             // Free it to save memory:
-            order_map.retain(|_, list| !list.is_empty());
+            order_map.retain(|_, list| !list.lock().is_empty());
 
             // First do the layers part of area_order:
             for layer_id in area_order {
                 if layer_id.order == order {
-                    if let Some(shapes) = order_map.get_mut(&layer_id.id) {
-                        all_shapes.extend(shapes.0.drain(..));
+                    if let Some(list) = order_map.get_mut(&layer_id.id) {
+                        all_shapes.extend(list.lock().0.drain(..));
                     }
                 }
             }
 
             // Also draw areas that are missing in `area_order`:
             for shapes in order_map.values_mut() {
-                all_shapes.extend(shapes.0.drain(..));
+                all_shapes.extend(shapes.lock().0.drain(..));
             }
         }
 

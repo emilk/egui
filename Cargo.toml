@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "egui_demo_app",
     "egui_demo_lib",
@@ -21,3 +22,5 @@ egui_web = { path = 'egui_web' }
 # opt-level = 1 # very slow and big wasm. Don't do this.
 opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
+
+# debug = true # include debug symbols, useful when profiling wasm

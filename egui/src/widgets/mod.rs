@@ -4,8 +4,6 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { ... }`
 
-#![allow(clippy::new_without_default)]
-
 use crate::*;
 
 mod button;

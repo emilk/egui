@@ -20,9 +20,13 @@ macro_rules! impl_numeric_float {
             const INTEGRAL: bool = false;
             const MIN: Self = std::$t::MIN;
             const MAX: Self = std::$t::MAX;
+
+            #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
             }
+
+            #[inline(always)]
             fn from_f64(num: f64) -> Self {
                 num as Self
             }
@@ -36,9 +40,13 @@ macro_rules! impl_numeric_integer {
             const INTEGRAL: bool = true;
             const MIN: Self = std::$t::MIN;
             const MAX: Self = std::$t::MAX;
+
+            #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
             }
+
+            #[inline(always)]
             fn from_f64(num: f64) -> Self {
                 num as Self
             }

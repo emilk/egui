@@ -299,7 +299,7 @@ impl Resize {
 
         ui.memory().resize.insert(id, state);
 
-        if ui.ctx().style().visuals.debug_resize {
+        if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,

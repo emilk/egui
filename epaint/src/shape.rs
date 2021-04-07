@@ -40,13 +40,13 @@ pub enum Shape {
         stroke: Stroke,
     },
     Text {
-        /// Top left corner of the first character.
+        /// Top left corner of the first character..
         pos: Pos2,
-        /// The layed out text
-        galley: Galley,
-        text_style: TextStyle, // TODO: Font?
+        /// The layed out text.
+        galley: std::sync::Arc<Galley>,
+        /// Text color (foreground).
         color: Color32,
-        /// If true, tilt the letters for an ugly italics effect
+        /// If true, tilt the letters for a hacky italics effect.
         fake_italics: bool,
     },
     Mesh(Mesh),
@@ -132,13 +132,11 @@ impl Shape {
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let font = &fonts[text_style];
-        let galley = font.layout_multiline(text.into(), f32::INFINITY);
+        let galley = fonts.layout_multiline(text_style, text.into(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,
             galley,
-            text_style,
             color,
             fake_italics: false,
         }
@@ -157,6 +155,7 @@ impl Shape {
         Self::mesh(mesh)
     }
 
+    #[inline(always)]
     pub fn texture_id(&self) -> super::TextureId {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id

@@ -28,7 +28,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
-static AGENT_ID: &str = "text_agent";
+static AGENT_ID: &str = "egui_text_agent";
 
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
@@ -189,13 +189,13 @@ pub fn local_storage_remove(key: &str) {
 
 #[cfg(feature = "persistence")]
 pub fn load_memory(ctx: &egui::Context) {
-    if let Some(memory_string) = local_storage_get("egui_memory_json") {
-        match serde_json::from_str(&memory_string) {
+    if let Some(memory_string) = local_storage_get("egui_memory_ron") {
+        match ron::from_str(&memory_string) {
             Ok(memory) => {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error(format!("Failed to parse memory json: {}", err));
+                console_error(format!("Failed to parse memory RON: {}", err));
             }
         }
     }
@@ -206,12 +206,12 @@ pub fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {
-    match serde_json::to_string(&*ctx.memory()) {
-        Ok(json) => {
-            local_storage_set("egui_memory_json", &json);
+    match ron::to_string(&*ctx.memory()) {
+        Ok(ron) => {
+            local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error(format!("Failed to serialize memory as json: {}", err));
+            console_error(format!("Failed to serialize memory as RON: {}", err));
         }
     }
 }
@@ -234,13 +234,14 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output) {
+pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
     let egui::Output {
         cursor_icon,
         open_url,
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
+        text_cursor: cursor,
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -255,6 +256,11 @@ pub fn handle_output(output: &egui::Output) {
 
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
+
+    if &runner.text_cursor != cursor {
+        move_text_cursor(cursor, runner.canvas_id());
+        runner.text_cursor = *cursor;
+    }
 }
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
@@ -464,7 +470,7 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     request_animation_frame(runner_ref)
 }
 
-fn text_agent_hidden() -> bool {
+fn text_agent() -> web_sys::HtmlInputElement {
     use wasm_bindgen::JsCast;
     web_sys::window()
         .unwrap()
@@ -472,9 +478,8 @@ fn text_agent_hidden() -> bool {
         .unwrap()
         .get_element_by_id(AGENT_ID)
         .unwrap()
-        .dyn_into::<web_sys::HtmlInputElement>()
+        .dyn_into()
         .unwrap()
-        .hidden()
 }
 
 fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
@@ -508,7 +513,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 && !modifiers.command
                 && !should_ignore_key(&key)
                 // When text agent is shown, it sends text event instead.
-                && text_agent_hidden()
+                && text_agent().hidden()
             {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
@@ -996,4 +1001,36 @@ fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Optio
         style.set_property("top", "0%").ok()?; // move back to normal position
     }
     Some(())
+}
+
+const MOBILE_DEVICE: [&str; 6] = ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
+/// If context is running under mobile device?
+fn is_mobile() -> Option<bool> {
+    let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+    let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
+    Some(is_mobile)
+}
+
+// Move angnt to text cursor's position, on desktop/laptop, candidate window moves following text elemt(agent),
+// so it appears that the IME candidate window moves with text cursor.
+// On mobile devices, there is no need to do that.
+fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+    let style = text_agent().style();
+    // Note: movint agent on mobile devices will lead to unpreditable scroll.
+    if is_mobile() == Some(false) {
+        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
+            let canvas = canvas_element(canvas_id)?;
+            let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
+            let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
+            // Canvas is translated 50% horizontally in html.
+            let x = x - canvas.offset_width() as f32 / 2.0;
+            style.set_property("position", "absolute").ok()?;
+            style.set_property("top", &(y.to_string() + "px")).ok()?;
+            style.set_property("left", &(x.to_string() + "px")).ok()
+        })
+    } else {
+        style.set_property("position", "absolute").ok()?;
+        style.set_property("top", "0px").ok()?;
+        style.set_property("left", "0px").ok()
+    }
 }

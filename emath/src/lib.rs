@@ -56,7 +56,6 @@
     clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]
@@ -92,11 +91,13 @@ pub trait One {
     fn one() -> Self;
 }
 impl One for f32 {
+    #[inline(always)]
     fn one() -> Self {
         1.0
     }
 }
 impl One for f64 {
+    #[inline(always)]
     fn one() -> Self {
         1.0
     }
@@ -121,6 +122,7 @@ impl Real for f64 {}
 // ----------------------------------------------------------------------------
 
 /// Linear interpolation.
+#[inline(always)]
 pub fn lerp<R, T>(range: RangeInclusive<R>, t: T) -> R
 where
     T: Real + Mul<R, Output = R>,
@@ -309,9 +311,11 @@ pub trait NumExt {
 macro_rules! impl_num_ext {
     ($t: ty) => {
         impl NumExt for $t {
+            #[inline(always)]
             fn at_least(self, lower_limit: Self) -> Self {
                 self.max(lower_limit)
             }
+            #[inline(always)]
             fn at_most(self, upper_limit: Self) -> Self {
                 self.min(upper_limit)
             }

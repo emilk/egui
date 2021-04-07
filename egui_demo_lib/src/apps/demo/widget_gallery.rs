@@ -205,7 +205,7 @@ impl WidgetGallery {
 }
 
 fn example_plot() -> egui::plot::Plot {
-    let n = 512;
+    let n = 128;
     let curve = egui::plot::Curve::from_values_iter((0..=n).map(|i| {
         use std::f64::consts::TAU;
         let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
