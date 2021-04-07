@@ -116,6 +116,10 @@ pub enum Event {
     ///
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
+
+    CompositionStart,
+    CompositionEnd(String),
+    CompositionUpdate(String),
 }
 
 /// Mouse button (or similar for touch input)

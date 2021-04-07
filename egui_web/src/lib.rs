@@ -704,22 +704,24 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
             // let event_type = event.type_();
-            match event.type_().as_ref() {
+            let mut runner_lock = runner_ref.0.lock();
+            let opt_event = match event.type_().as_ref() {
                 "compositionstart" => {
                     is_composing.set(true);
                     input_clone.set_value("");
+                    Some(egui::Event::CompositionStart)
                 }
                 "compositionend" => {
                     is_composing.set(false);
                     input_clone.set_value("");
-                    if let Some(text) = event.data() {
-                        let mut runner_lock = runner_ref.0.lock();
-                        runner_lock.input.raw.events.push(egui::Event::Text(text));
-                        runner_lock.needs_repaint.set_true();
-                    }
+                    event.data().map(|s| egui::Event::CompositionEnd(s))
                 }
-                "compositionupdate" => {}
+                "compositionupdate" => event.data().map(|s| egui::Event::CompositionUpdate(s)),
                 _s => panic!("Unknown type"),
+            };
+            if let Some(event) = opt_event {
+                runner_lock.input.raw.events.push(event);
+                runner_lock.needs_repaint.set_true();
             }
         }) as Box<dyn FnMut(_)>);
         let f = on_compositionend.as_ref().unchecked_ref();
