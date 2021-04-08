@@ -248,7 +248,7 @@ In immediate mode you run into a paradox: to know the size of the window, we mus
 
 This is a fundamental shortcoming of immediate mode GUIs, and any attempt to resolve it comes with its own downsides.
 
-One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occational flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
+One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occasional flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
 
 You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
 
