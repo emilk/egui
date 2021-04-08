@@ -153,12 +153,19 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
+    #[inline(always)]
     pub fn is_none(&self) -> bool {
         self == &Self::default()
     }
 
+    #[inline(always)]
     pub fn any(&self) -> bool {
         !self.is_none()
+    }
+
+    #[inline(always)]
+    pub fn shift_only(&self) -> bool {
+        self.shift && !(self.alt || self.command)
     }
 }
 
