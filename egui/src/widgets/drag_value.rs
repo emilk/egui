@@ -294,15 +294,12 @@ impl<'a> Widget for DragValue<'a> {
                 ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
-                response.ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
 
-                let is_slow_speed = self.is_slow_speed
-                    && response.ctx.input().modifiers.shift
-                    && !(response.ctx.input().modifiers.alt
-                        || response.ctx.input().modifiers.command);
+                let is_slow_speed = self.is_slow_speed && ui.input().modifiers.shift_only();
 
                 let speed = if is_slow_speed { speed / 10.0 } else { speed };
 
