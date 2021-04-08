@@ -189,13 +189,13 @@ pub fn local_storage_remove(key: &str) {
 
 #[cfg(feature = "persistence")]
 pub fn load_memory(ctx: &egui::Context) {
-    if let Some(memory_string) = local_storage_get("egui_memory_json") {
-        match serde_json::from_str(&memory_string) {
+    if let Some(memory_string) = local_storage_get("egui_memory_ron") {
+        match ron::from_str(&memory_string) {
             Ok(memory) => {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error(format!("Failed to parse memory json: {}", err));
+                console_error(format!("Failed to parse memory RON: {}", err));
             }
         }
     }
@@ -206,12 +206,12 @@ pub fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {
-    match serde_json::to_string(&*ctx.memory()) {
-        Ok(json) => {
-            local_storage_set("egui_memory_json", &json);
+    match ron::to_string(&*ctx.memory()) {
+        Ok(ron) => {
+            local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error(format!("Failed to serialize memory as json: {}", err));
+            console_error(format!("Failed to serialize memory as RON: {}", err));
         }
     }
 }

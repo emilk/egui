@@ -5,7 +5,7 @@ use std::{
 
 // ----------------------------------------------------------------------------
 
-/// A key-value store backed by a JSON file on disk.
+/// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
     path: PathBuf,
@@ -17,7 +17,7 @@ impl FileStorage {
     pub fn from_path(path: impl Into<PathBuf>) -> Self {
         let path: PathBuf = path.into();
         Self {
-            kv: read_json(&path).unwrap_or_default(),
+            kv: read_ron(&path).unwrap_or_default(),
             path,
             dirty: false,
         }
@@ -39,7 +39,9 @@ impl epi::Storage for FileStorage {
     fn flush(&mut self) {
         if self.dirty {
             // eprintln!("Persisted to {}", self.path.display());
-            serde_json::to_writer(std::fs::File::create(&self.path).unwrap(), &self.kv).unwrap();
+            let file = std::fs::File::create(&self.path).unwrap();
+            let config = Default::default();
+            ron::ser::to_writer_pretty(file, &self.kv, config).unwrap();
             self.dirty = false;
         }
     }
@@ -47,17 +49,17 @@ impl epi::Storage for FileStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_json<T>(json_path: impl AsRef<Path>) -> Option<T>
+pub fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    match std::fs::File::open(json_path) {
+    match std::fs::File::open(ron_path) {
         Ok(file) => {
             let reader = std::io::BufReader::new(file);
-            match serde_json::from_reader(reader) {
+            match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    eprintln!("ERROR: Failed to parse json: {}", err);
+                    eprintln!("ERROR: Failed to parse RON: {}", err);
                     None
                 }
             }
@@ -71,8 +73,8 @@ where
 // ----------------------------------------------------------------------------
 
 /// Alternative to `FileStorage`
-pub fn read_memory(ctx: &egui::Context, memory_json_path: impl AsRef<std::path::Path>) {
-    let memory: Option<egui::Memory> = read_json(memory_json_path);
+pub fn read_memory(ctx: &egui::Context, memory_file_path: impl AsRef<std::path::Path>) {
+    let memory: Option<egui::Memory> = read_ron(memory_file_path);
     if let Some(memory) = memory {
         *ctx.memory() = memory;
     }
@@ -81,8 +83,10 @@ pub fn read_memory(ctx: &egui::Context, memory_json_path: impl AsRef<std::path::
 /// Alternative to `FileStorage`
 pub fn write_memory(
     ctx: &egui::Context,
-    memory_json_path: impl AsRef<std::path::Path>,
+    memory_file_path: impl AsRef<std::path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    serde_json::to_writer_pretty(std::fs::File::create(memory_json_path)?, &*ctx.memory())?;
+    let file = std::fs::File::create(memory_file_path)?;
+    let ron_config = Default::default();
+    ron::ser::to_writer_pretty(file, &*ctx.memory(), ron_config)?;
     Ok(())
 }
