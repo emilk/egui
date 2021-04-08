@@ -154,15 +154,6 @@ impl WidgetGallery {
         ui.add(egui::DragValue::new(scalar).speed(1.0));
         ui.end_row();
 
-        ui.add(doc_link_label("DragValue with slow speed", "DragValue"));
-        ui.add(
-            egui::DragValue::new(scalar)
-                .min_decimals(3)
-                .speed(0.01)
-                .slow_speed(true),
-        );
-        ui.end_row();
-
         ui.add(doc_link_label("Color picker", "color_edit"));
         ui.color_edit_button_srgba(color);
         ui.end_row();
