@@ -11,6 +11,7 @@ pub(crate) struct State {
     undoer: Undoer<(CCursorPair, String)>,
 
     // If IME candidate window is shown on this text edit.
+    #[cfg_attr(feature = "persistence", serde(skip))]
     has_candidate: bool,
 }
 

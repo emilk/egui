@@ -708,7 +708,6 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            // let event_type = event.type_();
             let mut runner_lock = runner_ref.0.lock();
             let opt_event = match event.type_().as_ref() {
                 "compositionstart" => {
@@ -722,7 +721,10 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.data().map(egui::Event::CompositionEnd)
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
-                _s => panic!("Unknown type"),
+                _s => {
+                    console_err(format!("Unknown composition event type: {:?}", event.type_().as_ref());
+                    None
+                }
             };
             if let Some(event) = opt_event {
                 runner_lock.input.raw.events.push(event);
