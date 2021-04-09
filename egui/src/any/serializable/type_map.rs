@@ -1,16 +1,5 @@
 use std::collections::HashMap;
-
-#[cfg(feature = "persistence")]
-use {
-    crate::any::serializable::element::{AnyMapElement, AnyMapTrait},
-    crate::any::serializable::type_id::TypeId,
-};
-
-#[cfg(not(feature = "persistence"))]
-use {
-    crate::any::element::{AnyMapElement, AnyMapTrait},
-    std::any::TypeId,
-};
+use crate::any::serializable::usages::*;
 
 /// Maps types to a single instance of that type.
 ///
