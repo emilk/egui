@@ -10,7 +10,7 @@ pub(crate) struct AnyMapElement {
 impl fmt::Debug for AnyMapElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AnyMapElement")
-            .field("value_type_id", &self.value.type_id())
+            .field("value_type_id", &self.type_id())
             .finish()
     }
 }
@@ -40,7 +40,7 @@ impl AnyMapElement {
     }
 
     pub(crate) fn type_id(&self) -> TypeId {
-        self.value.type_id()
+        (*self.value).type_id()
     }
 
     pub(crate) fn get<T: AnyMapTrait>(&self) -> Option<&T> {
