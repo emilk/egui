@@ -24,7 +24,12 @@ pub use painter::Painter;
 use {
     copypasta::ClipboardProvider,
     egui::*,
-    glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
+    glium::glutin::{
+        self,
+        event::{Force, VirtualKeyCode},
+        event_loop::ControlFlow,
+    },
+    std::hash::{Hash, Hasher},
 };
 
 pub use copypasta::ClipboardContext; // TODO: remove
@@ -170,7 +175,41 @@ pub fn input_to_egui(
                 }
             }
         }
+        WindowEvent::TouchpadPressure {
+            // device_id,
+            // pressure,
+            // stage,
+            ..
+        } => {
+            let todo = dbg!(event);
+        }
+        WindowEvent::Touch(touch) => {
+            let todo = dbg!(event);
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            touch.device_id.hash(&mut hasher);
+            input_state.raw.events.push(Event::Touch {
+                device_id: hasher.finish(),
+                id: touch.id,
+                phase: match touch.phase {
+                    glutin::event::TouchPhase::Started => egui::TouchPhase::Start,
+                    glutin::event::TouchPhase::Moved => egui::TouchPhase::Move,
+                    glutin::event::TouchPhase::Ended => egui::TouchPhase::End,
+                    glutin::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
+                },
+                pos: Pos2::new(touch.location.x as f32, touch.location.y as f32),
+                force: match touch.force {
+                    Some(Force::Normalized(force)) => Some(force as f32),
+                    Some(Force::Calibrated {
+                        force,
+                        max_possible_force,
+                        ..
+                    }) => Some((force / max_possible_force) as f32),
+                    None => None,
+                },
+            });
+        }
         _ => {
+            let todo = dbg!(event);
             // dbg!(event);
         }
     }
