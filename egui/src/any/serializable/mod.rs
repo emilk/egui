@@ -8,4 +8,4 @@ mod type_id;
 #[cfg(not(feature = "persistence"))]
 use super::element;
 
-pub use self::{type_map::TypeMap, element::AnyMapTrait, id_map::AnyMapId};
+pub use self::{type_map::TypeMap, element::AnyMapTrait, id_map::AnyMap};

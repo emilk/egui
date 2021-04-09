@@ -26,11 +26,11 @@ pub struct Memory {
     pub data_temp: any::TypeMap,
 
     /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
-    pub id_data: any::serializable::AnyMapId,
+    pub id_data: any::serializable::AnyMap<Id>,
 
     /// Same as `id_data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub id_data_temp: any::AnyMapId,
+    pub id_data_temp: any::AnyMap<Id>,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,

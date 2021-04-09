@@ -37,7 +37,7 @@ impl State {
         } else {
             ctx.memory()
                 .id_data
-                .get::<State>(id)
+                .get::<State>(&id)
                 .map(|state| state.open)
         }
     }

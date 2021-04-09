@@ -460,7 +460,7 @@ fn interact(
     if window_interaction.is_resize() {
         ctx.memory()
             .id_data
-            .get_mut::<resize::State>(resize_id)
+            .get_mut::<resize::State>(&resize_id)
             .unwrap()
             .requested_size = Some(new_rect.size() - margins);
     }

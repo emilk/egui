@@ -141,7 +141,7 @@ impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
             .id_data
-            .get::<State>(id)
+            .get::<State>(&id)
             .and_then(|state| state.cursorp)
     }
 }

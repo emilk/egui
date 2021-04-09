@@ -8,7 +8,7 @@
 //!
 //! If you want to store your type here, it must implement `Clone` and `Any` and be `'static`, which means it must not contain references. If you want to store your data in serializable storage, it must implement `serde::Serialize` and `serde::Deserialize` under the `persistent` feature.
 //!
-//! # [`AnyMap`]
+//! # [`TypeMap`]
 //!
 //! It stores everything by just type. You should use this map for your widget when all instances of your widgets can have only one state. E.g. for popup windows, for color picker.
 //!
@@ -17,23 +17,23 @@
 //! struct MyEditBool(pub bool);
 //! ```
 //!
-//! # [`AnyMapId`]
+//! # [`AnyMap`]
 //!
-//! [`AnyMap`] and [`AnyMapId`] has a quite similar interface, except for [`AnyMapId`] you should pass [`Id`] to get and insert things.
+//! [`TypeMap`] and [`AnyMap`] has a quite similar interface, except for [`AnyMap`] you should pass [`Id`] to get and insert things.
 //!
 //! It stores everything by [`Id`], this should be used when your widget can have different data for different instances of the widget.
 //!
 //! # `serializable`
 //!
-//! [`AnyMap`] and [`serializable::AnyMap`] has exactly the same interface, but [`serializable::AnyMap`] only requires serde traits for stored object under `persistent` feature. Same thing for [`AnyMapId`] and [`serializable::AnyMapId`].
+//! [`TypeMap`] and [`serializable::TypeMap`] has exactly the same interface, but [`serializable::TypeMap`] only requires serde traits for stored object under `persistent` feature. Same thing for [`AnyMap`] and [`serializable::AnyMap`].
 //!
 //! # What could break
 //!
 //! Things here could break only when you trying to load this from file.
 //!
-//! First, serialized `TypeId` in [`serializable::AnyMap`] could broke if you updated the version of the Rust compiler between runs.
+//! First, serialized `TypeId` in [`serializable::TypeMap`] could broke if you updated the version of the Rust compiler between runs.
 //!
-//! Second, count and reset all instances of a type in [`serializable::AnyMapId`] could return an incorrect value for the same reason.
+//! Second, count and reset all instances of a type in [`serializable::AnyMap`] could return an incorrect value for the same reason.
 //!
 //! Deserialization errors of loaded elements of these storages can be determined only when you call `get_...` functions, they not logged and not provided to a user, on this errors value is just replaced with `or_insert()`/default value.
 //!
@@ -54,4 +54,4 @@ mod id_map;
 /// Same structs and traits, but also can be de/serialized under `persistence` feature.
 pub mod serializable;
 
-pub use self::{type_map::TypeMap, element::AnyMapTrait, id_map::AnyMapId};
+pub use self::{type_map::TypeMap, element::AnyMapTrait, id_map::AnyMap};
