@@ -12,7 +12,7 @@ pub(crate) struct State {
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    has_candidate: bool,
+    has_ime: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -508,7 +508,7 @@ impl<'t> TextEdit<'t> {
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
 
                     Event::CompositionStart => {
-                        state.has_candidate = true;
+                        state.has_ime = true;
                         None
                     }
 
@@ -516,7 +516,7 @@ impl<'t> TextEdit<'t> {
                         if !text_mark.is_empty()
                             && text_mark != "\n"
                             && text_mark != "\r"
-                            && state.has_candidate
+                            && state.has_ime
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
                             let start_cursor = ccursor;
@@ -528,12 +528,12 @@ impl<'t> TextEdit<'t> {
                     }
 
                     Event::CompositionEnd(prediction) => {
-                        if state.has_candidate
-                            && !prediction.is_empty()
+                        if !prediction.is_empty()
                             && prediction != "\n"
                             && prediction != "\r"
+                            && state.has_ime
                         {
-                            state.has_candidate = false;
+                            state.has_ime = false;
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, prediction);
                             Some(CCursorPair::one(ccursor))

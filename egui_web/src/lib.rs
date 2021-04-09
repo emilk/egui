@@ -721,8 +721,8 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.data().map(egui::Event::CompositionEnd)
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
-                _s => {
-                    console_err(format!("Unknown composition event type: {:?}", event.type_().as_ref());
+                s => {
+                    console_error(format!("Unknown composition event type: {:?}", s));
                     None
                 }
             };
