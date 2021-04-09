@@ -1,6 +1,16 @@
-use crate::any::element::{AnyMapElement, AnyMapTrait};
-use std::any::TypeId;
 use std::collections::HashMap;
+
+#[cfg(feature = "persistence")]
+use {
+    crate::any::serializable::element::{AnyMapElement, AnyMapTrait},
+    crate::any::serializable::type_id::TypeId,
+};
+
+#[cfg(not(feature = "persistence"))]
+use {
+    crate::any::element::{AnyMapElement, AnyMapTrait},
+    std::any::TypeId,
+};
 
 /// Maps types to a single instance of that type.
 ///
@@ -8,13 +18,14 @@ use std::collections::HashMap;
 /// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/) but allows serialization
 /// (if compiled with the `persistence` feature).
 #[derive(Clone, Debug, Default)]
-pub struct AnyMap(HashMap<TypeId, AnyMapElement>);
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct TypeMap(HashMap<TypeId, AnyMapElement>);
 
 // ----------------------------------------------------------------------------
 
-impl AnyMap {
-    pub fn get<T: AnyMapTrait>(&self) -> Option<&T> {
-        self.0.get(&TypeId::of::<T>())?.get()
+impl TypeMap {
+    pub fn get<T: AnyMapTrait>(&mut self) -> Option<&T> {
+        self.get_mut().map(|x| &*x)
     }
 
     pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
@@ -22,7 +33,7 @@ impl AnyMap {
     }
 }
 
-impl AnyMap {
+impl TypeMap {
     pub fn get_or_insert_with<T: AnyMapTrait>(&mut self, or_insert_with: impl FnOnce() -> T) -> &T {
         &*self.get_mut_or_insert_with(or_insert_with)
     }
@@ -50,14 +61,14 @@ impl AnyMap {
     }
 }
 
-impl AnyMap {
+impl TypeMap {
     pub fn insert<T: AnyMapTrait>(&mut self, element: T) {
         self.0
             .insert(TypeId::of::<T>(), AnyMapElement::new(element));
     }
 }
 
-impl AnyMap {
+impl TypeMap {
     pub fn reset<T: AnyMapTrait>(&mut self) {
         self.0.remove(&TypeId::of::<T>());
     }

@@ -1,4 +1,4 @@
-mod any_map;
+mod type_map;
 #[cfg(feature = "persistence")]
 mod element;
 mod id_map;
@@ -8,4 +8,4 @@ mod type_id;
 #[cfg(not(feature = "persistence"))]
 use super::element;
 
-pub use self::{any_map::AnyMap, element::AnyMapTrait, id_map::AnyMapId};
+pub use self::{type_map::TypeMap, element::AnyMapTrait, id_map::AnyMapId};
