@@ -863,7 +863,7 @@ impl Context {
             if ui.button("Reset").clicked() {
                 self.memory()
                     .id_data
-                    .reset::<containers::collapsing_header::State>();
+                    .remove_by_type::<containers::collapsing_header::State>();
             }
         });
 
@@ -873,7 +873,9 @@ impl Context {
                 self.memory().id_data_temp.count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data_temp.reset::<menu::BarState>();
+                self.memory()
+                    .id_data_temp
+                    .remove_by_type::<menu::BarState>();
             }
         });
 
@@ -883,7 +885,7 @@ impl Context {
                 self.memory().id_data.count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.reset::<scroll_area::State>();
+                self.memory().id_data.remove_by_type::<scroll_area::State>();
             }
         });
 
@@ -893,7 +895,7 @@ impl Context {
                 self.memory().id_data.count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.reset::<resize::State>();
+                self.memory().id_data.remove_by_type::<resize::State>();
             }
         });
 

@@ -66,10 +66,7 @@ impl fmt::Debug for AnyMapElement {
                 .debug_struct("AnyMapElement_Deserialized")
                 .field("value_type_id", &value.type_id())
                 .finish(),
-            Serialized(s) => f
-                .debug_tuple("AnyMapElement_Serialized")
-                .field(&s)
-                .finish(),
+            Serialized(s) => f.debug_tuple("AnyMapElement_Serialized").field(&s).finish(),
         }
     }
 }

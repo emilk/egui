@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::any::serializable::usages::*;
+use std::collections::HashMap;
 
 /// Maps types to a single instance of that type.
 ///
@@ -55,14 +55,158 @@ impl TypeMap {
         self.0
             .insert(TypeId::of::<T>(), AnyMapElement::new(element));
     }
-}
 
-impl TypeMap {
-    pub fn reset<T: AnyMapTrait>(&mut self) {
+    pub fn remove<T: AnyMapTrait>(&mut self) {
         self.0.remove(&TypeId::of::<T>());
     }
 
-    pub fn reset_all(&mut self) {
+    pub fn clear(&mut self) {
         self.0.clear();
     }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(all(test, feature = "persistence"))]
+#[test]
+fn discard_different_struct() {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    struct State1 {
+        a: i32,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    struct State2 {
+        a: String,
+    }
+
+    let file_string = {
+        let mut map: TypeMap = Default::default();
+        map.insert(State1 { a: 42 });
+        serde_json::to_string(&map).unwrap()
+    };
+
+    let mut map: TypeMap = serde_json::from_str(&file_string).unwrap();
+    assert!(map.get::<State2>().is_none());
+}
+
+#[cfg(all(test, feature = "persistence"))]
+#[test]
+fn new_field_between_runs() {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    struct State {
+        a: i32,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    struct StateNew {
+        a: i32,
+
+        #[serde(default)]
+        b: i32,
+    }
+
+    let file_string = {
+        let mut map: TypeMap = Default::default();
+        map.insert(State { a: 42 });
+        serde_json::to_string(&map).unwrap()
+    };
+
+    let mut map: TypeMap = serde_json::from_str(&file_string).unwrap();
+    assert!(map.get::<StateNew>().is_none());
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+#[test]
+fn basic_usage() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    struct State {
+        a: i32,
+    }
+
+    let mut map = TypeMap::default();
+
+    assert!(map.get::<State>().is_none());
+    map.insert(State { a: 42 });
+    map.insert(5i32);
+    map.insert((6.0f32, -1i16));
+
+    assert_eq!(*map.get::<State>().unwrap(), State { a: 42 });
+    map.get_mut::<State>().unwrap().a = 43;
+    assert_eq!(*map.get::<State>().unwrap(), State { a: 43 });
+
+    map.remove::<State>();
+    assert!(map.get::<State>().is_none());
+
+    assert_eq!(*map.get_or_insert_with(|| State { a: 55 }), State { a: 55 });
+    map.remove::<State>();
+    assert_eq!(
+        *map.get_mut_or_insert_with(|| State { a: 56 }),
+        State { a: 56 }
+    );
+    map.remove::<State>();
+    assert_eq!(*map.get_or_default::<State>(), State { a: 0 });
+    map.remove::<State>();
+    assert_eq!(*map.get_mut_or_default::<State>(), State { a: 0 });
+}
+
+#[cfg(test)]
+#[test]
+fn cloning() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    struct State {
+        a: i32,
+    }
+
+    let mut map: TypeMap = Default::default();
+
+    map.insert(State::default());
+    map.insert(10i32);
+
+    let mut cloned_map = map.clone();
+
+    map.insert(11.5f32);
+    map.insert("aoeu".to_string());
+
+    assert_eq!(*cloned_map.get::<State>().unwrap(), State { a: 0 });
+    assert_eq!(*cloned_map.get::<i32>().unwrap(), 10i32);
+    assert!(cloned_map.get::<f32>().is_none());
+    assert!(cloned_map.get::<String>().is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn removing() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    struct State {
+        a: i32,
+    }
+
+    let mut map: TypeMap = Default::default();
+
+    map.insert(State::default());
+    map.insert(10i32);
+    map.insert(11.5f32);
+    map.insert("aoeu".to_string());
+
+    map.remove::<State>();
+    assert!(map.get::<State>().is_none());
+    assert!(map.get::<i32>().is_some());
+    assert!(map.get::<f32>().is_some());
+    assert!(map.get::<String>().is_some());
+
+    map.clear();
+    assert!(map.get::<State>().is_none());
+    assert!(map.get::<i32>().is_none());
+    assert!(map.get::<f32>().is_none());
+    assert!(map.get::<String>().is_none());
 }

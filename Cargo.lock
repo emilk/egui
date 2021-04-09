@@ -758,6 +758,7 @@ dependencies = [
  "epaint",
  "ron",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

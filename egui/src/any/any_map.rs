@@ -1,7 +1,7 @@
 use crate::any::element::{AnyMapElement, AnyMapTrait};
-use std::hash::Hash;
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 /// Stores any object by `Key`.
 #[derive(Clone, Debug)]
@@ -62,6 +62,19 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     pub fn insert<T: AnyMapTrait>(&mut self, key: Key, element: T) {
         self.0.insert(key, AnyMapElement::new(element));
     }
+
+    pub fn remove(&mut self, key: &Key) {
+        self.0.remove(key);
+    }
+
+    pub fn remove_by_type<T: AnyMapTrait>(&mut self) {
+        let key = TypeId::of::<T>();
+        self.0.retain(|_, v| v.type_id() != key);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 
 impl<Key: Hash + Eq> AnyMap<Key> {
@@ -74,13 +87,119 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     pub fn count_all(&mut self) -> usize {
         self.0.len()
     }
+}
 
-    pub fn reset<T: AnyMapTrait>(&mut self) {
-        let key = TypeId::of::<T>();
-        self.0.retain(|_, v| v.type_id() != key);
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+#[test]
+fn basic_usage() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    struct State {
+        a: i32,
     }
 
-    pub fn reset_all(&mut self) {
-        self.0.clear();
+    let mut map: AnyMap<i32> = Default::default();
+
+    assert!(map.get::<State>(&0).is_none());
+    map.insert(0, State { a: 42 });
+
+    assert_eq!(*map.get::<State>(&0).unwrap(), State { a: 42 });
+    assert!(map.get::<State>(&1).is_none());
+    map.get_mut::<State>(&0).unwrap().a = 43;
+    assert_eq!(*map.get::<State>(&0).unwrap(), State { a: 43 });
+
+    map.remove(&0);
+    assert!(map.get::<State>(&0).is_none());
+
+    assert_eq!(
+        *map.get_or_insert_with(0, || State { a: 55 }),
+        State { a: 55 }
+    );
+    map.remove(&0);
+    assert_eq!(
+        *map.get_mut_or_insert_with(0, || State { a: 56 }),
+        State { a: 56 }
+    );
+    map.remove(&0);
+    assert_eq!(*map.get_or_default::<State>(0), State { a: 0 });
+    map.remove(&0);
+    assert_eq!(*map.get_mut_or_default::<State>(0), State { a: 0 });
+}
+
+#[cfg(test)]
+#[test]
+fn different_type_same_id() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    struct State {
+        a: i32,
     }
+
+    let mut map: AnyMap<i32> = Default::default();
+
+    map.insert(0, State { a: 42 });
+
+    assert_eq!(*map.get::<State>(&0).unwrap(), State { a: 42 });
+    assert!(map.get::<i32>(&0).is_none());
+
+    map.insert(0, 255i32);
+
+    assert_eq!(*map.get::<i32>(&0).unwrap(), 255);
+    assert!(map.get::<State>(&0).is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn cloning() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    struct State {
+        a: i32,
+    }
+
+    let mut map: AnyMap<i32> = Default::default();
+
+    map.insert(0, State::default());
+    map.insert(10, 10i32);
+    map.insert(11, 11i32);
+
+    let cloned_map = map.clone();
+
+    map.insert(12, 12i32);
+    map.insert(1, State { a: 10 });
+
+    assert_eq!(*cloned_map.get::<State>(&0).unwrap(), State { a: 0 });
+    assert!(cloned_map.get::<State>(&1).is_none());
+    assert_eq!(*cloned_map.get::<i32>(&10).unwrap(), 10i32);
+    assert_eq!(*cloned_map.get::<i32>(&11).unwrap(), 11i32);
+    assert!(cloned_map.get::<i32>(&12).is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn counting() {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    struct State {
+        a: i32,
+    }
+
+    let mut map: AnyMap<i32> = Default::default();
+
+    map.insert(0, State::default());
+    map.insert(1, State { a: 10 });
+    map.insert(10, 10i32);
+    map.insert(11, 11i32);
+    map.insert(12, 12i32);
+
+    assert_eq!(map.count::<State>(), 2);
+    assert_eq!(map.count::<i32>(), 3);
+
+    map.remove_by_type::<State>();
+
+    assert_eq!(map.count::<State>(), 0);
+    assert_eq!(map.count::<i32>(), 3);
+
+    map.clear();
+
+    assert_eq!(map.count::<State>(), 0);
+    assert_eq!(map.count::<i32>(), 0);
 }

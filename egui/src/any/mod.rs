@@ -47,11 +47,11 @@
 //! [`Memory`]: crate::Memory
 //! [`Any`]: std::any::Any
 
-mod type_map;
-mod element;
 mod any_map;
+mod element;
+mod type_map;
 
 /// Same structs and traits, but also can be de/serialized under `persistence` feature.
 pub mod serializable;
 
-pub use self::{type_map::TypeMap, element::AnyMapTrait, any_map::AnyMap};
+pub use self::{any_map::AnyMap, element::AnyMapTrait, type_map::TypeMap};
