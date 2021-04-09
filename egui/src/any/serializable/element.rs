@@ -1,7 +1,7 @@
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::any::Any;
 use std::fmt;
-use AnyMapElementInner::{Deserialized, ToDeserialize};
+use AnyMapElementInner::{Deserialized, Serialized};
 
 pub(crate) struct AnyMapElement(AnyMapElementInner);
 
@@ -12,7 +12,7 @@ enum AnyMapElementInner {
 
         serialize_fn: fn(&Box<dyn Any + 'static>) -> Result<String, ron::Error>,
     },
-    ToDeserialize(String),
+    Serialized(String),
 }
 
 impl Serialize for AnyMapElement {
@@ -29,7 +29,7 @@ impl Serialize for AnyMapElement {
                 let s = serialize_fn(value).map_err(serde::ser::Error::custom)?;
                 serializer.serialize_str(&s)
             }
-            ToDeserialize(s) => serializer.serialize_str(s),
+            Serialized(s) => serializer.serialize_str(s),
         }
     }
 }
@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for AnyMapElement {
             }
         }
 
-        Ok(AnyMapElement(ToDeserialize(
+        Ok(AnyMapElement(Serialized(
             deserializer.deserialize_str(StrVisitor)?,
         )))
     }
@@ -66,8 +66,8 @@ impl fmt::Debug for AnyMapElement {
                 .debug_struct("AnyMapElement_Deserialized")
                 .field("value_type_id", &value.type_id())
                 .finish(),
-            ToDeserialize(s) => f
-                .debug_tuple("AnyMapElement_ToDeserialize")
+            Serialized(s) => f
+                .debug_tuple("AnyMapElement_Serialized")
                 .field(&s)
                 .finish(),
         }
@@ -86,7 +86,7 @@ impl Clone for AnyMapElement {
                 clone_fn: *clone_fn,
                 serialize_fn: *serialize_fn,
             }),
-            ToDeserialize(s) => AnyMapElement(ToDeserialize(s.clone())),
+            Serialized(s) => AnyMapElement(Serialized(s.clone())),
         }
     }
 }
@@ -115,12 +115,12 @@ impl AnyMapElement {
     pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
         match self {
             AnyMapElement(Deserialized { value, .. }) => value.downcast_mut(),
-            AnyMapElement(ToDeserialize(s)) => {
+            AnyMapElement(Serialized(s)) => {
                 *self = Self::new(ron::from_str::<T>(s).ok()?);
 
                 match self {
                     AnyMapElement(Deserialized { value, .. }) => value.downcast_mut(),
-                    AnyMapElement(ToDeserialize(_)) => unreachable!(),
+                    AnyMapElement(Serialized(_)) => unreachable!(),
                 }
             }
         }
@@ -134,7 +134,7 @@ impl AnyMapElement {
                     // TODO: log this error, because it can occurs when user used same Id or same type for different widgets
                 }
             }
-            ToDeserialize(s) => {
+            Serialized(s) => {
                 *self = Self::new(ron::from_str::<T>(s).unwrap_or_else(|_| set_with()));
                 // TODO: log deserialization error
             }
@@ -142,7 +142,7 @@ impl AnyMapElement {
 
         match &mut self.0 {
             Deserialized { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
-            ToDeserialize(_) => unreachable!(),
+            Serialized(_) => unreachable!(),
         }
     }
 }
