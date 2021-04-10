@@ -134,11 +134,11 @@ pub enum Event {
         phase: TouchPhase,
         /// Position of the touch (or where the touch was last detected)
         pos: Pos2,
-        /// Describes how hard the touch device was pressed. May be `None` if the platform
-        /// does not support pressure sensitivity.
-        /// Expected to be a float between 0.0 (no pressure) and 1.0 (maximum pressure).
-        force: Option<f32>,
-        // ### Note for review: using Option<f32> forced me to remove `#[derive(Eq)]`
+        /// Describes how hard the touch device was pressed. May always be `0` if the platform does
+        /// not support pressure sensitivity.
+        /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
+        force: f32,
+        // ### Note for review: using f32 forced me to remove `#[derive(Eq)]`
         //     from the `Event` struct.  Can this cause issues?  I did not get errors,
         //     so I wonder if `Eq` had been derived on purpose.
     },

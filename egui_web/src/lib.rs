@@ -112,12 +112,57 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 }
 
 pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
-    let canvas = canvas_element(canvas_id).unwrap();
-    let rect = canvas.get_bounding_client_rect();
-    let t = event.touches().get(0).unwrap();
+    // TO BE CLARIFIED: For some types of touch events (e.g. `touchcancel`) it may be necessary to
+    // change the return type to an `Option<Pos2>` – but this would be an incompatible change.  Can
+    // we do this?  But then, I am not sure yet if a `touchcancel` event does not even have at
+    // least one `Touch`.
+
+    // Calculate the average of all touch positions:
+    let touch_count = event.touches().length();
+    if touch_count == 0 {
+        egui::Pos2::ZERO // work-around for not returning an `Option<Pos2>`
+    } else {
+        let canvas_origin = canvas_origin(canvas_id);
+        let mut sum = pos_from_touch(canvas_origin, &event.touches().get(0).unwrap());
+        if touch_count == 1 {
+            sum
+        } else {
+            for touch_idx in 1..touch_count {
+                let touch = event.touches().get(touch_idx).unwrap();
+                sum += pos_from_touch(canvas_origin, &touch).to_vec2();
+            }
+            let touch_count_recip = 1. / touch_count as f32;
+            egui::Pos2::new(sum.x * touch_count_recip, sum.y * touch_count_recip)
+        }
+    }
+}
+
+fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
     egui::Pos2 {
-        x: t.page_x() as f32 - rect.left() as f32,
-        y: t.page_y() as f32 - rect.top() as f32,
+        x: touch.page_x() as f32 - canvas_origin.x as f32,
+        y: touch.page_y() as f32 - canvas_origin.y as f32,
+    }
+}
+
+fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
+    let rect = canvas_element(canvas_id)
+        .unwrap()
+        .get_bounding_client_rect();
+    egui::Pos2::new(rect.left() as f32, rect.top() as f32)
+}
+
+fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys::TouchEvent) {
+    let canvas_origin = canvas_origin(runner.canvas_id());
+    for touch_idx in 0..event.changed_touches().length() {
+        if let Some(touch) = event.changed_touches().item(touch_idx) {
+            runner.input.raw.events.push(egui::Event::Touch {
+                device_id: 0,
+                id: touch.identifier() as u64,
+                phase,
+                pos: pos_from_touch(canvas_origin, &touch),
+                force: touch.force(),
+            });
+        }
     }
 }
 
@@ -887,6 +932,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     pressed: true,
                     modifiers,
                 });
+            push_touches(&mut *runner_lock, egui::TouchPhase::Start, &event);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -903,11 +949,17 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
+
+            // TO BE DISCUSSED: todo for all `touch*`-events:
+            // Now that egui knows about Touch events, the backend does not need to simulate
+            // Pointer events, any more.  This simulation could be moved to `egui`.
             runner_lock
                 .input
                 .raw
                 .events
                 .push(egui::Event::PointerMoved(pos));
+
+            push_touches(&mut *runner_lock, egui::TouchPhase::Move, &event);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -935,6 +987,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         pressed: false,
                         modifiers,
                     });
+                push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
                 // Then remove hover effect:
                 runner_lock.input.raw.events.push(egui::Event::PointerGone);
                 runner_lock.needs_repaint.set_true();
@@ -944,6 +997,20 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 // Finally, focus or blur on agent to toggle keyboard
                 manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "touchcancel";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.is_touch = true;
+            push_touches(&mut *runner_lock, egui::TouchPhase::Cancel, &event);
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();

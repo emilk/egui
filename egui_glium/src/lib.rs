@@ -181,10 +181,9 @@ pub fn input_to_egui(
             // stage,
             ..
         } => {
-            let todo = dbg!(event);
+            // TODO
         }
         WindowEvent::Touch(touch) => {
-            let todo = dbg!(event);
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             touch.device_id.hash(&mut hasher);
             input_state.raw.events.push(Event::Touch {
@@ -198,18 +197,17 @@ pub fn input_to_egui(
                 },
                 pos: Pos2::new(touch.location.x as f32, touch.location.y as f32),
                 force: match touch.force {
-                    Some(Force::Normalized(force)) => Some(force as f32),
+                    Some(Force::Normalized(force)) => force as f32,
                     Some(Force::Calibrated {
                         force,
                         max_possible_force,
                         ..
-                    }) => Some((force / max_possible_force) as f32),
-                    None => None,
+                    }) => (force / max_possible_force) as f32,
+                    None => 0_f32,
                 },
             });
         }
         _ => {
-            let todo = dbg!(event);
             // dbg!(event);
         }
     }
