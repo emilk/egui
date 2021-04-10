@@ -97,14 +97,14 @@ impl<Key: Hash + Eq> AnyMap<Key> {
 fn discard_different_struct() {
     use serde::{Deserialize, Serialize};
 
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct State1 {
         a: i32,
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
     struct State2 {
-        a: String,
+        b: String,
     }
 
     let file_string = {
@@ -115,6 +115,7 @@ fn discard_different_struct() {
 
     let mut map: AnyMap<i32> = serde_json::from_str(&file_string).unwrap();
     assert!(map.get::<State2>(&1).is_none());
+    assert_eq!(map.get::<State1>(&1), Some(&State1 { a: 42 }));
 }
 
 #[test]

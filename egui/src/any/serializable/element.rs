@@ -105,7 +105,7 @@ impl AnyMapElement {
 
     pub(crate) fn type_id(&self) -> TypeId {
         match self {
-            AnyMapElement(Deserialized { value, .. }) => (*value).type_id().into(),
+            AnyMapElement(Deserialized { value, .. }) => (**value).type_id().into(),
             AnyMapElement(Serialized(_, id)) => *id,
         }
     }
@@ -124,7 +124,10 @@ impl AnyMapElement {
         }
     }
 
-    pub(crate) fn get_mut_or_set_with<T: AnyMapTrait>(&mut self, set_with: impl FnOnce() -> T) -> &mut T {
+    pub(crate) fn get_mut_or_set_with<T: AnyMapTrait>(
+        &mut self,
+        set_with: impl FnOnce() -> T,
+    ) -> &mut T {
         match &mut self.0 {
             Deserialized { value, .. } => {
                 if !value.is::<T>() {
