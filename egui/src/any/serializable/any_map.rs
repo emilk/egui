@@ -1,11 +1,12 @@
-use crate::any::serializable::usages::*;
+use crate::any::serializable::element::{AnyMapElement, AnyMapTrait};
+use crate::any::serializable::type_id::TypeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Stores any object by `Key`, and can be de/serialized.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-pub struct AnyMap<Key: Hash + Eq>(HashMap<Key, (AnyMapElement, TypeId)>);
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AnyMap<Key: Hash + Eq>(HashMap<Key, AnyMapElement>);
 
 impl<Key: Hash + Eq> Default for AnyMap<Key> {
     fn default() -> Self {
@@ -21,7 +22,7 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     }
 
     pub fn get_mut<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&mut T> {
-        self.0.get_mut(key)?.0.get_mut()
+        self.0.get_mut(key)?.get_mut()
     }
 }
 
@@ -46,11 +47,10 @@ impl<Key: Hash + Eq> AnyMap<Key> {
         use std::collections::hash_map::Entry;
         match self.0.entry(key) {
             Entry::Vacant(vacant) => vacant
-                .insert((AnyMapElement::new(or_insert_with()), TypeId::of::<T>()))
-                .0
+                .insert(AnyMapElement::new(or_insert_with()))
                 .get_mut()
                 .unwrap(), // this unwrap will never panic, because we insert correct type right now
-            Entry::Occupied(occupied) => occupied.into_mut().0.get_mut_or_set_with(or_insert_with),
+            Entry::Occupied(occupied) => occupied.into_mut().get_mut_or_set_with(or_insert_with),
         }
     }
 
@@ -61,8 +61,7 @@ impl<Key: Hash + Eq> AnyMap<Key> {
 
 impl<Key: Hash + Eq> AnyMap<Key> {
     pub fn insert<T: AnyMapTrait>(&mut self, key: Key, element: T) {
-        self.0
-            .insert(key, (AnyMapElement::new(element), TypeId::of::<T>()));
+        self.0.insert(key, AnyMapElement::new(element));
     }
 
     pub fn remove(&mut self, key: &Key) {
@@ -72,7 +71,7 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     /// Note that this function could not remove all needed types between runs because if you upgraded the Rust version or for other reasons.
     pub fn remove_by_type<T: AnyMapTrait>(&mut self) {
         let key = TypeId::of::<T>();
-        self.0.retain(|_, v| v.1 != key);
+        self.0.retain(|_, v| v.type_id() != key);
     }
 
     pub fn clear(&mut self) {
@@ -84,7 +83,7 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     /// You could use this function to find is there some leak or misusage. Note, that result of this function could break between runs, if you upgraded the Rust version or for other reasons.
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {
         let key = TypeId::of::<T>();
-        self.0.iter().filter(|(_, v)| v.1 == key).count()
+        self.0.iter().filter(|(_, v)| v.type_id() == key).count()
     }
 
     pub fn count_all(&mut self) -> usize {
@@ -94,7 +93,6 @@ impl<Key: Hash + Eq> AnyMap<Key> {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(all(test, feature = "persistence"))]
 #[test]
 fn discard_different_struct() {
     use serde::{Deserialize, Serialize};
@@ -119,7 +117,6 @@ fn discard_different_struct() {
     assert!(map.get::<State2>(&1).is_none());
 }
 
-#[cfg(all(test, feature = "persistence"))]
 #[test]
 fn new_field_between_runs() {
     use serde::{Deserialize, Serialize};
@@ -155,11 +152,9 @@ fn new_field_between_runs() {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(test)]
 #[test]
 fn basic_usage() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Deserialize, Serialize)]
     struct State {
         a: i32,
     }
@@ -192,11 +187,9 @@ fn basic_usage() {
     assert_eq!(*map.get_mut_or_default::<State>(0), State { a: 0 });
 }
 
-#[cfg(test)]
 #[test]
 fn different_type_same_id() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Deserialize, Serialize)]
     struct State {
         a: i32,
     }
@@ -214,11 +207,9 @@ fn different_type_same_id() {
     assert!(map.get::<State>(&0).is_none());
 }
 
-#[cfg(test)]
 #[test]
 fn cloning() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Deserialize, Serialize)]
     struct State {
         a: i32,
     }
@@ -241,11 +232,9 @@ fn cloning() {
     assert!(cloned_map.get::<i32>(&12).is_none());
 }
 
-#[cfg(test)]
 #[test]
 fn counting() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Deserialize, Serialize)]
     struct State {
         a: i32,
     }

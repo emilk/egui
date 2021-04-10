@@ -43,10 +43,6 @@ impl AnyMapElement {
         (*self.value).type_id()
     }
 
-    pub(crate) fn get<T: AnyMapTrait>(&self) -> Option<&T> {
-        self.value.downcast_ref()
-    }
-
     pub(crate) fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
         self.value.downcast_mut()
     }

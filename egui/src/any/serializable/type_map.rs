@@ -1,4 +1,6 @@
-use crate::any::serializable::usages::*;
+use crate::any::serializable::element::{AnyMapElement, AnyMapTrait};
+use crate::any::serializable::type_id::TypeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Maps types to a single instance of that type.
@@ -6,8 +8,7 @@ use std::collections::HashMap;
 /// Used to store state per widget type. In effect a sort of singleton storage.
 /// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/) but allows serialization
 /// (if compiled with the `persistence` feature).
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TypeMap(HashMap<TypeId, AnyMapElement>);
 
 // ----------------------------------------------------------------------------
@@ -67,11 +68,8 @@ impl TypeMap {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(all(test, feature = "persistence"))]
 #[test]
 fn discard_different_struct() {
-    use serde::{Deserialize, Serialize};
-
     #[derive(Clone, Debug, Serialize, Deserialize)]
     struct State1 {
         a: i32,
@@ -92,11 +90,8 @@ fn discard_different_struct() {
     assert!(map.get::<State2>().is_none());
 }
 
-#[cfg(all(test, feature = "persistence"))]
 #[test]
 fn new_field_between_runs() {
-    use serde::{Deserialize, Serialize};
-
     #[derive(Clone, Debug, Serialize, Deserialize)]
     struct State {
         a: i32,
@@ -125,8 +120,7 @@ fn new_field_between_runs() {
 #[cfg(test)]
 #[test]
 fn basic_usage() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
     struct State {
         a: i32,
     }
@@ -160,8 +154,7 @@ fn basic_usage() {
 #[cfg(test)]
 #[test]
 fn cloning() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
     struct State {
         a: i32,
     }
@@ -185,8 +178,7 @@ fn cloning() {
 #[cfg(test)]
 #[test]
 fn removing() {
-    #[derive(Debug, Clone, Eq, PartialEq, Default)]
-    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    #[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
     struct State {
         a: i32,
     }

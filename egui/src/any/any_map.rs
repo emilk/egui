@@ -16,8 +16,8 @@ impl<Key: Hash + Eq> Default for AnyMap<Key> {
 // ----------------------------------------------------------------------------
 
 impl<Key: Hash + Eq> AnyMap<Key> {
-    pub fn get<T: AnyMapTrait>(&self, key: &Key) -> Option<&T> {
-        self.0.get(key)?.get()
+    pub fn get<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&T> {
+        self.get_mut(key).map(|x| &*x)
     }
 
     pub fn get_mut<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&mut T> {
@@ -162,7 +162,7 @@ fn cloning() {
     map.insert(10, 10i32);
     map.insert(11, 11i32);
 
-    let cloned_map = map.clone();
+    let mut cloned_map = map.clone();
 
     map.insert(12, 12i32);
     map.insert(1, State { a: 10 });

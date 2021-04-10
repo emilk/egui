@@ -13,8 +13,8 @@ pub struct TypeMap(HashMap<TypeId, AnyMapElement>);
 // ----------------------------------------------------------------------------
 
 impl TypeMap {
-    pub fn get<T: AnyMapTrait>(&self) -> Option<&T> {
-        self.0.get(&TypeId::of::<T>())?.get()
+    pub fn get<T: AnyMapTrait>(&mut self) -> Option<&T> {
+        self.get_mut().map(|x| &*x)
     }
 
     pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
@@ -114,7 +114,7 @@ fn cloning() {
     map.insert(State::default());
     map.insert(10i32);
 
-    let cloned_map = map.clone();
+    let mut cloned_map = map.clone();
 
     map.insert(11.5f32);
     map.insert("aoeu");

@@ -52,6 +52,7 @@ mod element;
 mod type_map;
 
 /// Same structs and traits, but also can be de/serialized under `persistence` feature.
+#[cfg(feature = "persistence")]
 pub mod serializable;
 
 pub use self::{any_map::AnyMap, element::AnyMapTrait, type_map::TypeMap};

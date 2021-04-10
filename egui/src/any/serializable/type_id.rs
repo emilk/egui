@@ -7,11 +7,17 @@ pub struct TypeId(u64);
 
 impl TypeId {
     pub fn of<T: Any + 'static>() -> Self {
+        std::any::TypeId::of::<T>().into()
+    }
+}
+
+impl From<std::any::TypeId> for TypeId {
+    fn from(id: std::any::TypeId) -> Self {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        std::any::TypeId::of::<T>().hash(&mut hasher);
+        id.hash(&mut hasher);
         Self(hasher.finish())
     }
 }

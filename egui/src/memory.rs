@@ -19,14 +19,24 @@ pub struct Memory {
     pub options: Options,
 
     /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(feature = "persistence")]
     pub data: any::serializable::TypeMap,
+
+    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(not(feature = "persistence"))]
+    pub data: any::TypeMap,
 
     /// Same as `data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub data_temp: any::TypeMap,
 
     /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(feature = "persistence")]
     pub id_data: any::serializable::AnyMap<Id>,
+
+    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(not(feature = "persistence"))]
+    pub id_data: any::AnyMap<Id>,
 
     /// Same as `id_data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "persistence", serde(skip))]
