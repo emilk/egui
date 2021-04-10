@@ -2,7 +2,7 @@
 //!
 //! This module contains structs to store arbitrary types using [`Any`] trait. Also, they can be cloned, and structs in [`serializable`] can be de/serialized.
 //!
-//! All this is just `HashMap<TypeId, Box<dyn Any + static>>` and `HashMap<Id, Box<dyn Any + static>>`, but with helper functions and hacks for cloning and de/serialization.
+//! All this is just `HashMap<TypeId, Box<dyn Any + static>>` and `HashMap<Key, Box<dyn Any + static>>`, but with helper functions and hacks for cloning and de/serialization.
 //!
 //! # Trait requirements
 //!
@@ -17,11 +17,13 @@
 //! struct MyEditBool(pub bool);
 //! ```
 //!
-//! # [`AnyMap`]
+//! # [`AnyMap<Key>`]
 //!
-//! [`TypeMap`] and [`AnyMap`] has a quite similar interface, except for [`AnyMap`] you should pass [`Id`] to get and insert things.
+//! In [`Memory`] `Key` = [`Id`].
 //!
-//! It stores everything by [`Id`], this should be used when your widget can have different data for different instances of the widget.
+//! [`TypeMap`] and [`AnyMap<Key>`] has a quite similar interface, except for [`AnyMap`] you should pass `Key` to get and insert things.
+//!
+//! It stores everything by `Key`, this should be used when your widget can have different data for different instances of the widget.
 //!
 //! # `serializable`
 //!
@@ -46,6 +48,7 @@
 //! [`Id`]: crate::Id
 //! [`Memory`]: crate::Memory
 //! [`Any`]: std::any::Any
+//! [`AnyMap<Key>`]: crate::any::AnyMap
 
 mod any_map;
 mod element;
