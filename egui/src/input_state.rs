@@ -2,7 +2,7 @@ mod touch_state;
 
 use crate::data::input::*;
 use crate::{emath::*, util::History};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 pub use crate::data::input::Key;
 pub use touch_state::TouchState;
@@ -22,7 +22,8 @@ pub struct InputState {
     pub pointer: PointerState,
 
     /// State of touches, except those covered by PointerState.
-    pub touch: TouchState,
+    /// (We keep a separate `TouchState` for each encountered touch device.)
+    pub touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
     /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
@@ -61,7 +62,7 @@ impl Default for InputState {
         Self {
             raw: Default::default(),
             pointer: Default::default(),
-            touch: Default::default(),
+            touch_states: Default::default(),
             scroll_delta: Default::default(),
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -77,7 +78,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(self, new: RawInput) -> InputState {
+    pub fn begin_frame(mut self, new: RawInput) -> InputState {
         #![allow(deprecated)] // for screen_size
 
         let time = new
@@ -91,7 +92,10 @@ impl InputState {
                 self.screen_rect
             }
         });
-        let touch = self.touch.begin_frame(time, &new);
+        self.create_touch_states_for_new_devices(&new.events);
+        for touch_state in self.touch_states.values_mut() {
+            touch_state.begin_frame(time, &new);
+        }
         let pointer = self.pointer.begin_frame(time, &new);
         let mut keys_down = self.keys_down;
         for event in &new.events {
@@ -105,7 +109,7 @@ impl InputState {
         }
         InputState {
             pointer,
-            touch,
+            touch_states: self.touch_states,
             scroll_delta: new.scroll_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
@@ -185,9 +189,26 @@ impl InputState {
         self.physical_pixel_size()
     }
 
-    /// Zoom factor when user is pinching or zooming with two fingers on a touch device
+    /// Zoom factor when user is pinching (`zoom() < 1.0`) or zooming (`zoom() > 1.0`) with two
+    /// fingers on a supported touch device
     pub fn zoom(&self) -> Option<f32> {
-        self.touch.zoom()
+        // return the zoom value of the first device with an active `Zoom` gesture
+        self.touch_states
+            .iter()
+            .find_map(|(_device_id, touch_state)| touch_state.zoom())
+    }
+
+    /// Scans `event` for device IDs of touch devices we have not seen before,
+    /// and creates a new `TouchState` for each such device.
+    fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
+        for event in events {
+            if let Event::Touch { device_id, .. } = event {
+                if !self.touch_states.contains_key(device_id) {
+                    self.touch_states
+                        .insert(*device_id, TouchState::new(*device_id));
+                }
+            }
+        }
     }
 }
 
@@ -516,7 +537,7 @@ impl InputState {
         let Self {
             raw,
             pointer,
-            touch,
+            touch_states,
             scroll_delta,
             screen_rect,
             pixels_per_point,
@@ -537,7 +558,11 @@ impl InputState {
                 pointer.ui(ui);
             });
 
-        ui.collapsing("Touch State", |ui| touch.ui(ui));
+        for (device_id, touch_state) in touch_states {
+            ui.collapsing(format!("Touch State [device {}]", device_id), |ui| {
+                touch_state.ui(ui)
+            });
+        }
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));

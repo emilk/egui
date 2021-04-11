@@ -127,7 +127,7 @@ pub enum Event {
     Touch {
         /// Hashed device identifier (if available; may be zero).
         /// Can be used to separate touches from different devices.
-        device_id: u64,
+        device_id: TouchDeviceId,
         /// Unique identifier of a finger/pen.  Value is stable from touch down
         /// to lift-up
         id: u64,
@@ -303,6 +303,9 @@ impl RawInput {
             .on_hover_text("key presses etc");
     }
 }
+
+/// this is a `u64` as values of this kind can always be obtained by hashing
+pub type TouchDeviceId = u64;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TouchPhase {
