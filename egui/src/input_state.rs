@@ -1,8 +1,11 @@
+mod touch_state;
+
 use crate::data::input::*;
 use crate::{emath::*, util::History};
 use std::collections::HashSet;
 
 pub use crate::data::input::Key;
+pub use touch_state::TouchState;
 
 /// If the pointer moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
@@ -15,8 +18,11 @@ pub struct InputState {
     /// The raw input we got this frame from the backend.
     pub raw: RawInput,
 
-    /// State of the mouse or touch.
+    /// State of the mouse or simple touch gestures which can be mapped mouse operations.
     pub pointer: PointerState,
+
+    /// State of touches, except those covered by PointerState.
+    pub touch: TouchState,
 
     /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
@@ -55,6 +61,7 @@ impl Default for InputState {
         Self {
             raw: Default::default(),
             pointer: Default::default(),
+            touch: Default::default(),
             scroll_delta: Default::default(),
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -84,6 +91,7 @@ impl InputState {
                 self.screen_rect
             }
         });
+        let touch = self.touch.begin_frame(time, &new);
         let pointer = self.pointer.begin_frame(time, &new);
         let mut keys_down = self.keys_down;
         for event in &new.events {
@@ -97,6 +105,7 @@ impl InputState {
         }
         InputState {
             pointer,
+            touch,
             scroll_delta: new.scroll_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
@@ -502,6 +511,7 @@ impl InputState {
         let Self {
             raw,
             pointer,
+            touch,
             scroll_delta,
             screen_rect,
             pixels_per_point,
@@ -521,6 +531,8 @@ impl InputState {
             .show(ui, |ui| {
                 pointer.ui(ui);
             });
+
+        ui.collapsing("Touch State", |ui| touch.ui(ui));
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
