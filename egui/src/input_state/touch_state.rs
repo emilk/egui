@@ -15,7 +15,12 @@ impl Clone for TouchState {
         let gestures = self
             .gestures
             .iter()
-            .map(|gesture| gesture.boxed_clone())
+            .map(|gesture| {
+                // Cloning this way does not feel right.
+                // Why do we have to implement `Clone` in the first place? – That's because
+                // CtxRef::begin_frame() clones self.0.
+                gesture.boxed_clone()
+            })
             .collect();
         TouchState { gestures }
     }
@@ -35,14 +40,23 @@ impl TouchState {
         self
     }
 
-    fn gestures(&self) -> &Vec<Box<dyn Gesture>> {
-        &self.gestures
+    pub fn zoom(&self) -> Option<f32> {
+        self.gestures
+            .iter()
+            .filter(|gesture| matches!(gesture.kind(), gestures::Kind::Zoom))
+            .find_map(|gesture| {
+                if let Some(gestures::Details::Zoom { factor }) = gesture.details() {
+                    Some(factor)
+                } else {
+                    None
+                }
+            })
     }
 }
 
 impl TouchState {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        for gesture in self.gestures() {
+        for gesture in &self.gestures {
             ui.label(format!("{:?}", gesture));
         }
     }

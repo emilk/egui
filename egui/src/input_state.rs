@@ -184,6 +184,11 @@ impl InputState {
         // TODO: multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
     }
+
+    /// Zoom factor when user is pinching or zooming with two fingers on a touch device
+    pub fn zoom(&self) -> Option<f32> {
+        self.touch.zoom()
+    }
 }
 
 // ----------------------------------------------------------------------------
