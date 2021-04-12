@@ -192,8 +192,8 @@ impl Curve {
     }
 
     /// Name of this curve.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
+    pub fn name(mut self, name: impl ToString) -> Self {
+        self.name = name.to_string();
         self
     }
 }

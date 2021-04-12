@@ -28,10 +28,10 @@ pub struct SelectableLabel {
 }
 
 impl SelectableLabel {
-    pub fn new(selected: bool, text: impl Into<String>) -> Self {
+    pub fn new(selected: bool, text: impl ToString) -> Self {
         Self {
             selected,
-            text: text.into(),
+            text: text.to_string(),
         }
     }
 }

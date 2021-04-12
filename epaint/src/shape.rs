@@ -128,11 +128,11 @@ impl Shape {
         fonts: &Fonts,
         pos: Pos2,
         anchor: Align2,
-        text: impl Into<String>,
+        text: impl ToString,
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_multiline(text_style, text.into(), f32::INFINITY);
+        let galley = fonts.layout_multiline(text_style, text.to_string(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,

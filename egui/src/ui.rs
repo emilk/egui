@@ -875,7 +875,7 @@ impl Ui {
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
+    pub fn hyperlink(&mut self, url: impl ToString) -> Response {
         self.add(Hyperlink::new(url))
     }
 
@@ -887,7 +887,7 @@ impl Ui {
     /// ```
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
+    pub fn hyperlink_to(&mut self, label: impl ToString, url: impl ToString) -> Response {
         self.add(Hyperlink::new(url).text(label))
     }
 
@@ -916,7 +916,7 @@ impl Ui {
     ///
     /// See also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
-    pub fn button(&mut self, text: impl Into<String>) -> Response {
+    pub fn button(&mut self, text: impl ToString) -> Response {
         self.add(Button::new(text))
     }
 
@@ -926,19 +926,19 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<String>) -> Response {
+    pub fn small_button(&mut self, text: impl ToString) -> Response {
         self.add(Button::new(text).small())
     }
 
     /// Show a checkbox.
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<String>) -> Response {
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl ToString) -> Response {
         self.add(Checkbox::new(checked, text))
     }
 
     /// Show a [`RadioButton`].
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
-    pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
+    pub fn radio(&mut self, selected: bool, text: impl ToString) -> Response {
         self.add(RadioButton::new(selected, text))
     }
 
@@ -963,7 +963,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl Into<String>,
+        text: impl ToString,
     ) -> Response {
         let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {
@@ -977,7 +977,7 @@ impl Ui {
     ///
     /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
+    pub fn selectable_label(&mut self, checked: bool, text: impl ToString) -> Response {
         self.add(SelectableLabel::new(checked, text))
     }
 
@@ -991,7 +991,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl Into<String>,
+        text: impl ToString,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
@@ -1185,7 +1185,7 @@ impl Ui {
     /// A [`CollapsingHeader`] that starts out collapsed.
     pub fn collapsing<R>(
         &mut self,
-        heading: impl Into<String>,
+        heading: impl ToString,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)

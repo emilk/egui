@@ -331,20 +331,20 @@ pub mod http {
 
     impl Request {
         /// Create a `GET` requests with the given url.
-        pub fn get(url: impl Into<String>) -> Self {
+        pub fn get(url: impl ToString) -> Self {
             Self {
                 method: "GET".to_owned(),
-                url: url.into(),
+                url: url.to_string(),
                 body: "".to_string(),
             }
         }
 
         /// Create a `POST` requests with the give url and body.
-        pub fn post(url: impl Into<String>, body: impl Into<String>) -> Self {
+        pub fn post(url: impl ToString, body: impl ToString) -> Self {
             Self {
                 method: "POST".to_owned(),
-                url: url.into(),
-                body: body.into(),
+                url: url.to_string(),
+                body: body.to_string(),
             }
         }
     }

@@ -31,7 +31,7 @@ pub struct Output {
 impl Output {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
-    pub fn open_url(&mut self, url: impl Into<String>) {
+    pub fn open_url(&mut self, url: impl ToString) {
         self.open_url = Some(OpenUrl::same_tab(url))
     }
 
@@ -59,16 +59,16 @@ pub struct OpenUrl {
 }
 
 impl OpenUrl {
-    pub fn same_tab(url: impl Into<String>) -> Self {
+    pub fn same_tab(url: impl ToString) -> Self {
         Self {
-            url: url.into(),
+            url: url.to_string(),
             new_tab: false,
         }
     }
 
-    pub fn new_tab(url: impl Into<String>) -> Self {
+    pub fn new_tab(url: impl ToString) -> Self {
         Self {
-            url: url.into(),
+            url: url.to_string(),
             new_tab: true,
         }
     }
@@ -279,17 +279,17 @@ impl WidgetInfo {
         }
     }
 
-    pub fn labeled(typ: WidgetType, label: impl Into<String>) -> Self {
+    pub fn labeled(typ: WidgetType, label: impl ToString) -> Self {
         Self {
-            label: Some(label.into()),
+            label: Some(label.to_string()),
             ..Self::new(typ)
         }
     }
 
     /// checkboxes, radio-buttons etc
-    pub fn selected(typ: WidgetType, selected: bool, label: impl Into<String>) -> Self {
+    pub fn selected(typ: WidgetType, selected: bool, label: impl ToString) -> Self {
         Self {
-            label: Some(label.into()),
+            label: Some(label.to_string()),
             selected: Some(selected),
             ..Self::new(typ)
         }
@@ -302,8 +302,8 @@ impl WidgetInfo {
         }
     }
 
-    pub fn slider(value: f64, label: impl Into<String>) -> Self {
-        let label = label.into();
+    pub fn slider(value: f64, label: impl ToString) -> Self {
+        let label = label.to_string();
         Self {
             label: if label.is_empty() { None } else { Some(label) },
             value: Some(value),
@@ -311,9 +311,9 @@ impl WidgetInfo {
         }
     }
 
-    pub fn text_edit(edit_text: impl Into<String>) -> Self {
+    pub fn text_edit(edit_text: impl ToString) -> Self {
         Self {
-            edit_text: Some(edit_text.into()),
+            edit_text: Some(edit_text.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
     }

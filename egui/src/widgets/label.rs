@@ -29,9 +29,9 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn new(text: impl Into<String>) -> Self {
+    pub fn new(text: impl ToString) -> Self {
         Self {
-            text: text.into(),
+            text: text.to_string(),
             wrap: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,

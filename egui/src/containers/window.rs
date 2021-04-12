@@ -36,8 +36,8 @@ impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
-    pub fn new(title: impl Into<String>) -> Self {
-        let title = title.into();
+    pub fn new(title: impl ToString) -> Self {
+        let title = title.to_string();
         let area = Area::new(&title);
         let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
         Self {

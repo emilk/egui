@@ -60,16 +60,12 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
 }
 
 /// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
-pub fn menu(ui: &mut Ui, title: impl Into<String>, add_contents: impl FnOnce(&mut Ui)) {
+pub fn menu(ui: &mut Ui, title: impl ToString, add_contents: impl FnOnce(&mut Ui)) {
     menu_impl(ui, title, Box::new(add_contents))
 }
 
-fn menu_impl<'c>(
-    ui: &mut Ui,
-    title: impl Into<String>,
-    add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
-) {
-    let title = title.into();
+fn menu_impl<'c>(ui: &mut Ui, title: impl ToString, add_contents: Box<dyn FnOnce(&mut Ui) + 'c>) {
+    let title = title.to_string();
     let bar_id = ui.id();
     let menu_id = bar_id.with(&title);
 
