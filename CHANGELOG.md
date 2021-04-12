@@ -2,7 +2,7 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
+NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) has their own changelogs!
 
 
 ## Unreleased
