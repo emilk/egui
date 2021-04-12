@@ -153,7 +153,7 @@ impl TouchState {
     pub fn zoom(&self) -> Option<f32> {
         self.registered_gestures
             .iter()
-            .filter(|reg| reg.gesture.kind() == gestures::Kind::Zoom)
+            .filter(|reg| reg.gesture.kind() == gestures::Kind::TwoFingerPinchOrZoom)
             .find_map(|reg| {
                 if let Some(gestures::Details::Zoom { factor }) = reg.gesture.details() {
                     Some(factor)

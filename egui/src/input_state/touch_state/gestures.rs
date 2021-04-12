@@ -85,7 +85,7 @@ impl Default for Phase {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {
-    Zoom,
+    TwoFingerPinchOrZoom,
     // more to come...
     // Tap,
     // Rotate,
