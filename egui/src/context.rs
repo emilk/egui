@@ -856,31 +856,46 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} collapsing headers",
-                self.memory().collapsing_headers.len()
+                self.memory()
+                    .id_data
+                    .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().collapsing_headers = Default::default();
+                self.memory()
+                    .id_data
+                    .remove_by_type::<containers::collapsing_header::State>();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} menu bars", self.memory().menu_bar.len()));
+            ui.label(format!(
+                "{} menu bars",
+                self.memory().id_data_temp.count::<menu::BarState>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().menu_bar = Default::default();
+                self.memory()
+                    .id_data_temp
+                    .remove_by_type::<menu::BarState>();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} scroll areas", self.memory().scroll_areas.len()));
+            ui.label(format!(
+                "{} scroll areas",
+                self.memory().id_data.count::<scroll_area::State>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().scroll_areas = Default::default();
+                self.memory().id_data.remove_by_type::<scroll_area::State>();
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} resize areas", self.memory().resize.len()));
+            ui.label(format!(
+                "{} resize areas",
+                self.memory().id_data.count::<resize::State>()
+            ));
             if ui.button("Reset").clicked() {
-                self.memory().resize = Default::default();
+                self.memory().id_data.remove_by_type::<resize::State>();
             }
         });
 
