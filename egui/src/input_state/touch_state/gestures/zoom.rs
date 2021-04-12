@@ -1,23 +1,18 @@
-use super::{Details, Gesture, Kind, State, Touch, TouchId, TouchMap};
+use super::{Context, Details, Gesture, Kind, Phase};
 
 #[derive(Clone, Debug, Default)]
-pub struct Zoom {
-    state: State,
+pub struct TwoFingerPinchOrZoom {
     previous_distance: Option<f32>,
     current_distance: Option<f32>,
 }
 
-impl Gesture for Zoom {
+impl Gesture for TwoFingerPinchOrZoom {
     fn boxed_clone(&self) -> Box<dyn Gesture> {
         Box::new(self.clone())
     }
 
     fn kind(&self) -> Kind {
         Kind::Zoom
-    }
-
-    fn state(&self) -> State {
-        self.state
     }
 
     fn details(&self) -> Option<Details> {
@@ -36,40 +31,30 @@ impl Gesture for Zoom {
         None
     }
 
-    fn check(&mut self, _time: f64, _active_touches: &TouchMap) {}
-
-    fn touch_started(&mut self, _touch_id: TouchId, _time: f64, active_touches: &TouchMap) {
-        if active_touches.len() >= 2 {
-            self.state = State::Active;
-            self.update_details();
-        } else {
-            self.state = State::Checking;
+    fn touch_started(&mut self, ctx: &Context<'_>) -> Phase {
+        match ctx.active_touches.len() {
+            1 => Phase::Checking,
+            2 => {
+                self.update_details();
+                Phase::Checking
+            }
+            _ => Phase::Rejected,
         }
     }
 
-    fn touch_changed(&mut self, _touch_id: TouchId, _time: f64, active_touches: &TouchMap) {
-        if active_touches.len() >= 2 {
-            self.state = State::Active;
-            self.update_details();
-        } else {
-            self.state = State::Checking;
+    fn touch_changed(&mut self, ctx: &Context<'_>) -> Phase {
+        match ctx.active_touches.len() {
+            1 => Phase::Checking,
+            2 => {
+                self.update_details();
+                Phase::Active
+            }
+            _ => Phase::Rejected,
         }
-    }
-
-    fn touch_ended(&mut self, _touch: Touch, _time: f64, active_touches: &TouchMap) {
-        if active_touches.len() < 2 {
-            self.state = State::Rejected;
-        } else {
-            self.update_details();
-        }
-    }
-
-    fn touch_cancelled(&mut self, _touch: Touch, _time: f64, _active_touches: &TouchMap) {
-        self.state = State::Rejected;
     }
 }
 
-impl Zoom {
+impl TwoFingerPinchOrZoom {
     fn update_details(&mut self) {
         // TODO
         // TODO

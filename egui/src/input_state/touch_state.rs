@@ -1,10 +1,8 @@
 mod gestures;
 
-use std::collections::BTreeMap;
-
 use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
 use epaint::emath::Pos2;
-use gestures::Gesture;
+use gestures::{Gesture, Phase};
 
 /// struct members are the same as in enum variant `Event::Touch`
 #[derive(Clone, Copy, Debug)]
@@ -13,49 +11,46 @@ pub struct Touch {
     force: f32,
 }
 
-pub type TouchMap = BTreeMap<TouchId, Touch>;
-
-/// The current state of touch events and gestures.  Uses a collection of `Gesture` implementations
-/// which track their own state individually
-#[derive(Debug)]
+/// The current state (for a specific touch device) of touch events and gestures.  Uses a
+/// collection of `Gesture` implementations which track their own state individually
+#[derive(Clone, Debug)]
 pub struct TouchState {
     device_id: TouchDeviceId,
-    gestures: Vec<Box<dyn Gesture>>,
-    active_touches: TouchMap,
+    registered_gestures: Vec<RegisteredGesture>,
+    active_touches: gestures::TouchMap,
 }
 
-impl Clone for TouchState {
+#[derive(Debug)]
+struct RegisteredGesture {
+    /// The current processing state.  If it is `Rejected`, the gesture will not be considered
+    /// any more until all touches end and a new touch sequence starts
+    phase: Phase,
+    gesture: Box<dyn Gesture>,
+}
+
+impl Clone for RegisteredGesture {
     fn clone(&self) -> Self {
-        TouchState {
-            device_id: self.device_id,
-            gestures: self
-                .gestures
-                .iter()
-                .map(|gesture| {
-                    // Cloning this way does not feel right.
-                    // Why do we have to implement `Clone` in the first place? – That's because
-                    // CtxRef::begin_frame() clones self.0.
-                    gesture.boxed_clone()
-                })
-                .collect(),
-            active_touches: self.active_touches.clone(),
+        RegisteredGesture {
+            phase: self.phase,
+            gesture: self.gesture.boxed_clone(),
         }
     }
 }
 
 impl TouchState {
     pub fn new(device_id: TouchDeviceId) -> Self {
-        let mut result = Self {
+        Self {
             device_id,
-            gestures: Vec::new(),
+            registered_gestures: Default::default(),
             active_touches: Default::default(),
-        };
-        result.reset_gestures();
-        result
+        }
     }
 
     fn reset_gestures(&mut self) {
-        self.gestures = vec![Box::new(gestures::Zoom::default())];
+        self.registered_gestures = vec![RegisteredGesture {
+            phase: gestures::Phase::Waiting,
+            gesture: Box::new(gestures::TwoFingerPinchOrZoom::default()),
+        }];
     }
 
     pub fn begin_frame(&mut self, time: f64, new: &RawInput) {
@@ -96,61 +91,71 @@ impl TouchState {
             .filter(|(&device_id, ..)| device_id == my_device_id)
             //
             // process matching Touch events:
-            .for_each(|(_, touch_id, phase, touch)| {
+            .for_each(|(_, &touch_id, phase, touch)| {
                 notified_gestures = true;
                 match phase {
                     TouchPhase::Start => {
-                        self.active_touches.insert(*touch_id, touch);
-                        for gesture in &mut self.gestures {
-                            gesture.touch_started(*touch_id, time, &self.active_touches);
+                        self.active_touches.insert(touch_id, touch);
+                        let ctx = gestures::Context {
+                            time,
+                            active_touches: &self.active_touches,
+                            touch_id,
+                        };
+                        for reg in &mut self.registered_gestures {
+                            reg.phase = reg.gesture.touch_started(&ctx);
                         }
                     }
                     TouchPhase::Move => {
-                        self.active_touches.insert(*touch_id, touch);
-                        for gesture in &mut self.gestures {
-                            gesture.touch_changed(*touch_id, time, &self.active_touches);
+                        self.active_touches.insert(touch_id, touch);
+                        let ctx = gestures::Context {
+                            time,
+                            active_touches: &self.active_touches,
+                            touch_id,
+                        };
+                        for reg in &mut self.registered_gestures {
+                            reg.phase = reg.gesture.touch_changed(&ctx);
                         }
                     }
                     TouchPhase::End => {
-                        if let Some(removed_touch) = self.active_touches.remove(touch_id) {
-                            for gesture in &mut self.gestures {
-                                gesture.touch_ended(removed_touch, time, &self.active_touches);
+                        if let Some(removed_touch) = self.active_touches.remove(&touch_id) {
+                            let ctx = gestures::Context {
+                                time,
+                                active_touches: &self.active_touches,
+                                touch_id,
+                            };
+                            for reg in &mut self.registered_gestures {
+                                reg.phase = reg.gesture.touch_ended(&ctx, removed_touch);
                             }
                         }
                     }
                     TouchPhase::Cancel => {
-                        if let Some(removed_touch) = self.active_touches.remove(touch_id) {
-                            for gesture in &mut self.gestures {
-                                gesture.touch_cancelled(removed_touch, time, &self.active_touches);
-                            }
+                        self.active_touches.remove(&touch_id);
+                        for reg in &mut self.registered_gestures {
+                            reg.phase = Phase::Rejected;
                         }
                     }
                 }
-                self.remove_rejected_gestures();
+                self.registered_gestures
+                    .retain(|g| g.phase != Phase::Rejected);
             });
 
         if !notified_gestures && !self.active_touches.is_empty() {
-            for gesture in &mut self.gestures {
-                gesture.check(time, &self.active_touches);
+            for reg in &mut self.registered_gestures {
+                if reg.phase == Phase::Checking {
+                    reg.phase = reg.gesture.check(time, &self.active_touches);
+                }
             }
-            self.remove_rejected_gestures();
-        }
-    }
-
-    fn remove_rejected_gestures(&mut self) {
-        for i in (0..self.gestures.len()).rev() {
-            if self.gestures.get(i).unwrap().state() == gestures::State::Rejected {
-                self.gestures.remove(i);
-            }
+            self.registered_gestures
+                .retain(|g| g.phase != Phase::Rejected);
         }
     }
 
     pub fn zoom(&self) -> Option<f32> {
-        self.gestures
+        self.registered_gestures
             .iter()
-            .filter(|gesture| gesture.kind() == gestures::Kind::Zoom)
-            .find_map(|gesture| {
-                if let Some(gestures::Details::Zoom { factor }) = gesture.details() {
+            .filter(|reg| reg.gesture.kind() == gestures::Kind::Zoom)
+            .find_map(|reg| {
+                if let Some(gestures::Details::Zoom { factor }) = reg.gesture.details() {
                     Some(factor)
                 } else {
                     None
@@ -161,7 +166,7 @@ impl TouchState {
 
 impl TouchState {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        for gesture in &self.gestures {
+        for gesture in &self.registered_gestures {
             ui.label(format!("{:?}", gesture));
         }
     }

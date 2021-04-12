@@ -2,9 +2,20 @@ mod zoom;
 
 use std::fmt::Debug;
 
-pub use zoom::Zoom;
+pub use zoom::TwoFingerPinchOrZoom;
 
-use super::{Touch, TouchId, TouchMap};
+use super::{Touch, TouchId};
+
+pub type TouchMap = std::collections::BTreeMap<TouchId, Touch>;
+
+pub struct Context<'a> {
+    /// Current time
+    pub time: f64,
+    /// Collection of active `Touch` instances
+    pub active_touches: &'a TouchMap,
+    /// Identifier of the added, changed, or removed touch
+    pub touch_id: TouchId,
+}
 
 /// TODO: docu
 /// ```
@@ -17,10 +28,6 @@ pub trait Gesture: Debug {
     /// The `Kind` of the gesture. Used for filtering.
     fn kind(&self) -> Kind;
 
-    /// The current processing state.  If it is `Rejected`, the gesture will not be considered
-    /// until all touches end and a new touch sequence starts
-    fn state(&self) -> State;
-
     /// Returns gesture specific detailed information.
     /// Returns `None` when `state()` is not `Active`.
     fn details(&self) -> Option<Details>;
@@ -29,24 +36,28 @@ pub trait Gesture: Debug {
     /// Returns `None` when `state()` is not `Active`.
     fn start_position(&self) -> Option<epaint::emath::Pos2>;
 
-    /// This method is called, even if there is no event to process.  Thus, it is possible to
-    /// activate gestures with a delay (e.g. a Single Tap gesture, after having waited for the
-    /// Double-Tap timeout)
-    fn check(&mut self, time: f64, active_touches: &TouchMap);
+    /// When the gesture's phase is `Phase::Checking`, this method is called, even if there is no
+    /// event to process.  Thus, it is possible to activate gestures with a delay (e.g. activate a
+    /// Single-Tap gesture after having waited for the Double-Tap timeout)
+    #[must_use]
+    fn check(&mut self, _time: f64, _active_touches: &TouchMap) -> Phase {
+        Phase::Checking
+    }
 
     /// indicates the start of an individual touch. `state` contains this touch and possibly other
     /// touches which have been notified earlier
-    fn touch_started(&mut self, touch_id: TouchId, time: f64, active_touches: &TouchMap);
+    #[must_use]
+    fn touch_started(&mut self, ctx: &Context<'_>) -> Phase;
 
     /// indicates that a known touch has changed in position or force
-    fn touch_changed(&mut self, touch_id: TouchId, time: f64, active_touches: &TouchMap);
+    #[must_use]
+    fn touch_changed(&mut self, ctx: &Context<'_>) -> Phase;
 
     /// indicates that a known touch has ended. The touch is not contained in `state` any more.
-    fn touch_ended(&mut self, touch: Touch, time: f64, active_touches: &TouchMap);
-
-    /// indicates that a known touch has ended unexpectedly (e.g. by an interrupted error pop up or
-    /// other circumstances). The touch is not contained in `state` any more.
-    fn touch_cancelled(&mut self, touch: Touch, time: f64, active_touches: &TouchMap);
+    #[must_use]
+    fn touch_ended(&mut self, _ctx: &Context<'_>, _removed_touch: Touch) -> Phase {
+        Phase::Rejected
+    }
 }
 
 /// TODO: docu
@@ -54,8 +65,9 @@ pub trait Gesture: Debug {
 /// assert!( 1 == 0 )
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum State {
-    /// The `Gesture` is idle, and waiting for events
+pub enum Phase {
+    /// The `Gesture` is idle, and waiting for events.  This is the initial phase and should
+    /// not be set by gesture implementations.
     Waiting,
     /// The `Gesture` has detected events, but the conditions for activating are not met (yet)
     Checking,
@@ -65,9 +77,9 @@ pub enum State {
     Rejected,
 }
 
-impl Default for State {
+impl Default for Phase {
     fn default() -> Self {
-        State::Waiting
+        Phase::Waiting
     }
 }
 
