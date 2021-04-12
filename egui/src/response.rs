@@ -146,7 +146,7 @@ impl Response {
         // even if we aren't clickable. This is important for windows and such that should close
         // then the user clicks elsewhere.
         let pointer = &self.ctx.input().pointer;
-        if let Some(pos) = pointer.latest_pos() {
+        if let Some(pos) = pointer.interact_pos() {
             pointer.any_click() && !self.rect.contains(pos)
         } else {
             false
