@@ -9,6 +9,10 @@ pub(crate) struct State {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     undoer: Undoer<(CCursorPair, String)>,
+
+    // If IME candidate window is shown on this text edit.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    has_ime: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -502,6 +506,41 @@ impl<'t> TextEdit<'t> {
                         pressed: true,
                         modifiers,
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
+
+                    Event::CompositionStart => {
+                        state.has_ime = true;
+                        None
+                    }
+
+                    Event::CompositionUpdate(text_mark) => {
+                        if !text_mark.is_empty()
+                            && text_mark != "\n"
+                            && text_mark != "\r"
+                            && state.has_ime
+                        {
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            let start_cursor = ccursor;
+                            insert_text(&mut ccursor, text, text_mark);
+                            Some(CCursorPair::two(start_cursor, ccursor))
+                        } else {
+                            None
+                        }
+                    }
+
+                    Event::CompositionEnd(prediction) => {
+                        if !prediction.is_empty()
+                            && prediction != "\n"
+                            && prediction != "\r"
+                            && state.has_ime
+                        {
+                            state.has_ime = false;
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            insert_text(&mut ccursor, text, prediction);
+                            Some(CCursorPair::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
 
                     _ => None,
                 };

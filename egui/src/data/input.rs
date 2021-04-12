@@ -116,6 +116,13 @@ pub enum Event {
     ///
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
+
+    /// IME composition start.
+    CompositionStart,
+    /// A new IME candidate is being suggested.
+    CompositionUpdate(String),
+    /// IME composition ended with this final result.
+    CompositionEnd(String),
 }
 
 /// Mouse button (or similar for touch input)
