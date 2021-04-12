@@ -7,6 +7,8 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+### Added ⭐
+* Make labels interactive with `Label::sense(Sense::click())`.
 
 ## 0.11.0 - 2021-04-05 - Optimization, screen reader & new layout logic
 
