@@ -14,6 +14,7 @@ pub struct WidgetGallery {
     scalar: f32,
     string: String,
     color: egui::Color32,
+    memory_example: String,
 }
 
 impl Default for WidgetGallery {
@@ -25,6 +26,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
+            memory_example: "You can view or edit this text.".to_owned(),
         }
     }
 }
@@ -86,6 +88,7 @@ impl WidgetGallery {
             scalar,
             string,
             color,
+            memory_example,
         } = self;
 
         ui.set_enabled(*enabled);
@@ -200,6 +203,15 @@ impl WidgetGallery {
             "It's easy to create your own widgets!\n\
             This toggle switch is just 15 lines of code.",
         );
+        ui.end_row();
+
+        ui.hyperlink_to("Memory usage:", super::view_edit::url_to_file_source_code());
+        ui.add(super::view_edit::widget(memory_example, "memory example"))
+            .on_hover_text(
+                "You can use `egui::Memory` to store your own data.\n\
+            And state of this vidget can be saved and loaded \n\
+            between runs automatically.",
+            );
         ui.end_row();
     }
 }

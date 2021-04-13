@@ -19,6 +19,7 @@ pub mod scrolling;
 pub mod sliders;
 pub mod tests;
 pub mod toggle_switch;
+pub mod view_edit;
 pub mod widget_gallery;
 mod widgets;
 pub mod window_options;
