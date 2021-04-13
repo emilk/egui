@@ -18,9 +18,6 @@ pub struct Context<'a> {
 }
 
 /// TODO: docu
-/// ```
-/// assert!( 1 == 0 )
-/// ```
 pub trait Gesture: Debug {
     /// Creates a clone in a `Box`.
     fn boxed_clone(&self) -> Box<dyn Gesture>;
@@ -61,9 +58,6 @@ pub trait Gesture: Debug {
 }
 
 /// TODO: docu
-/// ```
-/// assert!( 1 == 0 )
-/// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Phase {
     /// The `Gesture` is idle, and waiting for events.  This is the initial phase and should
