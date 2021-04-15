@@ -168,6 +168,7 @@ The same code can be compiled to a native app or a web app.
 
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad).
+* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad): backend for [macroquad](https://github.com/not-fl3/macroquad)
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
