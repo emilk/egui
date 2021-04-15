@@ -12,7 +12,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add `Response::request_focus` and `Response::surrender_focus`.
 
 ### Changed 🔧
-* Make `Memrory::has_focus` public (again)
+* Make `Memory::has_focus` public (again)
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288)

@@ -297,12 +297,14 @@ impl Memory {
     }
 
     /// Does this widget have keybaord focus?
+    #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
         self.interaction.focus.id == Some(id)
     }
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.interaction.focus.id = Some(id);
     }
@@ -324,14 +326,17 @@ impl Memory {
     }
 
     /// Stop editing of active `TextEdit` (if any).
+    #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.interaction.focus.id = None;
     }
 
+    #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
         self.interaction.drag_id.is_some()
     }
 
+    #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
     }
