@@ -48,6 +48,7 @@ pub struct Area {
     enabled: bool,
     order: Order,
     default_pos: Option<Pos2>,
+    anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     drag_bounds: Option<Rect>,
 }
@@ -62,6 +63,7 @@ impl Area {
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
+            anchor: None,
             drag_bounds: None,
         }
     }
@@ -120,23 +122,45 @@ impl Area {
 
     /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
-        let fixed_pos = fixed_pos.into();
-        self.new_pos = Some(fixed_pos);
+        self.new_pos = Some(fixed_pos.into());
         self.movable = false;
         self
     }
 
     /// Positions the window but you can still move it.
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-        let current_pos = current_pos.into();
-        self.new_pos = Some(current_pos);
+        self.new_pos = Some(current_pos.into());
         self
+    }
+
+    /// Set anchor and distance.
+    ///
+    /// An anchor of `Align2::RIGHT_TOP` means "put the right-top corner of the window
+    /// in the right-top corner of the screen".
+    ///
+    /// The offset is added to the position, so e.g. an offset of `[-5.0, 5.0]`
+    /// would move the window left and down from the given anchor.
+    ///
+    /// Anchoring also makes the window immovable.
+    ///
+    /// It is an error to set both an anchor and a position.
+    pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
+        self.anchor = Some((align, offset.into()));
+        self.movable(false)
     }
 
     /// Constrain the area up to which the window can be dragged.
     pub fn drag_bounds(mut self, bounds: Rect) -> Self {
         self.drag_bounds = Some(bounds);
         self
+    }
+
+    pub(crate) fn get_pivot(&self) -> Align2 {
+        if let Some((pivot, _)) = self.anchor {
+            pivot
+        } else {
+            Align2::LEFT_TOP
+        }
     }
 }
 
@@ -158,18 +182,31 @@ impl Area {
             enabled,
             default_pos,
             new_pos,
+            anchor,
             drag_bounds,
         } = self;
 
         let layer_id = LayerId::new(order, id);
 
         let state = ctx.memory().areas.get(id).cloned();
+        let is_new = state.is_none();
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::ZERO,
             interactable,
         });
         state.pos = new_pos.unwrap_or(state.pos);
+
+        if let Some((anchor, offset)) = anchor {
+            if is_new {
+                // unknown size
+                ctx.request_repaint()
+            } else {
+                let screen = ctx.available_rect();
+                state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
+            }
+        }
+
         state.pos = ctx.round_pos_to_pixels(state.pos);
 
         Prepared {
