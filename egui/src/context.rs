@@ -577,8 +577,8 @@ impl Context {
     }
 
     /// Call at the end of each frame.
-    /// Returns what has happened this frame (`Output`) as well as what you need to paint.
-    /// You can transform the returned shapes into triangles with a call to `Context::tessellate`.
+    /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
+    /// You can transform the returned shapes into triangles with a call to [`Context::tessellate_INTENTIONAL_ERROR`].
     #[must_use]
     pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
