@@ -14,8 +14,8 @@ cargo test --workspace --all-targets --all-features
 cargo fmt --all -- --check
 
 # TODO: make cargo doc produce a proper error (it only prints a warning at the moment).
-cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_glium --lib --no-deps
-cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps
+cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_glium --lib --no-deps --all-features
+cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
 
 # ------------------------------------------------------------
 #
