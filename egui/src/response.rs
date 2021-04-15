@@ -199,6 +199,16 @@ impl Response {
         self.lost_focus()
     }
 
+    /// Request that this widget get keyboard focus.
+    pub fn request_focus(&self) {
+        self.ctx.memory().request_focus(self.id)
+    }
+
+    /// Surrender keyboard focus for this widget.
+    pub fn surrender_focus(&self) {
+        self.ctx.memory().surrender_focus(self.id)
+    }
+
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]

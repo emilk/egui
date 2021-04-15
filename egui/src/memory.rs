@@ -300,11 +300,14 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
-    /// Give keyboard focus to a specific widget
+    /// Give keyboard focus to a specific widget.
+    /// See also [`crate::Response::request_focus`].
     pub fn request_focus(&mut self, id: Id) {
         self.interaction.focus.id = Some(id);
     }
 
+    /// Surrender keyboard focus for a specific widget.
+    /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
         if self.interaction.focus.id == Some(id) {

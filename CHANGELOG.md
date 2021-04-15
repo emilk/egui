@@ -9,6 +9,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ### Added ⭐
 * Make labels interactive with `Label::sense(Sense::click())`.
+* Add `Response::request_focus` and `Response::surrender_focus`.
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288)
