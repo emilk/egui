@@ -205,14 +205,20 @@ impl WidgetGallery {
         );
         ui.end_row();
 
-        ui.hyperlink_to("egui::Memory usage:", super::view_edit::url_to_file_source_code());
-        ui.add(super::view_edit::view_edit(memory_example, "memory example"))
-            .on_hover_text(
-                "You can use `egui::Memory` to store your own data.\n\
+        ui.hyperlink_to(
+            "egui::Memory usage:",
+            super::view_edit::url_to_file_source_code(),
+        );
+        ui.add(super::view_edit::view_edit(
+            memory_example,
+            "memory example",
+        ))
+        .on_hover_text(
+            "You can use `egui::Memory` to store your own data.\n\
                 And state of this vidget can be saved and loaded \n\
                 between runs automatically under the `persistence`\n\
                 feature.",
-            );
+        );
         ui.end_row();
     }
 }

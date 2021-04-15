@@ -12,7 +12,7 @@ use std::hash::Hash;
 /// toggle_ui(ui, &mut my_text, "description_1");
 /// ```
 pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) -> egui::Response {
-    // This widget has its own state - `View` or `Edit`, 
+    // This widget has its own state - `View` or `Edit`,
     // so there is the algorithm for type of widgets:
     //  1. Declare state struct
     //  2. Create id
@@ -23,8 +23,8 @@ pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) 
     // 1. Declare state struct
     // This struct represents the state of this widget. It must implement at least `Clone` and be
     // `'static`. If you use the `persistence` feature, it also must implement
-    // `serde::{Deserialize, Serialize}`. You should prefer creating custom newtype structs 
-    // or enums like this, to avoid TypeId intersection errors, especially when you use 
+    // `serde::{Deserialize, Serialize}`. You should prefer creating custom newtype structs
+    // or enums like this, to avoid TypeId intersection errors, especially when you use
     // `Memory::data` without `Id`.
     #[derive(Clone, Copy, Eq, PartialEq, Debug)]
     #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -44,7 +44,7 @@ pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) 
     let id = Id::new(id_source);
 
     // 3. Get state for this widget
-    // You can read more about available `Memory` functions in the documentation of `egui::Memory` struct and `egui::any` module. You should get state by value, not by 
+    // You can read more about available `Memory` functions in the documentation of `egui::Memory` struct and `egui::any` module. You should get state by value, not by
     // reference to avoid borrowing of `Memory`.
     let mut state = *ui.memory().id_data.get_or_default::<State>(id);
 
