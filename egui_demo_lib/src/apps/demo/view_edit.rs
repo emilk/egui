@@ -2,18 +2,23 @@
 //! created using a combination of existing widgets.
 //! This is meant to be read as a tutorial, hence the plethora of comments.
 
-use egui::Id;
+use egui::Layout;
+use std::fmt::Debug;
 use std::hash::Hash;
 
-/// Easymarkup text editor with the ability to preview a result.
+/// Password entry field with ability to toggle character hiding.
 ///
 /// ## Example:
 /// ``` ignore
-/// toggle_ui(ui, &mut my_text, "description_1");
+/// password_ui(ui, &mut password, "password_1");
 /// ```
-pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) -> egui::Response {
-    // This widget has its own state - `View` or `Edit`,
-    // so there is the algorithm for type of widgets:
+pub fn password_ui(
+    ui: &mut egui::Ui,
+    text: &mut String,
+    id_source: impl Hash + Debug,
+) -> egui::Response {
+    // This widget has its own state — enabled or disabled,
+    // so there is the algorithm for this type of widgets:
     //  1. Declare state struct
     //  2. Create id
     //  3. Get state for this widget
@@ -21,55 +26,38 @@ pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) 
     //  5. Insert changed state back
 
     // 1. Declare state struct
-    // This struct represents the state of this widget. It must implement at least `Clone` and be
-    // `'static`. If you use the `persistence` feature, it also must implement
-    // `serde::{Deserialize, Serialize}`. You should prefer creating custom newtype structs
-    // or enums like this, to avoid TypeId intersection errors, especially when you use
-    // `Memory::data` without `Id`.
-    #[derive(Clone, Copy, Eq, PartialEq, Debug)]
+    // This struct represents the state of this widget.
+    // It must implement at least `Clone` and be `'static`. If you use the `persistence` feature,
+    // it also must implement `serde::{Deserialize, Serialize}`.
+    // You should prefer creating custom newtype structs or enums like this, to avoid TypeId
+    // intersection errors, especially when you use `Memory::data` without `Id`.
+    #[derive(Clone, Copy, Default)]
     #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-    enum State {
-        View,
-        Edit,
-    }
-
-    // The default state will be set for first call of widget with this id.
-    impl Default for State {
-        fn default() -> Self {
-            State::View
-        }
-    }
+    struct State(bool);
 
     // 2. Create id
-    let id = Id::new(id_source);
+    let id = ui.make_persistent_id(id_source);
 
     // 3. Get state for this widget
-    // You can read more about available `Memory` functions in the documentation of `egui::Memory` struct and `egui::any` module. You should get state by value, not by
-    // reference to avoid borrowing of `Memory`.
+    // You can read more about available `Memory` functions in the documentation of `egui::Memory`
+    // struct and `egui::any` module.
+    // You should get state by value, not by reference to avoid borrowing of `Memory`.
     let mut state = *ui.memory().id_data.get_or_default::<State>(id);
 
     // 4. Process ui, change a local copy of the state
-    // Sometimes caller could overwrite the default direction, so you must manually specify your
-    // preferred direction.
-    let result = ui.vertical(|ui| {
+    // We want TextEdit to fill entire space, and have button after that, so in that case we can
+    // change direction to right_to_left.
+    let result = ui.with_layout(Layout::right_to_left(), |ui| {
         // Here a local copy of the state can be changed by a user.
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut state, State::View, "View");
-            ui.selectable_value(&mut state, State::Edit, "Edit");
-        });
+        let response = ui
+            .add(egui::SelectableLabel::new(state.0, "👁"))
+            .on_hover_text("Toggle symbols hiding");
+        if response.clicked() {
+            state.0 = !state.0;
+        }
 
         // Here we use this local state.
-        match state {
-            State::View => {
-                egui::experimental::easy_mark(ui, &*text);
-            }
-            State::Edit => {
-                ui.add(
-                    egui::TextEdit::multiline(text)
-                        .hint_text("Try change this text and enable `View`"),
-                );
-            }
-        }
+        ui.add(egui::TextEdit::singleline(text).password(!state.0));
     });
 
     // 5. Insert changed state back
@@ -80,15 +68,47 @@ pub fn view_edit_ui(ui: &mut egui::Ui, text: &mut String, id_source: impl Hash) 
     result.response
 }
 
-// A wrapper that allows the more idiomatic usage pattern: `ui.add(toggle(&mut my_bool))`
-/// Easymarkup text editor with the ability to preview a result.
+/// Here is the same code again, but a bit more compact:
+#[allow(dead_code)]
+fn password_ui_compact(
+    ui: &mut egui::Ui,
+    text: &mut String,
+    id_source: impl Hash + Debug,
+) -> egui::Response {
+    #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+    struct State(bool);
+
+    let id = ui.make_persistent_id(id_source);
+    let mut state = *ui.memory().id_data.get_or_default::<State>(id);
+
+    let result = ui.with_layout(Layout::right_to_left(), |ui| {
+        let response = ui
+            .add(egui::SelectableLabel::new(state.0, "👁"))
+            .on_hover_text("Toggle symbols hiding");
+        if response.clicked() {
+            state.0 = !state.0;
+        }
+
+        ui.add(egui::TextEdit::singleline(text).password(!state.0));
+    });
+
+    ui.memory().id_data.insert(id, state);
+    result.response
+}
+
+// A wrapper that allows the more idiomatic usage pattern: `ui.add(...)`
+/// Password entry field with ability to toggle character hiding.
 ///
 /// ## Example:
 /// ``` ignore
-/// ui.add(view_edit(&mut my_text, "description_1"));
+/// ui.add(password(&mut password, "password_1"));
 /// ```
-pub fn view_edit<'a>(text: &'a mut String, id_source: impl Hash + 'a) -> impl egui::Widget + 'a {
-    move |ui: &mut egui::Ui| view_edit_ui(ui, text, id_source)
+pub fn password<'a>(
+    text: &'a mut String,
+    id_source: impl Hash + Debug + 'a,
+) -> impl egui::Widget + 'a {
+    move |ui: &mut egui::Ui| password_ui(ui, text, id_source)
 }
 
 pub fn url_to_file_source_code() -> String {

@@ -26,7 +26,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
-            memory_example: "You can `view` or `edit` this text.".to_owned(),
+            memory_example: "qwerty_is_bad_password".to_owned(),
         }
     }
 }
@@ -208,17 +208,14 @@ impl WidgetGallery {
         ui.hyperlink_to(
             "egui::Memory usage:",
             super::view_edit::url_to_file_source_code(),
-        );
-        ui.add(super::view_edit::view_edit(
-            memory_example,
-            "memory example",
-        ))
+        )
         .on_hover_text(
             "You can use `egui::Memory` to store your own data.\n\
-                And state of this vidget can be saved and loaded \n\
+                And state of this widget can be saved and loaded \n\
                 between runs automatically under the `persistence`\n\
                 feature.",
         );
+        ui.add(super::view_edit::password(memory_example, "memory example"));
         ui.end_row();
     }
 }
