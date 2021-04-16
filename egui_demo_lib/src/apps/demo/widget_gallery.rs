@@ -207,7 +207,7 @@ impl WidgetGallery {
 
         ui.hyperlink_to(
             "egui::Memory usage:",
-            super::view_edit::url_to_file_source_code(),
+            super::password::url_to_file_source_code(),
         )
         .on_hover_text(
             "You can use `egui::Memory` to store your own data.\n\
@@ -215,7 +215,7 @@ impl WidgetGallery {
                 between runs automatically under the `persistence`\n\
                 feature.",
         );
-        ui.add(super::view_edit::password(memory_example, "memory example"));
+        ui.add(super::password::password(memory_example, "memory example"));
         ui.end_row();
     }
 }
