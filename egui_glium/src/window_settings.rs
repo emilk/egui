@@ -10,10 +10,8 @@ pub struct WindowSettings {
 
 impl WindowSettings {
     #[cfg(feature = "persistence")]
-    pub fn from_json_file(
-        settings_json_path: impl AsRef<std::path::Path>,
-    ) -> Option<WindowSettings> {
-        crate::persistence::read_json(settings_json_path)
+    pub fn from_ron_file(settings_ron_path: impl AsRef<std::path::Path>) -> Option<WindowSettings> {
+        crate::persistence::read_ron(settings_ron_path)
     }
 
     pub fn from_display(display: &glium::Display) -> Self {

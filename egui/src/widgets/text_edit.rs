@@ -9,6 +9,10 @@ pub(crate) struct State {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     undoer: Undoer<(CCursorPair, String)>,
+
+    // If IME candidate window is shown on this text edit.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    has_ime: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -140,8 +144,8 @@ pub struct TextEdit<'t> {
 impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
-            .text_edit
-            .get(&id)
+            .id_data
+            .get::<State>(&id)
             .and_then(|state| state.cursorp)
     }
 }
@@ -352,7 +356,7 @@ impl<'t> TextEdit<'t> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = ui.memory().text_edit.get(&id).cloned().unwrap_or_default();
+        let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
         let sense = if enabled {
             Sense::click_and_drag()
@@ -503,6 +507,41 @@ impl<'t> TextEdit<'t> {
                         modifiers,
                     } => on_key_press(&mut cursorp, text, &galley, *key, modifiers),
 
+                    Event::CompositionStart => {
+                        state.has_ime = true;
+                        None
+                    }
+
+                    Event::CompositionUpdate(text_mark) => {
+                        if !text_mark.is_empty()
+                            && text_mark != "\n"
+                            && text_mark != "\r"
+                            && state.has_ime
+                        {
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            let start_cursor = ccursor;
+                            insert_text(&mut ccursor, text, text_mark);
+                            Some(CCursorPair::two(start_cursor, ccursor))
+                        } else {
+                            None
+                        }
+                    }
+
+                    Event::CompositionEnd(prediction) => {
+                        if !prediction.is_empty()
+                            && prediction != "\n"
+                            && prediction != "\r"
+                            && state.has_ime
+                        {
+                            state.has_ime = false;
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            insert_text(&mut ccursor, text, prediction);
+                            Some(CCursorPair::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+
                     _ => None,
                 };
 
@@ -561,7 +600,7 @@ impl<'t> TextEdit<'t> {
                 .galley(response.rect.min, galley, hint_text_color);
         }
 
-        ui.memory().text_edit.insert(id, state);
+        ui.memory().id_data.insert(id, state);
 
         response.widget_info(|| WidgetInfo::text_edit(&*text));
         response

@@ -24,7 +24,6 @@ pub struct Widgets {
     color: Color32,
     single_line_text_input: String,
     multiline_text_input: String,
-    show_password: bool,
 }
 
 impl Default for Widgets {
@@ -37,7 +36,6 @@ impl Default for Widgets {
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
-            show_password: false,
         }
     }
 }
@@ -131,14 +129,19 @@ impl Widgets {
 
         ui.horizontal(|ui| {
             ui.label("Password:");
-            let response = ui.add(
+            // We let `egui` store the show/hide password toggle:
+            let show_password_id = Id::new("show_password");
+            let mut show_password: bool = *ui.memory().id_data.get_or_default(show_password_id);
+            let response = ui.add_sized(
+                [140.0, 20.0],
                 egui::TextEdit::singleline(&mut self.single_line_text_input)
-                    .password(!self.show_password),
+                    .password(!show_password),
             );
             if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
                 // …
             }
-            ui.checkbox(&mut self.show_password, "Show password");
+            ui.checkbox(&mut show_password, "Show password");
+            ui.memory().id_data.insert(show_password_id, show_password);
         });
 
         ui.label("Multiline text input:");

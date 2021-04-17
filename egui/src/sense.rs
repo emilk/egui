@@ -75,4 +75,9 @@ impl Sense {
             focusable: self.focusable | other.focusable,
         }
     }
+
+    /// Returns true if we sense either clicks or drags.
+    pub fn interactive(&self) -> bool {
+        self.click || self.drag
+    }
 }

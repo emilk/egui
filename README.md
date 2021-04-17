@@ -167,6 +167,7 @@ The same code can be compiled to a native app or a web app.
 
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad).
+* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad): backend for [macroquad](https://github.com/not-fl3/macroquad)
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
@@ -248,7 +249,7 @@ In immediate mode you run into a paradox: to know the size of the window, we mus
 
 This is a fundamental shortcoming of immediate mode GUIs, and any attempt to resolve it comes with its own downsides.
 
-One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occational flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
+One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occasional flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
 
 You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
 
@@ -267,7 +268,7 @@ There are some GUI state that you want the GUI library to retain, even in an imm
 
 `egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
 
-Overall, ID handling is a rare invonvenience, and not a big disadvantage.
+Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
 
 ## FAQ

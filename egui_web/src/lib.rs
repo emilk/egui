@@ -4,8 +4,11 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
+#![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 
 pub mod backend;
@@ -189,13 +192,13 @@ pub fn local_storage_remove(key: &str) {
 
 #[cfg(feature = "persistence")]
 pub fn load_memory(ctx: &egui::Context) {
-    if let Some(memory_string) = local_storage_get("egui_memory_json") {
-        match serde_json::from_str(&memory_string) {
+    if let Some(memory_string) = local_storage_get("egui_memory_ron") {
+        match ron::from_str(&memory_string) {
             Ok(memory) => {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error(format!("Failed to parse memory json: {}", err));
+                console_error(format!("Failed to parse memory RON: {}", err));
             }
         }
     }
@@ -206,12 +209,12 @@ pub fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {
-    match serde_json::to_string(&*ctx.memory()) {
-        Ok(json) => {
-            local_storage_set("egui_memory_json", &json);
+    match ron::to_string(&*ctx.memory()) {
+        Ok(ron) => {
+            local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error(format!("Failed to serialize memory as json: {}", err));
+            console_error(format!("Failed to serialize memory as RON: {}", err));
         }
     }
 }
@@ -708,22 +711,27 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let input_clone = input.clone();
         let runner_ref = runner_ref.clone();
         let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            match event.type_().as_ref() {
+            let mut runner_lock = runner_ref.0.lock();
+            let opt_event = match event.type_().as_ref() {
                 "compositionstart" => {
                     is_composing.set(true);
                     input_clone.set_value("");
+                    Some(egui::Event::CompositionStart)
                 }
                 "compositionend" => {
                     is_composing.set(false);
                     input_clone.set_value("");
-                    if let Some(text) = event.data() {
-                        let mut runner_lock = runner_ref.0.lock();
-                        runner_lock.input.raw.events.push(egui::Event::Text(text));
-                        runner_lock.needs_repaint.set_true();
-                    }
+                    event.data().map(egui::Event::CompositionEnd)
                 }
-                "compositionupdate" => {}
-                _s => panic!("Unknown type"),
+                "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
+                s => {
+                    console_error(format!("Unknown composition event type: {:?}", s));
+                    None
+                }
+            };
+            if let Some(event) = opt_event {
+                runner_lock.input.raw.events.push(event);
+                runner_lock.needs_repaint.set_true();
             }
         }) as Box<dyn FnMut(_)>);
         let f = on_compositionend.as_ref().unchecked_ref();

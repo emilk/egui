@@ -92,14 +92,19 @@ pub fn show_tooltip_at(
         return; // No good place for a tooltip :(
     };
 
-    let expected_size = ctx.memory().tooltip.tooltip_size(id);
+    let expected_size = ctx
+        .memory()
+        .data_temp
+        .get_or_default::<crate::containers::popup::MonoState>()
+        .tooltip_size(id);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
     let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
     let position = position.max(ctx.input().screen_rect().left_top());
 
     let response = show_tooltip_area(ctx, id, position, add_contents);
     ctx.memory()
-        .tooltip
+        .data_temp
+        .get_mut_or_default::<crate::containers::popup::MonoState>()
         .set_tooltip_size(id, response.rect.size());
 
     ctx.frame_state().tooltip_rect = Some((id, tooltip_rect.union(response.rect)));

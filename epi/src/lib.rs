@@ -7,6 +7,9 @@
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -294,18 +297,21 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the JSON stored at the given key.
-#[cfg(feature = "serde_json")]
+/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+#[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
         .get_string(key)
-        .and_then(|value| serde_json::from_str(&value).ok())
+        .and_then(|value| ron::from_str(&value).ok())
 }
 
-/// Serialize the given value as JSON and store with the given key.
-#[cfg(feature = "serde_json")]
+/// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
+#[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(key, serde_json::to_string_pretty(value).unwrap());
+    storage.set_string(
+        key,
+        ron::ser::to_string_pretty(value, Default::default()).unwrap(),
+    );
 }
 
 /// [`Storage`] key used for app

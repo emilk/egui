@@ -1,10 +1,11 @@
 # Changelog for eframe
 All notable changes to the `eframe` crate.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
 
 ## Unreleased
+
+
+## 0.11.0 - 2021-04-05
 * You can now turn your window transparent with the `App::transparent` option.
 * You can now disable window decorations with the `App::decorated` option.
 

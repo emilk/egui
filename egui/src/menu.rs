@@ -20,21 +20,19 @@ use epaint::Stroke;
 
 /// What is saved between frames.
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub(crate) struct BarState {
     open_menu: Option<Id>,
 }
 
 impl BarState {
     fn load(ctx: &Context, bar_id: &Id) -> Self {
-        ctx.memory()
-            .menu_bar
-            .get(bar_id)
-            .cloned()
-            .unwrap_or_default()
+        *ctx.memory().id_data_temp.get_or_default(*bar_id)
     }
 
     fn save(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().menu_bar.insert(bar_id, self);
+        ctx.memory().id_data_temp.insert(bar_id, self);
     }
 }
 
