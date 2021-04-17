@@ -43,10 +43,7 @@ impl Default for Widgets {
             tab_as_spaces: true,
             tab_moves_focus: false,
 
-            multiline_text_input: r#"Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.
-This is the start of the next paragraph.
-
-Click me to edit me!"#.to_owned(),
+            multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
             code_snippet: r#"// Full identation blocks
             // Spaces Spaces Spaces
 			// Tab Tab Tab
@@ -161,15 +158,19 @@ impl Widgets {
 
         ui.horizontal(|ui| {
             ui.label("Password:");
+            // We let `egui` store the show/hide password toggle:
+            let show_password_id = Id::new("show_password");
+            let mut show_password: bool = *ui.memory().id_data.get_or_default(show_password_id);
             let response = ui.add_sized(
                 [140.0, 20.0],
                 egui::TextEdit::singleline(&mut self.single_line_text_input)
-                    .password(!self.show_password),
+                    .password(!show_password),
             );
             if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
                 // …
             }
-            ui.checkbox(&mut self.show_password, "Show password");
+            ui.checkbox(&mut show_password, "Show password");
+            ui.memory().id_data.insert(show_password_id, show_password);
         });
 
         ui.separator();

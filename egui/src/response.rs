@@ -105,6 +105,11 @@ impl std::fmt::Debug for Response {
 
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
+    /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn clicked(&self) -> bool {
         self.clicked[PointerButton::Primary as usize]
@@ -141,7 +146,7 @@ impl Response {
         // even if we aren't clickable. This is important for windows and such that should close
         // then the user clicks elsewhere.
         let pointer = &self.ctx.input().pointer;
-        if let Some(pos) = pointer.latest_pos() {
+        if let Some(pos) = pointer.interact_pos() {
             pointer.any_click() && !self.rect.contains(pos)
         } else {
             false
@@ -194,10 +199,25 @@ impl Response {
         self.lost_focus()
     }
 
+    /// Request that this widget get keyboard focus.
+    pub fn request_focus(&self) {
+        self.ctx.memory().request_focus(self.id)
+    }
+
+    /// Surrender keyboard focus for this widget.
+    pub fn surrender_focus(&self) {
+        self.ctx.memory().surrender_focus(self.id)
+    }
+
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
     /// (`ui.input().pointer.button_down(…)`).
+    ///
+    /// Note that the widget must be sensing drags with [`Sense::drag`].
+    /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
+    /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn dragged(&self) -> bool {
         self.dragged
@@ -340,10 +360,13 @@ impl Response {
 
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
     ///
+    /// Note that this call will not add any hover-effects to the widget, so when possible
+    /// it is better to give the widget a `Sense` instead, e.g. using `[Label::sense]`.
+    ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.label("hello");
-    /// assert!(!response.clicked()); // labels don't sense clicks
+    /// assert!(!response.clicked()); // labels don't sense clicks by default
     /// let response = response.interact(egui::Sense::click());
     /// if response.clicked() { /* … */ }
     /// ```

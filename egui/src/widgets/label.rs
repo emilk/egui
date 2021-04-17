@@ -25,6 +25,7 @@ pub struct Label {
     underline: bool,
     italics: bool,
     raised: bool,
+    sense: Sense,
 }
 
 impl Label {
@@ -42,6 +43,7 @@ impl Label {
             underline: false,
             italics: false,
             raised: false,
+            sense: Sense::focusable_noninteractive(),
         }
     }
 
@@ -141,6 +143,24 @@ impl Label {
         self.text_color = Some(text_color.into());
         self
     }
+
+    /// Make the label response to clicks and/or drags.
+    ///
+    /// By default, a label is inert and does not response to click or drags.
+    /// By calling this you can turn the label into a button of sorts.
+    /// This will also give the label the hover-effect of a button, but without the frame.
+    ///
+    /// ``` rust
+    /// # use egui::{Label, Sense};
+    /// # let ui = &mut egui::Ui::__test();
+    /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {
+    ///     /* … */
+    /// }
+    /// ```
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
 }
 
 impl Label {
@@ -176,10 +196,17 @@ impl Label {
     // This should be the easiest method of putting text anywhere.
 
     pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Arc<Galley>) {
-        self.paint_galley_focus(ui, pos, galley, false)
+        self.paint_galley_impl(ui, pos, galley, false, ui.visuals().text_color())
     }
 
-    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Arc<Galley>, focus: bool) {
+    fn paint_galley_impl(
+        &self,
+        ui: &mut Ui,
+        pos: Pos2,
+        galley: Arc<Galley>,
+        has_focus: bool,
+        response_color: Color32,
+    ) {
         let Self {
             mut background_color,
             code,
@@ -192,7 +219,7 @@ impl Label {
             ..
         } = *self;
 
-        let underline = underline || focus;
+        let underline = underline || has_focus;
 
         let text_color = if let Some(text_color) = self.text_color {
             text_color
@@ -201,7 +228,7 @@ impl Label {
         } else if weak {
             ui.visuals().weak_text_color()
         } else {
-            ui.visuals().text_color()
+            response_color
         };
 
         if code {
@@ -287,7 +314,7 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let sense = Sense::focusable_noninteractive();
+        let sense = self.sense;
 
         if self.should_wrap(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
@@ -339,13 +366,15 @@ impl Widget for Label {
                 response |= ui.allocate_rect(rect, sense);
             }
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_focus(ui, pos, galley, response.has_focus());
+            let response_color = ui.style().interact(&response).text_color();
+            self.paint_galley_impl(ui, pos, galley, response.has_focus(), response_color);
             response
         } else {
             let galley = self.layout(ui);
             let (rect, response) = ui.allocate_exact_size(galley.size, sense);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_focus(ui, rect.min, galley, response.has_focus());
+            let response_color = ui.style().interact(&response).text_color();
+            self.paint_galley_impl(ui, rect.min, galley, response.has_focus(), response_color);
             response
         }
     }

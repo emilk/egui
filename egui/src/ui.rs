@@ -1413,6 +1413,10 @@ impl Ui {
         )
     }
 
+    /// The new layout will take up all available space.
+    ///
+    /// Consider using [`Self::allocate_ui_with_layout`] instead,
+    /// or the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,

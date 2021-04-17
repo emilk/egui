@@ -116,6 +116,13 @@ pub enum Event {
     ///
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
+
+    /// IME composition start.
+    CompositionStart,
+    /// A new IME candidate is being suggested.
+    CompositionUpdate(String),
+    /// IME composition ended with this final result.
+    CompositionEnd(String),
 }
 
 /// Mouse button (or similar for touch input)
@@ -153,12 +160,19 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
+    #[inline(always)]
     pub fn is_none(&self) -> bool {
         self == &Self::default()
     }
 
+    #[inline(always)]
     pub fn any(&self) -> bool {
         !self.is_none()
+    }
+
+    #[inline(always)]
+    pub fn shift_only(&self) -> bool {
+        self.shift && !(self.alt || self.command)
     }
 }
 

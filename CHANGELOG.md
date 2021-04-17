@@ -2,11 +2,20 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: `eframe`, `egui_web` and `egui_glium` has their own changelogs!
+NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) has their own changelogs!
 
 
 ## Unreleased
 
+### Added ⭐
+* Make labels interactive with `Label::sense(Sense::click())`.
+* Add `Response::request_focus` and `Response::surrender_focus`.
+
+### Changed 🔧
+* Make `Memory::has_focus` public (again)
+
+### Fixed 🐛
+* Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288)
 
 ## 0.11.0 - 2021-04-05 - Optimization, screen reader & new layout logic
 
