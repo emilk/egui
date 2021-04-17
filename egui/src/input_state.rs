@@ -189,15 +189,6 @@ impl InputState {
         self.physical_pixel_size()
     }
 
-    /// Zoom factor when user is pinching (`zoom() < 1.0`) or zooming (`zoom() > 1.0`) with two
-    /// fingers on a supported touch device
-    pub fn zoom(&self) -> Option<f32> {
-        // return the zoom value of the first device with an active `Zoom` gesture
-        self.touch_states
-            .iter()
-            .find_map(|(_device_id, touch_state)| touch_state.zoom())
-    }
-
     /// Scans `event` for device IDs of touch devices we have not seen before,
     /// and creates a new `TouchState` for each such device.
     fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
