@@ -118,6 +118,9 @@ impl TouchState {
                 _ => (),
             }
         }
+        // This needs to be called each frame, even if there are no new touch events.
+        // Failing to do so may result in wrong information in `TouchInfo.incremental`
+        self.update_gesture();
     }
 
     pub fn is_active(&self) -> bool {
@@ -165,21 +168,11 @@ impl TouchState {
     }
 
     fn touch_move(&mut self, id: TouchId, pos: Pos2, force: f32) {
-        if let Some(touch) = self.active_touches.get_mut(&id) {
+        if let Some(touch) = self.active_touches.get_mut(&id)
+        // always true
+        {
             touch.pos = pos;
             touch.force = force;
-        }
-        if let Some((touch1, touch2)) = self.both_touches() {
-            let state_new = DynGestureState {
-                pos: self::center_pos(touch1.pos, touch2.pos),
-                distance: self::distance(touch1.pos, touch2.pos),
-                direction: self::direction(touch1.pos, touch2.pos),
-                force: (touch1.force + touch2.force) * 0.5,
-            };
-            if let Some(ref mut state) = &mut self.gesture_state {
-                state.previous = state.current;
-                state.current = state_new;
-            }
         }
     }
 
@@ -197,7 +190,9 @@ impl TouchState {
         for mut touch in self.active_touches.values_mut() {
             touch.gesture_start_pos = touch.pos;
         }
-        if let Some((touch1, touch2)) = self.both_touches() {
+        if let Some((touch1, touch2)) = self.both_touches()
+        // always true
+        {
             let start_dyn_state = DynGestureState {
                 pos: self::center_pos(touch1.pos, touch2.pos),
                 distance: self::distance(touch1.pos, touch2.pos),
@@ -213,6 +208,27 @@ impl TouchState {
         }
     }
 
+    fn update_gesture(&mut self) {
+        if let Some((touch1, touch2)) = self.both_touches() {
+            let state_new = DynGestureState {
+                pos: self::center_pos(touch1.pos, touch2.pos),
+                distance: self::distance(touch1.pos, touch2.pos),
+                direction: self::direction(touch1.pos, touch2.pos),
+                force: (touch1.force + touch2.force) * 0.5,
+            };
+            if let Some(ref mut state) = &mut self.gesture_state
+            // always true
+            {
+                state.previous = state.current;
+                state.current = state_new;
+            }
+        }
+    }
+
+    fn end_gesture(&mut self) {
+        self.gesture_state = None;
+    }
+
     fn both_touches(&self) -> Option<(&ActiveTouch, &ActiveTouch)> {
         if self.active_touches.len() == 2 {
             let mut touches = self.active_touches.values();
@@ -222,10 +238,6 @@ impl TouchState {
         } else {
             None
         }
-    }
-
-    fn end_gesture(&mut self) {
-        self.gesture_state = None;
     }
 }
 
