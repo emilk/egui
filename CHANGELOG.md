@@ -17,6 +17,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
+* Fix bug with the layout of wide `DragValue`:s.
 
 ## 0.11.0 - 2021-04-05 - Optimization, screen reader & new layout logic
 
