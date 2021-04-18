@@ -259,7 +259,7 @@ impl Default for PlotMemory {
 /// });
 /// let curve = Curve::from_values_iter(sin);
 /// ui.add(
-///     Plot::default().curve(curve).view_aspect(2.0)
+///     Plot::new("Test Plot").curve(curve).view_aspect(2.0)
 /// );
 /// ```
 #[derive(Clone, PartialEq)]
