@@ -49,6 +49,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
+        let mut ctx = egui::CtxRef::default();
+        ctx.begin_frame(raw_input.clone());
+        let mut ui = egui::Ui::__test();
+        c.bench_function("label &str", |b| {
+            b.iter(|| {
+                ui.label("the quick brown fox jumps over the lazy dog");
+            })
+        });
+        c.bench_function("label format!", |b| {
+            b.iter(|| {
+                ui.label(format!("the quick brown fox jumps over the lazy dog"));
+            })
+        });
+    }
+
+    {
         let pixels_per_point = 1.0;
         let wrap_width = 512.0;
         let text_style = egui::TextStyle::Body;

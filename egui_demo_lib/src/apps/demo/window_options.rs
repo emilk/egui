@@ -8,6 +8,10 @@ pub struct WindowOptions {
     resizable: bool,
     scroll: bool,
     disabled_time: f64,
+
+    anchored: bool,
+    anchor: egui::Align2,
+    anchor_offset: egui::Vec2,
 }
 
 impl Default for WindowOptions {
@@ -20,6 +24,9 @@ impl Default for WindowOptions {
             resizable: true,
             scroll: false,
             disabled_time: f64::NEG_INFINITY,
+            anchored: false,
+            anchor: egui::Align2::RIGHT_TOP,
+            anchor_offset: egui::Vec2::ZERO,
         }
     }
 }
@@ -38,6 +45,9 @@ impl super::Demo for WindowOptions {
             resizable,
             scroll,
             disabled_time,
+            anchored,
+            anchor,
+            anchor_offset,
         } = self.clone();
 
         let enabled = ctx.input().time - disabled_time > 2.0;
@@ -56,6 +66,9 @@ impl super::Demo for WindowOptions {
         if closable {
             window = window.open(open);
         }
+        if anchored {
+            window = window.anchor(anchor, anchor_offset);
+        }
         window.show(ctx, |ui| self.ui(ui));
     }
 }
@@ -70,6 +83,9 @@ impl super::View for WindowOptions {
             resizable,
             scroll,
             disabled_time,
+            anchored,
+            anchor,
+            anchor_offset,
         } = self;
 
         ui.horizontal(|ui| {
@@ -81,6 +97,28 @@ impl super::View for WindowOptions {
         ui.checkbox(collapsible, "collapsible");
         ui.checkbox(resizable, "resizable");
         ui.checkbox(scroll, "scroll");
+
+        ui.group(|ui| {
+            ui.checkbox(anchored, "anchored");
+            ui.set_enabled(*anchored);
+            ui.horizontal(|ui| {
+                ui.label("x:");
+                ui.selectable_value(&mut anchor.0[0], egui::Align::LEFT, "Left");
+                ui.selectable_value(&mut anchor.0[0], egui::Align::Center, "Center");
+                ui.selectable_value(&mut anchor.0[0], egui::Align::RIGHT, "Right");
+            });
+            ui.horizontal(|ui| {
+                ui.label("y:");
+                ui.selectable_value(&mut anchor.0[1], egui::Align::TOP, "Top");
+                ui.selectable_value(&mut anchor.0[1], egui::Align::Center, "Center");
+                ui.selectable_value(&mut anchor.0[1], egui::Align::BOTTOM, "Bottom");
+            });
+            ui.horizontal(|ui| {
+                ui.label("Offset:");
+                ui.add(egui::DragValue::new(&mut anchor_offset.x));
+                ui.add(egui::DragValue::new(&mut anchor_offset.y));
+            });
+        });
 
         if ui.button("Disable for 2 seconds").clicked() {
             *disabled_time = ui.input().time;
