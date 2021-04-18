@@ -139,10 +139,11 @@ impl super::View for PlotDemo {
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
 
-        let mut plot = Plot::default()
+        let mut plot = Plot::new("Demo Plot")
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
+            .automatic_bounds(false)
             .min_size(Vec2::new(256.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);
