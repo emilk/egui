@@ -1,7 +1,43 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
 use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
-use epaint::emath::Pos2;
+use epaint::emath::{pos2, Pos2, Vec2};
+
+/// All you probably need to know about the current two-finger touch gesture.
+pub struct TouchInfo {
+    /// Point in time when the gesture started
+    pub start_time: f64,
+    /// Position where the gesture started (average of all individual touch positions)
+    pub start_pos: Pos2,
+    /// Current position of the gesture (average of all individual touch positions)
+    pub current_pos: Pos2,
+    /// Dynamic information about the touch gesture, relative to the start of the gesture.
+    /// Refer to [`GestureInfo`].
+    pub total: DynamicTouchInfo,
+    /// Dynamic information about the touch gesture, relative to the previous frame.
+    /// Refer to [`GestureInfo`].
+    pub incremental: DynamicTouchInfo,
+}
+
+/// Information about the dynamic state of a gesture.  Note that there is no internal threshold
+/// which needs to be reached before this information is updated.  If you want a threshold, you
+/// have to manage this on your application code.
+pub struct DynamicTouchInfo {
+    /// Zoom factor (Pinch or Zoom).  Moving fingers closer together or further appart will change
+    /// this value.
+    pub zoom: f32,
+    /// Rotation in radians.  Rotating the fingers, but also moving just one of them will change
+    /// this value.
+    pub rotation: f32,
+    /// Movement (in points) of the average position of all touch points.
+    pub translation: Vec2,
+    /// Force of the touch (average of the forces of the individual fingers). This is a
+    /// value in the interval `[0.0 .. =1.0]`.
+    ///
+    /// (Note that a value of 0.0 either indicates a very light touch, or it means that the device
+    /// is not capable of measuring the touch force at all.)
+    pub force: f32,
+}
 
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
@@ -16,17 +52,34 @@ pub struct TouchState {
     ///
     /// Refer to [`ActiveTouch`].
     active_touches: BTreeMap<TouchId, ActiveTouch>,
-    /// Time when the current gesture started.  Currently, a new gesture is considered started
-    /// whenever a finger starts or stops touching the surface.
-    gesture_start_time: Option<f64>,
+    /// If a gesture has been recognized (i.e. when exactly two fingers touch the surface), this
+    /// holds state information
+    gesture_state: Option<GestureState>,
+}
+
+#[derive(Clone, Debug)]
+struct GestureState {
+    start_time: f64,
+    start: DynGestureState,
+    previous: DynGestureState,
+    current: DynGestureState,
+}
+
+/// Gesture data which can change over time
+#[derive(Clone, Copy, Debug)]
+struct DynGestureState {
+    pos: Pos2,
+    distance: f32,
+    direction: f32,
+    force: f32,
 }
 
 /// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
 pub struct ActiveTouch {
-    /// Screen position where this touch started
-    start_pos: Pos2,
+    /// Screen position where this touch was when the gesture startet
+    gesture_start_pos: Pos2,
     /// Current screen position of this touch
     pos: Pos2,
     /// Current force of the touch. A value in the interval [0.0 .. 1.0]
@@ -41,7 +94,7 @@ impl TouchState {
         Self {
             device_id,
             active_touches: Default::default(),
-            gesture_start_time: None,
+            gesture_state: None,
         }
     }
 
@@ -63,6 +116,34 @@ impl TouchState {
             }
         }
     }
+
+    pub fn is_active(&self) -> bool {
+        self.gesture_state.is_some()
+    }
+
+    pub fn info(&self) -> Option<TouchInfo> {
+        if let Some(state) = &self.gesture_state {
+            Some(TouchInfo {
+                start_time: state.start_time,
+                start_pos: state.start.pos,
+                current_pos: state.current.pos,
+                total: DynamicTouchInfo {
+                    zoom: state.current.distance / state.start.distance,
+                    rotation: state.current.direction - state.start.direction,
+                    translation: state.current.pos - state.start.pos,
+                    force: state.current.force,
+                },
+                incremental: DynamicTouchInfo {
+                    zoom: state.current.distance / state.previous.distance,
+                    rotation: state.current.direction - state.previous.direction,
+                    translation: state.current.pos - state.previous.pos,
+                    force: state.current.force - state.previous.force,
+                },
+            })
+        } else {
+            None
+        }
+    }
 }
 
 // private methods
@@ -71,13 +152,17 @@ impl TouchState {
         self.active_touches.insert(
             id,
             ActiveTouch {
-                start_pos: pos,
+                gesture_start_pos: pos,
                 pos,
                 force,
             },
         );
-        // adding a touch counts as the start of a new gesture:
-        self.start_gesture(time);
+        // for now we only support exactly two fingers:
+        if self.active_touches.len() == 2 {
+            self.start_gesture(time);
+        } else {
+            self.end_gesture()
+        }
     }
 
     fn touch_move(&mut self, id: TouchId, pos: Pos2, force: f32) {
@@ -85,25 +170,63 @@ impl TouchState {
             touch.pos = pos;
             touch.force = force;
         }
+        if let Some((touch1, touch2)) = self.both_touches() {
+            let state_new = DynGestureState {
+                pos: self::center_pos(touch1.pos, touch2.pos),
+                distance: self::distance(touch1.pos, touch2.pos),
+                direction: self::direction(touch1.pos, touch2.pos),
+                force: (touch1.force + touch2.force) * 0.5,
+            };
+            if let Some(ref mut state) = &mut self.gesture_state {
+                state.previous = state.current;
+                state.current = state_new;
+            }
+        }
     }
 
     fn touch_end(&mut self, id: TouchId, time: f64) {
         self.active_touches.remove(&id);
-        // lifting a touch counts as the end of the gesture:
-        if self.active_touches.is_empty() {
-            self.end_gesture();
-        } else {
+        // for now we only support exactly two fingers:
+        if self.active_touches.len() == 2 {
             self.start_gesture(time);
+        } else {
+            self.end_gesture()
         }
     }
 
     fn start_gesture(&mut self, time: f64) {
-        self.end_gesture();
-        self.gesture_start_time = Some(time);
+        for mut touch in self.active_touches.values_mut() {
+            touch.gesture_start_pos = touch.pos;
+        }
+        if let Some((touch1, touch2)) = self.both_touches() {
+            let start_dyn_state = DynGestureState {
+                pos: self::center_pos(touch1.pos, touch2.pos),
+                distance: self::distance(touch1.pos, touch2.pos),
+                direction: self::direction(touch1.pos, touch2.pos),
+                force: (touch1.force + touch2.force) * 0.5,
+            };
+            self.gesture_state = Some(GestureState {
+                start_time: time,
+                start: start_dyn_state,
+                previous: start_dyn_state,
+                current: start_dyn_state,
+            });
+        }
+    }
+
+    fn both_touches(&self) -> Option<(&ActiveTouch, &ActiveTouch)> {
+        if self.active_touches.len() == 2 {
+            let mut touches = self.active_touches.values();
+            let touch1 = touches.next().unwrap();
+            let touch2 = touches.next().unwrap();
+            Some((touch1, touch2))
+        } else {
+            None
+        }
     }
 
     fn end_gesture(&mut self) {
-        self.gesture_start_time = None;
+        self.gesture_state = None;
     }
 }
 
@@ -117,13 +240,23 @@ impl Debug for TouchState {
     // We could just use `#[derive(Debug)]`, but the implementation below produces a less cluttered
     // output:
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "gesture_start_time: {:?}\n",
-            self.gesture_start_time
-        ))?;
+        f.write_fmt(format_args!("gesture: {:?}\n", self.gesture_state))?;
         for (id, touch) in self.active_touches.iter() {
             f.write_fmt(format_args!("#{:?}: {:#?}\n", id, touch))?;
         }
         Ok(())
     }
+}
+
+fn center_pos(pos_1: Pos2, pos_2: Pos2) -> Pos2 {
+    pos2((pos_1.x + pos_2.x) * 0.5, (pos_1.y + pos_2.y) * 0.5)
+}
+
+pub(crate) fn distance(pos_1: Pos2, pos_2: Pos2) -> f32 {
+    (pos_2 - pos_1).length()
+}
+
+pub(crate) fn direction(pos_1: Pos2, pos_2: Pos2) -> f32 {
+    let v = (pos_2 - pos_1).normalized();
+    v.y.atan2(v.x)
 }

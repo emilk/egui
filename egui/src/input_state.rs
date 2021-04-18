@@ -5,7 +5,8 @@ use crate::{emath::*, util::History};
 use std::collections::{BTreeMap, HashSet};
 
 pub use crate::data::input::Key;
-pub use touch_state::TouchState;
+pub use touch_state::TouchInfo;
+use touch_state::TouchState;
 
 /// If the pointer moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
@@ -21,9 +22,9 @@ pub struct InputState {
     /// State of the mouse or simple touch gestures which can be mapped mouse operations.
     pub pointer: PointerState,
 
-    /// State of touches, except those covered by PointerState.
+    /// State of touches, except those covered by PointerState (like clicks and drags).
     /// (We keep a separate `TouchState` for each encountered touch device.)
-    pub touch_states: BTreeMap<TouchDeviceId, TouchState>,
+    touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
     /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
@@ -187,6 +188,14 @@ impl InputState {
     pub fn aim_radius(&self) -> f32 {
         // TODO: multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
+    }
+
+    pub fn touches(&self) -> Option<TouchInfo> {
+        if let Some(touch_state) = self.touch_states.values().find(|t| t.is_active()) {
+            touch_state.info()
+        } else {
+            None
+        }
     }
 
     /// Scans `event` for device IDs of touch devices we have not seen before,
