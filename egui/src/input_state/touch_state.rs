@@ -21,7 +21,7 @@ pub struct TouchInfo {
 
 /// Information about the dynamic state of a gesture.  Note that there is no internal threshold
 /// which needs to be reached before this information is updated.  If you want a threshold, you
-/// have to manage this on your application code.
+/// have to manage this in your application code.
 pub struct DynamicTouchInfo {
     /// Zoom factor (Pinch or Zoom).  Moving fingers closer together or further appart will change
     /// this value.
@@ -34,14 +34,17 @@ pub struct DynamicTouchInfo {
     /// Force of the touch (average of the forces of the individual fingers). This is a
     /// value in the interval `[0.0 .. =1.0]`.
     ///
-    /// (Note that a value of 0.0 either indicates a very light touch, or it means that the device
-    /// is not capable of measuring the touch force at all.)
+    /// Note 1: A value of 0.0 either indicates a very light touch, or it means that the device
+    /// is not capable of measuring the touch force at all.
+    ///
+    /// Note 2: Just increasing the physical pressure without actually moving the finger may not
+    /// lead to a change of this value.
     pub force: f32,
 }
 
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
-pub struct TouchState {
+pub(crate) struct TouchState {
     /// Technical identifier of the touch device.  This is used to identify relevant touch events
     /// for this `TouchState` instance.
     device_id: TouchDeviceId,
@@ -77,7 +80,7 @@ struct DynGestureState {
 /// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
-pub struct ActiveTouch {
+struct ActiveTouch {
     /// Screen position where this touch was when the gesture startet
     gesture_start_pos: Pos2,
     /// Current screen position of this touch
@@ -122,27 +125,23 @@ impl TouchState {
     }
 
     pub fn info(&self) -> Option<TouchInfo> {
-        if let Some(state) = &self.gesture_state {
-            Some(TouchInfo {
-                start_time: state.start_time,
-                start_pos: state.start.pos,
-                current_pos: state.current.pos,
-                total: DynamicTouchInfo {
-                    zoom: state.current.distance / state.start.distance,
-                    rotation: state.current.direction - state.start.direction,
-                    translation: state.current.pos - state.start.pos,
-                    force: state.current.force,
-                },
-                incremental: DynamicTouchInfo {
-                    zoom: state.current.distance / state.previous.distance,
-                    rotation: state.current.direction - state.previous.direction,
-                    translation: state.current.pos - state.previous.pos,
-                    force: state.current.force - state.previous.force,
-                },
-            })
-        } else {
-            None
-        }
+        self.gesture_state.as_ref().map(|state| TouchInfo {
+            start_time: state.start_time,
+            start_pos: state.start.pos,
+            current_pos: state.current.pos,
+            total: DynamicTouchInfo {
+                zoom: state.current.distance / state.start.distance,
+                rotation: state.current.direction - state.start.direction,
+                translation: state.current.pos - state.start.pos,
+                force: state.current.force,
+            },
+            incremental: DynamicTouchInfo {
+                zoom: state.current.distance / state.previous.distance,
+                rotation: state.current.direction - state.previous.direction,
+                translation: state.current.pos - state.previous.pos,
+                force: state.current.force - state.previous.force,
+            },
+        })
     }
 }
 
@@ -240,10 +239,10 @@ impl Debug for TouchState {
     // We could just use `#[derive(Debug)]`, but the implementation below produces a less cluttered
     // output:
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("gesture: {:?}\n", self.gesture_state))?;
         for (id, touch) in self.active_touches.iter() {
             f.write_fmt(format_args!("#{:?}: {:#?}\n", id, touch))?;
         }
+        f.write_fmt(format_args!("gesture: {:#?}\n", self.gesture_state))?;
         Ok(())
     }
 }
@@ -252,11 +251,11 @@ fn center_pos(pos_1: Pos2, pos_2: Pos2) -> Pos2 {
     pos2((pos_1.x + pos_2.x) * 0.5, (pos_1.y + pos_2.y) * 0.5)
 }
 
-pub(crate) fn distance(pos_1: Pos2, pos_2: Pos2) -> f32 {
+fn distance(pos_1: Pos2, pos_2: Pos2) -> f32 {
     (pos_2 - pos_1).length()
 }
 
-pub(crate) fn direction(pos_1: Pos2, pos_2: Pos2) -> f32 {
+fn direction(pos_1: Pos2, pos_2: Pos2) -> f32 {
     let v = (pos_2 - pos_1).normalized();
     v.y.atan2(v.x)
 }

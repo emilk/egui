@@ -19,7 +19,7 @@ pub struct InputState {
     /// The raw input we got this frame from the backend.
     pub raw: RawInput,
 
-    /// State of the mouse or simple touch gestures which can be mapped mouse operations.
+    /// State of the mouse or simple touch gestures which can be mapped to mouse operations.
     pub pointer: PointerState,
 
     /// State of touches, except those covered by PointerState (like clicks and drags).
@@ -191,6 +191,8 @@ impl InputState {
     }
 
     pub fn touches(&self) -> Option<TouchInfo> {
+        // In case of multiple touch devices simply pick the touch_state for the first touch device
+        // with an ongoing gesture:
         if let Some(touch_state) = self.touch_states.values().find(|t| t.is_active()) {
             touch_state.info()
         } else {
@@ -198,7 +200,7 @@ impl InputState {
         }
     }
 
-    /// Scans `event` for device IDs of touch devices we have not seen before,
+    /// Scans `events` for device IDs of touch devices we have not seen before,
     /// and creates a new `TouchState` for each such device.
     fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
         for event in events {
