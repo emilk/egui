@@ -231,7 +231,8 @@ impl Curve {
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,
 }
