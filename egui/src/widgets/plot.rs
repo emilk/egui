@@ -104,19 +104,19 @@ impl Bounds {
         self.max[1] = self.max[1].max(other.max[1]);
     }
 
-    pub fn shift_x(&mut self, delta: f64) {
+    pub fn translate_x(&mut self, delta: f64) {
         self.min[0] += delta;
         self.max[0] += delta;
     }
 
-    pub fn shift_y(&mut self, delta: f64) {
+    pub fn translate_y(&mut self, delta: f64) {
         self.min[1] += delta;
         self.max[1] += delta;
     }
 
-    pub fn shift(&mut self, delta: Vec2) {
-        self.shift_x(delta.x as f64);
-        self.shift_y(delta.y as f64);
+    pub fn translate(&mut self, delta: Vec2) {
+        self.translate_x(delta.x as f64);
+        self.translate_y(delta.y as f64);
     }
 
     pub fn add_relative_margin(&mut self, margin_fraction: Vec2) {
@@ -565,7 +565,7 @@ impl ScreenTransform {
     fn shift_bounds(&mut self, mut delta_pos: Vec2) {
         delta_pos.x *= self.dvalue_dpos()[0] as f32;
         delta_pos.y *= self.dvalue_dpos()[1] as f32;
-        self.bounds.shift(delta_pos);
+        self.bounds.translate(delta_pos);
     }
 
     /// Zoom by a relative amount with the given screen position as center.
