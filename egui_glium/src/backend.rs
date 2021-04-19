@@ -58,12 +58,18 @@ impl epi::RepaintSignal for GliumRepaintSignal {
 }
 
 #[cfg(target_os = "windows")]
-fn window_builder_drag_and_drop(window_builder: glutin::window::WindowBuilder, enable: bool) -> glutin::window::WindowBuilder {
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    enable: bool,
+) -> glutin::window::WindowBuilder {
     window_builder.with_drag_and_drop(enable)
 }
 
 #[cfg(not(target_os = "windows"))]
-fn window_builder_drag_and_drop(window_builder: glutin::window::WindowBuilder, enable: bool) -> glutin::window::WindowBuilder {
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    _enable: bool,
+) -> glutin::window::WindowBuilder {
     // drag and drop can only be disabled on windows
     window_builder
 }

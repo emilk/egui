@@ -157,7 +157,7 @@ pub trait App {
     }
 
     /// On Windows: enable drag and drop support.
-    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API (https://github.com/rust-windowing/winit/pull/1524)
+    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
     fn drag_and_drop_support(&self) -> bool {
         true
     }
