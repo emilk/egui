@@ -3,7 +3,6 @@
 #![allow(clippy::comparison_chain)]
 
 use color::Hsva;
-use serde::{Deserialize, Serialize};
 
 use crate::*;
 
@@ -36,7 +35,8 @@ impl Value {
 
 /// 2D bounding box of f64 precision.
 /// The range of data values we show.
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct Bounds {
     min: [f64; 2],
     max: [f64; 2],
