@@ -519,7 +519,7 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
-        if bounds.is_finite() && bounds.width() > 0.0 && bounds.height() > 0.0 {
+        if bounds.is_valid() {
             let mut transform = ScreenTransform { bounds, rect };
             if response.dragged_by(PointerButton::Primary) {
                 transform.shift_bounds(-response.drag_delta());
