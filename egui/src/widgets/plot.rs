@@ -68,6 +68,10 @@ impl Bounds {
             && self.max[1].is_finite()
     }
 
+    pub fn is_valid(&self) -> bool {
+        self.is_finite() && self.width() > 0.0 && self.height() > 0.0
+    }
+
     pub fn extend_with(&mut self, value: &Value) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
@@ -474,7 +478,7 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
-        if response.double_clicked_by(PointerButton::Primary) || bounds == Bounds::EMPTY {
+        if response.double_clicked_by(PointerButton::Primary) || !bounds.is_valid() {
             bounds = Bounds::NOTHING;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
@@ -499,10 +503,10 @@ impl Widget for Plot {
             let rh = rect.height() as f64;
             let current_data_aspect = (bounds.width() / rw) / (bounds.height() / rh);
 
-            let margin = 1e-5;
-            if current_data_aspect < data_aspect - margin {
+            let epsilon = 1e-5;
+            if current_data_aspect < data_aspect - epsilon {
                 bounds.expand_x((data_aspect / current_data_aspect - 1.0) * bounds.width() * 0.5);
-            } else if current_data_aspect > data_aspect + margin {
+            } else if current_data_aspect > data_aspect + epsilon {
                 bounds.expand_y((current_data_aspect / data_aspect - 1.0) * bounds.height() * 0.5);
             }
         }
