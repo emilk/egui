@@ -220,8 +220,8 @@ impl Curve {
     }
 
     /// Name of this curve.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
+    pub fn name(mut self, name: impl ToString) -> Self {
+        self.name = name.to_string();
         self
     }
 }
@@ -279,9 +279,9 @@ pub struct Plot {
 }
 
 impl Plot {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl ToString) -> Self {
         Self {
-            name: name.into(),
+            name: name.to_string(),
             next_auto_color_idx: 0,
 
             curves: Default::default(),
