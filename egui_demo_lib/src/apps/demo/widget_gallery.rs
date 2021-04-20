@@ -220,14 +220,14 @@ impl WidgetGallery {
     }
 }
 
-fn example_plot() -> egui::plot::Plot {
+fn example_plot() -> egui::plotting::Plot {
     let n = 128;
-    let curve = egui::plot::Curve::from_values_iter((0..=n).map(|i| {
+    let curve = egui::plotting::Curve::from_values_iter((0..=n).map(|i| {
         use std::f64::consts::TAU;
         let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
-        egui::plot::Value::new(x, x.sin())
+        egui::plotting::Value::new(x, x.sin())
     }));
-    egui::plot::Plot::new("Example Plot")
+    egui::plotting::Plot::new("Example Plot")
         .curve(curve)
         .height(32.0)
         .data_aspect(1.0)

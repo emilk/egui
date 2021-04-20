@@ -12,7 +12,7 @@ pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
 mod label;
-pub mod plot;
+pub mod plotting;
 mod selected_label;
 mod separator;
 mod slider;

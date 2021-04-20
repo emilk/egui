@@ -1,4 +1,4 @@
-use egui::plot::{Curve, Plot, Value};
+use egui::plotting::{Curve, Plot, Value};
 use egui::*;
 use std::f64::consts::TAU;
 
@@ -108,14 +108,10 @@ impl PlotDemo {
     }
 
     fn sin(&self) -> Curve {
-        let n = 512;
-        let circle = (0..=n).map(|i| {
-            let t = remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
-            Value::new(t / 5.0, 0.5 * (self.time + t).sin())
-        });
-        Curve::from_values_iter(circle)
+        let t = self.time;
+        Curve::from_function(move |x| 0.5 * (2.0 * x).sin() * t.sin())
             .color(Color32::from_rgb(200, 100, 100))
-            .name("0.5 * sin(x / 5)")
+            .name("0.5 * sin(2x) * sin(t)")
     }
 
     fn thingy(&self) -> Curve {
@@ -143,7 +139,8 @@ impl super::View for PlotDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .automatic_bounds(false)
+            .center_x_axis(true)
+            .center_y_axis(true)
             .min_size(Vec2::new(256.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);
