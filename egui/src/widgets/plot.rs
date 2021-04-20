@@ -238,6 +238,7 @@ impl Curve {
 #[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,
+    auto_bounds: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -277,7 +278,7 @@ pub struct Plot {
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
 
-    bounds: Bounds,
+    min_auto_bounds: Bounds,
 
     show_x: bool,
     show_y: bool,
@@ -304,7 +305,7 @@ impl Plot {
             data_aspect: None,
             view_aspect: None,
 
-            bounds: Bounds::EMPTY,
+            min_auto_bounds: Bounds::EMPTY,
 
             show_x: true,
             show_y: true,
@@ -365,14 +366,14 @@ impl Plot {
 
     /// Expand bounds to include the given x value.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
-        self.bounds.extend_with_x(x.into());
+        self.min_auto_bounds.extend_with_x(x.into());
         self
     }
 
     /// Expand bounds to include the given y value.
     /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
     pub fn include_y(mut self, y: impl Into<f64>) -> Self {
-        self.bounds.extend_with_y(y.into());
+        self.min_auto_bounds.extend_with_y(y.into());
         self
     }
 
@@ -443,17 +444,23 @@ impl Widget for Plot {
             view_aspect,
             show_x,
             show_y,
-            bounds,
+            min_auto_bounds,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
         let memory = ui
             .memory()
             .id_data
-            .get_mut_or_insert_with(plot_id, || PlotMemory { bounds })
+            .get_mut_or_insert_with(plot_id, || PlotMemory {
+                bounds: min_auto_bounds,
+                auto_bounds: true,
+            })
             .clone();
 
-        let PlotMemory { mut bounds } = memory;
+        let PlotMemory {
+            mut bounds,
+            mut auto_bounds,
+        } = memory;
 
         let size = {
             let width = width.unwrap_or_else(|| {
@@ -478,8 +485,10 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
-        if response.double_clicked_by(PointerButton::Primary) || !bounds.is_valid() {
-            bounds = Bounds::NOTHING;
+        auto_bounds |= response.double_clicked_by(PointerButton::Primary);
+
+        if auto_bounds || !bounds.is_valid() {
+            bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
             curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
@@ -523,15 +532,21 @@ impl Widget for Plot {
             let mut transform = ScreenTransform { bounds, rect };
             if response.dragged_by(PointerButton::Primary) {
                 transform.shift_bounds(-response.drag_delta());
+                auto_bounds = false;
             }
             if let Some(hover_pos) = response.hover_pos() {
-                transform.zoom(-0.01 * ui.input().scroll_delta[1], hover_pos);
+                let scroll_delta = ui.input().scroll_delta[1];
+                if scroll_delta != 0. {
+                    transform.zoom(-0.01 * scroll_delta, hover_pos);
+                    auto_bounds = false;
+                }
             }
 
             ui.memory().id_data.insert(
                 plot_id,
                 PlotMemory {
                     bounds: *transform.bounds(),
+                    auto_bounds,
                 },
             );
 
