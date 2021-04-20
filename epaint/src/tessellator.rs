@@ -742,7 +742,7 @@ pub fn tessellate_shapes(
     let mut clipped_meshes: Vec<ClippedMesh> = Vec::default();
 
     for ClippedShape(clip_rect, shape) in shapes {
-        if !clip_rect.is_non_negative() {
+        if !clip_rect.is_positive() {
             continue; // skip empty clip rectangles
         }
 
