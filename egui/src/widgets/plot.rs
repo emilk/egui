@@ -48,11 +48,6 @@ impl Bounds {
         max: [-f64::INFINITY; 2],
     };
 
-    pub const EMPTY: Self = Self {
-        min: [0.0; 2],
-        max: [0.0; 2],
-    };
-
     pub fn width(&self) -> f64 {
         self.max[0] - self.min[0]
     }
@@ -305,7 +300,7 @@ impl Plot {
             data_aspect: None,
             view_aspect: None,
 
-            min_auto_bounds: Bounds::EMPTY,
+            min_auto_bounds: Bounds::NOTHING,
 
             show_x: true,
             show_y: true,
