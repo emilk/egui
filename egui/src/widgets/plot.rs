@@ -53,13 +53,6 @@ impl Bounds {
         max: [0.0; 2],
     };
 
-    pub fn new_symmetrical(half_extent: f64) -> Self {
-        Self {
-            min: [-half_extent; 2],
-            max: [half_extent; 2],
-        }
-    }
-
     pub fn width(&self) -> f64 {
         self.max[0] - self.min[0]
     }
@@ -240,14 +233,6 @@ impl Curve {
 #[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,
-}
-
-impl Default for PlotMemory {
-    fn default() -> Self {
-        Self {
-            bounds: Bounds::new_symmetrical(1.),
-        }
-    }
 }
 
 // ----------------------------------------------------------------------------
