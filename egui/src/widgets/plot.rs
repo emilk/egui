@@ -48,6 +48,11 @@ impl Bounds {
         max: [-f64::INFINITY; 2],
     };
 
+    pub const EMPTY: Self = Self {
+        min: [0.0; 2],
+        max: [0.0; 2],
+    };
+
     pub fn new_symmetrical(half_extent: f64) -> Self {
         Self {
             min: [-half_extent; 2],
@@ -274,7 +279,6 @@ pub struct Plot {
 
     symmetrical_x_bounds: bool,
     symmetrical_y_bounds: bool,
-    automatic_bounds: bool,
     margin_fraction: Vec2,
 
     min_size: Vec2,
@@ -282,6 +286,8 @@ pub struct Plot {
     height: Option<f32>,
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
+
+    bounds: Bounds,
 
     show_x: bool,
     show_y: bool,
@@ -299,7 +305,6 @@ impl Plot {
 
             symmetrical_x_bounds: false,
             symmetrical_y_bounds: false,
-            automatic_bounds: false,
             margin_fraction: Vec2::splat(0.05),
 
             min_size: Vec2::splat(64.0),
@@ -307,6 +312,8 @@ impl Plot {
             height: None,
             data_aspect: None,
             view_aspect: None,
+
+            bounds: Bounds::EMPTY,
 
             show_x: true,
             show_y: true,
@@ -365,9 +372,16 @@ impl Plot {
         self
     }
 
-    /// If true, the bounds will be set based on the data.
-    pub fn automatic_bounds(mut self, enabled: bool) -> Self {
-        self.automatic_bounds = enabled;
+    /// Expand bounds to include the given x value.
+    pub fn include_x(mut self, x: impl Into<f64>) -> Self {
+        self.bounds.extend_with_x(x.into());
+        self
+    }
+
+    /// Expand bounds to include the given y value.
+    /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
+    pub fn include_y(mut self, y: impl Into<f64>) -> Self {
+        self.bounds.extend_with_y(y.into());
         self
     }
 
@@ -438,14 +452,14 @@ impl Widget for Plot {
             view_aspect,
             show_x,
             show_y,
-            automatic_bounds,
+            bounds,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
         let memory = ui
             .memory()
             .id_data
-            .get_or_default::<PlotMemory>(plot_id)
+            .get_mut_or_insert_with(plot_id, || PlotMemory { bounds })
             .clone();
 
         let PlotMemory { mut bounds } = memory;
@@ -473,7 +487,7 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
-        if automatic_bounds || response.double_clicked_by(PointerButton::Primary) {
+        if response.double_clicked_by(PointerButton::Primary) || bounds == Bounds::EMPTY {
             bounds = Bounds::NOTHING;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
