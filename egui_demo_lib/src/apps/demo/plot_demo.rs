@@ -6,7 +6,7 @@ use std::f64::consts::TAU;
 pub struct PlotDemo {
     animate: bool,
     time: f64,
-    circle_radius: f32,
+    circle_radius: f64,
     circle_center: Pos2,
     square: bool,
     proportional: bool,
@@ -96,7 +96,7 @@ impl PlotDemo {
         let n = 512;
         let circle = (0..=n).map(|i| {
             let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-            let r = self.circle_radius as f64;
+            let r = self.circle_radius;
             Value::new(
                 r * t.cos() + self.circle_center.x as f64,
                 r * t.sin() + self.circle_center.y as f64,
@@ -109,7 +109,7 @@ impl PlotDemo {
 
     fn sin(&self) -> Curve {
         let t = self.time;
-        Curve::from_function(move |x| 0.5 * (2.0 * x).sin() * t.sin())
+        Curve::from_y_function(move |x| 0.5 * (2.0 * x).sin() * t.sin(), Some((-2.)..=2.))
             .color(Color32::from_rgb(200, 100, 100))
             .name("0.5 * sin(2x) * sin(t)")
     }

@@ -1,5 +1,5 @@
-use super::bounds::{Bounds, ScreenTransform};
 use super::items::{Curve, HLine, VLine, Value};
+use super::transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
@@ -328,6 +328,7 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
+        // TODO: Let the user pick a resolution?
         curves
             .iter_mut()
             .for_each(|curve| curve.generate_points(transform.bounds().range_x(), 100));
