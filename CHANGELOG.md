@@ -11,9 +11,11 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add anchors to windows and areas so you can put a window in e.g. the top right corner.
 * Make labels interactive with `Label::sense(Sense::click())`.
 * Add `Response::request_focus` and `Response::surrender_focus`.
+* [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
+* `Plot` must now be given a name that is unique within its scope.
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
