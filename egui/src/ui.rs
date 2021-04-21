@@ -38,7 +38,7 @@ pub struct Ui {
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
     /// They are therefore only good for Id:s that has no state.
-    next_auto_id: u64,
+    next_auto_id_source: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to `Context`.
     painter: Painter,
@@ -64,7 +64,7 @@ impl Ui {
         let style = ctx.style();
         Ui {
             id,
-            next_auto_id: id.with("auto").value(),
+            next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer: Placer::new(max_rect, Layout::default()),
@@ -74,11 +74,12 @@ impl Ui {
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
         debug_assert!(!max_rect.any_nan());
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         Ui {
             id: self.id.with("child"),
-            next_auto_id: Id::new(self.next_auto_id).with("child").value(),
+            next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
@@ -99,11 +100,13 @@ impl Ui {
     // -------------------------------------------------
 
     /// A unique identity of this `Ui`.
+    #[inline(always)]
     pub fn id(&self) -> Id {
         self.id
     }
 
     /// Style options for this `Ui` and its children.
+    #[inline(always)]
     pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
     }
@@ -131,6 +134,7 @@ impl Ui {
 
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
+    #[inline(always)]
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
@@ -149,6 +153,7 @@ impl Ui {
 
     /// The current visuals settings of this `Ui`.
     /// Short for `ui.style().visuals`.
+    #[inline(always)]
     pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
@@ -168,17 +173,20 @@ impl Ui {
     }
 
     /// Get a reference to the parent [`CtxRef`].
+    #[inline(always)]
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
 
     /// Use this to paint stuff within this `Ui`.
+    #[inline(always)]
     pub fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
+    #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
@@ -210,6 +218,7 @@ impl Ui {
         }
     }
 
+    #[inline(always)]
     pub fn layout(&self) -> &Layout {
         self.placer.layout()
     }
@@ -242,6 +251,7 @@ impl Ui {
 
     /// The `Input` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().input()`.
+    #[inline(always)]
     pub fn input(&self) -> &InputState {
         self.ctx().input()
     }
@@ -448,16 +458,15 @@ impl Ui {
         self.id.with(&id_source)
     }
 
-    #[deprecated = "This id now returned from ui.allocate_space"]
-    pub fn make_position_id(&self) -> Id {
-        Id::new(self.next_auto_id)
+    pub(crate) fn next_auto_id(&self) -> Id {
+        Id::new(self.next_auto_id_source)
     }
 
     pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {
-        Id::new(self.next_auto_id).with(id_source)
+        Id::new(self.next_auto_id_source).with(id_source)
     }
 }
 
@@ -620,8 +629,8 @@ impl Ui {
             }
         }
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        let id = Id::new(self.next_auto_id);
+        let id = Id::new(self.next_auto_id_source);
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         (id, rect)
     }
@@ -658,8 +667,9 @@ impl Ui {
             self.placer.debug_paint_cursor(&painter);
         }
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        Id::new(self.next_auto_id)
+        let id = Id::new(self.next_auto_id_source);
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        id
     }
 
     pub(crate) fn placer(&self) -> &Placer {

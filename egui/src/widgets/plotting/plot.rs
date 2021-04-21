@@ -16,6 +16,16 @@ struct PlotMemory {
 
 // ----------------------------------------------------------------------------
 
+/// Information about the plot that has to persist between frames.
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone)]
+struct PlotMemory {
+    bounds: Bounds,
+    auto_bounds: bool,
+}
+
+// ----------------------------------------------------------------------------
+
 /// A 2D plot, e.g. a graph of a function.
 ///
 /// `Plot` supports multiple curves.
@@ -53,6 +63,8 @@ pub struct Plot {
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
 
+    min_auto_bounds: Bounds,
+
     show_x: bool,
     show_y: bool,
 }
@@ -80,6 +92,8 @@ impl Plot {
             height: None,
             data_aspect: None,
             view_aspect: None,
+
+            min_auto_bounds: Bounds::NOTHING,
 
             show_x: true,
             show_y: true,
@@ -232,6 +246,7 @@ impl Widget for Plot {
             view_aspect,
             show_x,
             show_y,
+            min_auto_bounds,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);

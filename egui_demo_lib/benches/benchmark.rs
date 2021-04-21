@@ -50,7 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        ctx.begin_frame(raw_input.clone());
+        ctx.begin_frame(raw_input);
         let mut ui = egui::Ui::__test();
         c.bench_function("label &str", |b| {
             b.iter(|| {
@@ -59,7 +59,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
         c.bench_function("label format!", |b| {
             b.iter(|| {
-                ui.label(format!("the quick brown fox jumps over the lazy dog"));
+                ui.label("the quick brown fox jumps over the lazy dog".to_owned());
             })
         });
     }

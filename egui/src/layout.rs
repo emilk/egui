@@ -333,7 +333,7 @@ impl Layout {
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
         debug_assert!(size.x >= 0.0 && size.y >= 0.0);
-        debug_assert!(outer.is_non_negative());
+        debug_assert!(!outer.is_negative());
         self.align2().align_size_within_rect(size, outer)
     }
 
@@ -571,7 +571,7 @@ impl Layout {
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, frame: Rect, mut child_size: Vec2) -> Rect {
         debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
-        debug_assert!(frame.is_non_negative());
+        debug_assert!(!frame.is_negative());
 
         if self.horizontal_justify() {
             child_size.x = child_size.x.at_least(frame.width()); // fill full width
