@@ -109,7 +109,7 @@ impl PlotDemo {
 
     fn sin(&self) -> Curve {
         let t = self.time;
-        Curve::from_y_function(move |x| 0.5 * (2.0 * x).sin() * t.sin(), Some((-2.)..=2.))
+        Curve::from_explicit_callback(move |x| 0.5 * (2.0 * x).sin() * t.sin(), Some((-2.)..=2.))
             .color(Color32::from_rgb(200, 100, 100))
             .name("0.5 * sin(2x) * sin(t)")
     }

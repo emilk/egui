@@ -64,16 +64,34 @@ impl VLine {
 
 // ----------------------------------------------------------------------------
 
+/// Contains a function to generate plot points and an optional range for which to generate them.
+pub struct ExplicitGenerator {
+    function: Box<dyn Fn(f64) -> f64>,
+    range: Option<RangeInclusive<f64>>,
+}
+
+// ----------------------------------------------------------------------------
+
 /// A series of values forming a path.
 pub struct Curve {
     pub(crate) values: Vec<Value>,
-    pub(crate) generator_fn: Option<(Box<dyn Fn(f64) -> f64>, Option<RangeInclusive<f64>>)>,
+    pub(crate) generator: Option<ExplicitGenerator>,
     pub(crate) bounds: Bounds,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
 }
 
 impl Curve {
+    fn empty() -> Self {
+        Self {
+            values: Vec::new(),
+            generator: None,
+            bounds: Bounds::NOTHING,
+            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
+            name: Default::default(),
+        }
+    }
+
     pub fn from_values(values: Vec<Value>) -> Self {
         let mut bounds = Bounds::NOTHING;
         for value in &values {
@@ -81,10 +99,8 @@ impl Curve {
         }
         Self {
             values,
-            generator_fn: None,
             bounds,
-            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
-            name: Default::default(),
+            ..Self::empty()
         }
     }
 
@@ -92,29 +108,30 @@ impl Curve {
         Self::from_values(iter.collect())
     }
 
-    pub fn from_y_function(
+    pub fn from_explicit_callback(
         function: impl Fn(f64) -> f64 + 'static,
         range: Option<RangeInclusive<f64>>,
     ) -> Self {
+        let generator = ExplicitGenerator {
+            function: Box::new(function),
+            range,
+        };
         Self {
-            values: Vec::new(),
-            generator_fn: Some((Box::new(function), range)),
-            bounds: Bounds::NOTHING,
-            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
-            name: Default::default(),
+            generator: Some(generator),
+            ..Self::empty()
         }
     }
 
     /// Returns true if there are no data points available and there is no function to generate any.
     pub(crate) fn no_data(&self) -> bool {
-        self.generator_fn.is_none() && self.values.is_empty()
+        self.generator.is_none() && self.values.is_empty()
     }
 
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
     pub(crate) fn generate_points(&mut self, mut x_range: RangeInclusive<f64>, n: usize) {
-        if let Some((function, function_range)) = self.generator_fn.as_ref() {
-            if let Some(range) = function_range {
+        if let Some(function) = self.generator.as_ref() {
+            if let Some(range) = &function.range {
                 x_range = x_range.start().max(*range.start())..=x_range.end().min(*range.end());
             }
 
@@ -123,7 +140,10 @@ impl Curve {
             self.values = (0..n)
                 .map(|i| {
                     let x = x_range.start() + i as f64 * increment;
-                    Value { x, y: function(x) }
+                    Value {
+                        x,
+                        y: (function.function)(x),
+                    }
                 })
                 .collect();
         }
