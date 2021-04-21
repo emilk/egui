@@ -12,6 +12,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Make labels interactive with `Label::sense(Sense::click())`.
 * Add `Response::request_focus` and `Response::surrender_focus`.
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
+* [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
