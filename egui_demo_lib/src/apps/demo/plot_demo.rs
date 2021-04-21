@@ -17,7 +17,7 @@ impl Default for PlotDemo {
         Self {
             animate: true,
             time: 0.0,
-            circle_radius: 0.5,
+            circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
             proportional: true,
@@ -108,9 +108,9 @@ impl PlotDemo {
     }
 
     fn sin(&self) -> Curve {
-        let t = self.time;
+        let time = self.time;
         Curve::from_explicit_callback(
-            move |x| 0.5 * (2.0 * x).sin() * t.sin(),
+            move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             Some((-2.)..=2.),
             512,
         )
