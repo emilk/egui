@@ -139,8 +139,8 @@ impl super::View for PlotDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .center_x_axis(true)
-            .center_y_axis(true)
+            .center_x_axis(false)
+            .center_y_axis(false)
             .min_size(Vec2::new(256.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);

@@ -153,6 +153,7 @@ impl Curve {
     }
 
     /// Name of this curve.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self

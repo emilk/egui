@@ -11,14 +11,7 @@ use color::Hsva;
 #[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,
-}
-
-impl Default for PlotMemory {
-    fn default() -> Self {
-        Self {
-            bounds: Bounds::new_symmetrical(1.),
-        }
-    }
+    auto_bounds: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -51,7 +44,7 @@ pub struct Plot {
     center_y_axis: bool,
     allow_zoom: bool,
     allow_drag: bool,
-    bounds: Bounds,
+    min_auto_bounds: Bounds,
     margin_fraction: Vec2,
 
     min_size: Vec2,
@@ -65,6 +58,7 @@ pub struct Plot {
 }
 
 impl Plot {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(name: impl ToString) -> Self {
         Self {
             name: name.to_string(),
@@ -78,7 +72,7 @@ impl Plot {
             center_y_axis: false,
             allow_zoom: true,
             allow_drag: true,
-            bounds: Bounds::EMPTY,
+            min_auto_bounds: Bounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
 
             min_size: Vec2::splat(64.0),
@@ -205,14 +199,14 @@ impl Plot {
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
-        self.bounds.extend_with_x(x.into());
+        self.min_auto_bounds.extend_with_x(x.into());
         self
     }
 
     /// Expand bounds to include the given y value.
     /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
     pub fn include_y(mut self, y: impl Into<f64>) -> Self {
-        self.bounds.extend_with_y(y.into());
+        self.min_auto_bounds.extend_with_y(y.into());
         self
     }
 }
@@ -229,7 +223,7 @@ impl Widget for Plot {
             center_y_axis,
             allow_zoom,
             allow_drag,
-            bounds,
+            min_auto_bounds,
             margin_fraction,
             width,
             height,
@@ -244,10 +238,16 @@ impl Widget for Plot {
         let memory = ui
             .memory()
             .id_data
-            .get_or_insert_with(plot_id, || PlotMemory { bounds })
+            .get_mut_or_insert_with(plot_id, || PlotMemory {
+                bounds: min_auto_bounds,
+                auto_bounds: true,
+            })
             .clone();
 
-        let PlotMemory { mut bounds } = memory;
+        let PlotMemory {
+            mut bounds,
+            mut auto_bounds,
+        } = memory;
 
         let size = {
             let width = width.unwrap_or_else(|| {
@@ -272,7 +272,7 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
-        // Background:
+        // Background
         ui.painter().add(Shape::Rect {
             rect,
             corner_radius: 2.0,
@@ -280,17 +280,19 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
+        auto_bounds |= response.double_clicked_by(PointerButton::Primary);
+
         // Set bounds automatically based on content.
-        if bounds == Bounds::EMPTY || response.double_clicked_by(PointerButton::Primary) {
-            bounds = Bounds::NOTHING;
+        if auto_bounds || !bounds.is_valid() {
+            bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
             curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
-        if bounds == Bounds::NOTHING {
-            bounds = Bounds::new_symmetrical(0.5);
+        if !bounds.is_valid() {
+            bounds = Bounds::new_symmetrical(1.0);
         }
 
         // Scale axes so that the origin is in the center.
@@ -310,15 +312,18 @@ impl Widget for Plot {
 
         // Dragging
         if allow_drag && response.dragged_by(PointerButton::Primary) {
-            let drag_delta = response.drag_delta();
-            transform.translate_bounds(-drag_delta);
+            transform.translate_bounds(-response.drag_delta());
+            auto_bounds = false;
         }
 
         // Zooming
         if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
-                let zoom_center = hover_pos;
-                transform.zoom(-0.01 * ui.input().scroll_delta[1], zoom_center);
+                let scroll_delta = ui.input().scroll_delta[1];
+                if scroll_delta != 0. {
+                    transform.zoom(-0.01 * scroll_delta, hover_pos);
+                    auto_bounds = false;
+                }
             }
         }
 
@@ -331,6 +336,7 @@ impl Widget for Plot {
             plot_id,
             PlotMemory {
                 bounds: *transform.bounds(),
+                auto_bounds,
             },
         );
 

@@ -18,16 +18,22 @@ impl Bounds {
         max: [-f64::INFINITY; 2],
     };
 
-    pub const EMPTY: Self = Self {
-        min: [0.0; 2],
-        max: [0.0; 2],
-    };
-
     pub fn new_symmetrical(half_extent: f64) -> Self {
         Self {
             min: [-half_extent; 2],
             max: [half_extent; 2],
         }
+    }
+
+    pub fn is_finite(&self) -> bool {
+        self.min[0].is_finite()
+            && self.min[1].is_finite()
+            && self.max[0].is_finite()
+            && self.max[1].is_finite()
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.is_finite() && self.width() > 0.0 && self.height() > 0.0
     }
 
     pub fn width(&self) -> f64 {
@@ -88,8 +94,8 @@ impl Bounds {
     }
 
     pub fn add_relative_margin(&mut self, margin_fraction: Vec2) {
-        let width = self.width();
-        let height = self.height();
+        let width = self.width().max(0.0);
+        let height = self.height().max(0.0);
         self.expand_x(margin_fraction.x as f64 * width);
         self.expand_y(margin_fraction.y as f64 * height);
     }
@@ -233,12 +239,12 @@ impl ScreenTransform {
     }
 
     pub fn set_aspect(&mut self, aspect: f64) {
-        let margin = 1e-5;
+        let epsilon = 1e-5;
         let current_aspect = self.get_aspect();
-        if current_aspect < aspect - margin {
+        if current_aspect < aspect - epsilon {
             self.bounds
                 .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
-        } else if current_aspect > aspect + margin {
+        } else if current_aspect > aspect + epsilon {
             self.bounds
                 .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
         }
