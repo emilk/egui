@@ -64,10 +64,11 @@ impl VLine {
 
 // ----------------------------------------------------------------------------
 
-/// Contains a function to generate plot points and an optional range for which to generate them.
-pub struct ExplicitGenerator {
-    function: Box<dyn Fn(f64) -> f64>,
-    range: Option<RangeInclusive<f64>>,
+enum Generator {
+    /// Describes a function y = f(x) with an optional range for x and a number of points.
+    Explicit(Box<dyn Fn(f64) -> f64>, Option<RangeInclusive<f64>>, usize),
+    /// Describes a function (x,y) = f(t) with a range for t and a number of points.
+    Parametric(Box<dyn Fn(f64) -> (f64, f64)>, RangeInclusive<f64>, usize),
 }
 
 // ----------------------------------------------------------------------------
@@ -75,7 +76,7 @@ pub struct ExplicitGenerator {
 /// A series of values forming a path.
 pub struct Curve {
     pub(crate) values: Vec<Value>,
-    pub(crate) generator: Option<ExplicitGenerator>,
+    generator: Option<Generator>,
     pub(crate) bounds: Bounds,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
@@ -111,11 +112,21 @@ impl Curve {
     pub fn from_explicit_callback(
         function: impl Fn(f64) -> f64 + 'static,
         range: Option<RangeInclusive<f64>>,
+        points: usize,
     ) -> Self {
-        let generator = ExplicitGenerator {
-            function: Box::new(function),
-            range,
-        };
+        let generator = Generator::Explicit(Box::new(function), range, points);
+        Self {
+            generator: Some(generator),
+            ..Self::empty()
+        }
+    }
+
+    pub fn from_parametric_callback(
+        function: impl Fn(f64) -> (f64, f64) + 'static,
+        t_range: RangeInclusive<f64>,
+        points: usize,
+    ) -> Self {
+        let generator = Generator::Parametric(Box::new(function), t_range, points);
         Self {
             generator: Some(generator),
             ..Self::empty()
@@ -129,23 +140,34 @@ impl Curve {
 
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
-    pub(crate) fn generate_points(&mut self, mut x_range: RangeInclusive<f64>, n: usize) {
-        if let Some(function) = self.generator.as_ref() {
-            if let Some(range) = &function.range {
-                x_range = x_range.start().max(*range.start())..=x_range.end().min(*range.end());
+    pub(crate) fn generate_points(&mut self, mut x_range: RangeInclusive<f64>) {
+        let range_union = |range1: &RangeInclusive<f64>, range2: &RangeInclusive<f64>| {
+            range1.start().max(*range2.start())..=range1.end().min(*range2.end())
+        };
+        match &self.generator {
+            Some(Generator::Explicit(fun, maybe_range, n)) => {
+                if let Some(range) = maybe_range {
+                    x_range = range_union(&x_range, range);
+                }
+                let increment = (x_range.end() - x_range.start()) / (n - 1) as f64;
+                self.values = (0..*n)
+                    .map(|i| {
+                        let x = x_range.start() + i as f64 * increment;
+                        Value { x, y: fun(x) }
+                    })
+                    .collect();
             }
-
-            let increment = (x_range.end() - x_range.start()) / (n - 1) as f64;
-
-            self.values = (0..n)
-                .map(|i| {
-                    let x = x_range.start() + i as f64 * increment;
-                    Value {
-                        x,
-                        y: (function.function)(x),
-                    }
-                })
-                .collect();
+            Some(Generator::Parametric(fun, range, n)) => {
+                let increment = (range.end() - range.start()) / (n - 1) as f64;
+                self.values = (0..*n)
+                    .map(|i| {
+                        let t = range.start() + i as f64 * increment;
+                        let (x, y) = fun(t);
+                        Value { x, y }
+                    })
+                    .collect();
+            }
+            None => {}
         }
     }
 

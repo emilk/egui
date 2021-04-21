@@ -109,20 +109,24 @@ impl PlotDemo {
 
     fn sin(&self) -> Curve {
         let t = self.time;
-        Curve::from_explicit_callback(move |x| 0.5 * (2.0 * x).sin() * t.sin(), Some((-2.)..=2.))
-            .color(Color32::from_rgb(200, 100, 100))
-            .name("0.5 * sin(2x) * sin(t)")
+        Curve::from_explicit_callback(
+            move |x| 0.5 * (2.0 * x).sin() * t.sin(),
+            Some((-2.)..=2.),
+            512,
+        )
+        .color(Color32::from_rgb(200, 100, 100))
+        .name("0.5 * sin(2x) * sin(t)")
     }
 
     fn thingy(&self) -> Curve {
-        let n = 512;
-        let complex_curve = (0..=n).map(|i| {
-            let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-            Value::new((2.0 * t + self.time).sin(), (3.0 * t).sin())
-        });
-        Curve::from_values_iter(complex_curve)
-            .color(Color32::from_rgb(100, 150, 250))
-            .name("x = sin(2t), y = sin(3t)")
+        let time = self.time;
+        Curve::from_parametric_callback(
+            move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
+            0.0..=TAU,
+            512,
+        )
+        .color(Color32::from_rgb(100, 150, 250))
+        .name("x = sin(2t), y = sin(3t)")
     }
 }
 

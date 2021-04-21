@@ -331,7 +331,7 @@ impl Widget for Plot {
         // TODO: Let the user pick a resolution?
         curves
             .iter_mut()
-            .for_each(|curve| curve.generate_points(transform.bounds().range_x(), 100));
+            .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
 
         ui.memory().id_data.insert(
             plot_id,
