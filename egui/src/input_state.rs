@@ -124,6 +124,7 @@ impl InputState {
         }
     }
 
+    #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
         self.screen_rect
     }
@@ -174,17 +175,20 @@ impl InputState {
     }
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
     /// Size of a physical pixel in logical gui coordinates (points).
+    #[inline(always)]
     pub fn physical_pixel_size(&self) -> f32 {
         1.0 / self.pixels_per_point()
     }
 
     /// How imprecise do we expect the mouse/touch input to be?
     /// Returns imprecision in points.
+    #[inline(always)]
     pub fn aim_radius(&self) -> f32 {
         // TODO: multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
@@ -525,10 +529,12 @@ impl PointerState {
     // }
 
     /// Is this button currently down?
+    #[inline(always)]
     pub fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
     }
 
+    #[inline(always)]
     pub(crate) fn could_any_button_be_click(&self) -> bool {
         self.could_be_click
     }

@@ -455,6 +455,7 @@ impl Context {
     }
 
     /// The number of physical pixels for each logical point.
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.input.pixels_per_point()
     }

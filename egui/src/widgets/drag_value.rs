@@ -266,9 +266,10 @@ impl<'a> Widget for DragValue<'a> {
             let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
                 .sense(Sense::click_and_drag())
                 .text_style(TextStyle::Monospace)
-                .wrap(false);
+                .wrap(false)
+                .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
 
-            let response = ui.add_sized(ui.spacing().interact_size, button);
+            let response = ui.add(button);
             let response = response
                 .on_hover_cursor(CursorIcon::ResizeHorizontal)
                 .on_hover_text(format!(

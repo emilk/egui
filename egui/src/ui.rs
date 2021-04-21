@@ -99,11 +99,13 @@ impl Ui {
     // -------------------------------------------------
 
     /// A unique identity of this `Ui`.
+    #[inline(always)]
     pub fn id(&self) -> Id {
         self.id
     }
 
     /// Style options for this `Ui` and its children.
+    #[inline(always)]
     pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
     }
@@ -131,6 +133,7 @@ impl Ui {
 
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
+    #[inline(always)]
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
@@ -149,6 +152,7 @@ impl Ui {
 
     /// The current visuals settings of this `Ui`.
     /// Short for `ui.style().visuals`.
+    #[inline(always)]
     pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
@@ -168,17 +172,20 @@ impl Ui {
     }
 
     /// Get a reference to the parent [`CtxRef`].
+    #[inline(always)]
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
 
     /// Use this to paint stuff within this `Ui`.
+    #[inline(always)]
     pub fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
+    #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
@@ -210,6 +217,7 @@ impl Ui {
         }
     }
 
+    #[inline(always)]
     pub fn layout(&self) -> &Layout {
         self.placer.layout()
     }
@@ -242,6 +250,7 @@ impl Ui {
 
     /// The `Input` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().input()`.
+    #[inline(always)]
     pub fn input(&self) -> &InputState {
         self.ctx().input()
     }

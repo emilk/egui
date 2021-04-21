@@ -1,5 +1,7 @@
 use crate::{window_settings::WindowSettings, *};
 use egui::Color32;
+#[cfg(target_os = "windows")]
+use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
 
 #[cfg(feature = "persistence")]
@@ -55,6 +57,23 @@ impl epi::RepaintSignal for GliumRepaintSignal {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    enable: bool,
+) -> glutin::window::WindowBuilder {
+    window_builder.with_drag_and_drop(enable)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    _enable: bool,
+) -> glutin::window::WindowBuilder {
+    // drag and drop can only be disabled on windows
+    window_builder
+}
+
 fn create_display(
     app: &dyn epi::App,
     window_settings: Option<WindowSettings>,
@@ -67,6 +86,8 @@ fn create_display(
         .with_title(app.name())
         .with_window_icon(window_icon)
         .with_transparent(app.transparent());
+
+    window_builder = window_builder_drag_and_drop(window_builder, app.drag_and_drop_support());
 
     let initial_size_points = app.initial_window_size();
 
