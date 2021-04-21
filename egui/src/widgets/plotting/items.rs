@@ -1,6 +1,8 @@
+//! Contains items that can be added to a plot.
+
 use std::ops::RangeInclusive;
 
-use super::bounds::Bounds;
+use super::transform::Bounds;
 use crate::*;
 
 /// A value in the value-space of the plot.
@@ -65,7 +67,7 @@ impl VLine {
 /// A series of values forming a path.
 pub struct Curve {
     pub(crate) values: Vec<Value>,
-    pub(crate) generator_fn: Option<Box<dyn Fn(f64) -> f64>>,
+    pub(crate) generator_fn: Option<(Box<dyn Fn(f64) -> f64>, Option<RangeInclusive<f64>>)>,
     pub(crate) bounds: Bounds,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
@@ -90,10 +92,13 @@ impl Curve {
         Self::from_values(iter.collect())
     }
 
-    pub fn from_function(function: impl Fn(f64) -> f64 + 'static) -> Self {
+    pub fn from_y_function(
+        function: impl Fn(f64) -> f64 + 'static,
+        range: Option<RangeInclusive<f64>>,
+    ) -> Self {
         Self {
             values: Vec::new(),
-            generator_fn: Some(Box::new(function)),
+            generator_fn: Some((Box::new(function), range)),
             bounds: Bounds::NOTHING,
             stroke: Stroke::new(2.0, Color32::TRANSPARENT),
             name: Default::default(),
@@ -107,8 +112,12 @@ impl Curve {
 
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
-    pub(crate) fn generate_points(&mut self, x_range: RangeInclusive<f64>, n: usize) {
-        if let Some(function) = self.generator_fn.as_ref() {
+    pub(crate) fn generate_points(&mut self, mut x_range: RangeInclusive<f64>, n: usize) {
+        if let Some((function, function_range)) = self.generator_fn.as_ref() {
+            if let Some(range) = function_range {
+                x_range = x_range.start().max(*range.start())..=x_range.end().min(*range.end());
+            }
+
             let increment = (x_range.end() - x_range.start()) / (n - 1) as f64;
 
             self.values = (0..n)
