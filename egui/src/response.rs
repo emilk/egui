@@ -289,10 +289,25 @@ impl Response {
         self.changed = true;
     }
 
-    /// Show this UI if the item was hovered (i.e. a tooltip).
+    /// Show this UI if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_under(
+                &self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
+        }
+        self
+    }
+
+    /// Show this UI when hovering if the widget is disabled.
+    pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+        if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
             crate::containers::show_tooltip_under(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -337,10 +352,19 @@ impl Response {
         }
     }
 
-    /// Show this text if the item was hovered (i.e. a tooltip).
+    /// Show this text if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_text(self, text: impl Into<String>) -> Self {
         self.on_hover_ui(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
+    /// Show this text when hovering if the widget is disabled.
+    pub fn on_disabled_hover_text(self, text: impl Into<String>) -> Self {
+        self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
