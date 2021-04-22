@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{
+    collections::BTreeMap,
+    f32::consts::{PI, TAU},
+    fmt::Debug,
+};
 
 use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
 use epaint::emath::{pos2, Pos2, Vec2};
@@ -118,8 +122,8 @@ impl TouchState {
                 _ => (),
             }
         }
-        // This needs to be called each frame, even if there are no new touch events.
-        // Failing to do so may result in wrong information in `TouchInfo.incremental`
+        // This needs to be called each frame, even if there are no new touch events.  Failing to
+        // do so may result in wrong delta information
         self.update_gesture();
     }
 
@@ -134,13 +138,13 @@ impl TouchState {
             current_pos: state.current.pos,
             total: DynamicTouchInfo {
                 zoom: state.current.distance / state.start.distance,
-                rotation: state.current.direction - state.start.direction,
+                rotation: normalized_angle(state.current.direction, state.start.direction),
                 translation: state.current.pos - state.start.pos,
                 force: state.current.force,
             },
             incremental: DynamicTouchInfo {
                 zoom: state.current.distance / state.previous.distance,
-                rotation: state.current.direction - state.previous.direction,
+                rotation: normalized_angle(state.current.direction, state.previous.direction),
                 translation: state.current.pos - state.previous.pos,
                 force: state.current.force - state.previous.force,
             },
@@ -270,4 +274,25 @@ fn distance(pos_1: Pos2, pos_2: Pos2) -> f32 {
 fn direction(pos_1: Pos2, pos_2: Pos2) -> f32 {
     let v = (pos_2 - pos_1).normalized();
     v.y.atan2(v.x)
+}
+
+/// Calculate difference between two directions, such that the absolute value of the result is
+/// minimized.
+fn normalized_angle(current_direction: f32, previous_direction: f32) -> f32 {
+    let mut angle = current_direction - previous_direction;
+    angle %= TAU;
+    if angle > PI {
+        angle -= TAU;
+    } else if angle < -PI {
+        angle += TAU;
+    }
+    dbg!(angle)
+}
+
+#[test]
+fn normalizing_angle_from_350_to_0_yields_10() {
+    assert!(
+        (normalized_angle(0_f32.to_radians(), 350_f32.to_radians()) - 10_f32.to_radians()).abs()
+            <= 5. * f32::EPSILON // many conversions (=divisions) involved => high error rate
+    );
 }
