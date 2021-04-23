@@ -340,7 +340,7 @@ pub use {
     },
     grid::Grid,
     id::Id,
-    input_state::{InputState, PointerState},
+    input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
     memory::Memory,

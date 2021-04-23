@@ -5,7 +5,7 @@ use crate::{emath::*, util::History};
 use std::collections::{BTreeMap, HashSet};
 
 pub use crate::data::input::Key;
-pub use touch_state::TouchInfo;
+pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
 /// If the pointer moves more than this, it is no longer a click (but maybe a drag)
@@ -95,7 +95,7 @@ impl InputState {
         });
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
-            touch_state.begin_frame(time, &new);
+            touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
         let pointer = self.pointer.begin_frame(time, &new);
         let mut keys_down = self.keys_down;
@@ -194,9 +194,10 @@ impl InputState {
         self.physical_pixel_size()
     }
 
-    pub fn touches(&self) -> Option<TouchInfo> {
-        // In case of multiple touch devices simply pick the touch_state for the first touch device
-        // with an ongoing gesture:
+    /// Details about the currently ongoing multi-touch gesture, if any.  See [`MultiTouchInfo`].
+    pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
+        // In case of multiple touch devices simply pick the touch_state for the first active
+        // device
         if let Some(touch_state) = self.touch_states.values().find(|t| t.is_active()) {
             touch_state.info()
         } else {

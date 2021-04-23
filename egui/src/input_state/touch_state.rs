@@ -5,44 +5,43 @@ use std::{
 };
 
 use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
-use epaint::emath::{pos2, Pos2, Vec2};
+use epaint::emath::{Pos2, Vec2};
 
-/// All you probably need to know about the current two-finger touch gesture.
-pub struct TouchInfo {
-    /// Point in time when the gesture started
+/// All you probably need to know about a multi-touch gesture.
+pub struct MultiTouchInfo {
+    /// Point in time when the gesture started.
     pub start_time: f64,
-    /// Position where the gesture started (average of all individual touch positions)
+    /// Position of the pointer at the time the gesture started.
     pub start_pos: Pos2,
-    /// Current position of the gesture (average of all individual touch positions)
-    pub current_pos: Pos2,
-    /// Dynamic information about the touch gesture, relative to the start of the gesture.
-    /// Refer to [`GestureInfo`].
-    pub total: DynamicTouchInfo,
-    /// Dynamic information about the touch gesture, relative to the previous frame.
-    /// Refer to [`GestureInfo`].
-    pub incremental: DynamicTouchInfo,
-}
-
-/// Information about the dynamic state of a gesture.  Note that there is no internal threshold
-/// which needs to be reached before this information is updated.  If you want a threshold, you
-/// have to manage this in your application code.
-pub struct DynamicTouchInfo {
+    /// Number of touches (fingers) on the surface.  Value is ≥ 2 since for a single touch no
+    /// `MultiTouchInfo` is created.
+    pub num_touches: usize,
     /// Zoom factor (Pinch or Zoom).  Moving fingers closer together or further appart will change
-    /// this value.
+    /// this value.  This is a relative value, comparing the average distances of the fingers in
+    /// the current and previous frame.  If the fingers did not move since the previous frame,
+    /// this value is `1.0`.
     pub zoom: f32,
-    /// Rotation in radians.  Rotating the fingers, but also moving just one of them will change
-    /// this value.
+    /// Rotation in radians.  Moving fingers around each other will change this value.  This is a
+    /// relative value, comparing the orientation of fingers in the current frame with the previous
+    /// frame.  If all fingers are resting, this value is `0.0`.
     pub rotation: f32,
-    /// Movement (in points) of the average position of all touch points.
+    /// Relative movement (comparing previous frame and current frame) of the average position of
+    /// all touch points.  Without movement this value is `Vec2::ZERO`.
+    ///
+    /// Note that this may not necessarily be measured in screen points (although it _will_ be for
+    /// most mobile devices).  In general (depending on the touch device), touch coordinates cannot
+    /// be directly mapped to the screen.  A touch always is considered to start at the position of
+    /// the pointer, but touch movement is always measured in the units delivered by the device,
+    /// and may depend on hardware and system settings.
     pub translation: Vec2,
-    /// Force of the touch (average of the forces of the individual fingers). This is a
+    /// Current force of the touch (average of the forces of the individual fingers). This is a
     /// value in the interval `[0.0 .. =1.0]`.
     ///
-    /// Note 1: A value of 0.0 either indicates a very light touch, or it means that the device
+    /// Note 1: A value of `0.0` either indicates a very light touch, or it means that the device
     /// is not capable of measuring the touch force at all.
     ///
     /// Note 2: Just increasing the physical pressure without actually moving the finger may not
-    /// lead to a change of this value.
+    /// necessarily lead to a change of this value.
     pub force: f32,
 }
 
@@ -67,27 +66,25 @@ pub(crate) struct TouchState {
 #[derive(Clone, Debug)]
 struct GestureState {
     start_time: f64,
-    start: DynGestureState,
-    previous: DynGestureState,
+    start_pointer_pos: Pos2,
+    force: f32,
+    previous: Option<DynGestureState>,
     current: DynGestureState,
 }
 
 /// Gesture data which can change over time
 #[derive(Clone, Copy, Debug)]
 struct DynGestureState {
-    pos: Pos2,
-    distance: f32,
+    avg_pos: Pos2,
+    avg_distance: f32,
     direction: f32,
-    force: f32,
 }
 
 /// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
 struct ActiveTouch {
-    /// Screen position where this touch was when the gesture startet
-    gesture_start_pos: Pos2,
-    /// Current screen position of this touch
+    /// Current position of this touch, in device coordinates (not necessarily screen position)
     pos: Pos2,
     /// Current force of the touch. A value in the interval [0.0 .. 1.0]
     ///
@@ -105,7 +102,8 @@ impl TouchState {
         }
     }
 
-    pub fn begin_frame(&mut self, time: f64, new: &RawInput) {
+    pub fn begin_frame(&mut self, time: f64, new: &RawInput, pointer_pos: Option<Pos2>) {
+        let mut added_or_removed_touches = false;
         for event in &new.events {
             match *event {
                 Event::Touch {
@@ -115,134 +113,140 @@ impl TouchState {
                     pos,
                     force,
                 } if device_id == self.device_id => match phase {
-                    TouchPhase::Start => self.touch_start(id, pos, force, time),
-                    TouchPhase::Move => self.touch_move(id, pos, force),
-                    TouchPhase::End | TouchPhase::Cancel => self.touch_end(id, time),
+                    TouchPhase::Start => {
+                        self.active_touches.insert(id, ActiveTouch { pos, force });
+                        added_or_removed_touches = true;
+                    }
+                    TouchPhase::Move => {
+                        if let Some(touch) = self.active_touches.get_mut(&id) {
+                            touch.pos = pos;
+                            touch.force = force;
+                        }
+                    }
+                    TouchPhase::End | TouchPhase::Cancel => {
+                        self.active_touches.remove(&id);
+                        added_or_removed_touches = true;
+                    }
                 },
                 _ => (),
             }
         }
-        // This needs to be called each frame, even if there are no new touch events.  Failing to
-        // do so may result in wrong delta information
-        self.update_gesture();
+        // This needs to be called each frame, even if there are no new touch events.
+        // Otherwise, we would send the same old delta information multiple times:
+        self.update_gesture(time, pointer_pos);
+
+        if added_or_removed_touches {
+            // Adding or removing fingers makes the average values "jump".  We better forget
+            // about the previous values, and don't create delta information for this frame:
+            if let Some(ref mut state) = &mut self.gesture_state {
+                state.previous = None;
+            }
+        }
     }
 
     pub fn is_active(&self) -> bool {
         self.gesture_state.is_some()
     }
 
-    pub fn info(&self) -> Option<TouchInfo> {
-        self.gesture_state.as_ref().map(|state| TouchInfo {
-            start_time: state.start_time,
-            start_pos: state.start.pos,
-            current_pos: state.current.pos,
-            total: DynamicTouchInfo {
-                zoom: state.current.distance / state.start.distance,
-                rotation: normalized_angle(state.current.direction, state.start.direction),
-                translation: state.current.pos - state.start.pos,
-                force: state.current.force,
-            },
-            incremental: DynamicTouchInfo {
-                zoom: state.current.distance / state.previous.distance,
-                rotation: normalized_angle(state.current.direction, state.previous.direction),
-                translation: state.current.pos - state.previous.pos,
-                force: state.current.force - state.previous.force,
-            },
+    pub fn info(&self) -> Option<MultiTouchInfo> {
+        self.gesture_state.as_ref().map(|state| {
+            // state.previous can be `None` when the number of simultaneous touches has just
+            // changed. In this case, we take `current` as `previous`, pretending that there
+            // was no change for the current frame.
+            let state_previous = state.previous.unwrap_or(state.current);
+            MultiTouchInfo {
+                start_time: state.start_time,
+                start_pos: state.start_pointer_pos,
+                num_touches: self.active_touches.len(),
+                zoom: state.current.avg_distance / state_previous.avg_distance,
+                rotation: normalized_angle(state.current.direction, state_previous.direction),
+                translation: state.current.avg_pos - state_previous.avg_pos,
+                force: state.force,
+            }
         })
     }
-}
 
-// private methods
-impl TouchState {
-    fn touch_start(&mut self, id: TouchId, pos: Pos2, force: f32, time: f64) {
-        self.active_touches.insert(
-            id,
-            ActiveTouch {
-                gesture_start_pos: pos,
-                pos,
-                force,
-            },
-        );
-        // for now we only support exactly two fingers:
-        if self.active_touches.len() == 2 {
-            self.start_gesture(time);
-        } else {
-            self.end_gesture()
-        }
-    }
-
-    fn touch_move(&mut self, id: TouchId, pos: Pos2, force: f32) {
-        if let Some(touch) = self.active_touches.get_mut(&id)
-        // always true
-        {
-            touch.pos = pos;
-            touch.force = force;
-        }
-    }
-
-    fn touch_end(&mut self, id: TouchId, time: f64) {
-        self.active_touches.remove(&id);
-        // for now we only support exactly two fingers:
-        if self.active_touches.len() == 2 {
-            self.start_gesture(time);
-        } else {
-            self.end_gesture()
-        }
-    }
-
-    fn start_gesture(&mut self, time: f64) {
-        for mut touch in self.active_touches.values_mut() {
-            touch.gesture_start_pos = touch.pos;
-        }
-        if let Some((touch1, touch2)) = self.both_touches()
-        // always true
-        {
-            let start_dyn_state = DynGestureState {
-                pos: self::center_pos(touch1.pos, touch2.pos),
-                distance: self::distance(touch1.pos, touch2.pos),
-                direction: self::direction(touch1.pos, touch2.pos),
-                force: (touch1.force + touch2.force) * 0.5,
-            };
-            self.gesture_state = Some(GestureState {
-                start_time: time,
-                start: start_dyn_state,
-                previous: start_dyn_state,
-                current: start_dyn_state,
-            });
-        }
-    }
-
-    fn update_gesture(&mut self) {
-        if let Some((touch1, touch2)) = self.both_touches() {
-            let state_new = DynGestureState {
-                pos: self::center_pos(touch1.pos, touch2.pos),
-                distance: self::distance(touch1.pos, touch2.pos),
-                direction: self::direction(touch1.pos, touch2.pos),
-                force: (touch1.force + touch2.force) * 0.5,
-            };
-            if let Some(ref mut state) = &mut self.gesture_state
-            // always true
-            {
-                state.previous = state.current;
-                state.current = state_new;
+    fn update_gesture(&mut self, time: f64, pointer_pos: Option<Pos2>) {
+        if let Some(avg) = self.calc_averages() {
+            if let Some(ref mut state) = &mut self.gesture_state {
+                // updating an ongoing gesture
+                state.force = avg.force;
+                state.previous = Some(state.current);
+                state.current.avg_pos = avg.pos;
+                state.current.direction = avg.direction;
+                state.current.avg_distance = avg.distance;
+            } else if let Some(pointer_pos) = pointer_pos {
+                // starting a new gesture
+                self.gesture_state = Some(GestureState {
+                    start_time: time,
+                    start_pointer_pos: pointer_pos,
+                    force: avg.force,
+                    previous: None,
+                    current: DynGestureState {
+                        avg_pos: avg.pos,
+                        avg_distance: avg.distance,
+                        direction: avg.direction,
+                    },
+                });
             }
-        }
-    }
-
-    fn end_gesture(&mut self) {
-        self.gesture_state = None;
-    }
-
-    fn both_touches(&self) -> Option<(&ActiveTouch, &ActiveTouch)> {
-        if self.active_touches.len() == 2 {
-            let mut touches = self.active_touches.values();
-            let touch1 = touches.next().unwrap();
-            let touch2 = touches.next().unwrap();
-            Some((touch1, touch2))
         } else {
-            None
+            // the end of a gesture (if there is any)
+            self.gesture_state = None;
         }
     }
+
+    fn calc_averages(&self) -> Option<TouchAverages> {
+        let num_touches = self.active_touches.len();
+        if num_touches < 2 {
+            None
+        } else {
+            let mut avg = TouchAverages {
+                pos: Pos2::ZERO,
+                force: 0.,
+                distance: 0.,
+                direction: 0.,
+            };
+            let num_touches_rezip = 1. / num_touches as f32;
+
+            // first pass: calculate force, and center position:
+            for touch in self.active_touches.values() {
+                avg.force += touch.force;
+                avg.pos.x += touch.pos.x;
+                avg.pos.y += touch.pos.y;
+            }
+            avg.force *= num_touches_rezip;
+            avg.pos.x *= num_touches_rezip;
+            avg.pos.y *= num_touches_rezip;
+
+            // second pass: calculate distances from center:
+            for touch in self.active_touches.values() {
+                avg.distance += avg.pos.distance(touch.pos);
+            }
+            avg.distance *= num_touches_rezip;
+
+            // Calculate the direction from the first touch to the center position.
+            // This is not the perfect way of calculating the direction if more than two fingers
+            // are involved, but as long as all fingers rotate more or less at the same angular
+            // velocity, the shortcomings of this method will not be noticed.  One can see the
+            // issues though, when touching with three or more fingers, and moving only one of them
+            // (it takes two hands to do this in a controlled manner).  A better technique would be
+            // to store the current and previous directions (with reference to the center) for each
+            // touch individually, and then calculate the average of all individual changes in
+            // direction.  But this approach cannot be implemented locally in this method, making
+            // everything a bit more complicated.
+            let first_touch = self.active_touches.values().next().unwrap();
+            let direction_vec = (avg.pos - first_touch.pos).normalized();
+            avg.direction = direction_vec.y.atan2(direction_vec.x);
+
+            Some(avg)
+        }
+    }
+}
+struct TouchAverages {
+    pos: Pos2,
+    force: f32,
+    distance: f32,
+    direction: f32,
 }
 
 impl TouchState {
@@ -252,8 +256,7 @@ impl TouchState {
 }
 
 impl Debug for TouchState {
-    // We could just use `#[derive(Debug)]`, but the implementation below produces a less cluttered
-    // output:
+    // This outputs less clutter than `#[derive(Debug)]`:
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (id, touch) in self.active_touches.iter() {
             f.write_fmt(format_args!("#{:?}: {:#?}\n", id, touch))?;
@@ -261,19 +264,6 @@ impl Debug for TouchState {
         f.write_fmt(format_args!("gesture: {:#?}\n", self.gesture_state))?;
         Ok(())
     }
-}
-
-fn center_pos(pos_1: Pos2, pos_2: Pos2) -> Pos2 {
-    pos2((pos_1.x + pos_2.x) * 0.5, (pos_1.y + pos_2.y) * 0.5)
-}
-
-fn distance(pos_1: Pos2, pos_2: Pos2) -> f32 {
-    (pos_2 - pos_1).length()
-}
-
-fn direction(pos_1: Pos2, pos_2: Pos2) -> f32 {
-    let v = (pos_2 - pos_1).normalized();
-    v.y.atan2(v.x)
 }
 
 /// Calculate difference between two directions, such that the absolute value of the result is

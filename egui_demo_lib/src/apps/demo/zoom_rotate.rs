@@ -4,7 +4,7 @@ use egui::{
 };
 
 pub struct ZoomRotate {
-    last_time: Option<f64>,
+    time_of_last_update: Option<f64>,
     rotation: f32,
     zoom: f32,
 }
@@ -12,7 +12,7 @@ pub struct ZoomRotate {
 impl Default for ZoomRotate {
     fn default() -> Self {
         Self {
-            last_time: None,
+            time_of_last_update: None,
             rotation: 0.,
             zoom: 1.,
         }
@@ -33,7 +33,6 @@ impl super::Demo for ZoomRotate {
                 use super::View;
                 self.ui(ui);
             });
-        self.last_time = Some(ctx.input().time);
     }
 }
 
@@ -44,10 +43,10 @@ impl super::View for ZoomRotate {
         });
         ui.colored_label(
             Color32::RED,
-            "This only works on supported touch devices, like mobiles.",
+            "This only works on supported touch devices (like mobiles).",
         );
         ui.separator();
-        ui.label("Pinch, Zoom, or Rotate the arrow with two fingers.");
+        ui.label("Pinch, Zoom, or Rotate the arrow with two or more fingers.");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {
             // Note that we use `Sense::drag()` although we do not use any pointer events.  With
             // the current implementation, the fact that a touch event of two or more fingers is
@@ -66,14 +65,25 @@ impl super::View for ZoomRotate {
                 response.rect,
             );
 
-            if let Some(touches) = ui.input().touches() {
+            let mut stroke_width = 1.;
+            let mut color = Color32::GRAY;
+            if let Some(multi_touch) = ui.input().multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
-                self.zoom *= touches.incremental.zoom;
-                self.rotation += touches.incremental.rotation;
-                // for a smooth touch experience (shouldn't this be done by egui automatically?):
+                self.zoom *= multi_touch.zoom;
+                self.rotation += multi_touch.rotation;
+                // touch pressure shall make the arrow thicker (not all touch devices support this):
+                stroke_width += 10. * multi_touch.force;
+                // the drawing color depends on the number of touches:
+                color = match multi_touch.num_touches {
+                    2 => Color32::GREEN,
+                    3 => Color32::BLUE,
+                    4 => Color32::YELLOW,
+                    _ => Color32::RED,
+                };
+                // for a smooth (non-lagging) touch experience:
                 ui.ctx().request_repaint();
-            } else if let Some(last_time) = self.last_time {
+            } else if let Some(last_time) = self.time_of_last_update {
                 // This has nothing to do with the touch gesture. It just smoothly brings the
                 // painted arrow back into its original position, for a better visual effect:
                 let dt = ui.input().time - last_time;
@@ -81,6 +91,7 @@ impl super::View for ZoomRotate {
                 let half_life_factor = (-(2_f64.ln()) / ZOOM_ROTATE_HALF_LIFE * dt).exp() as f32;
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
+
                 // this is an animation, so we want real-time UI updates:
                 ui.ctx().request_repaint();
             }
@@ -93,8 +104,9 @@ impl super::View for ZoomRotate {
             painter.arrow(
                 to_screen * (Pos2::ZERO + arrow_start),
                 to_screen.scale() * arrow_direction,
-                Stroke::new(1.0, Color32::YELLOW),
+                Stroke::new(stroke_width, color),
             );
+            self.time_of_last_update = Some(ui.input().time);
         });
     }
 }
