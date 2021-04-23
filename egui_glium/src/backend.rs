@@ -189,6 +189,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut clipboard = init_clipboard();
     let mut current_cursor_icon = CursorIcon::Default;
 
+    let mut is_focused = true;
+
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
 
@@ -234,6 +236,15 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
+            if !is_focused {
+                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
+                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
+                // But we know if we are focused (in foreground). When minimized, we are not focused.
+                // However, a user may want an egui with an animation in the background,
+                // so we still need to repaint quite fast.
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+
             let pixels_per_point = input_state
                 .raw
                 .pixels_per_point
@@ -330,6 +341,10 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
+                if let glutin::event::WindowEvent::Focused(new_focused) = event {
+                    is_focused = new_focused;
+                }
+
                 input_to_egui(
                     ctx.pixels_per_point(),
                     event,

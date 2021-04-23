@@ -227,7 +227,7 @@ fn example_plot() -> egui::plot::Plot {
         let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
         egui::plot::Value::new(x, x.sin())
     }));
-    egui::plot::Plot::default()
+    egui::plot::Plot::new("Example Plot")
         .curve(curve)
         .height(32.0)
         .data_aspect(1.0)
