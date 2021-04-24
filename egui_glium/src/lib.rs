@@ -162,15 +162,26 @@ pub fn input_to_egui(
             }
         }
         WindowEvent::MouseWheel { delta, .. } => {
-            match delta {
+            let mut delta = match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
-                    let line_height = 24.0; // TODO
-                    input_state.raw.scroll_delta = vec2(x, y) * line_height;
+                    let line_height = 8.0; // magic value!
+                    vec2(x, y) * line_height
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
-                    // Actually point delta
-                    input_state.raw.scroll_delta = vec2(delta.x as f32, delta.y as f32);
+                    vec2(delta.x as f32, delta.y as f32) / pixels_per_point
                 }
+            };
+            if cfg!(target_os = "macos") {
+                // This is still buggy in winit despite
+                // https://github.com/rust-windowing/winit/issues/1695 being closed
+                delta.x *= -1.0;
+            }
+
+            if input_state.raw.modifiers.ctrl {
+                // Treat as zoom instead:
+                input_state.raw.zoom_delta *= (delta.y / 200.0).exp();
+            } else {
+                input_state.raw.scroll_delta += delta;
             }
         }
         _ => {
