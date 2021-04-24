@@ -125,7 +125,9 @@ impl Plot {
     }
 
     /// width / height ratio of the data.
-    /// For instance, it can be useful to set this to `1.0` for when the two axes show the same unit.
+    /// For instance, it can be useful to set this to `1.0` for when the two axes show the same
+    /// unit.
+    /// By default the plot window's aspect ratio is used.
     pub fn data_aspect(mut self, data_aspect: f32) -> Self {
         self.data_aspect = Some(data_aspect);
         self
@@ -172,25 +174,37 @@ impl Plot {
         self
     }
 
-    /// Always keep the x-axis centered.
+    #[deprecated = "Renamed center_x_axis"]
+    pub fn symmetrical_x_axis(mut self, on: bool) -> Self {
+        self.center_x_axis = on;
+        self
+    }
+
+    #[deprecated = "Renamed center_y_axis"]
+    pub fn symmetrical_y_axis(mut self, on: bool) -> Self {
+        self.center_y_axis = on;
+        self
+    }
+
+    /// Always keep the x-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
         self.center_x_axis = on;
         self
     }
 
-    /// Always keep the y-axis centered.
+    /// Always keep the y-axis centered. Default: `false`.
     pub fn center_y_axis(mut self, on: bool) -> Self {
         self.center_y_axis = on;
         self
     }
 
-    /// Whether to allow zooming in the plot.
+    /// Whether to allow zooming in the plot. Default: `true`.
     pub fn allow_zoom(mut self, on: bool) -> Self {
         self.allow_zoom = on;
         self
     }
 
-    /// Whether to allow dragging in the plot to move the bounds.
+    /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
     pub fn allow_drag(mut self, on: bool) -> Self {
         self.allow_drag = on;
         self
@@ -328,7 +342,6 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        // TODO: Let the user pick a resolution?
         curves
             .iter_mut()
             .for_each(|curve| curve.generate_points(transform.bounds().range_x()));

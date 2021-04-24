@@ -64,11 +64,11 @@ impl VLine {
 
 // ----------------------------------------------------------------------------
 
-enum Generator {
-    /// Describes a function y = f(x) with an optional range for x and a number of points.
-    Explicit(Box<dyn Fn(f64) -> f64>, Option<RangeInclusive<f64>>, usize),
-    /// Describes a function (x,y) = f(t) with a range for t and a number of points.
-    Parametric(Box<dyn Fn(f64) -> (f64, f64)>, RangeInclusive<f64>, usize),
+/// Describes a function y = f(x) with an optional range for x and a number of points.
+struct ExplicitGenerator {
+    function: Box<dyn Fn(f64) -> f64>,
+    x_range: RangeInclusive<f64>,
+    points: usize,
 }
 
 // ----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ enum Generator {
 /// A series of values forming a path.
 pub struct Curve {
     pub(crate) values: Vec<Value>,
-    generator: Option<Generator>,
+    generator: Option<ExplicitGenerator>,
     pub(crate) bounds: Bounds,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
@@ -112,27 +112,41 @@ impl Curve {
     /// Draw a curve based on a function `y=f(x)`, an optional range for x and the number of points.
     pub fn from_explicit_callback(
         function: impl Fn(f64) -> f64 + 'static,
-        range: Option<RangeInclusive<f64>>,
+        x_range: RangeInclusive<f64>,
         points: usize,
     ) -> Self {
-        let generator = Generator::Explicit(Box::new(function), range, points);
+        let mut bounds = Bounds::NOTHING;
+        if x_range.start().is_finite() && x_range.end().is_finite() {
+            bounds.min[0] = *x_range.start();
+            bounds.max[0] = *x_range.end();
+        }
+
+        let generator = ExplicitGenerator {
+            function: Box::new(function),
+            x_range,
+            points,
+        };
+
         Self {
             generator: Some(generator),
+            bounds,
             ..Self::empty()
         }
     }
 
     /// Draw a curve based on a function `(x,y)=f(t)`, a range for t and the number of points.
     pub fn from_parametric_callback(
-        function: impl Fn(f64) -> (f64, f64) + 'static,
+        function: impl Fn(f64) -> (f64, f64),
         t_range: RangeInclusive<f64>,
         points: usize,
     ) -> Self {
-        let generator = Generator::Parametric(Box::new(function), t_range, points);
-        Self {
-            generator: Some(generator),
-            ..Self::empty()
-        }
+        let increment = (t_range.end() - t_range.start()) / (points - 1) as f64;
+        let values = (0..points).map(|i| {
+            let t = t_range.start() + i as f64 * increment;
+            let (x, y) = function(t);
+            Value { x, y }
+        });
+        Self::from_values_iter(values)
     }
 
     /// Returns true if there are no data points available and there is no function to generate any.
@@ -140,36 +154,31 @@ impl Curve {
         self.generator.is_none() && self.values.is_empty()
     }
 
+    /// Returns the intersection of two ranges if they intersect.
+    fn range_intersection(
+        range1: &RangeInclusive<f64>,
+        range2: &RangeInclusive<f64>,
+    ) -> Option<RangeInclusive<f64>> {
+        let start = range1.start().max(*range2.start());
+        let end = range1.end().min(*range2.end());
+        (start < end).then(|| start..=end)
+    }
+
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
-    pub(crate) fn generate_points(&mut self, mut x_range: RangeInclusive<f64>) {
-        let range_union = |range1: &RangeInclusive<f64>, range2: &RangeInclusive<f64>| {
-            range1.start().max(*range2.start())..=range1.end().min(*range2.end())
-        };
-        match &self.generator {
-            Some(Generator::Explicit(fun, maybe_range, n)) => {
-                if let Some(range) = maybe_range {
-                    x_range = range_union(&x_range, range);
-                }
-                let increment = (x_range.end() - x_range.start()) / (n - 1) as f64;
-                self.values = (0..*n)
+    pub(crate) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
+        if let Some(generator) = self.generator.take() {
+            if let Some(intersection) = Self::range_intersection(&x_range, &generator.x_range) {
+                let increment =
+                    (intersection.end() - intersection.start()) / (generator.points - 1) as f64;
+                self.values = (0..generator.points)
                     .map(|i| {
-                        let x = x_range.start() + i as f64 * increment;
-                        Value { x, y: fun(x) }
-                    })
-                    .collect();
-            }
-            Some(Generator::Parametric(fun, range, n)) => {
-                let increment = (range.end() - range.start()) / (n - 1) as f64;
-                self.values = (0..*n)
-                    .map(|i| {
-                        let t = range.start() + i as f64 * increment;
-                        let (x, y) = fun(t);
+                        let x = intersection.start() + i as f64 * increment;
+                        let y = (generator.function)(x);
                         Value { x, y }
                     })
                     .collect();
             }
-            None => {}
         }
     }
 

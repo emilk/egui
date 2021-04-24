@@ -111,7 +111,7 @@ impl PlotDemo {
         let time = self.time;
         Curve::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
-            Some((-2.)..=2.),
+            f64::NEG_INFINITY..=f64::INFINITY,
             512,
         )
         .color(Color32::from_rgb(200, 100, 100))
@@ -143,8 +143,6 @@ impl super::View for PlotDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .center_x_axis(false)
-            .center_y_axis(false)
             .min_size(Vec2::new(256.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);
