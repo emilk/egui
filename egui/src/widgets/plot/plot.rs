@@ -1,5 +1,13 @@
-use super::items::{Curve, HLine, VLine, Value};
-use super::transform::{Bounds, ScreenTransform};
+//! Simple plotting library.
+
+mod items;
+mod plot;
+mod transform;
+
+pub use items::{Curve, HLine, VLine, Value};
+pub use plot::Plot;
+
+use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
