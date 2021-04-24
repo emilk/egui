@@ -1,4 +1,4 @@
-use egui::plotting::{Curve, Plot, Value};
+use egui::plot::{Curve, Plot, Value};
 use egui::*;
 use std::f64::consts::TAU;
 
