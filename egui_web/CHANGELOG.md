@@ -5,6 +5,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 
+### Fixed ⭐
+* Scroll faster when scrolling with mouse wheel.
+
 
 ## 0.11.0 - 2021-04-05
 
