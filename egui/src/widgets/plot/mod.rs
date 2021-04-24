@@ -28,7 +28,7 @@ struct PlotMemory {
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::plotting::{Curve, Plot, Value};
+/// use egui::plot::{Curve, Plot, Value};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
