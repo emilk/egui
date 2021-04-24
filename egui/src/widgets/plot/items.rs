@@ -109,7 +109,7 @@ impl Curve {
         Self::from_values(iter.collect())
     }
 
-    /// Draw a curve based on a function `y=f(x)`, an optional range for x and the number of points.
+    /// Draw a curve based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
     pub fn from_explicit_callback(
         function: impl Fn(f64) -> f64 + 'static,
         x_range: RangeInclusive<f64>,
