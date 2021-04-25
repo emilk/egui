@@ -18,6 +18,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
 * `Plot` must now be given a name that is unique within its scope.
+* Tab only selects labels if the `screen_reader` option is turned on.
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
