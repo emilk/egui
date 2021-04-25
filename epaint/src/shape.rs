@@ -43,8 +43,7 @@ pub enum Shape {
         /// Top left corner of the first character..
         pos: Pos2,
         /// The layed out text
-        galley: Galley,
-        text_style: TextStyle, // TODO: Font?
+        galley: std::sync::Arc<Galley>,
         color_map: TextColorMap,
         default_color: Color32,
         /// If true, tilt the letters for an ugly italics effect
@@ -138,7 +137,6 @@ impl Shape {
         Self::Text {
             pos: rect.min,
             galley,
-            text_style,
             default_color: color,
             color_map: TextColorMap::default(),
             fake_italics: false,

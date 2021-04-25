@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use crate::*;
+use crate::{*, text::TextColorMap};
 use emath::*;
 use std::f32::consts::TAU;
 
@@ -697,25 +697,25 @@ impl Tessellator {
                         out.vertices.push(Vertex {
                             pos: rect.left_top() + top_offset,
                             uv: uv.left_top(),
-                            color,
+                            color: default_color,
                         });
                         out.vertices.push(Vertex {
                             pos: rect.right_top() + top_offset,
                             uv: uv.right_top(),
-                            color,
+                            color: default_color,
                         });
                         out.vertices.push(Vertex {
                             pos: rect.left_bottom(),
                             uv: uv.left_bottom(),
-                            color,
+                            color: default_color,
                         });
                         out.vertices.push(Vertex {
                             pos: rect.right_bottom(),
                             uv: uv.right_bottom(),
-                            color,
+                            color: default_color,
                         });
                     } else {
-                        out.add_rect_with_uv(rect, uv, color);
+                        out.add_rect_with_uv(rect, uv, default_color);
                     }
                 }
             }
