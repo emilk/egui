@@ -90,6 +90,8 @@ impl PlotDemo {
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
+
+        ui.label("Drag to pan, ctrl + scroll to zoom. Double-click to reset view.");
     }
 
     fn circle(&self) -> Curve {

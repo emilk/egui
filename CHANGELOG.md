@@ -13,6 +13,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add `Response::request_focus` and `Response::surrender_focus`.
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 * [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
+* Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).

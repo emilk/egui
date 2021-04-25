@@ -115,6 +115,15 @@ impl InputState {
         self.screen_rect
     }
 
+    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    /// * `zoom = 1`: no change (default).
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    #[inline(always)]
+    pub fn zoom_delta(&self) -> f32 {
+        self.raw.zoom_delta
+    }
+
     pub fn wants_repaint(&self) -> bool {
         self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
     }
