@@ -1,10 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    area, collapsing_header, menu, resize, scroll_area, util::Cache, widgets::text_edit, window,
-    Id, InputState, LayerId, Pos2, Rect, Style,
-};
-use epaint::color::{Color32, Hsva};
+use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -14,26 +10,46 @@ use epaint::color::{Color32, Hsva};
 /// how far the user has scrolled in a `ScrollArea` etc.
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
+///
+/// If you want to store data for your widgets, you should look at `data`/`data_temp` and `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
-    pub(crate) options: Options,
+    pub options: Options,
+
+    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(feature = "persistence")]
+    pub data: any::serializable::TypeMap,
+
+    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(not(feature = "persistence"))]
+    pub data: any::TypeMap,
+
+    /// Same as `data`, but this data will not be saved between runs.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub data_temp: any::TypeMap,
+
+    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(feature = "persistence")]
+    pub id_data: any::serializable::AnyMap<Id>,
+
+    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    #[cfg(not(feature = "persistence"))]
+    pub id_data: any::AnyMap<Id>,
+
+    /// Same as `id_data`, but this data will not be saved between runs.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub id_data_temp: any::AnyMap<Id>,
 
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
 
+    /// new fonts that will be applied at the start of the next frame
+    pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
-
-    // states of various types of widgets
-    pub(crate) collapsing_headers: HashMap<Id, collapsing_header::State>,
-    pub(crate) grid: HashMap<Id, crate::grid::State>,
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) menu_bar: HashMap<Id, menu::BarState>,
-    pub(crate) resize: HashMap<Id, resize::State>,
-    pub(crate) scroll_areas: HashMap<Id, scroll_area::State>,
-    pub(crate) text_edit: HashMap<Id, text_edit::State>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
@@ -41,14 +57,7 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) tooltip: crate::containers::popup::MonoState,
-
     pub(crate) areas: Areas,
-
-    /// Used by color picker
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) color_cache: Cache<Color32, Hsva>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -61,17 +70,21 @@ pub struct Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Some global options that you can read and write.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct Options {
+pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
     /// Controls the tessellator.
     pub(crate) tessellation_options: epaint::TessellationOptions,
-    /// Font sizes etc.
-    pub(crate) font_definitions: epaint::text::FontDefinitions,
+
+    /// This does not at all change the behavior of egui,
+    /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
+    /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    pub screen_reader: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -283,15 +296,22 @@ impl Memory {
         !self.had_focus_last_frame(id) && self.has_focus(id)
     }
 
-    pub(crate) fn has_focus(&self, id: Id) -> bool {
+    /// Does this widget have keybaord focus?
+    #[inline(always)]
+    pub fn has_focus(&self, id: Id) -> bool {
         self.interaction.focus.id == Some(id)
     }
 
-    /// Give keyboard focus to a specific widget
+    /// Give keyboard focus to a specific widget.
+    /// See also [`crate::Response::request_focus`].
+    #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.interaction.focus.id = Some(id);
     }
 
+    /// Surrender keyboard focus for a specific widget.
+    /// See also [`crate::Response::surrender_focus`].
+    #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
         if self.interaction.focus.id == Some(id) {
             self.interaction.focus.id = None;
@@ -300,19 +320,23 @@ impl Memory {
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
+    #[inline(always)]
     pub(crate) fn interested_in_focus(&mut self, id: Id) {
         self.interaction.focus.interested_in_focus(id);
     }
 
     /// Stop editing of active `TextEdit` (if any).
+    #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.interaction.focus.id = None;
     }
 
+    #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
         self.interaction.drag_id.is_some()
     }
 
+    #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
     }
@@ -353,6 +377,7 @@ impl Memory {
     /// This is useful for testing, benchmarking, pre-caching, etc.
     ///
     /// Experimental feature!
+    #[inline(always)]
     pub fn everything_is_visible(&self) -> bool {
         self.everything_is_visible
     }

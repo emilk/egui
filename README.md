@@ -6,10 +6,9 @@
 [![Build Status](https://github.com/emilk/egui/workflows/CI/badge.svg)](https://github.com/emilk/egui/actions?workflow=CI)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
-**dependencies**: [`rusttype`](https://crates.io/crates/rusttype) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ahash`](https://crates.io/crates/ahash)
 
 
-egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and in your favorite game engine (or will soon).
+egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
 egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
 
@@ -44,9 +43,11 @@ To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
 The native backend is currently using [`glium`](https://github.com/glium/glium) ([though there are plans to change that](https://github.com/emilk/egui/issues/93)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`
+`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev`
 
-**NOTE**: egui itself is completely platform agnostic.
+On Fedora Rawhide you need to run `dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel`
+
+**NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
 ### Example
 
@@ -56,7 +57,7 @@ ui.horizontal(|ui| {
     ui.label("Your name: ");
     ui.text_edit_singleline(&mut name);
 });
-ui.add(egui::Slider::u32(&mut age, 0..=120).text("age"));
+ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
 if ui.button("Click each year").clicked() {
     age += 1;
 }
@@ -78,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell) and [`ahash`](https://crates.io/crates/ahash).
+* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/) [`rusttype`](https://crates.io/crates/rusttype).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -166,8 +167,10 @@ The same code can be compiled to a native app or a web app.
 
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad): backend for [Miniquad](https://github.com/not-fl3/miniquad).
+* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad): backend for [macroquad](https://github.com/not-fl3/macroquad)
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
-* [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backed for [Vulkano](https://github.com/vulkano-rs/vulkano).
+* [`egui_vulkano`](https://github.com/derivator/egui_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
+* [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano): backend for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_ash_vk_mem`](https://crates.io/crates/egui_winit_ash_vk_mem) for for [winit](https://github.com/rust-windowing/winit), [ash](https://github.com/MaikKlein/ash) and [vk_mem](https://github.com/gwihlidal/vk-mem-rs).
 * [`egui_winit_platform`](https://github.com/hasenbanck/egui_winit_platform) provides bindings between [winit](https://crates.io/crates/winit) and egui. It only provides the first half of an egui integration (IO). Painting can be done with e.g. [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend).
 * For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):
@@ -246,7 +249,7 @@ In immediate mode you run into a paradox: to know the size of the window, we mus
 
 This is a fundamental shortcoming of immediate mode GUIs, and any attempt to resolve it comes with its own downsides.
 
-One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occational flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
+One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occasional flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
 
 You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
 
@@ -265,7 +268,7 @@ There are some GUI state that you want the GUI library to retain, even in an imm
 
 `egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
 
-Overall, ID handling is a rare invonvenience, and not a big disadvantage.
+Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
 
 ## FAQ
@@ -281,6 +284,9 @@ That is the job of *the integration* or *backend*.
 It is common to use `egui` from a game engine (using e.g. [`bevy_egui`](https://docs.rs/bevy_egui)),
 but you can also use `egui` stand-alone using `eframe`. `eframe` has integration for web and native, and handles input and rendering.
 The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`frame` is a framework, `egui` is a library).
+
+### Why is `egui_web` using so much CPU in Firefox?
+On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again: https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0
 
 
 ## Other

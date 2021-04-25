@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.10.0"
+version = "0.11.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
@@ -22,17 +22,21 @@ include = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.10.0", path = "../egui" }
-epi = { version = "0.10.0", path = "../epi" }
+egui = { version = "0.11.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+epi = { version = "0.11.0", path = "../epi" }
 js-sys = "0.3"
+ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
-serde_json = { version = "1", optional = true }
-tts = { version = "0.14", optional = true } # feature screen_reader
+tts = { version = "0.15", optional = true } # feature screen_reader
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
 [features]
-default = []
+default = ["default_fonts"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
 http = [
   "epi/http",
   "web-sys/Headers",
@@ -41,7 +45,7 @@ http = [
   "web-sys/RequestMode",
   "web-sys/Response",
 ]
-persistence = ["serde", "serde_json"]
+persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]
@@ -50,13 +54,20 @@ features = [
   "Clipboard",
   "ClipboardEvent",
   "console",
+  "CompositionEvent",
   "CssStyleDeclaration",
   "DataTransfer",
   "Document",
   "DomRect",
   "Element",
+  "Event",
+  "EventListener",
+  "EventTarget",
+  "FocusEvent",
   "HtmlCanvasElement",
   "HtmlElement",
+  "HtmlInputElement",
+  "InputEvent",
   "KeyboardEvent",
   "Location",
   "MouseEvent",

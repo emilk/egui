@@ -2,6 +2,9 @@
 //!
 //! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
 //!
+//! `egui` is in heavy development, with each new version having breaking changes.
+//! You need to have the latest stable version of `rustc` to use `egui`.
+//!
 //! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
@@ -64,8 +67,8 @@
 //! ui.hyperlink("https://github.com/emilk/egui");
 //! ui.text_edit_singleline(&mut my_string);
 //! if ui.button("Click me").clicked() { }
-//! ui.add(egui::Slider::f32(&mut my_f32, 0.0..=100.0));
-//! ui.add(egui::DragValue::f32(&mut my_f32));
+//! ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0));
+//! ui.add(egui::DragValue::new(&mut my_f32));
 //!
 //! ui.checkbox(&mut my_boolean, "Checkbox");
 //!
@@ -198,6 +201,15 @@
 //! }
 //! ```
 //!
+//! ## Sizes
+//! You can control the size of widgets using [`Ui::add_sized`].
+//!
+//! ```
+//! # let ui = &mut egui::Ui::__test();
+//! # let mut my_value = 0.0_f32;
+//! ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+//! ```
+//!
 //! ## Code snippets
 //!
 //! ```
@@ -212,6 +224,11 @@
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
 //!
+//! ui.group(|ui|{
+//!     ui.label("Within a frame");
+//!     ui.set_min_height(200.0);
+//! });
+//!
 //! // Change test color on subsequent widgets:
 //! ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!
@@ -220,24 +237,34 @@
 //! ```
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,
     clippy::dbg_macro,
+    clippy::debug_assert_with_mut_call,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
     clippy::exit,
+    clippy::explicit_into_iter_loop,
     clippy::filter_map_next,
     clippy::fn_params_excessive_bools,
     clippy::if_let_mutex,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
+    clippy::large_types_passed_by_value,
+    clippy::let_unit_value,
     clippy::linkedlist,
     clippy::lossy_float_literal,
     clippy::macro_use_imports,
+    clippy::map_err_ignore,
+    clippy::map_flatten,
     clippy::match_on_vec_items,
+    clippy::match_same_arms,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -248,26 +275,27 @@
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::pub_enum_variant_names,
+    clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
+    clippy::string_add_assign,
+    clippy::string_add,
+    clippy::string_to_string,
     clippy::todo,
     clippy::unimplemented,
     clippy::unnested_or_patterns,
+    clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    missing_crate_level_docs,
-    missing_doc_code_examples,
-    // missing_docs,
     nonstandard_style,
-    rust_2018_idioms,
-    unused_doc_comments,
+    rust_2018_idioms
 )]
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+pub mod any;
 pub mod containers;
 mod context;
 mod data;
-pub mod experimental;
 mod frame_state;
 pub(crate) mod grid;
 mod id;
@@ -295,9 +323,7 @@ pub use epaint as paint; // historical reasons
 // Can't add deprecation notice due to https://github.com/rust-lang/rust/issues/30827
 pub use emath as math; // historical reasons
 
-pub use emath::{
-    clamp, lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2,
-};
+pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
     text::{FontDefinitions, FontFamily, TextStyle},
@@ -327,21 +353,9 @@ pub use {
 
 // ----------------------------------------------------------------------------
 
-/// `true` if egui was compiled with debug assertions enabled.
-#[cfg(debug_assertions)]
-pub(crate) const fn has_debug_assertions() -> bool {
-    true
-}
-
-/// `true` if egui was compiled with debug assertions enabled.
-#[cfg(not(debug_assertions))]
-pub(crate) const fn has_debug_assertions() -> bool {
-    false
-}
-
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
-    if crate::has_debug_assertions() {
+    if cfg!(debug_assertions) {
         ui.label(
             crate::Label::new("‼ Debug build ‼")
                 .small()

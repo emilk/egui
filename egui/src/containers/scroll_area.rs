@@ -98,12 +98,7 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let mut state = ctx
-            .memory()
-            .scroll_areas
-            .get(&id)
-            .cloned()
-            .unwrap_or_default();
+        let mut state = *ctx.memory().id_data.get_or_default::<State>(id);
 
         if let Some(offset) = offset {
             state.offset = offset;
@@ -291,10 +286,8 @@ impl Prepared {
                         } else {
                             let handle_top_pos_at_bottom = bottom - handle_rect.height();
                             // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = clamp(
-                                pointer_pos.y - handle_rect.height() / 2.0,
-                                top..=handle_top_pos_at_bottom,
-                            );
+                            let new_handle_top_pos = (pointer_pos.y - handle_rect.height() / 2.0)
+                                .clamp(top, handle_top_pos_at_bottom);
                             pointer_pos.y - new_handle_top_pos
                         }
                     });
@@ -359,7 +352,7 @@ impl Prepared {
         state.offset.y = state.offset.y.max(0.0);
         state.show_scroll = show_scroll_this_frame;
 
-        ui.memory().scroll_areas.insert(id, state);
+        ui.memory().id_data.insert(id, state);
     }
 }
 

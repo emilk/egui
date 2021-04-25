@@ -4,8 +4,11 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
+#![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 #![allow(clippy::manual_range_contains, clippy::single_match)]
 
@@ -303,7 +306,11 @@ fn set_cursor_icon(display: &glium::backend::glutin::Display, cursor_icon: egui:
     }
 }
 
-pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardContext>) {
+pub fn handle_output(
+    output: egui::Output,
+    clipboard: Option<&mut ClipboardContext>,
+    display: &glium::Display,
+) {
     if let Some(open) = output.open_url {
         if let Err(err) = webbrowser::open(&open.url) {
             eprintln!("Failed to open url: {}", err);
@@ -316,6 +323,13 @@ pub fn handle_output(output: egui::Output, clipboard: Option<&mut ClipboardConte
                 eprintln!("Copy/Cut error: {}", err);
             }
         }
+    }
+
+    if let Some(egui::Pos2 { x, y }) = output.text_cursor {
+        display
+            .gl_window()
+            .window()
+            .set_ime_position(glium::glutin::dpi::LogicalPosition { x, y })
     }
 }
 

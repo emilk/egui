@@ -43,6 +43,7 @@ pub struct Response {
     /// The pointer clicked this thing this frame.
     pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
 
+    // TODO: `released` for sliders
     /// The thing was double-clicked.
     pub(crate) double_clicked: [bool; NUM_POINTER_BUTTONS],
 
@@ -104,6 +105,12 @@ impl std::fmt::Debug for Response {
 
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
+    /// You can use [`Self::interact`] to sense more things *after* adding a widget.
+    #[inline(always)]
     pub fn clicked(&self) -> bool {
         self.clicked[PointerButton::Primary as usize]
     }
@@ -135,17 +142,27 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        !self.clicked() && self.ctx.input().pointer.any_click()
+        // We do not use self.clicked(), because we want to catch all click within our frame,
+        // even if we aren't clickable. This is important for windows and such that should close
+        // then the user clicks elsewhere.
+        let pointer = &self.ctx.input().pointer;
+        if let Some(pos) = pointer.interact_pos() {
+            pointer.any_click() && !self.rect.contains(pos)
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?
     /// If false, there was no interaction attempted
     /// and the widget should be drawn in a gray disabled look.
+    #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
     }
@@ -161,15 +178,15 @@ impl Response {
     }
 
     /// The widget had keyboard focus and lost it,
-    /// perhaps because the user pressed enter.
-    /// If you want to do an action when a user presses enter in a text field,
-    /// use this.
+    /// either because the user pressed tab or clicked somewhere else,
+    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
     ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
-    /// if ui.text_edit_singleline(&mut my_text).lost_focus() {
+    /// let response = ui.text_edit_singleline(&mut my_text);
+    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
     ///     do_request(&my_text);
     /// }
     /// ```
@@ -182,10 +199,26 @@ impl Response {
         self.lost_focus()
     }
 
+    /// Request that this widget get keyboard focus.
+    pub fn request_focus(&self) {
+        self.ctx.memory().request_focus(self.id)
+    }
+
+    /// Surrender keyboard focus for this widget.
+    pub fn surrender_focus(&self) {
+        self.ctx.memory().surrender_focus(self.id)
+    }
+
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
     /// (`ui.input().pointer.button_down(…)`).
+    ///
+    /// Note that the widget must be sensing drags with [`Sense::drag`].
+    /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
+    /// You can use [`Self::interact`] to sense more things *after* adding a widget.
+    #[inline(always)]
     pub fn dragged(&self) -> bool {
         self.dragged
     }
@@ -231,6 +264,7 @@ impl Response {
 
     /// Is the pointer button currently down on this widget?
     /// This is true if the pointer is pressing down or dragging a widget
+    #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.is_pointer_button_down_on
     }
@@ -241,6 +275,7 @@ impl Response {
     /// Always `false` for something like a `Button`.
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
+    #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
     }
@@ -249,14 +284,30 @@ impl Response {
     ///
     /// This must be called by widgets that represent some mutable data,
     /// e.g. checkboxes, sliders etc.
+    #[inline(always)]
     pub fn mark_changed(&mut self) {
         self.changed = true;
     }
 
-    /// Show this UI if the item was hovered (i.e. a tooltip).
+    /// Show this UI if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_under(
+                &self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
+        }
+        self
+    }
+
+    /// Show this UI when hovering if the widget is disabled.
+    pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+        if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
             crate::containers::show_tooltip_under(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -301,10 +352,19 @@ impl Response {
         }
     }
 
-    /// Show this text if the item was hovered (i.e. a tooltip).
+    /// Show this text if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_text(self, text: impl Into<String>) -> Self {
         self.on_hover_ui(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
+    /// Show this text when hovering if the widget is disabled.
+    pub fn on_disabled_hover_text(self, text: impl Into<String>) -> Self {
+        self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -324,10 +384,13 @@ impl Response {
 
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
     ///
+    /// Note that this call will not add any hover-effects to the widget, so when possible
+    /// it is better to give the widget a `Sense` instead, e.g. using `[Label::sense]`.
+    ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
     /// let response = ui.label("hello");
-    /// assert!(!response.clicked()); // labels don't sense clicks
+    /// assert!(!response.clicked()); // labels don't sense clicks by default
     /// let response = response.interact(egui::Sense::click());
     /// if response.clicked() { /* … */ }
     /// ```
@@ -416,7 +479,7 @@ impl Response {
 /// ```
 /// use egui::*;
 /// fn draw_vec2(ui: &mut Ui, v: &mut Vec2) -> Response {
-///     ui.add(DragValue::f32(&mut v.x)) | ui.add(DragValue::f32(&mut v.y))
+///     ui.add(DragValue::new(&mut v.x)) | ui.add(DragValue::new(&mut v.y))
 /// }
 /// ```
 ///

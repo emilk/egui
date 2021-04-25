@@ -1,5 +1,6 @@
 use crate::*;
 use epaint::Galley;
+use std::sync::Arc;
 
 /// Static text.
 ///
@@ -23,6 +24,8 @@ pub struct Label {
     strikethrough: bool,
     underline: bool,
     italics: bool,
+    raised: bool,
+    sense: Sense,
 }
 
 impl Label {
@@ -39,6 +42,8 @@ impl Label {
             strikethrough: false,
             underline: false,
             italics: false,
+            raised: false,
+            sense: Sense::focusable_noninteractive(),
         }
     }
 
@@ -112,8 +117,20 @@ impl Label {
         self
     }
 
+    /// Smaller text
     pub fn small(self) -> Self {
         self.text_style(TextStyle::Small)
+    }
+
+    /// For e.g. exponents
+    pub fn small_raised(self) -> Self {
+        self.text_style(TextStyle::Small).raised()
+    }
+
+    /// Align text to top. Only applicable together with [`Self::small()`].
+    pub fn raised(mut self) -> Self {
+        self.raised = true;
+        self
     }
 
     /// Fill-color behind the text
@@ -126,28 +143,48 @@ impl Label {
         self.text_color = Some(text_color.into());
         self
     }
+
+    /// Make the label response to clicks and/or drags.
+    ///
+    /// By default, a label is inert and does not response to click or drags.
+    /// By calling this you can turn the label into a button of sorts.
+    /// This will also give the label the hover-effect of a button, but without the frame.
+    ///
+    /// ``` rust
+    /// # use egui::{Label, Sense};
+    /// # let ui = &mut egui::Ui::__test();
+    /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {
+    ///     /* … */
+    /// }
+    /// ```
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
 }
 
 impl Label {
-    pub fn layout(&self, ui: &Ui) -> Galley {
+    pub fn layout(&self, ui: &Ui) -> Arc<Galley> {
         let max_width = ui.available_width();
         self.layout_width(ui, max_width)
     }
 
-    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Galley {
+    pub fn layout_width(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
         let text_style = self.text_style_or_default(ui.style());
-        let font = &ui.fonts()[text_style];
         let wrap_width = if self.should_wrap(ui) {
             max_width
         } else {
             f32::INFINITY
         };
-        font.layout_multiline(self.text.clone(), wrap_width) // TODO: avoid clone
+        let galley = ui
+            .fonts()
+            .layout_multiline(text_style, self.text.clone(), wrap_width); // TODO: avoid clone
+        self.valign_galley(ui, text_style, galley)
     }
 
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
         let text_style = self.text_style_or_default(style);
-        fonts[text_style].row_height()
+        fonts.row_height(text_style)
     }
 
     // TODO: this should return a LabelLayout which has a paint method.
@@ -158,11 +195,18 @@ impl Label {
     // TODO: a paint method for painting anywhere in a ui.
     // This should be the easiest method of putting text anywhere.
 
-    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Galley) {
-        self.paint_galley_focus(ui, pos, galley, false)
+    pub fn paint_galley(&self, ui: &mut Ui, pos: Pos2, galley: Arc<Galley>) {
+        self.paint_galley_impl(ui, pos, galley, false, ui.visuals().text_color())
     }
 
-    fn paint_galley_focus(&self, ui: &mut Ui, pos: Pos2, galley: Galley, focus: bool) {
+    fn paint_galley_impl(
+        &self,
+        ui: &mut Ui,
+        pos: Pos2,
+        galley: Arc<Galley>,
+        has_focus: bool,
+        response_color: Color32,
+    ) {
         let Self {
             mut background_color,
             code,
@@ -171,10 +215,11 @@ impl Label {
             strikethrough,
             underline,
             italics,
+            raised: _,
             ..
         } = *self;
 
-        let underline = underline || focus;
+        let underline = underline || has_focus;
 
         let text_color = if let Some(text_color) = self.text_color {
             text_color
@@ -183,7 +228,7 @@ impl Label {
         } else if weak {
             ui.visuals().weak_text_color()
         } else {
-            ui.visuals().text_color()
+            response_color
         };
 
         if code {
@@ -217,9 +262,8 @@ impl Label {
             }
         }
 
-        let text_style = self.text_style_or_default(ui.style());
         ui.painter()
-            .galley_with_italics(pos, galley, text_style, text_color, italics);
+            .galley_with_italics(pos, galley, text_color, italics);
 
         ui.painter().extend(lines);
     }
@@ -239,80 +283,117 @@ impl Label {
             }
         })
     }
+
+    fn valign_galley(
+        &self,
+        ui: &Ui,
+        text_style: TextStyle,
+        mut galley: Arc<Galley>,
+    ) -> Arc<Galley> {
+        if text_style == TextStyle::Small {
+            // Hacky McHackface strikes again:
+            let dy = if self.raised {
+                -2.0
+            } else {
+                let normal_text_height = ui.fonts()[TextStyle::Body].row_height();
+                let font_height = ui.fonts().row_height(text_style);
+                (normal_text_height - font_height) / 2.0 - 1.0 // center
+
+                // normal_text_height - font_height // align bottom
+            };
+
+            if dy != 0.0 {
+                for row in &mut Arc::make_mut(&mut galley).rows {
+                    row.translate_y(dy);
+                }
+            }
+        }
+        galley
+    }
 }
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let sense = Sense::focusable_noninteractive();
+        let sense = self.sense;
 
         if self.should_wrap(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
         {
-            // On a wrapping horizontal layout we want text to start after the last widget,
+            // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
 
+            let cursor = ui.cursor();
             let max_width = ui.available_width();
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
 
             let text_style = self.text_style_or_default(ui.style());
-            let font = &ui.fonts()[text_style];
-            let mut galley = font.layout_multiline_with_indentation_and_max_width(
+            let galley = ui.fonts().layout_multiline_with_indentation_and_max_width(
+                text_style,
                 self.text.clone(),
                 first_row_indentation,
                 max_width,
             );
+            let mut galley: Galley = (*galley).clone();
 
-            let pos = pos2(ui.min_rect().left(), ui.cursor().y);
+            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
 
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
-            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
-            let id = ui.advance_cursor_after_rect(rect);
-            let mut response = ui.interact(rect, id, sense);
 
-            let mut y_translation = 0.0;
-            if let Some(row) = galley.rows.get(1) {
-                // We could be sharing the first row with e.g. a button, that is higher than text.
-                // So we need to compensate for that:
-                if pos.y + row.y_min < ui.min_rect().bottom() {
-                    y_translation = ui.min_rect().bottom() - row.y_min - pos.y;
+            // Center first row within the cursor:
+            let dy = 0.5 * (cursor.height() - galley.rows[0].height());
+            galley.rows[0].translate_y(dy);
+
+            // We could be sharing the first row with e.g. a button which is higher than text.
+            // So we need to compensate for that:
+            if let Some(row) = galley.rows.get_mut(1) {
+                if pos.y + row.y_min < cursor.bottom() {
+                    let y_translation = cursor.bottom() - row.y_min - pos.y;
+                    if y_translation != 0.0 {
+                        for row in galley.rows.iter_mut().skip(1) {
+                            row.translate_y(y_translation);
+                        }
+                    }
                 }
             }
 
-            for row in galley.rows.iter_mut().skip(1) {
-                row.y_min += y_translation;
-                row.y_max += y_translation;
+            let galley = self.valign_galley(ui, text_style, Arc::new(galley));
+
+            let rect = galley.rows[0].rect().translate(vec2(pos.x, pos.y));
+            let mut response = ui.allocate_rect(rect, sense);
+            for row in galley.rows.iter().skip(1) {
                 let rect = row.rect().translate(vec2(pos.x, pos.y));
-                ui.advance_cursor_after_rect(rect);
-                response |= ui.interact(rect, id, sense);
+                response |= ui.allocate_rect(rect, sense);
             }
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_focus(ui, pos, galley, response.has_focus());
+            let response_color = ui.style().interact(&response).text_color();
+            self.paint_galley_impl(ui, pos, galley, response.has_focus(), response_color);
             response
         } else {
             let galley = self.layout(ui);
             let (rect, response) = ui.allocate_exact_size(galley.size, sense);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text));
-            self.paint_galley_focus(ui, rect.min, galley, response.has_focus());
+            let response_color = ui.style().interact(&response).text_color();
+            self.paint_galley_impl(ui, rect.min, galley, response.has_focus(), response_color);
             response
         }
     }
 }
 
-impl Into<Label> for &str {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&str> for Label {
+    fn from(s: &str) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for &String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<&String> for Label {
+    fn from(s: &String) -> Label {
+        Label::new(s)
     }
 }
 
-impl Into<Label> for String {
-    fn into(self) -> Label {
-        Label::new(self)
+impl From<String> for Label {
+    fn from(s: String) -> Label {
+        Label::new(s)
     }
 }

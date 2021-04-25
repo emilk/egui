@@ -7,24 +7,34 @@
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,
     clippy::dbg_macro,
+    clippy::debug_assert_with_mut_call,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
     clippy::exit,
+    clippy::explicit_into_iter_loop,
     clippy::filter_map_next,
     clippy::fn_params_excessive_bools,
     clippy::if_let_mutex,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
+    clippy::large_types_passed_by_value,
+    clippy::let_unit_value,
     clippy::linkedlist,
     clippy::lossy_float_literal,
     clippy::macro_use_imports,
+    clippy::map_err_ignore,
+    clippy::map_flatten,
     clippy::match_on_vec_items,
+    clippy::match_same_arms,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -35,18 +45,21 @@
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::pub_enum_variant_names,
+    clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
+    clippy::string_add_assign,
+    clippy::string_add,
+    clippy::string_to_string,
     clippy::todo,
     clippy::unimplemented,
     clippy::unnested_or_patterns,
+    clippy::unused_self,
     clippy::verbose_file_reads,
     future_incompatible,
-    missing_crate_level_docs,
-    missing_doc_code_examples,
-    missing_docs,
-    rust_2018_idioms,
-    unused_doc_comments
+    nonstandard_style,
+    rust_2018_idioms
 )]
+#![allow(clippy::manual_range_contains)]
 
 pub use egui; // Re-export for user convenience
 
@@ -78,10 +91,12 @@ pub trait App {
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
     /// On web the states is stored to "Local Storage".
-    /// On native the path is picked using [`directories_next::ProjectDirs`](https://docs.rs/directories-next/latest/directories_next/struct.ProjectDirs.html) which is:
-    /// * Linux:   `/home/UserName/.config/appname`
-    /// * macOS:   `/Users/UserName/Library/Application Support/appname`
-    /// * Windows: `C:\Users\UserName\AppData\Roaming\appname`
+    /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
+    /// * Linux:   `/home/UserName/.local/share/APPNAME`
+    /// * macOS:   `/Users/UserName/Library/Application Support/APPNAME`
+    /// * Windows: `C:\Users\UserName\AppData\Roaming\APPNAME`
+    ///
+    /// where `APPNAME` is what is returned by [`Self::name()`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown (before or after `save()`)
@@ -118,12 +133,33 @@ pub trait App {
     /// This is the background of your windows if you don't set a central panel.
     fn clear_color(&self) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
-        egui::Color32::from_rgb(12, 12, 12).into()
+        // We use a bit of transparency so that if the user switches on the
+        // `transparent()` option they get immediate results.
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
 
     /// The application icon, e.g. in the Windows task bar etc.
     fn icon_data(&self) -> Option<IconData> {
         None
+    }
+
+    /// On desktop: add window decorations (i.e. a frame around your app)?
+    /// If false it will be difficult to move and resize the app.
+    fn decorated(&self) -> bool {
+        true
+    }
+
+    /// On desktop: make the window transparent.
+    /// You control the transparency with [`Self::clear_color()`].
+    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
+    fn transparent(&self) -> bool {
+        false
+    }
+
+    /// On Windows: enable drag and drop support.
+    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    fn drag_and_drop_support(&self) -> bool {
+        true
     }
 }
 
@@ -172,10 +208,6 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
-    /// Use [`egui::Context::set_pixels_per_point`] instead
-    #[deprecated = "Use egui::Context::set_pixels_per_point instead"]
-    pub fn set_pixels_per_point(&mut self, _: f32) {}
-
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
@@ -223,6 +255,9 @@ pub struct IntegrationInfo {
 /// How to allocate textures (images) to use in [`egui`].
 pub trait TextureAllocator {
     /// Allocate a new user texture.
+    ///
+    /// There is no way to change a texture.
+    /// Instead allocate a new texture and free the previous one with [`Self::free`].
     fn alloc_srgba_premultiplied(
         &mut self,
         size: (usize, usize),
@@ -268,18 +303,21 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the JSON stored at the given key.
-#[cfg(feature = "serde_json")]
+/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+#[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
         .get_string(key)
-        .and_then(|value| serde_json::from_str(&value).ok())
+        .and_then(|value| ron::from_str(&value).ok())
 }
 
-/// Serialize the given value as JSON and store with the given key.
-#[cfg(feature = "serde_json")]
+/// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
+#[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(key, serde_json::to_string_pretty(value).unwrap());
+    storage.set_string(
+        key,
+        ron::ser::to_string_pretty(value, Default::default()).unwrap(),
+    );
 }
 
 /// [`Storage`] key used for app

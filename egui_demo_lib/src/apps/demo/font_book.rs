@@ -65,11 +65,13 @@ impl super::View for FontBook {
 
         ui.separator();
 
-        egui::combo_box_with_label(ui, "Text style", format!("{:?}", self.text_style), |ui| {
-            for style in egui::TextStyle::all() {
-                ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
-            }
-        });
+        egui::ComboBox::from_label("Text style")
+            .selected_text(format!("{:?}", self.text_style))
+            .show_ui(ui, |ui| {
+                for style in egui::TextStyle::all() {
+                    ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
+                }
+            });
 
         ui.horizontal(|ui| {
             ui.label("Show:");

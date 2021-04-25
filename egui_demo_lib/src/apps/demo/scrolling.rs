@@ -47,7 +47,7 @@ impl super::View for Scrolling {
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific item index:");
             track_item |= ui
-                .add(Slider::usize(&mut self.track_item, 1..=50).text("Track Item"))
+                .add(Slider::new(&mut self.track_item, 1..=50).text("Track Item"))
                 .dragged();
         });
 
@@ -67,7 +67,7 @@ impl super::View for Scrolling {
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific offset:");
             go_to_scroll_offset |= ui
-                .add(DragValue::f32(&mut self.offset).speed(1.0).suffix("px"))
+                .add(DragValue::new(&mut self.offset).speed(1.0).suffix("px"))
                 .dragged();
         });
 

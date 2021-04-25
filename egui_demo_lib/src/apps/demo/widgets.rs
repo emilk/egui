@@ -46,7 +46,10 @@ impl Widgets {
             ui.add(crate::__egui_github_link_file_line!());
         });
 
-        ui.horizontal_wrapped_for_text(TextStyle::Body, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            // Trick so we don't have to add spaces in the text below:
+            ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
+
             ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
@@ -84,11 +87,13 @@ impl Widgets {
                 ui.radio_value(&mut self.radio, Enum::Third, "Third");
             });
 
-            egui::combo_box_with_label(ui, "Combo Box", format!("{:?}", self.radio), |ui| {
-                ui.selectable_value(&mut self.radio, Enum::First, "First");
-                ui.selectable_value(&mut self.radio, Enum::Second, "Second");
-                ui.selectable_value(&mut self.radio, Enum::Third, "Third");
-            });
+            egui::ComboBox::from_label("Combo Box")
+                .selected_text(format!("{:?}", self.radio))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.radio, Enum::First, "First");
+                    ui.selectable_value(&mut self.radio, Enum::Second, "Second");
+                    ui.selectable_value(&mut self.radio, Enum::Third, "Third");
+                });
         });
 
         ui.horizontal(|ui| {
@@ -104,7 +109,7 @@ impl Widgets {
 
         ui.separator();
 
-        ui.horizontal_for_text(TextStyle::Body, |ui| {
+        ui.horizontal(|ui| {
             ui.label("An angle:");
             ui.drag_angle(&mut self.angle);
             ui.label(format!("≈ {:.3}τ", self.angle / std::f32::consts::TAU))
@@ -123,11 +128,20 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label("Single line text input:");
-            let response = ui.text_edit_singleline(&mut self.single_line_text_input);
-            if response.lost_focus() {
-                // The user pressed enter.
+            ui.label("Password:");
+            // We let `egui` store the show/hide password toggle:
+            let show_password_id = Id::new("show_password");
+            let mut show_password: bool = *ui.memory().id_data.get_or_default(show_password_id);
+            let response = ui.add_sized(
+                [140.0, 20.0],
+                egui::TextEdit::singleline(&mut self.single_line_text_input)
+                    .password(!show_password),
+            );
+            if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+                // …
             }
+            ui.checkbox(&mut show_password, "Show password");
+            ui.memory().id_data.insert(show_password_id, show_password);
         });
 
         ui.label("Multiline text input:");

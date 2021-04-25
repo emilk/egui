@@ -134,11 +134,11 @@ impl Frame {
         }
     }
 
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
-        prepared.end(ui);
-        ret
+        let response = prepared.end(ui);
+        InnerResponse::new(ret, response)
     }
 
     pub fn paint(&self, outer_rect: Rect) -> Shape {
@@ -175,7 +175,7 @@ impl Prepared {
         )
     }
 
-    pub fn end(self, ui: &mut Ui) -> Rect {
+    pub fn end(self, ui: &mut Ui) -> Response {
         let outer_rect = self.outer_rect();
 
         let Prepared {
@@ -186,7 +186,6 @@ impl Prepared {
 
         let shape = frame.paint(outer_rect);
         ui.painter().set(where_to_put_background, shape);
-        ui.advance_cursor_after_rect(outer_rect);
-        outer_rect
+        ui.allocate_rect(outer_rect, Sense::hover())
     }
 }

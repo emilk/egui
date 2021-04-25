@@ -1,5 +1,7 @@
 use crate::{window_settings::WindowSettings, *};
 use egui::Color32;
+#[cfg(target_os = "windows")]
+use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
 
 #[cfg(feature = "persistence")]
@@ -55,20 +57,39 @@ impl epi::RepaintSignal for GliumRepaintSignal {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    enable: bool,
+) -> glutin::window::WindowBuilder {
+    window_builder.with_drag_and_drop(enable)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    _enable: bool,
+) -> glutin::window::WindowBuilder {
+    // drag and drop can only be disabled on windows
+    window_builder
+}
+
 fn create_display(
-    title: &str,
-    initial_size_points: Option<Vec2>,
+    app: &dyn epi::App,
     window_settings: Option<WindowSettings>,
-    is_resizable: bool,
     window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_decorations(true)
-        .with_resizable(is_resizable)
-        .with_title(title)
+        .with_decorations(app.decorated())
+        .with_resizable(app.is_resizable())
+        .with_title(app.name())
         .with_window_icon(window_icon)
-        .with_transparent(false);
+        .with_transparent(app.transparent());
+
+    window_builder = window_builder_drag_and_drop(window_builder, app.drag_and_drop_support());
+
+    let initial_size_points = app.initial_window_size();
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
@@ -111,7 +132,7 @@ fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
             None
         } else {
             let mut config_dir = data_dir;
-            config_dir.push("app.json");
+            config_dir.push("app.ron");
             let storage = crate::persistence::FileStorage::from_path(config_dir);
             Some(Box::new(storage))
         }
@@ -149,14 +170,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let icon = load_icon(app.icon_data());
-    let display = create_display(
-        app.name(),
-        app.initial_window_size(),
-        window_settings,
-        app.is_resizable(),
-        icon,
-        &event_loop,
-    );
+    let display = create_display(&*app, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -174,6 +188,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     let mut painter = Painter::new(&display);
     let mut clipboard = init_clipboard();
     let mut current_cursor_icon = CursorIcon::Default;
+
+    let mut is_focused = true;
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
@@ -212,7 +228,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
         set_cursor_icon(&display, egui_output.cursor_icon);
         current_cursor_icon = egui_output.cursor_icon;
-        handle_output(egui_output, clipboard.as_mut());
+        handle_output(egui_output, clipboard.as_mut(), &display);
 
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
@@ -220,6 +236,15 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
+            if !is_focused {
+                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
+                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
+                // But we know if we are focused (in foreground). When minimized, we are not focused.
+                // However, a user may want an egui with an animation in the background,
+                // so we still need to repaint quite fast.
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+
             let pixels_per_point = input_state
                 .raw
                 .pixels_per_point
@@ -280,14 +305,16 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 };
             }
 
-            screen_reader.speak(&egui_output.events_description());
+            if ctx.memory().options.screen_reader {
+                screen_reader.speak(&egui_output.events_description());
+            }
             if current_cursor_icon != egui_output.cursor_icon {
                 // call only when changed to prevent flickering near frame boundary
                 // when Windows OS tries to control cursor icon for window resizing
                 set_cursor_icon(&display, egui_output.cursor_icon);
                 current_cursor_icon = egui_output.cursor_icon;
             }
-            handle_output(egui_output, clipboard.as_mut());
+            handle_output(egui_output, clipboard.as_mut(), &display);
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {
@@ -314,6 +341,10 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
+                if let glutin::event::WindowEvent::Focused(new_focused) = event {
+                    is_focused = new_focused;
+                }
+
                 input_to_egui(
                     ctx.pixels_per_point(),
                     event,

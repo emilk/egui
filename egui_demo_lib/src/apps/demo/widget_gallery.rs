@@ -14,6 +14,7 @@ pub struct WidgetGallery {
     scalar: f32,
     string: String,
     color: egui::Color32,
+    memory_example: String,
 }
 
 impl Default for WidgetGallery {
@@ -25,6 +26,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
+            memory_example: "qwerty_is_bad_password".to_owned(),
         }
     }
 }
@@ -86,6 +88,7 @@ impl WidgetGallery {
             scalar,
             string,
             color,
+            memory_example,
         } = self;
 
         ui.set_enabled(*enabled);
@@ -136,19 +139,22 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Combo box", "combo_box"));
-        egui::combo_box_with_label(ui, "Take your pick", format!("{:?}", radio), |ui| {
-            ui.selectable_value(radio, Enum::First, "First");
-            ui.selectable_value(radio, Enum::Second, "Second");
-            ui.selectable_value(radio, Enum::Third, "Third");
-        });
+
+        egui::ComboBox::from_label("Take your pick")
+            .selected_text(format!("{:?}", radio))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(radio, Enum::First, "First");
+                ui.selectable_value(radio, Enum::Second, "Second");
+                ui.selectable_value(radio, Enum::Third, "Third");
+            });
         ui.end_row();
 
         ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::f32(scalar, 0.0..=360.0).suffix("°"));
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::f32(scalar).speed(1.0));
+        ui.add(egui::DragValue::new(scalar).speed(1.0));
         ui.end_row();
 
         ui.add(doc_link_label("Color picker", "color_edit"));
@@ -176,7 +182,7 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("CollapsingHeader", "collapsing"));
         ui.collapsing("Click to see what is hidden!", |ui| {
-            ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(
                     "Not much, as it turns out - but here is a gold star for you for checking:",
                 );
@@ -198,17 +204,30 @@ impl WidgetGallery {
             This toggle switch is just 15 lines of code.",
         );
         ui.end_row();
+
+        ui.hyperlink_to(
+            "egui::Memory usage:",
+            super::password::url_to_file_source_code(),
+        )
+        .on_hover_text(
+            "You can use `egui::Memory` to store your own data.\n\
+                And state of this widget can be saved and loaded \n\
+                between runs automatically under the `persistence`\n\
+                feature.",
+        );
+        ui.add(super::password::password(memory_example, "memory example"));
+        ui.end_row();
     }
 }
 
 fn example_plot() -> egui::plot::Plot {
-    let n = 512;
+    let n = 128;
     let curve = egui::plot::Curve::from_values_iter((0..=n).map(|i| {
         use std::f64::consts::TAU;
         let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
         egui::plot::Value::new(x, x.sin())
     }));
-    egui::plot::Plot::default()
+    egui::plot::Plot::new("Example Plot")
         .curve(curve)
         .height(32.0)
         .data_aspect(1.0)

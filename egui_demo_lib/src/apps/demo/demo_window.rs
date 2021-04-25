@@ -58,7 +58,7 @@ impl View for DemoWindow {
             .show(ui, |ui| self.tree.ui(ui));
 
         ui.collapsing("Columns", |ui| {
-            ui.add(Slider::usize(&mut self.num_columns, 1..=10).text("Columns"));
+            ui.add(Slider::new(&mut self.num_columns, 1..=10).text("Columns"));
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
                     col.label(format!("Column {} out of {}", i + 1, self.num_columns));
@@ -198,11 +198,11 @@ impl Default for BoxPainting {
 
 impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::f32(&mut self.size.x, 0.0..=500.0).text("width"));
-        ui.add(Slider::f32(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::f32(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
-        ui.add(Slider::f32(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
-        ui.add(Slider::usize(&mut self.num_boxes, 0..=8).text("num_boxes"));
+        ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
+        ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
+        ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
+        ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {

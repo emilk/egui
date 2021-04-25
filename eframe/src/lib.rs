@@ -11,8 +11,11 @@
 //!
 //! `eframe` is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
+#![forbid(unsafe_code)]
 #![warn(clippy::all, missing_docs, rust_2018_idioms)]
 
 pub use {egui, epi};

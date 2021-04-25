@@ -21,6 +21,8 @@ pub struct Button {
     sense: Sense,
     small: bool,
     frame: bool,
+    wrap: Option<bool>,
+    min_size: Vec2,
 }
 
 impl Button {
@@ -33,6 +35,8 @@ impl Button {
             sense: Sense::click(),
             small: false,
             frame: true,
+            wrap: None,
+            min_size: Vec2::ZERO,
         }
     }
 
@@ -86,6 +90,22 @@ impl Button {
         }
         self
     }
+
+    /// If `true`, the text will wrap at the `max_width`.
+    /// By default [`Self::wrap`] will be true in vertical layouts
+    /// and horizontal layouts with wrapping,
+    /// and false on non-wrapping horizontal layouts.
+    ///
+    /// Note that any `\n` in the button text will always produce a new line.
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = Some(wrap);
+        self
+    }
+
+    pub(crate) fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
 }
 
 impl Button {
@@ -98,6 +118,8 @@ impl Button {
             sense,
             small,
             frame,
+            wrap,
+            min_size,
         } = self;
 
         let mut button_padding = ui.spacing().button_padding;
@@ -106,17 +128,19 @@ impl Button {
         }
         let total_extra = button_padding + button_padding;
 
-        let font = &ui.fonts()[text_style];
-        let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
+        let galley = if wrap {
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         }
+        desired_size = desired_size.at_least(min_size);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, &galley.text));
@@ -141,8 +165,7 @@ impl Button {
             let text_color = text_color
                 .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
-            ui.painter()
-                .galley(text_cursor, galley, text_style, text_color);
+            ui.painter().galley(text_cursor, galley, text_color);
         }
 
         response
@@ -210,19 +233,18 @@ impl<'a> Widget for Checkbox<'a> {
             text_color,
         } = self;
 
-        let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
+        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = total_extra + galley.size;
@@ -265,8 +287,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley(text_cursor, galley, text_style, text_color);
+        ui.painter().galley(text_cursor, galley, text_color);
         response
     }
 }
@@ -322,18 +343,17 @@ impl Widget for RadioButton {
             text_color,
         } = self;
 
-        let text_style = TextStyle::Button;
-        let font = &ui.fonts()[text_style];
-
         let icon_width = ui.spacing().icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
+        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
-            font.layout_multiline(text, ui.available_width() - total_extra.x)
+            ui.fonts()
+                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
         } else {
-            font.layout_no_wrap(text)
+            ui.fonts().layout_no_wrap(text_style, text)
         };
 
         let mut desired_size = total_extra + galley.size;
@@ -375,7 +395,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_cursor, galley, text_style, text_color);
+        painter.galley(text_cursor, galley, text_color);
         response
     }
 }

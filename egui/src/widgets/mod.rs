@@ -4,8 +4,6 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { ... }`
 
-#![allow(clippy::new_without_default)]
-
 use crate::*;
 
 mod button;
@@ -48,8 +46,8 @@ pub trait Widget {
 /// pub fn slider_vec2(value: &mut egui::Vec2) -> impl egui::Widget + '_ {
 ///    move |ui: &mut egui::Ui| {
 ///        ui.horizontal(|ui| {
-///            ui.add(egui::Slider::f32(&mut value.x, 0.0..=1.0).text("x"));
-///            ui.add(egui::Slider::f32(&mut value.y, 0.0..=1.0).text("y"));
+///            ui.add(egui::Slider::new(&mut value.x, 0.0..=1.0).text("x"));
+///            ui.add(egui::Slider::new(&mut value.y, 0.0..=1.0).text("y"));
 ///        })
 ///        .response
 ///    }
@@ -83,7 +81,7 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
-        ui.add(DragValue::f32(width).speed(0.1).clamp_range(0.0..=5.0))
+        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
             .on_hover_text("Width");
         ui.color_edit_button_srgba(color);
         ui.label(text);
@@ -101,7 +99,7 @@ pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
     ui.horizontal(|ui| {
         ui.label(text);
         ui.add(
-            DragValue::f32(extrusion)
+            DragValue::new(extrusion)
                 .speed(1.0)
                 .clamp_range(0.0..=100.0),
         )

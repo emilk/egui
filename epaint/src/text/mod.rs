@@ -11,3 +11,6 @@ pub use {
     galley::{Galley, Row},
     text_color_map::TextColorMap,
 };
+
+/// Suggested character to use to replace those in password text fields.
+pub const PASSWORD_REPLACEMENT_CHAR: char = '•';

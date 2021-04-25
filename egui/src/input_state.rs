@@ -24,7 +24,7 @@ pub struct InputState {
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
 
     /// Time in seconds. Relative to whatever. Used for animation.
@@ -33,7 +33,7 @@ pub struct InputState {
     /// Time since last frame, in seconds.
     ///
     /// This can be very unstable in reactive mode (when we don't paint each frame)
-    /// so it can be smart ot use e.g. `unstable_dt.min(1.0 / 30.0)`.
+    /// so it can be smart to use e.g. `unstable_dt.min(1.0 / 30.0)`.
     pub unstable_dt: f32,
 
     /// Used for animations to get instant feedback (avoid frame delay).
@@ -79,7 +79,7 @@ impl InputState {
         let unstable_dt = (time - self.time) as f32;
         let screen_rect = new.screen_rect.unwrap_or_else(|| {
             if new.screen_size != Default::default() {
-                Rect::from_min_size(Default::default(), new.screen_size) // backwards compatability
+                Rect::from_min_size(Default::default(), new.screen_size) // backwards compatibility
             } else {
                 self.screen_rect
             }
@@ -110,6 +110,7 @@ impl InputState {
         }
     }
 
+    #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
         self.screen_rect
     }
@@ -159,18 +160,21 @@ impl InputState {
         })
     }
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
     /// Size of a physical pixel in logical gui coordinates (points).
+    #[inline(always)]
     pub fn physical_pixel_size(&self) -> f32 {
         1.0 / self.pixels_per_point()
     }
 
     /// How imprecise do we expect the mouse/touch input to be?
     /// Returns imprecision in points.
+    #[inline(always)]
     pub fn aim_radius(&self) -> f32 {
         // TODO: multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
@@ -257,8 +261,6 @@ pub struct PointerState {
     /// Used to check for double-clicks.
     last_click_time: f64,
 
-    // /// All clicks that occurred this frame
-    // clicks: Vec<Click>,
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 }
@@ -393,28 +395,33 @@ impl PointerState {
     }
 
     /// How much the pointer moved compared to last frame, in points.
+    #[inline(always)]
     pub fn delta(&self) -> Vec2 {
         self.delta
     }
 
     /// Current velocity of pointer.
+    #[inline(always)]
     pub fn velocity(&self) -> Vec2 {
         self.velocity
     }
 
     /// Where did the current click/drag originate?
     /// `None` if no mouse button is down.
+    #[inline(always)]
     pub fn press_origin(&self) -> Option<Pos2> {
         self.press_origin
     }
 
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
+    #[inline(always)]
     pub(crate) fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
+    #[inline(always)]
     pub fn hover_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
@@ -424,6 +431,7 @@ impl PointerState {
     /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
     /// if there were interactions this frame.
     /// When tapping a touch screen, this will be the location of the touch.
+    #[inline(always)]
     pub fn interact_pos(&self) -> Option<Pos2> {
         self.interact_pos
     }
@@ -431,12 +439,14 @@ impl PointerState {
     /// Do we have a pointer?
     ///
     /// `false` if the mouse is not over the egui area, or if no touches are down on touch screens.
+    #[inline(always)]
     pub fn has_pointer(&self) -> bool {
         self.latest_pos.is_some()
     }
 
     /// Is the pointer currently still?
     /// This is smoothed so a few frames of stillness is required before this returns `true`.
+    #[inline(always)]
     pub fn is_still(&self) -> bool {
         self.velocity == Vec2::ZERO
     }
@@ -482,10 +492,12 @@ impl PointerState {
     // }
 
     /// Is this button currently down?
+    #[inline(always)]
     pub fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
     }
 
+    #[inline(always)]
     pub(crate) fn could_any_button_be_click(&self) -> bool {
         self.could_be_click
     }

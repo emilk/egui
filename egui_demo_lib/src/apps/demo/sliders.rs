@@ -59,21 +59,21 @@ impl super::View for Sliders {
 
         ui.label("You can click a slider value to edit it with the keyboard.");
 
-        let full_range = if *integer {
-            (i32::MIN as f64)..=(i32::MAX as f64)
+        let (type_min, type_max) = if *integer {
+            ((i32::MIN as f64), (i32::MAX as f64))
         } else if *logarithmic {
-            -INFINITY..=INFINITY
+            (-INFINITY, INFINITY)
         } else {
-            -1e5..=1e5 // linear sliders make little sense with huge numbers
+            (-1e5, 1e5) // linear sliders make little sense with huge numbers
         };
 
-        *min = clamp(*min, full_range.clone());
-        *max = clamp(*max, full_range.clone());
+        *min = min.clamp(type_min, type_max);
+        *max = max.clamp(type_min, type_max);
 
         if *integer {
             let mut value_i32 = *value as i32;
             ui.add(
-                Slider::i32(&mut value_i32, (*min as i32)..=(*max as i32))
+                Slider::new(&mut value_i32, (*min as i32)..=(*max as i32))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
@@ -82,7 +82,7 @@ impl super::View for Sliders {
             *value = value_i32 as f64;
         } else {
             ui.add(
-                Slider::f64(value, (*min)..=(*max))
+                Slider::new(value, (*min)..=(*max))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
@@ -102,13 +102,13 @@ impl super::View for Sliders {
         ui.separator();
         ui.label("Slider range:");
         ui.add(
-            Slider::f64(min, full_range.clone())
+            Slider::new(min, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("left"),
         );
         ui.add(
-            Slider::f64(max, full_range)
+            Slider::new(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("right"),
@@ -122,21 +122,21 @@ impl super::View for Sliders {
             ui.radio_value(integer, false, "f64");
         });
         ui.label("(f32, usize etc are also possible)");
-        ui.advance_cursor(8.0);
+        ui.add_space(8.0);
 
         ui.checkbox(logarithmic, "Logarithmic");
         ui.label("Logarithmic sliders are great for when you want to span a huge range, i.e. from zero to a million.");
         ui.label("Logarithmic sliders can include infinity and zero.");
-        ui.advance_cursor(8.0);
+        ui.add_space(8.0);
 
         ui.checkbox(clamp_to_range, "Clamp to range");
         ui.label("If true, the slider will clamp incoming and outgoing values to the given range.");
         ui.label("If false, the slider can shows values outside its range, and you can manually enter values outside the range.");
-        ui.advance_cursor(8.0);
+        ui.add_space(8.0);
 
         ui.checkbox(smart_aim, "Smart Aim");
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
-        ui.advance_cursor(8.0);
+        ui.add_space(8.0);
 
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);

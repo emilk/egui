@@ -8,7 +8,7 @@ use crate::*;
 /// # let ui = &mut egui::Ui::__test();
 /// // These are equivalent:
 /// ui.separator();
-/// ui.add(egui::Separator::new());
+/// ui.add(egui::Separator::default());
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
@@ -16,12 +16,19 @@ pub struct Separator {
     is_horizontal_line: Option<bool>,
 }
 
-impl Separator {
-    pub fn new() -> Self {
+impl Default for Separator {
+    fn default() -> Self {
         Self {
             spacing: 6.0,
             is_horizontal_line: None,
         }
+    }
+}
+
+impl Separator {
+    #[deprecated = "Use Separator::default() instead"]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How much space we take up. The line is painted in the middle of this.

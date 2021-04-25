@@ -1,5 +1,6 @@
 //! Color picker widgets.
 
+use crate::util::Cache;
 use crate::*;
 use epaint::{color::*, *};
 
@@ -290,7 +291,15 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         let HsvaGamma { h, s, v, a: _ } = hsva;
 
-        color_slider_1d(ui, h, |h| HsvaGamma { h, ..opaque }.into());
+        color_slider_1d(ui, h, |h| {
+            HsvaGamma {
+                h,
+                s: 1.0,
+                v: 1.0,
+                a: 1.0,
+            }
+            .into()
+        });
         ui.label("Hue");
         ui.end_row();
 
@@ -339,7 +348,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                     if color_picker_hsva_2d(ui, hsva, alpha) {
                         button_response.mark_changed();
                     }
-                })
+                });
             });
 
         if !button_response.clicked()
@@ -361,7 +370,8 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
     let mut hsva = ui
         .ctx()
         .memory()
-        .color_cache
+        .data_temp
+        .get_or_default::<Cache<Color32, Hsva>>()
         .get(srgba)
         .cloned()
         .unwrap_or_else(|| Hsva::from(*srgba));
@@ -370,7 +380,11 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
 
     *srgba = Color32::from(hsva);
 
-    ui.ctx().memory().color_cache.set(*srgba, hsva);
+    ui.ctx()
+        .memory()
+        .data_temp
+        .get_mut_or_default::<Cache<Color32, Hsva>>()
+        .set(*srgba, hsva);
 
     response
 }

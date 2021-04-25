@@ -25,8 +25,8 @@ pub struct RawInput {
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
 
-    /// Also known as device pixel ratio, > 1 for HDPI screens.
-    /// If text looks blurry on high resolution screens, you probably forgot to set this.
+    /// Also known as device pixel ratio, > 1 for high resolution screens.
+    /// If text looks blurry you probably forgot to set this.
     /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
 
@@ -116,6 +116,13 @@ pub enum Event {
     ///
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
+
+    /// IME composition start.
+    CompositionStart,
+    /// A new IME candidate is being suggested.
+    CompositionUpdate(String),
+    /// IME composition ended with this final result.
+    CompositionEnd(String),
 }
 
 /// Mouse button (or similar for touch input)
@@ -153,12 +160,19 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
+    #[inline(always)]
     pub fn is_none(&self) -> bool {
         self == &Self::default()
     }
 
+    #[inline(always)]
     pub fn any(&self) -> bool {
         !self.is_none()
+    }
+
+    #[inline(always)]
+    pub fn shift_only(&self) -> bool {
+        self.shift && !(self.alt || self.command)
     }
 }
 

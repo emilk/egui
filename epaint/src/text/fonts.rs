@@ -4,9 +4,14 @@ use std::{
     sync::Arc,
 };
 
+use ahash::AHashMap;
+
 use crate::{
     mutex::Mutex,
-    text::font::{Font, FontImpl},
+    text::{
+        font::{Font, FontImpl},
+        Galley,
+    },
     Texture, TextureAtlas,
 };
 
@@ -180,10 +185,18 @@ pub struct Fonts {
     /// Copy of the texture in the texture atlas.
     /// This is so we can return a reference to it (the texture atlas is behind a lock).
     buffered_texture: Mutex<Arc<Texture>>,
+
+    galley_cache: Mutex<GalleyCache>,
 }
 
 impl Fonts {
     pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+        assert!(
+            0.0 < pixels_per_point && pixels_per_point < 100.0,
+            "pixels_per_point out of range: {}",
+            pixels_per_point
+        );
+
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
         let mut atlas = TextureAtlas::new(2048, 64);
@@ -212,7 +225,7 @@ impl Fonts {
                     .map(|font_name| font_impl_cache.font_impl(font_name, scale_in_points))
                     .collect();
 
-                (text_style, Font::new(fonts))
+                (text_style, Font::new(text_style, fonts))
             })
             .collect();
 
@@ -232,15 +245,22 @@ impl Fonts {
             fonts,
             atlas,
             buffered_texture: Default::default(), //atlas.lock().texture().clone();
+            galley_cache: Default::default(),
         }
     }
 
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
     pub fn definitions(&self) -> &FontDefinitions {
         &self.definitions
+    }
+
+    #[inline(always)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
     /// Call each frame to get the latest available font texture data.
@@ -253,13 +273,175 @@ impl Fonts {
 
         buffered_texture.clone()
     }
+
+    /// Width of this character in points.
+    pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
+        self.fonts[&text_style].glyph_width(c)
+    }
+
+    /// Height of one row of text. In points
+    pub fn row_height(&self, text_style: TextStyle) -> f32 {
+        self.fonts[&text_style].row_height()
+    }
+
+    /// Always returns at least one row.
+    /// Will line break at `\n`.
+    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
+        self.layout_multiline(text_style, text, f32::INFINITY)
+    }
+
+    /// Typeset the given text onto one row.
+    /// Any `\n` will show up as the replacement character.
+    /// Always returns exactly one `Row` in the `Galley`.
+    ///
+    /// Most often you probably want `\n` to produce a new row,
+    /// and so [`Self::layout_no_wrap`] may be a better choice.
+    pub fn layout_single_line(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
+        self.galley_cache.lock().layout(
+            &self.fonts,
+            LayoutJob {
+                text_style,
+                text,
+                layout_params: LayoutParams::SingleLine,
+            },
+        )
+    }
+
+    /// Always returns at least one row.
+    /// Will wrap text at the given width.
+    pub fn layout_multiline(
+        &self,
+        text_style: TextStyle,
+        text: String,
+        max_width_in_points: f32,
+    ) -> Arc<Galley> {
+        self.layout_multiline_with_indentation_and_max_width(
+            text_style,
+            text,
+            0.0,
+            max_width_in_points,
+        )
+    }
+
+    /// * `first_row_indentation`: extra space before the very first character (in points).
+    /// * `max_width_in_points`: wrapping width.
+    /// Always returns at least one row.
+    pub fn layout_multiline_with_indentation_and_max_width(
+        &self,
+        text_style: TextStyle,
+        text: String,
+        first_row_indentation: f32,
+        max_width_in_points: f32,
+    ) -> Arc<Galley> {
+        self.galley_cache.lock().layout(
+            &self.fonts,
+            LayoutJob {
+                text_style,
+                text,
+                layout_params: LayoutParams::Multiline {
+                    first_row_indentation: first_row_indentation.into(),
+                    max_width_in_points: max_width_in_points.into(),
+                },
+            },
+        )
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.galley_cache.lock().num_galleys_in_cache()
+    }
+
+    /// Must be called once per frame to clear the [`Galley`] cache.
+    pub fn end_frame(&self) {
+        self.galley_cache.lock().end_frame()
+    }
 }
 
 impl std::ops::Index<TextStyle> for Fonts {
     type Output = Font;
 
+    #[inline(always)]
     fn index(&self, text_style: TextStyle) -> &Font {
         &self.fonts[&text_style]
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+enum LayoutParams {
+    SingleLine,
+    Multiline {
+        first_row_indentation: ordered_float::OrderedFloat<f32>,
+        max_width_in_points: ordered_float::OrderedFloat<f32>,
+    },
+}
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+struct LayoutJob {
+    text_style: TextStyle,
+    layout_params: LayoutParams,
+    text: String,
+}
+
+struct CachedGalley {
+    /// When it was last used
+    last_used: u32,
+    galley: Arc<Galley>,
+}
+
+#[derive(Default)]
+struct GalleyCache {
+    /// Frame counter used to do garbage collection on the cache
+    generation: u32,
+    cache: AHashMap<LayoutJob, CachedGalley>,
+}
+
+impl GalleyCache {
+    fn layout(&mut self, fonts: &BTreeMap<TextStyle, Font>, job: LayoutJob) -> Arc<Galley> {
+        if let Some(cached) = self.cache.get_mut(&job) {
+            cached.last_used = self.generation;
+            cached.galley.clone()
+        } else {
+            let LayoutJob {
+                text_style,
+                layout_params,
+                text,
+            } = job.clone();
+            let font = &fonts[&text_style];
+            let galley = match layout_params {
+                LayoutParams::SingleLine => font.layout_single_line(text),
+                LayoutParams::Multiline {
+                    first_row_indentation,
+                    max_width_in_points,
+                } => font.layout_multiline_with_indentation_and_max_width(
+                    text,
+                    first_row_indentation.into_inner(),
+                    max_width_in_points.into_inner(),
+                ),
+            };
+            let galley = Arc::new(galley);
+            self.cache.insert(
+                job,
+                CachedGalley {
+                    last_used: self.generation,
+                    galley: galley.clone(),
+                },
+            );
+            galley
+        }
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.cache.len()
+    }
+
+    /// Must be called once per frame to clear the [`Galley`] cache.
+    pub fn end_frame(&mut self) {
+        let current_generation = self.generation;
+        self.cache.retain(|_key, cached| {
+            cached.last_used == current_generation // only keep those that were used this frame
+        });
+        self.generation = self.generation.wrapping_add(1);
     }
 }
 
@@ -268,7 +450,7 @@ impl std::ops::Index<TextStyle> for Fonts {
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    rusttype_fonts: std::collections::BTreeMap<String, Arc<rusttype::Font<'static>>>,
+    rusttype_fonts: BTreeMap<String, Arc<rusttype::Font<'static>>>,
 
     /// Map font names and size to the cached `FontImpl`.
     /// Can't have f32 in a HashMap or BTreeMap, so let's do a linear search

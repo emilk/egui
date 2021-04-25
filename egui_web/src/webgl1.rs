@@ -5,7 +5,7 @@ use {
 };
 
 use egui::{
-    emath::{clamp, vec2},
+    emath::vec2,
     epaint::{Color32, Texture},
 };
 
@@ -189,6 +189,7 @@ impl WebGlPainter {
             }
         }
     }
+
     pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
         let id = self.alloc_user_texture_index();
         if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
@@ -200,20 +201,18 @@ impl WebGlPainter {
         }
         egui::TextureId::User(id as u64)
     }
+
     fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
         debug_assert!(mesh.is_valid());
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
         let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
+        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
         for v in &mesh.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
             tex_coords.push(v.uv.x);
             tex_coords.push(v.uv.y);
-        }
-
-        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
-        for v in &mesh.vertices {
             colors.push(v.color[0]);
             colors.push(v.color[1]);
             colors.push(v.color[2]);
@@ -455,10 +454,10 @@ impl crate::Painter for WebGlPainter {
                 let clip_min_y = pixels_per_point * clip_rect.min.y;
                 let clip_max_x = pixels_per_point * clip_rect.max.x;
                 let clip_max_y = pixels_per_point * clip_rect.max.y;
-                let clip_min_x = clamp(clip_min_x, 0.0..=screen_size_pixels.x);
-                let clip_min_y = clamp(clip_min_y, 0.0..=screen_size_pixels.y);
-                let clip_max_x = clamp(clip_max_x, clip_min_x..=screen_size_pixels.x);
-                let clip_max_y = clamp(clip_max_y, clip_min_y..=screen_size_pixels.y);
+                let clip_min_x = clip_min_x.clamp(0.0, screen_size_pixels.x);
+                let clip_min_y = clip_min_y.clamp(0.0, screen_size_pixels.y);
+                let clip_max_x = clip_max_x.clamp(clip_min_x, screen_size_pixels.x);
+                let clip_max_y = clip_max_y.clamp(clip_min_y, screen_size_pixels.y);
                 let clip_min_x = clip_min_x.round() as i32;
                 let clip_min_y = clip_min_y.round() as i32;
                 let clip_max_x = clip_max_x.round() as i32;

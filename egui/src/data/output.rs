@@ -23,6 +23,9 @@ pub struct Output {
 
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
+
+    /// Position of text widgts' cursor
+    pub text_cursor: Option<crate::Pos2>,
 }
 
 impl Output {
@@ -327,7 +330,6 @@ impl WidgetInfo {
 
         // TODO: localization
         let widget_name = match typ {
-            WidgetType::Label => "",
             WidgetType::Hyperlink => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
@@ -340,7 +342,7 @@ impl WidgetInfo {
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
             WidgetType::CollapsingHeader => "collapsing header",
-            WidgetType::Other => "",
+            WidgetType::Label | WidgetType::Other => "",
         };
 
         let mut description = widget_name.to_owned();

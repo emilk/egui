@@ -92,6 +92,7 @@ impl Mesh {
         }
     }
 
+    #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
         debug_assert!(self.texture_id == TextureId::Egui);
         self.vertices.push(Vertex {
@@ -102,6 +103,7 @@ impl Mesh {
     }
 
     /// Add a triangle.
+    #[inline(always)]
     pub fn add_triangle(&mut self, a: u32, b: u32, c: u32) {
         self.indices.push(a);
         self.indices.push(b);
@@ -110,12 +112,14 @@ impl Mesh {
 
     /// Make room for this many additional triangles (will reserve 3x as many indices).
     /// See also `reserve_vertices`.
+    #[inline(always)]
     pub fn reserve_triangles(&mut self, additional_triangles: usize) {
         self.indices.reserve(3 * additional_triangles);
     }
 
     /// Make room for this many additional vertices.
     /// See also `reserve_triangles`.
+    #[inline(always)]
     pub fn reserve_vertices(&mut self, additional: usize) {
         self.vertices.reserve(additional);
     }
@@ -151,6 +155,7 @@ impl Mesh {
     }
 
     /// Uniformly colored rectangle.
+    #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
         debug_assert!(self.texture_id == TextureId::Egui);
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)

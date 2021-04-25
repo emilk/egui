@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.10.0"
+version = "0.11.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2018"
@@ -20,19 +20,23 @@ include = [
 [lib]
 
 [dependencies]
-egui = { version = "0.10.0", path = "../egui" }
-epi = { version = "0.10.0", path = "../epi" }
+egui = { version = "0.11.0", path = "../egui", default-features = false }
+epi = { version = "0.11.0", path = "../epi" }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { version = "0.10.0", path = "../egui_glium" }
+egui_glium = { version = "0.11.0", path = "../egui_glium", default-features = false }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.10.0", path = "../egui_web" }
+egui_web = { version = "0.11.0", path = "../egui_web", default-features = false }
 
 [features]
-default = []
+default = ["default_fonts"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
 http = ["egui_glium/http", "egui_web/http"]
 persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
 screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"] # experimental

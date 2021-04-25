@@ -4,7 +4,7 @@
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
-    easy_mark_editor: crate::apps::EasyMarkEditor,
+    easy_mark_editor: crate::easy_mark::EasyMarkEditor,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
@@ -54,16 +54,17 @@ impl epi::App for WrapApp {
         self.backend_panel.max_size_points_active
     }
 
+    // Let's show off that we support transparent windows (on native):
+    fn transparent(&self) -> bool {
+        true
+    }
+    fn clear_color(&self) -> egui::Rgba {
+        egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
+    }
+
     fn warm_up_enabled(&self) -> bool {
         // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
-        #[cfg(debug_assertions)]
-        {
-            false // debug
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            true // release
-        }
+        cfg!(not(debug_assertions))
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
@@ -285,7 +286,7 @@ impl BackendPanel {
                 "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
                 This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
             ui.label("This is also work in progress, and not ready for production... yet :)");
-            ui.horizontal_wrapped_for_text(egui::TextStyle::Body, |ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label("Project home page:");
                 ui.hyperlink("https://github.com/emilk/egui");
             });
@@ -293,7 +294,7 @@ impl BackendPanel {
             ui.separator();
 
             ui.add(
-                egui::Slider::f32(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
                     .logarithmic(true)
                     .largest_finite(8192.0)
                     .text("Max width"),
@@ -315,10 +316,18 @@ impl BackendPanel {
             }
         }
 
+        let mut screen_reader = ui.ctx().memory().options.screen_reader;
+        ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
+        ui.ctx().memory().options.screen_reader = screen_reader;
+
         ui.collapsing("Output events", |ui| {
             ui.set_max_width(450.0);
-            ui.label("Recent output events from egui:");
-            ui.advance_cursor(8.0);
+            ui.label(
+                "Recent output events from egui. \
+            These are emitted when you switch selected widget with tab, \
+            and can be hooked up to a screen reader on supported platforms.",
+            );
+            ui.add_space(8.0);
             for event in &self.output_event_history {
                 ui.label(format!("{:?}", event));
             }
@@ -342,7 +351,7 @@ impl BackendPanel {
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
             ui.add(
-                egui::Slider::f32(pixels_per_point, 0.5..=5.0)
+                egui::Slider::new(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
                     .text("Scale"),
             )
