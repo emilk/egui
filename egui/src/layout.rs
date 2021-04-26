@@ -98,6 +98,7 @@ pub enum Direction {
 }
 
 impl Direction {
+    #[inline(always)]
     pub fn is_horizontal(self) -> bool {
         match self {
             Direction::LeftToRight | Direction::RightToLeft => true,
@@ -105,6 +106,7 @@ impl Direction {
         }
     }
 
+    #[inline(always)]
     pub fn is_vertical(self) -> bool {
         match self {
             Direction::LeftToRight | Direction::RightToLeft => false,
@@ -161,6 +163,7 @@ impl Default for Layout {
 
 /// ## Constructors
 impl Layout {
+    #[inline(always)]
     pub fn left_to_right() -> Self {
         Self {
             main_dir: Direction::LeftToRight,
@@ -172,6 +175,7 @@ impl Layout {
         }
     }
 
+    #[inline(always)]
     pub fn right_to_left() -> Self {
         Self {
             main_dir: Direction::RightToLeft,
@@ -183,6 +187,7 @@ impl Layout {
         }
     }
 
+    #[inline(always)]
     pub fn top_down(cross_align: Align) -> Self {
         Self {
             main_dir: Direction::TopDown,
@@ -195,10 +200,12 @@ impl Layout {
     }
 
     /// Top-down layout justifed so that buttons etc fill the full available width.
+    #[inline(always)]
     pub fn top_down_justified(cross_align: Align) -> Self {
         Self::top_down(cross_align).with_cross_justify(true)
     }
 
+    #[inline(always)]
     pub fn bottom_up(cross_align: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,
@@ -210,6 +217,7 @@ impl Layout {
         }
     }
 
+    #[inline(always)]
     pub fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
         Self {
             main_dir,
@@ -221,6 +229,7 @@ impl Layout {
         }
     }
 
+    #[inline(always)]
     pub fn centered_and_justified(main_dir: Direction) -> Self {
         Self {
             main_dir,
@@ -242,10 +251,12 @@ impl Layout {
         Self::left_to_right().with_cross_align(cross_align)
     }
 
+    #[inline(always)]
     pub fn with_main_wrap(self, main_wrap: bool) -> Self {
         Self { main_wrap, ..self }
     }
 
+    #[inline(always)]
     pub fn with_cross_align(self, cross_align: Align) -> Self {
         Self {
             cross_align,
@@ -253,6 +264,7 @@ impl Layout {
         }
     }
 
+    #[inline(always)]
     pub fn with_cross_justify(self, cross_justify: bool) -> Self {
         Self {
             cross_justify,
@@ -263,26 +275,32 @@ impl Layout {
 
 /// ## Inspectors
 impl Layout {
+    #[inline(always)]
     pub fn main_dir(&self) -> Direction {
         self.main_dir
     }
 
+    #[inline(always)]
     pub fn main_wrap(&self) -> bool {
         self.main_wrap
     }
 
+    #[inline(always)]
     pub fn cross_align(&self) -> Align {
         self.cross_align
     }
 
+    #[inline(always)]
     pub fn cross_justify(&self) -> bool {
         self.cross_justify
     }
 
+    #[inline(always)]
     pub fn is_horizontal(&self) -> bool {
         self.main_dir().is_horizontal()
     }
 
+    #[inline(always)]
     pub fn is_vertical(&self) -> bool {
         self.main_dir().is_vertical()
     }
@@ -333,7 +351,7 @@ impl Layout {
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
         debug_assert!(size.x >= 0.0 && size.y >= 0.0);
-        debug_assert!(outer.is_non_negative());
+        debug_assert!(!outer.is_negative());
         self.align2().align_size_within_rect(size, outer)
     }
 
@@ -571,7 +589,7 @@ impl Layout {
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, frame: Rect, mut child_size: Vec2) -> Rect {
         debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
-        debug_assert!(frame.is_non_negative());
+        debug_assert!(!frame.is_negative());
 
         if self.horizontal_justify() {
             child_size.x = child_size.x.at_least(frame.width()); // fill full width

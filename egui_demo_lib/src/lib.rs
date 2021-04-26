@@ -58,6 +58,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod apps;
+pub mod easy_mark;
 pub(crate) mod frame_history;
 mod wrap_app;
 

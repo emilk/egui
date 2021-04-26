@@ -61,7 +61,7 @@ pub struct Style {
 ///
 /// # Example:
 /// ```
-/// # use egui::experimental::easy_mark_parser::Parser;
+/// # use egui_demo_lib::easy_mark::parser::Parser;
 /// for item in Parser::new("Hello *world*!") {
 /// }
 ///

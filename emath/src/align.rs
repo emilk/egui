@@ -45,6 +45,7 @@ impl Align {
     }
 
     /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.
+    #[inline(always)]
     pub fn to_factor(&self) -> f32 {
         match self {
             Self::Min => 0.0,
@@ -52,9 +53,20 @@ impl Align {
             Self::Max => 1.0,
         }
     }
+
+    /// Convert `Min => -1.0`, `Center => 0.0` or `Max => 1.0`.
+    #[inline(always)]
+    pub fn to_sign(&self) -> f32 {
+        match self {
+            Self::Min => -1.0,
+            Self::Center => 0.0,
+            Self::Max => 1.0,
+        }
+    }
 }
 
 impl Default for Align {
+    #[inline(always)]
     fn default() -> Align {
         Align::Min
     }
@@ -81,11 +93,19 @@ impl Align2 {
 }
 
 impl Align2 {
+    #[inline(always)]
     pub fn x(self) -> Align {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn y(self) -> Align {
         self.0[1]
+    }
+
+    /// -1, 0, or +1 for each axis
+    pub fn to_sign(&self) -> Vec2 {
+        vec2(self.x().to_sign(), self.y().to_sign())
     }
 
     /// Used e.g. to anchor a piece of text to a part of the rectangle.
@@ -118,6 +138,21 @@ impl Align2 {
         };
 
         Rect::from_min_size(Pos2::new(x, y), size)
+    }
+
+    pub fn pos_in_rect(self, frame: &Rect) -> Pos2 {
+        let x = match self.x() {
+            Align::Min => frame.left(),
+            Align::Center => frame.center().x,
+            Align::Max => frame.right(),
+        };
+        let y = match self.y() {
+            Align::Min => frame.top(),
+            Align::Center => frame.center().y,
+            Align::Max => frame.bottom(),
+        };
+
+        pos2(x, y)
     }
 }
 

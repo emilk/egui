@@ -14,6 +14,7 @@ pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
 pub mod layout_test;
 pub mod painting;
+pub mod password;
 pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;

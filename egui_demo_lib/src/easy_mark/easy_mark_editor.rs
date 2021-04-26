@@ -44,7 +44,7 @@ impl EasyMarkEditor {
             ScrollArea::auto_sized()
                 .id_source("rendered")
                 .show(&mut columns[1], |ui| {
-                    egui::experimental::easy_mark(ui, &self.code);
+                    crate::easy_mark::easy_mark(ui, &self.code);
                 });
         });
     }
