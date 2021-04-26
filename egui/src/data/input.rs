@@ -12,6 +12,12 @@ pub struct RawInput {
     /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
 
+    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    /// * `zoom = 1`: no change (default).
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    pub zoom_delta: f32,
+
     #[deprecated = "Use instead: `screen_rect: Some(Rect::from_pos_size(Default::default(), screen_size))`"]
     pub screen_size: Vec2,
 
@@ -55,6 +61,7 @@ impl Default for RawInput {
         #![allow(deprecated)] // for screen_size
         Self {
             scroll_delta: Vec2::ZERO,
+            zoom_delta: 1.0,
             screen_size: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
@@ -70,8 +77,11 @@ impl RawInput {
     /// Helper: move volatile (deltas and events), clone the rest
     pub fn take(&mut self) -> RawInput {
         #![allow(deprecated)] // for screen_size
+        let zoom = self.zoom_delta;
+        self.zoom_delta = 1.0;
         RawInput {
             scroll_delta: std::mem::take(&mut self.scroll_delta),
+            zoom_delta: zoom,
             screen_size: self.screen_size,
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
@@ -277,6 +287,7 @@ impl RawInput {
         #![allow(deprecated)] // for screen_size
         let Self {
             scroll_delta,
+            zoom_delta,
             screen_size: _,
             screen_rect,
             pixels_per_point,
@@ -287,6 +298,7 @@ impl RawInput {
         } = self;
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
+        ui.label(format!("zoom_delta: {:.3?} x", zoom_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .on_hover_text(

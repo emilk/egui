@@ -13,14 +13,19 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add `Response::request_focus` and `Response::surrender_focus`.
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 * [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
+* Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
 * `Plot` must now be given a name that is unique within its scope.
+* Tab only selects labels if the `screen_reader` option is turned on.
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
 * Fix bug with the layout of wide `DragValue`:s.
+
+### Removed 🔥
+* Moved experimental markup language to `egui_demo_lib`
 
 
 ## 0.11.0 - 2021-04-05 - Optimization, screen reader & new layout logic

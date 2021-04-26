@@ -4,7 +4,7 @@
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
-    easy_mark_editor: crate::apps::EasyMarkEditor,
+    easy_mark_editor: crate::easy_mark::EasyMarkEditor,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,

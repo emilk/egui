@@ -92,30 +92,23 @@ impl Painter {
         self.egui_texture_version = Some(texture.version);
     }
 
-    /// Main entry-point for painting a frame
+    /// Main entry-point for painting a frame.
+    /// You should call `target.clear_color(..)` before
+    /// and `target.finish()` after this.
     pub fn paint_meshes(
         &mut self,
         display: &glium::Display,
+        target: &mut Frame,
         pixels_per_point: f32,
-        clear_color: egui::Rgba,
         cipped_meshes: Vec<egui::ClippedMesh>,
         egui_texture: &egui::Texture,
     ) {
         self.upload_egui_texture(display, egui_texture);
         self.upload_pending_user_textures(display);
 
-        let mut target = display.draw();
-        // Verified to be gamma-correct.
-        target.clear_color(
-            clear_color[0],
-            clear_color[1],
-            clear_color[2],
-            clear_color[3],
-        );
         for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
-            self.paint_mesh(&mut target, display, pixels_per_point, clip_rect, &mesh)
+            self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh)
         }
-        target.finish().unwrap();
     }
 
     #[inline(never)] // Easier profiling

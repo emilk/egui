@@ -45,6 +45,7 @@ impl Align {
     }
 
     /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.
+    #[inline(always)]
     pub fn to_factor(&self) -> f32 {
         match self {
             Self::Min => 0.0,
@@ -54,6 +55,7 @@ impl Align {
     }
 
     /// Convert `Min => -1.0`, `Center => 0.0` or `Max => 1.0`.
+    #[inline(always)]
     pub fn to_sign(&self) -> f32 {
         match self {
             Self::Min => -1.0,
@@ -64,6 +66,7 @@ impl Align {
 }
 
 impl Default for Align {
+    #[inline(always)]
     fn default() -> Align {
         Align::Min
     }
@@ -90,9 +93,12 @@ impl Align2 {
 }
 
 impl Align2 {
+    #[inline(always)]
     pub fn x(self) -> Align {
         self.0[0]
     }
+
+    #[inline(always)]
     pub fn y(self) -> Align {
         self.0[1]
     }

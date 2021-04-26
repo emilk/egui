@@ -1,230 +1,14 @@
 //! Simple plotting library.
 
-#![allow(clippy::comparison_chain)]
+mod items;
+mod transform;
 
-use color::Hsva;
+pub use items::{Curve, Value};
+use items::{HLine, VLine};
+use transform::{Bounds, ScreenTransform};
 
 use crate::*;
-
-// ----------------------------------------------------------------------------
-
-/// A value in the value-space of the plot.
-///
-/// Uses f64 for improved accuracy to enable plotting
-/// large values (e.g. unix time on x axis).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Value {
-    /// This is often something monotonically increasing, such as time, but doesn't have to be.
-    /// Goes from left to right.
-    pub x: f64,
-    /// Goes from bottom to top (inverse of everything else in egui!).
-    pub y: f64,
-}
-
-impl Value {
-    #[inline(always)]
-    pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
-        Self {
-            x: x.into(),
-            y: y.into(),
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// 2D bounding box of f64 precision.
-/// The range of data values we show.
-#[derive(Clone, Copy, PartialEq, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct Bounds {
-    min: [f64; 2],
-    max: [f64; 2],
-}
-
-impl Bounds {
-    pub const NOTHING: Self = Self {
-        min: [f64::INFINITY; 2],
-        max: [-f64::INFINITY; 2],
-    };
-
-    pub fn width(&self) -> f64 {
-        self.max[0] - self.min[0]
-    }
-
-    pub fn height(&self) -> f64 {
-        self.max[1] - self.min[1]
-    }
-
-    pub fn is_finite(&self) -> bool {
-        self.min[0].is_finite()
-            && self.min[1].is_finite()
-            && self.max[0].is_finite()
-            && self.max[1].is_finite()
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.is_finite() && self.width() > 0.0 && self.height() > 0.0
-    }
-
-    pub fn extend_with(&mut self, value: &Value) {
-        self.extend_with_x(value.x);
-        self.extend_with_y(value.y);
-    }
-
-    /// Expand to include the given x coordinate
-    pub fn extend_with_x(&mut self, x: f64) {
-        self.min[0] = self.min[0].min(x);
-        self.max[0] = self.max[0].max(x);
-    }
-
-    /// Expand to include the given y coordinate
-    pub fn extend_with_y(&mut self, y: f64) {
-        self.min[1] = self.min[1].min(y);
-        self.max[1] = self.max[1].max(y);
-    }
-
-    pub fn expand_x(&mut self, pad: f64) {
-        self.min[0] -= pad;
-        self.max[0] += pad;
-    }
-
-    pub fn expand_y(&mut self, pad: f64) {
-        self.min[1] -= pad;
-        self.max[1] += pad;
-    }
-
-    pub fn merge(&mut self, other: &Bounds) {
-        self.min[0] = self.min[0].min(other.min[0]);
-        self.min[1] = self.min[1].min(other.min[1]);
-        self.max[0] = self.max[0].max(other.max[0]);
-        self.max[1] = self.max[1].max(other.max[1]);
-    }
-
-    pub fn translate_x(&mut self, delta: f64) {
-        self.min[0] += delta;
-        self.max[0] += delta;
-    }
-
-    pub fn translate_y(&mut self, delta: f64) {
-        self.min[1] += delta;
-        self.max[1] += delta;
-    }
-
-    pub fn translate(&mut self, delta: Vec2) {
-        self.translate_x(delta.x as f64);
-        self.translate_y(delta.y as f64);
-    }
-
-    pub fn add_relative_margin(&mut self, margin_fraction: Vec2) {
-        let width = self.width();
-        let height = self.height();
-        self.expand_x(margin_fraction.x as f64 * width);
-        self.expand_y(margin_fraction.y as f64 * height);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// A horizontal line in a plot, filling the full width
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct HLine {
-    y: f64,
-    stroke: Stroke,
-}
-
-impl HLine {
-    pub fn new(y: impl Into<f64>, stroke: impl Into<Stroke>) -> Self {
-        Self {
-            y: y.into(),
-            stroke: stroke.into(),
-        }
-    }
-}
-
-/// A vertical line in a plot, filling the full width
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct VLine {
-    x: f64,
-    stroke: Stroke,
-}
-
-impl VLine {
-    pub fn new(x: impl Into<f64>, stroke: impl Into<Stroke>) -> Self {
-        Self {
-            x: x.into(),
-            stroke: stroke.into(),
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// A series of values forming a path.
-#[derive(Clone, PartialEq)]
-pub struct Curve {
-    values: Vec<Value>,
-    bounds: Bounds,
-    stroke: Stroke,
-    name: String,
-}
-
-impl Curve {
-    pub fn from_values(values: Vec<Value>) -> Self {
-        let mut bounds = Bounds::NOTHING;
-        for value in &values {
-            bounds.extend_with(value);
-        }
-        Self {
-            values,
-            bounds,
-            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
-            name: Default::default(),
-        }
-    }
-
-    pub fn from_values_iter(iter: impl Iterator<Item = Value>) -> Self {
-        Self::from_values(iter.collect())
-    }
-
-    /// From a series of y-values.
-    /// The x-values will be the indices of these values
-    pub fn from_ys_f32(ys: &[f32]) -> Self {
-        let values: Vec<Value> = ys
-            .iter()
-            .enumerate()
-            .map(|(i, &y)| Value {
-                x: i as f64,
-                y: y as f64,
-            })
-            .collect();
-        Self::from_values(values)
-    }
-
-    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
-        self.stroke = stroke.into();
-        self
-    }
-
-    /// Stroke width. A high value means the plot thickens.
-    pub fn width(mut self, width: f32) -> Self {
-        self.stroke.width = width;
-        self
-    }
-
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
-        self.stroke.color = color.into();
-        self
-    }
-
-    /// Name of this curve.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
-        self
-    }
-}
+use color::Hsva;
 
 // ----------------------------------------------------------------------------
 
@@ -254,7 +38,6 @@ struct PlotMemory {
 ///     Plot::new("Test Plot").curve(curve).view_aspect(2.0)
 /// );
 /// ```
-#[derive(Clone, PartialEq)]
 pub struct Plot {
     name: String,
     next_auto_color_idx: usize,
@@ -263,8 +46,11 @@ pub struct Plot {
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
 
-    symmetrical_x_bounds: bool,
-    symmetrical_y_bounds: bool,
+    center_x_axis: bool,
+    center_y_axis: bool,
+    allow_zoom: bool,
+    allow_drag: bool,
+    min_auto_bounds: Bounds,
     margin_fraction: Vec2,
 
     min_size: Vec2,
@@ -272,8 +58,6 @@ pub struct Plot {
     height: Option<f32>,
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
-
-    min_auto_bounds: Bounds,
 
     show_x: bool,
     show_y: bool,
@@ -290,8 +74,11 @@ impl Plot {
             hlines: Default::default(),
             vlines: Default::default(),
 
-            symmetrical_x_bounds: false,
-            symmetrical_y_bounds: false,
+            center_x_axis: false,
+            center_y_axis: false,
+            allow_zoom: true,
+            allow_drag: true,
+            min_auto_bounds: Bounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
 
             min_size: Vec2::splat(64.0),
@@ -299,8 +86,6 @@ impl Plot {
             height: None,
             data_aspect: None,
             view_aspect: None,
-
-            min_auto_bounds: Bounds::NOTHING,
 
             show_x: true,
             show_y: true,
@@ -320,7 +105,7 @@ impl Plot {
     /// Add a data curve.
     /// You can add multiple curves.
     pub fn curve(mut self, mut curve: Curve) -> Self {
-        if !curve.values.is_empty() {
+        if !curve.no_data() {
             self.auto_color(&mut curve.stroke.color);
             self.curves.push(curve);
         }
@@ -345,35 +130,10 @@ impl Plot {
         self
     }
 
-    /// If true, the x-bounds will be symmetrical, so that the x=0 zero line
-    /// is always in the center.
-    pub fn symmetrical_x_bounds(mut self, symmetrical_x_bounds: bool) -> Self {
-        self.symmetrical_x_bounds = symmetrical_x_bounds;
-        self
-    }
-
-    /// If true, the y-bounds will be symmetrical, so that the y=0 zero line
-    /// is always in the center.
-    pub fn symmetrical_y_bounds(mut self, symmetrical_y_bounds: bool) -> Self {
-        self.symmetrical_y_bounds = symmetrical_y_bounds;
-        self
-    }
-
-    /// Expand bounds to include the given x value.
-    pub fn include_x(mut self, x: impl Into<f64>) -> Self {
-        self.min_auto_bounds.extend_with_x(x.into());
-        self
-    }
-
-    /// Expand bounds to include the given y value.
-    /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
-    pub fn include_y(mut self, y: impl Into<f64>) -> Self {
-        self.min_auto_bounds.extend_with_y(y.into());
-        self
-    }
-
     /// width / height ratio of the data.
-    /// For instance, it can be useful to set this to `1.0` for when the two axes show the same unit.
+    /// For instance, it can be useful to set this to `1.0` for when the two axes show the same
+    /// unit.
+    /// By default the plot window's aspect ratio is used.
     pub fn data_aspect(mut self, data_aspect: f32) -> Self {
         self.data_aspect = Some(data_aspect);
         self
@@ -419,6 +179,56 @@ impl Plot {
         self.show_y = show_y;
         self
     }
+
+    #[deprecated = "Renamed center_x_axis"]
+    pub fn symmetrical_x_axis(mut self, on: bool) -> Self {
+        self.center_x_axis = on;
+        self
+    }
+
+    #[deprecated = "Renamed center_y_axis"]
+    pub fn symmetrical_y_axis(mut self, on: bool) -> Self {
+        self.center_y_axis = on;
+        self
+    }
+
+    /// Always keep the x-axis centered. Default: `false`.
+    pub fn center_x_axis(mut self, on: bool) -> Self {
+        self.center_x_axis = on;
+        self
+    }
+
+    /// Always keep the y-axis centered. Default: `false`.
+    pub fn center_y_axis(mut self, on: bool) -> Self {
+        self.center_y_axis = on;
+        self
+    }
+
+    /// Whether to allow zooming in the plot. Default: `true`.
+    pub fn allow_zoom(mut self, on: bool) -> Self {
+        self.allow_zoom = on;
+        self
+    }
+
+    /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
+    pub fn allow_drag(mut self, on: bool) -> Self {
+        self.allow_drag = on;
+        self
+    }
+
+    /// Expand bounds to include the given x value.
+    /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
+    pub fn include_x(mut self, x: impl Into<f64>) -> Self {
+        self.min_auto_bounds.extend_with_x(x.into());
+        self
+    }
+
+    /// Expand bounds to include the given y value.
+    /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
+    pub fn include_y(mut self, y: impl Into<f64>) -> Self {
+        self.min_auto_bounds.extend_with_y(y.into());
+        self
+    }
 }
 
 impl Widget for Plot {
@@ -426,11 +236,14 @@ impl Widget for Plot {
         let Self {
             name,
             next_auto_color_idx: _,
-            curves,
+            mut curves,
             hlines,
             vlines,
-            symmetrical_x_bounds,
-            symmetrical_y_bounds,
+            center_x_axis,
+            center_y_axis,
+            allow_zoom,
+            allow_drag,
+            min_auto_bounds,
             margin_fraction,
             width,
             height,
@@ -439,7 +252,6 @@ impl Widget for Plot {
             view_aspect,
             show_x,
             show_y,
-            min_auto_bounds,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
@@ -480,42 +292,7 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
-        auto_bounds |= response.double_clicked_by(PointerButton::Primary);
-
-        if auto_bounds || !bounds.is_valid() {
-            bounds = min_auto_bounds;
-            hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
-            vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
-            curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
-            bounds.add_relative_margin(margin_fraction);
-        }
-
-        if symmetrical_x_bounds {
-            let x_abs = bounds.min[0].abs().max(bounds.max[0].abs());
-            bounds.min[0] = -x_abs;
-            bounds.max[0] = x_abs;
-        };
-        if symmetrical_y_bounds {
-            let y_abs = bounds.min[1].abs().max(bounds.max[1].abs());
-            bounds.min[1] = -y_abs;
-            bounds.max[1] = y_abs;
-        };
-
-        if let Some(data_aspect) = data_aspect {
-            let data_aspect = data_aspect as f64;
-            let rw = rect.width() as f64;
-            let rh = rect.height() as f64;
-            let current_data_aspect = (bounds.width() / rw) / (bounds.height() / rh);
-
-            let epsilon = 1e-5;
-            if current_data_aspect < data_aspect - epsilon {
-                bounds.expand_x((data_aspect / current_data_aspect - 1.0) * bounds.width() * 0.5);
-            } else if current_data_aspect > data_aspect + epsilon {
-                bounds.expand_y((current_data_aspect / data_aspect - 1.0) * bounds.height() * 0.5);
-            }
-        }
-
-        // Background:
+        // Background
         ui.painter().add(Shape::Rect {
             rect,
             corner_radius: 2.0,
@@ -523,127 +300,83 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
-        if bounds.is_valid() {
-            let mut transform = ScreenTransform { bounds, rect };
-            if response.dragged_by(PointerButton::Primary) {
-                transform.shift_bounds(-response.drag_delta());
-                auto_bounds = false;
-            }
+        auto_bounds |= response.double_clicked_by(PointerButton::Primary);
+
+        // Set bounds automatically based on content.
+        if auto_bounds || !bounds.is_valid() {
+            bounds = min_auto_bounds;
+            hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
+            vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
+            curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
+            bounds.add_relative_margin(margin_fraction);
+        }
+        // Make sure they are not empty.
+        if !bounds.is_valid() {
+            bounds = Bounds::new_symmetrical(1.0);
+        }
+
+        // Scale axes so that the origin is in the center.
+        if center_x_axis {
+            bounds.make_x_symmetrical();
+        };
+        if center_y_axis {
+            bounds.make_y_symmetrical()
+        };
+
+        let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
+
+        // Enforce equal aspect ratio.
+        if let Some(data_aspect) = data_aspect {
+            transform.set_aspect(data_aspect as f64);
+        }
+
+        // Dragging
+        if allow_drag && response.dragged_by(PointerButton::Primary) {
+            transform.translate_bounds(-response.drag_delta());
+            auto_bounds = false;
+        }
+
+        // Zooming
+        if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
-                let scroll_delta = ui.input().scroll_delta[1];
-                if scroll_delta != 0. {
-                    transform.zoom(-0.01 * scroll_delta, hover_pos);
+                let zoom_factor = ui.input().zoom_delta();
+                #[allow(clippy::float_cmp)]
+                if zoom_factor != 1.0 {
+                    transform.zoom(zoom_factor, hover_pos);
+                    auto_bounds = false;
+                }
+                let scroll_delta = ui.input().scroll_delta;
+                if scroll_delta != Vec2::ZERO {
+                    transform.translate_bounds(-scroll_delta);
                     auto_bounds = false;
                 }
             }
-
-            ui.memory().id_data.insert(
-                plot_id,
-                PlotMemory {
-                    bounds: *transform.bounds(),
-                    auto_bounds,
-                },
-            );
-
-            let prepared = Prepared {
-                curves,
-                hlines,
-                vlines,
-                show_x,
-                show_y,
-                transform,
-            };
-            prepared.ui(ui, &response);
         }
 
+        // Initialize values from functions.
+        curves
+            .iter_mut()
+            .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
+
+        ui.memory().id_data.insert(
+            plot_id,
+            PlotMemory {
+                bounds: *transform.bounds(),
+                auto_bounds,
+            },
+        );
+
+        let prepared = Prepared {
+            curves,
+            hlines,
+            vlines,
+            show_x,
+            show_y,
+            transform,
+        };
+        prepared.ui(ui, &response);
+
         response.on_hover_cursor(CursorIcon::Crosshair)
-    }
-}
-
-/// Contains the screen rectangle and the plot bounds and provides methods to transform them.
-struct ScreenTransform {
-    /// The screen rectangle.
-    rect: Rect,
-    /// The plot bounds.
-    bounds: Bounds,
-}
-
-impl ScreenTransform {
-    fn rect(&self) -> &Rect {
-        &self.rect
-    }
-
-    fn bounds(&self) -> &Bounds {
-        &self.bounds
-    }
-
-    fn shift_bounds(&mut self, mut delta_pos: Vec2) {
-        delta_pos.x *= self.dvalue_dpos()[0] as f32;
-        delta_pos.y *= self.dvalue_dpos()[1] as f32;
-        self.bounds.translate(delta_pos);
-    }
-
-    /// Zoom by a relative amount with the given screen position as center.
-    fn zoom(&mut self, delta: f32, center: Pos2) {
-        let delta = delta.clamp(-1., 1.);
-        let rect_width = self.rect.width();
-        let rect_height = self.rect.height();
-        let bounds_width = self.bounds.width() as f32;
-        let bounds_height = self.bounds.height() as f32;
-        let t_x = (center.x - self.rect.min[0]) / rect_width;
-        let t_y = (self.rect.max[1] - center.y) / rect_height;
-        self.bounds.min[0] -= ((t_x * delta) * bounds_width) as f64;
-        self.bounds.min[1] -= ((t_y * delta) * bounds_height) as f64;
-        self.bounds.max[0] += (((1. - t_x) * delta) * bounds_width) as f64;
-        self.bounds.max[1] += (((1. - t_y) * delta) * bounds_height) as f64;
-    }
-
-    fn position_from_value(&self, value: &Value) -> Pos2 {
-        let x = remap(
-            value.x,
-            self.bounds.min[0]..=self.bounds.max[0],
-            (self.rect.left() as f64)..=(self.rect.right() as f64),
-        );
-        let y = remap(
-            value.y,
-            self.bounds.min[1]..=self.bounds.max[1],
-            (self.rect.bottom() as f64)..=(self.rect.top() as f64), // negated y axis!
-        );
-        pos2(x as f32, y as f32)
-    }
-
-    fn value_from_position(&self, pos: Pos2) -> Value {
-        let x = remap(
-            pos.x as f64,
-            (self.rect.left() as f64)..=(self.rect.right() as f64),
-            self.bounds.min[0]..=self.bounds.max[0],
-        );
-        let y = remap(
-            pos.y as f64,
-            (self.rect.bottom() as f64)..=(self.rect.top() as f64), // negated y axis!
-            self.bounds.min[1]..=self.bounds.max[1],
-        );
-        Value::new(x, y)
-    }
-
-    /// delta position / delta value
-    fn dpos_dvalue_x(&self) -> f64 {
-        self.rect.width() as f64 / self.bounds.width()
-    }
-
-    /// delta position / delta value
-    fn dpos_dvalue_y(&self) -> f64 {
-        -self.rect.height() as f64 / self.bounds.height() // negated y axis!
-    }
-
-    /// delta position / delta value
-    fn dpos_dvalue(&self) -> [f64; 2] {
-        [self.dpos_dvalue_x(), self.dpos_dvalue_y()]
-    }
-
-    /// delta value / delta position
-    fn dvalue_dpos(&self) -> [f64; 2] {
-        [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 }
 
@@ -706,7 +439,7 @@ impl Prepared {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        ui.painter().sub_region(*transform.rect()).extend(shapes);
+        ui.painter().sub_region(*transform.frame()).extend(shapes);
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -763,8 +496,8 @@ impl Prepared {
                     pos_in_gui[axis] += step_size_in_points * (i as f32) / (n as f32);
                     let mut p0 = pos_in_gui;
                     let mut p1 = pos_in_gui;
-                    p0[1 - axis] = transform.rect.min[1 - axis];
-                    p1[1 - axis] = transform.rect.max[1 - axis];
+                    p0[1 - axis] = transform.frame().min[1 - axis];
+                    p1[1 - axis] = transform.frame().max[1 - axis];
                     shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, color)));
                 }
             }
@@ -777,8 +510,8 @@ impl Prepared {
 
             // Make sure we see the labels, even if the axis is off-screen:
             text_pos[1 - axis] = text_pos[1 - axis]
-                .at_most(transform.rect.max[1 - axis] - galley.size[1 - axis] - 2.0)
-                .at_least(transform.rect.min[1 - axis] + 1.0);
+                .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                .at_least(transform.frame().min[1 - axis] + 1.0);
 
             shapes.push(Shape::Text {
                 pos: text_pos,
@@ -825,7 +558,7 @@ impl Prepared {
             }
         }
 
-        let line_color = line_color(ui, Strength::Strong);
+        let line_color = line_color(ui, Strength::Middle);
 
         let value = if let Some(value) = closest_value {
             let position = transform.position_from_value(value);
@@ -836,7 +569,7 @@ impl Prepared {
         };
         let pointer = transform.position_from_value(&value);
 
-        let rect = transform.rect();
+        let rect = transform.frame();
 
         if *show_x {
             // vertical line
