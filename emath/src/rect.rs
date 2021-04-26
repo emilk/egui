@@ -297,23 +297,31 @@ impl Rect {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
 
-    /// `max.x < min.x` or `max.y < min.y`.
+    /// `width < 0 || height < 0`
     #[inline(always)]
     pub fn is_negative(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
     }
 
-    /// `min.x <= max.x && min.y <= max.y`.
+    #[deprecated = "Use !is_negative() instead"]
     pub fn is_non_negative(&self) -> bool {
-        self.min.x <= self.max.x && self.min.y <= self.max.y
+        !self.is_negative()
+    }
+
+    /// `width > 0 && height > 0`
+    #[inline(always)]
+    pub fn is_positive(&self) -> bool {
+        self.min.x < self.max.x && self.min.y < self.max.y
     }
 
     /// True if all members are also finite.
+    #[inline(always)]
     pub fn is_finite(&self) -> bool {
         self.min.is_finite() && self.max.is_finite()
     }
 
     /// True if any member is NaN.
+    #[inline(always)]
     pub fn any_nan(self) -> bool {
         self.min.any_nan() || self.max.any_nan()
     }

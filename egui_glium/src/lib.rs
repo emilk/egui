@@ -1,11 +1,15 @@
 //! [`egui`] bindings for [`glium`](https://github.com/glium/glium).
 //!
-//! This library is an [`epi`] backend.
+//! The main type you want to use is [`EguiGlium`].
 //!
+//! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
+#![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 #![allow(clippy::manual_range_contains, clippy::single_match)]
 
@@ -159,15 +163,26 @@ pub fn input_to_egui(
             }
         }
         WindowEvent::MouseWheel { delta, .. } => {
-            match delta {
+            let mut delta = match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
-                    let line_height = 24.0; // TODO
-                    input_state.raw.scroll_delta = vec2(x, y) * line_height;
+                    let line_height = 8.0; // magic value!
+                    vec2(x, y) * line_height
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
-                    // Actually point delta
-                    input_state.raw.scroll_delta = vec2(delta.x as f32, delta.y as f32);
+                    vec2(delta.x as f32, delta.y as f32) / pixels_per_point
                 }
+            };
+            if cfg!(target_os = "macos") {
+                // This is still buggy in winit despite
+                // https://github.com/rust-windowing/winit/issues/1695 being closed
+                delta.x *= -1.0;
+            }
+
+            if input_state.raw.modifiers.ctrl {
+                // Treat as zoom instead:
+                input_state.raw.zoom_delta *= (delta.y / 200.0).exp();
+            } else {
+                input_state.raw.scroll_delta += delta;
             }
         }
         _ => {
@@ -363,4 +378,111 @@ pub fn screen_size_in_pixels(display: &glium::Display) -> Vec2 {
 
 pub fn native_pixels_per_point(display: &glium::Display) -> f32 {
     display.gl_window().window().scale_factor() as f32
+}
+
+// ----------------------------------------------------------------------------
+
+/// Use [`egui`] from a [`glium`] app.
+pub struct EguiGlium {
+    egui_ctx: egui::CtxRef,
+    start_time: std::time::Instant,
+    clipboard: Option<crate::ClipboardContext>,
+    input_state: crate::GliumInputState,
+    painter: crate::Painter,
+    current_cursor_icon: egui::CursorIcon,
+    screen_reader: crate::screen_reader::ScreenReader,
+}
+
+impl EguiGlium {
+    pub fn new(display: &glium::Display) -> Self {
+        Self {
+            egui_ctx: Default::default(),
+            start_time: std::time::Instant::now(),
+            clipboard: crate::init_clipboard(),
+            input_state: crate::GliumInputState::from_pixels_per_point(
+                crate::native_pixels_per_point(display),
+            ),
+            painter: crate::Painter::new(display),
+            current_cursor_icon: egui::CursorIcon::Default,
+            screen_reader: crate::screen_reader::ScreenReader::default(),
+        }
+    }
+
+    pub fn ctx(&self) -> &egui::CtxRef {
+        &self.egui_ctx
+    }
+
+    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
+        (&self.egui_ctx, &mut self.painter)
+    }
+
+    pub fn on_event(
+        &mut self,
+        event: glium::glutin::event::WindowEvent<'_>,
+        control_flow: &mut glium::glutin::event_loop::ControlFlow,
+    ) {
+        crate::input_to_egui(
+            self.egui_ctx.pixels_per_point(),
+            event,
+            self.clipboard.as_mut(),
+            &mut self.input_state,
+            control_flow,
+        );
+    }
+
+    pub fn begin_frame(&mut self, display: &glium::Display) {
+        let pixels_per_point = self
+            .input_state
+            .raw
+            .pixels_per_point
+            .unwrap_or_else(|| self.egui_ctx.pixels_per_point());
+
+        self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
+        self.input_state.raw.screen_rect = Some(Rect::from_min_size(
+            Default::default(),
+            screen_size_in_pixels(&display) / pixels_per_point,
+        ));
+
+        self.egui_ctx.begin_frame(self.input_state.raw.take());
+    }
+
+    /// Returns `needs_repaint` and shapes to draw.
+    pub fn end_frame(
+        &mut self,
+        display: &glium::Display,
+    ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+        let (egui_output, shapes) = self.egui_ctx.end_frame();
+
+        if self.egui_ctx.memory().options.screen_reader {
+            self.screen_reader.speak(&egui_output.events_description());
+        }
+        if self.current_cursor_icon != egui_output.cursor_icon {
+            // call only when changed to prevent flickering near frame boundary
+            // when Windows OS tries to control cursor icon for window resizing
+            set_cursor_icon(display, egui_output.cursor_icon);
+            self.current_cursor_icon = egui_output.cursor_icon;
+        }
+
+        let needs_repaint = egui_output.needs_repaint;
+
+        handle_output(egui_output, self.clipboard.as_mut(), display);
+
+        (needs_repaint, shapes)
+    }
+
+    pub fn paint(
+        &mut self,
+        display: &glium::Display,
+        target: &mut glium::Frame,
+        shapes: Vec<egui::epaint::ClippedShape>,
+    ) {
+        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        self.painter.paint_meshes(
+            display,
+            target,
+            self.egui_ctx.pixels_per_point(),
+            clipped_meshes,
+            &self.egui_ctx.texture(),
+        );
+    }
 }

@@ -4,8 +4,11 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
+#![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 
 pub mod backend;
@@ -954,8 +957,26 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.input.raw.scroll_delta.x -= event.delta_x() as f32;
-            runner_lock.input.raw.scroll_delta.y -= event.delta_y() as f32;
+
+            let scroll_multiplier = match event.delta_mode() {
+                web_sys::WheelEvent::DOM_DELTA_PAGE => {
+                    canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
+                }
+                web_sys::WheelEvent::DOM_DELTA_LINE => {
+                    8.0 // magic value!
+                }
+                _ => 1.0,
+            };
+
+            let delta = -scroll_multiplier
+                * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
+
+            if event.ctrl_key() {
+                runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
+            } else {
+                runner_lock.input.raw.scroll_delta += delta;
+            }
+
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();

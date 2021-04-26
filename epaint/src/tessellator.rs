@@ -742,6 +742,10 @@ pub fn tessellate_shapes(
     let mut clipped_meshes: Vec<ClippedMesh> = Vec::default();
 
     for ClippedShape(clip_rect, shape) in shapes {
+        if !clip_rect.is_positive() {
+            continue; // skip empty clip rectangles
+        }
+
         let start_new_mesh = match clipped_meshes.last() {
             None => true,
             Some(cm) => cm.0 != clip_rect || cm.1.texture_id != shape.texture_id(),

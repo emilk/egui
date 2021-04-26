@@ -7,6 +7,9 @@
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -152,6 +155,12 @@ pub trait App {
     fn transparent(&self) -> bool {
         false
     }
+
+    /// On Windows: enable drag and drop support.
+    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    fn drag_and_drop_support(&self) -> bool {
+        true
+    }
 }
 
 /// Image data for the icon.
@@ -294,7 +303,7 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the [RON](https://github.com/ron-rs/ron] stored at the given key.
+/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
@@ -302,7 +311,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
         .and_then(|value| ron::from_str(&value).ok())
 }
 
-/// Serialize the given value as [RON](https://github.com/ron-rs/ron] and store with the given key.
+/// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
     storage.set_string(

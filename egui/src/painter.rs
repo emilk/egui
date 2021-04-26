@@ -83,43 +83,51 @@ impl Painter {
 
 /// ## Accessors etc
 impl Painter {
+    #[inline(always)]
     pub(crate) fn ctx(&self) -> &CtxRef {
         &self.ctx
     }
 
     /// Available fonts
+    #[inline(always)]
     pub(crate) fn fonts(&self) -> &Fonts {
         self.ctx.fonts()
     }
 
     /// Where we paint
+    #[inline(always)]
     pub fn layer_id(&self) -> LayerId {
         self.layer_id
     }
 
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
+    #[inline(always)]
     pub fn clip_rect(&self) -> Rect {
         self.clip_rect
     }
 
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
+    #[inline(always)]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel(point)
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline(always)]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         self.ctx().round_vec_to_pixels(vec)
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline(always)]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)
     }

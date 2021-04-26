@@ -237,6 +237,9 @@
 //! ```
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
+#![deny(broken_intra_doc_links)]
+#![deny(invalid_codeblock_attributes)]
+#![deny(private_intra_doc_links)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -293,7 +296,6 @@ pub mod any;
 pub mod containers;
 mod context;
 mod data;
-pub mod experimental;
 mod frame_state;
 pub(crate) mod grid;
 mod id;

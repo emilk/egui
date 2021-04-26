@@ -122,6 +122,22 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set anchor and distance.
+    ///
+    /// An anchor of `Align2::RIGHT_TOP` means "put the right-top corner of the window
+    /// in the right-top corner of the screen".
+    ///
+    /// The offset is added to the position, so e.g. an offset of `[-5.0, 5.0]`
+    /// would move the window left and down from the given anchor.
+    ///
+    /// Anchoring also makes the window immovable.
+    ///
+    /// It is an error to set both an anchor and a position.
+    pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
+        self.area = self.area.anchor(align, offset);
+        self
+    }
+
     /// Set initial size of the window.
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.default_size(default_size);
@@ -249,12 +265,9 @@ impl<'open> Window<'open> {
         let resize_id = area_id.with("resize");
         let collapsing_id = area_id.with("collapsing");
 
-        let is_maximized = !with_title_bar
-            || collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
-        let possible = PossibleInteractions {
-            movable: area.is_enabled() && area.is_movable(),
-            resizable: area.is_enabled() && resize.is_resizable() && is_maximized,
-        };
+        let is_collapsed = with_title_bar
+            && !collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
+        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
         let area = area.movable(false); // We move it manually
         let resize = resize.resizable(false); // We move it manually
@@ -266,7 +279,7 @@ impl<'open> Window<'open> {
 
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
-        let interaction = if possible.movable || possible.resizable {
+        let interaction = if possible.movable || possible.resizable() {
             window_interaction(
                 ctx,
                 possible,
@@ -345,10 +358,7 @@ impl<'open> Window<'open> {
                 .map(|ir| ir.response);
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-
-            if possible.resizable {
-                paint_resize_corner(&mut area_content_ui, outer_rect, frame_stroke);
-            }
+            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
 
@@ -392,12 +402,28 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, stroke: Stroke) {
+fn paint_resize_corner(
+    ui: &mut Ui,
+    possible: &PossibleInteractions,
+    outer_rect: Rect,
+    stroke: Stroke,
+) {
+    let corner = if possible.resize_right && possible.resize_bottom {
+        Align2::RIGHT_BOTTOM
+    } else if possible.resize_left && possible.resize_bottom {
+        Align2::LEFT_BOTTOM
+    } else if possible.resize_left && possible.resize_top {
+        Align2::LEFT_TOP
+    } else if possible.resize_right && possible.resize_top {
+        Align2::RIGHT_TOP
+    } else {
+        return;
+    };
+
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
-    let handle_offset = -Vec2::splat(2.0);
-    let corner_rect =
-        Rect::from_min_size(outer_rect.max - corner_size + handle_offset, corner_size);
-    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke);
+    let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
+    let corner_rect = corner_rect.translate(-2.0 * corner.to_sign()); // move away from corner
+    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke, corner);
 }
 
 // ----------------------------------------------------------------------------
@@ -405,7 +431,30 @@ fn paint_resize_corner(ui: &mut Ui, outer_rect: Rect, stroke: Stroke) {
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
     movable: bool,
-    resizable: bool,
+    // Which sized can we drag to resize?
+    resize_left: bool,
+    resize_right: bool,
+    resize_top: bool,
+    resize_bottom: bool,
+}
+
+impl PossibleInteractions {
+    fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
+        let movable = area.is_enabled() && area.is_movable();
+        let resizable = area.is_enabled() && resize.is_resizable() && !is_collapsed;
+        let pivot = area.get_pivot();
+        Self {
+            movable,
+            resize_left: resizable && (movable || pivot.x() != Align::LEFT),
+            resize_right: resizable && (movable || pivot.x() != Align::RIGHT),
+            resize_top: resizable && (movable || pivot.y() != Align::TOP),
+            resize_bottom: resizable && (movable || pivot.y() != Align::BOTTOM),
+        }
+    }
+
+    pub fn resizable(&self) -> bool {
+        self.resize_left || self.resize_right || self.resize_top || self.resize_bottom
+    }
 }
 
 /// Either a move or resize
@@ -551,13 +600,13 @@ fn resize_hover(
     area_layer_id: LayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    let pointer_pos = ctx.input().pointer.interact_pos()?;
+    let pointer = ctx.input().pointer.interact_pos()?;
 
     if ctx.input().pointer.any_down() && !ctx.input().pointer.any_pressed() {
         return None; // already dragging (something)
     }
 
-    if let Some(top_layer_id) = ctx.layer_id_at(pointer_pos) {
+    if let Some(top_layer_id) = ctx.layer_id_at(pointer) {
         if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
             return None; // Another window is on top here
         }
@@ -570,38 +619,45 @@ fn resize_hover(
 
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
-    if !rect.expand(side_grab_radius).contains(pointer_pos) {
+    if !rect.expand(side_grab_radius).contains(pointer) {
         return None;
     }
 
-    let (mut left, mut right, mut top, mut bottom) = Default::default();
-    if possible.resizable {
-        right = (rect.right() - pointer_pos.x).abs() <= side_grab_radius;
-        bottom = (rect.bottom() - pointer_pos.y).abs() <= side_grab_radius;
+    let mut left = possible.resize_left && (rect.left() - pointer.x).abs() <= side_grab_radius;
+    let mut right = possible.resize_right && (rect.right() - pointer.x).abs() <= side_grab_radius;
+    let mut top = possible.resize_top && (rect.top() - pointer.y).abs() <= side_grab_radius;
+    let mut bottom =
+        possible.resize_bottom && (rect.bottom() - pointer.y).abs() <= side_grab_radius;
 
-        if rect.right_bottom().distance(pointer_pos) < corner_grab_radius {
-            right = true;
-            bottom = true;
-        }
-
-        if possible.movable {
-            left = (rect.left() - pointer_pos.x).abs() <= side_grab_radius;
-            top = (rect.top() - pointer_pos.y).abs() <= side_grab_radius;
-
-            if rect.right_top().distance(pointer_pos) < corner_grab_radius {
-                right = true;
-                top = true;
-            }
-            if rect.left_top().distance(pointer_pos) < corner_grab_radius {
-                left = true;
-                top = true;
-            }
-            if rect.left_bottom().distance(pointer_pos) < corner_grab_radius {
-                left = true;
-                bottom = true;
-            }
-        }
+    if possible.resize_right
+        && possible.resize_bottom
+        && rect.right_bottom().distance(pointer) < corner_grab_radius
+    {
+        right = true;
+        bottom = true;
     }
+    if possible.resize_right
+        && possible.resize_top
+        && rect.right_top().distance(pointer) < corner_grab_radius
+    {
+        right = true;
+        top = true;
+    }
+    if possible.resize_left
+        && possible.resize_top
+        && rect.left_top().distance(pointer) < corner_grab_radius
+    {
+        left = true;
+        top = true;
+    }
+    if possible.resize_left
+        && possible.resize_bottom
+        && rect.left_bottom().distance(pointer) < corner_grab_radius
+    {
+        left = true;
+        bottom = true;
+    }
+
     let any_resize = left || right || top || bottom;
 
     if !any_resize && !possible.movable {

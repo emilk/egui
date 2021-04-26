@@ -1,5 +1,7 @@
 use crate::{window_settings::WindowSettings, *};
 use egui::Color32;
+#[cfg(target_os = "windows")]
+use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
 
 #[cfg(feature = "persistence")]
@@ -55,6 +57,23 @@ impl epi::RepaintSignal for GliumRepaintSignal {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    enable: bool,
+) -> glutin::window::WindowBuilder {
+    window_builder.with_drag_and_drop(enable)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn window_builder_drag_and_drop(
+    window_builder: glutin::window::WindowBuilder,
+    _enable: bool,
+) -> glutin::window::WindowBuilder {
+    // drag and drop can only be disabled on windows
+    window_builder
+}
+
 fn create_display(
     app: &dyn epi::App,
     window_settings: Option<WindowSettings>,
@@ -67,6 +86,8 @@ fn create_display(
         .with_title(app.name())
         .with_window_icon(window_icon)
         .with_transparent(app.transparent());
+
+    window_builder = window_builder_drag_and_drop(window_builder, app.drag_and_drop_support());
 
     let initial_size_points = app.initial_window_size();
 
@@ -155,18 +176,14 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         event_loop.create_proxy(),
     )));
 
-    let mut ctx = egui::CtxRef::default();
-    *ctx.memory() = deserialize_memory(&storage).unwrap_or_default();
+    let mut egui = EguiGlium::new(&display);
+    *egui.ctx().memory() = deserialize_memory(&storage).unwrap_or_default();
 
-    app.setup(&ctx);
+    app.setup(&egui.ctx());
 
-    let mut input_state = GliumInputState::from_pixels_per_point(native_pixels_per_point(&display));
-
-    let start_time = Instant::now();
     let mut previous_frame_time = None;
-    let mut painter = Painter::new(&display);
-    let mut clipboard = init_clipboard();
-    let mut current_cursor_icon = CursorIcon::Default;
+
+    let mut is_focused = true;
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
@@ -174,20 +191,16 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
     #[cfg(feature = "http")]
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
-    let mut screen_reader = crate::screen_reader::ScreenReader::default();
-
     if app.warm_up_enabled() {
-        // let warm_up_start = Instant::now();
-        input_state.raw.time = Some(0.0);
-        input_state.raw.screen_rect = Some(Rect::from_min_size(
-            Default::default(),
-            screen_size_in_pixels(&display) / input_state.raw.pixels_per_point.unwrap(),
-        ));
-        ctx.begin_frame(input_state.raw.take());
+        let saved_memory = egui.ctx().memory().clone();
+        egui.ctx().memory().set_everything_is_visible(true);
+
+        egui.begin_frame(&display);
+        let (ctx, painter) = egui.ctx_and_painter_mut();
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(&display, None),
-            tex_allocator: &mut painter,
+            tex_allocator: painter,
             #[cfg(feature = "http")]
             http: http.clone(),
             output: &mut app_output,
@@ -195,17 +208,12 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
         }
         .build();
 
-        let saved_memory = ctx.memory().clone();
-        ctx.memory().set_everything_is_visible(true);
         app.update(&ctx, &mut frame);
-        *ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
-        ctx.clear_animations();
 
-        let (egui_output, _shapes) = ctx.end_frame();
+        let _ = egui.end_frame(&display);
 
-        set_cursor_icon(&display, egui_output.cursor_icon);
-        current_cursor_icon = egui_output.cursor_icon;
-        handle_output(egui_output, clipboard.as_mut(), &display);
+        *egui.ctx().memory() = saved_memory; // We don't want to remember that windows were huge.
+        egui.ctx().clear_animations();
 
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
@@ -213,42 +221,48 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
-            let pixels_per_point = input_state
-                .raw
-                .pixels_per_point
-                .unwrap_or_else(|| ctx.pixels_per_point());
+            if !is_focused {
+                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
+                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
+                // But we know if we are focused (in foreground). When minimized, we are not focused.
+                // However, a user may want an egui with an animation in the background,
+                // so we still need to repaint quite fast.
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
 
-            let frame_start = Instant::now();
-            input_state.raw.time = Some(start_time.elapsed().as_nanos() as f64 * 1e-9);
-            input_state.raw.screen_rect = Some(Rect::from_min_size(
-                Default::default(),
-                screen_size_in_pixels(&display) / pixels_per_point,
-            ));
+            let frame_start = std::time::Instant::now();
 
-            ctx.begin_frame(input_state.raw.take());
+            egui.begin_frame(&display);
+            let (ctx, painter) = egui.ctx_and_painter_mut();
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
-                tex_allocator: &mut painter,
+                tex_allocator: painter,
                 #[cfg(feature = "http")]
                 http: http.clone(),
                 output: &mut app_output,
                 repaint_signal: repaint_signal.clone(),
             }
             .build();
-            app.update(&ctx, &mut frame);
-            let (egui_output, shapes) = ctx.end_frame();
-            let clipped_meshes = ctx.tessellate(shapes);
+            app.update(ctx, &mut frame);
+            let (needs_repaint, shapes) = egui.end_frame(&display);
 
             let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
             previous_frame_time = Some(frame_time);
-            painter.paint_meshes(
-                &display,
-                ctx.pixels_per_point(),
-                app.clear_color(),
-                clipped_meshes,
-                &ctx.texture(),
-            );
+
+            {
+                use glium::Surface as _;
+                let mut target = display.draw();
+                let clear_color = app.clear_color();
+                target.clear_color(
+                    clear_color[0],
+                    clear_color[1],
+                    clear_color[2],
+                    clear_color[3],
+                );
+                egui.paint(&display, &mut target, shapes);
+                target.finish().unwrap();
+            }
 
             {
                 let epi::backend::AppOutput { quit, window_size } = app_output;
@@ -256,8 +270,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(
                         glutin::dpi::PhysicalSize {
-                            width: (ctx.pixels_per_point() * window_size.x).round(),
-                            height: (ctx.pixels_per_point() * window_size.y).round(),
+                            width: (egui.ctx().pixels_per_point() * window_size.x).round(),
+                            height: (egui.ctx().pixels_per_point() * window_size.y).round(),
                         }
                         .to_logical::<f32>(native_pixels_per_point(&display) as f64),
                     );
@@ -265,24 +279,13 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
                 *control_flow = if quit {
                     glutin::event_loop::ControlFlow::Exit
-                } else if egui_output.needs_repaint {
+                } else if needs_repaint {
                     display.gl_window().window().request_redraw();
                     glutin::event_loop::ControlFlow::Poll
                 } else {
                     glutin::event_loop::ControlFlow::Wait
                 };
             }
-
-            if ctx.memory().options.screen_reader {
-                screen_reader.speak(&egui_output.events_description());
-            }
-            if current_cursor_icon != egui_output.cursor_icon {
-                // call only when changed to prevent flickering near frame boundary
-                // when Windows OS tries to control cursor icon for window resizing
-                set_cursor_icon(&display, egui_output.cursor_icon);
-                current_cursor_icon = egui_output.cursor_icon;
-            }
-            handle_output(egui_output, clipboard.as_mut(), &display);
 
             #[cfg(feature = "persistence")]
             if let Some(storage) = &mut storage {
@@ -293,7 +296,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                         WINDOW_KEY,
                         &WindowSettings::from_display(&display),
                     );
-                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
                     app.save(storage.as_mut());
                     storage.flush();
                     last_auto_save = now;
@@ -309,13 +312,12 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                input_to_egui(
-                    ctx.pixels_per_point(),
-                    event,
-                    clipboard.as_mut(),
-                    &mut input_state,
-                    control_flow,
-                );
+                if let glutin::event::WindowEvent::Focused(new_focused) = event {
+                    is_focused = new_focused;
+                }
+
+                egui.on_event(event, control_flow);
+
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
@@ -327,7 +329,7 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
                         WINDOW_KEY,
                         &WindowSettings::from_display(&display),
                     );
-                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*ctx.memory());
+                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
                     app.save(storage.as_mut());
                     storage.flush();
                 }

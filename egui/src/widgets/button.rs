@@ -22,6 +22,7 @@ pub struct Button {
     small: bool,
     frame: bool,
     wrap: Option<bool>,
+    min_size: Vec2,
 }
 
 impl Button {
@@ -36,6 +37,7 @@ impl Button {
             small: false,
             frame: true,
             wrap: None,
+            min_size: Vec2::ZERO,
         }
     }
 
@@ -100,6 +102,11 @@ impl Button {
         self.wrap = Some(wrap);
         self
     }
+
+    pub(crate) fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
 }
 
 impl Button {
@@ -113,6 +120,7 @@ impl Button {
             small,
             frame,
             wrap,
+            min_size,
         } = self;
 
         let mut button_padding = ui.spacing().button_padding;
@@ -133,6 +141,7 @@ impl Button {
         if !small {
             desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         }
+        desired_size = desired_size.at_least(min_size);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, &galley.text));
