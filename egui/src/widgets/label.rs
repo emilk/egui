@@ -29,6 +29,7 @@ pub struct Label {
 }
 
 impl Label {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(text: impl ToString) -> Self {
         Self {
             text: text.to_string(),

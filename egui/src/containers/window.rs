@@ -36,6 +36,7 @@ impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(title: impl ToString) -> Self {
         let title = title.to_string();
         let area = Area::new(&title);

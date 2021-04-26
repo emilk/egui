@@ -59,6 +59,7 @@ pub struct OpenUrl {
 }
 
 impl OpenUrl {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn same_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -66,6 +67,7 @@ impl OpenUrl {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -279,6 +281,7 @@ impl WidgetInfo {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn labeled(typ: WidgetType, label: impl ToString) -> Self {
         Self {
             label: Some(label.to_string()),
@@ -287,6 +290,7 @@ impl WidgetInfo {
     }
 
     /// checkboxes, radio-buttons etc
+    #[allow(clippy::needless_pass_by_value)]
     pub fn selected(typ: WidgetType, selected: bool, label: impl ToString) -> Self {
         Self {
             label: Some(label.to_string()),
@@ -302,6 +306,7 @@ impl WidgetInfo {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn slider(value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
@@ -311,6 +316,7 @@ impl WidgetInfo {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text_edit(edit_text: impl ToString) -> Self {
         Self {
             edit_text: Some(edit_text.to_string()),

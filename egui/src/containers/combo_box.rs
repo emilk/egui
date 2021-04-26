@@ -55,6 +55,7 @@ impl ComboBox {
     }
 
     /// What we show as the currently selected value
+    #[allow(clippy::needless_pass_by_value)]
     pub fn selected_text(mut self, selected_text: impl ToString) -> Self {
         self.selected_text = selected_text.to_string();
         self
@@ -165,6 +166,7 @@ pub fn combo_box_with_label(
     .inner
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn combo_box(
     ui: &mut Ui,
     button_id: Id,

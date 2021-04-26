@@ -25,6 +25,7 @@ pub struct Button {
 }
 
 impl Button {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(text: impl ToString) -> Self {
         Self {
             text: text.to_string(),
@@ -202,6 +203,7 @@ pub struct Checkbox<'a> {
 }
 
 impl<'a> Checkbox<'a> {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(checked: &'a mut bool, text: impl ToString) -> Self {
         Checkbox {
             checked,
@@ -312,6 +314,7 @@ pub struct RadioButton {
 }
 
 impl RadioButton {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(checked: bool, text: impl ToString) -> Self {
         Self {
             checked,

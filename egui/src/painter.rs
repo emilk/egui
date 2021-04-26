@@ -165,6 +165,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
@@ -291,6 +292,7 @@ impl Painter {
     /// To center the text at the given position, use `anchor: (Center, Center)`.
     ///
     /// Returns where the text ended up.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
         pos: Pos2,

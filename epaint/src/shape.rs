@@ -124,6 +124,7 @@ impl Shape {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,

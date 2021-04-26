@@ -28,6 +28,7 @@ pub struct SelectableLabel {
 }
 
 impl SelectableLabel {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(selected: bool, text: impl ToString) -> Self {
         Self {
             selected,

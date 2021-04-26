@@ -64,6 +64,7 @@ pub fn menu(ui: &mut Ui, title: impl ToString, add_contents: impl FnOnce(&mut Ui
     menu_impl(ui, title, Box::new(add_contents))
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn menu_impl<'c>(ui: &mut Ui, title: impl ToString, add_contents: Box<dyn FnOnce(&mut Ui) + 'c>) {
     let title = title.to_string();
     let bar_id = ui.id();

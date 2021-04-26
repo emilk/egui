@@ -16,6 +16,7 @@ pub struct Hyperlink {
 }
 
 impl Hyperlink {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(url: impl ToString) -> Self {
         let url = url.to_string();
         Self {
@@ -24,6 +25,7 @@ impl Hyperlink {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn from_label_and_url(label: impl Into<Label>, url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -32,6 +34,7 @@ impl Hyperlink {
     }
 
     /// Show some other text than the url
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text(mut self, text: impl ToString) -> Self {
         self.label.text = text.to_string();
         self
