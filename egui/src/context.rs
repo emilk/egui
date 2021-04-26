@@ -202,7 +202,11 @@ impl CtxRef {
             return response;
         }
 
-        if sense.focusable {
+        // We only want to focus labels if the screen reader is on.
+        let interested_in_focus =
+            sense.interactive() || sense.focusable && self.memory().options.screen_reader;
+
+        if interested_in_focus {
             self.memory().interested_in_focus(id);
         }
 
@@ -455,6 +459,7 @@ impl Context {
     }
 
     /// The number of physical pixels for each logical point.
+    #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.input.pixels_per_point()
     }

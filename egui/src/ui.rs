@@ -38,7 +38,7 @@ pub struct Ui {
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
     /// They are therefore only good for Id:s that has no state.
-    next_auto_id: u64,
+    next_auto_id_source: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to `Context`.
     painter: Painter,
@@ -64,7 +64,7 @@ impl Ui {
         let style = ctx.style();
         Ui {
             id,
-            next_auto_id: id.with("auto").value(),
+            next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer: Placer::new(max_rect, Layout::default()),
@@ -74,11 +74,12 @@ impl Ui {
 
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
         debug_assert!(!max_rect.any_nan());
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
+        let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         Ui {
             id: self.id.with("child"),
-            next_auto_id: Id::new(self.next_auto_id).with("child").value(),
+            next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
@@ -99,11 +100,13 @@ impl Ui {
     // -------------------------------------------------
 
     /// A unique identity of this `Ui`.
+    #[inline(always)]
     pub fn id(&self) -> Id {
         self.id
     }
 
     /// Style options for this `Ui` and its children.
+    #[inline(always)]
     pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
     }
@@ -131,6 +134,7 @@ impl Ui {
 
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
+    #[inline(always)]
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
@@ -149,6 +153,7 @@ impl Ui {
 
     /// The current visuals settings of this `Ui`.
     /// Short for `ui.style().visuals`.
+    #[inline(always)]
     pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
@@ -168,17 +173,20 @@ impl Ui {
     }
 
     /// Get a reference to the parent [`CtxRef`].
+    #[inline(always)]
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
 
     /// Use this to paint stuff within this `Ui`.
+    #[inline(always)]
     pub fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
+    #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
@@ -210,6 +218,7 @@ impl Ui {
         }
     }
 
+    #[inline(always)]
     pub fn layout(&self) -> &Layout {
         self.placer.layout()
     }
@@ -242,6 +251,7 @@ impl Ui {
 
     /// The `Input` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().input()`.
+    #[inline(always)]
     pub fn input(&self) -> &InputState {
         self.ctx().input()
     }
@@ -448,16 +458,15 @@ impl Ui {
         self.id.with(&id_source)
     }
 
-    #[deprecated = "This id now returned from ui.allocate_space"]
-    pub fn make_position_id(&self) -> Id {
-        Id::new(self.next_auto_id)
+    pub(crate) fn next_auto_id(&self) -> Id {
+        Id::new(self.next_auto_id_source)
     }
 
     pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
     {
-        Id::new(self.next_auto_id).with(id_source)
+        Id::new(self.next_auto_id_source).with(id_source)
     }
 }
 
@@ -620,8 +629,8 @@ impl Ui {
             }
         }
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        let id = Id::new(self.next_auto_id);
+        let id = Id::new(self.next_auto_id_source);
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         (id, rect)
     }
@@ -658,8 +667,9 @@ impl Ui {
             self.placer.debug_paint_cursor(&painter);
         }
 
-        self.next_auto_id = self.next_auto_id.wrapping_add(1);
-        Id::new(self.next_auto_id)
+        let id = Id::new(self.next_auto_id_source);
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        id
     }
 
     pub(crate) fn placer(&self) -> &Placer {
@@ -679,6 +689,7 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
+    #[inline(always)]
     pub fn allocate_ui<R>(
         &mut self,
         desired_size: Vec2,
@@ -691,11 +702,21 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
+    #[inline(always)]
     pub fn allocate_ui_with_layout<R>(
         &mut self,
         desired_size: Vec2,
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.allocate_ui_with_layout_dyn(desired_size, layout, Box::new(add_contents))
+    }
+
+    fn allocate_ui_with_layout_dyn<'c, R>(
+        &mut self,
+        desired_size: Vec2,
+        layout: Layout,
+        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
         debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
@@ -788,6 +809,7 @@ impl Ui {
     /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
     /// response.on_hover_text("Drag me!");
     /// ```
+    #[inline(always)]
     pub fn add(&mut self, widget: impl Widget) -> Response {
         widget.ui(self)
     }
@@ -825,6 +847,7 @@ impl Ui {
     /// This will be in addition to the [`Spacing::item_spacing`}.
     ///
     /// [`Self::min_rect`] will expand to contain the space.
+    #[inline(always)]
     pub fn add_space(&mut self, amount: f32) {
         self.placer.advance_cursor(amount);
     }
@@ -837,8 +860,9 @@ impl Ui {
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
+    #[inline(always)]
     pub fn label(&mut self, label: impl Into<Label>) -> Response {
-        self.add(label.into())
+        label.into().ui(self)
     }
 
     /// Shortcut for `add(Label::new(text).text_color(color))`
@@ -847,36 +871,36 @@ impl Ui {
         color: impl Into<Color32>,
         label: impl Into<Label>,
     ) -> Response {
-        self.add(label.into().text_color(color))
+        label.into().text_color(color).ui(self)
     }
 
     /// Shortcut for `add(Label::new(text).heading())`
     pub fn heading(&mut self, label: impl Into<Label>) -> Response {
-        self.add(label.into().heading())
+        label.into().heading().ui(self)
     }
 
     /// Shortcut for `add(Label::new(text).monospace())`
     pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
-        self.add(label.into().monospace())
+        label.into().monospace().ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
     /// Shortcut for `add(Label::new(text).code())`
     pub fn code(&mut self, label: impl Into<Label>) -> Response {
-        self.add(label.into().code())
+        label.into().code().ui(self)
     }
 
     /// Shortcut for `add(Label::new(text).small())`
     pub fn small(&mut self, label: impl Into<Label>) -> Response {
-        self.add(label.into().small())
+        label.into().small().ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
     /// See also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
-        self.add(Hyperlink::new(url))
+        Hyperlink::new(url).ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url).text(label))`
@@ -888,7 +912,7 @@ impl Ui {
     ///
     /// See also [`Hyperlink`].
     pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
-        self.add(Hyperlink::new(url).text(label))
+        Hyperlink::new(url).text(label).ui(self)
     }
 
     #[deprecated = "Use `text_edit_singleline` or `text_edit_multiline`"]
@@ -900,14 +924,14 @@ impl Ui {
     ///
     /// See also [`TextEdit`].
     pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
-        self.add(TextEdit::singleline(text))
+        TextEdit::singleline(text).ui(self)
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
     pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
-        self.add(TextEdit::multiline(text))
+        TextEdit::multiline(text).ui(self)
     }
 
     /// Usage: `if ui.button("Click me").clicked() { … }`
@@ -916,8 +940,9 @@ impl Ui {
     ///
     /// See also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
+    #[inline(always)]
     pub fn button(&mut self, text: impl Into<String>) -> Response {
-        self.add(Button::new(text))
+        Button::new(text).ui(self)
     }
 
     /// A button as small as normal body text.
@@ -927,19 +952,19 @@ impl Ui {
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
     pub fn small_button(&mut self, text: impl Into<String>) -> Response {
-        self.add(Button::new(text).small())
+        Button::new(text).small().ui(self)
     }
 
     /// Show a checkbox.
     pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<String>) -> Response {
-        self.add(Checkbox::new(checked, text))
+        Checkbox::new(checked, text).ui(self)
     }
 
     /// Show a [`RadioButton`].
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
-        self.add(RadioButton::new(selected, text))
+        RadioButton::new(selected, text).ui(self)
     }
 
     /// Show a [`RadioButton`]. It is selected if `*current_value == selected_value`.
@@ -978,7 +1003,7 @@ impl Ui {
     /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
-        self.add(SelectableLabel::new(checked, text))
+        SelectableLabel::new(checked, text).ui(self)
     }
 
     /// Show selectable text. It is selected if `*current_value == selected_value`.
@@ -1002,8 +1027,9 @@ impl Ui {
     }
 
     /// Shortcut for `add(Separator::default())` (see [`Separator`]).
+    #[inline(always)]
     pub fn separator(&mut self) -> Response {
-        self.add(Separator::default())
+        Separator::default().ui(self)
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
@@ -1048,8 +1074,9 @@ impl Ui {
     /// Show an image here with the given size.
     ///
     /// See also [`Image`].
+    #[inline(always)]
     pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
-        self.add(Image::new(texture_id, size))
+        Image::new(texture_id, size).ui(self)
     }
 }
 
@@ -1192,10 +1219,19 @@ impl Ui {
     }
 
     /// Create a child ui which is indented to the right.
+    #[inline(always)]
     pub fn indent<R>(
         &mut self,
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.indent_dyn(id_source, Box::new(add_contents))
+    }
+
+    fn indent_dyn<'c, R>(
+        &mut self,
+        id_source: impl Hash,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
             self.layout().is_vertical(),
@@ -1256,6 +1292,7 @@ impl Ui {
     ///     ui.label("row");
     /// });
     /// ```
+    #[inline(always)]
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
     }
@@ -1326,10 +1363,19 @@ impl Ui {
         })
     }
 
+    #[inline(always)]
     fn horizontal_with_main_wrap<R>(
         &mut self,
         main_wrap: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.horizontal_with_main_wrap_dyn(main_wrap, Box::new(add_contents))
+    }
+
+    fn horizontal_with_main_wrap_dyn<'c, R>(
+        &mut self,
+        main_wrap: bool,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let initial_size = vec2(
             self.available_size_before_wrap_finite().x,
@@ -1343,7 +1389,7 @@ impl Ui {
         }
         .with_main_wrap(main_wrap);
 
-        self.allocate_ui_with_layout(initial_size, layout, add_contents)
+        self.allocate_ui_with_layout_dyn(initial_size, layout, add_contents)
     }
 
     /// Start a ui with vertical layout.
@@ -1356,6 +1402,7 @@ impl Ui {
     ///     ui.label("under");
     /// });
     /// ```
+    #[inline(always)]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
     }
@@ -1405,6 +1452,14 @@ impl Ui {
         &mut self,
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.with_layout_dyn(layout, Box::new(add_contents))
+    }
+
+    fn with_layout_dyn<'c, R>(
+        &mut self,
+        layout: Layout,
+        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
         let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let inner = add_contents(&mut child_ui);

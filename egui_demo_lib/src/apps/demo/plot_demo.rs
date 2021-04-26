@@ -6,7 +6,7 @@ use std::f64::consts::TAU;
 pub struct PlotDemo {
     animate: bool,
     time: f64,
-    circle_radius: f32,
+    circle_radius: f64,
     circle_center: Pos2,
     square: bool,
     proportional: bool,
@@ -17,7 +17,7 @@ impl Default for PlotDemo {
         Self {
             animate: true,
             time: 0.0,
-            circle_radius: 0.5,
+            circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
             proportional: true,
@@ -90,13 +90,15 @@ impl PlotDemo {
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
+
+        ui.label("Drag to pan, ctrl + scroll to zoom. Double-click to reset view.");
     }
 
     fn circle(&self) -> Curve {
         let n = 512;
         let circle = (0..=n).map(|i| {
             let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-            let r = self.circle_radius as f64;
+            let r = self.circle_radius;
             Value::new(
                 r * t.cos() + self.circle_center.x as f64,
                 r * t.sin() + self.circle_center.y as f64,
@@ -108,25 +110,25 @@ impl PlotDemo {
     }
 
     fn sin(&self) -> Curve {
-        let n = 512;
-        let circle = (0..=n).map(|i| {
-            let t = remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
-            Value::new(t / 5.0, 0.5 * (self.time + t).sin())
-        });
-        Curve::from_values_iter(circle)
-            .color(Color32::from_rgb(200, 100, 100))
-            .name("0.5 * sin(x / 5)")
+        let time = self.time;
+        Curve::from_explicit_callback(
+            move |x| 0.5 * (2.0 * x).sin() * time.sin(),
+            f64::NEG_INFINITY..=f64::INFINITY,
+            512,
+        )
+        .color(Color32::from_rgb(200, 100, 100))
+        .name("0.5 * sin(2x) * sin(t)")
     }
 
     fn thingy(&self) -> Curve {
-        let n = 512;
-        let complex_curve = (0..=n).map(|i| {
-            let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-            Value::new((2.0 * t + self.time).sin(), (3.0 * t).sin())
-        });
-        Curve::from_values_iter(complex_curve)
-            .color(Color32::from_rgb(100, 150, 250))
-            .name("x = sin(2t), y = sin(3t)")
+        let time = self.time;
+        Curve::from_parametric_callback(
+            move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
+            0.0..=TAU,
+            512,
+        )
+        .color(Color32::from_rgb(100, 150, 250))
+        .name("x = sin(2t), y = sin(3t)")
     }
 }
 
@@ -139,7 +141,7 @@ impl super::View for PlotDemo {
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
 
-        let mut plot = Plot::default()
+        let mut plot = Plot::new("Demo Plot")
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())

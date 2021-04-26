@@ -957,8 +957,26 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.input.raw.scroll_delta.x -= event.delta_x() as f32;
-            runner_lock.input.raw.scroll_delta.y -= event.delta_y() as f32;
+
+            let scroll_multiplier = match event.delta_mode() {
+                web_sys::WheelEvent::DOM_DELTA_PAGE => {
+                    canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
+                }
+                web_sys::WheelEvent::DOM_DELTA_LINE => {
+                    8.0 // magic value!
+                }
+                _ => 1.0,
+            };
+
+            let delta = -scroll_multiplier
+                * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
+
+            if event.ctrl_key() {
+                runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
+            } else {
+                runner_lock.input.raw.scroll_delta += delta;
+            }
+
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();

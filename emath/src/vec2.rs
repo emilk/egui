@@ -87,6 +87,11 @@ impl Vec2 {
     pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };
     pub const Y: Vec2 = Vec2 { x: 0.0, y: 1.0 };
 
+    pub const RIGHT: Vec2 = Vec2 { x: 1.0, y: 0.0 };
+    pub const LEFT: Vec2 = Vec2 { x: -1.0, y: 0.0 };
+    pub const UP: Vec2 = Vec2 { x: 0.0, y: -1.0 };
+    pub const DOWN: Vec2 = Vec2 { x: 0.0, y: 1.0 };
+
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
     pub const INFINITY: Self = Self::splat(f32::INFINITY);
 
@@ -140,9 +145,38 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
+    /// Measures the angle of the vector.
+    ///
+    /// ```
+    /// # use emath::Vec2;
+    /// use std::f32::consts::TAU;
+    ///
+    /// assert_eq!(Vec2::ZERO.angle(), 0.0);
+    /// assert_eq!(Vec2::angled(0.0).angle(), 0.0);
+    /// assert_eq!(Vec2::angled(1.0).angle(), 1.0);
+    /// assert_eq!(Vec2::X.angle(), 0.0);
+    /// assert_eq!(Vec2::Y.angle(), 0.25 * TAU);
+    ///
+    /// assert_eq!(Vec2::RIGHT.angle(), 0.0);
+    /// assert_eq!(Vec2::DOWN.angle(), 0.25 * TAU);
+    /// assert_eq!(Vec2::UP.angle(), -0.25 * TAU);
+    /// ```
+    #[inline(always)]
+    pub fn angle(self) -> f32 {
+        self.y.atan2(self.x)
+    }
+
     /// Create a unit vector with the given angle (in radians).
     /// * An angle of zero gives the unit X axis.
     /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
+    ///
+    /// ```
+    /// # use emath::Vec2;
+    /// use std::f32::consts::TAU;
+    ///
+    /// assert_eq!(Vec2::angled(0.0), Vec2::X);
+    /// assert!((Vec2::angled(0.25 * TAU) - Vec2::Y).length() < 1e-5);
+    /// ```
     #[inline(always)]
     pub fn angled(angle: f32) -> Self {
         vec2(angle.cos(), angle.sin())
@@ -367,4 +401,29 @@ impl std::fmt::Debug for Vec2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{:.1} {:.1}]", self.x, self.y)
     }
+}
+
+#[test]
+fn test_vec2() {
+    #![allow(clippy::float_cmp)]
+
+    macro_rules! almost_eq {
+        ($left:expr, $right:expr) => {
+            let left = $left;
+            let right = $right;
+            assert!((left - right).abs() < 1e-6, "{} != {}", left, right);
+        };
+    }
+    use std::f32::consts::TAU;
+
+    assert_eq!(Vec2::ZERO.angle(), 0.0);
+    assert_eq!(Vec2::angled(0.0).angle(), 0.0);
+    assert_eq!(Vec2::angled(1.0).angle(), 1.0);
+    assert_eq!(Vec2::X.angle(), 0.0);
+    assert_eq!(Vec2::Y.angle(), 0.25 * TAU);
+
+    assert_eq!(Vec2::RIGHT.angle(), 0.0);
+    assert_eq!(Vec2::DOWN.angle(), 0.25 * TAU);
+    almost_eq!(Vec2::LEFT.angle(), 0.50 * TAU);
+    assert_eq!(Vec2::UP.angle(), -0.25 * TAU);
 }
