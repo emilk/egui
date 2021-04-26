@@ -21,7 +21,7 @@ impl Default for ZoomRotate {
 
 impl super::Demo for ZoomRotate {
     fn name(&self) -> &'static str {
-        "👌 Zoom/Rotate"
+        "👌 Multi Touch"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
@@ -43,10 +43,10 @@ impl super::View for ZoomRotate {
         });
         ui.colored_label(
             Color32::RED,
-            "This only works on supported touch devices (like mobiles).",
+            "This only works on devices which send native touch events (mostly mobiles).",
         );
         ui.separator();
-        ui.label("Pinch, Zoom, or Rotate the arrow with two or more fingers.");
+        ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {
             // Note that we use `Sense::drag()` although we do not use any pointer events.  With
             // the current implementation, the fact that a touch event of two or more fingers is
@@ -56,6 +56,8 @@ impl super::View for ZoomRotate {
             // also when a two-finger touch is active.  I guess this problem can only be cleanly
             // solved when the synthetic pointer events are created by egui, and not by the
             // backend.
+
+            // set up the drawing canvas with normalized coordinates:
             let (response, painter) =
                 ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::drag());
             // normalize painter coordinates to ±1 units in each direction with [0,0] in the center:
@@ -65,13 +67,15 @@ impl super::View for ZoomRotate {
                 response.rect,
             );
 
+            // check for touch input (or the lack thereof) and update zoom and scale factors, plus
+            // color and width:
             let mut stroke_width = 1.;
             let mut color = Color32::GRAY;
             if let Some(multi_touch) = ui.input().multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
-                self.zoom *= multi_touch.zoom;
-                self.rotation += multi_touch.rotation;
+                self.zoom *= multi_touch.zoom_delta;
+                self.rotation += multi_touch.rotation_delta;
                 // touch pressure shall make the arrow thicker (not all touch devices support this):
                 stroke_width += 10. * multi_touch.force;
                 // the drawing color depends on the number of touches:
@@ -81,20 +85,21 @@ impl super::View for ZoomRotate {
                     4 => Color32::YELLOW,
                     _ => Color32::RED,
                 };
-                // for a smooth (non-lagging) touch experience:
+                // for a smooth touch experience (not strictly required, but I had the impression
+                // that it helps to reduce some lag, especially for the initial touch):
                 ui.ctx().request_repaint();
             } else if let Some(last_time) = self.time_of_last_update {
                 // This has nothing to do with the touch gesture. It just smoothly brings the
-                // painted arrow back into its original position, for a better visual effect:
+                // painted arrow back into its original position, for a nice visual effect:
                 let dt = ui.input().time - last_time;
                 const ZOOM_ROTATE_HALF_LIFE: f64 = 1.; // time[sec] after which half the amount of zoom/rotation will be reverted
                 let half_life_factor = (-(2_f64.ln()) / ZOOM_ROTATE_HALF_LIFE * dt).exp() as f32;
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
-
                 // this is an animation, so we want real-time UI updates:
                 ui.ctx().request_repaint();
             }
+
             let zoom_and_rotate = self.zoom * Rot2::from_angle(self.rotation);
 
             // Paints an arrow pointing from bottom-left (-0.5, 0.5) to top-right (0.5, -0.5),

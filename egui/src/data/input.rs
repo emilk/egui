@@ -148,9 +148,6 @@ pub enum Event {
         /// not support pressure sensitivity.
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
         force: f32,
-        // ### Note for review: using f32 forced me to remove `#[derive(Eq)]`
-        //     from the `Event` struct.  Can this cause issues?  I did not get errors,
-        //     so I wonder if `Eq` had been derived on purpose.
     },
 }
 

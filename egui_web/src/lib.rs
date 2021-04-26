@@ -117,8 +117,7 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
     // TO BE CLARIFIED: For some types of touch events (e.g. `touchcancel`) it may be necessary to
     // change the return type to an `Option<Pos2>` – but this would be an incompatible change.  Can
-    // we do this?  But then, I am not sure yet if a `touchcancel` event does not even have at
-    // least one `Touch`.
+    // we do this?
 
     // Calculate the average of all touch positions:
     let touch_count = event.touches().length();
@@ -935,6 +934,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     pressed: true,
                     modifiers,
                 });
+
             push_touches(&mut *runner_lock, egui::TouchPhase::Start, &event);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
@@ -952,10 +952,6 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
-
-            // TO BE DISCUSSED: todo for all `touch*`-events:
-            // Now that egui knows about Touch events, the backend does not need to simulate
-            // Pointer events, any more.  This simulation could be moved to `egui`.
             runner_lock
                 .input
                 .raw
@@ -990,9 +986,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         pressed: false,
                         modifiers,
                     });
-                push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
                 // Then remove hover effect:
                 runner_lock.input.raw.events.push(egui::Event::PointerGone);
+
+                push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();

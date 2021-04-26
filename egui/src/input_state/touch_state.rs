@@ -20,11 +20,11 @@ pub struct MultiTouchInfo {
     /// this value.  This is a relative value, comparing the average distances of the fingers in
     /// the current and previous frame.  If the fingers did not move since the previous frame,
     /// this value is `1.0`.
-    pub zoom: f32,
+    pub zoom_delta: f32,
     /// Rotation in radians.  Moving fingers around each other will change this value.  This is a
     /// relative value, comparing the orientation of fingers in the current frame with the previous
     /// frame.  If all fingers are resting, this value is `0.0`.
-    pub rotation: f32,
+    pub rotation_delta: f32,
     /// Relative movement (comparing previous frame and current frame) of the average position of
     /// all touch points.  Without movement this value is `Vec2::ZERO`.
     ///
@@ -33,7 +33,7 @@ pub struct MultiTouchInfo {
     /// be directly mapped to the screen.  A touch always is considered to start at the position of
     /// the pointer, but touch movement is always measured in the units delivered by the device,
     /// and may depend on hardware and system settings.
-    pub translation: Vec2,
+    pub translation_delta: Vec2,
     /// Current force of the touch (average of the forces of the individual fingers). This is a
     /// value in the interval `[0.0 .. =1.0]`.
     ///
@@ -158,9 +158,9 @@ impl TouchState {
                 start_time: state.start_time,
                 start_pos: state.start_pointer_pos,
                 num_touches: self.active_touches.len(),
-                zoom: state.current.avg_distance / state_previous.avg_distance,
-                rotation: normalized_angle(state.current.direction, state_previous.direction),
-                translation: state.current.avg_pos - state_previous.avg_pos,
+                zoom_delta: state.current.avg_distance / state_previous.avg_distance,
+                rotation_delta: normalized_angle(state.current.direction, state_previous.direction),
+                translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.force,
             }
         })
