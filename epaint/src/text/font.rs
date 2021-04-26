@@ -347,6 +347,17 @@ impl Font {
 
         for c in text.chars() {
             if !self.fonts.is_empty() {
+                // For tabs it is nice to let them occupy only what's left of the current
+                // tab block. Better to show you as I don't know how to describe it in words
+                //
+                // We consider the following sequence of characters, separated with spaces for clarity:
+                // \t 1 \t 12 \t 123 \t 1234 \t
+                //
+                // It will be rendered like this, using ---> to denote the space occupied by a tab:
+                //
+                // 1234 | 1234 | 1234 | 1234 | 1234
+                // -----+------+------+------+-----
+                // ---> | 1--> | 12-> | 123> | --->
                 let (font_index, glyph_info) = if c == '\t' {
                     let result = self.tab_glyph_info(tab_size);
                     tab_size = super::MAX_TAB_SIZE;

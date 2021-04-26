@@ -398,9 +398,6 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "PageUp" => Some(egui::Key::PageUp),
         "PageDown" => Some(egui::Key::PageDown),
 
-        "[" => Some(egui::Key::LeftBracket),
-        "]" => Some(egui::Key::RightBracket),
-
         "0" => Some(egui::Key::Num0),
         "1" => Some(egui::Key::Num1),
         "2" => Some(egui::Key::Num2),

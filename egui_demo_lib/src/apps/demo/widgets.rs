@@ -25,7 +25,6 @@ pub struct Widgets {
     show_password: bool,
     single_line_text_input: String,
     multiline_text_input: String,
-    tab_as_spaces: bool,
     tab_moves_focus: bool,
     code_snippet: String,
 }
@@ -40,7 +39,6 @@ impl Default for Widgets {
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
             show_password: false,
-            tab_as_spaces: true,
             tab_moves_focus: false,
 
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
@@ -186,15 +184,11 @@ impl Widgets {
             ui.separator();
 
             ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
-            if !self.tab_moves_focus {
-                ui.checkbox(&mut self.tab_as_spaces, "Tabs as spaces");
-            }
         });
 
         ui.code_editor_with_config(
             &mut self.code_snippet,
             CodingConfig {
-                tab_as_spaces: self.tab_as_spaces,
                 tab_moves_focus: self.tab_moves_focus,
             },
         );

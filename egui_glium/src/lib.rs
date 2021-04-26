@@ -234,9 +234,6 @@ pub fn translate_virtual_key_code(key: VirtualKeyCode) -> Option<egui::Key> {
         PageUp => Key::PageUp,
         PageDown => Key::PageDown,
 
-        LBracket => Key::LeftBracket,
-        RBracket => Key::RightBracket,
-
         Key0 | Numpad0 => Key::Num0,
         Key1 | Numpad1 => Key::Num1,
         Key2 | Numpad2 => Key::Num2,
