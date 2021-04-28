@@ -229,7 +229,7 @@ There are advantages and disadvantages to both systems.
 
 The short of it is this: immediate mode GUI libraries are easier to use, but less powerful.
 
-### Advantaged of immediate mode
+### Advantages of immediate mode
 #### Usability
 The main advantage of immediate mode is that the application code becomes vastly simpler:
 
