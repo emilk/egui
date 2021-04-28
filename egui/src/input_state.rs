@@ -135,15 +135,13 @@ impl InputState {
     /// * `zoom > 1`: pinch spread
     #[inline(always)]
     pub fn zoom_delta(&self) -> f32 {
-        // decide whether to use the factor from a synthetic ctrl-scroll event or from native touch
-        // events
-        if let Some(touch) = self.multi_touch() {
-            // If a multi touch gesture is detected, its zoom factor is more accurate because it
-            // measures the exact and linear proportions of the distances of the finger tips
-            touch.zoom_delta
-        } else {
-            self.raw.zoom_delta
-        }
+        // If a multi touch gesture is detected, it measures the exact and linear proportions of
+        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // synthesized from an original touch gesture.
+        self.multi_touch()
+            .map(|touch| touch.zoom_delta)
+            .unwrap_or(self.raw.zoom_delta)
     }
 
     pub fn wants_repaint(&self) -> bool {

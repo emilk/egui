@@ -120,23 +120,17 @@ pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egu
     // we do this?
 
     // Calculate the average of all touch positions:
+    let mut accu = egui::Vec2::ZERO;
     let touch_count = event.touches().length();
-    if touch_count == 0 {
-        egui::Pos2::ZERO // work-around for not returning an `Option<Pos2>`
-    } else {
+    if touch_count > 0 {
         let canvas_origin = canvas_origin(canvas_id);
-        let mut sum = pos_from_touch(canvas_origin, &event.touches().get(0).unwrap());
-        if touch_count == 1 {
-            sum
-        } else {
-            for touch_idx in 1..touch_count {
-                let touch = event.touches().get(touch_idx).unwrap();
-                sum += pos_from_touch(canvas_origin, &touch).to_vec2();
-            }
-            let touch_count_recip = 1. / touch_count as f32;
-            egui::Pos2::new(sum.x * touch_count_recip, sum.y * touch_count_recip)
+        for touch_idx in 0..touch_count {
+            let touch = event.touches().get(touch_idx).unwrap();
+            accu += pos_from_touch(canvas_origin, &touch).to_vec2();
         }
+        accu = accu / touch_count as f32;
     }
+    egui::Pos2::ZERO + accu
 }
 
 fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
