@@ -199,6 +199,7 @@ pub fn input_to_egui(
             // TODO
         }
         WindowEvent::Touch(touch) => {
+            let pixels_per_point_recip = 1. / pixels_per_point;
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             touch.device_id.hash(&mut hasher);
             input_state.raw.events.push(Event::Touch {
@@ -210,7 +211,8 @@ pub fn input_to_egui(
                     glutin::event::TouchPhase::Ended => egui::TouchPhase::End,
                     glutin::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
                 },
-                pos: Pos2::new(touch.location.x as f32, touch.location.y as f32),
+                pos: pos2(touch.location.x as f32 * pixels_per_point_recip, 
+                    touch.location.y as f32 * pixels_per_point_recip),
                 force: match touch.force {
                     Some(Force::Normalized(force)) => force as f32,
                     Some(Force::Calibrated {
