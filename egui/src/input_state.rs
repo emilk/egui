@@ -248,10 +248,7 @@ impl InputState {
     fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
         for event in events {
             if let Event::Touch { device_id, .. } = event {
-                if !self.touch_states.contains_key(device_id) {
-                    self.touch_states
-                        .insert(*device_id, TouchState::new(*device_id));
-                }
+                self.touch_states.entry(*device_id).or_insert_with(|| TouchState::new(*device_id)));
             }
         }
     }
