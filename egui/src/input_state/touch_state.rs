@@ -276,7 +276,7 @@ fn normalized_angle(current_direction: f32, previous_direction: f32) -> f32 {
     } else if angle < -PI {
         angle += TAU;
     }
-    dbg!(angle)
+    angle
 }
 
 #[test]
