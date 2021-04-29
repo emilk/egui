@@ -4,7 +4,6 @@ use egui::{
 };
 
 pub struct ZoomRotate {
-    time_of_last_update: Option<f64>,
     rotation: f32,
     zoom: f32,
 }
@@ -12,7 +11,6 @@ pub struct ZoomRotate {
 impl Default for ZoomRotate {
     fn default() -> Self {
         Self {
-            time_of_last_update: None,
             rotation: 0.,
             zoom: 1.,
         }
@@ -88,12 +86,12 @@ impl super::View for ZoomRotate {
                 // for a smooth touch experience (not strictly required, but I had the impression
                 // that it helps to reduce some lag, especially for the initial touch):
                 ui.ctx().request_repaint();
-            } else if let Some(last_time) = self.time_of_last_update {
+            } else {
                 // This has nothing to do with the touch gesture. It just smoothly brings the
                 // painted arrow back into its original position, for a nice visual effect:
-                let dt = ui.input().time - last_time;
-                const ZOOM_ROTATE_HALF_LIFE: f64 = 1.; // time[sec] after which half the amount of zoom/rotation will be reverted
-                let half_life_factor = (-(2_f64.ln()) / ZOOM_ROTATE_HALF_LIFE * dt).exp() as f32;
+                let dt = ui.input().unstable_dt;
+                const ZOOM_ROTATE_HALF_LIFE: f32 = 1.; // time[sec] after which half the amount of zoom/rotation will be reverted
+                let half_life_factor = (-(2_f32.ln()) / ZOOM_ROTATE_HALF_LIFE * dt).exp();
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
                 // this is an animation, so we want real-time UI updates:
@@ -111,7 +109,6 @@ impl super::View for ZoomRotate {
                 to_screen.scale() * arrow_direction,
                 Stroke::new(stroke_width, color),
             );
-            self.time_of_last_update = Some(ui.input().time);
         });
     }
 }

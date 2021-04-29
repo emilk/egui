@@ -235,8 +235,7 @@ impl TouchState {
             // direction.  But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
             let first_touch = self.active_touches.values().next().unwrap();
-            let direction_vec = (avg.pos - first_touch.pos).normalized();
-            avg.direction = direction_vec.y.atan2(direction_vec.x);
+            avg.direction = (avg.pos - first_touch.pos).angle();
 
             Some(avg)
         }
