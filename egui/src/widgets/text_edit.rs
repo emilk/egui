@@ -854,13 +854,10 @@ fn on_key_press(
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_before_cursor(text, galley, cursorp)
             } else if let Some(cursor) = cursorp.single() {
-                let is_delete_previous_word = modifiers.alt || modifiers.ctrl;
-
-                if is_delete_previous_word {
+                if modifiers.alt || modifiers.ctrl {
                     // alt on mac, ctrl on windows
                     delete_previous_word(text, cursor.ccursor)
                 } else {
-                    // TODO: if deleteing from identation remove spaces until tab limit
                     delete_previous_char(text, cursor.ccursor)
                 }
             } else {
