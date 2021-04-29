@@ -174,8 +174,8 @@ impl<'a> Slider<'a> {
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
-    pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.text = text.into();
+    pub fn text(mut self, text: impl ToString) -> Self {
+        self.text = text.to_string();
         self
     }
 

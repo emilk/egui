@@ -173,10 +173,17 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl Into<String>) {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
-        self.text(rect.min, Align2::LEFT_TOP, text.into(), text_style, color);
+        self.text(
+            rect.min,
+            Align2::LEFT_TOP,
+            text.to_string(),
+            text_style,
+            color,
+        );
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
@@ -293,17 +300,18 @@ impl Painter {
     /// To center the text at the given position, use `anchor: (Center, Center)`.
     ///
     /// Returns where the text ended up.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
         pos: Pos2,
         anchor: Align2,
-        text: impl Into<String>,
+        text: impl ToString,
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
         let galley = self
             .fonts()
-            .layout_multiline(text_style, text.into(), f32::INFINITY);
+            .layout_multiline(text_style, text.to_string(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley, text_color);
         rect

@@ -148,7 +148,7 @@ impl CollapsingHeader {
     /// If the label is unique and static this is fine,
     /// but if it changes or there are several `CollapsingHeader` with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
-    pub fn new(label: impl Into<String>) -> Self {
+    pub fn new(label: impl ToString) -> Self {
         let label = Label::new(label).text_style(TextStyle::Button).wrap(false);
         let id_source = Id::new(label.text());
         Self {

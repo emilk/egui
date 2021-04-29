@@ -16,24 +16,27 @@ pub struct Hyperlink {
 }
 
 impl Hyperlink {
-    pub fn new(url: impl Into<String>) -> Self {
-        let url = url.into();
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(url: impl ToString) -> Self {
+        let url = url.to_string();
         Self {
             url: url.clone(),
             label: Label::new(url),
         }
     }
 
-    pub fn from_label_and_url(label: impl Into<Label>, url: impl Into<String>) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn from_label_and_url(label: impl Into<Label>, url: impl ToString) -> Self {
         Self {
-            url: url.into(),
+            url: url.to_string(),
             label: label.into(),
         }
     }
 
     /// Show some other text than the url
-    pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.label.text = text.into();
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn text(mut self, text: impl ToString) -> Self {
+        self.label.text = text.to_string();
         self
     }
 
