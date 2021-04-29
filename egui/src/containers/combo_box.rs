@@ -55,8 +55,9 @@ impl ComboBox {
     }
 
     /// What we show as the currently selected value
-    pub fn selected_text(mut self, selected_text: impl Into<String>) -> Self {
-        self.selected_text = selected_text.into();
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn selected_text(mut self, selected_text: impl ToString) -> Self {
+        self.selected_text = selected_text.to_string();
         self
     }
 
@@ -150,7 +151,7 @@ impl ComboBox {
 pub fn combo_box_with_label(
     ui: &mut Ui,
     label: impl Into<Label>,
-    selected: impl Into<String>,
+    selected: impl ToString,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let label = label.into();
@@ -165,10 +166,11 @@ pub fn combo_box_with_label(
     .inner
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn combo_box(
     ui: &mut Ui,
     button_id: Id,
-    selected: impl Into<String>,
+    selected: impl ToString,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let popup_id = button_id.with("popup");
@@ -181,7 +183,7 @@ fn combo_box(
 
         let galley = ui
             .fonts()
-            .layout_no_wrap(TextStyle::Button, selected.into());
+            .layout_no_wrap(TextStyle::Button, selected.to_string());
 
         let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);

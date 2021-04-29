@@ -26,9 +26,10 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(text: impl Into<String>) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(text: impl ToString) -> Self {
         Self {
-            text: text.into(),
+            text: text.to_string(),
             text_color: None,
             text_style: TextStyle::Button,
             fill: Default::default(),
@@ -211,10 +212,11 @@ pub struct Checkbox<'a> {
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, text: impl Into<String>) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(checked: &'a mut bool, text: impl ToString) -> Self {
         Checkbox {
             checked,
-            text: text.into(),
+            text: text.to_string(),
             text_color: None,
         }
     }
@@ -321,10 +323,11 @@ pub struct RadioButton {
 }
 
 impl RadioButton {
-    pub fn new(checked: bool, text: impl Into<String>) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(checked: bool, text: impl ToString) -> Self {
         Self {
             checked,
-            text: text.into(),
+            text: text.to_string(),
             text_color: None,
         }
     }
