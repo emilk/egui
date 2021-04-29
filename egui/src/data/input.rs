@@ -314,12 +314,14 @@ impl RawInput {
 }
 
 /// this is a `u64` as values of this kind can always be obtained by hashing
-pub type TouchDeviceId = u64;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct TouchDeviceId(pub u64);
 
 /// Unique identifiction of a touch occurence (finger or pen or ...).
 /// A Touch ID is valid until the finger is lifted.
 /// A new ID is used for the next touch.
-pub type TouchId = u64;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct TouchId(pub u64);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TouchPhase {

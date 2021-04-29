@@ -152,8 +152,8 @@ fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys
     for touch_idx in 0..event.changed_touches().length() {
         if let Some(touch) = event.changed_touches().item(touch_idx) {
             runner.input.raw.events.push(egui::Event::Touch {
-                device_id: 0,
-                id: touch.identifier() as u64,
+                device_id: egui::TouchDeviceId(0),
+                id: egui::TouchId(touch.identifier() as u64),
                 phase,
                 pos: pos_from_touch(canvas_origin, &touch),
                 force: touch.force(),

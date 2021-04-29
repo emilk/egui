@@ -202,8 +202,8 @@ pub fn input_to_egui(
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             touch.device_id.hash(&mut hasher);
             input_state.raw.events.push(Event::Touch {
-                device_id: hasher.finish(),
-                id: touch.id,
+                device_id: TouchDeviceId(hasher.finish()),
+                id: TouchId(touch.id),
                 phase: match touch.phase {
                     glutin::event::TouchPhase::Started => egui::TouchPhase::Start,
                     glutin::event::TouchPhase::Moved => egui::TouchPhase::Move,
