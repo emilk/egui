@@ -500,3 +500,12 @@ impl Areas {
         wants_to_be_on_top.clear();
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+#[test]
+fn memory_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Memory>();
+}
