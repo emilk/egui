@@ -506,10 +506,6 @@ impl Areas {
 #[cfg(test)]
 #[test]
 fn memory_impl_send_sync() {
-    fn test_send_sync<T: Send + Sync>(t: T) {
-        drop(t);
-    }
-
-    let memory = Memory::default();
-    test_send_sync(memory);
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Memory>();
 }
