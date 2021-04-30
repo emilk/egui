@@ -500,3 +500,16 @@ impl Areas {
         wants_to_be_on_top.clear();
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+#[test]
+fn memory_impl_send_sync() {
+    fn test_send_sync<T: Send + Sync>(t: T) {
+        drop(t);
+    }
+
+    let memory = Memory::default();
+    test_send_sync(memory);
+}

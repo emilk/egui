@@ -3,8 +3,8 @@ use std::fmt;
 
 /// Like [`std::any::Any`], but also implements `Clone`.
 pub(crate) struct AnyMapElement {
-    value: Box<dyn Any + 'static>,
-    clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
+    value: Box<dyn Any + 'static + Send + Sync>,
+    clone_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Box<dyn Any + 'static + Send + Sync>,
 }
 
 impl fmt::Debug for AnyMapElement {
@@ -24,9 +24,9 @@ impl Clone for AnyMapElement {
     }
 }
 
-pub trait AnyMapTrait: 'static + Any + Clone {}
+pub trait AnyMapTrait: 'static + Any + Clone + Send + Sync {}
 
-impl<T: 'static + Any + Clone> AnyMapTrait for T {}
+impl<T: 'static + Any + Clone + Send + Sync> AnyMapTrait for T {}
 
 impl AnyMapElement {
     pub(crate) fn new<T: AnyMapTrait>(t: T) -> Self {
