@@ -67,17 +67,17 @@ pub(crate) struct TouchState {
 struct GestureState {
     start_time: f64,
     start_pointer_pos: Pos2,
-    force: f32,
     previous: Option<DynGestureState>,
     current: DynGestureState,
 }
 
-/// Gesture data which can change over time
+/// Gesture data that can change over time
 #[derive(Clone, Copy, Debug)]
 struct DynGestureState {
-    avg_pos: Pos2,
     avg_distance: f32,
-    direction: f32,
+    avg_pos: Pos2,
+    avg_force: f32,
+    heading: f32,
 }
 
 /// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
@@ -159,34 +159,26 @@ impl TouchState {
                 start_pos: state.start_pointer_pos,
                 num_touches: self.active_touches.len(),
                 zoom_delta: state.current.avg_distance / state_previous.avg_distance,
-                rotation_delta: normalized_angle(state.current.direction, state_previous.direction),
+                rotation_delta: normalized_angle(state.current.heading, state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
-                force: state.force,
+                force: state.current.avg_force,
             }
         })
     }
 
     fn update_gesture(&mut self, time: f64, pointer_pos: Option<Pos2>) {
-        if let Some(avg) = self.calc_averages() {
+        if let Some(dyn_state) = self.calc_dynamic_state() {
             if let Some(ref mut state) = &mut self.gesture_state {
                 // updating an ongoing gesture
-                state.force = avg.force;
                 state.previous = Some(state.current);
-                state.current.avg_pos = avg.pos;
-                state.current.direction = avg.direction;
-                state.current.avg_distance = avg.distance;
+                state.current = dyn_state;
             } else if let Some(pointer_pos) = pointer_pos {
                 // starting a new gesture
                 self.gesture_state = Some(GestureState {
                     start_time: time,
                     start_pointer_pos: pointer_pos,
-                    force: avg.force,
                     previous: None,
-                    current: DynGestureState {
-                        avg_pos: avg.pos,
-                        avg_distance: avg.distance,
-                        direction: avg.direction,
-                    },
+                    current: dyn_state,
                 });
             }
         } else {
@@ -195,34 +187,34 @@ impl TouchState {
         }
     }
 
-    fn calc_averages(&self) -> Option<TouchAverages> {
+    fn calc_dynamic_state(&self) -> Option<DynGestureState> {
         let num_touches = self.active_touches.len();
         if num_touches < 2 {
             None
         } else {
-            let mut avg = TouchAverages {
-                pos: Pos2::ZERO,
-                force: 0.,
-                distance: 0.,
-                direction: 0.,
+            let mut state = DynGestureState {
+                avg_distance: 0.,
+                avg_pos: Pos2::ZERO,
+                avg_force: 0.,
+                heading: 0.,
             };
-            let num_touches_rezip = 1. / num_touches as f32;
+            let num_touches_recip = 1. / num_touches as f32;
 
-            // first pass: calculate force, and center position:
+            // first pass: calculate force and center of touch positions:
             for touch in self.active_touches.values() {
-                avg.force += touch.force;
-                avg.pos.x += touch.pos.x;
-                avg.pos.y += touch.pos.y;
+                state.avg_force += touch.force;
+                state.avg_pos.x += touch.pos.x;
+                state.avg_pos.y += touch.pos.y;
             }
-            avg.force *= num_touches_rezip;
-            avg.pos.x *= num_touches_rezip;
-            avg.pos.y *= num_touches_rezip;
+            state.avg_force *= num_touches_recip;
+            state.avg_pos.x *= num_touches_recip;
+            state.avg_pos.y *= num_touches_recip;
 
             // second pass: calculate distances from center:
             for touch in self.active_touches.values() {
-                avg.distance += avg.pos.distance(touch.pos);
+                state.avg_distance += state.avg_pos.distance(touch.pos);
             }
-            avg.distance *= num_touches_rezip;
+            state.avg_distance *= num_touches_recip;
 
             // Calculate the direction from the first touch to the center position.
             // This is not the perfect way of calculating the direction if more than two fingers
@@ -235,17 +227,11 @@ impl TouchState {
             // direction.  But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
             let first_touch = self.active_touches.values().next().unwrap();
-            avg.direction = (avg.pos - first_touch.pos).angle();
+            state.heading = (state.avg_pos - first_touch.pos).angle();
 
-            Some(avg)
+            Some(state)
         }
     }
-}
-struct TouchAverages {
-    pos: Pos2,
-    force: f32,
-    distance: f32,
-    direction: f32,
 }
 
 impl TouchState {
