@@ -501,12 +501,16 @@ impl<'t> TextEdit<'t> {
                     Event::Key {
                         key: Key::Tab,
                         pressed: true,
-                        ..
+                        modifiers,
                     } => {
                         if multiline && ui.memory().has_lock_focus(id) {
                             let mut ccursor = delete_selected(text, &cursorp);
-
-                            insert_text(&mut ccursor, text, "\t");
+                            if modifiers.shift {
+                                // TODO: support removing indentation over a selection?
+                                decrease_identation(&mut ccursor, text);
+                            } else {
+                                insert_text(&mut ccursor, text, "\t");
+                            }
                             Some(CCursorPair::one(ccursor))
                         } else {
                             None
@@ -1042,4 +1046,62 @@ fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
 
 fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Accepts and returns character offset (NOT byte offset!).
+fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
+    // We know that new lines, '\n', are a single byte char, but we have to
+    // work with char offsets because before the new line there may be any
+    // number of multi byte chars.
+    // We need to know the char index to be able to correctly set the cursor
+    // later.
+    let chars_count = text.chars().count();
+
+    let position = text
+        .chars()
+        .rev()
+        .skip(chars_count - current_index.index)
+        .position(|x| x == '\n');
+
+    match position {
+        Some(pos) => CCursor::new(current_index.index - pos),
+        None => CCursor::new(0),
+    }
+}
+
+fn decrease_identation(ccursor: &mut CCursor, text: &mut String) {
+    let mut new_text = String::with_capacity(text.len());
+
+    let line_start = find_line_start(text, *ccursor);
+
+    let mut char_it = text.chars().peekable();
+    for _ in 0..line_start.index {
+        let c = char_it.next().unwrap();
+        new_text.push(c);
+    }
+
+    let mut chars_removed = 0;
+    while let Some(&c) = char_it.peek() {
+        if c == '\t' {
+            char_it.next();
+            chars_removed += 1;
+            break;
+        } else if c == ' ' {
+            char_it.next();
+            chars_removed += 1;
+            if chars_removed == text::TAB_SIZE {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    new_text.extend(char_it);
+
+    *text = new_text;
+
+    if *ccursor != line_start {
+        *ccursor -= chars_removed;
+    }
 }

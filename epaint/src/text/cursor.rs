@@ -51,6 +51,18 @@ impl std::ops::Sub<usize> for CCursor {
     }
 }
 
+impl std::ops::AddAssign<usize> for CCursor {
+    fn add_assign(&mut self, rhs: usize) {
+        self.index = self.index.saturating_add(rhs);
+    }
+}
+
+impl std::ops::SubAssign<usize> for CCursor {
+    fn sub_assign(&mut self, rhs: usize) {
+        self.index = self.index.saturating_sub(rhs);
+    }
+}
+
 /// Row Cursor
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]

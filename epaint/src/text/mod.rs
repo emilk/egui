@@ -5,8 +5,8 @@ mod font;
 mod fonts;
 mod galley;
 
-/// Default size for a `\t` character.
-pub const TAB_SIZE: f32 = 4.0;
+/// One `\t` character is this many spaces wide.
+pub const TAB_SIZE: usize = 4;
 
 pub use {
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
