@@ -125,6 +125,15 @@ impl CCursorPair {
 ///     // …
 /// }
 /// ```
+///
+/// To fill an [`Ui`] with a [`TextEdit`] use [`Ui::add_sized`]:
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// # let mut my_string = String::new();
+/// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
+/// ```
+///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct TextEdit<'t> {

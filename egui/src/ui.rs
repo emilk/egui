@@ -817,6 +817,8 @@ impl Ui {
     /// Add a [`Widget`] to this `Ui` with a given size.
     /// The widget will attempt to fit within the given size, but some widgets may overflow.
     ///
+    /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
+    ///
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
