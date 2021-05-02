@@ -943,13 +943,6 @@ impl Ui {
         self.add(TextEdit::multiline(text).code_editor())
     }
 
-    /// A `TextEdit` for code editing with configurable `Tab` management.
-    ///
-    /// Se also [`TextEdit::code_editor_with_config`].
-    pub fn code_editor_with_config(&mut self, text: &mut String, config: CodingConfig) -> Response {
-        self.add(TextEdit::multiline(text).code_editor_with_config(config))
-    }
-
     /// Usage: `if ui.button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text))`

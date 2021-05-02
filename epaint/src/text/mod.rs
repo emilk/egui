@@ -6,7 +6,7 @@ mod fonts;
 mod galley;
 
 /// Default size for a `\t` character.
-pub const MAX_TAB_SIZE: f32 = 4.0;
+pub const TAB_SIZE: f32 = 4.0;
 
 pub use {
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},

@@ -11,6 +11,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add anchors to windows and areas so you can put a window in e.g. the top right corner.
 * Make labels interactive with `Label::sense(Sense::click())`.
 * Add `Response::request_focus` and `Response::surrender_focus`.
+* Add `TextEdit::code_editor` (VERY basic)
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 * [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
 * Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.

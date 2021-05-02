@@ -22,10 +22,9 @@ pub struct Widgets {
     radio: Enum,
     angle: f32,
     color: Color32,
-    show_password: bool,
     single_line_text_input: String,
     multiline_text_input: String,
-    tab_moves_focus: bool,
+    lock_focus: bool,
     code_snippet: String,
 }
 
@@ -38,31 +37,14 @@ impl Default for Widgets {
             angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
-            show_password: false,
-            tab_moves_focus: false,
+            lock_focus: true,
 
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
-            code_snippet: r#"// Full identation blocks
-            // Spaces Spaces Spaces
-			// Tab Tab Tab
-    	    // Spaces Tab Spaces
-	    	// Tab Spaces Tab
-
-// Partial identation blocks
- 	// Space Tab
-  	// Space Space Tab
-   	// Space Space Space Tab
- // Space / / Space
-  // Space Space / /
-   // Space Space Space /
-
-// Use the configs above to play with the tab management
-// Also existing	tabs	are	kept				as	tabs.
-
+            code_snippet: "\
 fn main() {
-    println!("Hello world!");
+\tprintln!(\"Hello world!\");
 }
-"#.to_owned(),
+".to_owned(),
         }
     }
 }
@@ -183,14 +165,16 @@ impl Widgets {
 
             ui.separator();
 
-            ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
+            ui.checkbox(&mut self.lock_focus, "Lock focus")
+                .on_hover_text(
+                    "When checked, pressing TAB will insert a tab instead of moving focus",
+                );
         });
 
-        ui.code_editor_with_config(
-            &mut self.code_snippet,
-            CodingConfig {
-                tab_moves_focus: self.tab_moves_focus,
-            },
+        ui.add(
+            TextEdit::multiline(&mut self.code_snippet)
+                .code_editor()
+                .lock_focus(self.lock_focus),
         );
     }
 }
