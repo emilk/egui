@@ -108,7 +108,14 @@ impl FontImpl {
         // Add new character:
         let glyph = self.rusttype_font.glyph(c);
         if glyph.id().0 == 0 {
-            None
+            if invisible_char(c) {
+                // hack
+                let glyph_info = GlyphInfo::default();
+                self.glyph_info_cache.write().insert(c, glyph_info);
+                Some(glyph_info)
+            } else {
+                None
+            }
         } else {
             let mut glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
@@ -586,6 +593,14 @@ fn is_chinese(c: char) -> bool {
     ('\u{4E00}' <= c && c <= '\u{9FFF}')
         || ('\u{3400}' <= c && c <= '\u{4DBF}')
         || ('\u{2B740}' <= c && c <= '\u{2B81F}')
+}
+
+#[inline]
+fn invisible_char(c: char) -> bool {
+    // See https://github.com/emilk/egui/issues/336
+
+    // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
+    ('\u{200B}'..='\u{206F}').contains(&c) // TODO: heed bidi characters
 }
 
 fn allocate_glyph(
