@@ -162,6 +162,7 @@ fn show_tooltip_area(
 ///     ui.memory().toggle_popup(popup_id);
 /// }
 /// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
+///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
 /// });

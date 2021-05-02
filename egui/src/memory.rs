@@ -303,7 +303,7 @@ impl Memory {
         !self.had_focus_last_frame(id) && self.has_focus(id)
     }
 
-    /// Does this widget have keybaord focus?
+    /// Does this widget have keyboard focus?
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
         self.interaction.focus.id == Some(id)

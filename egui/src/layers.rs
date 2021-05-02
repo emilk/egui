@@ -142,7 +142,7 @@ impl GraphicLayers {
             let order_map = &mut self.0[order as usize];
 
             // If a layer is empty at the start of the frame
-            // the nobody has added to it, and it is old and defunct.
+            // then nobody has added to it, and it is old and defunct.
             // Free it to save memory:
             order_map.retain(|_, list| !list.lock().is_empty());
 
