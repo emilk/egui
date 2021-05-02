@@ -120,7 +120,7 @@ impl FontImpl {
 
             if c == '\t' {
                 if let Some(space) = self.glyph_info(' ') {
-                    glyph_info.advance_width = 4.0 * space.advance_width;
+                    glyph_info.advance_width = crate::text::MAX_TAB_SIZE * space.advance_width;
                 }
             }
 
@@ -285,6 +285,7 @@ impl Font {
         for c in text.chars() {
             if !self.fonts.is_empty() {
                 let (font_index, glyph_info) = self.glyph_info(c);
+
                 let font_impl = &self.fonts[font_index];
 
                 if let Some(last_glyph_id) = last_glyph_id {

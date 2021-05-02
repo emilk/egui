@@ -108,6 +108,12 @@ impl CCursorPair {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct CodingConfig {
+    pub tab_moves_focus: bool,
+}
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -140,6 +146,7 @@ pub struct TextEdit<'t> {
     enabled: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
+    tab_moves_focus: bool,
 }
 impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
@@ -171,6 +178,7 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 1,
+            tab_moves_focus: true,
         }
     }
 
@@ -189,7 +197,35 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 4,
+            tab_moves_focus: true,
         }
+    }
+
+    /// When this is true, then pass focus to the next
+    /// widget.
+    pub fn tab_moves_focus(mut self, b: bool) -> Self {
+        self.tab_moves_focus = b;
+        self
+    }
+
+    /// Build a `TextEdit` focused on code editing.
+    /// By default it comes with:
+    /// - monospaced font
+    /// - focus lock
+    pub fn code_editor(self) -> Self {
+        self.text_style(TextStyle::Monospace).tab_moves_focus(false)
+    }
+
+    /// Build a `TextEdit` focused on code editing with configurable `Tab` management.
+    ///
+    /// Shortcut for:
+    /// ```rust, ignore
+    /// egui::TextEdit::multiline(code_snippet)
+    ///     .code_editor()
+    ///     .tab_moves_focus(tab_moves_focus);
+    /// ```
+    pub fn code_editor_with_config(self, config: CodingConfig) -> Self {
+        self.code_editor().tab_moves_focus(config.tab_moves_focus)
     }
 
     pub fn id(mut self, id: Id) -> Self {
@@ -312,6 +348,7 @@ impl<'t> TextEdit<'t> {
             enabled,
             desired_width,
             desired_height_rows,
+            tab_moves_focus,
         } = self;
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
@@ -417,6 +454,8 @@ impl<'t> TextEdit<'t> {
 
         let mut text_cursor = None;
         if ui.memory().has_focus(id) && enabled {
+            ui.memory().lock_focus(id, !tab_moves_focus);
+
             let mut cursorp = state
                 .cursorp
                 .map(|cursorp| {
@@ -466,7 +505,22 @@ impl<'t> TextEdit<'t> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
+
                             insert_text(&mut ccursor, text, text_to_insert);
+                            Some(CCursorPair::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+                    Event::Key {
+                        key: Key::Tab,
+                        pressed: true,
+                        ..
+                    } => {
+                        if multiline && ui.memory().has_lock_focus(id) {
+                            let mut ccursor = delete_selected(text, &cursorp);
+
+                            insert_text(&mut ccursor, text, "\t");
                             Some(CCursorPair::one(ccursor))
                         } else {
                             None

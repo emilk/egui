@@ -934,6 +934,22 @@ impl Ui {
         TextEdit::multiline(text).ui(self)
     }
 
+    /// A `TextEdit` for code editing.
+    ///
+    /// This will be multiline, monospace, and will insert tabs instead of moving focus.
+    ///
+    /// See also [`TextEdit::code_editor`].
+    pub fn code_editor(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::multiline(text).code_editor())
+    }
+
+    /// A `TextEdit` for code editing with configurable `Tab` management.
+    ///
+    /// Se also [`TextEdit::code_editor_with_config`].
+    pub fn code_editor_with_config(&mut self, text: &mut String, config: CodingConfig) -> Response {
+        self.add(TextEdit::multiline(text).code_editor_with_config(config))
+    }
+
     /// Usage: `if ui.button("Click me").clicked() { … }`
     ///
     /// Shortcut for `add(Button::new(text))`

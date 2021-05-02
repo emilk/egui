@@ -22,8 +22,11 @@ pub struct Widgets {
     radio: Enum,
     angle: f32,
     color: Color32,
+    show_password: bool,
     single_line_text_input: String,
     multiline_text_input: String,
+    tab_moves_focus: bool,
+    code_snippet: String,
 }
 
 impl Default for Widgets {
@@ -35,7 +38,31 @@ impl Default for Widgets {
             angle: std::f32::consts::TAU / 3.0,
             color: (Rgba::from_rgb(0.0, 1.0, 0.5) * 0.75).into(),
             single_line_text_input: "Hello World!".to_owned(),
+            show_password: false,
+            tab_moves_focus: false,
+
             multiline_text_input: "Text can both be so wide that it needs a line break, but you can also add manual line break by pressing enter, creating new paragraphs.\nThis is the start of the next paragraph.\n\nClick me to edit me!".to_owned(),
+            code_snippet: r#"// Full identation blocks
+            // Spaces Spaces Spaces
+			// Tab Tab Tab
+    	    // Spaces Tab Spaces
+	    	// Tab Spaces Tab
+
+// Partial identation blocks
+ 	// Space Tab
+  	// Space Space Tab
+   	// Space Space Space Tab
+ // Space / / Space
+  // Space Space / /
+   // Space Space Space /
+
+// Use the configs above to play with the tab management
+// Also existing	tabs	are	kept				as	tabs.
+
+fn main() {
+    println!("Hello world!");
+}
+"#.to_owned(),
         }
     }
 }
@@ -144,7 +171,26 @@ impl Widgets {
             ui.memory().id_data.insert(show_password_id, show_password);
         });
 
+        ui.separator();
+
         ui.label("Multiline text input:");
         ui.text_edit_multiline(&mut self.multiline_text_input);
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.label("Code editor:");
+
+            ui.separator();
+
+            ui.checkbox(&mut self.tab_moves_focus, "Tabs moves focus");
+        });
+
+        ui.code_editor_with_config(
+            &mut self.code_snippet,
+            CodingConfig {
+                tab_moves_focus: self.tab_moves_focus,
+            },
+        );
     }
 }
