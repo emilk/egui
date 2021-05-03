@@ -125,6 +125,15 @@ impl CCursorPair {
 ///     // …
 /// }
 /// ```
+///
+/// To fill an [`Ui`] with a [`TextEdit`] use [`Ui::add_sized`]:
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// # let mut my_string = String::new();
+/// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
+/// ```
+///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
 pub struct TextEdit<'t> {
@@ -140,6 +149,7 @@ pub struct TextEdit<'t> {
     enabled: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
+    lock_focus: bool,
 }
 impl<'t> TextEdit<'t> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
@@ -171,6 +181,7 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 1,
+            lock_focus: true,
         }
     }
 
@@ -189,9 +200,19 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 4,
+            lock_focus: true,
         }
     }
 
+    /// Build a `TextEdit` focused on code editing.
+    /// By default it comes with:
+    /// - monospaced font
+    /// - focus lock
+    pub fn code_editor(self) -> Self {
+        self.text_style(TextStyle::Monospace).lock_focus(true)
+    }
+
+    /// Use if you want to set an explicit `Id` for this widget.
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
@@ -256,6 +277,16 @@ impl<'t> TextEdit<'t> {
         self.desired_height_rows = desired_height_rows;
         self
     }
+
+    /// When `false` (default), pressing TAB will move focus
+    /// to the next widget.
+    ///
+    /// When `true`, the widget will keep the focus and pressing TAB
+    /// will insert the `'\t'` character.
+    pub fn lock_focus(mut self, b: bool) -> Self {
+        self.lock_focus = b;
+        self
+    }
 }
 
 impl<'t> Widget for TextEdit<'t> {
@@ -312,6 +343,7 @@ impl<'t> TextEdit<'t> {
             enabled,
             desired_width,
             desired_height_rows,
+            lock_focus,
         } = self;
 
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
@@ -417,6 +449,8 @@ impl<'t> TextEdit<'t> {
 
         let mut text_cursor = None;
         if ui.memory().has_focus(id) && enabled {
+            ui.memory().lock_focus(id, lock_focus);
+
             let mut cursorp = state
                 .cursorp
                 .map(|cursorp| {
@@ -466,7 +500,26 @@ impl<'t> TextEdit<'t> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
+
                             insert_text(&mut ccursor, text, text_to_insert);
+                            Some(CCursorPair::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+                    Event::Key {
+                        key: Key::Tab,
+                        pressed: true,
+                        modifiers,
+                    } => {
+                        if multiline && ui.memory().has_lock_focus(id) {
+                            let mut ccursor = delete_selected(text, &cursorp);
+                            if modifiers.shift {
+                                // TODO: support removing indentation over a selection?
+                                decrease_identation(&mut ccursor, text);
+                            } else {
+                                insert_text(&mut ccursor, text, "\t");
+                            }
                             Some(CCursorPair::one(ccursor))
                         } else {
                             None
@@ -1002,4 +1055,62 @@ fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
 
 fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Accepts and returns character offset (NOT byte offset!).
+fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
+    // We know that new lines, '\n', are a single byte char, but we have to
+    // work with char offsets because before the new line there may be any
+    // number of multi byte chars.
+    // We need to know the char index to be able to correctly set the cursor
+    // later.
+    let chars_count = text.chars().count();
+
+    let position = text
+        .chars()
+        .rev()
+        .skip(chars_count - current_index.index)
+        .position(|x| x == '\n');
+
+    match position {
+        Some(pos) => CCursor::new(current_index.index - pos),
+        None => CCursor::new(0),
+    }
+}
+
+fn decrease_identation(ccursor: &mut CCursor, text: &mut String) {
+    let mut new_text = String::with_capacity(text.len());
+
+    let line_start = find_line_start(text, *ccursor);
+
+    let mut char_it = text.chars().peekable();
+    for _ in 0..line_start.index {
+        let c = char_it.next().unwrap();
+        new_text.push(c);
+    }
+
+    let mut chars_removed = 0;
+    while let Some(&c) = char_it.peek() {
+        if c == '\t' {
+            char_it.next();
+            chars_removed += 1;
+            break;
+        } else if c == ' ' {
+            char_it.next();
+            chars_removed += 1;
+            if chars_removed == text::TAB_SIZE {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    new_text.extend(char_it);
+
+    *text = new_text;
+
+    if *ccursor != line_start {
+        *ccursor -= chars_removed;
+    }
 }

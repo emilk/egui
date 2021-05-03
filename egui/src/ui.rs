@@ -817,6 +817,8 @@ impl Ui {
     /// Add a [`Widget`] to this `Ui` with a given size.
     /// The widget will attempt to fit within the given size, but some widgets may overflow.
     ///
+    /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
+    ///
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
@@ -932,6 +934,15 @@ impl Ui {
     /// See also [`TextEdit`].
     pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
         TextEdit::multiline(text).ui(self)
+    }
+
+    /// A `TextEdit` for code editing.
+    ///
+    /// This will be multiline, monospace, and will insert tabs instead of moving focus.
+    ///
+    /// See also [`TextEdit::code_editor`].
+    pub fn code_editor(&mut self, text: &mut String) -> Response {
+        self.add(TextEdit::multiline(text).code_editor())
     }
 
     /// Usage: `if ui.button("Click me").clicked() { … }`

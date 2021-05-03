@@ -340,6 +340,7 @@ pub mod http {
 
     impl Request {
         /// Create a `GET` requests with the given url.
+        #[allow(clippy::needless_pass_by_value)]
         pub fn get(url: impl ToString) -> Self {
             Self {
                 method: "GET".to_owned(),
@@ -349,6 +350,7 @@ pub mod http {
         }
 
         /// Create a `POST` requests with the give url and body.
+        #[allow(clippy::needless_pass_by_value)]
         pub fn post(url: impl ToString, body: impl ToString) -> Self {
             Self {
                 method: "POST".to_owned(),

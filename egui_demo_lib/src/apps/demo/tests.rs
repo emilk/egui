@@ -319,8 +319,17 @@ impl super::View for InputTest {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
-pub struct WindowResizeTest {}
+pub struct WindowResizeTest {
+    text: String,
+}
+
+impl Default for WindowResizeTest {
+    fn default() -> Self {
+        Self {
+            text: crate::LOREM_IPSUM.to_owned(),
+        }
+    }
+}
 
 impl super::Demo for WindowResizeTest {
     fn name(&self) -> &'static str {
@@ -380,6 +389,15 @@ impl super::Demo for WindowResizeTest {
                 ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
                 ui.separator();
                 ui.code(crate::LOREM_IPSUM);
+            });
+
+        Window::new("↔ resizable with TextEdit")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.label("Shows how you can fill an area with a widget.");
+                ui.add_sized(ui.available_size(), TextEdit::multiline(&mut self.text));
             });
     }
 }

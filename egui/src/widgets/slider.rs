@@ -49,6 +49,8 @@ struct SliderSpec {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
 /// ```
+///
+/// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,

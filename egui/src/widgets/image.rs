@@ -10,6 +10,8 @@ use crate::*;
 /// // Shorter version:
 /// ui.image(my_texture_id, [640.0, 480.0]);
 /// ```
+///
+/// Se also [`crate::ImageButton`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
 pub struct Image {

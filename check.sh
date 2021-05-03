@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -eux
 
 # Checks all tests, lints etc.
 # Basically does what the CI does.
