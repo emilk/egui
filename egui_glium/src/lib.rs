@@ -204,7 +204,7 @@ pub fn input_to_egui(
             touch.device_id.hash(&mut hasher);
             input_state.raw.events.push(Event::Touch {
                 device_id: TouchDeviceId(hasher.finish()),
-                id: TouchId(touch.id),
+                id: TouchId::from(touch.id),
                 phase: match touch.phase {
                     glutin::event::TouchPhase::Started => egui::TouchPhase::Start,
                     glutin::event::TouchPhase::Moved => egui::TouchPhase::Move,

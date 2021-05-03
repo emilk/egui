@@ -114,23 +114,37 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
     }
 }
 
-pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
-    // TO BE CLARIFIED: For some types of touch events (e.g. `touchcancel`) it may be necessary to
-    // change the return type to an `Option<Pos2>` – but this would be an incompatible change.  Can
-    // we do this?
-
-    // Calculate the average of all touch positions:
-    let mut accu = egui::Vec2::ZERO;
-    let touch_count = event.touches().length();
-    if touch_count > 0 {
-        let canvas_origin = canvas_origin(canvas_id);
-        for touch_idx in 0..touch_count {
-            let touch = event.touches().get(touch_idx).unwrap();
-            accu += pos_from_touch(canvas_origin, &touch).to_vec2();
-        }
-        accu = accu / touch_count as f32;
+/// A single touch is translated to a pointer movement.  When a second touch is added, the pointer
+/// should not jump to a different position.  Therefore, we do not calculate the average position
+/// of all touches, but we keep using the same touch as long as it is available.
+///
+/// `touch_id_for_pos` is the `TouchId` of the `Touch` we previously used to determine the
+/// pointer position.  
+pub fn pos_from_touch_event(
+    canvas_id: &str,
+    event: &web_sys::TouchEvent,
+    touch_id_for_pos: &mut Option<egui::TouchId>,
+) -> egui::Pos2 {
+    let touch_for_pos;
+    if let Some(touch_id_for_pos) = touch_id_for_pos {
+        // search for the touch we previously used for the position
+        // (unfortunately, `event.touches()` is not a rust collection):
+        touch_for_pos = (0..event.touches().length())
+            .into_iter()
+            .map(|i| event.touches().get(i).unwrap())
+            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos);
+    } else {
+        touch_for_pos = None;
     }
-    egui::Pos2::ZERO + accu
+    // Use the touch found above or pick the first, or return a default position if there is no
+    // touch at all. (The latter is not expected as the current method is only called when there is
+    // at least one touch.)
+    touch_for_pos
+        .or_else(|| event.touches().get(0))
+        .map_or(Default::default(), |touch| {
+            *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
+            pos_from_touch(canvas_origin(canvas_id), &touch)
+        })
 }
 
 fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
@@ -153,7 +167,7 @@ fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys
         if let Some(touch) = event.changed_touches().item(touch_idx) {
             runner.input.raw.events.push(egui::Event::Touch {
                 device_id: egui::TouchDeviceId(0),
-                id: egui::TouchId(touch.identifier() as u64),
+                id: egui::TouchId::from(touch.identifier()),
                 phase,
                 pos: pos_from_touch(canvas_origin, &touch),
                 force: touch.force(),
@@ -914,7 +928,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
+            let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
+            let pos =
+                pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
+            runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             let modifiers = runner_lock.input.raw.modifiers;
@@ -943,7 +960,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
+            let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
+            let pos =
+                pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
+            runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             runner_lock

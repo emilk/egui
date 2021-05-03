@@ -338,3 +338,21 @@ pub enum TouchPhase {
     /// been intended by the user)
     Cancel,
 }
+
+impl From<u64> for TouchId {
+    fn from(id: u64) -> Self {
+        Self(id)
+    }
+}
+
+impl From<i32> for TouchId {
+    fn from(id: i32) -> Self {
+        Self(id as u64)
+    }
+}
+
+impl From<u32> for TouchId {
+    fn from(id: u32) -> Self {
+        Self(id as u64)
+    }
+}
