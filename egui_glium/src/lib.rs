@@ -211,7 +211,7 @@ pub fn input_to_egui(
                     glutin::event::TouchPhase::Ended => egui::TouchPhase::End,
                     glutin::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
                 },
-                pos: pos2(touch.location.x as f32 * pixels_per_point_recip, 
+                pos: pos2(touch.location.x as f32 * pixels_per_point_recip,
                     touch.location.y as f32 * pixels_per_point_recip),
                 force: match touch.force {
                     Some(Force::Normalized(force)) => force as f32,
