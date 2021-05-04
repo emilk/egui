@@ -1,7 +1,10 @@
 //! Simple plotting library.
 
 mod items;
+mod legend;
 mod transform;
+
+use std::collections::HashSet;
 
 pub use items::{Curve, Value};
 use items::{HLine, VLine};
@@ -9,6 +12,8 @@ use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
+
+use self::legend::{LegendEntry, PlotLegend};
 
 // ----------------------------------------------------------------------------
 
@@ -18,6 +23,7 @@ use color::Hsva;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
+    hidden_curves: HashSet<String>,
 }
 
 // ----------------------------------------------------------------------------
@@ -260,50 +266,98 @@ impl Widget for Plot {
             .id_data
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
-                auto_bounds: true,
+                auto_bounds: !min_auto_bounds.is_valid(),
+                hidden_curves: HashSet::new(),
             })
             .clone();
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
+            mut hidden_curves,
         } = memory;
 
+        // Determine the size of the plot in the UI
         let size = {
-            let width = width.unwrap_or_else(|| {
-                if let (Some(height), Some(aspect)) = (height, view_aspect) {
-                    height * aspect
-                } else {
-                    ui.available_size_before_wrap_finite().x
-                }
-            });
-            let width = width.at_least(min_size.x);
+            let width = width
+                .unwrap_or_else(|| {
+                    if let (Some(height), Some(aspect)) = (height, view_aspect) {
+                        height * aspect
+                    } else {
+                        ui.available_size_before_wrap_finite().x
+                    }
+                })
+                .at_least(min_size.x);
 
-            let height = height.unwrap_or_else(|| {
-                if let Some(aspect) = view_aspect {
-                    width / aspect
-                } else {
-                    ui.available_size_before_wrap_finite().y
-                }
-            });
-            let height = height.at_least(min_size.y);
+            let height = height
+                .unwrap_or_else(|| {
+                    if let Some(aspect) = view_aspect {
+                        width / aspect
+                    } else {
+                        ui.available_size_before_wrap_finite().y
+                    }
+                })
+                .at_least(min_size.y);
             vec2(width, height)
         };
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+        let plot_painter = ui.painter().sub_region(rect);
 
         // Background
-        ui.painter().add(Shape::Rect {
+        plot_painter.add(Shape::Rect {
             rect,
             corner_radius: 2.0,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.visuals().window_stroke(),
         });
 
+        // ------------
+
+        // Collect the legend entries.
+        let mut legend_entries: Vec<_> = curves
+            .iter()
+            .filter(|curve| !curve.name.is_empty())
+            .map(|curve| {
+                let checked = !hidden_curves.contains(&curve.name);
+                let text = curve.name.clone();
+                let color = curve.stroke.color;
+                LegendEntry::new(text, color, checked)
+            })
+            .collect();
+
+        // Show the legend.
+        if !legend_entries.is_empty() {
+            let legend = PlotLegend::new(&mut legend_entries, rect);
+            legend.ui(ui);
+        }
+
+        // Get the names of the hidden curves.
+        hidden_curves = legend_entries
+            .iter()
+            .filter(|entry| !entry.checked)
+            .map(|entry| entry.text.clone())
+            .collect();
+
+        // Highlight the hovered curves.
+        legend_entries
+            .iter()
+            .filter(|entry| entry.hovered)
+            .for_each(|entry| {
+                if let Some(curve) = curves.iter_mut().find(|curve| curve.name == entry.text) {
+                    curve.stroke.width *= 2.0;
+                }
+            });
+
+        // Remove deselected curves.
+        curves.retain(|curve| !hidden_curves.contains(&curve.name));
+
+        // ------------
+
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
         // Set bounds automatically based on content.
-        if auto_bounds || !bounds.is_valid() {
+        if auto_bounds {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
@@ -345,8 +399,9 @@ impl Widget for Plot {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;
                 }
-                let scroll_delta = ui.input().scroll_delta;
+                let mut scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
+                    scroll_delta.y *= -1.0;
                     transform.translate_bounds(-scroll_delta);
                     auto_bounds = false;
                 }
@@ -363,6 +418,7 @@ impl Widget for Plot {
             PlotMemory {
                 bounds: *transform.bounds(),
                 auto_bounds,
+                hidden_curves,
             },
         );
 
