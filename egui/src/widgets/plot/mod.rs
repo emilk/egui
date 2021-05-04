@@ -67,6 +67,7 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
+    show_legend: bool,
 }
 
 impl Plot {
@@ -95,6 +96,7 @@ impl Plot {
 
             show_x: true,
             show_y: true,
+            show_legend: true,
         }
     }
 
@@ -235,6 +237,12 @@ impl Plot {
         self.min_auto_bounds.extend_with_y(y.into());
         self
     }
+
+    /// Whether to show a legend including all named curves. Default: `true`.
+    pub fn show_legend(mut self, show: bool) -> Self {
+        self.show_legend = show;
+        self
+    }
 }
 
 impl Widget for Plot {
@@ -256,8 +264,9 @@ impl Widget for Plot {
             min_size,
             data_aspect,
             view_aspect,
-            show_x,
-            show_y,
+            mut show_x,
+            mut show_y,
+            show_legend,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
@@ -312,47 +321,53 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
-        // ------------
+        // --- Legend ---
 
-        // Collect the legend entries.
-        let mut legend_entries: Vec<_> = curves
-            .iter()
-            .filter(|curve| !curve.name.is_empty())
-            .map(|curve| {
-                let checked = !hidden_curves.contains(&curve.name);
-                let text = curve.name.clone();
-                let color = curve.stroke.color;
-                LegendEntry::new(text, color, checked)
-            })
-            .collect();
+        if show_legend {
+            // Collect the legend entries.
+            let mut legend_entries: Vec<_> = curves
+                .iter()
+                .filter(|curve| !curve.name.is_empty())
+                .map(|curve| {
+                    let checked = !hidden_curves.contains(&curve.name);
+                    let text = curve.name.clone();
+                    let color = curve.stroke.color;
+                    LegendEntry::new(text, color, checked)
+                })
+                .collect();
 
-        // Show the legend.
-        if !legend_entries.is_empty() {
-            let legend = PlotLegend::new(&mut legend_entries, rect);
-            legend.ui(ui);
+            // Show the legend.
+            if !legend_entries.is_empty() {
+                let legend = PlotLegend::new(&mut legend_entries, rect);
+                let response = legend.ui(ui);
+                if response.hovered() {
+                    show_x = false;
+                    show_y = false;
+                }
+            }
+
+            // Get the names of the hidden curves.
+            hidden_curves = legend_entries
+                .iter()
+                .filter(|entry| !entry.checked)
+                .map(|entry| entry.text.clone())
+                .collect();
+
+            // Highlight the hovered curves.
+            legend_entries
+                .iter()
+                .filter(|entry| entry.hovered)
+                .for_each(|entry| {
+                    if let Some(curve) = curves.iter_mut().find(|curve| curve.name == entry.text) {
+                        curve.stroke.width *= 2.0;
+                    }
+                });
+
+            // Remove deselected curves.
+            curves.retain(|curve| !hidden_curves.contains(&curve.name));
         }
 
-        // Get the names of the hidden curves.
-        hidden_curves = legend_entries
-            .iter()
-            .filter(|entry| !entry.checked)
-            .map(|entry| entry.text.clone())
-            .collect();
-
-        // Highlight the hovered curves.
-        legend_entries
-            .iter()
-            .filter(|entry| entry.hovered)
-            .for_each(|entry| {
-                if let Some(curve) = curves.iter_mut().find(|curve| curve.name == entry.text) {
-                    curve.stroke.width *= 2.0;
-                }
-            });
-
-        // Remove deselected curves.
-        curves.retain(|curve| !hidden_curves.contains(&curve.name));
-
-        // ------------
+        // ---
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -432,7 +447,11 @@ impl Widget for Plot {
         };
         prepared.ui(ui, &response);
 
-        response.on_hover_cursor(CursorIcon::Crosshair)
+        if show_x || show_y {
+            response.on_hover_cursor(CursorIcon::Crosshair)
+        } else {
+            response
+        }
     }
 }
 
