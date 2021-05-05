@@ -1,17 +1,23 @@
 use egui::{
     emath::{RectTransform, Rot2},
-    vec2, Color32, Frame, Pos2, Rect, Sense, Stroke,
+    vec2, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
 
 pub struct ZoomRotate {
+    previous_arrow_start_offset: Vec2,
     rotation: f32,
+    smoothed_velocity: Vec2,
+    translation: Vec2,
     zoom: f32,
 }
 
 impl Default for ZoomRotate {
     fn default() -> Self {
         Self {
+            previous_arrow_start_offset: Vec2::ZERO,
             rotation: 0.,
+            smoothed_velocity: Vec2::ZERO,
+            translation: Vec2::ZERO,
             zoom: 1.,
         }
     }
@@ -64,6 +70,7 @@ impl super::View for ZoomRotate {
                 Rect::from_min_size(Pos2::ZERO - painter_proportions, 2. * painter_proportions),
                 response.rect,
             );
+            let dt = ui.input().unstable_dt;
 
             // check for touch input (or the lack thereof) and update zoom and scale factors, plus
             // color and width:
@@ -74,6 +81,9 @@ impl super::View for ZoomRotate {
                 // change (for the current frame) of the touch gesture:
                 self.zoom *= multi_touch.zoom_delta;
                 self.rotation += multi_touch.rotation_delta;
+                // the translation we get from `multi_touch` needs to be scaled down to the
+                // normalized coordinates we use as the basis for painting:
+                self.translation += to_screen.inverse().scale() * multi_touch.translation_delta;
                 // touch pressure shall make the arrow thicker (not all touch devices support this):
                 stroke_width += 10. * multi_touch.force;
                 // the drawing color depends on the number of touches:
@@ -83,32 +93,48 @@ impl super::View for ZoomRotate {
                     4 => Color32::YELLOW,
                     _ => Color32::RED,
                 };
-                // for a smooth touch experience (not strictly required, but I had the impression
-                // that it helps to reduce some lag, especially for the initial touch):
-                ui.ctx().request_repaint();
             } else {
                 // This has nothing to do with the touch gesture. It just smoothly brings the
                 // painted arrow back into its original position, for a nice visual effect:
-                let dt = ui.input().unstable_dt;
                 const ZOOM_ROTATE_HALF_LIFE: f32 = 1.; // time[sec] after which half the amount of zoom/rotation will be reverted
                 let half_life_factor = (-(2_f32.ln()) / ZOOM_ROTATE_HALF_LIFE * dt).exp();
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
-                // this is an animation, so we want real-time UI updates:
-                ui.ctx().request_repaint();
+                self.translation *= half_life_factor;
             }
-
             let zoom_and_rotate = self.zoom * Rot2::from_angle(self.rotation);
+            let arrow_start_offset = self.translation + zoom_and_rotate * vec2(-0.5, 0.5);
+            let current_velocity = (arrow_start_offset - self.previous_arrow_start_offset) / dt;
+            self.previous_arrow_start_offset = arrow_start_offset;
 
-            // Paints an arrow pointing from bottom-left (-0.5, 0.5) to top-right (0.5, -0.5),
-            // but scaled and rotated according to the current translation:
-            let arrow_start = zoom_and_rotate * vec2(-0.5, 0.5);
+            // aggregate the average velocity of the arrow's start position from latest samples:
+            const NUM_SMOOTHING_SAMPLES: f32 = 10.;
+            self.smoothed_velocity = ((NUM_SMOOTHING_SAMPLES - 1.) * self.smoothed_velocity
+                + current_velocity)
+                / NUM_SMOOTHING_SAMPLES;
+
+            // Paints an arrow pointing from bottom-left (-0.5, 0.5) to top-right (0.5, -0.5), but
+            // scaled, rotated, and translated according to the current touch gesture:
+            let arrow_start = Pos2::ZERO + arrow_start_offset;
             let arrow_direction = zoom_and_rotate * vec2(1., -1.);
             painter.arrow(
-                to_screen * (Pos2::ZERO + arrow_start),
+                to_screen * arrow_start,
                 to_screen.scale() * arrow_direction,
                 Stroke::new(stroke_width, color),
             );
+            // Paints a circle at the origin of the arrow.  The size and opacity of the circle
+            // depend on the current velocity, and the circle is translated in the opposite
+            // direction of the movement, so it follows the origin's movement.  Constant factors
+            // have been determined by trial and error.
+            let speed = self.smoothed_velocity.length();
+            painter.circle_filled(
+                to_screen * (arrow_start - 0.2 * self.smoothed_velocity),
+                2. + to_screen.scale().length() * 0.1 * speed,
+                Color32::RED.linear_multiply(1. / (1. + (5. * speed).powi(2))),
+            );
+
+            // we want continuous UI updates, so the circle can smoothly follow the arrow's origin:
+            ui.ctx().request_repaint();
         });
     }
 }
