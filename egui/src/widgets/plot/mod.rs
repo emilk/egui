@@ -13,7 +13,7 @@ use transform::{Bounds, ScreenTransform};
 use crate::*;
 use color::Hsva;
 
-use self::legend::{LegendEntry, PlotLegend};
+use self::legend::LegendEntry;
 
 // ----------------------------------------------------------------------------
 
@@ -337,14 +337,14 @@ impl Widget for Plot {
                 .collect();
 
             // Show the legend.
-            if !legend_entries.is_empty() {
-                let legend = PlotLegend::new(&mut legend_entries, rect);
-                let response = legend.ui(ui);
+            let mut legend_ui = ui.child_ui(rect, Layout::top_down(Align::LEFT));
+            legend_entries.iter_mut().for_each(|entry| {
+                let response = legend_ui.add(entry);
                 if response.hovered() {
                     show_x = false;
                     show_y = false;
                 }
-            }
+            });
 
             // Get the names of the hidden curves.
             hidden_curves = legend_entries
@@ -372,7 +372,7 @@ impl Widget for Plot {
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
         // Set bounds automatically based on content.
-        if auto_bounds {
+        if auto_bounds || !bounds.is_valid() {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
@@ -414,9 +414,8 @@ impl Widget for Plot {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;
                 }
-                let mut scroll_delta = ui.input().scroll_delta;
+                let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
-                    scroll_delta.y *= -1.0;
                     transform.translate_bounds(-scroll_delta);
                     auto_bounds = false;
                 }
@@ -428,14 +427,7 @@ impl Widget for Plot {
             .iter_mut()
             .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
 
-        ui.memory().id_data.insert(
-            plot_id,
-            PlotMemory {
-                bounds: *transform.bounds(),
-                auto_bounds,
-                hidden_curves,
-            },
-        );
+        let bounds = *transform.bounds();
 
         let prepared = Prepared {
             curves,
@@ -446,6 +438,15 @@ impl Widget for Plot {
             transform,
         };
         prepared.ui(ui, &response);
+
+        ui.memory().id_data.insert(
+            plot_id,
+            PlotMemory {
+                bounds,
+                auto_bounds,
+                hidden_curves,
+            },
+        );
 
         if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)
