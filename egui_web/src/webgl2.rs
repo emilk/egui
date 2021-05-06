@@ -153,42 +153,39 @@ impl WebGl2Painter {
 
     fn upload_user_textures(&mut self) {
         let gl = &self.gl;
+        for user_texture in self.user_textures.iter_mut().flatten() {
+            if user_texture.gl_texture.is_none() {
+                let pixels = std::mem::take(&mut user_texture.pixels);
 
-        for user_texture in &mut self.user_textures {
-            if let Some(user_texture) = user_texture {
-                if user_texture.gl_texture.is_none() {
-                    let pixels = std::mem::take(&mut user_texture.pixels);
+                let gl_texture = gl.create_texture().unwrap();
+                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
+                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
-                    let gl_texture = gl.create_texture().unwrap();
-                    gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
-                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-                    gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
+                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
-                    gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+                let level = 0;
+                let internal_format = Gl::SRGB8_ALPHA8;
+                let border = 0;
+                let src_format = Gl::RGBA;
+                let src_type = Gl::UNSIGNED_BYTE;
+                gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+                gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                    Gl::TEXTURE_2D,
+                    level,
+                    internal_format as i32,
+                    user_texture.size.0 as i32,
+                    user_texture.size.1 as i32,
+                    border,
+                    src_format,
+                    src_type,
+                    Some(&pixels),
+                )
+                .unwrap();
 
-                    let level = 0;
-                    let internal_format = Gl::SRGB8_ALPHA8;
-                    let border = 0;
-                    let src_format = Gl::RGBA;
-                    let src_type = Gl::UNSIGNED_BYTE;
-                    gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
-                    gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-                        Gl::TEXTURE_2D,
-                        level,
-                        internal_format as i32,
-                        user_texture.size.0 as i32,
-                        user_texture.size.1 as i32,
-                        border,
-                        src_format,
-                        src_type,
-                        Some(&pixels),
-                    )
-                    .unwrap();
-
-                    user_texture.gl_texture = Some(gl_texture);
-                }
+                user_texture.gl_texture = Some(gl_texture);
             }
         }
     }

@@ -303,15 +303,13 @@ impl Painter {
     }
 
     pub fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
-        for user_texture in &mut self.user_textures {
-            if let Some(user_texture) = user_texture {
-                if user_texture.gl_texture.is_none() {
-                    let pixels = std::mem::take(&mut user_texture.pixels);
-                    let format = texture::SrgbFormat::U8U8U8U8;
-                    let mipmaps = texture::MipmapsOption::NoMipmap;
-                    user_texture.gl_texture =
-                        Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
-                }
+        for user_texture in self.user_textures.iter_mut().flatten() {
+            if user_texture.gl_texture.is_none() {
+                let pixels = std::mem::take(&mut user_texture.pixels);
+                let format = texture::SrgbFormat::U8U8U8U8;
+                let mipmaps = texture::MipmapsOption::NoMipmap;
+                user_texture.gl_texture =
+                    Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
             }
         }
     }

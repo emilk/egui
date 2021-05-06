@@ -311,7 +311,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
         ui.label("Value");
         ui.end_row();
 
-        color_slider_2d(ui, v, s, |v, s| HsvaGamma { v, s, ..opaque }.into());
+        color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
         ui.label("Value / Saturation");
         ui.end_row();
     });

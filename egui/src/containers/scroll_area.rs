@@ -141,9 +141,9 @@ impl ScrollArea {
         Prepared {
             id,
             state,
+            current_scroll_bar_width,
             always_show_scroll,
             inner_rect,
-            current_scroll_bar_width,
             content_ui,
         }
     }

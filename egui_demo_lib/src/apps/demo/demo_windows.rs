@@ -42,12 +42,12 @@ impl Default for Demos {
                 .to_owned(),
         );
 
-        Self { open, demos }
+        Self { demos, open }
     }
 }
 impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { open, demos } = self;
+        let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
             ui.checkbox(&mut is_open, demo.name());
@@ -56,7 +56,7 @@ impl Demos {
     }
 
     pub fn show(&mut self, ctx: &CtxRef) {
-        let Self { open, demos } = self;
+        let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
             demo.show(ctx, &mut is_open);
