@@ -28,7 +28,12 @@ pub use painter::Painter;
 use {
     copypasta::ClipboardProvider,
     egui::*,
-    glium::glutin::{self, event::VirtualKeyCode, event_loop::ControlFlow},
+    glium::glutin::{
+        self,
+        event::{Force, VirtualKeyCode},
+        event_loop::ControlFlow,
+    },
+    std::hash::{Hash, Hasher},
 };
 
 pub use copypasta::ClipboardContext; // TODO: remove
@@ -184,6 +189,40 @@ pub fn input_to_egui(
             } else {
                 input_state.raw.scroll_delta += delta;
             }
+        }
+        WindowEvent::TouchpadPressure {
+            // device_id,
+            // pressure,
+            // stage,
+            ..
+        } => {
+            // TODO
+        }
+        WindowEvent::Touch(touch) => {
+            let pixels_per_point_recip = 1. / pixels_per_point;
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            touch.device_id.hash(&mut hasher);
+            input_state.raw.events.push(Event::Touch {
+                device_id: TouchDeviceId(hasher.finish()),
+                id: TouchId::from(touch.id),
+                phase: match touch.phase {
+                    glutin::event::TouchPhase::Started => egui::TouchPhase::Start,
+                    glutin::event::TouchPhase::Moved => egui::TouchPhase::Move,
+                    glutin::event::TouchPhase::Ended => egui::TouchPhase::End,
+                    glutin::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
+                },
+                pos: pos2(touch.location.x as f32 * pixels_per_point_recip,
+                    touch.location.y as f32 * pixels_per_point_recip),
+                force: match touch.force {
+                    Some(Force::Normalized(force)) => force as f32,
+                    Some(Force::Calibrated {
+                        force,
+                        max_possible_force,
+                        ..
+                    }) => (force / max_possible_force) as f32,
+                    None => 0_f32,
+                },
+            });
         }
         _ => {
             // dbg!(event);

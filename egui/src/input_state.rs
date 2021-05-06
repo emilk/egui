@@ -1,8 +1,12 @@
+mod touch_state;
+
 use crate::data::input::*;
 use crate::{emath::*, util::History};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 pub use crate::data::input::Key;
+pub use touch_state::MultiTouchInfo;
+use touch_state::TouchState;
 
 /// If the pointer moves more than this, it is no longer a click (but maybe a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
@@ -15,8 +19,12 @@ pub struct InputState {
     /// The raw input we got this frame from the backend.
     pub raw: RawInput,
 
-    /// State of the mouse or touch.
+    /// State of the mouse or simple touch gestures which can be mapped to mouse operations.
     pub pointer: PointerState,
+
+    /// State of touches, except those covered by PointerState (like clicks and drags).
+    /// (We keep a separate `TouchState` for each encountered touch device.)
+    touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
     /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
@@ -55,6 +63,7 @@ impl Default for InputState {
         Self {
             raw: Default::default(),
             pointer: Default::default(),
+            touch_states: Default::default(),
             scroll_delta: Default::default(),
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -70,7 +79,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(self, new: RawInput) -> InputState {
+    pub fn begin_frame(mut self, new: RawInput) -> InputState {
         #![allow(deprecated)] // for screen_size
 
         let time = new
@@ -84,6 +93,10 @@ impl InputState {
                 self.screen_rect
             }
         });
+        self.create_touch_states_for_new_devices(&new.events);
+        for touch_state in self.touch_states.values_mut() {
+            touch_state.begin_frame(time, &new, self.pointer.interact_pos);
+        }
         let pointer = self.pointer.begin_frame(time, &new);
         let mut keys_down = self.keys_down;
         for event in &new.events {
@@ -97,6 +110,7 @@ impl InputState {
         }
         InputState {
             pointer,
+            touch_states: self.touch_states,
             scroll_delta: new.scroll_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
@@ -121,7 +135,13 @@ impl InputState {
     /// * `zoom > 1`: pinch spread
     #[inline(always)]
     pub fn zoom_delta(&self) -> f32 {
-        self.raw.zoom_delta
+        // If a multi touch gesture is detected, it measures the exact and linear proportions of
+        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // synthesized from an original touch gesture.
+        self.multi_touch()
+            .map(|touch| touch.zoom_delta)
+            .unwrap_or(self.raw.zoom_delta)
     }
 
     pub fn wants_repaint(&self) -> bool {
@@ -187,6 +207,52 @@ impl InputState {
     pub fn aim_radius(&self) -> f32 {
         // TODO: multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
+    }
+
+    /// Returns details about the currently ongoing multi-touch gesture, if any.  Note that this
+    /// method returns `None` for single-touch gestures (click, drag, …).
+    ///
+    /// ```
+    /// # use egui::emath::Rot2;
+    /// # let ui = &mut egui::Ui::__test();
+    /// let mut zoom = 1.0; // no zoom
+    /// let mut rotation = 0.0; // no rotation
+    /// if let Some(multi_touch) = ui.input().multi_touch() {
+    ///     zoom *= multi_touch.zoom_delta;
+    ///     rotation += multi_touch.rotation_delta;
+    /// }
+    /// let transform = zoom * Rot2::from_angle(rotation);
+    /// ```
+    ///
+    /// By far not all touch devices are supported, and the details depend on the `egui`
+    /// integration backend you are using.  `egui_web` supports multi touch for most mobile
+    /// devices, but not for a `Trackpad` on `MacOS`, for example.  The backend has to be able to
+    /// capture native touch events, but many browsers seem to pass such events only for touch
+    /// _screens_, but not touch _pads._
+    ///
+    /// Refer to [`MultiTouchInfo`] for details about the touch information available.
+    ///
+    /// Consider using `zoom_delta()` instead of `MultiTouchInfo::zoom_delta` as the former
+    /// delivers a synthetic zoom factor based on ctrl-scroll events, as a fallback.
+    pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
+        // In case of multiple touch devices simply pick the touch_state of the first active device
+        if let Some(touch_state) = self.touch_states.values().find(|t| t.is_active()) {
+            touch_state.info()
+        } else {
+            None
+        }
+    }
+
+    /// Scans `events` for device IDs of touch devices we have not seen before,
+    /// and creates a new `TouchState` for each such device.
+    fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
+        for event in events {
+            if let Event::Touch { device_id, .. } = event {
+                self.touch_states
+                    .entry(*device_id)
+                    .or_insert_with(|| TouchState::new(*device_id));
+            }
+        }
     }
 }
 
@@ -517,6 +583,7 @@ impl InputState {
         let Self {
             raw,
             pointer,
+            touch_states,
             scroll_delta,
             screen_rect,
             pixels_per_point,
@@ -536,6 +603,12 @@ impl InputState {
             .show(ui, |ui| {
                 pointer.ui(ui);
             });
+
+        for (device_id, touch_state) in touch_states {
+            ui.collapsing(format!("Touch State [device {}]", device_id.0), |ui| {
+                touch_state.ui(ui)
+            });
+        }
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));

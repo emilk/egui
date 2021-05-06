@@ -84,6 +84,9 @@ pub struct WebInput {
     /// Required because we don't get a position on touched
     pub latest_touch_pos: Option<egui::Pos2>,
 
+    /// Required to maintain a stable touch position for multi-touch gestures.
+    pub latest_touch_pos_id: Option<egui::TouchId>,
+
     pub raw: egui::RawInput,
 }
 

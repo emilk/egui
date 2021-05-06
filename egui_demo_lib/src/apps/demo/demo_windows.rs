@@ -16,6 +16,7 @@ impl Default for Demos {
         let demos: Vec<Box<dyn super::Demo>> = vec![
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
+            Box::new(super::zoom_rotate::ZoomRotate::default()),
             Box::new(super::font_book::FontBook::default()),
             Box::new(super::DemoWindow::default()),
             Box::new(super::painting::Painting::default()),

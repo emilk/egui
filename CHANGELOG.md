@@ -15,6 +15,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 * [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
 * Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.
+* Support for raw [multi touch](https://github.com/emilk/egui/pull/306) events,
+  enabling zoom, rotate, and more.  Works with `egui_web` on mobile devices,
+  and should work with `egui_glium` for certain touch devices/screens.
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
