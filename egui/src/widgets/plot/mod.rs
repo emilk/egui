@@ -4,7 +4,7 @@ mod items;
 mod legend;
 mod transform;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 pub use items::{Curve, Value};
 use items::{HLine, VLine};
@@ -324,21 +324,28 @@ impl Widget for Plot {
         // --- Legend ---
 
         if show_legend {
-            // Collect the legend entries.
-            let mut legend_entries: Vec<_> = curves
+            // Collect the legend entries. If multiple curves have the same name, they share a
+            // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
+            let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
+            curves
                 .iter()
                 .filter(|curve| !curve.name.is_empty())
-                .map(|curve| {
+                .for_each(|curve| {
                     let checked = !hidden_curves.contains(&curve.name);
                     let text = curve.name.clone();
-                    let color = curve.stroke.color;
-                    LegendEntry::new(text, color, checked)
-                })
-                .collect();
+                    legend_entries
+                        .entry(curve.name.clone())
+                        .and_modify(|entry| {
+                            if entry.color != curve.stroke.color {
+                                entry.color = ui.visuals().noninteractive().fg_stroke.color
+                            }
+                        })
+                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
+                });
 
             // Show the legend.
             let mut legend_ui = ui.child_ui(rect, Layout::top_down(Align::LEFT));
-            legend_entries.iter_mut().for_each(|entry| {
+            legend_entries.values_mut().for_each(|entry| {
                 let response = legend_ui.add(entry);
                 if response.hovered() {
                     show_x = false;
@@ -348,19 +355,22 @@ impl Widget for Plot {
 
             // Get the names of the hidden curves.
             hidden_curves = legend_entries
-                .iter()
+                .values()
                 .filter(|entry| !entry.checked)
                 .map(|entry| entry.text.clone())
                 .collect();
 
             // Highlight the hovered curves.
             legend_entries
-                .iter()
+                .values()
                 .filter(|entry| entry.hovered)
                 .for_each(|entry| {
-                    if let Some(curve) = curves.iter_mut().find(|curve| curve.name == entry.text) {
-                        curve.stroke.width *= 2.0;
-                    }
+                    curves
+                        .iter_mut()
+                        .filter(|curve| curve.name == entry.text)
+                        .for_each(|curve| {
+                            curve.stroke.width *= 2.0;
+                        });
                 });
 
             // Remove deselected curves.
