@@ -1,7 +1,10 @@
 //! Simple plotting library.
 
 mod items;
+mod legend;
 mod transform;
+
+use std::collections::{BTreeMap, HashSet};
 
 pub use items::{Curve, Value};
 use items::{HLine, VLine};
@@ -9,6 +12,8 @@ use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
+
+use self::legend::LegendEntry;
 
 // ----------------------------------------------------------------------------
 
@@ -18,6 +23,7 @@ use color::Hsva;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
+    hidden_curves: HashSet<String>,
 }
 
 // ----------------------------------------------------------------------------
@@ -61,6 +67,7 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
+    show_legend: bool,
 }
 
 impl Plot {
@@ -89,6 +96,7 @@ impl Plot {
 
             show_x: true,
             show_y: true,
+            show_legend: true,
         }
     }
 
@@ -229,6 +237,12 @@ impl Plot {
         self.min_auto_bounds.extend_with_y(y.into());
         self
     }
+
+    /// Whether to show a legend including all named curves. Default: `true`.
+    pub fn show_legend(mut self, show: bool) -> Self {
+        self.show_legend = show;
+        self
+    }
 }
 
 impl Widget for Plot {
@@ -250,8 +264,9 @@ impl Widget for Plot {
             min_size,
             data_aspect,
             view_aspect,
-            show_x,
-            show_y,
+            mut show_x,
+            mut show_y,
+            show_legend,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
@@ -260,45 +275,109 @@ impl Widget for Plot {
             .id_data
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
-                auto_bounds: true,
+                auto_bounds: !min_auto_bounds.is_valid(),
+                hidden_curves: HashSet::new(),
             })
             .clone();
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
+            mut hidden_curves,
         } = memory;
 
+        // Determine the size of the plot in the UI
         let size = {
-            let width = width.unwrap_or_else(|| {
-                if let (Some(height), Some(aspect)) = (height, view_aspect) {
-                    height * aspect
-                } else {
-                    ui.available_size_before_wrap_finite().x
-                }
-            });
-            let width = width.at_least(min_size.x);
+            let width = width
+                .unwrap_or_else(|| {
+                    if let (Some(height), Some(aspect)) = (height, view_aspect) {
+                        height * aspect
+                    } else {
+                        ui.available_size_before_wrap_finite().x
+                    }
+                })
+                .at_least(min_size.x);
 
-            let height = height.unwrap_or_else(|| {
-                if let Some(aspect) = view_aspect {
-                    width / aspect
-                } else {
-                    ui.available_size_before_wrap_finite().y
-                }
-            });
-            let height = height.at_least(min_size.y);
+            let height = height
+                .unwrap_or_else(|| {
+                    if let Some(aspect) = view_aspect {
+                        width / aspect
+                    } else {
+                        ui.available_size_before_wrap_finite().y
+                    }
+                })
+                .at_least(min_size.y);
             vec2(width, height)
         };
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+        let plot_painter = ui.painter().sub_region(rect);
 
         // Background
-        ui.painter().add(Shape::Rect {
+        plot_painter.add(Shape::Rect {
             rect,
             corner_radius: 2.0,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.visuals().window_stroke(),
         });
+
+        // --- Legend ---
+
+        if show_legend {
+            // Collect the legend entries. If multiple curves have the same name, they share a
+            // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
+            let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
+            curves
+                .iter()
+                .filter(|curve| !curve.name.is_empty())
+                .for_each(|curve| {
+                    let checked = !hidden_curves.contains(&curve.name);
+                    let text = curve.name.clone();
+                    legend_entries
+                        .entry(curve.name.clone())
+                        .and_modify(|entry| {
+                            if entry.color != curve.stroke.color {
+                                entry.color = ui.visuals().noninteractive().fg_stroke.color
+                            }
+                        })
+                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
+                });
+
+            // Show the legend.
+            let mut legend_ui = ui.child_ui(rect, Layout::top_down(Align::LEFT));
+            legend_entries.values_mut().for_each(|entry| {
+                let response = legend_ui.add(entry);
+                if response.hovered() {
+                    show_x = false;
+                    show_y = false;
+                }
+            });
+
+            // Get the names of the hidden curves.
+            hidden_curves = legend_entries
+                .values()
+                .filter(|entry| !entry.checked)
+                .map(|entry| entry.text.clone())
+                .collect();
+
+            // Highlight the hovered curves.
+            legend_entries
+                .values()
+                .filter(|entry| entry.hovered)
+                .for_each(|entry| {
+                    curves
+                        .iter_mut()
+                        .filter(|curve| curve.name == entry.text)
+                        .for_each(|curve| {
+                            curve.stroke.width *= 2.0;
+                        });
+                });
+
+            // Remove deselected curves.
+            curves.retain(|curve| !hidden_curves.contains(&curve.name));
+        }
+
+        // ---
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -358,13 +437,7 @@ impl Widget for Plot {
             .iter_mut()
             .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
 
-        ui.memory().id_data.insert(
-            plot_id,
-            PlotMemory {
-                bounds: *transform.bounds(),
-                auto_bounds,
-            },
-        );
+        let bounds = *transform.bounds();
 
         let prepared = Prepared {
             curves,
@@ -376,7 +449,20 @@ impl Widget for Plot {
         };
         prepared.ui(ui, &response);
 
-        response.on_hover_cursor(CursorIcon::Crosshair)
+        ui.memory().id_data.insert(
+            plot_id,
+            PlotMemory {
+                bounds,
+                auto_bounds,
+                hidden_curves,
+            },
+        );
+
+        if show_x || show_y {
+            response.on_hover_cursor(CursorIcon::Crosshair)
+        } else {
+            response
+        }
     }
 }
 

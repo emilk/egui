@@ -9,6 +9,7 @@ pub struct PlotDemo {
     circle_radius: f64,
     circle_center: Pos2,
     square: bool,
+    legend: bool,
     proportional: bool,
 }
 
@@ -20,6 +21,7 @@ impl Default for PlotDemo {
             circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
+            legend: true,
             proportional: true,
         }
     }
@@ -54,6 +56,7 @@ impl PlotDemo {
             circle_radius,
             circle_center,
             square,
+            legend,
             proportional,
         } = self;
 
@@ -87,6 +90,7 @@ impl PlotDemo {
                 ui.checkbox(animate, "animate");
                 ui.add_space(8.0);
                 ui.checkbox(square, "square view");
+                ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
@@ -145,7 +149,8 @@ impl super::View for PlotDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .min_size(Vec2::new(256.0, 200.0));
+            .show_legend(self.legend)
+            .min_size(Vec2::new(200.0, 200.0));
         if self.square {
             plot = plot.view_aspect(1.0);
         }

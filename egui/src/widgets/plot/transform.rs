@@ -118,6 +118,7 @@ impl Bounds {
 }
 
 /// Contains the screen rectangle and the plot bounds and provides methods to transform them.
+#[derive(Clone)]
 pub(crate) struct ScreenTransform {
     /// The screen rectangle.
     frame: Rect,
