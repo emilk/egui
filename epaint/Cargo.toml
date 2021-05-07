@@ -43,3 +43,5 @@ single_threaded = ["atomic_refcell"]
 
 # Only needed if you plan to use the same fonts from multiple threads.
 multi_threaded = ["parking_lot"]
+
+mint = ["emath/mint"]

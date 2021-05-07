@@ -37,5 +37,7 @@ persistence = ["serde", "epaint/persistence", "ron"]
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
 
+mint = ["epaint/mint"]
+
 [dev-dependencies]
 serde_json = "1"
