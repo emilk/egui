@@ -25,6 +25,8 @@ pub mod window_settings;
 pub use backend::*;
 pub use painter::Painter;
 
+pub use epi::NativeOptions;
+
 use {
     copypasta::ClipboardProvider,
     egui::*,

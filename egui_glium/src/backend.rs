@@ -76,20 +76,22 @@ fn window_builder_drag_and_drop(
 
 fn create_display(
     app: &dyn epi::App,
+    native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
     window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_decorations(app.decorated())
-        .with_resizable(app.is_resizable())
+        .with_decorations(native_options.decorated)
+        .with_resizable(native_options.resizable)
         .with_title(app.name())
         .with_window_icon(window_icon)
-        .with_transparent(app.transparent());
+        .with_transparent(native_options.transparent);
 
-    window_builder = window_builder_drag_and_drop(window_builder, app.drag_and_drop_support());
+    window_builder =
+        window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
 
-    let initial_size_points = app.initial_window_size();
+    let initial_size_points = native_options.initial_window_size;
 
     if let Some(window_settings) = &window_settings {
         window_builder = window_settings.initialize_size(window_builder);
@@ -154,13 +156,14 @@ fn integration_info(
     }
 }
 
-fn load_icon(icon_data: Option<epi::IconData>) -> Option<glutin::window::Icon> {
-    let icon_data = icon_data?;
+fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
     glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
 }
 
+// ----------------------------------------------------------------------------
+
 /// Run an egui app
-pub fn run(mut app: Box<dyn epi::App>) -> ! {
+pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> ! {
     let mut storage = create_storage(app.name());
 
     if let Some(storage) = &mut storage {
@@ -169,8 +172,8 @@ pub fn run(mut app: Box<dyn epi::App>) -> ! {
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let icon = load_icon(app.icon_data());
-    let display = create_display(&*app, window_settings, icon, &event_loop);
+    let icon = nativve_options.icon_data.clone().and_then(load_icon);
+    let display = create_display(&*app, &nativve_options, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),

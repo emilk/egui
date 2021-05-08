@@ -8,5 +8,10 @@
 // When compiling natively:
 fn main() {
     let app = egui_demo_lib::WrapApp::default();
-    eframe::run_native(Box::new(app));
+    let options = eframe::NativeOptions {
+        // Let's show off that we support transparent windows
+        transparent: true,
+        ..Default::default()
+    };
+    eframe::run_native(Box::new(app), options);
 }

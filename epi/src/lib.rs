@@ -108,19 +108,9 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
-    /// The initial size of the native window in points (logical pixels).
-    fn initial_window_size(&self) -> Option<egui::Vec2> {
-        None
-    }
-
     /// Time between automatic calls to `save()`
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
-    }
-
-    /// Returns true if this app window should be resizable.
-    fn is_resizable(&self) -> bool {
-        true
     }
 
     /// The size limit of the web app canvas
@@ -137,33 +127,49 @@ pub trait App {
         // `transparent()` option they get immediate results.
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
+}
 
+/// Options controlling the behavior of a native window
+#[derive(Clone)]
+pub struct NativeOptions {
     /// The application icon, e.g. in the Windows task bar etc.
-    fn icon_data(&self) -> Option<IconData> {
-        None
-    }
+    pub icon_data: Option<IconData>,
+
+    /// The initial size of the native window in points (logical pixels).
+    pub initial_window_size: Option<egui::Vec2>,
+
+    /// Should the app window be resizable?
+    pub resizable: bool,
 
     /// On desktop: add window decorations (i.e. a frame around your app)?
     /// If false it will be difficult to move and resize the app.
-    fn decorated(&self) -> bool {
-        true
-    }
+    pub decorated: bool,
 
     /// On desktop: make the window transparent.
-    /// You control the transparency with [`Self::clear_color()`].
+    /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
-    fn transparent(&self) -> bool {
-        false
-    }
+    pub transparent: bool,
 
     /// On Windows: enable drag and drop support.
     /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
-    fn drag_and_drop_support(&self) -> bool {
-        true
+    pub drag_and_drop_support: bool,
+}
+
+impl Default for NativeOptions {
+    fn default() -> Self {
+        Self {
+            icon_data: None,
+            initial_window_size: None,
+            resizable: true,
+            decorated: true,
+            transparent: false,
+            drag_and_drop_support: true,
+        }
     }
 }
 
 /// Image data for the icon.
+#[derive(Clone)]
 pub struct IconData {
     /// RGBA pixels.
     pub rgba: Vec<u8>,
