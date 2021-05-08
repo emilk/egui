@@ -52,12 +52,12 @@ impl super::View for ZoomRotate {
         ui.separator();
         ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
         Frame::dark_canvas(ui.style()).show(ui, |ui| {
-            // Note that we use `Sense::drag()` although we do not use any pointer events.  With
+            // Note that we use `Sense::drag()` although we do not use any pointer events. With
             // the current implementation, the fact that a touch event of two or more fingers is
             // recognized, does not mean that the pointer events are suppressed, which are always
-            // generated for the first finger.  Therefore, if we do not explicitly consume pointer
+            // generated for the first finger. Therefore, if we do not explicitly consume pointer
             // events, the window will move around, not only when dragged with a single finger, but
-            // also when a two-finger touch is active.  I guess this problem can only be cleanly
+            // also when a two-finger touch is active. I guess this problem can only be cleanly
             // solved when the synthetic pointer events are created by egui, and not by the
             // backend.
 
@@ -122,9 +122,9 @@ impl super::View for ZoomRotate {
                 to_screen.scale() * arrow_direction,
                 Stroke::new(stroke_width, color),
             );
-            // Paints a circle at the origin of the arrow.  The size and opacity of the circle
+            // Paints a circle at the origin of the arrow. The size and opacity of the circle
             // depend on the current velocity, and the circle is translated in the opposite
-            // direction of the movement, so it follows the origin's movement.  Constant factors
+            // direction of the movement, so it follows the origin's movement. Constant factors
             // have been determined by trial and error.
             let speed = self.smoothed_velocity.length();
             painter.circle_filled(

@@ -13,24 +13,24 @@ pub struct MultiTouchInfo {
     pub start_time: f64,
     /// Position of the pointer at the time the gesture started.
     pub start_pos: Pos2,
-    /// Number of touches (fingers) on the surface.  Value is ≥ 2 since for a single touch no
+    /// Number of touches (fingers) on the surface. Value is ≥ 2 since for a single touch no
     /// `MultiTouchInfo` is created.
     pub num_touches: usize,
-    /// Zoom factor (Pinch or Zoom).  Moving fingers closer together or further appart will change
-    /// this value.  This is a relative value, comparing the average distances of the fingers in
-    /// the current and previous frame.  If the fingers did not move since the previous frame,
+    /// Zoom factor (Pinch or Zoom). Moving fingers closer together or further appart will change
+    /// this value. This is a relative value, comparing the average distances of the fingers in
+    /// the current and previous frame. If the fingers did not move since the previous frame,
     /// this value is `1.0`.
     pub zoom_delta: f32,
-    /// Rotation in radians.  Moving fingers around each other will change this value.  This is a
+    /// Rotation in radians. Moving fingers around each other will change this value. This is a
     /// relative value, comparing the orientation of fingers in the current frame with the previous
-    /// frame.  If all fingers are resting, this value is `0.0`.
+    /// frame. If all fingers are resting, this value is `0.0`.
     pub rotation_delta: f32,
     /// Relative movement (comparing previous frame and current frame) of the average position of
-    /// all touch points.  Without movement this value is `Vec2::ZERO`.
+    /// all touch points. Without movement this value is `Vec2::ZERO`.
     ///
     /// Note that this may not necessarily be measured in screen points (although it _will_ be for
-    /// most mobile devices).  In general (depending on the touch device), touch coordinates cannot
-    /// be directly mapped to the screen.  A touch always is considered to start at the position of
+    /// most mobile devices). In general (depending on the touch device), touch coordinates cannot
+    /// be directly mapped to the screen. A touch always is considered to start at the position of
     /// the pointer, but touch movement is always measured in the units delivered by the device,
     /// and may depend on hardware and system settings.
     pub translation_delta: Vec2,
@@ -48,12 +48,12 @@ pub struct MultiTouchInfo {
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
 pub(crate) struct TouchState {
-    /// Technical identifier of the touch device.  This is used to identify relevant touch events
+    /// Technical identifier of the touch device. This is used to identify relevant touch events
     /// for this `TouchState` instance.
     device_id: TouchDeviceId,
     /// Active touches, if any.
     ///
-    /// TouchId is the unique identifier of the touch.  It is valid as long as the finger/pen touches the surface.  The
+    /// TouchId is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
     /// next touch will receive a new unique ID.
     ///
     /// Refer to [`ActiveTouch`].
@@ -80,7 +80,7 @@ struct DynGestureState {
     heading: f32,
 }
 
-/// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
+/// Describes an individual touch (finger or digitizer) on the touch surface. Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
 struct ActiveTouch {
@@ -136,7 +136,7 @@ impl TouchState {
         self.update_gesture(time, pointer_pos);
 
         if added_or_removed_touches {
-            // Adding or removing fingers makes the average values "jump".  We better forget
+            // Adding or removing fingers makes the average values "jump". We better forget
             // about the previous values, and don't create delta information for this frame:
             if let Some(ref mut state) = &mut self.gesture_state {
                 state.previous = None;
@@ -219,12 +219,12 @@ impl TouchState {
             // Calculate the direction from the first touch to the center position.
             // This is not the perfect way of calculating the direction if more than two fingers
             // are involved, but as long as all fingers rotate more or less at the same angular
-            // velocity, the shortcomings of this method will not be noticed.  One can see the
+            // velocity, the shortcomings of this method will not be noticed. One can see the
             // issues though, when touching with three or more fingers, and moving only one of them
-            // (it takes two hands to do this in a controlled manner).  A better technique would be
+            // (it takes two hands to do this in a controlled manner). A better technique would be
             // to store the current and previous directions (with reference to the center) for each
             // touch individually, and then calculate the average of all individual changes in
-            // direction.  But this approach cannot be implemented locally in this method, making
+            // direction. But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
             let first_touch = self.active_touches.values().next().unwrap();
             state.heading = (state.avg_pos - first_touch.pos).angle();

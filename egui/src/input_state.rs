@@ -136,7 +136,7 @@ impl InputState {
     #[inline(always)]
     pub fn zoom_delta(&self) -> f32 {
         // If a multi touch gesture is detected, it measures the exact and linear proportions of
-        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // the distances of the finger tips. It is therefore potentially more accurate than
         // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
         self.multi_touch()
@@ -209,7 +209,7 @@ impl InputState {
         self.physical_pixel_size()
     }
 
-    /// Returns details about the currently ongoing multi-touch gesture, if any.  Note that this
+    /// Returns details about the currently ongoing multi-touch gesture, if any. Note that this
     /// method returns `None` for single-touch gestures (click, drag, …).
     ///
     /// ```
@@ -225,8 +225,8 @@ impl InputState {
     /// ```
     ///
     /// By far not all touch devices are supported, and the details depend on the `egui`
-    /// integration backend you are using.  `egui_web` supports multi touch for most mobile
-    /// devices, but not for a `Trackpad` on `MacOS`, for example.  The backend has to be able to
+    /// integration backend you are using. `egui_web` supports multi touch for most mobile
+    /// devices, but not for a `Trackpad` on `MacOS`, for example. The backend has to be able to
     /// capture native touch events, but many browsers seem to pass such events only for touch
     /// _screens_, but not touch _pads._
     ///
