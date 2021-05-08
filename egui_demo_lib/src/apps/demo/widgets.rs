@@ -55,6 +55,17 @@ impl Widgets {
             ui.add(crate::__egui_github_link_file_line!());
         });
 
+        egui::ComboBox::from_label("Version")
+            .width(150.0)
+            .selected_text("foo")
+            .show_ui(ui, |ui| {
+                egui::CollapsingHeader::new("Dev")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        ui.label("contents");
+                    });
+            });
+
         ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
             ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
