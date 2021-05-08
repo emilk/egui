@@ -331,3 +331,36 @@ impl_num_ext!(f64);
 impl_num_ext!(usize);
 impl_num_ext!(Vec2);
 impl_num_ext!(Pos2);
+
+// ----------------------------------------------------------------------------
+
+/// Wrap angle to `[-PI, PI]` range.
+pub fn normalized_angle(mut angle: f32) -> f32 {
+    use std::f32::consts::{PI, TAU};
+    angle %= TAU;
+    if angle > PI {
+        angle -= TAU;
+    } else if angle < -PI {
+        angle += TAU;
+    }
+    angle
+}
+
+#[test]
+fn test_normalized_angle() {
+    macro_rules! almost_eq {
+        ($left:expr, $right:expr) => {
+            let left = $left;
+            let right = $right;
+            assert!((left - right).abs() < 1e-6, "{} != {}", left, right);
+        };
+    }
+
+    use std::f32::consts::TAU;
+    almost_eq!(normalized_angle(-3.0 * TAU), 0.0);
+    almost_eq!(normalized_angle(-2.3 * TAU), -0.3 * TAU);
+    almost_eq!(normalized_angle(-TAU), 0.0);
+    almost_eq!(normalized_angle(0.0), 0.0);
+    almost_eq!(normalized_angle(TAU), 0.0);
+    almost_eq!(normalized_angle(2.7 * TAU), -0.3 * TAU);
+}

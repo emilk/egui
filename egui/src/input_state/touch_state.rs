@@ -1,11 +1,10 @@
-use std::{
-    collections::BTreeMap,
-    f32::consts::{PI, TAU},
-    fmt::Debug,
-};
+use std::{collections::BTreeMap, fmt::Debug};
 
-use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
-use epaint::emath::{Pos2, Vec2};
+use crate::{
+    data::input::TouchDeviceId,
+    emath::{normalized_angle, Pos2, Vec2},
+    Event, RawInput, TouchId, TouchPhase,
+};
 
 /// All you probably need to know about a multi-touch gesture.
 pub struct MultiTouchInfo {
@@ -196,7 +195,7 @@ impl TouchState {
                 num_touches: self.active_touches.len(),
                 zoom_delta,
                 zoom_delta_2d: zoom_delta2,
-                rotation_delta: normalized_angle(state.current.heading, state_previous.heading),
+                rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.current.avg_force,
             }
@@ -292,27 +291,6 @@ impl Debug for TouchState {
         f.write_fmt(format_args!("gesture: {:#?}\n", self.gesture_state))?;
         Ok(())
     }
-}
-
-/// Calculate difference between two directions, such that the absolute value of the result is
-/// minimized.
-fn normalized_angle(current_direction: f32, previous_direction: f32) -> f32 {
-    let mut angle = current_direction - previous_direction;
-    angle %= TAU;
-    if angle > PI {
-        angle -= TAU;
-    } else if angle < -PI {
-        angle += TAU;
-    }
-    angle
-}
-
-#[test]
-fn normalizing_angle_from_350_to_0_yields_10() {
-    assert!(
-        (normalized_angle(0_f32.to_radians(), 350_f32.to_radians()) - 10_f32.to_radians()).abs()
-            <= 5. * f32::EPSILON // many conversions (=divisions) involved => high error rate
-    );
 }
 
 #[derive(Clone, Debug)]
