@@ -418,12 +418,17 @@ impl Widget for Plot {
         // Zooming
         if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
-                let zoom_factor = ui.input().zoom_delta();
+                let zoom_factor = if data_aspect.is_some() {
+                    Vec2::splat(ui.input().zoom_delta())
+                } else {
+                    ui.input().zoom_delta_2d()
+                };
                 #[allow(clippy::float_cmp)]
-                if zoom_factor != 1.0 {
+                if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;
                 }
+
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);

@@ -130,7 +130,7 @@ impl InputState {
     }
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
-    /// * `zoom = 1`: no change (default).
+    /// * `zoom = 1`: no change
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
     #[inline(always)]
@@ -142,6 +142,30 @@ impl InputState {
         self.multi_touch()
             .map(|touch| touch.zoom_delta)
             .unwrap_or(self.raw.zoom_delta)
+    }
+
+    /// 2D non-proportional zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    ///
+    /// For multitouch devices the user can do a horizontal or vertical pinch gesture.
+    /// In these cases a non-proportional zoom factor is a available.
+    /// In other cases, this reverts to `Vec2::splat(self.zoom_delta())`.
+    ///
+    /// For horizontal pinches, this will return `[z, 1]`,
+    /// for vertical pinches this will return `[1, z]`,
+    /// and otherwise this will return `[z, z]`,
+    /// where `z` is the zoom factor:
+    /// * `zoom = 1`: no change
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    #[inline(always)]
+    pub fn zoom_delta_2d(&self) -> Vec2 {
+        // If a multi touch gesture is detected, it measures the exact and linear proportions of
+        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // synthesized from an original touch gesture.
+        self.multi_touch()
+            .map(|touch| touch.zoom_delta_2d)
+            .unwrap_or_else(|| Vec2::splat(self.raw.zoom_delta))
     }
 
     pub fn wants_repaint(&self) -> bool {
