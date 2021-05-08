@@ -123,7 +123,7 @@ impl CtxRef {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
+                            "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
                         );
                     }
