@@ -82,11 +82,12 @@ fn create_display(
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
+        .with_always_on_top(native_options.always_on_top)
         .with_decorations(native_options.decorated)
         .with_resizable(native_options.resizable)
         .with_title(app.name())
-        .with_window_icon(window_icon)
-        .with_transparent(native_options.transparent);
+        .with_transparent(native_options.transparent)
+        .with_window_icon(window_icon);
 
     window_builder =
         window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);

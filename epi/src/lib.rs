@@ -132,6 +132,18 @@ pub trait App {
 /// Options controlling the behavior of a native window
 #[derive(Clone)]
 pub struct NativeOptions {
+    /// Sets whether or not the window will always be on top of other windows.
+    pub always_on_top: bool,
+
+    /// On desktop: add window decorations (i.e. a frame around your app)?
+    /// If false it will be difficult to move and resize the app.
+    pub decorated: bool,
+
+    /// On Windows: enable drag and drop support.
+    /// Set to false to avoid issues with crates such as cpal which
+    /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    pub drag_and_drop_support: bool,
+
     /// The application icon, e.g. in the Windows task bar etc.
     pub icon_data: Option<IconData>,
 
@@ -141,29 +153,22 @@ pub struct NativeOptions {
     /// Should the app window be resizable?
     pub resizable: bool,
 
-    /// On desktop: add window decorations (i.e. a frame around your app)?
-    /// If false it will be difficult to move and resize the app.
-    pub decorated: bool,
-
     /// On desktop: make the window transparent.
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
-
-    /// On Windows: enable drag and drop support.
-    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
-    pub drag_and_drop_support: bool,
 }
 
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
+            always_on_top: false,
+            decorated: true,
+            drag_and_drop_support: true,
             icon_data: None,
             initial_window_size: None,
             resizable: true,
-            decorated: true,
             transparent: false,
-            drag_and_drop_support: true,
         }
     }
 }
