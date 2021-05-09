@@ -301,7 +301,7 @@ impl Prepared {
             let unbounded_offset_y = state.offset.y;
             state.offset.y = state.offset.y.max(0.0);
             state.offset.y = state.offset.y.min(max_offset);
-            #[allow(clippy::float_cmp)]
+
             if state.offset.y != unbounded_offset_y {
                 state.vel = Vec2::ZERO;
             }

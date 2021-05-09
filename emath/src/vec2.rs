@@ -422,8 +422,6 @@ impl std::fmt::Debug for Vec2 {
 
 #[test]
 fn test_vec2() {
-    #![allow(clippy::float_cmp)]
-
     macro_rules! almost_eq {
         ($left:expr, $right:expr) => {
             let left = $left;

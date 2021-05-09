@@ -423,7 +423,6 @@ impl Widget for Plot {
                 } else {
                     ui.input().zoom_delta_2d()
                 };
-                #[allow(clippy::float_cmp)]
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;

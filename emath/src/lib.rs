@@ -62,6 +62,7 @@
     nonstandard_style,
     rust_2018_idioms
 )]
+#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
@@ -141,7 +142,6 @@ pub fn remap<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,
 {
-    #![allow(clippy::float_cmp)]
     debug_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
@@ -152,7 +152,6 @@ pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,
 {
-    #![allow(clippy::float_cmp)]
     if from.end() < from.start() {
         return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
     }
@@ -235,8 +234,6 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
 /// The `epsilon`  can be `f32::EPSILON` to handle simple transforms (like degrees -> radians)
 /// but should be higher to handle more complex transformations.
 pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
-    #![allow(clippy::float_cmp)]
-
     if a == b {
         true // handle infinites
     } else {
@@ -292,7 +289,6 @@ fn test_almost_equal() {
     }
 }
 
-#[allow(clippy::float_cmp)]
 #[test]
 fn test_remap() {
     assert_eq!(remap_clamp(1.0, 0.0..=1.0, 0.0..=16.0), 16.0);

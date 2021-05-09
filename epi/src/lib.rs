@@ -59,6 +59,7 @@
     nonstandard_style,
     rust_2018_idioms
 )]
+#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 pub use egui; // Re-export for user convenience

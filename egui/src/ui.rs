@@ -1055,8 +1055,6 @@ impl Ui {
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
     pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -1073,8 +1071,6 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;

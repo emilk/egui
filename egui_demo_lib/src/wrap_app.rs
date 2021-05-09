@@ -335,8 +335,6 @@ impl BackendPanel {
         ui: &mut egui::Ui,
         info: &epi::IntegrationInfo,
     ) -> Option<f32> {
-        #![allow(clippy::float_cmp)]
-
         self.pixels_per_point = self
             .pixels_per_point
             .or(info.native_pixels_per_point)
