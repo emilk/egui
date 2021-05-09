@@ -1,3 +1,4 @@
+use super::Demo;
 use egui::{CtxRef, ScrollArea, Ui, Window};
 use std::collections::BTreeSet;
 
@@ -7,17 +8,18 @@ use std::collections::BTreeSet;
 #[cfg_attr(feature = "persistence", serde(default))]
 struct Demos {
     #[cfg_attr(feature = "persistence", serde(skip))]
-    demos: Vec<Box<dyn super::Demo>>,
+    demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
 }
+
 impl Default for Demos {
     fn default() -> Self {
-        let demos: Vec<Box<dyn super::Demo>> = vec![
+        Self::from_demos(vec![
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
             Box::new(super::font_book::FontBook::default()),
-            Box::new(super::DemoWindow::default()),
+            Box::new(super::MiscDemoWindow::default()),
             Box::new(super::multi_touch::MultiTouch::default()),
             Box::new(super::painting::Painting::default()),
             Box::new(super::plot_demo::PlotDemo::default()),
@@ -26,16 +28,12 @@ impl Default for Demos {
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
-            // Tests:
-            Box::new(super::tests::CursorTest::default()),
-            Box::new(super::tests::IdTest::default()),
-            Box::new(super::tests::InputTest::default()),
-            Box::new(super::layout_test::LayoutTest::default()),
-            Box::new(super::tests::ManualLayoutTest::default()),
-            Box::new(super::tests::TableTest::default()),
-        ];
+        ])
+    }
+}
 
-        use crate::apps::demo::Demo;
+impl Demos {
+    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
         let mut open = BTreeSet::new();
         open.insert(
             super::widget_gallery::WidgetGallery::default()
@@ -45,8 +43,7 @@ impl Default for Demos {
 
         Self { demos, open }
     }
-}
-impl Demos {
+
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { demos, open } = self;
         for demo in demos {
@@ -56,7 +53,7 @@ impl Demos {
         }
     }
 
-    pub fn show(&mut self, ctx: &CtxRef) {
+    pub fn windows(&mut self, ctx: &CtxRef) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -65,6 +62,63 @@ impl Demos {
         }
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
+struct Tests {
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    demos: Vec<Box<dyn Demo>>,
+
+    open: BTreeSet<String>,
+}
+
+impl Default for Tests {
+    fn default() -> Self {
+        Self::from_demos(vec![
+            Box::new(super::tests::CursorTest::default()),
+            Box::new(super::tests::IdTest::default()),
+            Box::new(super::tests::InputTest::default()),
+            Box::new(super::layout_test::LayoutTest::default()),
+            Box::new(super::tests::ManualLayoutTest::default()),
+            Box::new(super::tests::TableTest::default()),
+        ])
+    }
+}
+
+impl Tests {
+    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
+        let mut open = BTreeSet::new();
+        open.insert(
+            super::widget_gallery::WidgetGallery::default()
+                .name()
+                .to_owned(),
+        );
+
+        Self { demos, open }
+    }
+
+    pub fn checkboxes(&mut self, ui: &mut Ui) {
+        let Self { demos, open } = self;
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            ui.checkbox(&mut is_open, demo.name());
+            set_open(open, demo.name(), is_open);
+        }
+    }
+
+    pub fn windows(&mut self, ctx: &CtxRef) {
+        let Self { demos, open } = self;
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            demo.show(ctx, &mut is_open);
+            set_open(open, demo.name(), is_open);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
     if is_open {
@@ -83,16 +137,25 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct DemoWindows {
-    open_windows: OpenWindows,
     demos: Demos,
+    tests: Tests,
+    egui_windows: EguiWindows,
 }
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
+        let Self {
+            demos,
+            tests,
+            egui_windows,
+        } = self;
+
         egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
-            ui.heading("✒ egui demos");
+            ui.vertical_centered(|ui| {
+                ui.heading("✒ egui demos");
+            });
 
             ui.separator();
 
@@ -100,31 +163,32 @@ impl DemoWindows {
                 use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
                 ui.label("egui is an immediate mode GUI library written in Rust.");
-                ui.hyperlink_to(
-                    format!("{} egui home page", GITHUB),
-                    "https://github.com/emilk/egui",
-                );
 
                 ui.label(format!(
-                    "egui can be run on the web, or natively on {}{}{}",
+                    "egui runs on the web, or natively on {}{}{}",
                     OS_APPLE, OS_LINUX, OS_WINDOWS,
                 ));
 
-                ui.separator();
-
-                ui.heading("Windows:");
-                self.demos.checkboxes(ui);
-
-                ui.separator();
-
-                ui.label("egui:");
-                self.open_windows.checkboxes(ui);
+                ui.vertical_centered(|ui| {
+                    ui.hyperlink_to(
+                        format!("{} egui home page", GITHUB),
+                        "https://github.com/emilk/egui",
+                    );
+                });
 
                 ui.separator();
+                demos.checkboxes(ui);
+                ui.separator();
+                tests.checkboxes(ui);
+                ui.separator();
+                egui_windows.checkboxes(ui);
+                ui.separator();
 
-                if ui.button("Organize windows").clicked() {
-                    ui.ctx().memory().reset_areas();
-                }
+                ui.vertical_centered(|ui| {
+                    if ui.button("Organize windows").clicked() {
+                        ui.ctx().memory().reset_areas();
+                    }
+                });
             });
         });
 
@@ -150,53 +214,34 @@ impl DemoWindows {
     /// Show the open windows.
     fn windows(&mut self, ctx: &CtxRef) {
         let Self {
-            open_windows,
             demos,
-            ..
+            tests,
+            egui_windows,
         } = self;
 
-        Window::new("🔧 Settings")
-            .open(&mut open_windows.settings)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.settings_ui(ui);
-            });
-
-        Window::new("🔍 Inspection")
-            .open(&mut open_windows.inspection)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
-            });
-
-        Window::new("📝 Memory")
-            .open(&mut open_windows.memory)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ctx.memory_ui(ui);
-            });
-
-        demos.show(ctx);
+        demos.windows(ctx);
+        tests.windows(ctx);
+        egui_windows.windows(ctx);
     }
 }
 
 // ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct OpenWindows {
+struct EguiWindows {
     // egui stuff:
     settings: bool,
     inspection: bool,
     memory: bool,
 }
 
-impl Default for OpenWindows {
+impl Default for EguiWindows {
     fn default() -> Self {
-        OpenWindows::none()
+        EguiWindows::none()
     }
 }
 
-impl OpenWindows {
+impl EguiWindows {
     fn none() -> Self {
         Self {
             settings: false,
@@ -215,6 +260,35 @@ impl OpenWindows {
         ui.checkbox(settings, "🔧 Settings");
         ui.checkbox(inspection, "🔍 Inspection");
         ui.checkbox(memory, "📝 Memory");
+    }
+
+    fn windows(&mut self, ctx: &CtxRef) {
+        let Self {
+            settings,
+            inspection,
+            memory,
+        } = self;
+
+        Window::new("🔧 Settings")
+            .open(settings)
+            .scroll(true)
+            .show(ctx, |ui| {
+                ctx.settings_ui(ui);
+            });
+
+        Window::new("🔍 Inspection")
+            .open(inspection)
+            .scroll(true)
+            .show(ctx, |ui| {
+                ctx.inspection_ui(ui);
+            });
+
+        Window::new("📝 Memory")
+            .open(memory)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ctx.memory_ui(ui);
+            });
     }
 }
 
