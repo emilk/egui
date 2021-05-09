@@ -6,7 +6,7 @@ mod transform;
 
 use std::collections::{BTreeMap, HashSet};
 
-pub use items::{Curve, Value};
+pub use items::{Curve, Marker, Value};
 use items::{HLine, VLine};
 use transform::{Bounds, ScreenTransform};
 
@@ -118,6 +118,11 @@ impl Plot {
             self.curves.push(curve);
         }
         self
+    }
+
+    /// Add multiple data curves.
+    pub fn curves(self, curves: Vec<Curve>) -> Self {
+        curves.into_iter().fold(self, Self::curve)
     }
 
     /// Add a horizontal line.
@@ -365,12 +370,9 @@ impl Widget for Plot {
                 .values()
                 .filter(|entry| entry.hovered)
                 .for_each(|entry| {
-                    curves
-                        .iter_mut()
-                        .filter(|curve| curve.name == entry.text)
-                        .for_each(|curve| {
-                            curve.stroke.width *= 2.0;
-                        });
+                    curves.iter_mut().for_each(|curve| {
+                        curve.highlight |= curve.name == entry.text;
+                    });
                 });
 
             // Remove deselected curves.
@@ -509,21 +511,45 @@ impl Prepared {
         }
 
         for curve in &self.curves {
-            let stroke = curve.stroke;
-            let values = &curve.values;
-            let shape = if values.len() == 1 {
-                let point = transform.position_from_value(&values[0]);
-                Shape::circle_filled(point, stroke.width / 2.0, stroke.color)
+            let Curve {
+                values,
+                mut stroke,
+                mut marker,
+                ..
+            } = curve;
+
+            if curve.highlight {
+                stroke.width *= 2.0;
+                if let Some(marker) = &mut marker {
+                    marker.size *= 1.2;
+                }
+            }
+
+            let values_tf: Vec<_> = values
+                .iter()
+                .map(|v| transform.position_from_value(v))
+                .collect();
+
+            let marker_shapes: Option<Vec<Shape>> = marker.map(|marker| {
+                values_tf
+                    .iter()
+                    .flat_map(|pos| marker.get_shapes(pos))
+                    .collect()
+            });
+
+            if values_tf.len() > 1 {
+                shapes.push(Shape::line(values_tf, stroke));
             } else {
-                Shape::line(
-                    values
-                        .iter()
-                        .map(|v| transform.position_from_value(v))
-                        .collect(),
-                    stroke,
-                )
-            };
-            shapes.push(shape);
+                shapes.push(Shape::circle_filled(
+                    values_tf[0],
+                    stroke.width / 2.0,
+                    stroke.color,
+                ));
+            }
+
+            if let Some(marker_shapes) = marker_shapes {
+                shapes.extend(marker_shapes.into_iter());
+            }
         }
 
         if let Some(pointer) = response.hover_pos() {

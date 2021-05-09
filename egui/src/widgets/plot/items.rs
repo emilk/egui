@@ -73,13 +73,303 @@ struct ExplicitGenerator {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum MarkerShape {
+    Circle,
+    Diamond,
+    Square,
+    Cross,
+    Plus,
+    Up,
+    Down,
+    Left,
+    Right,
+    Asterisk,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Marker {
+    pub(crate) shape: MarkerShape,
+    pub(crate) stroke: Color32,
+    pub(crate) fill: Color32,
+    pub(crate) size: f32,
+}
+
+impl Default for Marker {
+    fn default() -> Self {
+        Self {
+            shape: MarkerShape::Circle,
+            stroke: Color32::TRANSPARENT,
+            fill: Color32::TRANSPARENT,
+            size: 1.0,
+        }
+    }
+}
+
+impl Marker {
+    pub fn all() -> Vec<Self> {
+        vec![
+            Self::circle(),
+            Self::diamond(),
+            Self::square(),
+            Self::cross(),
+            Self::plus(),
+            Self::up(),
+            Self::down(),
+            Self::left(),
+            Self::right(),
+            Self::asterisk(),
+        ]
+    }
+
+    pub fn circle() -> Self {
+        Self {
+            shape: MarkerShape::Circle,
+            ..Default::default()
+        }
+    }
+
+    pub fn diamond() -> Self {
+        Self {
+            shape: MarkerShape::Diamond,
+            ..Default::default()
+        }
+    }
+
+    pub fn square() -> Self {
+        Self {
+            shape: MarkerShape::Square,
+            ..Default::default()
+        }
+    }
+
+    pub fn cross() -> Self {
+        Self {
+            shape: MarkerShape::Cross,
+            ..Default::default()
+        }
+    }
+
+    pub fn plus() -> Self {
+        Self {
+            shape: MarkerShape::Plus,
+            ..Default::default()
+        }
+    }
+
+    pub fn up() -> Self {
+        Self {
+            shape: MarkerShape::Up,
+            ..Default::default()
+        }
+    }
+
+    pub fn down() -> Self {
+        Self {
+            shape: MarkerShape::Down,
+            ..Default::default()
+        }
+    }
+
+    pub fn left() -> Self {
+        Self {
+            shape: MarkerShape::Left,
+            ..Default::default()
+        }
+    }
+
+    pub fn right() -> Self {
+        Self {
+            shape: MarkerShape::Right,
+            ..Default::default()
+        }
+    }
+
+    pub fn asterisk() -> Self {
+        Self {
+            shape: MarkerShape::Asterisk,
+            ..Default::default()
+        }
+    }
+
+    pub fn stroke(mut self, stroke: Color32) -> Self {
+        self.stroke = stroke;
+        self
+    }
+
+    pub fn fill(mut self, fill: Color32) -> Self {
+        self.fill = fill;
+        self
+    }
+
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = size;
+        self
+    }
+
+    pub(crate) fn get_shapes(&self, position: &Pos2) -> Vec<Shape> {
+        let sqrt_3 = 3f32.sqrt();
+        let frac_sqrt_3_2 = 3f32.sqrt() / 2.0;
+        let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
+
+        let Self {
+            fill,
+            shape,
+            stroke,
+            size,
+        } = *self;
+
+        let stroke = Stroke::new(size / 10.0, stroke);
+
+        let tf = |offset: Vec<Vec2>| -> Vec<Pos2> {
+            offset
+                .into_iter()
+                .map(|offset| *position + size * offset)
+                .collect()
+        };
+
+        match shape {
+            MarkerShape::Circle => {
+                vec![Shape::Circle {
+                    radius: size,
+                    center: *position,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Diamond => {
+                let offsets = vec![
+                    vec2(1.0, 0.0),
+                    vec2(0.0, -1.0),
+                    vec2(-1.0, 0.0),
+                    vec2(0.0, 1.0),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Square => {
+                let offsets = vec![
+                    vec2(frac_1_sqrt_2, frac_1_sqrt_2),
+                    vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
+                    vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                    vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Cross => {
+                vec![
+                    Shape::line(
+                        tf(vec![
+                            vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            vec2(frac_1_sqrt_2, frac_1_sqrt_2),
+                        ]),
+                        stroke,
+                    ),
+                    Shape::line(
+                        tf(vec![
+                            vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
+                        ]),
+                        stroke,
+                    ),
+                ]
+            }
+            MarkerShape::Plus => {
+                vec![
+                    Shape::line(tf(vec![vec2(-1.0, 0.0), vec2(1.0, 0.0)]), stroke),
+                    Shape::line(tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]), stroke),
+                ]
+            }
+            MarkerShape::Up => {
+                let offsets = vec![
+                    vec2(0.0, -1.0),
+                    vec2(-0.5 * sqrt_3, 0.5),
+                    vec2(0.5 * sqrt_3, 0.5),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Down => {
+                let offsets = vec![
+                    vec2(0.0, 1.0),
+                    vec2(-0.5 * sqrt_3, -0.5),
+                    vec2(0.5 * sqrt_3, -0.5),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Left => {
+                let offsets = vec![
+                    vec2(-1.0, 0.0),
+                    vec2(0.5, -0.5 * sqrt_3),
+                    vec2(0.5, 0.5 * sqrt_3),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Right => {
+                let offsets = vec![
+                    vec2(1.0, 0.0),
+                    vec2(-0.5, -0.5 * sqrt_3),
+                    vec2(-0.5, 0.5 * sqrt_3),
+                ];
+                let points = tf(offsets);
+                vec![Shape::Path {
+                    points,
+                    closed: true,
+                    fill,
+                    stroke,
+                }]
+            }
+            MarkerShape::Asterisk => {
+                let vertical = tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]);
+                let diagonal1 = tf(vec![vec2(-frac_sqrt_3_2, 0.5), vec2(frac_sqrt_3_2, -0.5)]);
+                let diagonal2 = tf(vec![vec2(-frac_sqrt_3_2, -0.5), vec2(frac_sqrt_3_2, 0.5)]);
+                vec![
+                    Shape::line(vertical, stroke),
+                    Shape::line(diagonal1, stroke),
+                    Shape::line(diagonal2, stroke),
+                ]
+            }
+        }
+    }
+}
+
 /// A series of values forming a path.
 pub struct Curve {
     pub(crate) values: Vec<Value>,
     generator: Option<ExplicitGenerator>,
     pub(crate) bounds: Bounds,
+    pub(crate) marker: Option<Marker>,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
+    pub(crate) highlight: bool,
 }
 
 impl Curve {
@@ -88,8 +378,10 @@ impl Curve {
             values: Vec::new(),
             generator: None,
             bounds: Bounds::NOTHING,
+            marker: None,
             stroke: Stroke::new(2.0, Color32::TRANSPARENT),
             name: Default::default(),
+            highlight: false,
         }
     }
 
@@ -196,9 +488,21 @@ impl Curve {
         Self::from_values(values)
     }
 
+    /// Highlight this curve.
+    pub fn highlight(mut self) -> Self {
+        self.highlight = true;
+        self
+    }
+
     /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
+        self
+    }
+
+    /// Add a marker.
+    pub fn marker(mut self, marker: Marker) -> Self {
+        self.marker = Some(marker);
         self
     }
 

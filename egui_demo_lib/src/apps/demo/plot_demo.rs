@@ -1,4 +1,4 @@
-use egui::plot::{Curve, Plot, Value};
+use egui::plot::{Curve, Marker, Plot, Value};
 use egui::*;
 use std::f64::consts::TAU;
 
@@ -110,7 +110,7 @@ impl PlotDemo {
         });
         Curve::from_values_iter(circle)
             .color(Color32::from_rgb(100, 200, 100))
-            .name("circle")
+            .name("Circle")
     }
 
     fn sin(&self) -> Curve {
@@ -129,10 +129,28 @@ impl PlotDemo {
         Curve::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
-            512,
+            100,
         )
         .color(Color32::from_rgb(100, 150, 250))
         .name("x = sin(2t), y = sin(3t)")
+    }
+
+    fn markers(&self) -> Vec<Curve> {
+        Marker::all()
+            .into_iter()
+            .enumerate()
+            .map(|(i, marker)| {
+                let y_offset = i as f32 * 0.5 + 1.0;
+                Curve::from_values(vec![
+                    Value::new(1.0, 0.0 + y_offset),
+                    Value::new(2.0, 0.5 + y_offset),
+                    Value::new(3.0, 0.0 + y_offset),
+                    Value::new(4.0, 0.5 + y_offset),
+                ])
+                .marker(marker.size(7.5).stroke(Color32::WHITE))
+                .name("Markers")
+            })
+            .collect()
     }
 }
 
@@ -145,18 +163,30 @@ impl super::View for PlotDemo {
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
 
-        let mut plot = Plot::new("Demo Plot")
+        let mut plot = Plot::new("Curves Demo")
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .show_legend(self.legend)
-            .min_size(Vec2::new(200.0, 200.0));
+            .width(300.0)
+            .height(300.0)
+            .show_legend(self.legend);
         if self.square {
             plot = plot.view_aspect(1.0);
         }
         if self.proportional {
             plot = plot.data_aspect(1.0);
         }
-        ui.add(plot);
+
+        let markers_plot = Plot::new("Markers Demo")
+            .curves(self.markers())
+            .width(300.0)
+            .height(300.0)
+            .data_aspect(1.0)
+            .show_legend(self.legend);
+
+        ui.horizontal(|ui| {
+            ui.add(plot);
+            ui.add(markers_plot);
+        });
     }
 }
