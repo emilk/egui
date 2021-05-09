@@ -29,6 +29,8 @@ First file an issue (or find an existing one) and announce that you plan to work
 
 Browse through [`ARCHITECTURE.md`](https://github.com/emilk/egui/blob/master/ARCHITECTURE.md) to get a sense of how all pieces connects.
 
+You can test your code locally by running `./sh/check.sh`.
+
 When you have something that works, open a draft PR. You may get some helpful feedback early!
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
 

@@ -1,4 +1,6 @@
 #!/bin/bash
+script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$script_path/.."
 set -eux
 
 # Checks all tests, lints etc.
@@ -24,3 +26,6 @@ cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-feat
 
 # what compiles slowly?
 # cargo clean; cargo +nightly build -p egui -Z timings
+
+# what compiles slowly?
+# cargo llvm-lines --lib -p egui | head -20
