@@ -11,7 +11,7 @@ cargo test --workspace --doc
 cargo check --workspace --all-targets --all-features
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all
+cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all
 cargo test --workspace --all-targets --all-features
 cargo fmt --all -- --check
 
