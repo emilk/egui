@@ -135,7 +135,7 @@ impl PlotDemo {
         .name("x = sin(2t), y = sin(3t)")
     }
 
-    fn markers(&self) -> Vec<Curve> {
+    fn markers() -> Vec<Curve> {
         Marker::all()
             .into_iter()
             .enumerate()
@@ -178,7 +178,7 @@ impl super::View for PlotDemo {
         }
 
         let markers_plot = Plot::new("Markers Demo")
-            .curves(self.markers())
+            .curves(Self::markers())
             .width(300.0)
             .height(300.0)
             .data_aspect(1.0)
