@@ -832,6 +832,10 @@ impl Ui {
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
+        // TODO: configure to overflow to main_dir instead of centered overflow
+        // to handle the bug mentioned at https://github.com/emilk/egui/discussions/318#discussioncomment-627578
+        // and fixed in https://github.com/emilk/egui/commit/035166276322b3f2324bd8b97ffcedc63fa8419f
+        //
         // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
         let layout = Layout::centered_and_justified(self.layout().main_dir());
         self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
