@@ -178,6 +178,12 @@ impl Placer {
         self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
     }
 
+    pub(crate) fn start_row(&mut self, painter: &Painter) {
+        if let Some(grid) = &mut self.grid {
+            grid.start_row(&mut self.region.cursor, painter)
+        }
+    }
+
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {

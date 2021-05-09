@@ -1521,6 +1521,10 @@ impl Ui {
             .end_row(self.spacing().item_spacing, &self.painter().clone());
     }
 
+    pub(crate) fn start_row(&mut self) {
+        self.placer.start_row(&self.painter().clone());
+    }
+
     /// Set row height in horizontal wrapping layout.
     pub fn set_row_height(&mut self, height: f32) {
         self.placer.set_row_height(height);

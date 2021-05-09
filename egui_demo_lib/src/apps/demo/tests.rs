@@ -179,6 +179,7 @@ pub struct TableTest {
     num_rows: usize,
     min_col_width: f32,
     max_col_width: f32,
+    with_header: bool,
 }
 
 impl Default for TableTest {
@@ -188,6 +189,7 @@ impl Default for TableTest {
             num_rows: 4,
             min_col_width: 10.0,
             max_col_width: 200.0,
+            with_header: true,
         }
     }
 }
@@ -216,6 +218,7 @@ impl super::View for TableTest {
         ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
         ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
+        ui.add(egui::Checkbox::new(&mut self.with_header, "Headers"));
         ui.separator();
 
         let words = [
@@ -225,6 +228,7 @@ impl super::View for TableTest {
 
         egui::Grid::new("my_grid")
             .striped(true)
+            .header_row(self.with_header)
             .min_col_width(self.min_col_width)
             .max_col_width(self.max_col_width)
             .show(ui, |ui| {

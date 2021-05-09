@@ -50,6 +50,7 @@ pub(crate) struct GridLayout {
     spacing: Vec2,
 
     striped: bool,
+    header_row: bool,
     initial_x: f32,
     min_cell_size: Vec2,
     max_cell_size: Vec2,
@@ -78,6 +79,7 @@ impl GridLayout {
             curr_state: State::default(),
             spacing: ui.spacing().item_spacing,
             striped: false,
+            header_row: false,
             initial_x,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
@@ -182,6 +184,42 @@ impl GridLayout {
         cursor.min.x += frame_rect.width() + self.spacing.x;
     }
 
+    /// Paint the row.
+    pub(crate) fn paint_row(&mut self, rect: &Rect, color: Rgba, painter: &Painter) {
+        if let Some(height) = self.prev_state.row_height(self.row) {
+            // Paint background for coming row:
+            let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
+            let rect = Rect::from_min_size(rect.min, size);
+            let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
+            let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+
+            painter.rect_filled(rect, 2.0, color);
+        }
+    }
+
+    /// Paint the background for the header row
+    pub(crate) fn start_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+        if self.header_row && self.row == 0 {
+            let rect = Rect::from([Pos2::new(self.initial_x, cursor.min.y), cursor.max]);
+
+            let color = if self.style.visuals.dark_mode {
+                Rgba::from_white_alpha(0.075)
+            } else {
+                Rgba::from_black_alpha(0.75)
+            };
+
+            self.paint_row(&rect, color, painter);
+        } else if self.row % 2 == 0 {
+            let color = if self.style.visuals.dark_mode {
+                Rgba::from_white_alpha(0.0075)
+            } else {
+                Rgba::from_black_alpha(0.075)
+            };
+
+            self.paint_row(cursor, color, painter);
+        }
+    }
+
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         let row_height = self.prev_row_height(self.row);
 
@@ -190,21 +228,14 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        if self.striped && self.row % 2 == 1 {
-            if let Some(height) = self.prev_state.row_height(self.row) {
-                // Paint background for coming row:
-                let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-                let rect = Rect::from_min_size(cursor.min, size);
-                let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-                let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+        if self.striped && self.row % 2 == 0 {
+            let color = if self.style.visuals.dark_mode {
+                Rgba::from_white_alpha(0.0075)
+            } else {
+                Rgba::from_black_alpha(0.075)
+            };
 
-                let color = if self.style.visuals.dark_mode {
-                    Rgba::from_white_alpha(0.0075)
-                } else {
-                    Rgba::from_black_alpha(0.075)
-                };
-                painter.rect_filled(rect, 2.0, color);
-            }
+            self.paint_row(cursor, color, painter);
         }
     }
 
@@ -249,6 +280,7 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     striped: bool,
+    header_row: bool,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
@@ -261,6 +293,7 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             striped: false,
+            header_row: false,
             min_col_width: None,
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
@@ -274,6 +307,11 @@ impl Grid {
     /// Default: `false`.
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = striped;
+        self
+    }
+
+    pub fn header_row(mut self, header_row: bool) -> Self {
+        self.header_row = header_row;
         self
     }
 
@@ -314,6 +352,7 @@ impl Grid {
             min_row_height,
             max_cell_size,
             spacing,
+            header_row,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
@@ -325,15 +364,17 @@ impl Grid {
         // which we do here:
         ui.horizontal(|ui| {
             let id = ui.make_persistent_id(id_source);
-            let grid = GridLayout {
+            let mut grid = GridLayout {
                 striped,
                 spacing,
                 min_cell_size: vec2(min_col_width, min_row_height),
                 max_cell_size,
+                header_row,
                 ..GridLayout::new(ui, id)
             };
 
             ui.set_grid(grid);
+            ui.start_row();
             let r = add_contents(ui);
             ui.save_grid();
             r
