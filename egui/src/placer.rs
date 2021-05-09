@@ -180,7 +180,7 @@ impl Placer {
 
     pub(crate) fn start_row(&mut self, painter: &Painter) {
         if let Some(grid) = &mut self.grid {
-            grid.start_row(&mut self.region.cursor, painter)
+            grid.do_paint(&mut self.region.cursor, painter)
         }
     }
 

@@ -1,4 +1,5 @@
 use crate::*;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -36,6 +37,54 @@ impl State {
 
 // ----------------------------------------------------------------------------
 
+/// Either a single color, or a pair of colors corresponding to light/dark scheme
+#[derive(Clone, Copy)]
+pub enum GuiColor {
+    Single(Rgba),
+    Pair { light: Rgba, dark: Rgba },
+}
+
+impl GuiColor {
+    /// Create a single color
+    pub fn single(color: Rgba) -> Self {
+        Self::Single(color)
+    }
+
+    /// Create a light/dark scheme pair
+    pub fn pair(light: Rgba, dark: Rgba) -> Self {
+        Self::Pair { light, dark }
+    }
+}
+
+/// A predicate that takes one int argument.
+pub(crate) struct SinglePredicate {
+    pub color: GuiColor,
+    pub predicate: fn(usize) -> bool,
+}
+
+/// A predicate that takes two int arguments
+pub(crate) struct DoublePredicate {
+    pub color: GuiColor,
+    pub predicate: fn(usize, usize) -> bool,
+}
+
+/// Describe conditional formattings for a grid.
+/// All predicates are evaluated for each row/col/cell, and colors will be painted on top of each other.
+/// The evaluation order is: row, column, cell, list
+#[derive(Default)]
+pub(crate) struct ColorSpec {
+    /// If the (row, col) exists, the corresponding color is applied
+    pub list: HashMap<(usize, usize), GuiColor>,
+    /// The predicate is passed the row number.
+    pub by_row: Vec<SinglePredicate>,
+    /// The predicate is passed the column number.
+    pub by_column: Vec<SinglePredicate>,
+    /// The predicate is passed the row and column numbers.
+    pub by_cell: Vec<DoublePredicate>,
+}
+
+// ----------------------------------------------------------------------------
+
 pub(crate) struct GridLayout {
     ctx: CtxRef,
     style: std::sync::Arc<Style>,
@@ -49,8 +98,7 @@ pub(crate) struct GridLayout {
 
     spacing: Vec2,
 
-    striped: bool,
-    header_row: bool,
+    color_spec: ColorSpec,
     initial_x: f32,
     min_cell_size: Vec2,
     max_cell_size: Vec2,
@@ -78,8 +126,7 @@ impl GridLayout {
             prev_state,
             curr_state: State::default(),
             spacing: ui.spacing().item_spacing,
-            striped: false,
-            header_row: false,
+            color_spec: Default::default(),
             initial_x,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
@@ -185,7 +232,14 @@ impl GridLayout {
     }
 
     /// Paint the row.
-    pub(crate) fn paint_row(&mut self, rect: &Rect, color: Rgba, painter: &Painter) {
+    pub(crate) fn paint_row(&self, rect: &Rect, color: GuiColor, painter: &Painter) {
+        let color = match color {
+            GuiColor::Single(color) => color,
+            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
+                true => dark,
+                false => light,
+            },
+        };
         if let Some(height) = self.prev_state.row_height(self.row) {
             // Paint background for coming row:
             let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
@@ -197,26 +251,12 @@ impl GridLayout {
         }
     }
 
-    /// Paint the background for the header row
-    pub(crate) fn start_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        if self.header_row && self.row == 0 {
-            let rect = Rect::from([Pos2::new(self.initial_x, cursor.min.y), cursor.max]);
-
-            let color = if self.style.visuals.dark_mode {
-                Rgba::from_white_alpha(0.075)
-            } else {
-                Rgba::from_black_alpha(0.75)
-            };
-
-            self.paint_row(&rect, color, painter);
-        } else if self.row % 2 == 0 {
-            let color = if self.style.visuals.dark_mode {
-                Rgba::from_white_alpha(0.0075)
-            } else {
-                Rgba::from_black_alpha(0.075)
-            };
-
-            self.paint_row(cursor, color, painter);
+    /// Paint the background for the next row & columns.
+    pub(crate) fn do_paint(&mut self, cursor: &mut Rect, painter: &Painter) {
+        for p in &self.color_spec.by_row {
+            if (p.predicate)(self.row) {
+                self.paint_row(cursor, p.color, painter);
+            }
         }
     }
 
@@ -228,15 +268,7 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        if self.striped && self.row % 2 == 0 {
-            let color = if self.style.visuals.dark_mode {
-                Rgba::from_white_alpha(0.0075)
-            } else {
-                Rgba::from_black_alpha(0.075)
-            };
-
-            self.paint_row(cursor, color, painter);
-        }
+        self.do_paint(cursor, painter);
     }
 
     pub(crate) fn save(&self) {
@@ -285,6 +317,7 @@ pub struct Grid {
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
     spacing: Option<Vec2>,
+    color_spec: ColorSpec,
 }
 
 impl Grid {
@@ -298,6 +331,7 @@ impl Grid {
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
             spacing: None,
+            color_spec: Default::default(),
         }
     }
 
@@ -348,11 +382,12 @@ impl Grid {
         let Self {
             id_source,
             striped,
+            header_row,
             min_col_width,
             min_row_height,
             max_cell_size,
             spacing,
-            header_row,
+            color_spec,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
@@ -365,13 +400,33 @@ impl Grid {
         ui.horizontal(|ui| {
             let id = ui.make_persistent_id(id_source);
             let mut grid = GridLayout {
-                striped,
                 spacing,
                 min_cell_size: vec2(min_col_width, min_row_height),
                 max_cell_size,
-                header_row,
+                color_spec,
                 ..GridLayout::new(ui, id)
             };
+
+            // Set convenience color specs
+            if striped {
+                grid.color_spec.by_row.push(SinglePredicate {
+                    color: GuiColor::pair(
+                        Rgba::from_black_alpha(0.075),
+                        Rgba::from_white_alpha(0.0075),
+                    ),
+                    predicate: |row| row % 2 == 0,
+                });
+            }
+
+            if header_row {
+                grid.color_spec.by_row.push(SinglePredicate {
+                    color: GuiColor::pair(
+                        Rgba::from_black_alpha(0.75),
+                        Rgba::from_white_alpha(0.075),
+                    ),
+                    predicate: |row| row == 0,
+                });
+            }
 
             ui.set_grid(grid);
             ui.start_row();
