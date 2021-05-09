@@ -180,7 +180,7 @@ impl Widget for Button {
             self.enabled_ui(ui)
         } else {
             // We need get a temporary disabled `Ui` to get that grayed out look:
-            ui.wrap(|ui| {
+            ui.scope(|ui| {
                 ui.set_enabled(false);
                 self.enabled_ui(ui)
             })

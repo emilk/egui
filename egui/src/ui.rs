@@ -1195,13 +1195,28 @@ impl Ui {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
-    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    /// Create a scoped child ui.
+    ///
+    /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.scope(|ui|{
+    ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
+    ///     // …
+    /// });
+    /// ```
+    pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
+    }
+
+    #[deprecated = "Renamed scope()"]
+    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.scope(add_contents)
     }
 
     /// Redirect shapes to another paint layer.
@@ -1210,7 +1225,7 @@ impl Ui {
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
         })
@@ -1324,7 +1339,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
@@ -1368,7 +1383,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();

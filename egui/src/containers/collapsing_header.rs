@@ -67,7 +67,7 @@ impl State {
         if openness <= 0.0 {
             None
         } else if openness < 1.0 {
-            Some(ui.wrap(|child_ui| {
+            Some(ui.scope(|child_ui| {
                 let max_height = if self.open && self.open_height.is_none() {
                     // First frame of expansion.
                     // We don't know full height yet, but we will next frame.
@@ -93,7 +93,7 @@ impl State {
                 ret
             }))
         } else {
-            let ret_response = ui.wrap(add_contents);
+            let ret_response = ui.scope(add_contents);
             let full_size = ret_response.response.rect.size();
             self.open_height = Some(full_size.y);
             Some(ret_response)
