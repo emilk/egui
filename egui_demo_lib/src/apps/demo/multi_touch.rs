@@ -3,7 +3,7 @@ use egui::{
     vec2, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
 
-pub struct ZoomRotate {
+pub struct MultiTouch {
     previous_arrow_start_offset: Vec2,
     rotation: f32,
     smoothed_velocity: Vec2,
@@ -11,7 +11,7 @@ pub struct ZoomRotate {
     zoom: f32,
 }
 
-impl Default for ZoomRotate {
+impl Default for MultiTouch {
     fn default() -> Self {
         Self {
             previous_arrow_start_offset: Vec2::ZERO,
@@ -23,7 +23,7 @@ impl Default for ZoomRotate {
     }
 }
 
-impl super::Demo for ZoomRotate {
+impl super::Demo for MultiTouch {
     fn name(&self) -> &'static str {
         "👌 Multi Touch"
     }
@@ -40,7 +40,7 @@ impl super::Demo for ZoomRotate {
     }
 }
 
-impl super::View for ZoomRotate {
+impl super::View for MultiTouch {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());

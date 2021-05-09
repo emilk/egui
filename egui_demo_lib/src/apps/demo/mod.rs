@@ -13,6 +13,7 @@ pub mod font_book;
 pub mod font_contents_emoji;
 pub mod font_contents_ubuntu;
 pub mod layout_test;
+pub mod multi_touch;
 pub mod painting;
 pub mod password;
 pub mod plot_demo;
@@ -23,7 +24,6 @@ pub mod toggle_switch;
 pub mod widget_gallery;
 mod widgets;
 pub mod window_options;
-pub mod zoom_rotate;
 
 pub use {app::*, demo_window::DemoWindow, demo_windows::*, widgets::Widgets};
 
