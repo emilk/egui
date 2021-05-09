@@ -2319,9 +2319,9 @@ checksum = "3e5d7cd7ab3e47dda6e56542f4bbf3824c15234958c6e1bd6aaa347e93499fdc"
 
 [[package]]
 name = "tts"
-version = "0.15.2"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fbbaa4d576f59b3a0dc385f2b216dc9e1ab219cfbaa1bd3b0e4c678aa6b7109"
+checksum = "2d68e9e002f60cc4e4f16bf40db2544c3e9021715bb06960ba9b9970c3ae75e1"
 dependencies = [
  "cocoa-foundation",
  "dyn-clonable",
@@ -2680,9 +2680,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.4.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "015de964f21e0b20b9744ebc6f3a3e4dfdd1788f133a4aeec09c035748f88a21"
+checksum = "388ac37f05f32071485db1af226f92ee98432dc6b5ba51ebee121bf01c8e2446"
 dependencies = [
  "const-sha1",
  "windows_gen",
@@ -2691,33 +2691,21 @@ dependencies = [
 
 [[package]]
 name = "windows_gen"
-version = "0.4.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70028758c92f5ed61ce12ab8e7482dce152418bac41dbefe794511b9fb673022"
+checksum = "91332e7e62443e735f74b6d701dcc053f26b08fa63cba5b60a6cd8b64b0cf481"
 dependencies = [
  "proc-macro2",
  "quote",
  "squote",
  "syn",
- "windows_gen_macros",
-]
-
-[[package]]
-name = "windows_gen_macros"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a4e4aa3c108fc3112bb797662b14958d088d3b989f2560d89335775c566c88d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
 name = "windows_macros"
-version = "0.4.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87e5b872245607ec18bf35eaa7a6146831c07449c0b724afd7403d732c6da856"
+checksum = "c9d7c54fe11679c0805051a5dc73b87b7abf13fefd4fdfdea9b888673a498ec8"
 dependencies = [
  "proc-macro2",
  "quote",
