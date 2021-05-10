@@ -32,7 +32,7 @@ impl Default for Demos {
             Box::new(super::tests::InputTest::default()),
             Box::new(super::layout_test::LayoutTest::default()),
             Box::new(super::tests::ManualLayoutTest::default()),
-            Box::new(super::tests::TableTest::default()),
+            Box::new(super::tests::GridTest::default()),
         ];
 
         use crate::apps::demo::Demo;

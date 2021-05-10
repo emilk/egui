@@ -33,6 +33,11 @@ impl State {
         self.col_widths.iter().sum::<f32>()
             + (self.col_widths.len().at_least(1) - 1) as f32 * x_spacing
     }
+
+    fn full_height(&self, y_spacing: f32) -> f32 {
+        self.row_heights.iter().sum::<f32>()
+            + (self.row_heights.len().at_least(1) - 1) as f32 * y_spacing
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -42,6 +47,12 @@ impl State {
 pub enum GuiColor {
     Single(Rgba),
     Pair { light: Rgba, dark: Rgba },
+}
+
+impl From<Rgba> for GuiColor {
+    fn from(color: Rgba) -> Self {
+        Self::Single(color)
+    }
 }
 
 impl GuiColor {
@@ -56,16 +67,19 @@ impl GuiColor {
     }
 }
 
+type SingleArgumentPredicate = fn(usize) -> bool;
+type DoubleArgumentPredicate = fn(usize, usize) -> bool;
+
 /// A predicate that takes one int argument.
 pub(crate) struct SinglePredicate {
     pub color: GuiColor,
-    pub predicate: fn(usize) -> bool,
+    pub predicate: SingleArgumentPredicate,
 }
 
 /// A predicate that takes two int arguments
 pub(crate) struct DoublePredicate {
     pub color: GuiColor,
-    pub predicate: fn(usize, usize) -> bool,
+    pub predicate: DoubleArgumentPredicate,
 }
 
 /// Describe conditional formattings for a grid.
@@ -231,8 +245,8 @@ impl GridLayout {
         cursor.min.x += frame_rect.width() + self.spacing.x;
     }
 
-    /// Paint the row.
-    pub(crate) fn paint_row(&self, rect: &Rect, color: GuiColor, painter: &Painter) {
+    /// Paint a row.
+    pub(crate) fn paint_row(&self, min: Pos2, color: GuiColor, painter: &Painter) {
         let color = match color {
             GuiColor::Single(color) => color,
             GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
@@ -243,7 +257,7 @@ impl GridLayout {
         if let Some(height) = self.prev_state.row_height(self.row) {
             // Paint background for coming row:
             let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-            let rect = Rect::from_min_size(rect.min, size);
+            let rect = Rect::from_min_size(min, size);
             let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
             let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
@@ -251,11 +265,60 @@ impl GridLayout {
         }
     }
 
+    /// Paint a column
+    pub(crate) fn paint_column(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
+        let col_f = col as f32;
+
+        let color = match color {
+            GuiColor::Single(color) => color,
+            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
+                true => dark,
+                false => light,
+            },
+        };
+
+        // Paint a column:
+        // Offset from the cursor to paint the col at the right spot.
+        let min_offset = min
+            + Vec2::new(
+                // Sum up all the previous widths and add the padding
+                self.prev_state.col_widths.iter().take(col).sum::<f32>()
+                    + (self.spacing.x + 1.0) * (col_f - 1.0).max(0.0)
+                    - 1.0,
+                -1.0,
+            );
+        let size = Vec2::new(
+            self.prev_col_width(col),
+            self.prev_state.full_height(self.spacing.y),
+        );
+        let size = size
+            + Vec2::new(
+                // Add padding
+                0.5 * self.spacing.x + 2.0,
+                3.0,
+            );
+
+        let rect = Rect::from_min_size(min_offset, size);
+
+        painter.rect_filled(rect, 2.0, color);
+    }
+
     /// Paint the background for the next row & columns.
     pub(crate) fn do_paint(&mut self, cursor: &mut Rect, painter: &Painter) {
         for p in &self.color_spec.by_row {
             if (p.predicate)(self.row) {
-                self.paint_row(cursor, p.color, painter);
+                self.paint_row(cursor.min, p.color, painter);
+            }
+        }
+        // Only paint columns when we're on the first row.
+        if self.row == 0 {
+            for p in &self.color_spec.by_column {
+                // Iterate over columns
+                for col in 0..self.prev_state.col_widths.len() {
+                    if (p.predicate)(col) {
+                        self.paint_column(col, cursor.min, p.color, painter);
+                    }
+                }
             }
         }
     }
@@ -333,6 +396,19 @@ impl Grid {
             spacing: None,
             color_spec: Default::default(),
         }
+    }
+
+    /// Add a new colorspec for a column
+    pub fn with_column_spec<T: Into<GuiColor>>(
+        mut self,
+        color: T,
+        predicate: SingleArgumentPredicate,
+    ) -> Self {
+        self.color_spec.by_column.push(SinglePredicate {
+            color: color.into(),
+            predicate,
+        });
+        self
     }
 
     /// If `true`, add a subtle background color to every other row.
@@ -427,6 +503,8 @@ impl Grid {
                     predicate: |row| row == 0,
                 });
             }
+
+            // ---
 
             ui.set_grid(grid);
             ui.start_row();
