@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
@@ -20,8 +20,8 @@ include = [
 
 [dependencies]
 copypasta = "0.7"
-egui = { version = "0.11.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-epi = { version = "0.11.0", path = "../epi" }
+egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+epi = { version = "0.12.0", path = "../epi" }
 glium = "0.29"
 webbrowser = "0.5"
 

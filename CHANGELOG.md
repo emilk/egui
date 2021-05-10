@@ -7,6 +7,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+
+## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
+
 ### Added ⭐
 * Add anchors to windows and areas so you can put a window in e.g. the top right corner.
 * Make labels interactive with `Label::sense(Sense::click())`.
