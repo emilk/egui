@@ -40,7 +40,7 @@ impl Output {
         // only describe last event:
         if let Some(event) = self.events.iter().rev().next() {
             match event {
-                OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info) => {
+                OutputEvent::FocusGained(widget_info) => {
                     return widget_info.description();
                 }
             }
@@ -205,23 +205,15 @@ impl Default for CursorIcon {
 #[derive(Clone, PartialEq)]
 pub enum OutputEvent {
     /// A widget gained keyboard focus (by tab key).
-    WidgetEvent(WidgetEvent, WidgetInfo),
+    FocusGained(WidgetInfo),
 }
 
 impl std::fmt::Debug for OutputEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WidgetEvent(we, wi) => write!(f, "{:?}: {:?}", we, wi),
+            Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WidgetEvent {
-    /// Keyboard focused moved onto the widget.
-    Focus,
-    // /// Started hovering a new widget.
-    // Hover, // TODO: cursor hovered events
 }
 
 /// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
