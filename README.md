@@ -10,7 +10,7 @@
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
-egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
+egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
@@ -68,7 +68,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Goals
 
-* The easiest to use GUI libary
+* The easiest to use GUI library
 * Responsive: target 60 Hz in debug build
 * Friendly: difficult to make mistakes, and shouldn't panic
 * Portable: the same code works on the web and as a native app
@@ -87,7 +87,7 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 
 ### Non-goals
 
-* Become the most powerful GUI libary
+* Become the most powerful GUI library
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
