@@ -538,13 +538,14 @@ impl Prepared {
         let bounds = transform.bounds();
         let text_style = TextStyle::Body;
 
-        let base: f64 = 10.0;
+        let base: i64 = 10;
+        let basef = base as f64;
 
-        let min_label_spacing_in_points = 60.0; // TODO: large enough for a wide label
-        let step_size = transform.dvalue_dpos()[axis] * min_label_spacing_in_points;
-        let step_size = base.powi(step_size.abs().log(base).ceil() as i32);
+        let min_line_spacing_in_points = 6.0; // TODO: large enough for a wide label
+        let step_size = transform.dvalue_dpos()[axis] * min_line_spacing_in_points;
+        let step_size = basef.powi(step_size.abs().log(basef).ceil() as i32);
 
-        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size) as f32;
+        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size).abs() as f32;
 
         // Where on the cross-dimension to show the label values
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
@@ -562,53 +563,61 @@ impl Prepared {
             };
             let pos_in_gui = transform.position_from_value(&value);
 
-            {
-                // Grid: subdivide each label tick in `n` grid lines:
-                let n = if step_size_in_points.abs() < 40.0 {
-                    2
-                } else if step_size_in_points.abs() < 100.0 {
-                    5
-                } else {
-                    10
-                };
+            let n = (value_main / step_size).round() as i64;
+            let spacing_in_points = if n % (base * base) == 0 {
+                step_size_in_points * (basef * basef) as f32 // think line (multiple of 100)
+            } else if n % base == 0 {
+                step_size_in_points * basef as f32 // medium line (multiple of 10)
+            } else {
+                step_size_in_points // thin line
+            };
 
-                for i in 0..n {
-                    let strength = if i == 0 && value_main == 0.0 {
-                        Strength::Strong
-                    } else if i == 0 {
-                        Strength::Middle
-                    } else {
-                        Strength::Weak
-                    };
-                    let color = line_color(ui, strength);
+            let line_alpha = remap_clamp(
+                spacing_in_points,
+                (min_line_spacing_in_points as f32)..=300.0,
+                0.0..=0.15,
+            );
 
-                    let mut pos_in_gui = pos_in_gui;
-                    pos_in_gui[axis] += step_size_in_points * (i as f32) / (n as f32);
-                    let mut p0 = pos_in_gui;
-                    let mut p1 = pos_in_gui;
-                    p0[1 - axis] = transform.frame().min[1 - axis];
-                    p1[1 - axis] = transform.frame().max[1 - axis];
-                    shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, color)));
-                }
+            if line_alpha > 0.0 {
+                let line_color = color_from_alpha(ui, line_alpha);
+
+                let mut p0 = pos_in_gui;
+                let mut p1 = pos_in_gui;
+                p0[1 - axis] = transform.frame().min[1 - axis];
+                p1[1 - axis] = transform.frame().max[1 - axis];
+                shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
             }
 
-            let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
+            let text_alpha = remap_clamp(spacing_in_points, 40.0..=150.0, 0.0..=0.4);
 
-            let galley = ui.fonts().layout_multiline(text_style, text, f32::INFINITY);
+            if text_alpha > 0.0 {
+                let color = color_from_alpha(ui, text_alpha);
+                let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-            let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
+                let galley = ui.fonts().layout_single_line(text_style, text);
 
-            // Make sure we see the labels, even if the axis is off-screen:
-            text_pos[1 - axis] = text_pos[1 - axis]
-                .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
-                .at_least(transform.frame().min[1 - axis] + 1.0);
+                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 
-            shapes.push(Shape::Text {
-                pos: text_pos,
-                galley,
-                color: ui.visuals().text_color(),
-                fake_italics: false,
-            });
+                // Make sure we see the labels, even if the axis is off-screen:
+                text_pos[1 - axis] = text_pos[1 - axis]
+                    .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                    .at_least(transform.frame().min[1 - axis] + 1.0);
+
+                shapes.push(Shape::Text {
+                    pos: text_pos,
+                    galley,
+                    color,
+                    fake_italics: false,
+                });
+            }
+        }
+
+        fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
+            if ui.visuals().dark_mode {
+                Rgba::from_white_alpha(alpha).into()
+            } else {
+                Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
+            }
         }
     }
 
@@ -648,7 +657,11 @@ impl Prepared {
             }
         }
 
-        let line_color = line_color(ui, Strength::Middle);
+        let line_color = if ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
 
         let value = if let Some(value) = closest_value {
             let position = transform.position_from_value(value);
@@ -702,28 +715,5 @@ impl Prepared {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
-    }
-}
-
-#[derive(Clone, Copy)]
-enum Strength {
-    Strong,
-    Middle,
-    Weak,
-}
-
-fn line_color(ui: &Ui, strength: Strength) -> Color32 {
-    if ui.visuals().dark_mode {
-        match strength {
-            Strength::Strong => Color32::from_gray(130).additive(),
-            Strength::Middle => Color32::from_gray(55).additive(),
-            Strength::Weak => Color32::from_gray(25).additive(),
-        }
-    } else {
-        match strength {
-            Strength::Strong => Color32::from_black_alpha(220),
-            Strength::Middle => Color32::from_black_alpha(120),
-            Strength::Weak => Color32::from_black_alpha(35),
-        }
     }
 }
