@@ -314,6 +314,11 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
+    /// Which widget has keyboard focus?
+    pub fn focus(&self) -> Option<Id> {
+        self.interaction.focus.id
+    }
+
     pub(crate) fn lock_focus(&mut self, id: Id, lock_focus: bool) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked = lock_focus;
