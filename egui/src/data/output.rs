@@ -327,7 +327,7 @@ impl WidgetInfo {
         } = self;
 
         // TODO: localization
-        let widget_name = match typ {
+        let widget_type = match typ {
             WidgetType::Hyperlink => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
@@ -343,20 +343,19 @@ impl WidgetInfo {
             WidgetType::Label | WidgetType::Other => "",
         };
 
-        let mut description = widget_name.to_owned();
+        let mut description = widget_type.to_owned();
 
         if let Some(selected) = selected {
             if *typ == WidgetType::Checkbox {
-                description += " ";
-                description += if *selected { "checked" } else { "unchecked" };
+                let state = if *selected { "checked" } else { "unchecked" };
+                description = format!("{} {}", state, description);
             } else {
                 description += if *selected { "selected" } else { "" };
             };
         }
 
         if let Some(label) = label {
-            description += " ";
-            description += label;
+            description = format!("{}: {}", label, description);
         }
 
         if let Some(edit_text) = edit_text {
