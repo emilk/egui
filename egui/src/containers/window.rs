@@ -431,7 +431,7 @@ fn paint_resize_corner(
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
     movable: bool,
-    // Which sized can we drag to resize?
+    // Which sides can we drag to resize?
     resize_left: bool,
     resize_right: bool,
     resize_top: bool,

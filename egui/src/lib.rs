@@ -231,7 +231,7 @@
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
 //! ui.scope(|ui|{
-//!     // Change test color on subsequent widgets:
+//!     // Change text color on subsequent widgets:
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!
 //!     // Turn off text wrapping on subsequent widgets:
