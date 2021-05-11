@@ -90,18 +90,18 @@ pub(crate) enum MarkerShape {
 #[derive(Debug, Clone, Copy)]
 pub struct Marker {
     pub(crate) shape: MarkerShape,
-    pub(crate) stroke: Color32,
-    pub(crate) fill: Color32,
-    pub(crate) size: f32,
+    pub(crate) color: Color32,
+    pub(crate) filled: bool,
+    pub(crate) radius: f32,
 }
 
 impl Default for Marker {
     fn default() -> Self {
         Self {
             shape: MarkerShape::Circle,
-            stroke: Color32::TRANSPARENT,
-            fill: Color32::TRANSPARENT,
-            size: 1.0,
+            color: Color32::TRANSPARENT,
+            filled: true,
+            radius: 1.0,
         }
     }
 }
@@ -192,18 +192,21 @@ impl Marker {
         }
     }
 
-    pub fn stroke(mut self, stroke: Color32) -> Self {
-        self.stroke = stroke;
+    /// Set the marker's color. Defaults to the curve's color.
+    pub fn color(mut self, color: Color32) -> Self {
+        self.color = color;
         self
     }
 
-    pub fn fill(mut self, fill: Color32) -> Self {
-        self.fill = fill;
+    /// Whether to fill the marker.
+    pub fn filled(mut self, filled: bool) -> Self {
+        self.filled = filled;
         self
     }
 
-    pub fn size(mut self, size: f32) -> Self {
-        self.size = size;
+    /// The maximum extent of the marker around its position.
+    pub fn radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
         self
     }
 
@@ -213,26 +216,30 @@ impl Marker {
         let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
 
         let Self {
-            fill,
+            color,
+            filled,
             shape,
-            stroke,
-            size,
+            radius,
         } = *self;
 
-        let stroke = Stroke::new(size / 10.0, stroke);
+        let stroke_size = radius / 5.0;
 
         let tf = |offset: Vec<Vec2>| -> Vec<Pos2> {
             offset
                 .into_iter()
-                .map(|offset| *position + size * offset)
+                .map(|offset| *position + radius * offset)
                 .collect()
         };
+
+        let default_stroke = Stroke::new(stroke_size, color);
+        let stroke = (!filled).then(|| default_stroke).unwrap_or_default();
+        let fill = filled.then(|| color).unwrap_or_default();
 
         match shape {
             MarkerShape::Circle => {
                 vec![Shape::Circle {
-                    radius: size,
                     center: *position,
+                    radius,
                     fill,
                     stroke,
                 }]
@@ -268,27 +275,25 @@ impl Marker {
                 }]
             }
             MarkerShape::Cross => {
+                let diagonal1 = tf(vec![
+                    vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                    vec2(frac_1_sqrt_2, frac_1_sqrt_2),
+                ]);
+                let diagonal2 = tf(vec![
+                    vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
+                    vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
+                ]);
                 vec![
-                    Shape::line(
-                        tf(vec![
-                            vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
-                            vec2(frac_1_sqrt_2, frac_1_sqrt_2),
-                        ]),
-                        stroke,
-                    ),
-                    Shape::line(
-                        tf(vec![
-                            vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
-                            vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
-                        ]),
-                        stroke,
-                    ),
+                    Shape::line(diagonal1, default_stroke),
+                    Shape::line(diagonal2, default_stroke),
                 ]
             }
             MarkerShape::Plus => {
+                let horizontal = tf(vec![vec2(-1.0, 0.0), vec2(1.0, 0.0)]);
+                let vertical = tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]);
                 vec![
-                    Shape::line(tf(vec![vec2(-1.0, 0.0), vec2(1.0, 0.0)]), stroke),
-                    Shape::line(tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]), stroke),
+                    Shape::line(horizontal, default_stroke),
+                    Shape::line(vertical, default_stroke),
                 ]
             }
             MarkerShape::Up => {
@@ -352,9 +357,9 @@ impl Marker {
                 let diagonal1 = tf(vec![vec2(-frac_sqrt_3_2, 0.5), vec2(frac_sqrt_3_2, -0.5)]);
                 let diagonal2 = tf(vec![vec2(-frac_sqrt_3_2, -0.5), vec2(frac_sqrt_3_2, 0.5)]);
                 vec![
-                    Shape::line(vertical, stroke),
-                    Shape::line(diagonal1, stroke),
-                    Shape::line(diagonal2, stroke),
+                    Shape::line(vertical, default_stroke),
+                    Shape::line(diagonal1, default_stroke),
+                    Shape::line(diagonal2, default_stroke),
                 ]
             }
         }

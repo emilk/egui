@@ -100,21 +100,26 @@ impl Plot {
         }
     }
 
-    fn auto_color(&mut self, color: &mut Color32) {
-        if *color == Color32::TRANSPARENT {
-            let i = self.next_auto_color_idx;
-            self.next_auto_color_idx += 1;
-            let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-            let h = i as f32 * golden_ratio;
-            *color = Hsva::new(h, 0.85, 0.5, 1.0).into(); // TODO: OkLab or some other perspective color space
-        }
+    fn auto_color(&mut self) -> Color32 {
+        let i = self.next_auto_color_idx;
+        self.next_auto_color_idx += 1;
+        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+        let h = i as f32 * golden_ratio;
+        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
     /// Add a data curve.
     /// You can add multiple curves.
     pub fn curve(mut self, mut curve: Curve) -> Self {
         if !curve.no_data() {
-            self.auto_color(&mut curve.stroke.color);
+            if curve.stroke.color == Color32::TRANSPARENT {
+                curve.stroke.color = self.auto_color();
+            }
+            if let Some(marker) = &mut curve.marker {
+                if marker.color == Color32::TRANSPARENT {
+                    marker.color = curve.stroke.color;
+                }
+            }
             self.curves.push(curve);
         }
         self
@@ -129,7 +134,9 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        self.auto_color(&mut hline.stroke.color);
+        if hline.stroke.color == Color32::TRANSPARENT {
+            hline.stroke.color = self.auto_color();
+        }
         self.hlines.push(hline);
         self
     }
@@ -138,7 +145,9 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        self.auto_color(&mut vline.stroke.color);
+        if vline.stroke.color == Color32::TRANSPARENT {
+            vline.stroke.color = self.auto_color();
+        }
         self.vlines.push(vline);
         self
     }
@@ -345,7 +354,16 @@ impl Widget for Plot {
                                 entry.color = ui.visuals().noninteractive().fg_stroke.color
                             }
                         })
-                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
+                        .or_insert_with(|| {
+                            let color = if curve.stroke.color != Color32::TRANSPARENT {
+                                curve.stroke.color
+                            } else if let Some(marker) = curve.marker {
+                                marker.color
+                            } else {
+                                ui.visuals().noninteractive().fg_stroke.color
+                            };
+                            LegendEntry::new(text, color, checked)
+                        });
                 });
 
             // Show the legend.
@@ -521,7 +539,7 @@ impl Prepared {
             if curve.highlight {
                 stroke.width *= 2.0;
                 if let Some(marker) = &mut marker {
-                    marker.size *= 1.2;
+                    marker.radius *= 1.2;
                 }
             }
 

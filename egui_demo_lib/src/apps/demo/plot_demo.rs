@@ -132,6 +132,13 @@ impl PlotDemo {
             100,
         )
         .color(Color32::from_rgb(100, 150, 250))
+        // .stroke(Stroke::none())
+        .marker(
+            Marker::circle()
+                .filled(true)
+                .radius(2.0)
+                .color(Color32::BLUE),
+        )
         .name("x = sin(2t), y = sin(3t)")
     }
 
@@ -147,7 +154,7 @@ impl PlotDemo {
                     Value::new(3.0, 0.0 + y_offset),
                     Value::new(4.0, 0.5 + y_offset),
                 ])
-                .marker(marker.size(7.5).stroke(Color32::WHITE))
+                .marker(marker.radius(7.5))
                 .name("Markers")
             })
             .collect()
