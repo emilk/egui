@@ -183,6 +183,7 @@ pub struct GridTest {
     max_col_width: f32,
     with_header: bool,
     with_columns: bool,
+    with_checkers: bool,
     striped: bool,
 }
 
@@ -196,6 +197,7 @@ impl Default for GridTest {
             striped: true,
             with_columns: false,
             with_header: false,
+            with_checkers: false,
         }
     }
 }
@@ -228,6 +230,7 @@ impl super::View for GridTest {
             ui.add(egui::Checkbox::new(&mut self.striped, "Striped"));
             ui.add(egui::Checkbox::new(&mut self.with_header, "Headers"));
             ui.add(egui::Checkbox::new(&mut self.with_columns, "Columns"));
+            ui.add(egui::Checkbox::new(&mut self.with_checkers, "Checkered"));
         });
         ui.separator();
 
@@ -246,6 +249,11 @@ impl super::View for GridTest {
                 Rgba::from_rgba_premultiplied(0.01, 0.01, 0.01, 0.01),
                 |col| col % 2 == 0,
             );
+        }
+        if self.with_checkers {
+            grid = grid.with_cell_spec(Rgba::from_white_alpha(0.05), |row, col| {
+                (row + col) % 2 == 0
+            })
         }
         grid.show(ui, |ui| {
             for row in 0..self.num_rows {

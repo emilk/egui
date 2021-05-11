@@ -8,6 +8,13 @@ pub(crate) struct State {
     row_heights: Vec<f32>,
 }
 
+/// Describe the dimensions of a grid state
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Dimensions {
+    x: usize,
+    y: usize,
+}
+
 impl State {
     fn set_min_col_width(&mut self, col: usize, width: f32) {
         self.col_widths
@@ -19,6 +26,13 @@ impl State {
         self.row_heights
             .resize(self.row_heights.len().max(row + 1), 0.0);
         self.row_heights[row] = self.row_heights[row].max(height);
+    }
+
+    fn dimensions(&self) -> Dimensions {
+        Dimensions {
+            x: self.row_heights.len(),
+            y: self.col_widths.len(),
+        }
     }
 
     fn col_width(&self, col: usize) -> Option<f32> {
@@ -258,8 +272,8 @@ impl GridLayout {
             // Paint background for coming row:
             let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
             let rect = Rect::from_min_size(min, size);
-            let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-            let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+            let mut rect = rect.expand2(Vec2::new(2.0, 0.0));
+            rect.max += Vec2::new(1.0, 0.5 * self.spacing.y + 1.5);
 
             painter.rect_filled(rect, 2.0, color);
         }
@@ -283,8 +297,7 @@ impl GridLayout {
             + Vec2::new(
                 // Sum up all the previous widths and add the padding
                 self.prev_state.col_widths.iter().take(col).sum::<f32>()
-                    + (self.spacing.x + 1.0) * (col_f - 1.0).max(0.0)
-                    - 1.0,
+                    + (self.spacing.x + 1.0) * (col_f - 1.0),
                 -1.0,
             );
         let size = Vec2::new(
@@ -294,7 +307,41 @@ impl GridLayout {
         let size = size
             + Vec2::new(
                 // Add padding
-                0.5 * self.spacing.x + 2.0,
+                0.5 * self.spacing.x + 5.0,
+                3.0,
+            );
+
+        let rect = Rect::from_min_size(min_offset, size);
+
+        painter.rect_filled(rect, 2.0, color);
+    }
+
+    /// Paint a cell. Note that we can only paint for the current row.
+    pub(crate) fn paint_cell(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
+        let col_f = col as f32;
+
+        let color = match color {
+            GuiColor::Single(color) => color,
+            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
+                true => dark,
+                false => light,
+            },
+        };
+
+        // Paint a column:
+        // Offset from the cursor to paint the col at the right spot.
+        let min_offset = min
+            + Vec2::new(
+                // Sum up all the previous widths and add the padding
+                self.prev_state.col_widths.iter().take(col).sum::<f32>()
+                    + (self.spacing.x + 1.0) * (col_f - 1.0),
+                0.0,
+            );
+        let size = Vec2::new(self.prev_col_width(col), self.prev_row_height(self.row));
+        let size = size
+            + Vec2::new(
+                // Add padding
+                0.5 * self.spacing.x + 5.0,
                 3.0,
             );
 
@@ -304,21 +351,33 @@ impl GridLayout {
     }
 
     /// Paint the background for the next row & columns.
-    pub(crate) fn do_paint(&mut self, cursor: &mut Rect, painter: &Painter) {
+    pub(crate) fn do_paint(&mut self, min: Pos2, painter: &Painter) {
         for p in &self.color_spec.by_row {
             if (p.predicate)(self.row) {
-                self.paint_row(cursor.min, p.color, painter);
+                self.paint_row(min, p.color, painter);
             }
         }
         // Only paint columns when we're on the first row.
         if self.row == 0 {
             for p in &self.color_spec.by_column {
                 // Iterate over columns
-                for col in 0..self.prev_state.col_widths.len() {
+                for col in 0..self.prev_state.dimensions().y {
                     if (p.predicate)(col) {
-                        self.paint_column(col, cursor.min, p.color, painter);
+                        self.paint_column(col, min, p.color, painter);
                     }
                 }
+            }
+        }
+
+        // Finally, do cells
+        for col in 0..self.prev_state.dimensions().y {
+            for p in &self.color_spec.by_cell {
+                if (p.predicate)(self.row, col) {
+                    self.paint_cell(col, min, p.color, painter);
+                }
+            }
+            if let Some(color) = self.color_spec.list.get(&(self.row, col)) {
+                self.paint_cell(col, min, *color, painter);
             }
         }
     }
@@ -331,7 +390,7 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        self.do_paint(cursor, painter);
+        self.do_paint(cursor.min, painter);
     }
 
     pub(crate) fn save(&self) {
@@ -405,6 +464,30 @@ impl Grid {
         predicate: SingleArgumentPredicate,
     ) -> Self {
         self.color_spec.by_column.push(SinglePredicate {
+            color: color.into(),
+            predicate,
+        });
+        self
+    }
+
+    pub fn with_row_spec<T: Into<GuiColor>>(
+        mut self,
+        color: T,
+        predicate: SingleArgumentPredicate,
+    ) -> Self {
+        self.color_spec.by_row.push(SinglePredicate {
+            color: color.into(),
+            predicate,
+        });
+        self
+    }
+
+    pub fn with_cell_spec<T: Into<GuiColor>>(
+        mut self,
+        color: T,
+        predicate: DoubleArgumentPredicate,
+    ) -> Self {
+        self.color_spec.by_cell.push(DoublePredicate {
             color: color.into(),
             predicate,
         });
