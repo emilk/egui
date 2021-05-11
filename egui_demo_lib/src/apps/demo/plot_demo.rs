@@ -86,7 +86,7 @@ impl CurveDemo {
                 });
             });
 
-            ui.vertical(|ui| {
+            ui.horizontal(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
                 ui.add_space(8.0);
@@ -133,7 +133,7 @@ impl CurveDemo {
             100,
         )
         .color(Color32::from_rgb(100, 150, 250))
-        .marker(Marker::circle().radius(2.0))
+        .marker(Marker::default())
         .name("x = sin(2t), y = sin(3t)")
     }
 }
@@ -149,7 +149,6 @@ impl Widget for &mut CurveDemo {
             .curve(self.circle())
             .curve(self.sin())
             .curve(self.thingy())
-            .width(300.0)
             .height(300.0)
             .show_legend(self.legend);
         if self.square {
@@ -164,12 +163,24 @@ impl Widget for &mut CurveDemo {
 
 #[derive(PartialEq)]
 struct MarkerDemo {
+    show_markers: bool,
+    show_lines: bool,
     fill_markers: bool,
+    marker_radius: f32,
+    custom_marker_color: bool,
+    marker_color: Color32,
 }
 
 impl Default for MarkerDemo {
     fn default() -> Self {
-        Self { fill_markers: true }
+        Self {
+            show_markers: true,
+            show_lines: true,
+            fill_markers: true,
+            marker_radius: 5.0,
+            custom_marker_color: false,
+            marker_color: Color32::GRAY,
+        }
     }
 }
 
@@ -180,14 +191,28 @@ impl MarkerDemo {
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
-                Curve::from_values(vec![
+                let mut curve = Curve::from_values(vec![
                     Value::new(1.0, 0.0 + y_offset),
                     Value::new(2.0, 0.5 + y_offset),
                     Value::new(3.0, 0.0 + y_offset),
                     Value::new(4.0, 0.5 + y_offset),
+                    Value::new(5.0, 0.0 + y_offset),
+                    Value::new(6.0, 0.5 + y_offset),
                 ])
-                .marker(marker.radius(7.5).filled(self.fill_markers))
-                .name("Markers")
+                .name("Marker Lines");
+
+                if self.show_markers {
+                    let mut marker = marker.filled(self.fill_markers).radius(self.marker_radius);
+                    if self.custom_marker_color {
+                        marker = marker.color(self.marker_color);
+                    }
+                    curve = curve.marker(marker);
+                }
+
+                if !self.show_lines {
+                    curve = curve.color(Color32::TRANSPARENT);
+                }
+                curve
             })
             .collect()
     }
@@ -195,14 +220,28 @@ impl MarkerDemo {
 
 impl Widget for &mut MarkerDemo {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.checkbox(&mut self.fill_markers, "fill markers");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_lines, "show lines");
+            ui.checkbox(&mut self.show_markers, "show markers");
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.fill_markers, "fill markers");
+            ui.add(
+                egui::DragValue::new(&mut self.marker_radius)
+                    .speed(0.1)
+                    .clamp_range(0.0..=f32::INFINITY)
+                    .prefix("marker radius: "),
+            );
+            ui.checkbox(&mut self.custom_marker_color, "custom marker color");
+            if self.custom_marker_color {
+                ui.color_edit_button_srgba(&mut self.marker_color);
+            }
+        });
 
         let markers_plot = Plot::new("Markers Demo")
             .curves(self.markers())
-            .width(300.0)
             .height(300.0)
             .data_aspect(1.0);
-
         ui.add(markers_plot)
     }
 }
@@ -213,7 +252,6 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
-
         ui.collapsing("Curves", |ui| ui.add(&mut self.curve_demo));
         ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
     }

@@ -111,13 +111,22 @@ impl Plot {
     /// Add a data curve.
     /// You can add multiple curves.
     pub fn curve(mut self, mut curve: Curve) -> Self {
-        if !curve.no_data() {
-            let curve_color = curve.color.get_or_insert_with(|| self.auto_color());
-            if let Some(marker) = &mut curve.marker {
-                marker.color.get_or_insert(*curve_color);
-            }
-            self.curves.push(curve);
+        if curve.no_data() {
+            return self;
+        };
+
+        let curve_color = curve.color.get_or_insert_with(|| self.auto_color());
+        if let Some(marker) = &mut curve.marker {
+            marker.color.get_or_insert_with(|| {
+                if *curve_color != Color32::TRANSPARENT {
+                    *curve_color
+                } else {
+                    self.auto_color()
+                }
+            });
         }
+        self.curves.push(curve);
+
         self
     }
 
@@ -347,15 +356,12 @@ impl Widget for Plot {
                     legend_entries
                         .entry(curve.name.clone())
                         .and_modify(|entry| {
-                            if Some(entry.color) != curve.color {
+                            if Some(entry.color) != curve.get_defining_color() {
                                 entry.color = neutral_color
                             }
                         })
                         .or_insert_with(|| {
-                            let color = curve
-                                .color
-                                .or(curve.marker.and_then(|marker| marker.color))
-                                .unwrap_or(neutral_color);
+                            let color = curve.get_defining_color().unwrap_or(neutral_color);
                             LegendEntry::new(text, color, checked)
                         });
                 });

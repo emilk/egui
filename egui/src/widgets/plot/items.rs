@@ -101,7 +101,7 @@ impl Default for Marker {
             shape: MarkerShape::Circle,
             color: None,
             filled: true,
-            radius: 1.0,
+            radius: 2.0,
         }
     }
 }
@@ -540,5 +540,11 @@ impl Curve {
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
+    }
+
+    pub(crate) fn get_defining_color(&self) -> Option<Color32> {
+        self.color
+            .filter(|color| color.a() != 0)
+            .or_else(|| self.marker.and_then(|marker| marker.color))
     }
 }
