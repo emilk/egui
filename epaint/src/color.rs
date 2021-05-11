@@ -414,7 +414,6 @@ pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
 
 #[test]
 pub fn test_srgba_conversion() {
-    #![allow(clippy::float_cmp)]
     for b in 0..=255 {
         let l = linear_f32_from_gamma_u8(b);
         assert!(0.0 <= l && l <= 1.0);
@@ -613,7 +612,6 @@ impl From<Color32> for Hsva {
 
 /// All ranges in 0-1, rgb is linear.
 pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
-    #![allow(clippy::float_cmp)]
     #![allow(clippy::many_single_char_names)]
     let min = r.min(g.min(b));
     let max = r.max(g.max(b)); // value

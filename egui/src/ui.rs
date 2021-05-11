@@ -832,6 +832,10 @@ impl Ui {
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
+        // TODO: configure to overflow to main_dir instead of centered overflow
+        // to handle the bug mentioned at https://github.com/emilk/egui/discussions/318#discussioncomment-627578
+        // and fixed in https://github.com/emilk/egui/commit/035166276322b3f2324bd8b97ffcedc63fa8419f
+        //
         // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
         let layout = Layout::centered_and_justified(self.layout().main_dir());
         self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
@@ -1051,8 +1055,6 @@ impl Ui {
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
     pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -1069,8 +1071,6 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
@@ -1195,13 +1195,28 @@ impl Ui {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
-    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    /// Create a scoped child ui.
+    ///
+    /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.scope(|ui|{
+    ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
+    ///     // …
+    /// });
+    /// ```
+    pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
+    }
+
+    #[deprecated = "Renamed scope()"]
+    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.scope(add_contents)
     }
 
     /// Redirect shapes to another paint layer.
@@ -1210,7 +1225,7 @@ impl Ui {
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
         })
@@ -1324,7 +1339,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
@@ -1368,7 +1383,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();

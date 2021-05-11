@@ -121,7 +121,7 @@ impl PlotDemo {
             512,
         )
         .color(Color32::from_rgb(200, 100, 100))
-        .name("0.5 * sin(2x) * sin(t)")
+        .name("wave")
     }
 
     fn thingy(&self) -> Curve {

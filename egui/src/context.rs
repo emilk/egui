@@ -58,7 +58,7 @@ impl std::ops::Deref for CtxRef {
     type Target = Context;
 
     fn deref(&self) -> &Context {
-        self.0.deref()
+        &*self.0
     }
 }
 

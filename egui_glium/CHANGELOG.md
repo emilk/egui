@@ -5,6 +5,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 ## Unreleased
 
+
+## 0.12.0 - 2021-05-10
+
 * Simplify usage with a new `EguiGlium` wrapper type.
 
 

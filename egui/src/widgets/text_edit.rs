@@ -181,7 +181,7 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 1,
-            lock_focus: true,
+            lock_focus: false,
         }
     }
 
@@ -200,7 +200,7 @@ impl<'t> TextEdit<'t> {
             enabled: true,
             desired_width: None,
             desired_height_rows: 4,
-            lock_focus: true,
+            lock_focus: false,
         }
     }
 
