@@ -3,7 +3,7 @@ use egui::*;
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
-pub struct PlotDemo {
+struct CurveDemo {
     animate: bool,
     time: f64,
     circle_radius: f64,
@@ -11,10 +11,15 @@ pub struct PlotDemo {
     square: bool,
     legend: bool,
     proportional: bool,
-    fill_markers: bool,
 }
 
-impl Default for PlotDemo {
+#[derive(PartialEq, Default)]
+pub struct PlotDemo {
+    curve_demo: CurveDemo,
+    marker_demo: MarkerDemo,
+}
+
+impl Default for CurveDemo {
     fn default() -> Self {
         Self {
             animate: true,
@@ -24,7 +29,6 @@ impl Default for PlotDemo {
             square: false,
             legend: true,
             proportional: true,
-            fill_markers: true,
         }
     }
 }
@@ -44,14 +48,8 @@ impl super::Demo for PlotDemo {
     }
 }
 
-impl PlotDemo {
+impl CurveDemo {
     fn options_ui(&mut self, ui: &mut Ui) {
-        ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
-            ui.add(crate::__egui_github_link_file!());
-        });
-        ui.separator();
-
         let Self {
             animate,
             time: _,
@@ -60,7 +58,7 @@ impl PlotDemo {
             square,
             legend,
             proportional,
-            fill_markers,
+            ..
         } = self;
 
         ui.horizontal(|ui| {
@@ -95,7 +93,6 @@ impl PlotDemo {
                 ui.checkbox(square, "square view");
                 ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
-                ui.checkbox(fill_markers, "fill markers");
             });
         });
 
@@ -139,7 +136,44 @@ impl PlotDemo {
         .marker(Marker::circle().radius(2.0))
         .name("x = sin(2t), y = sin(3t)")
     }
+}
 
+impl Widget for &mut CurveDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        self.options_ui(ui);
+        if self.animate {
+            ui.ctx().request_repaint();
+            self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
+        };
+        let mut plot = Plot::new("Curves Demo")
+            .curve(self.circle())
+            .curve(self.sin())
+            .curve(self.thingy())
+            .width(300.0)
+            .height(300.0)
+            .show_legend(self.legend);
+        if self.square {
+            plot = plot.view_aspect(1.0);
+        }
+        if self.proportional {
+            plot = plot.data_aspect(1.0);
+        }
+        ui.add(plot)
+    }
+}
+
+#[derive(PartialEq)]
+struct MarkerDemo {
+    fill_markers: bool,
+}
+
+impl Default for MarkerDemo {
+    fn default() -> Self {
+        Self { fill_markers: true }
+    }
+}
+
+impl MarkerDemo {
     fn markers(&self) -> Vec<Curve> {
         Marker::all()
             .into_iter()
@@ -159,39 +193,28 @@ impl PlotDemo {
     }
 }
 
-impl super::View for PlotDemo {
-    fn ui(&mut self, ui: &mut Ui) {
-        self.options_ui(ui);
-
-        if self.animate {
-            ui.ctx().request_repaint();
-            self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
-        };
-
-        let mut plot = Plot::new("Curves Demo")
-            .curve(self.circle())
-            .curve(self.sin())
-            .curve(self.thingy())
-            .width(300.0)
-            .height(300.0)
-            .show_legend(self.legend);
-        if self.square {
-            plot = plot.view_aspect(1.0);
-        }
-        if self.proportional {
-            plot = plot.data_aspect(1.0);
-        }
+impl Widget for &mut MarkerDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.checkbox(&mut self.fill_markers, "fill markers");
 
         let markers_plot = Plot::new("Markers Demo")
             .curves(self.markers())
             .width(300.0)
             .height(300.0)
-            .data_aspect(1.0)
-            .show_legend(self.legend);
+            .data_aspect(1.0);
 
-        ui.horizontal(|ui| {
-            ui.add(plot);
-            ui.add(markers_plot);
+        ui.add(markers_plot)
+    }
+}
+
+impl super::View for PlotDemo {
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.vertical_centered(|ui| {
+            egui::reset_button(ui, self);
+            ui.add(crate::__egui_github_link_file!());
         });
+
+        ui.collapsing("Curves", |ui| ui.add(&mut self.curve_demo));
+        ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
     }
 }
