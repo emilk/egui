@@ -4,7 +4,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
     let is_being_dragged = ui.memory().is_being_dragged(id);
 
     if !is_being_dragged {
-        let response = ui.wrap(body).response;
+        let response = ui.scope(body).response;
 
         // Check for drags:
         let response = ui.interact(response.rect, id, Sense::drag());

@@ -1,39 +1,55 @@
-use std::{
-    collections::BTreeMap,
-    f32::consts::{PI, TAU},
-    fmt::Debug,
-};
+use std::{collections::BTreeMap, fmt::Debug};
 
-use crate::{data::input::TouchDeviceId, Event, RawInput, TouchId, TouchPhase};
-use epaint::emath::{Pos2, Vec2};
+use crate::{
+    data::input::TouchDeviceId,
+    emath::{normalized_angle, Pos2, Vec2},
+    Event, RawInput, TouchId, TouchPhase,
+};
 
 /// All you probably need to know about a multi-touch gesture.
 pub struct MultiTouchInfo {
     /// Point in time when the gesture started.
     pub start_time: f64,
+
     /// Position of the pointer at the time the gesture started.
     pub start_pos: Pos2,
-    /// Number of touches (fingers) on the surface.  Value is ≥ 2 since for a single touch no
+
+    /// Number of touches (fingers) on the surface. Value is ≥ 2 since for a single touch no
     /// `MultiTouchInfo` is created.
     pub num_touches: usize,
-    /// Zoom factor (Pinch or Zoom).  Moving fingers closer together or further appart will change
-    /// this value.  This is a relative value, comparing the average distances of the fingers in
-    /// the current and previous frame.  If the fingers did not move since the previous frame,
-    /// this value is `1.0`.
+
+    /// Proportional zoom factor (pinch gesture).
+    /// * `zoom = 1`: no change
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
     pub zoom_delta: f32,
-    /// Rotation in radians.  Moving fingers around each other will change this value.  This is a
+
+    /// 2D non-proportional zoom factor (pinch gesture).
+    ///
+    /// For horizontal pinches, this will return `[z, 1]`,
+    /// for vertical pinches this will return `[1, z]`,
+    /// and otherwise this will return `[z, z]`,
+    /// where `z` is the zoom factor:
+    /// * `zoom = 1`: no change
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    pub zoom_delta_2d: Vec2,
+
+    /// Rotation in radians. Moving fingers around each other will change this value. This is a
     /// relative value, comparing the orientation of fingers in the current frame with the previous
-    /// frame.  If all fingers are resting, this value is `0.0`.
+    /// frame. If all fingers are resting, this value is `0.0`.
     pub rotation_delta: f32,
+
     /// Relative movement (comparing previous frame and current frame) of the average position of
-    /// all touch points.  Without movement this value is `Vec2::ZERO`.
+    /// all touch points. Without movement this value is `Vec2::ZERO`.
     ///
     /// Note that this may not necessarily be measured in screen points (although it _will_ be for
-    /// most mobile devices).  In general (depending on the touch device), touch coordinates cannot
-    /// be directly mapped to the screen.  A touch always is considered to start at the position of
+    /// most mobile devices). In general (depending on the touch device), touch coordinates cannot
+    /// be directly mapped to the screen. A touch always is considered to start at the position of
     /// the pointer, but touch movement is always measured in the units delivered by the device,
     /// and may depend on hardware and system settings.
     pub translation_delta: Vec2,
+
     /// Current force of the touch (average of the forces of the individual fingers). This is a
     /// value in the interval `[0.0 .. =1.0]`.
     ///
@@ -48,12 +64,12 @@ pub struct MultiTouchInfo {
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
 pub(crate) struct TouchState {
-    /// Technical identifier of the touch device.  This is used to identify relevant touch events
+    /// Technical identifier of the touch device. This is used to identify relevant touch events
     /// for this `TouchState` instance.
     device_id: TouchDeviceId,
     /// Active touches, if any.
     ///
-    /// TouchId is the unique identifier of the touch.  It is valid as long as the finger/pen touches the surface.  The
+    /// TouchId is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
     /// next touch will receive a new unique ID.
     ///
     /// Refer to [`ActiveTouch`].
@@ -67,6 +83,7 @@ pub(crate) struct TouchState {
 struct GestureState {
     start_time: f64,
     start_pointer_pos: Pos2,
+    pinch_type: PinchType,
     previous: Option<DynGestureState>,
     current: DynGestureState,
 }
@@ -74,13 +91,16 @@ struct GestureState {
 /// Gesture data that can change over time
 #[derive(Clone, Copy, Debug)]
 struct DynGestureState {
+    /// used for proportional zooming
     avg_distance: f32,
+    /// used for non-proportional zooming
+    avg_abs_distance2: Vec2,
     avg_pos: Pos2,
     avg_force: f32,
     heading: f32,
 }
 
-/// Describes an individual touch (finger or digitizer) on the touch surface.  Instances exist as
+/// Describes an individual touch (finger or digitizer) on the touch surface. Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
 struct ActiveTouch {
@@ -136,7 +156,7 @@ impl TouchState {
         self.update_gesture(time, pointer_pos);
 
         if added_or_removed_touches {
-            // Adding or removing fingers makes the average values "jump".  We better forget
+            // Adding or removing fingers makes the average values "jump". We better forget
             // about the previous values, and don't create delta information for this frame:
             if let Some(ref mut state) = &mut self.gesture_state {
                 state.previous = None;
@@ -154,12 +174,28 @@ impl TouchState {
             // changed. In this case, we take `current` as `previous`, pretending that there
             // was no change for the current frame.
             let state_previous = state.previous.unwrap_or(state.current);
+
+            let zoom_delta = state.current.avg_distance / state_previous.avg_distance;
+
+            let zoom_delta2 = match state.pinch_type {
+                PinchType::Horizontal => Vec2::new(
+                    state.current.avg_abs_distance2.x / state_previous.avg_abs_distance2.x,
+                    1.0,
+                ),
+                PinchType::Vertical => Vec2::new(
+                    1.0,
+                    state.current.avg_abs_distance2.y / state_previous.avg_abs_distance2.y,
+                ),
+                PinchType::Proportional => Vec2::splat(zoom_delta),
+            };
+
             MultiTouchInfo {
                 start_time: state.start_time,
                 start_pos: state.start_pointer_pos,
                 num_touches: self.active_touches.len(),
-                zoom_delta: state.current.avg_distance / state_previous.avg_distance,
-                rotation_delta: normalized_angle(state.current.heading, state_previous.heading),
+                zoom_delta,
+                zoom_delta_2d: zoom_delta2,
+                rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.current.avg_force,
             }
@@ -177,6 +213,7 @@ impl TouchState {
                 self.gesture_state = Some(GestureState {
                     start_time: time,
                     start_pointer_pos: pointer_pos,
+                    pinch_type: PinchType::classify(&self.active_touches),
                     previous: None,
                     current: dyn_state,
                 });
@@ -187,16 +224,18 @@ impl TouchState {
         }
     }
 
+    /// `None` if less than two fingers
     fn calc_dynamic_state(&self) -> Option<DynGestureState> {
         let num_touches = self.active_touches.len();
         if num_touches < 2 {
             None
         } else {
             let mut state = DynGestureState {
-                avg_distance: 0.,
+                avg_distance: 0.0,
+                avg_abs_distance2: Vec2::ZERO,
                 avg_pos: Pos2::ZERO,
-                avg_force: 0.,
-                heading: 0.,
+                avg_force: 0.0,
+                heading: 0.0,
             };
             let num_touches_recip = 1. / num_touches as f32;
 
@@ -213,18 +252,21 @@ impl TouchState {
             // second pass: calculate distances from center:
             for touch in self.active_touches.values() {
                 state.avg_distance += state.avg_pos.distance(touch.pos);
+                state.avg_abs_distance2.x += (state.avg_pos.x - touch.pos.x).abs();
+                state.avg_abs_distance2.y += (state.avg_pos.y - touch.pos.y).abs();
             }
             state.avg_distance *= num_touches_recip;
+            state.avg_abs_distance2 *= num_touches_recip;
 
             // Calculate the direction from the first touch to the center position.
             // This is not the perfect way of calculating the direction if more than two fingers
             // are involved, but as long as all fingers rotate more or less at the same angular
-            // velocity, the shortcomings of this method will not be noticed.  One can see the
+            // velocity, the shortcomings of this method will not be noticed. One can see the
             // issues though, when touching with three or more fingers, and moving only one of them
-            // (it takes two hands to do this in a controlled manner).  A better technique would be
+            // (it takes two hands to do this in a controlled manner). A better technique would be
             // to store the current and previous directions (with reference to the center) for each
             // touch individually, and then calculate the average of all individual changes in
-            // direction.  But this approach cannot be implemented locally in this method, making
+            // direction. But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
             let first_touch = self.active_touches.values().next().unwrap();
             state.heading = (state.avg_pos - first_touch.pos).angle();
@@ -251,23 +293,39 @@ impl Debug for TouchState {
     }
 }
 
-/// Calculate difference between two directions, such that the absolute value of the result is
-/// minimized.
-fn normalized_angle(current_direction: f32, previous_direction: f32) -> f32 {
-    let mut angle = current_direction - previous_direction;
-    angle %= TAU;
-    if angle > PI {
-        angle -= TAU;
-    } else if angle < -PI {
-        angle += TAU;
-    }
-    angle
+#[derive(Clone, Debug)]
+enum PinchType {
+    Horizontal,
+    Vertical,
+    Proportional,
 }
 
-#[test]
-fn normalizing_angle_from_350_to_0_yields_10() {
-    assert!(
-        (normalized_angle(0_f32.to_radians(), 350_f32.to_radians()) - 10_f32.to_radians()).abs()
-            <= 5. * f32::EPSILON // many conversions (=divisions) involved => high error rate
-    );
+impl PinchType {
+    fn classify(touches: &BTreeMap<TouchId, ActiveTouch>) -> Self {
+        // For non-proportional 2d zooming:
+        // If the user is pinching with two fingers that have roughly the same Y coord,
+        // then the Y zoom is unstable and should be 1.
+        // Similarly, if the fingers are directly above/below each other,
+        // we should only zoom on the Y axis.
+        // If the fingers are roughly on a diagonal, we revert to the proportional zooming.
+
+        if touches.len() == 2 {
+            let mut touches = touches.values();
+            let t0 = touches.next().unwrap().pos;
+            let t1 = touches.next().unwrap().pos;
+
+            let dx = (t0.x - t1.x).abs();
+            let dy = (t0.y - t1.y).abs();
+
+            if dx > 3.0 * dy {
+                Self::Horizontal
+            } else if dy > 3.0 * dx {
+                Self::Vertical
+            } else {
+                Self::Proportional
+            }
+        } else {
+            Self::Proportional
+        }
+    }
 }

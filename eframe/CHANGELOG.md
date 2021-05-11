@@ -3,6 +3,8 @@ All notable changes to the `eframe` crate.
 
 
 ## Unreleased
+* Moved options out of `trait App` into new `NativeOptions`.
+* Add option for `always_on_top`.
 
 
 ## 0.11.0 - 2021-04-05

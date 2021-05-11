@@ -161,15 +161,14 @@ impl ScreenTransform {
     }
 
     /// Zoom by a relative factor with the given screen position as center.
-    pub fn zoom(&mut self, zoom_factor: f32, center: Pos2) {
-        let zoom_factor = zoom_factor as f64;
+    pub fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
         let center = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
-        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / zoom_factor;
-        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / zoom_factor;
-        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / zoom_factor;
-        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / zoom_factor;
+        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / (zoom_factor.x as f64);
+        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / (zoom_factor.x as f64);
+        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / (zoom_factor.y as f64);
+        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / (zoom_factor.y as f64);
 
         if new_bounds.is_valid() {
             self.bounds = new_bounds;

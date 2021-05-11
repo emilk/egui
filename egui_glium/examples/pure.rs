@@ -36,6 +36,17 @@ fn main() {
                 if ui.button("Quit").clicked() {
                     quit = true;
                 }
+
+                egui::ComboBox::from_label("Version")
+                    .width(150.0)
+                    .selected_text("foo")
+                    .show_ui(ui, |ui| {
+                        egui::CollapsingHeader::new("Dev")
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                ui.label("contents");
+                            });
+                    });
             });
 
             let (needs_repaint, shapes) = egui.end_frame(&display);

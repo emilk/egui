@@ -334,10 +334,7 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        #[allow(clippy::float_cmp)]
-        {
-            response.changed = get(&mut get_set_value) != value;
-        }
+        response.changed = get(&mut get_set_value) != value;
 
         response.widget_info(|| WidgetInfo::drag_value(value));
         response

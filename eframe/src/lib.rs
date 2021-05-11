@@ -12,13 +12,19 @@
 //! `eframe` is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(broken_intra_doc_links)]
-#![deny(invalid_codeblock_attributes)]
-#![deny(private_intra_doc_links)]
+#![deny(
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::private_intra_doc_links
+)]
 #![forbid(unsafe_code)]
 #![warn(clippy::all, missing_docs, rust_2018_idioms)]
 
 pub use {egui, epi};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use epi::NativeOptions;
 
 // ----------------------------------------------------------------------------
 // When compiling for web
@@ -56,6 +62,6 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 
 /// Call from `fn main` like this: `eframe::run_native(Box::new(MyEguiApp::default()))`
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(app: Box<dyn epi::App>) -> ! {
-    egui_glium::run(app)
+pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
+    egui_glium::run(app, native_options)
 }

@@ -192,7 +192,7 @@ impl Painter {
             format!("🔥 {}", text),
             f32::INFINITY,
         );
-        let rect = Align2::LEFT_TOP.anchor_rect(Rect::from_min_size(pos, galley.size));
+        let rect = Rect::from_min_size(pos, galley.size);
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
             rect: frame_rect,

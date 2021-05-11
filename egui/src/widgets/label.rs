@@ -145,9 +145,9 @@ impl Label {
         self
     }
 
-    /// Make the label response to clicks and/or drags.
+    /// Make the label respond to clicks and/or drags.
     ///
-    /// By default, a label is inert and does not response to click or drags.
+    /// By default, a label is inert and does not respond to click or drags.
     /// By calling this you can turn the label into a button of sorts.
     /// This will also give the label the hover-effect of a button, but without the frame.
     ///

@@ -1,7 +1,5 @@
 //! Find "simple" numbers is some range. Used by sliders.
 
-#![allow(clippy::float_cmp)] // I know what I'm doing
-
 const NUM_DECIMALS: usize = 15;
 
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.

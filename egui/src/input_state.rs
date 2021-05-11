@@ -130,18 +130,42 @@ impl InputState {
     }
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
-    /// * `zoom = 1`: no change (default).
+    /// * `zoom = 1`: no change
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
     #[inline(always)]
     pub fn zoom_delta(&self) -> f32 {
         // If a multi touch gesture is detected, it measures the exact and linear proportions of
-        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // the distances of the finger tips. It is therefore potentially more accurate than
         // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
         self.multi_touch()
             .map(|touch| touch.zoom_delta)
             .unwrap_or(self.raw.zoom_delta)
+    }
+
+    /// 2D non-proportional zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    ///
+    /// For multitouch devices the user can do a horizontal or vertical pinch gesture.
+    /// In these cases a non-proportional zoom factor is a available.
+    /// In other cases, this reverts to `Vec2::splat(self.zoom_delta())`.
+    ///
+    /// For horizontal pinches, this will return `[z, 1]`,
+    /// for vertical pinches this will return `[1, z]`,
+    /// and otherwise this will return `[z, z]`,
+    /// where `z` is the zoom factor:
+    /// * `zoom = 1`: no change
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    #[inline(always)]
+    pub fn zoom_delta_2d(&self) -> Vec2 {
+        // If a multi touch gesture is detected, it measures the exact and linear proportions of
+        // the distances of the finger tips.  It is therefore potentially more accurate than
+        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // synthesized from an original touch gesture.
+        self.multi_touch()
+            .map(|touch| touch.zoom_delta_2d)
+            .unwrap_or_else(|| Vec2::splat(self.raw.zoom_delta))
     }
 
     pub fn wants_repaint(&self) -> bool {
@@ -209,7 +233,7 @@ impl InputState {
         self.physical_pixel_size()
     }
 
-    /// Returns details about the currently ongoing multi-touch gesture, if any.  Note that this
+    /// Returns details about the currently ongoing multi-touch gesture, if any. Note that this
     /// method returns `None` for single-touch gestures (click, drag, …).
     ///
     /// ```
@@ -225,8 +249,8 @@ impl InputState {
     /// ```
     ///
     /// By far not all touch devices are supported, and the details depend on the `egui`
-    /// integration backend you are using.  `egui_web` supports multi touch for most mobile
-    /// devices, but not for a `Trackpad` on `MacOS`, for example.  The backend has to be able to
+    /// integration backend you are using. `egui_web` supports multi touch for most mobile
+    /// devices, but not for a `Trackpad` on `MacOS`, for example. The backend has to be able to
     /// capture native touch events, but many browsers seem to pass such events only for touch
     /// _screens_, but not touch _pads._
     ///

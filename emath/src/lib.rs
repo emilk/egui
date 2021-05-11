@@ -10,30 +10,41 @@
 //! * Dimension order is always `x y`
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(broken_intra_doc_links)]
-#![deny(invalid_codeblock_attributes)]
-#![deny(private_intra_doc_links)]
+#![deny(
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::private_intra_doc_links
+)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,
+    clippy::char_lit_as_u8,
+    clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
     clippy::exit,
+    clippy::expl_impl_clone_on_copy,
+    clippy::explicit_deref_methods,
     clippy::explicit_into_iter_loop,
+    clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
     clippy::if_let_mutex,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
+    clippy::invalid_upcast_comparisons,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
     clippy::lossy_float_literal,
     clippy::macro_use_imports,
+    clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
     clippy::match_on_vec_items,
@@ -43,25 +54,36 @@
     clippy::mismatched_target_os,
     clippy::missing_errors_doc,
     clippy::missing_safety_doc,
+    clippy::mut_mut,
+    clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
     clippy::needless_pass_by_value,
     clippy::option_option,
+    clippy::path_buf_push_overwrite,
+    clippy::ptr_as_ptr,
     clippy::pub_enum_variant_names,
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
+    clippy::same_functions_in_if_condition,
     clippy::string_add_assign,
     clippy::string_add,
+    clippy::string_lit_as_bytes,
     clippy::string_to_string,
     clippy::todo,
+    clippy::trait_duplication_in_bounds,
     clippy::unimplemented,
     clippy::unnested_or_patterns,
     clippy::unused_self,
+    clippy::useless_transmute,
     clippy::verbose_file_reads,
+    clippy::wrong_pub_self_convention,
+    clippy::zero_sized_map_values,
     future_incompatible,
     nonstandard_style,
     rust_2018_idioms
 )]
+#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
@@ -141,7 +163,6 @@ pub fn remap<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,
 {
-    #![allow(clippy::float_cmp)]
     debug_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
@@ -152,7 +173,6 @@ pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,
 {
-    #![allow(clippy::float_cmp)]
     if from.end() < from.start() {
         return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
     }
@@ -235,8 +255,6 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
 /// The `epsilon`  can be `f32::EPSILON` to handle simple transforms (like degrees -> radians)
 /// but should be higher to handle more complex transformations.
 pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
-    #![allow(clippy::float_cmp)]
-
     if a == b {
         true // handle infinites
     } else {
@@ -292,7 +310,6 @@ fn test_almost_equal() {
     }
 }
 
-#[allow(clippy::float_cmp)]
 #[test]
 fn test_remap() {
     assert_eq!(remap_clamp(1.0, 0.0..=1.0, 0.0..=16.0), 16.0);
@@ -331,3 +348,36 @@ impl_num_ext!(f64);
 impl_num_ext!(usize);
 impl_num_ext!(Vec2);
 impl_num_ext!(Pos2);
+
+// ----------------------------------------------------------------------------
+
+/// Wrap angle to `[-PI, PI]` range.
+pub fn normalized_angle(mut angle: f32) -> f32 {
+    use std::f32::consts::{PI, TAU};
+    angle %= TAU;
+    if angle > PI {
+        angle -= TAU;
+    } else if angle < -PI {
+        angle += TAU;
+    }
+    angle
+}
+
+#[test]
+fn test_normalized_angle() {
+    macro_rules! almost_eq {
+        ($left:expr, $right:expr) => {
+            let left = $left;
+            let right = $right;
+            assert!((left - right).abs() < 1e-6, "{} != {}", left, right);
+        };
+    }
+
+    use std::f32::consts::TAU;
+    almost_eq!(normalized_angle(-3.0 * TAU), 0.0);
+    almost_eq!(normalized_angle(-2.3 * TAU), -0.3 * TAU);
+    almost_eq!(normalized_angle(-TAU), 0.0);
+    almost_eq!(normalized_angle(0.0), 0.0);
+    almost_eq!(normalized_angle(TAU), 0.0);
+    almost_eq!(normalized_angle(2.7 * TAU), -0.3 * TAU);
+}

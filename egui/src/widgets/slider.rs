@@ -1,5 +1,4 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-#![allow(clippy::float_cmp)]
 
 use crate::{widgets::Label, *};
 use std::ops::RangeInclusive;

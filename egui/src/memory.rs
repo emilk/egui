@@ -11,18 +11,21 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
 ///
-/// If you want to store data for your widgets, you should look at `data`/`data_temp` and `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
+/// If you want to store data for your widgets, you should look at `data`/`data_temp` and
+/// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    /// This map stores current states for widgets that don't require `Id`.
+    /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
     pub data: any::serializable::TypeMap,
 
-    /// This map stores current states for widgets that don't require `Id`. This will be saved between different program runs if you use the `persistence` feature.
+    /// This map stores current states for widgets that don't require `Id`.
+    /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
     pub data: any::TypeMap,
 
@@ -30,11 +33,13 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub data_temp: any::TypeMap,
 
-    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    /// This map stores current states for all widgets with custom `Id`s.
+    /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
     pub id_data: any::serializable::AnyMap<Id>,
 
-    /// This map stores current states for all widgets with custom `Id`s. This will be saved between different program runs if you use the `persistence` feature.
+    /// This map stores current states for all widgets with custom `Id`s.
+    /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
     pub id_data: any::AnyMap<Id>,
 
@@ -309,9 +314,9 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
-    pub(crate) fn lock_focus(&mut self, id: Id, b: bool) {
+    pub(crate) fn lock_focus(&mut self, id: Id, lock_focus: bool) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked = b;
+            self.interaction.focus.is_focus_locked = lock_focus;
         }
     }
 

@@ -138,7 +138,7 @@ pub enum Event {
         /// Hashed device identifier (if available; may be zero).
         /// Can be used to separate touches from different devices.
         device_id: TouchDeviceId,
-        /// Unique identifier of a finger/pen.  Value is stable from touch down
+        /// Unique identifier of a finger/pen. Value is stable from touch down
         /// to lift-up
         id: TouchId,
         phase: TouchPhase,
@@ -327,7 +327,7 @@ pub struct TouchId(pub u64);
 pub enum TouchPhase {
     /// User just placed a touch point on the touch surface
     Start,
-    /// User moves a touch point along the surface.  This event is also sent when
+    /// User moves a touch point along the surface. This event is also sent when
     /// any attributes (position, force, ...) of the touch point change.
     Move,
     /// User lifted the finger or pen from the surface, or slid off the edge of
