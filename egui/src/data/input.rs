@@ -6,6 +6,9 @@ use crate::emath::*;
 ///
 /// Set the values that make sense, leave the rest at their `Default::default()`.
 ///
+/// You can check if `egui` is using the inputs using
+/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
 #[derive(Clone, Debug)]
 pub struct RawInput {

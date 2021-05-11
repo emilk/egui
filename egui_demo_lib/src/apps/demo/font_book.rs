@@ -58,10 +58,23 @@ impl super::View for FontBook {
         use super::font_contents_ubuntu::UBUNTU_FONT_CHARACTERS;
 
         ui.label(format!(
-            "egui supports {} standard characters and {} emojis.\nClick on a character to copy it.",
+            "The default egui fonts supports {} standard characters and {} emojis.",
             UBUNTU_FONT_CHARACTERS.len(),
             FULL_EMOJI_LIST.len(),
         ));
+
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("You can add more characters by installing additional fonts with ");
+            ui.add(
+                egui::Hyperlink::from_label_and_url(
+                    "Context::set_fonts",
+                    "https://docs.rs/egui/latest/egui/struct.Context.html#method.set_fonts",
+                )
+                .text_style(egui::TextStyle::Monospace),
+            );
+            ui.label(".");
+        });
 
         ui.separator();
 
