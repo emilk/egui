@@ -112,13 +112,9 @@ impl Plot {
     /// You can add multiple curves.
     pub fn curve(mut self, mut curve: Curve) -> Self {
         if !curve.no_data() {
-            if curve.stroke.color == Color32::TRANSPARENT {
-                curve.stroke.color = self.auto_color();
-            }
+            let curve_color = curve.color.get_or_insert_with(|| self.auto_color());
             if let Some(marker) = &mut curve.marker {
-                if marker.color == Color32::TRANSPARENT {
-                    marker.color = curve.stroke.color;
-                }
+                marker.color.get_or_insert(*curve_color);
             }
             self.curves.push(curve);
         }
@@ -341,6 +337,7 @@ impl Widget for Plot {
             // Collect the legend entries. If multiple curves have the same name, they share a
             // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
             let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
+            let neutral_color = ui.visuals().noninteractive().fg_stroke.color;
             curves
                 .iter()
                 .filter(|curve| !curve.name.is_empty())
@@ -350,18 +347,15 @@ impl Widget for Plot {
                     legend_entries
                         .entry(curve.name.clone())
                         .and_modify(|entry| {
-                            if entry.color != curve.stroke.color {
-                                entry.color = ui.visuals().noninteractive().fg_stroke.color
+                            if Some(entry.color) != curve.color {
+                                entry.color = neutral_color
                             }
                         })
                         .or_insert_with(|| {
-                            let color = if curve.stroke.color != Color32::TRANSPARENT {
-                                curve.stroke.color
-                            } else if let Some(marker) = curve.marker {
-                                marker.color
-                            } else {
-                                ui.visuals().noninteractive().fg_stroke.color
-                            };
+                            let color = curve
+                                .color
+                                .or(curve.marker.and_then(|marker| marker.color))
+                                .unwrap_or(neutral_color);
                             LegendEntry::new(text, color, checked)
                         });
                 });
@@ -530,13 +524,16 @@ impl Prepared {
         for curve in &self.curves {
             let Curve {
                 values,
-                mut stroke,
+                color,
+                mut width,
                 mut marker,
                 ..
             } = curve;
 
+            let color = color.unwrap_or(Color32::TRANSPARENT);
+
             if curve.highlight {
-                stroke.width *= 2.0;
+                width *= 2.0;
                 if let Some(marker) = &mut marker {
                     marker.radius *= 1.2;
                 }
@@ -555,13 +552,9 @@ impl Prepared {
             });
 
             if values_tf.len() > 1 {
-                shapes.push(Shape::line(values_tf, stroke));
+                shapes.push(Shape::line(values_tf, Stroke::new(width, color)));
             } else {
-                shapes.push(Shape::circle_filled(
-                    values_tf[0],
-                    stroke.width / 2.0,
-                    stroke.color,
-                ));
+                shapes.push(Shape::circle_filled(values_tf[0], width / 2.0, color));
             }
 
             if let Some(marker_shapes) = marker_shapes {

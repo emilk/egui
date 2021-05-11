@@ -90,7 +90,7 @@ pub(crate) enum MarkerShape {
 #[derive(Debug, Clone, Copy)]
 pub struct Marker {
     pub(crate) shape: MarkerShape,
-    pub(crate) color: Color32,
+    pub(crate) color: Option<Color32>,
     pub(crate) filled: bool,
     pub(crate) radius: f32,
 }
@@ -99,7 +99,7 @@ impl Default for Marker {
     fn default() -> Self {
         Self {
             shape: MarkerShape::Circle,
-            color: Color32::TRANSPARENT,
+            color: None,
             filled: true,
             radius: 1.0,
         }
@@ -194,7 +194,7 @@ impl Marker {
 
     /// Set the marker's color. Defaults to the curve's color.
     pub fn color(mut self, color: Color32) -> Self {
-        self.color = color;
+        self.color = Some(color);
         self
     }
 
@@ -221,6 +221,11 @@ impl Marker {
             shape,
             radius,
         } = *self;
+
+        if color.is_none() {
+            return Vec::new();
+        }
+        let color = color.unwrap();
 
         let stroke_size = radius / 5.0;
 
@@ -372,7 +377,8 @@ pub struct Curve {
     generator: Option<ExplicitGenerator>,
     pub(crate) bounds: Bounds,
     pub(crate) marker: Option<Marker>,
-    pub(crate) stroke: Stroke,
+    pub(crate) color: Option<Color32>,
+    pub(crate) width: f32,
     pub(crate) name: String,
     pub(crate) highlight: bool,
 }
@@ -384,7 +390,8 @@ impl Curve {
             generator: None,
             bounds: Bounds::NOTHING,
             marker: None,
-            stroke: Stroke::new(2.0, Color32::TRANSPARENT),
+            color: None,
+            width: 1.0,
             name: Default::default(),
             highlight: false,
         }
@@ -501,7 +508,9 @@ impl Curve {
 
     /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
-        self.stroke = stroke.into();
+        let stroke: Stroke = stroke.into();
+        self.color = Some(stroke.color);
+        self.width = stroke.width;
         self
     }
 
@@ -513,13 +522,13 @@ impl Curve {
 
     /// Stroke width. A high value means the plot thickens.
     pub fn width(mut self, width: f32) -> Self {
-        self.stroke.width = width;
+        self.width = width;
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    /// Stroke color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
-        self.stroke.color = color.into();
+        self.color = Some(color.into());
         self
     }
 

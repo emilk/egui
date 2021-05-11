@@ -11,6 +11,7 @@ pub struct PlotDemo {
     square: bool,
     legend: bool,
     proportional: bool,
+    fill_markers: bool,
 }
 
 impl Default for PlotDemo {
@@ -23,6 +24,7 @@ impl Default for PlotDemo {
             square: false,
             legend: true,
             proportional: true,
+            fill_markers: true,
         }
     }
 }
@@ -58,6 +60,7 @@ impl PlotDemo {
             square,
             legend,
             proportional,
+            fill_markers,
         } = self;
 
         ui.horizontal(|ui| {
@@ -92,6 +95,7 @@ impl PlotDemo {
                 ui.checkbox(square, "square view");
                 ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
+                ui.checkbox(fill_markers, "fill markers");
             });
         });
 
@@ -110,7 +114,7 @@ impl PlotDemo {
         });
         Curve::from_values_iter(circle)
             .color(Color32::from_rgb(100, 200, 100))
-            .name("Circle")
+            .name("circle")
     }
 
     fn sin(&self) -> Curve {
@@ -132,17 +136,11 @@ impl PlotDemo {
             100,
         )
         .color(Color32::from_rgb(100, 150, 250))
-        // .stroke(Stroke::none())
-        .marker(
-            Marker::circle()
-                .filled(true)
-                .radius(2.0)
-                .color(Color32::BLUE),
-        )
+        .marker(Marker::circle().radius(2.0))
         .name("x = sin(2t), y = sin(3t)")
     }
 
-    fn markers() -> Vec<Curve> {
+    fn markers(&self) -> Vec<Curve> {
         Marker::all()
             .into_iter()
             .enumerate()
@@ -154,7 +152,7 @@ impl PlotDemo {
                     Value::new(3.0, 0.0 + y_offset),
                     Value::new(4.0, 0.5 + y_offset),
                 ])
-                .marker(marker.radius(7.5))
+                .marker(marker.radius(7.5).filled(self.fill_markers))
                 .name("Markers")
             })
             .collect()
@@ -185,7 +183,7 @@ impl super::View for PlotDemo {
         }
 
         let markers_plot = Plot::new("Markers Demo")
-            .curves(Self::markers())
+            .curves(self.markers())
             .width(300.0)
             .height(300.0)
             .data_aspect(1.0)
