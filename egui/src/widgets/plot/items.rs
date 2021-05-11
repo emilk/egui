@@ -90,8 +90,11 @@ pub(crate) enum MarkerShape {
 #[derive(Debug, Clone, Copy)]
 pub struct Marker {
     pub(crate) shape: MarkerShape,
+    /// Color of the marker. `None` means that it will be picked automatically.
     pub(crate) color: Option<Color32>,
+    /// Whether to fill the marker. Does not apply to all types.
     pub(crate) filled: bool,
+    /// The maximum extent of the marker from its center.
     pub(crate) radius: f32,
 }
 
@@ -107,6 +110,7 @@ impl Default for Marker {
 }
 
 impl Marker {
+    /// Get a vector containing a marker of each shape.
     pub fn all() -> Vec<Self> {
         vec![
             Self::circle(),
@@ -204,7 +208,7 @@ impl Marker {
         self
     }
 
-    /// The maximum extent of the marker around its position.
+    /// Set the maximum extent of the marker around its position.
     pub fn radius(mut self, radius: f32) -> Self {
         self.radius = radius;
         self
@@ -500,7 +504,7 @@ impl Curve {
         Self::from_values(values)
     }
 
-    /// Highlight this curve.
+    /// Highlight this curve in the plot by scaling up the line and marker size.
     pub fn highlight(mut self) -> Self {
         self.highlight = true;
         self
@@ -514,7 +518,7 @@ impl Curve {
         self
     }
 
-    /// Add a marker.
+    /// Add a marker for all data points.
     pub fn marker(mut self, marker: Marker) -> Self {
         self.marker = Some(marker);
         self
@@ -542,7 +546,8 @@ impl Curve {
         self
     }
 
-    pub(crate) fn get_defining_color(&self) -> Option<Color32> {
+    /// Return the color by which the curve can be identified.
+    pub(crate) fn get_color(&self) -> Option<Color32> {
         self.color
             .filter(|color| color.a() != 0)
             .or_else(|| self.marker.and_then(|marker| marker.color))

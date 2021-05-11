@@ -13,12 +13,6 @@ struct CurveDemo {
     proportional: bool,
 }
 
-#[derive(PartialEq, Default)]
-pub struct PlotDemo {
-    curve_demo: CurveDemo,
-    marker_demo: MarkerDemo,
-}
-
 impl Default for CurveDemo {
     fn default() -> Self {
         Self {
@@ -30,21 +24,6 @@ impl Default for CurveDemo {
             legend: true,
             proportional: true,
         }
-    }
-}
-
-impl super::Demo for PlotDemo {
-    fn name(&self) -> &'static str {
-        "🗠 Plot"
-    }
-
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
-        use super::View;
-        Window::new(self.name())
-            .open(open)
-            .default_size(vec2(400.0, 400.0))
-            .scroll(false)
-            .show(ctx, |ui| self.ui(ui));
     }
 }
 
@@ -208,7 +187,6 @@ impl MarkerDemo {
                     }
                     curve = curve.marker(marker);
                 }
-
                 if !self.show_lines {
                     curve = curve.color(Color32::TRANSPARENT);
                 }
@@ -243,6 +221,27 @@ impl Widget for &mut MarkerDemo {
             .height(300.0)
             .data_aspect(1.0);
         ui.add(markers_plot)
+    }
+}
+
+#[derive(PartialEq, Default)]
+pub struct PlotDemo {
+    curve_demo: CurveDemo,
+    marker_demo: MarkerDemo,
+}
+
+impl super::Demo for PlotDemo {
+    fn name(&self) -> &'static str {
+        "🗠 Plot"
+    }
+
+    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+        use super::View;
+        Window::new(self.name())
+            .open(open)
+            .default_size(vec2(400.0, 400.0))
+            .scroll(false)
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

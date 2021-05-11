@@ -115,11 +115,13 @@ impl Plot {
             return self;
         };
 
-        let curve_color = curve.color.get_or_insert_with(|| self.auto_color());
+        // Give the stroke an automatic color if no color has been assigned.
+        let stroke_color = curve.color.get_or_insert_with(|| self.auto_color());
+        // Give the marker the same color as the stroke if no color has been assigned.
         if let Some(marker) = &mut curve.marker {
             marker.color.get_or_insert_with(|| {
-                if *curve_color != Color32::TRANSPARENT {
-                    *curve_color
+                if *stroke_color != Color32::TRANSPARENT {
+                    *stroke_color
                 } else {
                     self.auto_color()
                 }
@@ -139,7 +141,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color == Color32::TRANSPARENT {
+        if hline.stroke.color.a() == 0 {
             hline.stroke.color = self.auto_color();
         }
         self.hlines.push(hline);
@@ -150,7 +152,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color == Color32::TRANSPARENT {
+        if vline.stroke.color.a() == 0 {
             vline.stroke.color = self.auto_color();
         }
         self.vlines.push(vline);
@@ -356,12 +358,12 @@ impl Widget for Plot {
                     legend_entries
                         .entry(curve.name.clone())
                         .and_modify(|entry| {
-                            if Some(entry.color) != curve.get_defining_color() {
+                            if Some(entry.color) != curve.get_color() {
                                 entry.color = neutral_color
                             }
                         })
                         .or_insert_with(|| {
-                            let color = curve.get_defining_color().unwrap_or(neutral_color);
+                            let color = curve.get_color().unwrap_or(neutral_color);
                             LegendEntry::new(text, color, checked)
                         });
                 });
