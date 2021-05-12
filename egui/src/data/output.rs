@@ -40,6 +40,12 @@ impl Output {
         // only describe last event:
         if let Some(event) = self.events.iter().rev().next() {
             match event {
+                OutputEvent::Clicked(widget_info) => {
+                    return widget_info.description();
+                }
+                OutputEvent::DoubleClicked(widget_info) => {
+                    return widget_info.description();
+                }
                 OutputEvent::FocusGained(widget_info) => {
                     return widget_info.description();
                 }
@@ -204,6 +210,10 @@ impl Default for CursorIcon {
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
 pub enum OutputEvent {
+    // A widget was clicked.
+    Clicked(WidgetInfo),
+    // A widget was double-clicked.
+    DoubleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
 }
@@ -211,6 +221,8 @@ pub enum OutputEvent {
 impl std::fmt::Debug for OutputEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
+            Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
             Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
         }
     }

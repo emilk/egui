@@ -428,10 +428,17 @@ impl Response {
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
     pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
-        if self.gained_focus() {
-            use crate::output::OutputEvent;
-            let widget_info = make_info();
-            let event = OutputEvent::FocusGained(widget_info);
+        use crate::output::OutputEvent;
+        let event = if self.clicked() {
+            Some(OutputEvent::Clicked(make_info()))
+        } else if self.double_clicked() {
+            Some(OutputEvent::DoubleClicked(make_info()))
+        } else if self.gained_focus() {
+            Some(OutputEvent::FocusGained(make_info()))
+        } else {
+            None
+        };
+        if let Some(event) = event {
             self.ctx.output().events.push(event);
         }
     }
