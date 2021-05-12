@@ -180,6 +180,7 @@ The same code can be compiled to a native app or a web app.
 * For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):
   * [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) with [example code](https://github.com/hasenbanck/egui_example)
   * Alternative: [`egui_winit_wgpu`](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
+* [`nannou_egui`](https://github.com/AlexEne/nannou_egui): backend for [nannou](https://nannou.cc).
 
 ### Writing your own egui integration
 
