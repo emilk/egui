@@ -40,13 +40,10 @@ impl Output {
         // only describe last event:
         if let Some(event) = self.events.iter().rev().next() {
             match event {
-                OutputEvent::Clicked(widget_info) => {
-                    return widget_info.description();
-                }
-                OutputEvent::DoubleClicked(widget_info) => {
-                    return widget_info.description();
-                }
-                OutputEvent::FocusGained(widget_info) => {
+                OutputEvent::Clicked(widget_info)
+                | OutputEvent::DoubleClicked(widget_info)
+                | OutputEvent::FocusGained(widget_info)
+                | OutputEvent::ValueChanged(widget_info) => {
                     return widget_info.description();
                 }
             }
@@ -216,6 +213,8 @@ pub enum OutputEvent {
     DoubleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
+    // A widget's value changed.
+    ValueChanged(WidgetInfo),
 }
 
 impl std::fmt::Debug for OutputEvent {
@@ -224,6 +223,7 @@ impl std::fmt::Debug for OutputEvent {
             Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
             Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
+            Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),
         }
     }
 }
@@ -236,7 +236,9 @@ pub struct WidgetInfo {
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
     /// The contents of some editable text (for `TextEdit` fields).
-    pub edit_text: Option<String>,
+    pub text_value: Option<String>,
+    // The previous text value.
+    prev_text_value: Option<String>,
     /// The current value of checkboxes and radio buttons.
     pub selected: Option<bool>,
     /// The current value of sliders etc.
@@ -248,7 +250,8 @@ impl std::fmt::Debug for WidgetInfo {
         let Self {
             typ,
             label,
-            edit_text,
+            text_value,
+            prev_text_value,
             selected,
             value,
         } = self;
@@ -260,8 +263,11 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(label) = label {
             s.field("label", label);
         }
-        if let Some(edit_text) = edit_text {
-            s.field("edit_text", edit_text);
+        if let Some(text_value) = text_value {
+            s.field("text_value", text_value);
+        }
+        if let Some(prev_text_value) = prev_text_value {
+            s.field("prev_text_value", prev_text_value);
         }
         if let Some(selected) = selected {
             s.field("selected", selected);
@@ -279,7 +285,8 @@ impl WidgetInfo {
         Self {
             typ,
             label: None,
-            edit_text: None,
+            text_value: None,
+            prev_text_value: None,
             selected: None,
             value: None,
         }
@@ -321,9 +328,10 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn text_edit(edit_text: impl ToString) -> Self {
+    pub fn text_edit(text_value: impl ToString, prev_text_value: impl ToString) -> Self {
         Self {
-            edit_text: Some(edit_text.to_string()),
+            text_value: Some(text_value.to_string()),
+            prev_text_value: Some(prev_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -333,7 +341,8 @@ impl WidgetInfo {
         let Self {
             typ,
             label,
-            edit_text,
+            text_value,
+            prev_text_value: _,
             selected,
             value,
         } = self;
@@ -370,9 +379,18 @@ impl WidgetInfo {
             description = format!("{}: {}", label, description);
         }
 
-        if let Some(edit_text) = edit_text {
-            description += " ";
-            description += edit_text;
+        if typ == &WidgetType::TextEdit {
+            let text;
+            if let Some(text_value) = text_value {
+                if text_value.is_empty() {
+                    text = "blank".into();
+                } else {
+                    text = text_value.to_string();
+                }
+            } else {
+                text = "blank".into();
+            }
+            description = format!("{}: {}", text, description);
         }
 
         if let Some(value) = value {

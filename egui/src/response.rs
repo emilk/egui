@@ -435,6 +435,8 @@ impl Response {
             Some(OutputEvent::DoubleClicked(make_info()))
         } else if self.gained_focus() {
             Some(OutputEvent::FocusGained(make_info()))
+        } else if self.changed {
+            Some(OutputEvent::ValueChanged(make_info()))
         } else {
             None
         };
