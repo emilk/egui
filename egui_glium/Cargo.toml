@@ -18,6 +18,9 @@ include = [
   "src/shader/*.glsl",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 copypasta = "0.7"
 egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
