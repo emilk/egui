@@ -149,15 +149,7 @@ pub struct Layout {
 impl Default for Layout {
     fn default() -> Self {
         // TODO: Get from `Style` instead.
-        // This is a very euro-centric default.
-        Self {
-            main_dir: Direction::TopDown,
-            main_wrap: false,
-            main_align: Align::TOP,
-            main_justify: false,
-            cross_align: Align::LEFT,
-            cross_justify: false,
-        }
+        Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }
 
