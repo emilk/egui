@@ -445,6 +445,7 @@ impl Layout {
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::BottomUp => {
+                avail.max.y = cursor.max.y;
                 avail.min.y = avail.min.y.min(cursor.max.y);
                 if self.main_wrap {
                     avail.min.x = cursor.min.x;
