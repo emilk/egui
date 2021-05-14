@@ -125,13 +125,13 @@ impl Plot {
         let stroke_color = curve.color.get_or_insert_with(|| self.auto_color());
         // Give the marker the same color as the stroke if no color has been assigned.
         if let Some(marker) = &mut curve.marker {
-            marker.color.get_or_insert_with(|| {
-                if *stroke_color != Color32::TRANSPARENT {
+            if marker.color == Color32::TRANSPARENT {
+                marker.color = if *stroke_color != Color32::TRANSPARENT {
                     *stroke_color
                 } else {
                     self.auto_color()
-                }
-            });
+                };
+            }
         }
         self.curves.push(curve);
 
@@ -552,9 +552,7 @@ impl Prepared {
                 brighten(&mut color);
                 if let Some(marker) = &mut marker {
                     marker.radius *= 1.25;
-                    if let Some(marker_color) = &mut marker.color {
-                        brighten(marker_color);
-                    }
+                    brighten(&mut marker.color);
                 }
             }
 

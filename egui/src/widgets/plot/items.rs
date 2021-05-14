@@ -90,8 +90,8 @@ pub(crate) enum MarkerShape {
 #[derive(Debug, Clone, Copy)]
 pub struct Marker {
     pub(crate) shape: MarkerShape,
-    /// Color of the marker. `None` means that it will be picked automatically.
-    pub(crate) color: Option<Color32>,
+    /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
+    pub(crate) color: Color32,
     /// Whether to fill the marker. Does not apply to all types.
     pub(crate) filled: bool,
     /// The maximum extent of the marker from its center.
@@ -102,7 +102,7 @@ impl Default for Marker {
     fn default() -> Self {
         Self {
             shape: MarkerShape::Circle,
-            color: None,
+            color: Color32::TRANSPARENT,
             filled: true,
             radius: 2.0,
         }
@@ -198,7 +198,7 @@ impl Marker {
 
     /// Set the marker's color. Defaults to the curve's color.
     pub fn color(mut self, color: Color32) -> Self {
-        self.color = Some(color);
+        self.color = color;
         self
     }
 
@@ -226,10 +226,9 @@ impl Marker {
             radius,
         } = *self;
 
-        if color.is_none() {
+        if color == Color32::TRANSPARENT {
             return Vec::new();
         }
-        let color = color.unwrap();
 
         let stroke_size = radius / 5.0;
 
@@ -548,8 +547,10 @@ impl Curve {
 
     /// Return the color by which the curve can be identified.
     pub(crate) fn get_color(&self) -> Option<Color32> {
-        self.color
-            .filter(|color| color.a() != 0)
-            .or_else(|| self.marker.and_then(|marker| marker.color))
+        self.color.filter(|color| color.a() != 0).or_else(|| {
+            self.marker
+                .map(|marker| marker.color)
+                .filter(|color| *color != Color32::TRANSPARENT)
+        })
     }
 }
