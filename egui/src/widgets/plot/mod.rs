@@ -8,12 +8,18 @@ use std::collections::{BTreeMap, HashSet};
 
 pub use items::{Curve, Marker, Value};
 use items::{HLine, VLine};
+use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
 
-use self::legend::LegendEntry;
+/// Make the color lighter, used for highlighting.
+fn brighten(color: &mut Color32) {
+    let mut hsva = Hsva::from(*color);
+    hsva.v = (hsva.v * 2.0).at_most(1.0);
+    *color = hsva.into();
+}
 
 // ----------------------------------------------------------------------------
 
@@ -535,15 +541,20 @@ impl Prepared {
                 color,
                 mut width,
                 mut marker,
+                highlight,
                 ..
             } = curve;
 
-            let color = color.unwrap_or(Color32::TRANSPARENT);
+            let mut color = color.unwrap_or(Color32::TRANSPARENT);
 
-            if curve.highlight {
-                width *= 2.0;
+            if *highlight {
+                width *= 1.25;
+                brighten(&mut color);
                 if let Some(marker) = &mut marker {
-                    marker.radius *= 1.2;
+                    marker.radius *= 1.25;
+                    if let Some(marker_color) = &mut marker.color {
+                        brighten(marker_color);
+                    }
                 }
             }
 
