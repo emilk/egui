@@ -570,10 +570,13 @@ impl Prepared {
                     .collect()
             });
 
-            if values_tf.len() > 1 {
-                shapes.push(Shape::line(values_tf, Stroke::new(width, color)));
-            } else {
-                shapes.push(Shape::circle_filled(values_tf[0], width / 2.0, color));
+            if color.a() != 0 {
+                let line_shape = if values_tf.len() > 1 {
+                    Shape::line(values_tf, Stroke::new(width, color))
+                } else {
+                    Shape::circle_filled(values_tf[0], width / 2.0, color)
+                };
+                shapes.push(line_shape);
             }
 
             if let Some(marker_shapes) = marker_shapes {
