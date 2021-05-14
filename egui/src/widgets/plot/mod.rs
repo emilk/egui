@@ -14,13 +14,6 @@ use transform::{Bounds, ScreenTransform};
 use crate::*;
 use color::Hsva;
 
-/// Make the color lighter, used for highlighting.
-fn brighten(color: &mut Color32) {
-    let mut hsva = Hsva::from(*color);
-    hsva.v = (hsva.v * 2.0).at_most(1.0);
-    *color = hsva.into();
-}
-
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
@@ -545,14 +538,12 @@ impl Prepared {
                 ..
             } = curve;
 
-            let mut color = color.unwrap_or(Color32::TRANSPARENT);
+            let color = color.unwrap_or(Color32::TRANSPARENT);
 
             if *highlight {
-                width *= 1.25;
-                brighten(&mut color);
+                width *= 1.5;
                 if let Some(marker) = &mut marker {
                     marker.radius *= 1.25;
-                    brighten(&mut marker.color);
                 }
             }
 
