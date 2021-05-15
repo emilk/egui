@@ -775,7 +775,7 @@ pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
 #[cfg(feature = "cint")]
 mod impl_cint {
     use super::*;
-    use cint::{Alpha, PremultipliedAlpha, EncodedSrgb, LinearSrgb, Hsv};
+    use cint::{ColorInterop, Alpha, PremultipliedAlpha, EncodedSrgb, LinearSrgb, Hsv};
 
     // ---- Color32 ----
 
@@ -814,6 +814,45 @@ mod impl_cint {
         }
     }
 
+    impl From<PremultipliedAlpha<EncodedSrgb<f32>>> for Color32 {
+        fn from(srgba: PremultipliedAlpha<EncodedSrgb<f32>>) -> Self {
+            let PremultipliedAlpha {
+                color: EncodedSrgb { r, g, b },
+                alpha: a
+            } = srgba;
+
+            // This is a bit of an abuse of the function name but it does what we want.
+            let r = linear_u8_from_linear_f32(r);
+            let g = linear_u8_from_linear_f32(g);
+            let b = linear_u8_from_linear_f32(b);
+            let a = linear_u8_from_linear_f32(a);
+
+            Color32::from_rgba_premultiplied(r, g, b, a)
+        }
+    }
+
+    impl From<Color32> for PremultipliedAlpha<EncodedSrgb<f32>> {
+        fn from(col: Color32) -> Self {
+            let (r, g, b, a) = col.to_tuple();
+
+            // This is a bit of an abuse of the function name but it does what we want.
+            let r = linear_f32_from_linear_u8(r);
+            let g = linear_f32_from_linear_u8(g);
+            let b = linear_f32_from_linear_u8(b);
+            let a = linear_f32_from_linear_u8(a);
+
+            PremultipliedAlpha {
+                color: EncodedSrgb { r, g, b },
+                alpha: a,
+            }
+        }
+    }
+
+
+    impl ColorInterop for Color32 {
+        type CintTy = PremultipliedAlpha<EncodedSrgb<u8>>;
+    }
+
     // ---- Rgba ----
 
     impl From<PremultipliedAlpha<LinearSrgb<f32>>> for Rgba {
@@ -836,6 +875,10 @@ mod impl_cint {
                 alpha: a,
             }
         }
+    }
+
+    impl ColorInterop for Rgba {
+        type CintTy = PremultipliedAlpha<LinearSrgb<f32>>;
     }
 
     // ---- Hsva ----
@@ -862,7 +905,15 @@ mod impl_cint {
         }
     }
 
+    impl ColorInterop for Hsva {
+        type CintTy = Alpha<Hsv<f32>>;
+    }
+
     // ---- HsvaGamma ----
+
+    impl ColorInterop for HsvaGamma {
+        type CintTy = Alpha<Hsv<f32>>;
+    }
 
     impl From<Alpha<Hsv<f32>>> for HsvaGamma {
         fn from(srgba: Alpha<Hsv<f32>>) -> Self {
