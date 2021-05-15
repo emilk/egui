@@ -779,8 +779,8 @@ mod impl_cint {
 
     // ---- Color32 ----
 
-    impl From<Alpha<u8, EncodedSrgb<u8>>> for Color32 {
-        fn from(srgba: Alpha<u8, EncodedSrgb<u8>>) -> Self {
+    impl From<Alpha<EncodedSrgb<u8>>> for Color32 {
+        fn from(srgba: Alpha<EncodedSrgb<u8>>) -> Self {
             let Alpha {
                 color: EncodedSrgb { r, g, b },
                 alpha: a,
@@ -792,8 +792,8 @@ mod impl_cint {
 
     // No From<Color32> for Alpha<_> because Color32 is premultiplied
 
-    impl From<PremultipliedAlpha<u8, EncodedSrgb<u8>>> for Color32 {
-        fn from(srgba: PremultipliedAlpha<u8, EncodedSrgb<u8>>) -> Self {
+    impl From<PremultipliedAlpha<EncodedSrgb<u8>>> for Color32 {
+        fn from(srgba: PremultipliedAlpha<EncodedSrgb<u8>>) -> Self {
             let PremultipliedAlpha {
                 color: EncodedSrgb { r, g, b },
                 alpha: a
@@ -803,7 +803,7 @@ mod impl_cint {
         }
     }
 
-    impl From<Color32> for PremultipliedAlpha<u8, EncodedSrgb<u8>> {
+    impl From<Color32> for PremultipliedAlpha<EncodedSrgb<u8>> {
         fn from(col: Color32) -> Self {
             let (r, g, b, a) = col.to_tuple();
 
@@ -816,8 +816,8 @@ mod impl_cint {
 
     // ---- Rgba ----
 
-    impl From<PremultipliedAlpha<f32, LinearSrgb<f32>>> for Rgba {
-        fn from(srgba: PremultipliedAlpha<f32, LinearSrgb<f32>>) -> Self {
+    impl From<PremultipliedAlpha<LinearSrgb<f32>>> for Rgba {
+        fn from(srgba: PremultipliedAlpha<LinearSrgb<f32>>) -> Self {
             let PremultipliedAlpha {
                 color: LinearSrgb { r, g, b },
                 alpha: a
@@ -827,7 +827,7 @@ mod impl_cint {
         }
     }
 
-    impl From<Rgba> for PremultipliedAlpha<f32, LinearSrgb<f32>> {
+    impl From<Rgba> for PremultipliedAlpha<LinearSrgb<f32>> {
         fn from(col: Rgba) -> Self {
             let (r, g, b, a) = col.to_tuple();
 
@@ -840,8 +840,8 @@ mod impl_cint {
 
     // ---- Hsva ----
 
-    impl From<Alpha<f32, Hsv<f32>>> for Hsva {
-        fn from(srgba: Alpha<f32, Hsv<f32>>) -> Self {
+    impl From<Alpha<Hsv<f32>>> for Hsva {
+        fn from(srgba: Alpha<Hsv<f32>>) -> Self {
             let Alpha {
                 color: Hsv { h, s, v },
                 alpha: a
@@ -851,7 +851,7 @@ mod impl_cint {
         }
     }
 
-    impl From<Hsva> for Alpha<f32, Hsv<f32>> {
+    impl From<Hsva> for Alpha<Hsv<f32>> {
         fn from(col: Hsva) -> Self {
             let Hsva { h, s, v, a } = col;
 
@@ -864,8 +864,8 @@ mod impl_cint {
 
     // ---- HsvaGamma ----
 
-    impl From<Alpha<f32, Hsv<f32>>> for HsvaGamma {
-        fn from(srgba: Alpha<f32, Hsv<f32>>) -> Self {
+    impl From<Alpha<Hsv<f32>>> for HsvaGamma {
+        fn from(srgba: Alpha<Hsv<f32>>) -> Self {
             let Alpha {
                 color: Hsv { h, s, v },
                 alpha: a
@@ -875,7 +875,7 @@ mod impl_cint {
         }
     }
 
-    impl From<HsvaGamma> for Alpha<f32, Hsv<f32>> {
+    impl From<HsvaGamma> for Alpha<Hsv<f32>> {
         fn from(col: HsvaGamma) -> Self {
             let Hsva { h, s, v, a } = col.into();
 
