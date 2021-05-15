@@ -38,6 +38,7 @@ single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
 
 mint = ["epaint/mint"]
+cint = ["epaint/cint"]
 
 [dev-dependencies]
 serde_json = "1"

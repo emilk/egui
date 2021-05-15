@@ -292,6 +292,18 @@ impl Rgba {
             )
         }
     }
+
+    /// Premultiplied RGBA
+    #[inline(always)]
+    pub fn to_array(&self) -> [f32; 4] {
+        [self.r(), self.g(), self.b(), self.a()]
+    }
+
+    /// Premultiplied RGBA
+    #[inline(always)]
+    pub fn to_tuple(&self) -> (f32, f32, f32, f32) {
+        (self.r(), self.g(), self.b(), self.a())
+    }
 }
 
 impl std::ops::Add for Rgba {
@@ -758,4 +770,120 @@ pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
         b = b / 2 + target.b() / 2;
     }
     Color32::from_rgba_premultiplied(r, g, b, a)
+}
+
+#[cfg(feature = "cint")]
+mod impl_cint {
+    use super::*;
+    use cint::{Alpha, PremultipliedAlpha, EncodedSrgb, LinearSrgb, Hsv};
+
+    // ---- Color32 ----
+
+    impl From<Alpha<u8, EncodedSrgb<u8>>> for Color32 {
+        fn from(srgba: Alpha<u8, EncodedSrgb<u8>>) -> Self {
+            let Alpha {
+                color: EncodedSrgb { r, g, b },
+                alpha: a,
+            } = srgba;
+
+            Color32::from_rgba_unmultiplied(r, g, b, a)
+        }
+    }
+
+    // No From<Color32> for Alpha<_> because Color32 is premultiplied
+
+    impl From<PremultipliedAlpha<u8, EncodedSrgb<u8>>> for Color32 {
+        fn from(srgba: PremultipliedAlpha<u8, EncodedSrgb<u8>>) -> Self {
+            let PremultipliedAlpha {
+                color: EncodedSrgb { r, g, b },
+                alpha: a
+            } = srgba;
+
+            Color32::from_rgba_premultiplied(r, g, b, a)
+        }
+    }
+
+    impl From<Color32> for PremultipliedAlpha<u8, EncodedSrgb<u8>> {
+        fn from(col: Color32) -> Self {
+            let (r, g, b, a) = col.to_tuple();
+
+            PremultipliedAlpha {
+                color: EncodedSrgb { r, g, b },
+                alpha: a,
+            }
+        }
+    }
+
+    // ---- Rgba ----
+
+    impl From<PremultipliedAlpha<f32, LinearSrgb<f32>>> for Rgba {
+        fn from(srgba: PremultipliedAlpha<f32, LinearSrgb<f32>>) -> Self {
+            let PremultipliedAlpha {
+                color: LinearSrgb { r, g, b },
+                alpha: a
+            } = srgba;
+
+            Rgba([r, g, b, a])
+        }
+    }
+
+    impl From<Rgba> for PremultipliedAlpha<f32, LinearSrgb<f32>> {
+        fn from(col: Rgba) -> Self {
+            let (r, g, b, a) = col.to_tuple();
+
+            PremultipliedAlpha {
+                color: LinearSrgb { r, g, b },
+                alpha: a,
+            }
+        }
+    }
+
+    // ---- Hsva ----
+
+    impl From<Alpha<f32, Hsv<f32>>> for Hsva {
+        fn from(srgba: Alpha<f32, Hsv<f32>>) -> Self {
+            let Alpha {
+                color: Hsv { h, s, v },
+                alpha: a
+            } = srgba;
+
+            Hsva::new(h, s, v, a)
+        }
+    }
+
+    impl From<Hsva> for Alpha<f32, Hsv<f32>> {
+        fn from(col: Hsva) -> Self {
+            let Hsva { h, s, v, a } = col;
+
+            Alpha {
+                color: Hsv { h, s, v },
+                alpha: a,
+            }
+        }
+    }
+
+    // ---- HsvaGamma ----
+
+    impl From<Alpha<f32, Hsv<f32>>> for HsvaGamma {
+        fn from(srgba: Alpha<f32, Hsv<f32>>) -> Self {
+            let Alpha {
+                color: Hsv { h, s, v },
+                alpha: a
+            } = srgba;
+
+            Hsva::new(h, s, v, a).into()
+        }
+    }
+
+    impl From<HsvaGamma> for Alpha<f32, Hsv<f32>> {
+        fn from(col: HsvaGamma) -> Self {
+            let Hsva { h, s, v, a } = col.into();
+
+            Alpha {
+                color: Hsv { h, s, v },
+                alpha: a,
+            }
+        }
+    }
+
 }

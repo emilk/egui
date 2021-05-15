@@ -30,9 +30,10 @@ ordered-float = "2"
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
+cint = { version = "0.1", optional = true }
 
 [features]
-default = ["multi_threaded", "default_fonts"]
+default = ["multi_threaded", "default_fonts", "cint"]
 persistence = ["serde", "emath/serde"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.

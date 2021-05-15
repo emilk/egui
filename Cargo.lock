@@ -295,6 +295,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fff857943da45f546682664a79488be82e69e43c1a7a2307679ab9afb3a66d2e"
 
 [[package]]
+name = "cint"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce4058f0d913f5d34e00932eabdf84c7c37600bec646886c2b4c91c1653e1797"
+
+[[package]]
 name = "clang-sys"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,6 +852,7 @@ version = "0.12.0"
 dependencies = [
  "ahash",
  "atomic_refcell",
+ "cint",
  "emath",
  "ordered-float",
  "parking_lot",
