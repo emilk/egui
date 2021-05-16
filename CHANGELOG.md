@@ -6,7 +6,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 
 ## Unreleased
-
+* [Line markers for plots](https://github.com/emilk/egui/pull/363).
 
 ## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
 
