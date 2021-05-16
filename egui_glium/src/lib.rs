@@ -188,7 +188,7 @@ pub fn input_to_egui(
                 delta.x *= -1.0;
             }
 
-            if input_state.raw.modifiers.ctrl {
+            if input_state.raw.modifiers.command {
                 // Treat as zoom instead:
                 input_state.raw.zoom_delta *= (delta.y / 200.0).exp();
             } else {
