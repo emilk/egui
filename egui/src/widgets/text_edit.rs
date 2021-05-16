@@ -141,15 +141,10 @@ pub trait TextBuffer:
 
 impl TextBuffer for String {
     fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
-        let mut indices = self::str_indices_with_last(self);
-
         // Get the byte index from the character index
-        // Note: If `self` is empty, `indices` will only contain a `0`,
-        //       so this cannot panic unless `ch_idx` is out of bounds
-        let byte_idx = indices.nth(ch_idx).unwrap();
+        let byte_idx = self::byte_index_from_char_index(self, ch_idx);
 
         // Then insert the string
-        std::mem::drop(indices);
         self.insert_str(byte_idx, text);
 
         text.chars().count()
@@ -158,15 +153,11 @@ impl TextBuffer for String {
     fn delete_text_range(&mut self, ch_range: Range<usize>) {
         assert!(ch_range.start <= ch_range.end);
 
-        let mut indices = self::str_indices_with_last(self);
-
         // Get both byte indices
-        // Note: Same as in `insert_text`, cannot panic for valid `ch_range`.
-        let byte_start = indices.clone().nth(ch_range.start).unwrap();
-        let byte_end = indices.nth(ch_range.end).unwrap();
+        let byte_start = self::byte_index_from_char_index(self, ch_range.start);
+        let byte_end = self::byte_index_from_char_index(self, ch_range.end);
 
         // Then drain all characters within this range
-        std::mem::drop(indices);
         self.drain(byte_start..byte_end);
     }
 }
@@ -1163,12 +1154,4 @@ fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
     if *ccursor != line_start {
         *ccursor -= chars_removed;
     }
-}
-
-/// Returns an iterator over all byte indices of a string including
-/// an index with the length of the string
-fn str_indices_with_last(s: &str) -> impl Iterator<Item = usize> + Clone + '_ {
-    s.char_indices()
-        .map(|(idx, _)| idx)
-        .chain(std::iter::once(s.len()))
 }
