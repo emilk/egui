@@ -26,6 +26,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
   enabling zoom, rotate, and more. Works with `egui_web` on mobile devices,
   and should work with `egui_glium` for certain touch devices/screens.
 * Add (optional) compatibility with [mint](https://docs.rs/mint).
+* `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
