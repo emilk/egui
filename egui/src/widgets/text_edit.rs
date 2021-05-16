@@ -1,5 +1,6 @@
 use crate::{util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
+use std::ops::Range;
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -127,15 +128,17 @@ pub trait TextBuffer:
     /// # Notes
     /// `ch_idx` is a *character index*, not a byte index.
     fn insert_text(&mut self, text: &str, ch_idx: usize);
+
+    /// Deletes a range of text `ch_range` from this buffer.
+    ///
+    /// # Notes
+    /// `ch_range` is a *character range*, not a byte range.
+    fn delete_text_range(&mut self, ch_range: Range<usize>);
 }
 
 impl TextBuffer for String {
     fn insert_text(&mut self, text: &str, ch_idx: usize) {
-        // All indices we can visit, including the last index.
-        let mut indices = self
-            .char_indices()
-            .map(|(idx, _)| idx)
-            .chain(std::iter::once(self.len()));
+        let mut indices = self::str_indices_with_last(self);
 
         // Get the byte index from the character index
         // Note: If `self` is empty, `indices` will only contain a `0`,
@@ -143,7 +146,23 @@ impl TextBuffer for String {
         let byte_idx = indices.nth(ch_idx).unwrap();
 
         // Then insert the string
+        std::mem::drop(indices);
         self.insert_str(byte_idx, text);
+    }
+
+    fn delete_text_range(&mut self, ch_range: Range<usize>) {
+        assert!(ch_range.start <= ch_range.end);
+
+        let mut indices = self::str_indices_with_last(self);
+
+        // Get both byte indices
+        // Note: Same as in `insert_text`, cannot panic for valid `ch_range`.
+        let byte_start = indices.clone().nth(ch_range.start).unwrap();
+        let byte_end = indices.nth(ch_range.end).unwrap();
+
+        // Then drain all characters within this range
+        std::mem::drop(indices);
+        self.drain(byte_start..byte_end);
     }
 }
 
@@ -799,19 +818,9 @@ fn delete_selected<S: TextBuffer>(text: &mut S, cursorp: &CursorPair) -> CCursor
 }
 
 fn delete_selected_ccursor_range<S: TextBuffer>(text: &mut S, [min, max]: [CCursor; 2]) -> CCursor {
-    let [min, max] = [min.index, max.index];
-    assert!(min <= max);
-    if min < max {
-        let mut char_it = text.as_ref().chars();
-        let mut new_text = String::with_capacity(text.as_ref().len());
-        for _ in 0..min {
-            new_text.push(char_it.next().unwrap())
-        }
-        new_text.extend(char_it.skip(max - min));
-        *text = S::from(new_text);
-    }
+    text.delete_text_range(min.index..max.index);
     CCursor {
-        index: min,
+        index: min.index,
         prefer_next_row: true,
     }
 }
@@ -1150,4 +1159,12 @@ fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
     if *ccursor != line_start {
         *ccursor -= chars_removed;
     }
+}
+
+/// Returns an iterator over all byte indices of a string including
+/// an index with the length of the string
+fn str_indices_with_last(s: &str) -> impl Iterator<Item = usize> + Clone + '_ {
+    s.char_indices()
+        .map(|(idx, _)| idx)
+        .chain(std::iter::once(s.len()))
 }
