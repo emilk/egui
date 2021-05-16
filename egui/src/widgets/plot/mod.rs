@@ -351,6 +351,10 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
+        // Legend
+        let legend = legend_config
+            .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves));
+
         // Remove the deselected curves.
         curves.retain(|curve| !hidden_curves.contains(&curve.name));
 
@@ -361,10 +365,6 @@ impl Widget for Plot {
                 .filter(|entry| &entry.name == hovered_name)
                 .for_each(|entry| entry.highlight = true);
         }
-
-        // Legend
-        let mut legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves));
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -430,16 +430,16 @@ impl Widget for Plot {
 
         let bounds = *transform.bounds();
 
-        let mut prepared = Prepared {
+        let prepared = Prepared {
             curves,
             hlines,
             vlines,
             show_x,
             show_y,
             transform,
-            legend: legend.as_mut(),
+            legend,
         };
-        prepared.ui(ui, &response);
+        let legend = prepared.ui(ui, &response);
 
         if let Some(legend) = legend {
             hidden_curves = legend.get_hidden_curves();
@@ -464,18 +464,18 @@ impl Widget for Plot {
     }
 }
 
-struct Prepared<'a> {
+struct Prepared {
     curves: Vec<Curve>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
     show_y: bool,
     transform: ScreenTransform,
-    legend: Option<&'a mut LegendWidget>,
+    legend: Option<LegendWidget>,
 }
 
-impl Prepared<'_> {
-    fn ui(&mut self, ui: &mut Ui, response: &Response) {
+impl Prepared {
+    fn ui(mut self, ui: &mut Ui, response: &Response) -> Option<LegendWidget> {
         let mut shapes = Vec::new();
         let transform = &self.transform;
 
@@ -550,16 +550,18 @@ impl Prepared<'_> {
 
         painter_rect.extend(shapes);
 
-        if let Some(pointer) = response.hover_pos() {
-            painter_rect.extend(self.hover(ui, pointer));
-        }
-
-        if let Some(legend) = self.legend.as_deref_mut() {
+        if let Some(legend) = &mut self.legend {
             if ui.add(legend).hovered() {
                 self.show_x = false;
                 self.show_y = false;
             }
         }
+
+        if let Some(pointer) = response.hover_pos() {
+            painter_rect.extend(self.hover(ui, pointer));
+        }
+
+        self.legend
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
