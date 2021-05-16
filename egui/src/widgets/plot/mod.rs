@@ -24,6 +24,7 @@ struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
     hidden_curves: HashSet<String>,
+    hovered_entry: Option<String>,
 }
 
 // ----------------------------------------------------------------------------
@@ -291,8 +292,8 @@ impl Widget for Plot {
             min_size,
             data_aspect,
             view_aspect,
-            mut show_x,
-            mut show_y,
+            show_x,
+            show_y,
             legend_config,
         } = self;
 
@@ -304,6 +305,7 @@ impl Widget for Plot {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hidden_curves: HashSet::new(),
+                hovered_entry: None,
             })
             .clone();
 
@@ -311,6 +313,7 @@ impl Widget for Plot {
             mut bounds,
             mut auto_bounds,
             mut hidden_curves,
+            mut hovered_entry,
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -348,25 +351,20 @@ impl Widget for Plot {
             stroke: ui.visuals().window_stroke(),
         });
 
-        // Legend
-        if let Some(mut legend) = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves))
-        {
-            if ui.add(&mut legend).hovered() {
-                show_x = false;
-                show_y = false;
-                // Highlight the hovered curve(s).
-                if let Some(hovered_entry) = legend.get_hovered_entry_name() {
-                    curves.iter_mut().for_each(|curve| {
-                        curve.highlight |= curve.name == hovered_entry;
-                    });
-                }
-            }
-            // Update the hidden curves.
-            hidden_curves = legend.get_hidden_curves();
-        }
         // Remove the deselected curves.
         curves.retain(|curve| !hidden_curves.contains(&curve.name));
+
+        // Highlight the hovered curves.
+        if let Some(hovered_name) = &hovered_entry {
+            curves
+                .iter_mut()
+                .filter(|entry| &entry.name == hovered_name)
+                .for_each(|entry| entry.highlight = true);
+        }
+
+        // Legend
+        let mut legend = legend_config
+            .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves));
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -432,15 +430,21 @@ impl Widget for Plot {
 
         let bounds = *transform.bounds();
 
-        let prepared = Prepared {
+        let mut prepared = Prepared {
             curves,
             hlines,
             vlines,
             show_x,
             show_y,
             transform,
+            legend: legend.as_mut(),
         };
         prepared.ui(ui, &response);
+
+        if let Some(legend) = legend {
+            hidden_curves = legend.get_hidden_curves();
+            hovered_entry = legend.get_hovered_entry_name();
+        }
 
         ui.memory().id_data.insert(
             plot_id,
@@ -448,6 +452,7 @@ impl Widget for Plot {
                 bounds,
                 auto_bounds,
                 hidden_curves,
+                hovered_entry,
             },
         );
 
@@ -459,20 +464,20 @@ impl Widget for Plot {
     }
 }
 
-struct Prepared {
+struct Prepared<'a> {
     curves: Vec<Curve>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
     show_y: bool,
     transform: ScreenTransform,
+    legend: Option<&'a mut LegendWidget>,
 }
 
-impl Prepared {
-    fn ui(&self, ui: &mut Ui, response: &Response) {
-        let Self { transform, .. } = self;
-
+impl Prepared<'_> {
+    fn ui(&mut self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
+        let transform = &self.transform;
 
         for d in 0..2 {
             self.paint_axis(ui, d, &mut shapes);
@@ -541,11 +546,20 @@ impl Prepared {
             }
         }
 
+        let painter_rect = ui.painter().sub_region(*transform.frame());
+
+        painter_rect.extend(shapes);
+
         if let Some(pointer) = response.hover_pos() {
-            self.hover(ui, pointer, &mut shapes);
+            painter_rect.extend(self.hover(ui, pointer));
         }
 
-        ui.painter().sub_region(*transform.frame()).extend(shapes);
+        if let Some(legend) = self.legend.as_deref_mut() {
+            if ui.add(legend).hovered() {
+                self.show_x = false;
+                self.show_y = false;
+            }
+        }
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -637,7 +651,7 @@ impl Prepared {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
+    fn hover(&self, ui: &Ui, pointer: Pos2) -> Vec<Shape> {
         let Self {
             transform,
             show_x,
@@ -646,8 +660,10 @@ impl Prepared {
             ..
         } = self;
 
+        let mut shapes = Vec::new();
+
         if !show_x && !show_y {
-            return;
+            return Vec::new();
         }
 
         let interact_radius: f32 = 16.0;
@@ -731,5 +747,7 @@ impl Prepared {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
+
+        shapes
     }
 }

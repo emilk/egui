@@ -7,6 +7,7 @@ use super::Curve;
 use crate::*;
 
 /// Where to place the plot legend.
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LegendPosition {
     TopLeft,
@@ -29,6 +30,7 @@ impl LegendPosition {
 }
 
 /// The configuration for a plot legend.
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, PartialEq)]
 pub struct Legend {
     pub text_style: TextStyle,
@@ -44,6 +46,8 @@ impl Default for Legend {
     }
 }
 
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone)]
 struct LegendEntry {
     config: Legend,
     color: Option<Color32>,
@@ -133,6 +137,8 @@ impl Widget for (&String, &mut LegendEntry) {
     }
 }
 
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone)]
 pub(crate) struct LegendWidget {
     rect: Rect,
     entries: BTreeMap<String, LegendEntry>,
@@ -185,11 +191,11 @@ impl LegendWidget {
     }
 
     // Get the name of the hovered curve.
-    pub fn get_hovered_entry_name(&self) -> Option<&str> {
+    pub fn get_hovered_entry_name(&self) -> Option<String> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.hovered)
-            .map(|(name, _)| name.as_str())
+            .map(|(name, _)| name.to_string())
     }
 }
 
