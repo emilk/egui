@@ -5,6 +5,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 
+### Fixed ⭐
+* Fix double-paste bug
+
 
 ## 0.12.0 - 2021-05-10
 

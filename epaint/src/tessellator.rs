@@ -645,6 +645,13 @@ impl Tessellator {
             galley.sanity_check();
         }
 
+        // The contents of the galley is already snapped to pixel coordinates,
+        // but we need to make sure the galley ends up on the start of a physical pixel:
+        let pos = pos2(
+            self.options.round_to_pixel(pos.x),
+            self.options.round_to_pixel(pos.y),
+        );
+
         let num_chars = galley.char_count_excluding_newlines();
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);

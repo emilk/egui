@@ -80,7 +80,13 @@ impl FontImpl {
 
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round();
+        let scale_in_points = scale_in_pixels / pixels_per_point;
+
         let height_in_points = scale_in_points;
+
         // TODO: use v_metrics for line spacing ?
         // let v = rusttype_font.v_metrics(Scale::uniform(scale_in_pixels));
         // let height_in_pixels = v.ascent - v.descent + v.line_gap;

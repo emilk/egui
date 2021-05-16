@@ -769,7 +769,26 @@ impl Ui {
         InnerResponse::new(ret, response)
     }
 
-    /// Convenience function to get a region to paint on
+    /// Convenience function to get a region to paint on.
+    ///
+    /// Note that egui uses screen coordinates for everything.
+    ///
+    /// ```
+    /// # use egui::*;
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// # use std::f32::consts::TAU;
+    /// let size = Vec2::splat(16.0);
+    /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
+    /// let rect = response.rect;
+    /// let c = rect.center();
+    /// let r = rect.width() / 2.0 - 1.0;
+    /// let color = Color32::from_gray(128);
+    /// let stroke = Stroke::new(1.0, color);
+    /// painter.circle_stroke(c, r, stroke);
+    /// painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+    /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds

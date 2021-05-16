@@ -5,7 +5,12 @@
 use crate::{color::*, emath::*, Response};
 use epaint::{Shadow, Stroke, TextStyle};
 
-/// Specifies the look and feel of a [`Ui`].
+/// Specifies the look and feel of egui.
+///
+/// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
+/// and of everything with [`crate::Context::set_style`].
+///
+/// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
@@ -22,11 +27,16 @@ pub struct Style {
     /// * `Some(false)`: default off
     pub wrap: Option<bool>,
 
+    /// Sizes and distances between widgets
     pub spacing: Spacing,
+
+    /// How and when interaction happens.
     pub interaction: Interaction,
+
+    /// Colors etc.
     pub visuals: Visuals,
 
-    /// How many seconds a typical animation should last
+    /// How many seconds a typical animation should last.
     pub animation_time: f32,
 
     /// Options to help debug why egui behaves strangely.
@@ -58,6 +68,7 @@ impl Style {
     }
 }
 
+/// Controls the sizes and distances between widgets.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
@@ -119,6 +130,7 @@ impl Spacing {
     }
 }
 
+/// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
@@ -133,6 +145,12 @@ pub struct Interaction {
     pub show_tooltips_only_when_still: bool,
 }
 
+/// Controls the visual style (colors etc) of egui.
+///
+/// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
+/// and of everything with [`crate::Context::set_visuals`].
+///
+/// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
@@ -224,6 +242,7 @@ pub struct Selection {
     pub stroke: Stroke,
 }
 
+/// The visuals of widgets for different states of interaction.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]

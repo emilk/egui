@@ -633,7 +633,8 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    {
+    // paste is handled by IME text agent!
+    if false {
         // paste
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {

@@ -18,6 +18,9 @@ include = [
   "src/shader/*.glsl",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

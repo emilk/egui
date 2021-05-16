@@ -88,8 +88,9 @@ impl View for MiscDemoWindow {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
                     use std::f32::consts::TAU;
-                    let (rect, _response) = ui.allocate_at_least(Vec2::splat(16.0), Sense::hover());
-                    let painter = ui.painter();
+                    let size = Vec2::splat(16.0);
+                    let (response, painter) = ui.allocate_painter(size, Sense::hover());
+                    let rect = response.rect;
                     let c = rect.center();
                     let r = rect.width() / 2.0 - 1.0;
                     let color = Color32::from_gray(128);
