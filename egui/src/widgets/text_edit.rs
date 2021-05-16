@@ -127,7 +127,10 @@ pub trait TextBuffer:
     ///
     /// # Notes
     /// `ch_idx` is a *character index*, not a byte index.
-    fn insert_text(&mut self, text: &str, ch_idx: usize);
+    ///
+    /// # Return
+    /// Returns how many *characters* were successfully inserted
+    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize;
 
     /// Deletes a range of text `ch_range` from this buffer.
     ///
@@ -137,7 +140,7 @@ pub trait TextBuffer:
 }
 
 impl TextBuffer for String {
-    fn insert_text(&mut self, text: &str, ch_idx: usize) {
+    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
         let mut indices = self::str_indices_with_last(self);
 
         // Get the byte index from the character index
@@ -148,6 +151,8 @@ impl TextBuffer for String {
         // Then insert the string
         std::mem::drop(indices);
         self.insert_str(byte_idx, text);
+
+        text.chars().count()
     }
 
     fn delete_text_range(&mut self, ch_range: Range<usize>) {
@@ -806,8 +811,7 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
 }
 
 fn insert_text<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S, text_to_insert: &str) {
-    text.insert_text(text_to_insert, ccursor.index);
-    ccursor.index += text_to_insert.chars().count();
+    ccursor.index += text.insert_text(text_to_insert, ccursor.index);
 }
 
 // ----------------------------------------------------------------------------
