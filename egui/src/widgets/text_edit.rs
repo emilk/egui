@@ -122,9 +122,30 @@ pub trait TextBuffer:
     + 'static
     + std::fmt::Display
 {
+    /// Inserts text `text` into this buffer at character index `ch_idx`.
+    ///
+    /// # Notes
+    /// `ch_idx` is a *character index*, not a byte index.
+    fn insert_text(&mut self, text: &str, ch_idx: usize);
 }
 
-impl TextBuffer for String {}
+impl TextBuffer for String {
+    fn insert_text(&mut self, text: &str, ch_idx: usize) {
+        // All indices we can visit, including the last index.
+        let mut indices = self
+            .char_indices()
+            .map(|(idx, _)| idx)
+            .chain(std::iter::once(self.len()));
+
+        // Get the byte index from the character index
+        // Note: If `self` is empty, `indices` will only contain a `0`,
+        //       so this cannot panic unless `ch_idx` is out of bounds
+        let byte_idx = indices.nth(ch_idx).unwrap();
+
+        // Then insert the string
+        self.insert_str(byte_idx, text);
+    }
+}
 
 /// A text region that the user can edit the contents of.
 ///
@@ -766,16 +787,8 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
 }
 
 fn insert_text<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S, text_to_insert: &str) {
-    let mut char_it = text.as_ref().chars();
-    let mut new_text = String::with_capacity(text.as_ref().len() + text_to_insert.len());
-    for _ in 0..ccursor.index {
-        let c = char_it.next().unwrap();
-        new_text.push(c);
-    }
+    text.insert_text(text_to_insert, ccursor.index);
     ccursor.index += text_to_insert.chars().count();
-    new_text += text_to_insert;
-    new_text.extend(char_it);
-    *text = S::from(new_text);
 }
 
 // ----------------------------------------------------------------------------
