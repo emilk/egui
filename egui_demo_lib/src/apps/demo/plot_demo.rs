@@ -1,5 +1,5 @@
-use egui::plot::{Curve, Marker, Plot, Value};
 use egui::*;
+use plot::{Curve, Legend, LegendPosition, Marker, Plot, Value};
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
@@ -9,7 +9,6 @@ struct CurveDemo {
     circle_radius: f64,
     circle_center: Pos2,
     square: bool,
-    legend: bool,
     proportional: bool,
 }
 
@@ -21,7 +20,6 @@ impl Default for CurveDemo {
             circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
-            legend: true,
             proportional: true,
         }
     }
@@ -35,7 +33,6 @@ impl CurveDemo {
             circle_radius,
             circle_center,
             square,
-            legend,
             proportional,
             ..
         } = self;
@@ -65,12 +62,10 @@ impl CurveDemo {
                 });
             });
 
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
-                ui.add_space(8.0);
                 ui.checkbox(square, "square view");
-                ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
@@ -129,7 +124,7 @@ impl Widget for &mut CurveDemo {
             .curve(self.sin())
             .curve(self.thingy())
             .height(300.0)
-            .show_legend(self.legend);
+            .legend(Legend::default());
         if self.square {
             plot = plot.view_aspect(1.0);
         }
@@ -219,8 +214,63 @@ impl Widget for &mut MarkerDemo {
         let markers_plot = Plot::new("Markers Demo")
             .curves(self.markers())
             .height(300.0)
+            .legend(Legend::default())
             .data_aspect(1.0);
         ui.add(markers_plot)
+    }
+}
+
+#[derive(PartialEq)]
+struct LegendDemo {
+    config: Legend,
+}
+
+impl Default for LegendDemo {
+    fn default() -> Self {
+        Self {
+            config: Legend::default(),
+        }
+    }
+}
+
+impl LegendDemo {
+    fn line_with_slope(slope: f64) -> Curve {
+        Curve::from_explicit_callback(move |x| slope * x, f64::NEG_INFINITY..=f64::INFINITY, 100)
+    }
+    fn sin() -> Curve {
+        Curve::from_explicit_callback(move |x| x.sin(), f64::NEG_INFINITY..=f64::INFINITY, 100)
+    }
+    fn cos() -> Curve {
+        Curve::from_explicit_callback(move |x| x.cos(), f64::NEG_INFINITY..=f64::INFINITY, 100)
+    }
+}
+
+impl Widget for &mut LegendDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let LegendDemo { config } = self;
+
+        ui.label("Text Style:");
+        ui.horizontal(|ui| {
+            TextStyle::all().for_each(|style| {
+                ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
+            });
+        });
+        ui.label("Position:");
+        ui.horizontal(|ui| {
+            LegendPosition::all().for_each(|position| {
+                ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+            });
+        });
+        let legend_plot = Plot::new("Legend Demo")
+            .curve(LegendDemo::line_with_slope(0.5).name("lines"))
+            .curve(LegendDemo::line_with_slope(1.0).name("lines"))
+            .curve(LegendDemo::line_with_slope(2.0).name("lines"))
+            .curve(LegendDemo::sin().name("sin(x)"))
+            .curve(LegendDemo::cos().name("cos(x)"))
+            .height(300.0)
+            .legend(*config)
+            .data_aspect(1.0);
+        ui.add(legend_plot)
     }
 }
 
@@ -228,6 +278,7 @@ impl Widget for &mut MarkerDemo {
 pub struct PlotDemo {
     curve_demo: CurveDemo,
     marker_demo: MarkerDemo,
+    legend_demo: LegendDemo,
 }
 
 impl super::Demo for PlotDemo {
@@ -253,5 +304,6 @@ impl super::View for PlotDemo {
         });
         ui.collapsing("Curves", |ui| ui.add(&mut self.curve_demo));
         ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
+        ui.collapsing("Legend", |ui| ui.add(&mut self.legend_demo));
     }
 }
