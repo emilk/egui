@@ -19,7 +19,8 @@ impl Frame {
         Self::default()
     }
 
-    /// For when you want to group a few widgets together within a frame.
+    /// For when you want to group a few widgets together within a frame.  
+    /// Default margin is `vec2(8.0, 6.0)`. Use [`group_with_margin`](Self::group_with_margin) to set the margin.
     pub fn group(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 6.0),
@@ -29,9 +30,19 @@ impl Frame {
         }
     }
 
-    pub(crate) fn side_top_panel(style: &Style) -> Self {
+    /// Same as [`group`](Self::group) but with custom margin.
+    pub fn group_with_margin(style: &Style, margin: Vec2) -> Self {
         Self {
-            margin: Vec2::new(8.0, 2.0),
+            margin,
+            corner_radius: 4.0,
+            stroke: style.visuals.window_stroke(),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn side_top_panel(style: &Style, margin: Vec2) -> Self {
+        Self {
+            margin,
             corner_radius: 0.0,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -39,9 +50,9 @@ impl Frame {
         }
     }
 
-    pub(crate) fn central_panel(style: &Style) -> Self {
+    pub(crate) fn central_panel(style: &Style, margin: Vec2) -> Self {
         Self {
-            margin: Vec2::new(8.0, 8.0),
+            margin,
             corner_radius: 0.0,
             fill: style.visuals.window_fill(),
             stroke: Default::default(),

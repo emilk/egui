@@ -1202,7 +1202,8 @@ impl Ui {
 
 /// # Adding Containers / Sub-uis:
 impl Ui {
-    /// Put into a [`Frame::group`], visually grouping the contents together
+    /// Put into a [`Frame::group`], visually grouping the contents together.  
+    /// Default margin is `vec2(8.0, 6.0)`. Use [`group_with_margin`](Self::group_with_margin) to set the margin.
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
@@ -1211,7 +1212,12 @@ impl Ui {
     /// });
     /// ```
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        crate::Frame::group(self.style()).show(self, add_contents)
+        self.group_with_margin(vec2(8.0, 6.0), add_contents)
+    }
+
+    /// Same as [`group`](Self::group) but with custom margin.
+    pub fn group_with_margin<R>(&mut self, margin: Vec2, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        crate::Frame::group_with_margin(self.style(), margin).show(self, add_contents)
     }
 
     /// Create a scoped child ui.
