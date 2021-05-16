@@ -112,16 +112,7 @@ impl CCursorPair {
 /// Trait contraining what types [`TextEdit`] may use as
 /// an underlying buffer
 pub trait TextBuffer:
-    AsRef<str>
-    + From<String>
-    + Into<String>
-    + PartialEq
-    + Clone
-    + Default
-    + Send
-    + Sync
-    + 'static
-    + std::fmt::Display
+    AsRef<str> + Into<String> + PartialEq + Clone + Default + Send + Sync + 'static + std::fmt::Display
 {
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
@@ -420,9 +411,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         };
 
-        let copy_if_not_password = |ui: &Ui, text: S| {
+        let copy_if_not_password = |ui: &Ui, text: String| {
             if !password {
-                ui.ctx().output().copied_text = text.into();
+                ui.ctx().output().copied_text = text;
             }
         };
 
@@ -532,23 +523,23 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 let did_mutate_text = match event {
                     Event::Copy => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, text.clone());
+                            copy_if_not_password(ui, text.as_ref().to_owned());
                         } else {
                             copy_if_not_password(
                                 ui,
-                                selected_str(text.as_ref(), &cursorp).to_owned().into(),
+                                selected_str(text.as_ref(), &cursorp).to_owned(),
                             );
                         }
                         None
                     }
                     Event::Cut => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, std::mem::take(text));
+                            copy_if_not_password(ui, std::mem::take(text).into());
                             Some(CCursorPair::default())
                         } else {
                             copy_if_not_password(
                                 ui,
-                                selected_str(text.as_ref(), &cursorp).to_owned().into(),
+                                selected_str(text.as_ref(), &cursorp).to_owned(),
                             );
                             Some(CCursorPair::one(delete_selected(text, &cursorp)))
                         }
@@ -1120,38 +1111,24 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
 }
 
 fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
-    let mut new_text = String::with_capacity(text.as_ref().len());
-
     let line_start = find_line_start(text.as_ref(), *ccursor);
 
-    let mut char_it = text.as_ref().chars().peekable();
-    for _ in 0..line_start.index {
-        let c = char_it.next().unwrap();
-        new_text.push(c);
-    }
+    let remove_len = if text.as_ref()[line_start.index..].starts_with('\t') {
+        Some(1)
+    } else if text.as_ref()[line_start.index..]
+        .chars()
+        .take(text::TAB_SIZE)
+        .all(|c| c == ' ')
+    {
+        Some(text::TAB_SIZE)
+    } else {
+        None
+    };
 
-    let mut chars_removed = 0;
-    while let Some(&c) = char_it.peek() {
-        if c == '\t' {
-            char_it.next();
-            chars_removed += 1;
-            break;
-        } else if c == ' ' {
-            char_it.next();
-            chars_removed += 1;
-            if chars_removed == text::TAB_SIZE {
-                break;
-            }
-        } else {
-            break;
+    if let Some(len) = remove_len {
+        text.delete_text_range(line_start.index..(line_start.index + len));
+        if *ccursor != line_start {
+            *ccursor -= len;
         }
-    }
-
-    new_text.extend(char_it);
-
-    *text = S::from(new_text);
-
-    if *ccursor != line_start {
-        *ccursor -= chars_removed;
     }
 }
