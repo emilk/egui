@@ -292,8 +292,8 @@ impl Widget for Plot {
             min_size,
             data_aspect,
             view_aspect,
-            show_x,
-            show_y,
+            mut show_x,
+            mut show_y,
             legend_config,
         } = self;
 
@@ -354,10 +354,13 @@ impl Widget for Plot {
         // Legend
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves));
-
+        // Don't show hover cursor when hovering over legend.
+        if hovered_entry.is_some() {
+            show_x = false;
+            show_y = false;
+        }
         // Remove the deselected curves.
         curves.retain(|curve| !hidden_curves.contains(&curve.name));
-
         // Highlight the hovered curves.
         if let Some(hovered_name) = &hovered_entry {
             curves
@@ -437,11 +440,11 @@ impl Widget for Plot {
             show_x,
             show_y,
             transform,
-            legend,
         };
-        let legend = prepared.ui(ui, &response);
+        prepared.ui(ui, &response);
 
-        if let Some(legend) = legend {
+        if let Some(mut legend) = legend {
+            ui.add(&mut legend);
             hidden_curves = legend.get_hidden_curves();
             hovered_entry = legend.get_hovered_entry_name();
         }
@@ -471,11 +474,10 @@ struct Prepared {
     show_x: bool,
     show_y: bool,
     transform: ScreenTransform,
-    legend: Option<LegendWidget>,
 }
 
 impl Prepared {
-    fn ui(mut self, ui: &mut Ui, response: &Response) -> Option<LegendWidget> {
+    fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
         let transform = &self.transform;
 
@@ -550,18 +552,9 @@ impl Prepared {
 
         painter_rect.extend(shapes);
 
-        if let Some(legend) = &mut self.legend {
-            if ui.add(legend).hovered() {
-                self.show_x = false;
-                self.show_y = false;
-            }
-        }
-
         if let Some(pointer) = response.hover_pos() {
             painter_rect.extend(self.hover(ui, pointer));
         }
-
-        self.legend
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
