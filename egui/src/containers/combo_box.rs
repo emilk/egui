@@ -24,6 +24,7 @@ pub struct ComboBox {
     label: Option<Label>,
     selected_text: String,
     width: Option<f32>,
+    text_style: TextStyle,
 }
 
 impl ComboBox {
@@ -35,6 +36,7 @@ impl ComboBox {
             label: Some(label),
             selected_text: Default::default(),
             width: None,
+            text_style: TextStyle::Button,
         }
     }
 
@@ -45,6 +47,7 @@ impl ComboBox {
             label: Default::default(),
             selected_text: Default::default(),
             width: None,
+            text_style: TextStyle::Button,
         }
     }
 
@@ -61,6 +64,11 @@ impl ComboBox {
         self
     }
 
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
+        self
+    }
+
     /// Show the combo box, with the given ui code for the menu contents.
     pub fn show_ui(self, ui: &mut Ui, menu_contents: impl FnOnce(&mut Ui)) -> Response {
         let Self {
@@ -68,6 +76,7 @@ impl ComboBox {
             label,
             selected_text,
             width,
+            text_style,
         } = self;
 
         let button_id = ui.make_persistent_id(id_source);
@@ -76,7 +85,7 @@ impl ComboBox {
             if let Some(width) = width {
                 ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
             }
-            let mut response = combo_box(ui, button_id, selected_text, menu_contents);
+            let mut response = combo_box(ui, button_id, selected_text, text_style, menu_contents);
             if let Some(label) = label {
                 response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
                 response |= ui.add(label);
@@ -158,7 +167,7 @@ pub fn combo_box_with_label(
     let button_id = ui.make_persistent_id(label.text());
 
     ui.horizontal(|ui| {
-        let mut response = combo_box(ui, button_id, selected, menu_contents);
+        let mut response = combo_box(ui, button_id, selected, TextStyle::Button, menu_contents);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
         response |= ui.add(label);
         response
@@ -171,6 +180,7 @@ fn combo_box(
     ui: &mut Ui,
     button_id: Id,
     selected: impl ToString,
+    text_style: TextStyle,
     menu_contents: impl FnOnce(&mut Ui),
 ) -> Response {
     let popup_id = button_id.with("popup");
@@ -183,7 +193,7 @@ fn combo_box(
 
         let galley = ui
             .fonts()
-            .layout_no_wrap(TextStyle::Button, selected.to_string());
+            .layout_no_wrap(text_style, selected.to_string());
 
         let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
