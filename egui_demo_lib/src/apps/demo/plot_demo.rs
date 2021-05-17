@@ -95,7 +95,19 @@ impl PlotDemo {
             });
         });
 
-        ui.label("Drag to pan, ctrl + scroll to zoom. Double-click to reset view.");
+        ui.label(
+            "Pan by dragging, or with mouse wheel (+ shift = horiz.), or with two-finger swipe.",
+        );
+        if cfg!(target_arch = "wasm32") {
+            ui.label(
+                "Zoom with ctrl + mouse wheel (or ⌘ + wheel on a Mac), or with two-finger pinch.",
+            );
+        } else if cfg!(target_os = "macos") {
+            ui.label("Zoom with ⌘ + mouse wheel, or ⌘ + two-finger swipe.");
+        } else {
+            ui.label("Zoom with ctrl + mouse wheel, or ctrl + two-finger swipe (your experience may vary).");
+        }
+        ui.label("Reset view with double-click.");
     }
 
     fn circle(&self) -> Curve {
