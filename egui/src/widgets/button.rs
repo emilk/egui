@@ -209,6 +209,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
     text_color: Option<Color32>,
+    text_style: TextStyle,
 }
 
 impl<'a> Checkbox<'a> {
@@ -218,11 +219,17 @@ impl<'a> Checkbox<'a> {
             checked,
             text: text.to_string(),
             text_color: None,
+            text_style: TextStyle::Button,
         }
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
         self
     }
 }
@@ -233,6 +240,7 @@ impl<'a> Widget for Checkbox<'a> {
             checked,
             text,
             text_color,
+            text_style,
         } = self;
 
         let spacing = &ui.spacing();
@@ -241,7 +249,6 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
@@ -320,6 +327,7 @@ pub struct RadioButton {
     checked: bool,
     text: String,
     text_color: Option<Color32>,
+    text_style: TextStyle,
 }
 
 impl RadioButton {
@@ -329,11 +337,17 @@ impl RadioButton {
             checked,
             text: text.to_string(),
             text_color: None,
+            text_style: TextStyle::Button,
         }
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = text_style;
         self
     }
 }
@@ -344,6 +358,7 @@ impl Widget for RadioButton {
             checked,
             text,
             text_color,
+            text_style,
         } = self;
 
         let icon_width = ui.spacing().icon_width;
@@ -351,7 +366,6 @@ impl Widget for RadioButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
