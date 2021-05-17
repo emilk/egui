@@ -418,6 +418,22 @@ macro_rules! github_link_file {
 
 // ----------------------------------------------------------------------------
 
+/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
+/// or with the `debug_egui_assert` feature in debug builds.
+#[macro_export]
+macro_rules! egui_assert {
+    ($($arg:tt)*) => {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
+            assert!($($arg)*);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// egui supports around 1216 emojis in total.
 /// Here are some of the most useful:
 /// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷

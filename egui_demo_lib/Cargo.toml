@@ -44,6 +44,11 @@ http = ["image", "epi/http"]
 persistence = ["egui/persistence", "epi/persistence", "serde"]
 syntax_highlighting = ["syntect"]
 
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["egui/extra_debug_asserts"]
+# Always enable additional checks.
+extra_asserts = ["egui/extra_asserts"]
+
 [[bench]]
 name = "benchmark"
 harness = false

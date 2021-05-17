@@ -78,7 +78,7 @@ impl Ui {
 
     /// Create a new `Ui` at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        debug_assert!(!max_rect.any_nan());
+        crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
@@ -723,7 +723,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);

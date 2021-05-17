@@ -133,8 +133,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        debug_assert!(!rect.any_nan());
-        debug_assert!(!child_size.any_nan());
+        crate::egui_assert!(!rect.any_nan());
+        crate::egui_assert!(!child_size.any_nan());
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -146,7 +146,7 @@ impl Placer {
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
-        debug_assert!(
+        crate::egui_assert!(
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
