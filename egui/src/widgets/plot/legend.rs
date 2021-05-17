@@ -46,16 +46,14 @@ impl Default for Legend {
 
 #[derive(Clone)]
 struct LegendEntry {
-    config: Legend,
     color: Option<Color32>,
     checked: bool,
     hovered: bool,
 }
 
 impl LegendEntry {
-    fn new(config: Legend, color: Option<Color32>, checked: bool) -> Self {
+    fn new(color: Option<Color32>, checked: bool) -> Self {
         Self {
-            config,
             color,
             checked,
             hovered: false,
@@ -68,14 +66,15 @@ impl Widget for (&String, &mut LegendEntry) {
         let (
             text,
             LegendEntry {
-                config,
                 color,
                 checked,
                 hovered,
             },
         ) = self;
 
-        let galley = ui.fonts().layout_no_wrap(config.text_style, text.clone());
+        let galley = ui
+            .fonts()
+            .layout_no_wrap(ui.style().body_text_style, text.clone());
 
         let icon_size = galley.size.y;
         let icon_spacing = icon_size / 5.0;
@@ -87,12 +86,12 @@ impl Widget for (&String, &mut LegendEntry) {
         response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
 
         let visuals = ui.style().interact(&response);
+        let flipped = ui.layout().cross_align() == Align::RIGHT;
 
-        let icon_position_x = match config.position {
-            LegendPosition::BottomLeft | LegendPosition::TopLeft => rect.left() + icon_size / 2.0,
-            LegendPosition::BottomRight | LegendPosition::TopRight => {
-                rect.right() - icon_size / 2.0
-            }
+        let icon_position_x = if flipped {
+            rect.right() - icon_size / 2.0
+        } else {
+            rect.left() + icon_size / 2.0
         };
         let icon_position = pos2(icon_position_x, rect.center().y);
         let icon_rect = Rect::from_center_size(icon_position, vec2(icon_size, icon_size));
@@ -116,14 +115,12 @@ impl Widget for (&String, &mut LegendEntry) {
             });
         }
 
-        let text_position_x = match config.position {
-            LegendPosition::BottomLeft | LegendPosition::TopLeft => {
-                rect.left() + icon_size + icon_spacing
-            }
-            LegendPosition::BottomRight | LegendPosition::TopRight => {
-                rect.right() - icon_size - icon_spacing - galley.size.x
-            }
+        let text_position_x = if flipped {
+            rect.right() - icon_size - icon_spacing - galley.size.x
+        } else {
+            rect.left() + icon_size + icon_spacing
         };
+
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size.y);
         painter.galley(text_position, galley, visuals.text_color());
 
@@ -167,7 +164,7 @@ impl LegendWidget {
                     .or_insert_with(|| {
                         let color = curve.get_color();
                         let checked = !hidden_curves.contains(&curve.name);
-                        LegendEntry::new(config, color, checked)
+                        LegendEntry::new(color, checked)
                     });
             });
         (!entries.is_empty()).then(|| Self {
@@ -197,22 +194,33 @@ impl LegendWidget {
 
 impl Widget for &mut LegendWidget {
     fn ui(self, ui: &mut Ui) -> Response {
-        let main_dir = match self.config.position {
+        let LegendWidget {
+            rect,
+            entries,
+            config,
+        } = self;
+
+        let main_dir = match config.position {
             LegendPosition::TopLeft | LegendPosition::TopRight => Direction::TopDown,
             LegendPosition::BottomLeft | LegendPosition::BottomRight => Direction::BottomUp,
         };
-        let cross_align = match self.config.position {
+        let cross_align = match config.position {
             LegendPosition::TopLeft | LegendPosition::BottomLeft => Align::LEFT,
             LegendPosition::TopRight | LegendPosition::BottomRight => Align::RIGHT,
         };
         let layout = Layout::from_main_dir_and_cross_align(main_dir, cross_align);
         let legend_pad = 2.0;
-        let legend_rect = self.rect.shrink(legend_pad);
+        let legend_rect = rect.shrink(legend_pad);
         let mut legend_ui = ui.child_ui(legend_rect, layout);
-        self.entries
-            .iter_mut()
-            .map(|entry| legend_ui.add(entry))
-            .reduce(|r1, r2| r1.union(r2))
-            .unwrap()
+        legend_ui
+            .scope(|ui| {
+                ui.style_mut().body_text_style = config.text_style;
+                entries
+                    .iter_mut()
+                    .map(|entry| ui.add(entry))
+                    .reduce(|r1, r2| r1.union(r2))
+                    .unwrap()
+            })
+            .inner
     }
 }
