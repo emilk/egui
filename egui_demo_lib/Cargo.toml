@@ -41,7 +41,7 @@ criterion = { version = "0.3", default-features = false }
 [features]
 default = []
 http = ["image", "epi/http"]
-persistence = ["epi/persistence", "serde"]
+persistence = ["egui/persistence", "epi/persistence", "serde"]
 syntax_highlighting = ["syntect"]
 
 [[bench]]
