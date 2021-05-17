@@ -1039,10 +1039,16 @@ impl Ui {
 
     /// Show a label which can be selected or not.
     ///
-    /// See also [`SelectableLabel`].
+    /// See also [`SelectableLabel`] and [`selectable_label_with_text_style`](Self::selectable_label_with_text_style).
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl ToString) -> Response {
-        SelectableLabel::new(checked, text).ui(self)
+        self.selectable_label_with_text_style(checked, text, TextStyle::Button)
+    }
+
+    /// Same as [`selectable_label`](Self::selectable_label) but you can set the [`TextStyle`].
+    #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
+    pub fn selectable_label_with_text_style(&mut self, checked: bool, text: impl ToString, text_style: TextStyle) -> Response {
+        SelectableLabel::new(checked, text).text_style(text_style).ui(self)
     }
 
     /// Show selectable text. It is selected if `*current_value == selected_value`.
@@ -1050,14 +1056,25 @@ impl Ui {
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     ///
-    /// See also [`SelectableLabel`].
+    /// See also [`SelectableLabel`] and [`selectable_value_with_text_style`](Self::selectable_value_with_text_style).
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
         text: impl ToString,
     ) -> Response {
-        let mut response = self.selectable_label(*current_value == selected_value, text);
+        self.selectable_value_with_text_style(current_value, selected_value, text, TextStyle::Button)
+    }
+
+    /// Same as [`selectable_value`](Self::selectable_value) but you can set the [`TextStyle`].
+    pub fn selectable_value_with_text_style<Value: PartialEq>(
+        &mut self,
+        current_value: &mut Value,
+        selected_value: Value,
+        text: impl ToString,
+        text_style: TextStyle,
+    ) -> Response {
+        let mut response = self.selectable_label_with_text_style(*current_value == selected_value, text, text_style);
         if response.clicked() {
             *current_value = selected_value;
             response.mark_changed();
