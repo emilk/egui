@@ -220,8 +220,11 @@ impl<'a> Widget for DragValue<'a> {
         let is_slow_speed =
             ui.input().modifiers.shift_only() && ui.memory().is_being_dragged(ui.next_auto_id());
 
-        let value = get(&mut get_set_value);
-        let value = clamp_to_range(value, clamp_range.clone());
+        let old_value = get(&mut get_set_value);
+        let value = clamp_to_range(old_value, clamp_range.clone());
+        if old_value != value {
+            set(&mut get_set_value, value);
+        }
         let aim_rad = ui.input().aim_radius() as f64;
 
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
