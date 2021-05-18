@@ -129,7 +129,7 @@ pub trait TextBuffer:
     ///
     /// # Notes
     /// `ch_range` is a *character range*, not a byte range.
-    fn delete_text_range(&mut self, ch_range: Range<usize>);
+    fn delete_char_range(&mut self, ch_range: Range<usize>);
 }
 
 impl TextBuffer for String {
@@ -143,7 +143,7 @@ impl TextBuffer for String {
         text.chars().count()
     }
 
-    fn delete_text_range(&mut self, ch_range: Range<usize>) {
+    fn delete_char_range(&mut self, ch_range: Range<usize>) {
         assert!(ch_range.start <= ch_range.end);
 
         // Get both byte indices
@@ -806,7 +806,7 @@ fn delete_selected<S: TextBuffer>(text: &mut S, cursorp: &CursorPair) -> CCursor
 }
 
 fn delete_selected_ccursor_range<S: TextBuffer>(text: &mut S, [min, max]: [CCursor; 2]) -> CCursor {
-    text.delete_text_range(min.index..max.index);
+    text.delete_char_range(min.index..max.index);
     CCursor {
         index: min.index,
         prefer_next_row: true,
@@ -1128,7 +1128,7 @@ fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
     };
 
     if let Some(len) = remove_len {
-        text.delete_text_range(line_start.index..(line_start.index + len));
+        text.delete_char_range(line_start.index..(line_start.index + len));
         if *ccursor != line_start {
             *ccursor -= len;
         }
