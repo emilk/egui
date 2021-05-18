@@ -193,7 +193,8 @@ impl CtxRef {
             drag_released: false,
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
-            changed: false, // must be set by the widget itself
+            changed: false,         // must be set by the widget itself
+            has_widget_info: false, // must be set by the widget itself
         };
 
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {

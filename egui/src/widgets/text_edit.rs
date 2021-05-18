@@ -665,7 +665,18 @@ impl<'t> TextEdit<'t> {
 
         ui.memory().id_data.insert(id, state);
 
-        response.widget_info(|| WidgetInfo::text_edit(&*text, &*prev_text));
+        if response.changed {
+            response.widget_info(|| WidgetInfo::text_edit(&*text, &*prev_text));
+        } else if let Some(text_cursor) = text_cursor {
+            response.has_widget_info = true;
+            response.widget_info(|| {
+                WidgetInfo::text_selection_changed(
+                    text_cursor.primary.ccursor.index,
+                    text_cursor.secondary.ccursor.index,
+                    &*text,
+                )
+            });
+        }
         response
     }
 }

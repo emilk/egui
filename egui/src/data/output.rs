@@ -43,6 +43,7 @@ impl Output {
                 OutputEvent::Clicked(widget_info)
                 | OutputEvent::DoubleClicked(widget_info)
                 | OutputEvent::FocusGained(widget_info)
+                | OutputEvent::TextSelectionChanged(widget_info)
                 | OutputEvent::ValueChanged(widget_info) => {
                     return widget_info.description();
                 }
@@ -213,6 +214,8 @@ pub enum OutputEvent {
     DoubleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
+    // Text selection was updated.
+    TextSelectionChanged(WidgetInfo),
     // A widget's value changed.
     ValueChanged(WidgetInfo),
 }
@@ -223,6 +226,7 @@ impl std::fmt::Debug for OutputEvent {
             Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
             Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
+            Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({:?})", wi),
             Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),
         }
     }
@@ -238,11 +242,15 @@ pub struct WidgetInfo {
     /// The contents of some editable text (for `TextEdit` fields).
     pub text_value: Option<String>,
     // The previous text value.
-    prev_text_value: Option<String>,
+    pub prev_text_value: Option<String>,
     /// The current value of checkboxes and radio buttons.
     pub selected: Option<bool>,
     /// The current value of sliders etc.
     pub value: Option<f64>,
+    // Location of primary cursor.
+    pub primary_cursor: Option<usize>,
+    // Location of secondary cursor.
+    pub secondary_cursor: Option<usize>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -254,6 +262,8 @@ impl std::fmt::Debug for WidgetInfo {
             prev_text_value,
             selected,
             value,
+            primary_cursor,
+            secondary_cursor,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
@@ -275,6 +285,12 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(value) = value {
             s.field("value", value);
         }
+        if let Some(primary_cursor) = primary_cursor {
+            s.field("primary_cursor", primary_cursor);
+        }
+        if let Some(secondary_cursor) = secondary_cursor {
+            s.field("secondary_cursor", secondary_cursor);
+        }
 
         s.finish()
     }
@@ -289,6 +305,8 @@ impl WidgetInfo {
             prev_text_value: None,
             selected: None,
             value: None,
+            primary_cursor: None,
+            secondary_cursor: None,
         }
     }
 
@@ -336,6 +354,20 @@ impl WidgetInfo {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn text_selection_changed(
+        primary_cursor: usize,
+        secondary_cursor: usize,
+        text_value: impl ToString,
+    ) -> Self {
+        Self {
+            primary_cursor: Some(primary_cursor),
+            secondary_cursor: Some(secondary_cursor),
+            text_value: Some(text_value.to_string()),
+            ..Self::new(WidgetType::TextEdit)
+        }
+    }
+
     /// This can be used by a text-to-speech system to describe the widget.
     pub fn description(&self) -> String {
         let Self {
@@ -345,6 +377,8 @@ impl WidgetInfo {
             prev_text_value: _,
             selected,
             value,
+            primary_cursor: _,
+            secondary_cursor: _,
         } = self;
 
         // TODO: localization
