@@ -467,7 +467,7 @@ impl Font {
         let mut out_rows = vec![];
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
-            debug_assert!(chr != '\n');
+            crate::epaint_assert!(chr != '\n');
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {
