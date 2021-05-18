@@ -109,8 +109,10 @@ impl CCursorPair {
     }
 }
 
-/// Trait contraining what types [`TextEdit`] may use as
-/// an underlying buffer
+/// Trait constraining what types [`TextEdit`] may use as
+/// an underlying buffer.
+///
+/// Most likely you will use a `String` which implements `TextBuffer`.
 pub trait TextBuffer:
     AsRef<str> + Into<String> + PartialEq + Clone + Default + Send + Sync + 'static + std::fmt::Display
 {
