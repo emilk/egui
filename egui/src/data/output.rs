@@ -237,6 +237,8 @@ impl std::fmt::Debug for OutputEvent {
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
+    // Whether the widget is enabled.
+    pub enabled: bool,
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
     /// The contents of some editable text (for `TextEdit` fields).
@@ -257,6 +259,7 @@ impl std::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             typ,
+            enabled,
             label,
             text_value,
             prev_text_value,
@@ -269,6 +272,7 @@ impl std::fmt::Debug for WidgetInfo {
         let mut s = f.debug_struct("WidgetInfo");
 
         s.field("typ", typ);
+        s.field("enabled", enabled);
 
         if let Some(label) = label {
             s.field("label", label);
@@ -300,6 +304,7 @@ impl WidgetInfo {
     pub fn new(typ: WidgetType) -> Self {
         Self {
             typ,
+            enabled: true,
             label: None,
             text_value: None,
             prev_text_value: None,
@@ -372,6 +377,7 @@ impl WidgetInfo {
     pub fn description(&self) -> String {
         let Self {
             typ,
+            enabled,
             label,
             text_value,
             prev_text_value: _,
@@ -432,6 +438,9 @@ impl WidgetInfo {
             description += &value.to_string();
         }
 
+        if !enabled {
+            description += ": disabled";
+        }
         description.trim().to_owned()
     }
 }
