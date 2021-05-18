@@ -103,7 +103,7 @@ impl PlotDemo {
                 "Zoom with ctrl + mouse wheel (or ⌘ + wheel on a Mac), or with two-finger pinch.",
             );
         } else if cfg!(target_os = "macos") {
-            ui.label("Zoom with ⌘ + mouse wheel, or ⌘ + two-finger swipe.");
+            ui.label("Zoom with <ctrl or ⌘> + <mouse wheel or two-finger swipe>.");
         } else {
             ui.label("Zoom with ctrl + mouse wheel, or ctrl + two-finger swipe (your experience may vary).");
         }
