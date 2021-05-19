@@ -1,4 +1,4 @@
-use crate::{util::undoer::Undoer, *};
+use crate::{output::OutputEvent, util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
 
 #[derive(Clone, Debug, Default)]
@@ -505,7 +505,6 @@ impl<'t> TextEdit<'t> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &mut prev_text, &cursorp);
-
                             insert_text(&mut ccursor, text, &mut prev_text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -664,14 +663,16 @@ impl<'t> TextEdit<'t> {
         if response.changed {
             response.widget_info(|| WidgetInfo::text_edit(&*text, &*prev_text));
         } else if let Some(text_cursor) = text_cursor {
-            response.has_widget_info = true;
-            response.widget_info(|| {
-                WidgetInfo::text_selection_changed(
-                    text_cursor.primary.ccursor.index,
-                    text_cursor.secondary.ccursor.index,
-                    &*text,
-                )
-            });
+            let info = WidgetInfo::text_selection_changed(
+                text_cursor.primary.ccursor.index,
+                text_cursor.secondary.ccursor.index,
+                &*text,
+            );
+            response
+                .ctx
+                .output()
+                .events
+                .push(OutputEvent::TextSelectionChanged(info));
         }
         response
     }
