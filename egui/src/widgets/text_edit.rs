@@ -663,11 +663,9 @@ impl<'t> TextEdit<'t> {
         if response.changed {
             response.widget_info(|| WidgetInfo::text_edit(&*text, &*prev_text));
         } else if let Some(text_cursor) = text_cursor {
-            let info = WidgetInfo::text_selection_changed(
-                text_cursor.primary.ccursor.index,
-                text_cursor.secondary.ccursor.index,
-                &*text,
-            );
+            let char_range =
+                text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
+            let info = WidgetInfo::text_selection_changed(char_range, &*text);
             response
                 .ctx
                 .output()

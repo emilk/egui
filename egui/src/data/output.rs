@@ -249,10 +249,8 @@ pub struct WidgetInfo {
     pub selected: Option<bool>,
     /// The current value of sliders etc.
     pub value: Option<f64>,
-    // Location of primary cursor.
-    pub primary_cursor: Option<usize>,
-    // Location of secondary cursor.
-    pub secondary_cursor: Option<usize>,
+    // Selected range of characters in [`Self::current_text_value`].
+    pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -265,8 +263,7 @@ impl std::fmt::Debug for WidgetInfo {
             prev_text_value,
             selected,
             value,
-            primary_cursor,
-            secondary_cursor,
+            text_selection,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
@@ -289,11 +286,8 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(value) = value {
             s.field("value", value);
         }
-        if let Some(primary_cursor) = primary_cursor {
-            s.field("primary_cursor", primary_cursor);
-        }
-        if let Some(secondary_cursor) = secondary_cursor {
-            s.field("secondary_cursor", secondary_cursor);
+        if let Some(text_selection) = text_selection {
+            s.field("text_selection", text_selection);
         }
 
         s.finish()
@@ -310,8 +304,7 @@ impl WidgetInfo {
             prev_text_value: None,
             selected: None,
             value: None,
-            primary_cursor: None,
-            secondary_cursor: None,
+            text_selection: None,
         }
     }
 
@@ -361,14 +354,12 @@ impl WidgetInfo {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
-        primary_cursor: usize,
-        secondary_cursor: usize,
-        text_value: impl ToString,
+        text_selection: std::ops::RangeInclusive<usize>,
+        current_text_value: impl ToString,
     ) -> Self {
         Self {
-            primary_cursor: Some(primary_cursor),
-            secondary_cursor: Some(secondary_cursor),
-            current_text_value: Some(text_value.to_string()),
+            text_selection: Some(text_selection),
+            current_text_value: Some(current_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -383,8 +374,7 @@ impl WidgetInfo {
             prev_text_value: _,
             selected,
             value,
-            primary_cursor: _,
-            secondary_cursor: _,
+            text_selection: _,
         } = self;
 
         // TODO: localization
