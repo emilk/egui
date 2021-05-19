@@ -344,7 +344,7 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn text_edit(text_value: impl ToString, prev_text_value: impl ToString) -> Self {
+    pub fn text_edit(prev_text_value: impl ToString, text_value: impl ToString) -> Self {
         Self {
             current_text_value: Some(text_value.to_string()),
             prev_text_value: Some(prev_text_value.to_string()),

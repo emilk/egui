@@ -661,7 +661,7 @@ impl<'t> TextEdit<'t> {
         ui.memory().id_data.insert(id, state);
 
         if response.changed {
-            response.widget_info(|| WidgetInfo::text_edit(&*text, &*prev_text));
+            response.widget_info(|| WidgetInfo::text_edit(&*prev_text, &*text));
         } else if let Some(text_cursor) = text_cursor {
             let char_range =
                 text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
