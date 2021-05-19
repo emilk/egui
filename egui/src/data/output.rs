@@ -242,7 +242,7 @@ pub struct WidgetInfo {
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
     /// The contents of some editable text (for `TextEdit` fields).
-    pub text_value: Option<String>,
+    pub current_text_value: Option<String>,
     // The previous text value.
     pub prev_text_value: Option<String>,
     /// The current value of checkboxes and radio buttons.
@@ -261,7 +261,7 @@ impl std::fmt::Debug for WidgetInfo {
             typ,
             enabled,
             label,
-            text_value,
+            current_text_value: text_value,
             prev_text_value,
             selected,
             value,
@@ -306,7 +306,7 @@ impl WidgetInfo {
             typ,
             enabled: true,
             label: None,
-            text_value: None,
+            current_text_value: None,
             prev_text_value: None,
             selected: None,
             value: None,
@@ -353,7 +353,7 @@ impl WidgetInfo {
     #[allow(clippy::needless_pass_by_value)]
     pub fn text_edit(text_value: impl ToString, prev_text_value: impl ToString) -> Self {
         Self {
-            text_value: Some(text_value.to_string()),
+            current_text_value: Some(text_value.to_string()),
             prev_text_value: Some(prev_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
@@ -368,7 +368,7 @@ impl WidgetInfo {
         Self {
             primary_cursor: Some(primary_cursor),
             secondary_cursor: Some(secondary_cursor),
-            text_value: Some(text_value.to_string()),
+            current_text_value: Some(text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -379,7 +379,7 @@ impl WidgetInfo {
             typ,
             enabled,
             label,
-            text_value,
+            current_text_value: text_value,
             prev_text_value: _,
             selected,
             value,
