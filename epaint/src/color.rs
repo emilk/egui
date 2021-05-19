@@ -775,7 +775,7 @@ pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
 #[cfg(feature = "cint")]
 mod impl_cint {
     use super::*;
-    use cint::{ColorInterop, Alpha, PremultipliedAlpha, EncodedSrgb, LinearSrgb, Hsv};
+    use cint::{Alpha, ColorInterop, EncodedSrgb, Hsv, LinearSrgb, PremultipliedAlpha};
 
     // ---- Color32 ----
 
@@ -796,7 +796,7 @@ mod impl_cint {
         fn from(srgba: PremultipliedAlpha<EncodedSrgb<u8>>) -> Self {
             let PremultipliedAlpha {
                 color: EncodedSrgb { r, g, b },
-                alpha: a
+                alpha: a,
             } = srgba;
 
             Color32::from_rgba_premultiplied(r, g, b, a)
@@ -818,7 +818,7 @@ mod impl_cint {
         fn from(srgba: PremultipliedAlpha<EncodedSrgb<f32>>) -> Self {
             let PremultipliedAlpha {
                 color: EncodedSrgb { r, g, b },
-                alpha: a
+                alpha: a,
             } = srgba;
 
             // This is a bit of an abuse of the function name but it does what we want.
@@ -848,7 +848,6 @@ mod impl_cint {
         }
     }
 
-
     impl ColorInterop for Color32 {
         type CintTy = PremultipliedAlpha<EncodedSrgb<u8>>;
     }
@@ -859,7 +858,7 @@ mod impl_cint {
         fn from(srgba: PremultipliedAlpha<LinearSrgb<f32>>) -> Self {
             let PremultipliedAlpha {
                 color: LinearSrgb { r, g, b },
-                alpha: a
+                alpha: a,
             } = srgba;
 
             Rgba([r, g, b, a])
@@ -887,7 +886,7 @@ mod impl_cint {
         fn from(srgba: Alpha<Hsv<f32>>) -> Self {
             let Alpha {
                 color: Hsv { h, s, v },
-                alpha: a
+                alpha: a,
             } = srgba;
 
             Hsva::new(h, s, v, a)
@@ -919,7 +918,7 @@ mod impl_cint {
         fn from(srgba: Alpha<Hsv<f32>>) -> Self {
             let Alpha {
                 color: Hsv { h, s, v },
-                alpha: a
+                alpha: a,
             } = srgba;
 
             Hsva::new(h, s, v, a).into()
@@ -936,5 +935,4 @@ mod impl_cint {
             }
         }
     }
-
 }
