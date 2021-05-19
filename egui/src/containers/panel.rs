@@ -21,6 +21,7 @@ use crate::*;
 pub struct SidePanel {
     id: Id,
     max_width: f32,
+    frame: Option<Frame>,
 }
 
 impl SidePanel {
@@ -30,7 +31,14 @@ impl SidePanel {
         Self {
             id: Id::new(id_source),
             max_width,
+            frame: None,
         }
+    }
+
+    /// Change the background color, margins, etc.
+    pub fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
+        self
     }
 }
 
@@ -40,7 +48,11 @@ impl SidePanel {
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let Self { id, max_width } = self;
+        let Self {
+            id,
+            max_width,
+            frame,
+        } = self;
 
         let mut panel_rect = ctx.available_rect();
         panel_rect.max.x = panel_rect.max.x.at_most(panel_rect.min.x + max_width);
@@ -50,7 +62,7 @@ impl SidePanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::side_top_panel(&ctx.style());
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(&ctx.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
             add_contents(ui)
@@ -81,6 +93,7 @@ impl SidePanel {
 pub struct TopPanel {
     id: Id,
     max_height: Option<f32>,
+    frame: Option<Frame>,
 }
 
 impl TopPanel {
@@ -91,7 +104,14 @@ impl TopPanel {
         Self {
             id: Id::new(id_source),
             max_height: None,
+            frame: None,
         }
+    }
+
+    /// Change the background color, margins, etc.
+    pub fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
+        self
     }
 }
 
@@ -101,7 +121,11 @@ impl TopPanel {
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let Self { id, max_height } = self;
+        let Self {
+            id,
+            max_height,
+            frame,
+        } = self;
         let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
         let mut panel_rect = ctx.available_rect();
@@ -112,7 +136,7 @@ impl TopPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
 
-        let frame = Frame::side_top_panel(&ctx.style());
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(&ctx.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
             add_contents(ui)
