@@ -20,8 +20,14 @@ include = [
 [lib]
 
 [dependencies]
+# Add compatability with https://github.com/kvark/mint
 mint = { version = "0.5.6", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = []
+
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = []
+# Always enable additional checks.
+extra_asserts = []

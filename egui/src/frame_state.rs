@@ -70,7 +70,7 @@ impl FrameState {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
-        debug_assert!(
+        crate::egui_assert!(
             self.available_rect.is_finite(),
             "Called `available_rect()` before `CtxRef::begin_frame()`"
         );
@@ -79,7 +79,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
+        crate::egui_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching left panel. You must not create a panel from within another panel."
         );
@@ -90,7 +90,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
+        crate::egui_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching top panel. You must not create a panel from within another panel."
         );

@@ -212,7 +212,7 @@ impl<'open> Window<'open> {
             if self.scroll.is_none() {
                 self.scroll = Some(ScrollArea::auto_sized());
             }
-            debug_assert!(
+            crate::egui_assert!(
                 self.scroll.is_some(),
                 "Window::scroll called multiple times"
             );

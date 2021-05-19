@@ -442,8 +442,8 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
-        debug_assert_eq!(
-            self.layer_id, other.layer_id,
+        crate::egui_assert!(
+            self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"
         );
         Self {

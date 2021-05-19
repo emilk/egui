@@ -160,7 +160,7 @@ impl Color32 {
 
     /// Multiply with 0.5 to make color half as opaque.
     pub fn linear_multiply(self, factor: f32) -> Color32 {
-        debug_assert!(0.0 <= factor && factor <= 1.0);
+        crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()
@@ -214,22 +214,22 @@ impl Rgba {
     }
 
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        debug_assert!(0.0 <= l && l <= 1.0);
-        debug_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= l && l <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0);
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline(always)]
     pub fn from_black_alpha(a: f32) -> Self {
-        debug_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
-        debug_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0);
         Self([a, a, a, a])
     }
 

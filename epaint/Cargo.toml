@@ -34,15 +34,22 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["multi_threaded", "default_fonts"]
-persistence = ["serde", "emath/serde"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
 
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["emath/extra_debug_asserts"]
+# Always enable additional checks.
+extra_asserts = ["emath/extra_asserts"]
+
+# Add compatability with https://github.com/kvark/mint
+mint = ["emath/mint"]
+
+persistence = ["serde", "emath/serde"]
+
 single_threaded = ["atomic_refcell"]
 
 # Only needed if you plan to use the same fonts from multiple threads.
 multi_threaded = ["parking_lot"]
-
-mint = ["emath/mint"]

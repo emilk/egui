@@ -147,7 +147,7 @@ impl Shape {
 /// ## Operations
 impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
-        debug_assert!(mesh.is_valid());
+        crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
     }
 
