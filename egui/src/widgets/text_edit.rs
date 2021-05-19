@@ -138,7 +138,6 @@ impl CCursorPair {
 #[derive(Debug)]
 pub struct TextEdit<'t> {
     text: &'t mut String,
-    prev_text: String,
     hint_text: String,
     id: Option<Id>,
     id_source: Option<Id>,
@@ -171,7 +170,6 @@ impl<'t> TextEdit<'t> {
     pub fn singleline(text: &'t mut String) -> Self {
         TextEdit {
             text,
-            prev_text: Default::default(),
             hint_text: Default::default(),
             id: None,
             id_source: None,
@@ -191,7 +189,6 @@ impl<'t> TextEdit<'t> {
     pub fn multiline(text: &'t mut String) -> Self {
         TextEdit {
             text,
-            prev_text: Default::default(),
             hint_text: Default::default(),
             id: None,
             id_source: None,
@@ -334,7 +331,6 @@ impl<'t> Widget for TextEdit<'t> {
 impl<'t> TextEdit<'t> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
-            mut prev_text,
             text,
             hint_text,
             id,
@@ -350,6 +346,7 @@ impl<'t> TextEdit<'t> {
             lock_focus,
         } = self;
 
+        let mut prev_text = text.clone();
         let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
         let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
@@ -556,7 +553,6 @@ impl<'t> TextEdit<'t> {
                         if let Some((undo_ccursorp, undo_txt)) =
                             state.undoer.undo(&(cursorp.as_ccursorp(), text.clone()))
                         {
-                            prev_text = text.clone();
                             *text = undo_txt.clone();
                             Some(*undo_ccursorp)
                         } else {
