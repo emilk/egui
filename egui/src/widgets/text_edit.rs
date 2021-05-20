@@ -393,7 +393,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
         } = self;
 
-        let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or_else(|| ui.style().body_text_style);
         let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
 

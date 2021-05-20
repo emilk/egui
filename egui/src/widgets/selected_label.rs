@@ -25,6 +25,7 @@ use crate::*;
 pub struct SelectableLabel {
     selected: bool,
     text: String,
+    text_style: Option<TextStyle>,
 }
 
 impl SelectableLabel {
@@ -33,18 +34,31 @@ impl SelectableLabel {
         Self {
             selected,
             text: text.to_string(),
+            text_style: None,
         }
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
+        self
     }
 }
 
 impl Widget for SelectableLabel {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self { selected, text } = self;
+        let Self {
+            selected,
+            text,
+            text_style,
+        } = self;
+
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or(TextStyle::Button);
 
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
 
-        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)

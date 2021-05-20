@@ -231,13 +231,11 @@
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
 //! ui.scope(|ui|{
-//!     // Change text color on subsequent widgets:
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
-//!
-//!     // Turn off text wrapping on subsequent widgets:
+//!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 //!     ui.style_mut().wrap = Some(false);
 //!
-//!     ui.label("This text will be red, and won't wrap to a new line");
+//!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
 //! ```
 
