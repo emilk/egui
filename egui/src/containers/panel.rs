@@ -23,6 +23,7 @@ use crate::*;
 ///    ui.label("Hello World!");
 /// });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct SidePanel {
     id: Id,
     max_width: f32,
@@ -95,6 +96,7 @@ impl SidePanel {
 ///    ui.label("Hello World!");
 /// });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct TopPanel {
     id: Id,
     max_height: Option<f32>,
@@ -171,6 +173,7 @@ impl TopPanel {
 ///    ui.label("Hello World!");
 /// });
 /// ```
+#[must_use = "You should call .show()"]
 #[derive(Default)]
 pub struct CentralPanel {
     frame: Option<Frame>,

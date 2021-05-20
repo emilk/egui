@@ -134,6 +134,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 /// // Short version:
 /// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
