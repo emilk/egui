@@ -1,6 +1,11 @@
-//! Panels are fixed `Ui` regions.
-//! Together with `Window` and `Area`:s they are
+//! Panels are fixed [`Ui`] regions.
+//!
+//! Together with [`Window`] and [`Area`]:s they are
 //! the only places where you can put you widgets.
+//!
+//! The order in which you add panels matter!
+//!
+//! Add [`CentralPanel`] and [`Window`]:s last.
 
 use crate::*;
 
@@ -8,7 +13,7 @@ use crate::*;
 
 /// A panel that covers the entire left side of the screen.
 ///
-/// `SidePanel`s should be added before adding any [`Window`]s.
+/// `SidePanel`s must be added before adding any [`CentralPanel`] or [`Window`]s.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -68,7 +73,7 @@ impl SidePanel {
 
 /// A panel that covers the entire top side of the screen.
 ///
-/// `TopPanel`s should be added before adding any [`Window`]s.
+/// `TopPanel`s must be added before adding any [`CentralPanel`] or [`Window`]s.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -131,7 +136,7 @@ impl TopPanel {
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///
-/// `CentralPanel` should be added after all other panels.
+/// `CentralPanel` must be added after all other panels.
 /// Any [`Window`]s and [`Area`]s will cover the `CentralPanel`.
 ///
 /// ```
