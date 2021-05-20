@@ -152,7 +152,7 @@ impl Button {
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
-            let text_cursor = ui
+            let text_pos = ui
                 .layout()
                 .align_size_within_rect(galley.size, rect.shrink2(button_padding))
                 .min;
@@ -170,7 +170,7 @@ impl Button {
             let text_color = text_color
                 .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
-            ui.painter().galley(text_cursor, galley, text_color);
+            ui.painter().galley(text_pos, galley, text_color);
         }
 
         response
@@ -277,7 +277,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
-        let text_cursor = pos2(
+        let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
             rect.center().y - 0.5 * galley.size.y,
         );
@@ -304,7 +304,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter().galley(text_cursor, galley, text_color);
+        ui.painter().galley(text_pos, galley, text_color);
         response
     }
 }
@@ -392,7 +392,7 @@ impl Widget for RadioButton {
         response
             .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, &galley.text));
 
-        let text_cursor = pos2(
+        let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
             rect.center().y - 0.5 * galley.size.y,
         );
@@ -424,7 +424,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_cursor, galley, text_color);
+        painter.galley(text_pos, galley, text_color);
         response
     }
 }

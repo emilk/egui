@@ -381,7 +381,7 @@ pub fn handle_output(
         }
     }
 
-    if let Some(egui::Pos2 { x, y }) = output.text_cursor {
+    if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
         display
             .gl_window()
             .window()

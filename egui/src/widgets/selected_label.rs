@@ -73,7 +73,7 @@ impl Widget for SelectableLabel {
             WidgetInfo::selected(WidgetType::SelectableLabel, selected, &galley.text)
         });
 
-        let text_cursor = ui
+        let text_pos = ui
             .layout()
             .align_size_within_rect(galley.size, rect.shrink2(button_padding))
             .min;
@@ -93,7 +93,7 @@ impl Widget for SelectableLabel {
             .visuals
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter().galley(text_cursor, galley, text_color);
+        ui.painter().galley(text_pos, galley, text_color);
         response
     }
 }

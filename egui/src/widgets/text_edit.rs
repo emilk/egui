@@ -678,7 +678,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         if ui.memory().has_focus(id) {
             {
                 let mut output = ui.ctx().output();
-                output.text_cursor = text_cursor.map(|c| {
+                output.text_cursor_pos = text_cursor.map(|c| {
                     galley
                         .pos_from_cursor(&c.primary)
                         .translate(response.rect.min.to_vec2())
