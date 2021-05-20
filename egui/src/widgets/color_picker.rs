@@ -206,14 +206,15 @@ pub enum Alpha {
 
 fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
     let color = color.into();
+    let button_text = &ui.ctx().localization().click_copy.clone();
     ui.horizontal(|ui| {
         let [r, g, b, a] = color.to_array();
+
         ui.label(format!(
             "RGBA (premultiplied): rgba({}, {}, {}, {})",
             r, g, b, a
         ));
-
-        if ui.button("📋").on_hover_text("Click to copy").clicked() {
+        if ui.button("📋").on_hover_text(button_text).clicked() {
             ui.output().copied_text = format!("{}, {}, {}, {}", r, g, b, a);
         }
     });
@@ -222,14 +223,18 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
 fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_text_ui(ui, *hsva);
 
+    let blending_text = &ui.ctx().localization().cp_blending.clone();
+    let additive_text = &ui.ctx().localization().cp_additive.clone();
+    let normal_text = &ui.ctx().localization().cp_normal.clone();
+
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).
         let a = &mut hsva.a;
         let mut additive = *a < 0.0;
         ui.horizontal(|ui| {
-            ui.label("Blending:");
-            ui.radio_value(&mut additive, false, "Normal");
-            ui.radio_value(&mut additive, true, "Additive");
+            ui.label(blending_text);
+            ui.radio_value(&mut additive, false, additive_text);
+            ui.radio_value(&mut additive, true, normal_text);
 
             if additive {
                 *a = -a.abs();
@@ -260,10 +265,12 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         let opaque = HsvaGamma { a: 1.0, ..*hsva };
 
+        let selected_color_text = &ui.ctx().localization().cp_selected_color.clone();
+
         if alpha == Alpha::Opaque {
             hsva.a = 1.0;
             show_color(ui, *hsva, current_color_size);
-            ui.label("Selected color");
+            ui.label(selected_color_text);
             ui.end_row();
         } else {
             let a = &mut hsva.a;
@@ -282,7 +289,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
             }
 
             show_color(ui, *hsva, current_color_size);
-            ui.label("Selected color");
+            ui.label(selected_color_text);
             ui.end_row();
         }
 
@@ -300,19 +307,24 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
             }
             .into()
         });
-        ui.label("Hue");
+
+        let hue_text = &ui.ctx().localization().cp_hue.clone();
+        let saturation_text = &ui.ctx().localization().cp_saturation.clone();
+        let value_text = &ui.ctx().localization().cp_value.clone();
+
+        ui.label(hue_text);
         ui.end_row();
 
         color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into());
-        ui.label("Saturation");
+        ui.label(saturation_text);
         ui.end_row();
 
         color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into());
-        ui.label("Value");
+        ui.label(value_text);
         ui.end_row();
 
         color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
-        ui.label("Value / Saturation");
+        ui.label(format!("{} / {}", value_text, saturation_text));
         ui.end_row();
     });
 }
