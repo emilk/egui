@@ -54,6 +54,8 @@ pub enum Shape {
 
 /// ## Constructors
 impl Shape {
+    /// A line between two points.
+    /// More efficient than calling [`Self::line`].
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -61,6 +63,9 @@ impl Shape {
         }
     }
 
+    /// A line through many points.
+    ///
+    /// Use [`Self::line_segment`] instead if your line only connect two points.
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -70,6 +75,7 @@ impl Shape {
         }
     }
 
+    /// A line that closes back to the start point again.
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,

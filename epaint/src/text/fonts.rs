@@ -315,8 +315,9 @@ impl Fonts {
         self.fonts[&text_style].row_height()
     }
 
-    /// Always returns at least one row.
     /// Will line break at `\n`.
+    ///
+    /// Always returns at least one row.
     pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
         self.layout_multiline(text_style, text, f32::INFINITY)
     }
@@ -338,8 +339,9 @@ impl Fonts {
         )
     }
 
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
     /// Always returns at least one row.
-    /// Will wrap text at the given width.
     pub fn layout_multiline(
         &self,
         text_style: TextStyle,
@@ -356,6 +358,7 @@ impl Fonts {
 
     /// * `first_row_indentation`: extra space before the very first character (in points).
     /// * `max_width_in_points`: wrapping width.
+    ///
     /// Always returns at least one row.
     pub fn layout_multiline_with_indentation_and_max_width(
         &self,
