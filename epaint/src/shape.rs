@@ -29,6 +29,7 @@ pub enum Shape {
         /// If true, connect the first and last of the points together.
         /// This is required if `fill != TRANSPARENT`.
         closed: bool,
+        /// Fill is only supported for convex polygons.
         fill: Color32,
         stroke: Stroke,
     },
@@ -85,13 +86,23 @@ impl Shape {
         }
     }
 
-    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
+    /// A convex polygon with a fill and optional stroke.
+    pub fn convex_polygon(
+        points: Vec<Pos2>,
+        fill: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
         Self::Path {
             points,
             closed: true,
             fill: fill.into(),
             stroke: stroke.into(),
         }
+    }
+
+    #[deprecated = "Renamed convex_polygon"]
+    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
+        Self::convex_polygon(points, fill, stroke)
     }
 
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {

@@ -129,7 +129,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
         let x = lerp(rect.left()..=rect.right(), *value);
         let r = rect.height() / 4.0;
         let picked_color = color_at(*value);
-        ui.painter().add(Shape::polygon(
+        ui.painter().add(Shape::convex_polygon(
             vec![
                 pos2(x - r, rect.bottom()),
                 pos2(x + r, rect.bottom()),
