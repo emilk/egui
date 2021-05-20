@@ -8,7 +8,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ## Unreleased
 
 ### Added ⭐
+* Add support for [cint](https://crates.io/crates/cint) under `cint` feature.
 * Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
+* Add an option to overwrite frame of SidePanel and TopPanel.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 
 ## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
