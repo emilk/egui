@@ -449,6 +449,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut text_cursor = None;
+        let prev_text_cursor = state.cursorp;
         if ui.memory().has_focus(id) && enabled {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -660,9 +661,19 @@ impl<'t> TextEdit<'t> {
 
         ui.memory().id_data.insert(id, state);
 
+        let selection_changed = if let (Some(text_cursor), Some(prev_text_cursor)) =
+            (text_cursor, prev_text_cursor)
+        {
+            text_cursor.primary.ccursor.index != prev_text_cursor.primary.ccursor.index
+                || text_cursor.secondary.ccursor.index != prev_text_cursor.secondary.ccursor.index
+        } else {
+            false
+        };
+
         if response.changed {
             response.widget_info(|| WidgetInfo::text_edit(&*prev_text, &*text));
-        } else if let Some(text_cursor) = text_cursor {
+        } else if selection_changed {
+            let text_cursor = text_cursor.unwrap();
             let char_range =
                 text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(char_range, &*text);
@@ -671,6 +682,8 @@ impl<'t> TextEdit<'t> {
                 .output()
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
+        } else {
+            response.widget_info(|| WidgetInfo::text_edit(&*prev_text, &*text));
         }
         response
     }
