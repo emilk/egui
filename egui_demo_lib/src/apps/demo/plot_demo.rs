@@ -95,17 +95,13 @@ impl PlotDemo {
             });
         });
 
-        ui.label(
-            "Pan by dragging, or with mouse wheel (+ shift = horiz.), or with two-finger swipe.",
-        );
+        ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
         if cfg!(target_arch = "wasm32") {
-            ui.label(
-                "Zoom with ctrl + mouse wheel (or ⌘ + wheel on a Mac), or with two-finger pinch.",
-            );
+            ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
         } else if cfg!(target_os = "macos") {
-            ui.label("Zoom with <ctrl or ⌘> + <mouse wheel or two-finger swipe>.");
+            ui.label("Zoom with ctrl / ⌘ + scroll.");
         } else {
-            ui.label("Zoom with ctrl + mouse wheel, or ctrl + two-finger swipe (your experience may vary).");
+            ui.label("Zoom with ctrl + scroll.");
         }
         ui.label("Reset view with double-click.");
     }
