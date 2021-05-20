@@ -345,9 +345,16 @@ impl WidgetInfo {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text_edit(prev_text_value: impl ToString, text_value: impl ToString) -> Self {
+        let text_value = text_value.to_string();
+        let prev_text_value = prev_text_value.to_string();
+        let prev_text_value = if text_value == prev_text_value {
+            None
+        } else {
+            Some(prev_text_value)
+        };
         Self {
             current_text_value: Some(text_value.to_string()),
-            prev_text_value: Some(prev_text_value.to_string()),
+            prev_text_value,
             ..Self::new(WidgetType::TextEdit)
         }
     }
