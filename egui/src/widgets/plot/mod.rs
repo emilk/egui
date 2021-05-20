@@ -7,7 +7,7 @@ mod transform;
 use std::collections::{BTreeMap, HashSet};
 
 pub use items::{Curve, Value};
-use items::{HLine, VLine};
+pub use items::{HLine, VLine};
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;
