@@ -1053,7 +1053,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let delta = -scroll_multiplier
                 * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
 
-            if event.ctrl_key() {
+            // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
+            // This if-statement is equivalent to how `Modifiers.command` is determined in
+            // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
+            if event.ctrl_key() || event.meta_key() {
                 runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
             } else {
                 runner_lock.input.raw.scroll_delta += delta;
