@@ -116,7 +116,7 @@ impl epi::App for WrapApp {
         self.backend_panel.update(ctx, frame);
 
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
-            egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
+            egui::SidePanel::left("backend_panel").show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
             });
         }
@@ -256,7 +256,10 @@ impl BackendPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
-        ui.heading("💻 Backend");
+        ui.vertical_centered(|ui| {
+            ui.heading("💻 Backend");
+        });
+        ui.separator();
 
         self.run_mode_ui(ui);
 
@@ -347,6 +350,7 @@ impl BackendPanel {
             ui.add(
                 egui::Slider::new(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
+                    .clamp_to_range(true)
                     .text("Scale"),
             )
             .on_hover_text("Physical pixels per point.");

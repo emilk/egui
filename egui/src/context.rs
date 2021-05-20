@@ -291,8 +291,14 @@ impl CtxRef {
         response
     }
 
+    /// Get a full-screen painter for a new or existing layer
+    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
+        Painter::new(self.clone(), layer_id, self.input.screen_rect())
+    }
+
+    /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
-        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
+        Self::layer_painter(&self, LayerId::debug())
     }
 }
 
