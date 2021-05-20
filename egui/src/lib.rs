@@ -344,7 +344,7 @@ pub mod widgets;
 pub use epaint;
 pub use epaint::emath;
 
-pub mod test;
+pub mod localization;
 // Can't add deprecation notice due to https://github.com/rust-lang/rust/issues/30827
 pub use epaint as paint; // historical reasons
 

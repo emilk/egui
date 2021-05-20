@@ -274,21 +274,20 @@ impl<'a> Widget for DragValue<'a> {
                 .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
 
             let response = ui.add(button);
-            let test_value = ui.ctx().test().value;
+            let instruction = &ui.ctx().localization().slider_tooltip;
             let response = response
                 .on_hover_cursor(CursorIcon::ResizeHorizontal)
                 .on_hover_text(format!(
-                    "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
+                    "{}{}{}\n{}",
                     prefix,
-                    //value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
-                    test_value as f32,
-                    suffix
+                    value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
+                    suffix,
+                    instruction
                 ));
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
-                ui.ctx().set_new_test();
             } else if response.dragged() {
                 ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
 

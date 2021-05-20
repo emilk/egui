@@ -320,7 +320,7 @@ pub struct Context {
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
-    test: Arc<Mutex<Test>>,
+    localization: Arc<Mutex<Localization>>,
 
     input: InputState,
 
@@ -337,7 +337,7 @@ pub struct Context {
     repaint_requests: AtomicU32,
 }
 
-use crate::test::Test;
+use crate::localization::{Language, Localization};
 
 impl Clone for Context {
     fn clone(&self) -> Self {
@@ -351,20 +351,19 @@ impl Clone for Context {
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
-            test: self.test.clone(),
+            localization: self.localization.clone(),
         }
     }
 }
 
 impl Context {
-    pub fn set_new_test(&self) {
-        let mut new = Test::default();
-        new.value = self.test.lock().value + 10;
-        self.memory().new_test = Some(new);
+    pub fn set_localization(&self, lang: Language) {
+        let new_localization = Localization::get_localization(lang);
+        self.memory().new_localization = Some(new_localization);
     }
 
-    pub fn test(&self) -> MutexGuard<'_, Test> {
-        self.test.lock()
+    pub fn localization(&self) -> MutexGuard<'_, Localization> {
+        self.localization.lock()
     }
 
     #[allow(clippy::new_ret_no_self)]
@@ -567,9 +566,12 @@ impl Context {
             input.pixels_per_point = new_pixels_per_point;
         }
 
-        if self.memory().new_test.is_some() {
-            let new_test = Arc::new(self.memory().new_test.take().unwrap_or_default());
-            self.test.lock().copy_test(&new_test);
+        if self.memory().new_localization.is_some() {
+            let new_localization =
+                Arc::new(self.memory().new_localization.take().unwrap_or_default());
+            self.localization
+                .lock()
+                .load_new_localization(&new_localization);
         }
 
         self.input = input.begin_frame(new_raw_input);

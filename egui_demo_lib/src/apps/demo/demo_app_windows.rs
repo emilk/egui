@@ -1,5 +1,5 @@
 use super::Demo;
-use egui::{CtxRef, ScrollArea, Ui, Window};
+use egui::{localization::Language, CtxRef, ScrollArea, Ui, Window};
 use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
@@ -140,6 +140,7 @@ pub struct DemoWindows {
     demos: Demos,
     tests: Tests,
     egui_windows: EguiWindows,
+    lang: Language,
 }
 
 impl DemoWindows {
@@ -150,6 +151,7 @@ impl DemoWindows {
             demos,
             tests,
             egui_windows,
+            lang,
         } = self;
 
         egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
@@ -175,6 +177,22 @@ impl DemoWindows {
                         "https://github.com/emilk/egui",
                     );
                 });
+
+                let previous_lang = lang.clone();
+                let mut lang_cb = egui::ComboBox::from_label("Language")
+                    .selected_text(format!("{:?}", lang))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(lang, Language::English, "English");
+                        ui.selectable_value(lang, Language::BahasaMalaysia, "BahasaMalaysia");
+                    });
+
+                if previous_lang != lang.clone() {
+                    lang_cb.mark_changed();
+                }
+
+                if lang_cb.changed() {
+                    ctx.set_localization(lang.clone());
+                }
 
                 ui.separator();
                 demos.checkboxes(ui);
@@ -217,6 +235,7 @@ impl DemoWindows {
             demos,
             tests,
             egui_windows,
+            ..
         } = self;
 
         demos.windows(ctx);
