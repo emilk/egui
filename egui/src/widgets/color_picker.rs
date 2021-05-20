@@ -19,6 +19,9 @@ const N: u32 = 6 * 6;
 
 fn background_checkers(painter: &Painter, rect: Rect) {
     let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
+    if !rect.is_positive() {
+        return;
+    }
 
     let mut top_color = Color32::from_gray(128);
     let mut bottom_color = Color32::from_gray(32);
