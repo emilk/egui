@@ -60,7 +60,7 @@ impl State {
 #[derive(Clone, Copy)]
 pub enum GuiColor {
     Single(Rgba),
-    Pair { light: Rgba, dark: Rgba },
+    LightDark { light: Rgba, dark: Rgba },
 }
 
 impl From<Rgba> for GuiColor {
@@ -76,39 +76,32 @@ impl GuiColor {
     }
 
     /// Create a light/dark scheme pair
-    pub fn pair(light: Rgba, dark: Rgba) -> Self {
-        Self::Pair { light, dark }
+    pub fn light_dark(light: Rgba, dark: Rgba) -> Self {
+        Self::LightDark { light, dark }
+    }
+
+    /// Select a color appropriate to the referenced Style.
+    pub fn pick(&self, style: &Style) -> Rgba {
+        match &self {
+            Self::Single(color) => *color,
+            Self::LightDark { light, dark } => match style.visuals.dark_mode {
+                true => *dark,
+                false => *light,
+            },
+        }
     }
 }
 
-type SingleArgumentPredicate = fn(usize) -> bool;
-type DoubleArgumentPredicate = fn(usize, usize) -> bool;
+/// Provided either a row or column number, return a color to paint for the background.
+/// Returning None means painting is skipped.
+pub type ColorPickerFn = fn(usize) -> Option<GuiColor>;
 
-/// A predicate that takes one int argument.
-pub(crate) struct SinglePredicate {
-    pub color: GuiColor,
-    pub predicate: SingleArgumentPredicate,
-}
-
-/// A predicate that takes two int arguments
-pub(crate) struct DoublePredicate {
-    pub color: GuiColor,
-    pub predicate: DoubleArgumentPredicate,
-}
-
-/// Describe conditional formattings for a grid.
-/// All predicates are evaluated for each row/col/cell, and colors will be painted on top of each other.
-/// The evaluation order is: row, column, cell, list
+/// Describe conditional colors for a grid.
+/// All predicates are evaluated for each row/col, and colors will be painted on top of each other.
 #[derive(Default)]
 pub(crate) struct ColorSpec {
-    /// If the (row, col) exists, the corresponding color is applied
-    pub list: HashMap<(usize, usize), GuiColor>,
-    /// The predicate is passed the row number.
-    pub by_row: Vec<SinglePredicate>,
-    /// The predicate is passed the column number.
-    pub by_column: Vec<SinglePredicate>,
-    /// The predicate is passed the row and column numbers.
-    pub by_cell: Vec<DoublePredicate>,
+    pub row_pickers: Vec<ColorPickerFn>,
+    pub col_pickers: Vec<ColorPickerFn>,
 }
 
 // ----------------------------------------------------------------------------
@@ -263,7 +256,7 @@ impl GridLayout {
     pub(crate) fn paint_row(&self, min: Pos2, color: GuiColor, painter: &Painter) {
         let color = match color {
             GuiColor::Single(color) => color,
-            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
+            GuiColor::LightDark { light, dark } => match self.style.visuals.dark_mode {
                 true => dark,
                 false => light,
             },
@@ -285,7 +278,7 @@ impl GridLayout {
 
         let color = match color {
             GuiColor::Single(color) => color,
-            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
+            GuiColor::LightDark { light, dark } => match self.style.visuals.dark_mode {
                 true => dark,
                 false => light,
             },
@@ -317,27 +310,19 @@ impl GridLayout {
     }
 
     /// Paint a cell. Note that we can only paint for the current row.
-    pub(crate) fn paint_cell(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
-        let col_f = col as f32;
-
-        let color = match color {
-            GuiColor::Single(color) => color,
-            GuiColor::Pair { light, dark } => match self.style.visuals.dark_mode {
-                true => dark,
-                false => light,
-            },
-        };
+    pub(crate) fn paint_cell(&self, column: usize, min: Pos2, color: GuiColor, painter: &Painter) {
+        let color = color.pick(&self.style);
 
         // Paint a column:
         // Offset from the cursor to paint the col at the right spot.
         let min_offset = min
             + Vec2::new(
                 // Sum up all the previous widths and add the padding
-                self.prev_state.col_widths.iter().take(col).sum::<f32>()
-                    + (self.spacing.x + 1.0) * (col_f - 1.0),
+                self.prev_state.col_widths.iter().take(column).sum::<f32>()
+                    + (self.spacing.x + 1.0) * (column as f32 - 1.0),
                 0.0,
             );
-        let size = Vec2::new(self.prev_col_width(col), self.prev_row_height(self.row));
+        let size = Vec2::new(self.prev_col_width(column), self.prev_row_height(self.row));
         let size = size
             + Vec2::new(
                 // Add padding
@@ -352,32 +337,21 @@ impl GridLayout {
 
     /// Paint the background for the next row & columns.
     pub(crate) fn do_paint(&mut self, min: Pos2, painter: &Painter) {
-        for p in &self.color_spec.by_row {
-            if (p.predicate)(self.row) {
-                self.paint_row(min, p.color, painter);
+        for p in &self.color_spec.row_pickers {
+            if let Some(color) = p(self.row) {
+                self.paint_row(min, color, painter)
             }
         }
         // Only paint columns when we're on the first row.
+        // They are painted for the entire grid.
         if self.row == 0 {
-            for p in &self.color_spec.by_column {
+            for p in &self.color_spec.col_pickers {
                 // Iterate over columns
                 for col in 0..self.prev_state.dimensions().y {
-                    if (p.predicate)(col) {
-                        self.paint_column(col, min, p.color, painter);
+                    if let Some(color) = p(col) {
+                        self.paint_column(col, min, color, painter);
                     }
                 }
-            }
-        }
-
-        // Finally, do cells
-        for col in 0..self.prev_state.dimensions().y {
-            for p in &self.color_spec.by_cell {
-                if (p.predicate)(self.row, col) {
-                    self.paint_cell(col, min, p.color, painter);
-                }
-            }
-            if let Some(color) = self.color_spec.list.get(&(self.row, col)) {
-                self.paint_cell(col, min, *color, painter);
             }
         }
     }
@@ -457,40 +431,27 @@ impl Grid {
         }
     }
 
-    /// Add a new colorspec for a column
-    pub fn with_column_spec<T: Into<GuiColor>>(
-        mut self,
-        color: T,
-        predicate: SingleArgumentPredicate,
-    ) -> Self {
-        self.color_spec.by_column.push(SinglePredicate {
-            color: color.into(),
-            predicate,
-        });
+    /// Replace the color picker for columns
+    pub fn with_column_color(mut self, predicate: ColorPickerFn) -> Self {
+        self.color_spec.col_pickers = vec![predicate];
         self
     }
 
-    pub fn with_row_spec<T: Into<GuiColor>>(
-        mut self,
-        color: T,
-        predicate: SingleArgumentPredicate,
-    ) -> Self {
-        self.color_spec.by_row.push(SinglePredicate {
-            color: color.into(),
-            predicate,
-        });
+    /// Add a ColorPickerFn to the color spec without overwriting existing column colors.
+    pub fn add_column_color(mut self, predicate: ColorPickerFn) -> Self {
+        self.color_spec.col_pickers.push(predicate);
         self
     }
 
-    pub fn with_cell_spec<T: Into<GuiColor>>(
-        mut self,
-        color: T,
-        predicate: DoubleArgumentPredicate,
-    ) -> Self {
-        self.color_spec.by_cell.push(DoublePredicate {
-            color: color.into(),
-            predicate,
-        });
+    /// Replace the color picker for rows
+    pub fn with_row_color(mut self, predicate: ColorPickerFn) -> Self {
+        self.color_spec.row_pickers = vec![predicate];
+        self
+    }
+
+    /// Add a ColorPickerFn to the color spec without overwriting existing row colors.
+    pub fn add_row_color(mut self, predicate: ColorPickerFn) -> Self {
+        self.color_spec.row_pickers.push(predicate);
         self
     }
 
@@ -568,22 +529,28 @@ impl Grid {
 
             // Set convenience color specs
             if striped {
-                grid.color_spec.by_row.push(SinglePredicate {
-                    color: GuiColor::pair(
-                        Rgba::from_black_alpha(0.075),
-                        Rgba::from_white_alpha(0.0075),
-                    ),
-                    predicate: |row| row % 2 == 0,
+                grid.color_spec.row_pickers.push(|row| {
+                    if row % 2 == 0 {
+                        Some(GuiColor::light_dark(
+                            Rgba::from_black_alpha(0.075),
+                            Rgba::from_white_alpha(0.0075),
+                        ))
+                    } else {
+                        None
+                    }
                 });
             }
 
             if header_row {
-                grid.color_spec.by_row.push(SinglePredicate {
-                    color: GuiColor::pair(
-                        Rgba::from_black_alpha(0.75),
-                        Rgba::from_white_alpha(0.075),
-                    ),
-                    predicate: |row| row == 0,
+                grid.color_spec.row_pickers.push(|row| {
+                    if row == 0 {
+                        Some(GuiColor::light_dark(
+                            Rgba::from_black_alpha(0.75),
+                            Rgba::from_white_alpha(0.075),
+                        ))
+                    } else {
+                        None
+                    }
                 });
             }
 
