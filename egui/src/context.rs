@@ -320,6 +320,7 @@ pub struct Context {
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
+    test: Arc<Mutex<Test>>,
 
     input: InputState,
 
@@ -336,6 +337,8 @@ pub struct Context {
     repaint_requests: AtomicU32,
 }
 
+use crate::test::Test;
+
 impl Clone for Context {
     fn clone(&self) -> Self {
         Context {
@@ -348,11 +351,22 @@ impl Clone for Context {
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
+            test: self.test.clone(),
         }
     }
 }
 
 impl Context {
+    pub fn set_new_test(&self) {
+        let mut new = Test::default();
+        new.value = self.test.lock().value + 10;
+        self.memory().new_test = Some(new);
+    }
+
+    pub fn test(&self) -> MutexGuard<'_, Test> {
+        self.test.lock()
+    }
+
     #[allow(clippy::new_ret_no_self)]
     #[deprecated = "Use CtxRef::default() instead"]
     pub fn new() -> CtxRef {
@@ -553,9 +567,13 @@ impl Context {
             input.pixels_per_point = new_pixels_per_point;
         }
 
+        if self.memory().new_test.is_some() {
+            let new_test = Arc::new(self.memory().new_test.take().unwrap_or_default());
+            self.test.lock().copy_test(&new_test);
+        }
+
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
-
         {
             // Load new fonts if required:
             let new_font_definitions = self.memory().new_font_definitions.take();
