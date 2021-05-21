@@ -140,7 +140,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color.a() == 0 {
+        if hline.stroke.color != Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
         self.hlines.push(hline);
@@ -151,7 +151,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color.a() == 0 {
+        if vline.stroke.color != Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.vlines.push(vline);

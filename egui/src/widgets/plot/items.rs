@@ -517,10 +517,12 @@ impl Curve {
 
     /// Return the color by which the curve can be identified.
     pub(crate) fn get_color(&self) -> Option<Color32> {
-        self.color.filter(|color| color.a() != 0).or_else(|| {
-            self.marker
-                .map(|marker| marker.color)
-                .filter(|color| *color != Color32::TRANSPARENT)
-        })
+        self.color
+            .filter(|color| color != &Color32::TRANSPARENT)
+            .or_else(|| {
+                self.marker
+                    .map(|marker| marker.color)
+                    .filter(|color| *color != Color32::TRANSPARENT)
+            })
     }
 }
