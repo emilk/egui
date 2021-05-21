@@ -7,7 +7,7 @@ mod transform;
 use std::collections::{BTreeMap, HashSet};
 
 pub use items::{Curve, Marker, Value};
-use items::{HLine, VLine};
+pub use items::{HLine, VLine};
 use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
 

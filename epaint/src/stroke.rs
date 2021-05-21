@@ -1,6 +1,8 @@
 use super::*;
 
 /// Describes the width and color of a line.
+///
+/// The default stroke is the same as [`Stroke::none`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
@@ -9,6 +11,7 @@ pub struct Stroke {
 }
 
 impl Stroke {
+    /// Same as [`Stroke::default`].
     pub fn none() -> Self {
         Self::new(0.0, Color32::TRANSPARENT)
     }

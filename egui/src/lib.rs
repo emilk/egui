@@ -231,13 +231,11 @@
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
 //! ui.scope(|ui|{
-//!     // Change text color on subsequent widgets:
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
-//!
-//!     // Turn off text wrapping on subsequent widgets:
+//!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 //!     ui.style_mut().wrap = Some(false);
 //!
-//!     ui.label("This text will be red, and won't wrap to a new line");
+//!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
 //! ```
 
@@ -414,6 +412,22 @@ macro_rules! github_link_file {
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::new(url).text($label)
     }};
+}
+
+// ----------------------------------------------------------------------------
+
+/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
+/// or with the `debug_egui_assert` feature in debug builds.
+#[macro_export]
+macro_rules! egui_assert {
+    ($($arg:tt)*) => {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
+            assert!($($arg)*);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

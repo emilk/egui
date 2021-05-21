@@ -299,7 +299,7 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
-        text_cursor: cursor,
+        text_cursor_pos,
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -315,9 +315,9 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
 
-    if &runner.text_cursor != cursor {
-        move_text_cursor(cursor, runner.canvas_id());
-        runner.text_cursor = *cursor;
+    if &runner.last_text_cursor_pos != text_cursor_pos {
+        move_text_cursor(text_cursor_pos, runner.canvas_id());
+        runner.last_text_cursor_pos = *text_cursor_pos;
     }
 }
 
@@ -1053,7 +1053,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             let delta = -scroll_multiplier
                 * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
 
-            if event.ctrl_key() {
+            // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
+            // This if-statement is equivalent to how `Modifiers.command` is determined in
+            // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
+            if event.ctrl_key() || event.meta_key() {
                 runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
             } else {
                 runner_lock.input.raw.scroll_delta += delta;
@@ -1116,12 +1119,13 @@ fn is_mobile() -> Option<bool> {
     Some(is_mobile)
 }
 
-// Move angnt to text cursor's position, on desktop/laptop, candidate window moves following text elemt(agent),
+// Move text agent to text cursor's position, on desktop/laptop,
+// candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
 fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpreditable scroll.
+    // Note: movint agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
             let canvas = canvas_element(canvas_id)?;

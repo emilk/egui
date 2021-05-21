@@ -1,3 +1,5 @@
+<!-- Please make sure a similar issue does not already exist! -->
+
 ---
 name: Other
 about: For issues that are neither bugs or feature requests
