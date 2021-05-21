@@ -557,6 +557,9 @@ impl Context {
             input.pixels_per_point = new_pixels_per_point;
         }
 
+        let lang = self.memory().new_language.take().unwrap_or_default();
+        self.set_localization(lang);
+
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
         {
@@ -935,8 +938,8 @@ impl Context {
 /// ## Localization
 impl Context {
     pub fn set_localization(&self, lang: Language) {
-        self.localization().set_localization(&lang);
-        self.memory().current_language = lang;
+        self.localization().set_localization(lang.clone());
+        self.memory().new_language = Some(lang.clone());
     }
 
     pub fn localization(&self) -> MutexGuard<'_, Localization> {
@@ -944,6 +947,7 @@ impl Context {
     }
 
     pub fn lang(&self) -> Language {
-        self.memory().current_language.clone()
+        let current_lang = self.memory().new_language.clone().unwrap_or_default();
+        current_lang
     }
 }

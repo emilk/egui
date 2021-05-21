@@ -56,8 +56,8 @@ pub struct Memory {
     /// new fonts that will be applied at the start of the next frame
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    // language applied at the start of each program run
-    pub(crate) current_language: Language,
+    /// new language that will be applied at the start of the next frame
+    pub(crate) new_language: Option<Language>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,

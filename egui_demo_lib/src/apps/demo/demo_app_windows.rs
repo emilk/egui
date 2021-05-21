@@ -179,6 +179,7 @@ impl DemoWindows {
                 });
 
                 let lang_text = ctx.localization().lang_text;
+                let previous_lang = lang.clone();
 
                 egui::ComboBox::from_label(lang_text)
                     .selected_text(format!("{:?}", lang))
@@ -187,10 +188,10 @@ impl DemoWindows {
                         ui.selectable_value(lang, Language::BahasaMalaysia, "BahasaMalaysia");
                     });
 
-                let current_lang = &mut ctx.localization().lang();
+                let current_lang = lang.clone();
 
-                if lang != current_lang {
-                    ctx.set_localization(lang.clone());
+                if previous_lang != current_lang {
+                    ctx.set_localization(current_lang);
                 }
 
                 ui.separator();

@@ -50,7 +50,7 @@ impl Default for Language {
 }
 
 impl Localization {
-    pub fn set_localization(&mut self, lang: &Language) {
+    pub fn set_localization(&mut self, lang: Language) {
         *self = match lang {
             Language::English => Localization::default(),
             Language::BahasaMalaysia => Localization::malay(),
