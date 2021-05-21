@@ -70,7 +70,7 @@ impl Localization {
             lang: "Bahasa Malaysia",
             slider_tooltip: "Tarik untuk ubah atau klik untuk masukkan jumlah.\nTekan 'Shift' sambil tarik untuk pergerakan lebih terkawal.",
             click_copy: "Klik untuk salin",
-            cp_edit: "Klick untuk ubah warna",
+            cp_edit: "Klik untuk ubah warna",
             cp_blending: "Campuran",
             cp_additive: "Tambahan",
             cp_normal: "Biasa",
