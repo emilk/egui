@@ -274,7 +274,7 @@ impl<'a> Widget for DragValue<'a> {
                 .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
 
             let response = ui.add(button);
-            let instruction = &ui.ctx().localization().slider_tooltip;
+            let slider_tooltip_text = &ui.ctx().localization().slider_tooltip;
             let response = response
                 .on_hover_cursor(CursorIcon::ResizeHorizontal)
                 .on_hover_text(format!(
@@ -282,7 +282,7 @@ impl<'a> Widget for DragValue<'a> {
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                     suffix,
-                    instruction
+                    slider_tooltip_text
                 ));
 
             if response.clicked() {
