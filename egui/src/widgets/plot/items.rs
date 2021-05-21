@@ -214,7 +214,7 @@ impl Marker {
         self
     }
 
-    pub(crate) fn get_shapes(&self, position: &Pos2) -> Vec<Shape> {
+    pub(crate) fn get_shapes(&self, position: &Pos2, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3f32.sqrt();
         let frac_sqrt_3_2 = 3f32.sqrt() / 2.0;
         let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
@@ -227,17 +227,12 @@ impl Marker {
         } = *self;
 
         if color == Color32::TRANSPARENT {
-            return Vec::new();
+            return;
         }
 
         let stroke_size = radius / 5.0;
 
-        let tf = |offset: Vec<Vec2>| -> Vec<Pos2> {
-            offset
-                .into_iter()
-                .map(|offset| *position + radius * offset)
-                .collect()
-        };
+        let tf = |dx: f32, dy: f32| -> Pos2 { *position + radius * vec2(dx, dy) };
 
         let default_stroke = Stroke::new(stroke_size, color);
         let stroke = (!filled).then(|| default_stroke).unwrap_or_default();
@@ -245,130 +240,105 @@ impl Marker {
 
         match shape {
             MarkerShape::Circle => {
-                vec![Shape::Circle {
+                shapes.push(Shape::Circle {
                     center: *position,
                     radius,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Diamond => {
-                let offsets = vec![
-                    vec2(1.0, 0.0),
-                    vec2(0.0, -1.0),
-                    vec2(-1.0, 0.0),
-                    vec2(0.0, 1.0),
-                ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                let points = vec![tf(1.0, 0.0), tf(0.0, -1.0), tf(-1.0, 0.0), tf(0.0, 1.0)];
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Square => {
-                let offsets = vec![
-                    vec2(frac_1_sqrt_2, frac_1_sqrt_2),
-                    vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
-                    vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
-                    vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
+                let points = vec![
+                    tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                    tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                    tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                    tf(-frac_1_sqrt_2, frac_1_sqrt_2),
                 ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Cross => {
-                let diagonal1 = tf(vec![
-                    vec2(-frac_1_sqrt_2, -frac_1_sqrt_2),
-                    vec2(frac_1_sqrt_2, frac_1_sqrt_2),
-                ]);
-                let diagonal2 = tf(vec![
-                    vec2(frac_1_sqrt_2, -frac_1_sqrt_2),
-                    vec2(-frac_1_sqrt_2, frac_1_sqrt_2),
-                ]);
-                vec![
-                    Shape::line(diagonal1, default_stroke),
-                    Shape::line(diagonal2, default_stroke),
-                ]
+                let diagonal1 = [
+                    tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                    tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                ];
+                let diagonal2 = [
+                    tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                    tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                ];
+                shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                shapes.push(Shape::line_segment(diagonal2, default_stroke));
             }
             MarkerShape::Plus => {
-                let horizontal = tf(vec![vec2(-1.0, 0.0), vec2(1.0, 0.0)]);
-                let vertical = tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]);
-                vec![
-                    Shape::line(horizontal, default_stroke),
-                    Shape::line(vertical, default_stroke),
-                ]
+                let horizontal = [tf(-1.0, 0.0), tf(1.0, 0.0)];
+                let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                shapes.push(Shape::line_segment(horizontal, default_stroke));
+                shapes.push(Shape::line_segment(vertical, default_stroke));
             }
             MarkerShape::Up => {
-                let offsets = vec![
-                    vec2(0.0, -1.0),
-                    vec2(-0.5 * sqrt_3, 0.5),
-                    vec2(0.5 * sqrt_3, 0.5),
-                ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                let points = vec![tf(0.0, -1.0), tf(-0.5 * sqrt_3, 0.5), tf(0.5 * sqrt_3, 0.5)];
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Down => {
-                let offsets = vec![
-                    vec2(0.0, 1.0),
-                    vec2(-0.5 * sqrt_3, -0.5),
-                    vec2(0.5 * sqrt_3, -0.5),
+                let points = vec![
+                    tf(0.0, 1.0),
+                    tf(-0.5 * sqrt_3, -0.5),
+                    tf(0.5 * sqrt_3, -0.5),
                 ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Left => {
-                let offsets = vec![
-                    vec2(-1.0, 0.0),
-                    vec2(0.5, -0.5 * sqrt_3),
-                    vec2(0.5, 0.5 * sqrt_3),
-                ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                let points = vec![tf(-1.0, 0.0), tf(0.5, -0.5 * sqrt_3), tf(0.5, 0.5 * sqrt_3)];
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Right => {
-                let offsets = vec![
-                    vec2(1.0, 0.0),
-                    vec2(-0.5, -0.5 * sqrt_3),
-                    vec2(-0.5, 0.5 * sqrt_3),
+                let points = vec![
+                    tf(1.0, 0.0),
+                    tf(-0.5, -0.5 * sqrt_3),
+                    tf(-0.5, 0.5 * sqrt_3),
                 ];
-                let points = tf(offsets);
-                vec![Shape::Path {
+                shapes.push(Shape::Path {
                     points,
                     closed: true,
                     fill,
                     stroke,
-                }]
+                });
             }
             MarkerShape::Asterisk => {
-                let vertical = tf(vec![vec2(0.0, -1.0), vec2(0.0, 1.0)]);
-                let diagonal1 = tf(vec![vec2(-frac_sqrt_3_2, 0.5), vec2(frac_sqrt_3_2, -0.5)]);
-                let diagonal2 = tf(vec![vec2(-frac_sqrt_3_2, -0.5), vec2(frac_sqrt_3_2, 0.5)]);
-                vec![
-                    Shape::line(vertical, default_stroke),
-                    Shape::line(diagonal1, default_stroke),
-                    Shape::line(diagonal2, default_stroke),
-                ]
+                let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                let diagonal1 = [tf(-frac_sqrt_3_2, 0.5), tf(frac_sqrt_3_2, -0.5)];
+                let diagonal2 = [tf(-frac_sqrt_3_2, -0.5), tf(frac_sqrt_3_2, 0.5)];
+                shapes.push(Shape::line_segment(vertical, default_stroke));
+                shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                shapes.push(Shape::line_segment(diagonal2, default_stroke));
             }
         }
     }

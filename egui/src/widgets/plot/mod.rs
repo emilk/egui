@@ -553,10 +553,10 @@ impl Prepared {
                 .collect();
 
             let marker_shapes: Option<Vec<Shape>> = marker.map(|marker| {
-                values_tf
-                    .iter()
-                    .flat_map(|pos| marker.get_shapes(pos))
-                    .collect()
+                values_tf.iter().fold(Vec::new(), |mut shapes, pos| {
+                    marker.get_shapes(pos, &mut shapes);
+                    shapes
+                })
             });
 
             if color.a() != 0 {
