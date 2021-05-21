@@ -3,29 +3,35 @@ use std::default::Default;
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Localization {
-    pub slider_tooltip: String,
-    pub click_copy: String,
-    pub cp_blending: String,
-    pub cp_additive: String,
-    pub cp_normal: String,
-    pub cp_selected_color: String,
-    pub cp_hue: String,
-    pub cp_saturation: String,
-    pub cp_value: String,
+    pub lang: &'static str,
+    pub slider_tooltip: &'static str,
+    pub click_copy: &'static str,
+    pub cp_edit: &'static str,
+    pub cp_blending: &'static str,
+    pub cp_additive: &'static str,
+    pub cp_normal: &'static str,
+    pub cp_selected_color: &'static str,
+    pub cp_hue: &'static str,
+    pub cp_saturation: &'static str,
+    pub cp_value: &'static str,
+    pub lang_text: &'static str,
 }
 
 impl Default for Localization {
     fn default() -> Self {
         Self {
-            slider_tooltip: "Drag to edit or click to enter a value.\nPress 'Shift' while dragging for better control".to_string(),
-            click_copy: "Click to copy".to_string(),
-            cp_blending: "Blending".to_string(),
-            cp_additive: "Additive".to_string(),
-            cp_normal: "Normal".to_string(),
-            cp_selected_color: "Selected color".to_string(),
-            cp_hue: "Hue".to_string(),
-            cp_saturation: "Saturation".to_string(),
-            cp_value: "Value".to_string(),
+            lang: "English",
+            slider_tooltip: "Drag to edit or click to enter a value.\nPress 'Shift' while dragging for better control",
+            click_copy: "Click to copy",
+            cp_edit: "Click to edit color",
+            cp_blending: "Blending",
+            cp_additive: "Additive",
+            cp_normal: "Normal",
+            cp_selected_color: "Selected color",
+            cp_hue: "Hue",
+            cp_saturation: "Saturation",
+            cp_value: "Value",
+            lang_text: "Language",
         }
     }
 }
@@ -44,30 +50,35 @@ impl Default for Language {
 }
 
 impl Localization {
-    pub(crate) fn load_new_localization(&mut self, localization: &Localization) {
-        *self = Localization {
-            ..localization.to_owned()
+    pub fn set_localization(&mut self, lang: &Language) {
+        *self = match lang {
+            Language::English => Localization::default(),
+            Language::BahasaMalaysia => Localization::malay(),
         };
     }
 
-    pub fn get_localization(lang: Language) -> Self {
-        match lang {
-            Language::English => Localization::default(),
-            Language::BahasaMalaysia => Localization::malay(),
+    pub fn lang(&self) -> Language {
+        match self.lang {
+            "English" => Language::English,
+            "Bahasa Malaysia" => Language::BahasaMalaysia,
+            _ => Language::English,
         }
     }
 
     pub fn malay() -> Self {
         Self {
-            slider_tooltip: "Tarik untuk ubah atau klik untuk masukkan jumlah.\nTekan 'Shift' sambil tarik untuk pergerakan lebih terkawal.".to_string(),
-            click_copy: "Klik untuk salin".to_string(),
-            cp_blending: "Campuran".to_string(),
-            cp_additive: "Tambahan".to_string(),
-            cp_normal: "Biasa".to_string(),
-            cp_selected_color: "Warna pilihan".to_string(),
-            cp_hue: "Rona".to_string(),
-            cp_saturation: "Ketepuan".to_string(),
-            cp_value: "Nilai".to_string(),
+            lang: "Bahasa Malaysia",
+            slider_tooltip: "Tarik untuk ubah atau klik untuk masukkan jumlah.\nTekan 'Shift' sambil tarik untuk pergerakan lebih terkawal.",
+            click_copy: "Klik untuk salin",
+            cp_edit: "Klick untuk ubah warna",
+            cp_blending: "Campuran",
+            cp_additive: "Tambahan",
+            cp_normal: "Biasa",
+            cp_selected_color: "Warna pilihan",
+            cp_hue: "Rona",
+            cp_saturation: "Ketepuan",
+            cp_value: "Nilai",
+            lang_text: "Bahasa",
         }
     }
 }

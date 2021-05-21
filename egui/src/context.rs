@@ -357,15 +357,6 @@ impl Clone for Context {
 }
 
 impl Context {
-    pub fn set_localization(&self, lang: Language) {
-        let new_localization = Localization::get_localization(lang);
-        self.memory().new_localization = Some(new_localization);
-    }
-
-    pub fn localization(&self) -> MutexGuard<'_, Localization> {
-        self.localization.lock()
-    }
-
     #[allow(clippy::new_ret_no_self)]
     #[deprecated = "Use CtxRef::default() instead"]
     pub fn new() -> CtxRef {
@@ -564,14 +555,6 @@ impl Context {
         let mut input = std::mem::take(&mut self.input);
         if let Some(new_pixels_per_point) = self.memory().new_pixels_per_point.take() {
             input.pixels_per_point = new_pixels_per_point;
-        }
-
-        if self.memory().new_localization.is_some() {
-            let new_localization =
-                Arc::new(self.memory().new_localization.take().unwrap_or_default());
-            self.localization
-                .lock()
-                .load_new_localization(&new_localization);
         }
 
         self.input = input.begin_frame(new_raw_input);
@@ -946,5 +929,21 @@ impl Context {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
+    }
+}
+
+/// ## Localization
+impl Context {
+    pub fn set_localization(&self, lang: Language) {
+        self.localization().set_localization(&lang);
+        self.memory().current_language = lang;
+    }
+
+    pub fn localization(&self) -> MutexGuard<'_, Localization> {
+        self.localization.lock()
+    }
+
+    pub fn lang(&self) -> Language {
+        self.memory().current_language.clone()
     }
 }

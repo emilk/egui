@@ -223,9 +223,9 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
 fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_text_ui(ui, *hsva);
 
-    let blending_text = &ui.ctx().localization().cp_blending.clone();
-    let additive_text = &ui.ctx().localization().cp_additive.clone();
-    let normal_text = &ui.ctx().localization().cp_normal.clone();
+    let blending_text = ui.ctx().localization().cp_blending.clone();
+    let additive_text = ui.ctx().localization().cp_additive.clone();
+    let normal_text = ui.ctx().localization().cp_normal.clone();
 
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).
@@ -265,7 +265,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         let opaque = HsvaGamma { a: 1.0, ..*hsva };
 
-        let selected_color_text = &ui.ctx().localization().cp_selected_color.clone();
+        let selected_color_text = ui.ctx().localization().cp_selected_color;
 
         if alpha == Alpha::Opaque {
             hsva.a = 1.0;
@@ -308,9 +308,9 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
             .into()
         });
 
-        let hue_text = &ui.ctx().localization().cp_hue.clone();
-        let saturation_text = &ui.ctx().localization().cp_saturation.clone();
-        let value_text = &ui.ctx().localization().cp_value.clone();
+        let hue_text = ui.ctx().localization().cp_hue;
+        let saturation_text = ui.ctx().localization().cp_saturation;
+        let value_text = ui.ctx().localization().cp_value;
 
         ui.label(hue_text);
         ui.end_row();
@@ -344,7 +344,9 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let pupup_id = ui.auto_id_with("popup");
-    let mut button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
+
+    let edit_text = ui.ctx().localization().cp_edit;
+    let mut button_response = color_button(ui, (*hsva).into()).on_hover_text(edit_text);
 
     if button_response.clicked() {
         ui.memory().toggle_popup(pupup_id);

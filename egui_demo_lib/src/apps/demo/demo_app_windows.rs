@@ -178,19 +178,18 @@ impl DemoWindows {
                     );
                 });
 
-                let previous_lang = lang.clone();
-                let mut lang_cb = egui::ComboBox::from_label("Language")
+                let lang_text = ctx.localization().lang_text;
+
+                egui::ComboBox::from_label(lang_text)
                     .selected_text(format!("{:?}", lang))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(lang, Language::English, "English");
                         ui.selectable_value(lang, Language::BahasaMalaysia, "BahasaMalaysia");
                     });
 
-                if previous_lang != lang.clone() {
-                    lang_cb.mark_changed();
-                }
+                let current_lang = &mut ctx.localization().lang();
 
-                if lang_cb.changed() {
+                if lang != current_lang {
                     ctx.set_localization(lang.clone());
                 }
 

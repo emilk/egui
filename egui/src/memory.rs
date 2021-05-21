@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
+use crate::{
+    any, area, localization::Language, window, Id, InputState, LayerId, Pos2, Rect, Style,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -13,7 +15,7 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 ///
 /// If you want to store data for your widgets, you should look at `data`/`data_temp` and
 /// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
-use crate::localization::Localization;
+
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
@@ -54,7 +56,8 @@ pub struct Memory {
     /// new fonts that will be applied at the start of the next frame
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    pub(crate) new_localization: Option<Localization>,
+    // language applied at the start of each program run
+    pub(crate) current_language: Language,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
