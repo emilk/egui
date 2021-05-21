@@ -11,6 +11,7 @@ use crate::{
     frame_state::FrameState,
     input_state::*,
     layers::GraphicLayers,
+    localization::{Language, Localization},
     mutex::{Mutex, MutexGuard},
     *,
 };
@@ -336,8 +337,6 @@ pub struct Context {
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: AtomicU32,
 }
-
-use crate::localization::{Language, Localization};
 
 impl Clone for Context {
     fn clone(&self) -> Self {
