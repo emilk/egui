@@ -341,20 +341,23 @@ impl Font {
         self.finalize_galley(galley)
     }
 
-    /// Always returns at least one row.
     /// Will line break at `\n`.
+    ///
+    /// Always returns at least one row.
     pub fn layout_no_wrap(&self, text: String) -> Galley {
         self.layout_multiline(text, f32::INFINITY)
     }
 
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
     /// Always returns at least one row.
-    /// Will wrap text at the given width.
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
         self.layout_multiline_with_indentation_and_max_width(text, 0.0, max_width_in_points)
     }
 
     /// * `first_row_indentation`: extra space before the very first character (in points).
     /// * `max_width_in_points`: wrapping width.
+    ///
     /// Always returns at least one row.
     pub fn layout_multiline_with_indentation_and_max_width(
         &self,

@@ -39,6 +39,9 @@ extra_asserts = ["epaint/extra_asserts"]
 # Add compatability with https://github.com/kvark/mint
 mint = ["epaint/mint"]
 
+# add compatibility with https://crates.io/crates/cint
+cint = ["epaint/cint"]
+
 persistence = ["serde", "epaint/persistence", "ron"]
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
