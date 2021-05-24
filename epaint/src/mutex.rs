@@ -199,16 +199,16 @@ mod tests {
     fn lock_two_different_mutexes_single_thread() {
         let one = Mutex::new(());
         let two = Mutex::new(());
-        let a = one.lock();
-        let b = two.lock();
+        let _a = one.lock();
+        let _b = two.lock();
     }
 
     #[test]
     #[should_panic]
     fn lock_reentry_single_thread() {
         let one = Mutex::new(());
-        let a = one.lock();
-        let a2 = one.lock(); // panics
+        let _a = one.lock();
+        let _a2 = one.lock(); // panics
     }
 
     #[test]
