@@ -336,7 +336,7 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+/// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
@@ -401,7 +401,7 @@ pub mod http {
         pub ok: bool,
         /// Status code (e.g. `404` for "File not found").
         pub status: u16,
-        /// Status tex (e.g. "File not found" for status code `404`).
+        /// Status text (e.g. "File not found" for status code `404`).
         pub status_text: String,
 
         /// Content-Type header, or empty string if missing.
