@@ -6,7 +6,7 @@ mod transform;
 
 use std::collections::{BTreeMap, HashSet};
 
-pub use items::{Curve, Marker, Value};
+pub use items::{Curve, MarkerShape, Points, Value, ValueSeries};
 pub use items::{HLine, VLine};
 use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
@@ -22,7 +22,7 @@ use color::Hsva;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
-    hidden_curves: HashSet<String>,
+    hidden_items: HashSet<String>,
 }
 
 // ----------------------------------------------------------------------------
@@ -48,6 +48,7 @@ pub struct Plot {
     next_auto_color_idx: usize,
 
     curves: Vec<Curve>,
+    points: Vec<Points>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
 
@@ -77,6 +78,7 @@ impl Plot {
             next_auto_color_idx: 0,
 
             curves: Default::default(),
+            points: Default::default(),
             hlines: Default::default(),
             vlines: Default::default(),
 
@@ -110,30 +112,32 @@ impl Plot {
     /// Add a data curve.
     /// You can add multiple curves.
     pub fn curve(mut self, mut curve: Curve) -> Self {
-        if curve.no_data() {
+        if curve.series.is_empty() {
             return self;
         };
 
         // Give the stroke an automatic color if no color has been assigned.
-        let stroke_color = curve.color.get_or_insert_with(|| self.auto_color());
-        // Give the marker the same color as the stroke if no color has been assigned.
-        if let Some(marker) = &mut curve.marker {
-            if marker.color == Color32::TRANSPARENT {
-                marker.color = if *stroke_color != Color32::TRANSPARENT {
-                    *stroke_color
-                } else {
-                    self.auto_color()
-                };
-            }
+        if curve.stroke.color == Color32::TRANSPARENT {
+            curve.stroke.color = self.auto_color();
         }
         self.curves.push(curve);
 
         self
     }
 
-    /// Add multiple data curves.
-    pub fn curves(self, curves: Vec<Curve>) -> Self {
-        curves.into_iter().fold(self, Self::curve)
+    /// Add data points.
+    pub fn points(mut self, mut points: Points) -> Self {
+        if points.series.is_empty() {
+            return self;
+        };
+
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.points.push(points);
+
+        self
     }
 
     /// Add a horizontal line.
@@ -271,6 +275,7 @@ impl Widget for Plot {
             name,
             next_auto_color_idx: _,
             mut curves,
+            mut points,
             hlines,
             vlines,
             center_x_axis,
@@ -296,14 +301,14 @@ impl Widget for Plot {
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
-                hidden_curves: HashSet::new(),
+                hidden_items: HashSet::new(),
             })
             .clone();
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
-            mut hidden_curves,
+            mut hidden_items,
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -352,19 +357,31 @@ impl Widget for Plot {
                 .iter()
                 .filter(|curve| !curve.name.is_empty())
                 .for_each(|curve| {
-                    let checked = !hidden_curves.contains(&curve.name);
+                    let checked = !hidden_items.contains(&curve.name);
                     let text = curve.name.clone();
                     legend_entries
                         .entry(curve.name.clone())
                         .and_modify(|entry| {
-                            if Some(entry.color) != curve.get_color() {
+                            if entry.color != curve.stroke.color {
                                 entry.color = neutral_color
                             }
                         })
-                        .or_insert_with(|| {
-                            let color = curve.get_color().unwrap_or(neutral_color);
-                            LegendEntry::new(text, color, checked)
-                        });
+                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
+                });
+            points
+                .iter()
+                .filter(|points| !points.name.is_empty())
+                .for_each(|points| {
+                    let checked = !hidden_items.contains(&points.name);
+                    let text = points.name.clone();
+                    legend_entries
+                        .entry(points.name.clone())
+                        .and_modify(|entry| {
+                            if entry.color != points.color {
+                                entry.color = neutral_color
+                            }
+                        })
+                        .or_insert_with(|| LegendEntry::new(text, points.color, checked));
                 });
 
             // Show the legend.
@@ -377,14 +394,14 @@ impl Widget for Plot {
                 }
             });
 
-            // Get the names of the hidden curves.
-            hidden_curves = legend_entries
+            // Get the names of the hidden items.
+            hidden_items = legend_entries
                 .values()
                 .filter(|entry| !entry.checked)
                 .map(|entry| entry.text.clone())
                 .collect();
 
-            // Highlight the hovered curves.
+            // Highlight the hovered items.
             legend_entries
                 .values()
                 .filter(|entry| entry.hovered)
@@ -392,10 +409,14 @@ impl Widget for Plot {
                     curves.iter_mut().for_each(|curve| {
                         curve.highlight |= curve.name == entry.text;
                     });
+                    points.iter_mut().for_each(|points| {
+                        points.highlight |= points.name == entry.text;
+                    });
                 });
 
-            // Remove deselected curves.
-            curves.retain(|curve| !hidden_curves.contains(&curve.name));
+            // Remove deselected items.
+            curves.retain(|curve| !hidden_items.contains(&curve.name));
+            points.retain(|points| !hidden_items.contains(&points.name));
         }
 
         // ---
@@ -407,7 +428,12 @@ impl Widget for Plot {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
-            curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
+            curves
+                .iter()
+                .for_each(|curve| bounds.merge(&curve.series.get_bounds()));
+            points
+                .iter()
+                .for_each(|points| bounds.merge(&points.series.get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
@@ -460,12 +486,16 @@ impl Widget for Plot {
         // Initialize values from functions.
         curves
             .iter_mut()
-            .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
+            .for_each(|curve| curve.series.generate_points(transform.bounds().range_x()));
+        points
+            .iter_mut()
+            .for_each(|points| points.series.generate_points(transform.bounds().range_x()));
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
             curves,
+            points,
             hlines,
             vlines,
             show_x,
@@ -479,7 +509,7 @@ impl Widget for Plot {
             PlotMemory {
                 bounds,
                 auto_bounds,
-                hidden_curves,
+                hidden_items,
             },
         );
 
@@ -493,6 +523,7 @@ impl Widget for Plot {
 
 struct Prepared {
     curves: Vec<Curve>,
+    points: Vec<Points>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
@@ -501,14 +532,14 @@ struct Prepared {
 }
 
 impl Prepared {
-    fn ui(&self, ui: &mut Ui, response: &Response) {
-        let Self { transform, .. } = self;
-
+    fn ui(mut self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
             self.paint_axis(ui, d, &mut shapes);
         }
+
+        let transform = &self.transform;
 
         for &hline in &self.hlines {
             let HLine { y, stroke } = hline;
@@ -528,49 +559,11 @@ impl Prepared {
             shapes.push(Shape::line_segment(points, stroke));
         }
 
-        for curve in &self.curves {
-            let Curve {
-                values,
-                color,
-                mut width,
-                mut marker,
-                highlight,
-                ..
-            } = curve;
-
-            let color = color.unwrap_or(Color32::TRANSPARENT);
-
-            if *highlight {
-                width *= 1.5;
-                if let Some(marker) = &mut marker {
-                    marker.radius *= 1.25;
-                }
-            }
-
-            let values_tf: Vec<_> = values
-                .iter()
-                .map(|v| transform.position_from_value(v))
-                .collect();
-
-            let marker_shapes: Option<Vec<Shape>> = marker.map(|marker| {
-                values_tf.iter().fold(Vec::new(), |mut shapes, pos| {
-                    marker.get_shapes(pos, &mut shapes);
-                    shapes
-                })
-            });
-
-            if color.a() != 0 {
-                let line_shape = if values_tf.len() > 1 {
-                    Shape::line(values_tf, Stroke::new(width, color))
-                } else {
-                    Shape::circle_filled(values_tf[0], width / 2.0, color)
-                };
-                shapes.push(line_shape);
-            }
-
-            if let Some(marker_shapes) = marker_shapes {
-                shapes.extend(marker_shapes.into_iter());
-            }
+        for curve in self.curves.drain(..) {
+            curve.into_shapes(transform, &mut shapes);
+        }
+        for points in self.points.drain(..) {
+            points.into_shapes(transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -687,7 +680,7 @@ impl Prepared {
         let mut closest_curve = None;
         let mut closest_dist_sq = interact_radius.powi(2);
         for curve in curves {
-            for value in &curve.values {
+            for value in &curve.series.values {
                 let pos = transform.position_from_value(value);
                 let dist_sq = pointer.distance_sq(pos);
                 if dist_sq < closest_dist_sq {

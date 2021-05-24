@@ -1,3 +1,5 @@
+use egui::plot::ValueSeries;
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
@@ -206,11 +208,11 @@ impl WidgetGallery {
 
 fn example_plot() -> egui::plot::Plot {
     let n = 128;
-    let curve = egui::plot::Curve::from_values_iter((0..=n).map(|i| {
+    let curve = egui::plot::Curve::new(ValueSeries::from_values_iter((0..=n).map(|i| {
         use std::f64::consts::TAU;
         let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
         egui::plot::Value::new(x, x.sin())
-    }));
+    })));
     egui::plot::Plot::new("Example Plot")
         .curve(curve)
         .height(32.0)

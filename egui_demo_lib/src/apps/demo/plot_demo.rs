@@ -1,4 +1,4 @@
-use egui::plot::{Curve, Marker, Plot, Value};
+use egui::plot::{Curve, MarkerShape, Plot, Points, Value, ValueSeries};
 use egui::*;
 use std::f64::consts::TAU;
 
@@ -96,31 +96,30 @@ impl CurveDemo {
                 r * t.sin() + self.circle_center.y as f64,
             )
         });
-        Curve::from_values_iter(circle)
+        Curve::new(ValueSeries::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
             .name("circle")
     }
 
     fn sin(&self) -> Curve {
         let time = self.time;
-        Curve::from_explicit_callback(
+        Curve::new(ValueSeries::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             512,
-        )
+        ))
         .color(Color32::from_rgb(200, 100, 100))
         .name("wave")
     }
 
     fn thingy(&self) -> Curve {
         let time = self.time;
-        Curve::from_parametric_callback(
+        Curve::new(ValueSeries::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
-            100,
-        )
+            256,
+        ))
         .color(Color32::from_rgb(100, 150, 250))
-        .marker(Marker::default())
         .name("x = sin(2t), y = sin(3t)")
     }
 }
@@ -150,8 +149,6 @@ impl Widget for &mut CurveDemo {
 
 #[derive(PartialEq)]
 struct MarkerDemo {
-    show_markers: bool,
-    show_lines: bool,
     fill_markers: bool,
     marker_radius: f32,
     custom_marker_color: bool,
@@ -161,8 +158,6 @@ struct MarkerDemo {
 impl Default for MarkerDemo {
     fn default() -> Self {
         Self {
-            show_markers: true,
-            show_lines: true,
             fill_markers: true,
             marker_radius: 5.0,
             custom_marker_color: false,
@@ -172,33 +167,30 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Curve> {
-        Marker::all()
+    fn markers(&self) -> Vec<Points> {
+        MarkerShape::all()
             .into_iter()
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
-                let mut curve = Curve::from_values(vec![
+                let mut points = Points::new(ValueSeries::from_values(vec![
                     Value::new(1.0, 0.0 + y_offset),
                     Value::new(2.0, 0.5 + y_offset),
                     Value::new(3.0, 0.0 + y_offset),
                     Value::new(4.0, 0.5 + y_offset),
                     Value::new(5.0, 0.0 + y_offset),
                     Value::new(6.0, 0.5 + y_offset),
-                ])
-                .name("Marker Lines");
+                ]))
+                .name("Marker Lines")
+                .filled(self.fill_markers)
+                .radius(self.marker_radius)
+                .shape(marker);
 
-                if self.show_markers {
-                    let mut marker = marker.filled(self.fill_markers).radius(self.marker_radius);
-                    if self.custom_marker_color {
-                        marker = marker.color(self.marker_color);
-                    }
-                    curve = curve.marker(marker);
+                if self.custom_marker_color {
+                    points = points.color(self.marker_color);
                 }
-                if !self.show_lines {
-                    curve = curve.color(Color32::TRANSPARENT);
-                }
-                curve
+
+                points
             })
             .collect()
     }
@@ -206,10 +198,6 @@ impl MarkerDemo {
 
 impl Widget for &mut MarkerDemo {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.show_lines, "show lines");
-            ui.checkbox(&mut self.show_markers, "show markers");
-        });
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.fill_markers, "fill markers");
             ui.add(
@@ -224,10 +212,10 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let markers_plot = Plot::new("Markers Demo")
-            .curves(self.markers())
-            .height(300.0)
-            .data_aspect(1.0);
+        let mut markers_plot = Plot::new("Markers Demo").height(300.0).data_aspect(1.0);
+        for marker in self.markers() {
+            markers_plot = markers_plot.points(marker);
+        }
         ui.add(markers_plot)
     }
 }
