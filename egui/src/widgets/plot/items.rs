@@ -550,7 +550,7 @@ impl PlotItem for Points {
     }
 
     fn color(&self) -> Color32 {
-        self.color.clone()
+        self.color
     }
 
     fn highlight(&mut self) {

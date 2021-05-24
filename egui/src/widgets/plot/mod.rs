@@ -357,7 +357,7 @@ impl Widget for Plot {
                 .filter(|item| !item.name().is_empty())
                 .for_each(|item| {
                     let checked = !hidden_items.contains(item.name());
-                    let text = item.name().clone();
+                    let text = item.name();
                     legend_entries
                         .entry(item.name().to_string())
                         .and_modify(|entry| {
