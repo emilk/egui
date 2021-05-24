@@ -6,8 +6,9 @@ mod transform;
 
 use std::collections::{BTreeMap, HashSet};
 
-pub use items::{Curve, MarkerShape, Points, Value, ValueSeries};
+use items::PlotItem;
 pub use items::{HLine, VLine};
+pub use items::{Line, MarkerShape, Points, Value, ValueSeries};
 use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
 
@@ -29,26 +30,25 @@ struct PlotMemory {
 
 /// A 2D plot, e.g. a graph of a function.
 ///
-/// `Plot` supports multiple curves.
+/// `Plot` supports multiple lines and points.
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::plot::{Curve, Plot, Value, ValueSeries};
+/// use egui::plot::{Line, Plot, Value, ValueSeries};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
 /// });
-/// let curve = Curve::new(ValueSeries::from_values_iter(sin));
+/// let line = Line::new(ValueSeries::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").curve(curve).view_aspect(2.0)
+///     Plot::new("Test Plot").line(line).view_aspect(2.0)
 /// );
 /// ```
 pub struct Plot {
     name: String,
     next_auto_color_idx: usize,
 
-    curves: Vec<Curve>,
-    points: Vec<Points>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
 
@@ -77,8 +77,7 @@ impl Plot {
             name: name.to_string(),
             next_auto_color_idx: 0,
 
-            curves: Default::default(),
-            points: Default::default(),
+            items: Default::default(),
             hlines: Default::default(),
             vlines: Default::default(),
 
@@ -109,18 +108,18 @@ impl Plot {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    /// Add a data curve.
-    /// You can add multiple curves.
-    pub fn curve(mut self, mut curve: Curve) -> Self {
-        if curve.series.is_empty() {
+    /// Add a data lines.
+    /// You can add multiple lines.
+    pub fn line(mut self, mut line: Line) -> Self {
+        if line.series.is_empty() {
             return self;
         };
 
         // Give the stroke an automatic color if no color has been assigned.
-        if curve.stroke.color == Color32::TRANSPARENT {
-            curve.stroke.color = self.auto_color();
+        if line.stroke.color == Color32::TRANSPARENT {
+            line.stroke.color = self.auto_color();
         }
-        self.curves.push(curve);
+        self.items.push(Box::new(line));
 
         self
     }
@@ -136,7 +135,7 @@ impl Plot {
         if points.color == Color32::TRANSPARENT {
             points.color = self.auto_color();
         }
-        self.points.push(points);
+        self.items.push(Box::new(points));
 
         self
     }
@@ -275,8 +274,7 @@ impl Widget for Plot {
         let Self {
             name,
             next_auto_color_idx: _,
-            mut curves,
-            mut points,
+            mut items,
             hlines,
             vlines,
             center_x_axis,
@@ -350,39 +348,26 @@ impl Widget for Plot {
         // --- Legend ---
 
         if show_legend {
-            // Collect the legend entries. If multiple curves have the same name, they share a
+            // Collect the legend entries. If multiple items have the same name, they share a
             // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
             let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
             let neutral_color = ui.visuals().noninteractive().fg_stroke.color;
-            curves
+            items
                 .iter()
-                .filter(|curve| !curve.name.is_empty())
-                .for_each(|curve| {
-                    let checked = !hidden_items.contains(&curve.name);
-                    let text = curve.name.clone();
+                .filter(|item| !item.name().is_empty())
+                .for_each(|item| {
+                    let checked = !hidden_items.contains(item.name());
+                    let text = item.name().clone();
                     legend_entries
-                        .entry(curve.name.clone())
+                        .entry(item.name().to_string())
                         .and_modify(|entry| {
-                            if entry.color != curve.stroke.color {
+                            if entry.color != item.color() {
                                 entry.color = neutral_color
                             }
                         })
-                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
-                });
-            points
-                .iter()
-                .filter(|points| !points.name.is_empty())
-                .for_each(|points| {
-                    let checked = !hidden_items.contains(&points.name);
-                    let text = points.name.clone();
-                    legend_entries
-                        .entry(points.name.clone())
-                        .and_modify(|entry| {
-                            if entry.color != points.color {
-                                entry.color = neutral_color
-                            }
-                        })
-                        .or_insert_with(|| LegendEntry::new(text, points.color, checked));
+                        .or_insert_with(|| {
+                            LegendEntry::new(text.to_string(), item.color(), checked)
+                        });
                 });
 
             // Show the legend.
@@ -407,17 +392,15 @@ impl Widget for Plot {
                 .values()
                 .filter(|entry| entry.hovered)
                 .for_each(|entry| {
-                    curves.iter_mut().for_each(|curve| {
-                        curve.highlight |= curve.name == entry.text;
-                    });
-                    points.iter_mut().for_each(|points| {
-                        points.highlight |= points.name == entry.text;
+                    items.iter_mut().for_each(|item| {
+                        if item.name() == entry.text {
+                            item.highlight();
+                        }
                     });
                 });
 
             // Remove deselected items.
-            curves.retain(|curve| !hidden_items.contains(&curve.name));
-            points.retain(|points| !hidden_items.contains(&points.name));
+            items.retain(|item| !hidden_items.contains(item.name()));
         }
 
         // ---
@@ -429,12 +412,9 @@ impl Widget for Plot {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
-            curves
+            items
                 .iter()
-                .for_each(|curve| bounds.merge(&curve.series.get_bounds()));
-            points
-                .iter()
-                .for_each(|points| bounds.merge(&points.series.get_bounds()));
+                .for_each(|item| bounds.merge(&item.series().get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
@@ -485,18 +465,15 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        curves
-            .iter_mut()
-            .for_each(|curve| curve.series.generate_points(transform.bounds().range_x()));
-        points
-            .iter_mut()
-            .for_each(|points| points.series.generate_points(transform.bounds().range_x()));
+        items.iter_mut().for_each(|item| {
+            item.series_mut()
+                .generate_points(transform.bounds().range_x())
+        });
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
-            curves,
-            points,
+            items,
             hlines,
             vlines,
             show_x,
@@ -523,8 +500,7 @@ impl Widget for Plot {
 }
 
 struct Prepared {
-    curves: Vec<Curve>,
-    points: Vec<Points>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
@@ -560,11 +536,8 @@ impl Prepared {
             shapes.push(Shape::line_segment(points, stroke));
         }
 
-        for curve in &self.curves {
-            curve.get_shapes(transform, &mut shapes);
-        }
-        for points in &self.points {
-            points.get_shapes(transform, &mut shapes);
+        for item in &self.items {
+            item.get_shapes(transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -668,8 +641,7 @@ impl Prepared {
             transform,
             show_x,
             show_y,
-            curves,
-            points,
+            items,
             ..
         } = self;
 
@@ -681,25 +653,14 @@ impl Prepared {
         let mut closest_value = None;
         let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
-        for curve in curves {
-            for value in &curve.series.values {
+        for item in items {
+            for value in &item.series().values {
                 let pos = transform.position_from_value(value);
                 let dist_sq = pointer.distance_sq(pos);
                 if dist_sq < closest_dist_sq {
                     closest_dist_sq = dist_sq;
                     closest_value = Some(value);
-                    closest_item = Some(curve.name.clone());
-                }
-            }
-        }
-        for points in points {
-            for value in &points.series.values {
-                let pos = transform.position_from_value(value);
-                let dist_sq = pointer.distance_sq(pos);
-                if dist_sq < closest_dist_sq {
-                    closest_dist_sq = dist_sq;
-                    closest_value = Some(value);
-                    closest_item = Some(points.name.clone());
+                    closest_item = Some(item.name());
                 }
             }
         }

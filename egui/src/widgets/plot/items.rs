@@ -62,6 +62,15 @@ impl VLine {
     }
 }
 
+pub(crate) trait PlotItem {
+    fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
+    fn series(&self) -> &ValueSeries;
+    fn series_mut(&mut self) -> &mut ValueSeries;
+    fn name(&self) -> &str;
+    fn color(&self) -> Color32;
+    fn highlight(&mut self);
+}
+
 // ----------------------------------------------------------------------------
 
 /// Describes a function y = f(x) with an optional range for x and a number of points.
@@ -97,7 +106,7 @@ impl ValueSeries {
         Self::from_values(iter.collect())
     }
 
-    /// Draw a curve based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
+    /// Draw a line based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
     pub fn from_explicit_callback(
         function: impl Fn(f64) -> f64 + 'static,
         x_range: RangeInclusive<f64>,
@@ -115,7 +124,7 @@ impl ValueSeries {
         }
     }
 
-    /// Draw a curve based on a function `(x,y)=f(t)`, a range for t and the number of points.
+    /// Draw a line based on a function `(x,y)=f(t)`, a range for t and the number of points.
     pub fn from_parametric_callback(
         function: impl Fn(f64) -> (f64, f64),
         t_range: RangeInclusive<f64>,
@@ -221,14 +230,14 @@ impl MarkerShape {
 }
 
 /// A series of values forming a path.
-pub struct Curve {
+pub struct Line {
     pub(crate) series: ValueSeries,
     pub(crate) stroke: Stroke,
     pub(crate) name: String,
     pub(crate) highlight: bool,
 }
 
-impl Curve {
+impl Line {
     pub fn new(series: ValueSeries) -> Self {
         Self {
             series,
@@ -238,7 +247,7 @@ impl Curve {
         }
     }
 
-    /// Highlight this curve in the plot by scaling up the line and marker size.
+    /// Highlight this line in the plot by scaling up the line and marker size.
     pub fn highlight(mut self) -> Self {
         self.highlight = true;
         self
@@ -262,7 +271,7 @@ impl Curve {
         self
     }
 
-    /// Name of this curve.
+    /// Name of this line.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
     #[allow(clippy::needless_pass_by_value)]
@@ -270,10 +279,12 @@ impl Curve {
         self.name = name.to_string();
         self
     }
+}
 
-    pub(crate) fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+impl PlotItem for Line {
+    fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
-            series: data,
+            series,
             mut stroke,
             highlight,
             ..
@@ -283,7 +294,7 @@ impl Curve {
             stroke.width *= 1.5;
         }
 
-        let values_tf: Vec<_> = data
+        let values_tf: Vec<_> = series
             .values
             .iter()
             .map(|v| transform.position_from_value(v))
@@ -295,6 +306,26 @@ impl Curve {
             Shape::circle_filled(values_tf[0], stroke.width / 2.0, stroke.color)
         };
         shapes.push(line_shape);
+    }
+
+    fn series(&self) -> &ValueSeries {
+        &self.series
+    }
+
+    fn series_mut(&mut self) -> &mut ValueSeries {
+        &mut self.series
+    }
+
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn color(&self) -> Color32 {
+        self.stroke.color
+    }
+
+    fn highlight(&mut self) {
+        self.highlight = true;
     }
 }
 
@@ -363,8 +394,10 @@ impl Points {
         self.name = name.to_string();
         self
     }
+}
 
-    pub(crate) fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+impl PlotItem for Points {
+    fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3f32.sqrt();
         let frac_sqrt_3_2 = 3f32.sqrt() / 2.0;
         let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
@@ -502,5 +535,25 @@ impl Points {
                     }
                 }
             });
+    }
+
+    fn series(&self) -> &ValueSeries {
+        &self.series
+    }
+
+    fn series_mut(&mut self) -> &mut ValueSeries {
+        &mut self.series
+    }
+
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn color(&self) -> Color32 {
+        self.color.clone()
+    }
+
+    fn highlight(&mut self) {
+        self.highlight = true;
     }
 }

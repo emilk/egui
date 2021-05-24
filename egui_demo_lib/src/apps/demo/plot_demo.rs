@@ -1,9 +1,9 @@
-use egui::plot::{Curve, MarkerShape, Plot, Points, Value, ValueSeries};
+use egui::plot::{Line, MarkerShape, Plot, Points, Value, ValueSeries};
 use egui::*;
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
-struct CurveDemo {
+struct LineDemo {
     animate: bool,
     time: f64,
     circle_radius: f64,
@@ -13,7 +13,7 @@ struct CurveDemo {
     proportional: bool,
 }
 
-impl Default for CurveDemo {
+impl Default for LineDemo {
     fn default() -> Self {
         Self {
             animate: true,
@@ -27,7 +27,7 @@ impl Default for CurveDemo {
     }
 }
 
-impl CurveDemo {
+impl LineDemo {
     fn options_ui(&mut self, ui: &mut Ui) {
         let Self {
             animate,
@@ -86,7 +86,7 @@ impl CurveDemo {
         ui.label("Reset view with double-click.");
     }
 
-    fn circle(&self) -> Curve {
+    fn circle(&self) -> Line {
         let n = 512;
         let circle = (0..=n).map(|i| {
             let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
@@ -96,14 +96,14 @@ impl CurveDemo {
                 r * t.sin() + self.circle_center.y as f64,
             )
         });
-        Curve::new(ValueSeries::from_values_iter(circle))
+        Line::new(ValueSeries::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
             .name("circle")
     }
 
-    fn sin(&self) -> Curve {
+    fn sin(&self) -> Line {
         let time = self.time;
-        Curve::new(ValueSeries::from_explicit_callback(
+        Line::new(ValueSeries::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             512,
@@ -112,9 +112,9 @@ impl CurveDemo {
         .name("wave")
     }
 
-    fn thingy(&self) -> Curve {
+    fn thingy(&self) -> Line {
         let time = self.time;
-        Curve::new(ValueSeries::from_parametric_callback(
+        Line::new(ValueSeries::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
             256,
@@ -124,17 +124,17 @@ impl CurveDemo {
     }
 }
 
-impl Widget for &mut CurveDemo {
+impl Widget for &mut LineDemo {
     fn ui(self, ui: &mut Ui) -> Response {
         self.options_ui(ui);
         if self.animate {
             ui.ctx().request_repaint();
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("Curves Demo")
-            .curve(self.circle())
-            .curve(self.sin())
-            .curve(self.thingy())
+        let mut plot = Plot::new("Lines Demo")
+            .line(self.circle())
+            .line(self.sin())
+            .line(self.thingy())
             .height(300.0)
             .show_legend(self.legend);
         if self.square {
@@ -222,7 +222,7 @@ impl Widget for &mut MarkerDemo {
 
 #[derive(PartialEq, Default)]
 pub struct PlotDemo {
-    curve_demo: CurveDemo,
+    line_demo: LineDemo,
     marker_demo: MarkerDemo,
 }
 
@@ -247,7 +247,7 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
-        ui.collapsing("Curves", |ui| ui.add(&mut self.curve_demo));
+        ui.collapsing("Lines", |ui| ui.add(&mut self.line_demo));
         ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
     }
 }
