@@ -264,15 +264,14 @@ impl Curve {
 
     /// Name of this curve.
     ///
-    /// If a curve is given a name it will show up in the plot legend
-    /// (if legends are turned on).
+    /// This name will show up in the plot legend, if legends are turned on.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
     }
 
-    pub(crate) fn into_shapes(self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    pub(crate) fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series: data,
             mut stroke,
@@ -280,7 +279,7 @@ impl Curve {
             ..
         } = self;
 
-        if highlight {
+        if *highlight {
             stroke.width *= 1.5;
         }
 
@@ -299,7 +298,7 @@ impl Curve {
     }
 }
 
-/// A series of values forming a path.
+/// A series of points.
 pub struct Points {
     pub(crate) series: ValueSeries,
     pub(crate) shape: MarkerShape,
@@ -326,18 +325,19 @@ impl Points {
         }
     }
 
+    /// Set the shape of the markers.
     pub fn shape(mut self, shape: MarkerShape) -> Self {
         self.shape = shape;
         self
     }
 
-    /// Highlight these points in the plot by scaling up the marker size.
+    /// Highlight these points in the plot by scaling up their markers.
     pub fn highlight(mut self) -> Self {
         self.highlight = true;
         self
     }
 
-    /// Set the marker's color. Defaults to the curve's color.
+    /// Set the marker's color.
     pub fn color(mut self, color: Color32) -> Self {
         self.color = color;
         self
@@ -355,17 +355,16 @@ impl Points {
         self
     }
 
-    /// Name of this curve.
+    /// Name of this series of markers.
     ///
-    /// If a curve is given a name it will show up in the plot legend
-    /// (if legends are turned on).
+    /// This name will show up in the plot legend, if legends are turned on.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
     }
 
-    pub(crate) fn into_shapes(self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    pub(crate) fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3f32.sqrt();
         let frac_sqrt_3_2 = 3f32.sqrt() / 2.0;
         let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
@@ -380,20 +379,20 @@ impl Points {
             ..
         } = self;
 
-        if highlight {
+        if *highlight {
             radius *= 2f32.sqrt();
         }
 
         let stroke_size = radius / 5.0;
 
-        let default_stroke = Stroke::new(stroke_size, color);
+        let default_stroke = Stroke::new(stroke_size, *color);
         let stroke = (!filled).then(|| default_stroke).unwrap_or_default();
-        let fill = filled.then(|| color).unwrap_or_default();
+        let fill = filled.then(|| *color).unwrap_or_default();
 
         series
             .values
             .iter()
-            .map(|v| transform.position_from_value(v))
+            .map(|value| transform.position_from_value(value))
             .for_each(|center| {
                 let tf = |dx: f32, dy: f32| -> Pos2 { center + radius * vec2(dx, dy) };
 

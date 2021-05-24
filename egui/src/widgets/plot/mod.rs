@@ -126,6 +126,7 @@ impl Plot {
     }
 
     /// Add data points.
+    /// You can add multiple sets of points.
     pub fn points(mut self, mut points: Points) -> Self {
         if points.series.is_empty() {
             return self;
@@ -262,7 +263,7 @@ impl Plot {
         self
     }
 
-    /// Whether to show a legend including all named curves. Default: `true`.
+    /// Whether to show a legend including all named items. Default: `true`.
     pub fn show_legend(mut self, show: bool) -> Self {
         self.show_legend = show;
         self
@@ -532,7 +533,7 @@ struct Prepared {
 }
 
 impl Prepared {
-    fn ui(mut self, ui: &mut Ui, response: &Response) {
+    fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
@@ -559,11 +560,11 @@ impl Prepared {
             shapes.push(Shape::line_segment(points, stroke));
         }
 
-        for curve in self.curves.drain(..) {
-            curve.into_shapes(transform, &mut shapes);
+        for curve in &self.curves {
+            curve.get_shapes(transform, &mut shapes);
         }
-        for points in self.points.drain(..) {
-            points.into_shapes(transform, &mut shapes);
+        for points in &self.points {
+            points.get_shapes(transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -668,6 +669,7 @@ impl Prepared {
             show_x,
             show_y,
             curves,
+            points,
             ..
         } = self;
 
@@ -677,7 +679,7 @@ impl Prepared {
 
         let interact_radius: f32 = 16.0;
         let mut closest_value = None;
-        let mut closest_curve = None;
+        let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
         for curve in curves {
             for value in &curve.series.values {
@@ -686,15 +688,26 @@ impl Prepared {
                 if dist_sq < closest_dist_sq {
                     closest_dist_sq = dist_sq;
                     closest_value = Some(value);
-                    closest_curve = Some(curve);
+                    closest_item = Some(curve.name.clone());
+                }
+            }
+        }
+        for points in points {
+            for value in &points.series.values {
+                let pos = transform.position_from_value(value);
+                let dist_sq = pointer.distance_sq(pos);
+                if dist_sq < closest_dist_sq {
+                    closest_dist_sq = dist_sq;
+                    closest_value = Some(value);
+                    closest_item = Some(points.name.clone());
                 }
             }
         }
 
         let mut prefix = String::new();
-        if let Some(curve) = closest_curve {
-            if !curve.name.is_empty() {
-                prefix = format!("{}\n", curve.name);
+        if let Some(name) = closest_item {
+            if !name.is_empty() {
+                prefix = format!("{}\n", name);
             }
         }
 
