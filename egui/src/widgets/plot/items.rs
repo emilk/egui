@@ -33,8 +33,8 @@ impl Value {
 /// A horizontal line in a plot, filling the full width
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HLine {
-    pub(crate) y: f64,
-    pub(crate) stroke: Stroke,
+    pub(super) y: f64,
+    pub(super) stroke: Stroke,
 }
 
 impl HLine {
@@ -49,8 +49,8 @@ impl HLine {
 /// A vertical line in a plot, filling the full width
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VLine {
-    pub(crate) x: f64,
-    pub(crate) stroke: Stroke,
+    pub(super) x: f64,
+    pub(super) stroke: Stroke,
 }
 
 impl VLine {
@@ -62,7 +62,7 @@ impl VLine {
     }
 }
 
-pub(crate) trait PlotItem {
+pub(super) trait PlotItem {
     fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
     fn series(&self) -> &ValueSeries;
     fn series_mut(&mut self) -> &mut ValueSeries;
@@ -81,7 +81,7 @@ struct ExplicitGenerator {
 }
 
 pub struct ValueSeries {
-    pub(crate) values: Vec<Value>,
+    pub(super) values: Vec<Value>,
     generator: Option<ExplicitGenerator>,
 }
 
@@ -154,13 +154,13 @@ impl ValueSeries {
     }
 
     /// Returns true if there are no data points available and there is no function to generate any.
-    pub(crate) fn is_empty(&self) -> bool {
+    pub(super) fn is_empty(&self) -> bool {
         self.generator.is_none() && self.values.is_empty()
     }
 
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
-    pub(crate) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
+    pub(super) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
         if let Some(generator) = self.generator.take() {
             if let Some(intersection) = Self::range_intersection(&x_range, &generator.x_range) {
                 let increment =
@@ -186,7 +186,7 @@ impl ValueSeries {
         (start < end).then(|| start..=end)
     }
 
-    pub(crate) fn get_bounds(&self) -> Bounds {
+    pub(super) fn get_bounds(&self) -> Bounds {
         let mut bounds = Bounds::NOTHING;
         self.values
             .iter()
@@ -231,10 +231,10 @@ impl MarkerShape {
 
 /// A series of values forming a path.
 pub struct Line {
-    pub(crate) series: ValueSeries,
-    pub(crate) stroke: Stroke,
-    pub(crate) name: String,
-    pub(crate) highlight: bool,
+    pub(super) series: ValueSeries,
+    pub(super) stroke: Stroke,
+    pub(super) name: String,
+    pub(super) highlight: bool,
 }
 
 impl Line {
@@ -291,7 +291,7 @@ impl PlotItem for Line {
         } = self;
 
         if *highlight {
-            stroke.width *= 1.5;
+            stroke.width *= 2.0;
         }
 
         let values_tf: Vec<_> = series
@@ -331,16 +331,16 @@ impl PlotItem for Line {
 
 /// A series of points.
 pub struct Points {
-    pub(crate) series: ValueSeries,
-    pub(crate) shape: MarkerShape,
+    pub(super) series: ValueSeries,
+    pub(super) shape: MarkerShape,
     /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
-    pub(crate) color: Color32,
+    pub(super) color: Color32,
     /// Whether to fill the marker. Does not apply to all types.
-    pub(crate) filled: bool,
+    pub(super) filled: bool,
     /// The maximum extent of the marker from its center.
-    pub(crate) radius: f32,
-    pub(crate) name: String,
-    pub(crate) highlight: bool,
+    pub(super) radius: f32,
+    pub(super) name: String,
+    pub(super) highlight: bool,
 }
 
 impl Points {
