@@ -149,7 +149,7 @@ impl LegendWidget {
     pub(super) fn try_new(
         rect: Rect,
         config: Legend,
-        items: &Vec<Box<dyn PlotItem>>,
+        items: &[Box<dyn PlotItem>],
         hidden_items: &HashSet<String>,
     ) -> Option<Self> {
         // Collect the legend entries. If multiple curves have the same name, they share a
