@@ -137,7 +137,7 @@ impl Widget for (&String, &mut LegendEntry) {
 }
 
 #[derive(Clone)]
-pub(crate) struct LegendWidget {
+pub(super) struct LegendWidget {
     rect: Rect,
     entries: BTreeMap<String, LegendEntry>,
     config: Legend,
