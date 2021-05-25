@@ -19,6 +19,7 @@ use epaint::Shape;
 ///     }
 /// );
 /// ```
+#[must_use = "You should call .show*"]
 pub struct ComboBox {
     id_source: Id,
     label: Option<Label>,

@@ -1,9 +1,9 @@
 use egui::*;
-use plot::{Curve, Legend, LegendPosition, Marker, Plot, Value};
+use plot::{Legend, LegendPosition, Line, MarkerShape, Plot, Points, Value, ValueSeries};
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
-struct CurveDemo {
+struct LineDemo {
     animate: bool,
     time: f64,
     circle_radius: f64,
@@ -12,7 +12,7 @@ struct CurveDemo {
     proportional: bool,
 }
 
-impl Default for CurveDemo {
+impl Default for LineDemo {
     fn default() -> Self {
         Self {
             animate: true,
@@ -25,7 +25,7 @@ impl Default for CurveDemo {
     }
 }
 
-impl CurveDemo {
+impl LineDemo {
     fn options_ui(&mut self, ui: &mut Ui) {
         let Self {
             animate,
@@ -70,10 +70,18 @@ impl CurveDemo {
             });
         });
 
-        ui.label("Drag to pan, ctrl + scroll to zoom. Double-click to reset view.");
+        ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+        if cfg!(target_arch = "wasm32") {
+            ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+        } else if cfg!(target_os = "macos") {
+            ui.label("Zoom with ctrl / ⌘ + scroll.");
+        } else {
+            ui.label("Zoom with ctrl + scroll.");
+        }
+        ui.label("Reset view with double-click.");
     }
 
-    fn circle(&self) -> Curve {
+    fn circle(&self) -> Line {
         let n = 512;
         let circle = (0..=n).map(|i| {
             let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
@@ -83,46 +91,45 @@ impl CurveDemo {
                 r * t.sin() + self.circle_center.y as f64,
             )
         });
-        Curve::from_values_iter(circle)
+        Line::new(ValueSeries::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
             .name("circle")
     }
 
-    fn sin(&self) -> Curve {
+    fn sin(&self) -> Line {
         let time = self.time;
-        Curve::from_explicit_callback(
+        Line::new(ValueSeries::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             512,
-        )
+        ))
         .color(Color32::from_rgb(200, 100, 100))
         .name("wave")
     }
 
-    fn thingy(&self) -> Curve {
+    fn thingy(&self) -> Line {
         let time = self.time;
-        Curve::from_parametric_callback(
+        Line::new(ValueSeries::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
-            100,
-        )
+            256,
+        ))
         .color(Color32::from_rgb(100, 150, 250))
-        .marker(Marker::default())
         .name("x = sin(2t), y = sin(3t)")
     }
 }
 
-impl Widget for &mut CurveDemo {
+impl Widget for &mut LineDemo {
     fn ui(self, ui: &mut Ui) -> Response {
         self.options_ui(ui);
         if self.animate {
             ui.ctx().request_repaint();
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("Curves Demo")
-            .curve(self.circle())
-            .curve(self.sin())
-            .curve(self.thingy())
+        let mut plot = Plot::new("Lines Demo")
+            .line(self.circle())
+            .line(self.sin())
+            .line(self.thingy())
             .height(300.0)
             .legend(Legend::default());
         if self.square {
@@ -137,8 +144,6 @@ impl Widget for &mut CurveDemo {
 
 #[derive(PartialEq)]
 struct MarkerDemo {
-    show_markers: bool,
-    show_lines: bool,
     fill_markers: bool,
     marker_radius: f32,
     custom_marker_color: bool,
@@ -148,8 +153,6 @@ struct MarkerDemo {
 impl Default for MarkerDemo {
     fn default() -> Self {
         Self {
-            show_markers: true,
-            show_lines: true,
             fill_markers: true,
             marker_radius: 5.0,
             custom_marker_color: false,
@@ -159,33 +162,30 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Curve> {
-        Marker::all()
+    fn markers(&self) -> Vec<Points> {
+        MarkerShape::all()
             .into_iter()
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
-                let mut curve = Curve::from_values(vec![
+                let mut points = Points::new(ValueSeries::from_values(vec![
                     Value::new(1.0, 0.0 + y_offset),
                     Value::new(2.0, 0.5 + y_offset),
                     Value::new(3.0, 0.0 + y_offset),
                     Value::new(4.0, 0.5 + y_offset),
                     Value::new(5.0, 0.0 + y_offset),
                     Value::new(6.0, 0.5 + y_offset),
-                ])
-                .name("Marker Lines");
+                ]))
+                .name("Marker Lines")
+                .filled(self.fill_markers)
+                .radius(self.marker_radius)
+                .shape(marker);
 
-                if self.show_markers {
-                    let mut marker = marker.filled(self.fill_markers).radius(self.marker_radius);
-                    if self.custom_marker_color {
-                        marker = marker.color(self.marker_color);
-                    }
-                    curve = curve.marker(marker);
+                if self.custom_marker_color {
+                    points = points.color(self.marker_color);
                 }
-                if !self.show_lines {
-                    curve = curve.color(Color32::TRANSPARENT);
-                }
-                curve
+
+                points
             })
             .collect()
     }
@@ -193,10 +193,6 @@ impl MarkerDemo {
 
 impl Widget for &mut MarkerDemo {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.show_lines, "show lines");
-            ui.checkbox(&mut self.show_markers, "show markers");
-        });
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.fill_markers, "fill markers");
             ui.add(
@@ -211,11 +207,10 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let markers_plot = Plot::new("Markers Demo")
-            .curves(self.markers())
-            .height(300.0)
-            .legend(Legend::default())
-            .data_aspect(1.0);
+        let mut markers_plot = Plot::new("Markers Demo").height(300.0).data_aspect(1.0);
+        for marker in self.markers() {
+            markers_plot = markers_plot.points(marker);
+        }
         ui.add(markers_plot)
     }
 }
@@ -234,14 +229,26 @@ impl Default for LegendDemo {
 }
 
 impl LegendDemo {
-    fn line_with_slope(slope: f64) -> Curve {
-        Curve::from_explicit_callback(move |x| slope * x, f64::NEG_INFINITY..=f64::INFINITY, 100)
+    fn line_with_slope(slope: f64) -> Line {
+        Line::new(ValueSeries::from_explicit_callback(
+            move |x| slope * x,
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
     }
-    fn sin() -> Curve {
-        Curve::from_explicit_callback(move |x| x.sin(), f64::NEG_INFINITY..=f64::INFINITY, 100)
+    fn sin() -> Line {
+        Line::new(ValueSeries::from_explicit_callback(
+            move |x| x.sin(),
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
     }
-    fn cos() -> Curve {
-        Curve::from_explicit_callback(move |x| x.cos(), f64::NEG_INFINITY..=f64::INFINITY, 100)
+    fn cos() -> Line {
+        Line::new(ValueSeries::from_explicit_callback(
+            move |x| x.cos(),
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
     }
 }
 
@@ -262,11 +269,11 @@ impl Widget for &mut LegendDemo {
             });
         });
         let legend_plot = Plot::new("Legend Demo")
-            .curve(LegendDemo::line_with_slope(0.5).name("lines"))
-            .curve(LegendDemo::line_with_slope(1.0).name("lines"))
-            .curve(LegendDemo::line_with_slope(2.0).name("lines"))
-            .curve(LegendDemo::sin().name("sin(x)"))
-            .curve(LegendDemo::cos().name("cos(x)"))
+            .line(LegendDemo::line_with_slope(0.5).name("lines"))
+            .line(LegendDemo::line_with_slope(1.0).name("lines"))
+            .line(LegendDemo::line_with_slope(2.0).name("lines"))
+            .line(LegendDemo::sin().name("sin(x)"))
+            .line(LegendDemo::cos().name("cos(x)"))
             .height(300.0)
             .legend(*config)
             .data_aspect(1.0);
@@ -276,7 +283,7 @@ impl Widget for &mut LegendDemo {
 
 #[derive(PartialEq, Default)]
 pub struct PlotDemo {
-    curve_demo: CurveDemo,
+    line_demo: LineDemo,
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
 }
@@ -302,7 +309,7 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
-        ui.collapsing("Curves", |ui| ui.add(&mut self.curve_demo));
+        ui.collapsing("Lines", |ui| ui.add(&mut self.line_demo));
         ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
         ui.collapsing("Legend", |ui| ui.add(&mut self.legend_demo));
     }

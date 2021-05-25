@@ -6,8 +6,9 @@ mod transform;
 
 use std::collections::HashSet;
 
-pub use items::{Curve, Marker, Value};
+use items::PlotItem;
 use items::{HLine, VLine};
+pub use items::{Line, MarkerShape, Points, Value, ValueSeries};
 use legend::LegendWidget;
 pub use legend::{Legend, LegendPosition};
 use transform::{Bounds, ScreenTransform};
@@ -23,33 +24,33 @@ use color::Hsva;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
-    hidden_curves: HashSet<String>,
     hovered_entry: Option<String>,
+    hidden_items: HashSet<String>,
 }
 
 // ----------------------------------------------------------------------------
 
 /// A 2D plot, e.g. a graph of a function.
 ///
-/// `Plot` supports multiple curves.
+/// `Plot` supports multiple lines and points.
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::plot::{Curve, Plot, Value};
+/// use egui::plot::{Line, Plot, Value, ValueSeries};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
 /// });
-/// let curve = Curve::from_values_iter(sin);
+/// let line = Line::new(ValueSeries::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").curve(curve).view_aspect(2.0)
+///     Plot::new("Test Plot").line(line).view_aspect(2.0)
 /// );
 /// ```
 pub struct Plot {
     name: String,
     next_auto_color_idx: usize,
 
-    curves: Vec<Curve>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
 
@@ -78,7 +79,7 @@ impl Plot {
             name: name.to_string(),
             next_auto_color_idx: 0,
 
-            curves: Default::default(),
+            items: Default::default(),
             hlines: Default::default(),
             vlines: Default::default(),
 
@@ -109,40 +110,43 @@ impl Plot {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    /// Add a data curve.
-    /// You can add multiple curves.
-    pub fn curve(mut self, mut curve: Curve) -> Self {
-        if curve.no_data() {
+    /// Add a data lines.
+    /// You can add multiple lines.
+    pub fn line(mut self, mut line: Line) -> Self {
+        if line.series.is_empty() {
             return self;
         };
 
         // Give the stroke an automatic color if no color has been assigned.
-        let stroke_color = curve.color.get_or_insert_with(|| self.auto_color());
-        // Give the marker the same color as the stroke if no color has been assigned.
-        if let Some(marker) = &mut curve.marker {
-            if marker.color == Color32::TRANSPARENT {
-                marker.color = if *stroke_color != Color32::TRANSPARENT {
-                    *stroke_color
-                } else {
-                    self.auto_color()
-                };
-            }
+        if line.stroke.color == Color32::TRANSPARENT {
+            line.stroke.color = self.auto_color();
         }
-        self.curves.push(curve);
+        self.items.push(Box::new(line));
 
         self
     }
 
-    /// Add multiple data curves.
-    pub fn curves(self, curves: Vec<Curve>) -> Self {
-        curves.into_iter().fold(self, Self::curve)
+    /// Add data points.
+    /// You can add multiple sets of points.
+    pub fn points(mut self, mut points: Points) -> Self {
+        if points.series.is_empty() {
+            return self;
+        };
+
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.items.push(Box::new(points));
+
+        self
     }
 
     /// Add a horizontal line.
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color.a() == 0 {
+        if hline.stroke.color != Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
         self.hlines.push(hline);
@@ -153,7 +157,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color.a() == 0 {
+        if vline.stroke.color != Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.vlines.push(vline);
@@ -261,6 +265,7 @@ impl Plot {
     }
 
     #[deprecated = "Use `Plot::legend` instead"]
+    /// Whether to show a legend including all named items. Default: `true`.
     pub fn show_legend(mut self, show: bool) -> Self {
         self.legend_config = show.then(Legend::default);
         self
@@ -278,7 +283,7 @@ impl Widget for Plot {
         let Self {
             name,
             next_auto_color_idx: _,
-            mut curves,
+            mut items,
             hlines,
             vlines,
             center_x_axis,
@@ -304,16 +309,16 @@ impl Widget for Plot {
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
-                hidden_curves: HashSet::new(),
                 hovered_entry: None,
+                hidden_items: HashSet::new(),
             })
             .clone();
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
-            mut hidden_curves,
             mut hovered_entry,
+            mut hidden_items,
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -353,20 +358,20 @@ impl Widget for Plot {
 
         // Legend
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &curves, &hidden_curves));
+            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected curves.
-        curves.retain(|curve| !hidden_curves.contains(&curve.name));
+        items.retain(|item| !hidden_items.contains(item.name()));
         // Highlight the hovered curves.
         if let Some(hovered_name) = &hovered_entry {
-            curves
+            items
                 .iter_mut()
-                .filter(|entry| &entry.name == hovered_name)
-                .for_each(|entry| entry.highlight = true);
+                .filter(|entry| entry.name() == hovered_name)
+                .for_each(|entry| entry.highlight());
         }
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
@@ -376,7 +381,9 @@ impl Widget for Plot {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
-            curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
+            items
+                .iter()
+                .for_each(|item| bounds.merge(&item.series().get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
@@ -427,14 +434,15 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        curves
-            .iter_mut()
-            .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
+        items.iter_mut().for_each(|item| {
+            item.series_mut()
+                .generate_points(transform.bounds().range_x())
+        });
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
-            curves,
+            items,
             hlines,
             vlines,
             show_x,
@@ -445,7 +453,7 @@ impl Widget for Plot {
 
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
-            hidden_curves = legend.get_hidden_curves();
+            hidden_items = legend.get_hidden_curves();
             hovered_entry = legend.get_hovered_entry_name();
         }
 
@@ -454,8 +462,8 @@ impl Widget for Plot {
             PlotMemory {
                 bounds,
                 auto_bounds,
-                hidden_curves,
                 hovered_entry,
+                hidden_items,
             },
         );
 
@@ -468,7 +476,7 @@ impl Widget for Plot {
 }
 
 struct Prepared {
-    curves: Vec<Curve>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
@@ -479,11 +487,12 @@ struct Prepared {
 impl Prepared {
     fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
-        let transform = &self.transform;
 
         for d in 0..2 {
             self.paint_axis(ui, d, &mut shapes);
         }
+
+        let transform = &self.transform;
 
         for &hline in &self.hlines {
             let HLine { y, stroke } = hline;
@@ -503,49 +512,8 @@ impl Prepared {
             shapes.push(Shape::line_segment(points, stroke));
         }
 
-        for curve in &self.curves {
-            let Curve {
-                values,
-                color,
-                mut width,
-                mut marker,
-                highlight,
-                ..
-            } = curve;
-
-            let color = color.unwrap_or(Color32::TRANSPARENT);
-
-            if *highlight {
-                width *= 1.5;
-                if let Some(marker) = &mut marker {
-                    marker.radius *= 1.25;
-                }
-            }
-
-            let values_tf: Vec<_> = values
-                .iter()
-                .map(|v| transform.position_from_value(v))
-                .collect();
-
-            let marker_shapes: Option<Vec<Shape>> = marker.map(|marker| {
-                values_tf
-                    .iter()
-                    .flat_map(|pos| marker.get_shapes(pos))
-                    .collect()
-            });
-
-            if color.a() != 0 {
-                let line_shape = if values_tf.len() > 1 {
-                    Shape::line(values_tf, Stroke::new(width, color))
-                } else {
-                    Shape::circle_filled(values_tf[0], width / 2.0, color)
-                };
-                shapes.push(line_shape);
-            }
-
-            if let Some(marker_shapes) = marker_shapes {
-                shapes.extend(marker_shapes.into_iter());
-            }
+        for item in &self.items {
+            item.get_shapes(transform, &mut shapes);
         }
 
         let painter_rect = ui.painter().sub_region(*transform.frame());
@@ -651,7 +619,7 @@ impl Prepared {
             transform,
             show_x,
             show_y,
-            curves,
+            items,
             ..
         } = self;
 
@@ -663,24 +631,24 @@ impl Prepared {
 
         let interact_radius: f32 = 16.0;
         let mut closest_value = None;
-        let mut closest_curve = None;
+        let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
-        for curve in curves {
-            for value in &curve.values {
+        for item in items {
+            for value in &item.series().values {
                 let pos = transform.position_from_value(value);
                 let dist_sq = pointer.distance_sq(pos);
                 if dist_sq < closest_dist_sq {
                     closest_dist_sq = dist_sq;
                     closest_value = Some(value);
-                    closest_curve = Some(curve);
+                    closest_item = Some(item.name());
                 }
             }
         }
 
         let mut prefix = String::new();
-        if let Some(curve) = closest_curve {
-            if !curve.name.is_empty() {
-                prefix = format!("{}\n", curve.name);
+        if let Some(name) = closest_item {
+            if !name.is_empty() {
+                prefix = format!("{}\n", name);
             }
         }
 

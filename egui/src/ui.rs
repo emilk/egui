@@ -78,7 +78,7 @@ impl Ui {
 
     /// Create a new `Ui` at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        debug_assert!(!max_rect.any_nan());
+        crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
@@ -723,7 +723,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -953,14 +953,20 @@ impl Ui {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
+    pub fn text_edit_singleline<S: widgets::text_edit::TextBuffer>(
+        &mut self,
+        text: &mut S,
+    ) -> Response {
         TextEdit::singleline(text).ui(self)
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
+    pub fn text_edit_multiline<S: widgets::text_edit::TextBuffer>(
+        &mut self,
+        text: &mut S,
+    ) -> Response {
         TextEdit::multiline(text).ui(self)
     }
 
@@ -969,7 +975,7 @@ impl Ui {
     /// This will be multiline, monospace, and will insert tabs instead of moving focus.
     ///
     /// See also [`TextEdit::code_editor`].
-    pub fn code_editor(&mut self, text: &mut String) -> Response {
+    pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
         self.add(TextEdit::multiline(text).code_editor())
     }
 

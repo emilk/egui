@@ -5,6 +5,7 @@ use epaint::*;
 
 /// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[must_use = "You should call .show()"]
 pub struct Frame {
     /// On each side
     pub margin: Vec2,
@@ -121,7 +122,12 @@ impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
-        let inner_rect = outer_rect_bounds.shrink2(self.margin);
+        let mut inner_rect = outer_rect_bounds.shrink2(self.margin);
+
+        // Make sure we don't shrink to the negative:
+        inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
+        inner_rect.max.y = inner_rect.max.y.max(inner_rect.min.y);
+
         let content_ui = ui.child_ui(inner_rect, *ui.layout());
 
         // content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Can't do this since we don't know final size yet

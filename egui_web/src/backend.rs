@@ -141,7 +141,7 @@ pub struct AppRunner {
     screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
     http: Arc<http::WebHttp>,
-    pub(crate) text_cursor: Option<egui::Pos2>,
+    pub(crate) last_text_cursor_pos: Option<egui::Pos2>,
 }
 
 impl AppRunner {
@@ -160,7 +160,7 @@ impl AppRunner {
             screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
-            text_cursor: None,
+            last_text_cursor_pos: None,
         })
     }
 

@@ -342,8 +342,8 @@ impl Layout {
 /// ## Doing layout
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        debug_assert!(size.x >= 0.0 && size.y >= 0.0);
-        debug_assert!(!outer.is_negative());
+        crate::egui_assert!(size.x >= 0.0 && size.y >= 0.0);
+        crate::egui_assert!(!outer.is_negative());
         self.align2().align_size_within_rect(size, outer)
     }
 
@@ -369,7 +369,7 @@ impl Layout {
     }
 
     pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
-        debug_assert!(!max_rect.any_nan());
+        crate::egui_assert!(!max_rect.any_nan());
         let mut region = Region {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
@@ -464,7 +464,7 @@ impl Layout {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        crate::egui_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
 
         if self.main_wrap {
             let available_size = self.available_rect_before_wrap(region).size();
@@ -543,7 +543,7 @@ impl Layout {
     }
 
     fn next_frame_ignore_wrap(&self, region: &Region, child_size: Vec2) -> Rect {
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        crate::egui_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
 
         let available_rect = self.available_rect_before_wrap_finite(region);
 
@@ -581,8 +581,8 @@ impl Layout {
 
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, frame: Rect, mut child_size: Vec2) -> Rect {
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
-        debug_assert!(!frame.is_negative());
+        crate::egui_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        crate::egui_assert!(!frame.is_negative());
 
         if self.horizontal_justify() {
             child_size.x = child_size.x.at_least(frame.width()); // fill full width
@@ -600,7 +600,7 @@ impl Layout {
     ) -> Rect {
         let frame = self.next_frame_ignore_wrap(region, size);
         let rect = self.align_size_within_rect(size, frame);
-        debug_assert!((rect.size() - size).length() < 1.0);
+        crate::egui_assert!((rect.size() - size).length() < 1.0);
         rect
     }
 

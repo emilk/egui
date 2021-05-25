@@ -15,7 +15,7 @@ use crate::*;
 pub struct Button {
     text: String,
     text_color: Option<Color32>,
-    text_style: TextStyle,
+    text_style: Option<TextStyle>,
     /// None means default for interact
     fill: Option<Color32>,
     sense: Sense,
@@ -31,7 +31,7 @@ impl Button {
         Self {
             text: text.to_string(),
             text_color: None,
-            text_style: TextStyle::Button,
+            text_style: None,
             fill: Default::default(),
             sense: Sense::click(),
             small: false,
@@ -52,7 +52,7 @@ impl Button {
     }
 
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = text_style;
+        self.text_style = Some(text_style);
         self
     }
 
@@ -63,7 +63,7 @@ impl Button {
 
     /// Make this a small button, suitable for embedding into text.
     pub fn small(mut self) -> Self {
-        self.text_style = TextStyle::Body;
+        self.text_style = Some(TextStyle::Body);
         self.small = true;
         self
     }
@@ -123,6 +123,10 @@ impl Button {
             min_size,
         } = self;
 
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or(TextStyle::Button);
+
         let mut button_padding = ui.spacing().button_padding;
         if small {
             button_padding.y = 0.0;
@@ -148,7 +152,7 @@ impl Button {
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
-            let text_cursor = ui
+            let text_pos = ui
                 .layout()
                 .align_size_within_rect(galley.size, rect.shrink2(button_padding))
                 .min;
@@ -166,7 +170,7 @@ impl Button {
             let text_color = text_color
                 .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
-            ui.painter().galley(text_cursor, galley, text_color);
+            ui.painter().galley(text_pos, galley, text_color);
         }
 
         response
@@ -209,6 +213,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
     text_color: Option<Color32>,
+    text_style: Option<TextStyle>,
 }
 
 impl<'a> Checkbox<'a> {
@@ -218,11 +223,17 @@ impl<'a> Checkbox<'a> {
             checked,
             text: text.to_string(),
             text_color: None,
+            text_style: None,
         }
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
         self
     }
 }
@@ -233,7 +244,12 @@ impl<'a> Widget for Checkbox<'a> {
             checked,
             text,
             text_color,
+            text_style,
         } = self;
+
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or(TextStyle::Button);
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
@@ -241,7 +257,6 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
@@ -262,7 +277,7 @@ impl<'a> Widget for Checkbox<'a> {
 
         // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
-        let text_cursor = pos2(
+        let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
             rect.center().y - 0.5 * galley.size.y,
         );
@@ -289,7 +304,7 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter().galley(text_cursor, galley, text_color);
+        ui.painter().galley(text_pos, galley, text_color);
         response
     }
 }
@@ -320,6 +335,7 @@ pub struct RadioButton {
     checked: bool,
     text: String,
     text_color: Option<Color32>,
+    text_style: Option<TextStyle>,
 }
 
 impl RadioButton {
@@ -329,11 +345,17 @@ impl RadioButton {
             checked,
             text: text.to_string(),
             text_color: None,
+            text_style: None,
         }
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
         self
     }
 }
@@ -344,14 +366,18 @@ impl Widget for RadioButton {
             checked,
             text,
             text_color,
+            text_style,
         } = self;
+
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or(TextStyle::Button);
 
         let icon_width = ui.spacing().icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let text_style = TextStyle::Button;
         let galley = if ui.wrap_text() {
             ui.fonts()
                 .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
@@ -366,7 +392,7 @@ impl Widget for RadioButton {
         response
             .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, &galley.text));
 
-        let text_cursor = pos2(
+        let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
             rect.center().y - 0.5 * galley.size.y,
         );
@@ -398,7 +424,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_cursor, galley, text_color);
+        painter.galley(text_pos, galley, text_color);
         response
     }
 }

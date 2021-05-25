@@ -456,7 +456,7 @@ fn stroke_path(
 }
 
 fn mul_color(color: Color32, factor: f32) -> Color32 {
-    debug_assert!(0.0 <= factor && factor <= 1.0);
+    crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
     // As an unfortunate side-effect of using premultiplied alpha
     // we need a somewhat expensive conversion to linear space and back.
     color.linear_multiply(factor)
@@ -528,7 +528,7 @@ impl Tessellator {
                 if mesh.is_valid() {
                     out.append(mesh);
                 } else {
-                    debug_assert!(false, "Invalid Mesh in Shape::Mesh");
+                    crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
                 }
             }
             Shape::LineSegment { points, stroke } => {
@@ -553,7 +553,7 @@ impl Tessellator {
                     }
 
                     if fill != Color32::TRANSPARENT {
-                        debug_assert!(
+                        crate::epaint_assert!(
                             closed,
                             "You asked to fill a path that is not closed. That makes no sense."
                         );
@@ -641,7 +641,10 @@ impl Tessellator {
         if color == Color32::TRANSPARENT || galley.is_empty() {
             return;
         }
-        if cfg!(debug_assertions) {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
             galley.sanity_check();
         }
 
@@ -790,7 +793,7 @@ pub fn tessellate_shapes(
     }
 
     for ClippedMesh(_, mesh) in &clipped_meshes {
-        debug_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+        crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
     }
 
     clipped_meshes

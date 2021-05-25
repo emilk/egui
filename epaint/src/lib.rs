@@ -159,3 +159,19 @@ pub struct ClippedMesh(
     /// The shape
     pub Mesh,
 );
+
+// ----------------------------------------------------------------------------
+
+/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
+/// or with the `debug_egui_assert` feature in debug builds.
+#[macro_export]
+macro_rules! epaint_assert {
+    ($($arg:tt)*) => {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
+            assert!($($arg)*);
+        }
+    }
+}

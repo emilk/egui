@@ -163,7 +163,7 @@ pub fn remap<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
 where
     T: Real,
 {
-    debug_assert!(from.start() != from.end());
+    crate::emath_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -181,7 +181,7 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        debug_assert!(from.start() != from.end());
+        crate::emath_assert!(from.start() != from.end());
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
         if T::one() <= t {
@@ -200,7 +200,7 @@ pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
 where
     T: Copy + PartialOrd,
 {
-    debug_assert!(range.start() <= range.end());
+    crate::emath_assert!(range.start() <= range.end());
     if x <= *range.start() {
         *range.start()
     } else if *range.end() <= x {
@@ -225,8 +225,8 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    debug_assert!(min_decimals <= max_decimals);
-    debug_assert!(max_decimals < 100);
+    crate::emath_assert!(min_decimals <= max_decimals);
+    crate::emath_assert!(max_decimals < 100);
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
@@ -380,4 +380,20 @@ fn test_normalized_angle() {
     almost_eq!(normalized_angle(0.0), 0.0);
     almost_eq!(normalized_angle(TAU), 0.0);
     almost_eq!(normalized_angle(2.7 * TAU), -0.3 * TAU);
+}
+
+// ----------------------------------------------------------------------------
+
+/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
+/// or with the `debug_egui_assert` feature in debug builds.
+#[macro_export]
+macro_rules! emath_assert {
+    ($($arg:tt)*) => {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
+            assert!($($arg)*);
+        }
+    }
 }
