@@ -3,8 +3,9 @@ use std::{
     string::String,
 };
 
-use super::Curve;
 use crate::*;
+
+use super::items::PlotItem;
 
 /// Where to place the plot legend.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,13 +47,13 @@ impl Default for Legend {
 
 #[derive(Clone)]
 struct LegendEntry {
-    color: Option<Color32>,
+    color: Color32,
     checked: bool,
     hovered: bool,
 }
 
 impl LegendEntry {
-    fn new(color: Option<Color32>, checked: bool) -> Self {
+    fn new(color: Color32, checked: bool) -> Self {
         Self {
             color,
             checked,
@@ -106,11 +107,15 @@ impl Widget for (&String, &mut LegendEntry) {
         });
 
         if *checked {
-            let neutral_color = ui.visuals().noninteractive().fg_stroke.color;
+            let fill = if *color == Color32::TRANSPARENT {
+                ui.visuals().noninteractive().fg_stroke.color
+            } else {
+                *color
+            };
             painter.add(Shape::Circle {
                 center: icon_rect.center(),
                 radius: icon_size * 0.4,
-                fill: color.unwrap_or(neutral_color),
+                fill,
                 stroke: Default::default(),
             });
         }
@@ -141,29 +146,29 @@ pub(crate) struct LegendWidget {
 impl LegendWidget {
     /// Create a new legend from curves, the names of curves that are hidden and the style of the
     /// text. Returns `None` if the legend has no entries.
-    pub fn try_new(
+    pub(super) fn try_new(
         rect: Rect,
         config: Legend,
-        curves: &[Curve],
-        hidden_curves: &HashSet<String>,
+        items: &Vec<Box<dyn PlotItem>>,
+        hidden_items: &HashSet<String>,
     ) -> Option<Self> {
         // Collect the legend entries. If multiple curves have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
         let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
-        curves
+        items
             .iter()
-            .filter(|curve| !curve.name.is_empty())
-            .for_each(|curve| {
+            .filter(|item| !item.name().is_empty())
+            .for_each(|item| {
                 entries
-                    .entry(curve.name.clone())
+                    .entry(item.name().to_string())
                     .and_modify(|entry| {
-                        if entry.color != curve.get_color() {
-                            entry.color = None
+                        if entry.color != item.color() {
+                            entry.color = Color32::TRANSPARENT
                         }
                     })
                     .or_insert_with(|| {
-                        let color = curve.get_color();
-                        let checked = !hidden_curves.contains(&curve.name);
+                        let color = item.color();
+                        let checked = !hidden_items.contains(item.name());
                         LegendEntry::new(color, checked)
                     });
             });
