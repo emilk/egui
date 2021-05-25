@@ -271,7 +271,7 @@ impl Plot {
         self
     }
 
-    /// Show a legend including all named curves.
+    /// Show a legend including all named items.
     pub fn legend(mut self, legend: Legend) -> Self {
         self.legend_config = Some(legend);
         self
@@ -364,9 +364,9 @@ impl Widget for Plot {
             show_x = false;
             show_y = false;
         }
-        // Remove the deselected curves.
+        // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
-        // Highlight the hovered curves.
+        // Highlight the hovered items.
         if let Some(hovered_name) = &hovered_entry {
             items
                 .iter_mut()
@@ -453,7 +453,7 @@ impl Widget for Plot {
 
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
-            hidden_items = legend.get_hidden_curves();
+            hidden_items = legend.get_hidden_items();
             hovered_entry = legend.get_hovered_entry_name();
         }
 

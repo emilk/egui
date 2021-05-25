@@ -144,7 +144,7 @@ pub(crate) struct LegendWidget {
 }
 
 impl LegendWidget {
-    /// Create a new legend from curves, the names of curves that are hidden and the style of the
+    /// Create a new legend from items, the names of items that are hidden and the style of the
     /// text. Returns `None` if the legend has no entries.
     pub(super) fn try_new(
         rect: Rect,
@@ -152,7 +152,7 @@ impl LegendWidget {
         items: &[Box<dyn PlotItem>],
         hidden_items: &HashSet<String>,
     ) -> Option<Self> {
-        // Collect the legend entries. If multiple curves have the same name, they share a
+        // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
         let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
         items
@@ -179,8 +179,8 @@ impl LegendWidget {
         })
     }
 
-    // Get the names of the hidden curves.
-    pub fn get_hidden_curves(&self) -> HashSet<String> {
+    // Get the names of the hidden items.
+    pub fn get_hidden_items(&self) -> HashSet<String> {
         self.entries
             .iter()
             .filter(|(_, entry)| !entry.checked)
@@ -188,7 +188,7 @@ impl LegendWidget {
             .collect()
     }
 
-    // Get the name of the hovered curve.
+    // Get the name of the hovered items.
     pub fn get_hovered_entry_name(&self) -> Option<String> {
         self.entries
             .iter()
