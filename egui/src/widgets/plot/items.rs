@@ -69,6 +69,7 @@ pub(super) trait PlotItem {
     fn name(&self) -> &str;
     fn color(&self) -> Color32;
     fn highlight(&mut self);
+    fn highlighted(&self) -> bool;
 }
 
 // ----------------------------------------------------------------------------
@@ -328,6 +329,10 @@ impl PlotItem for Line {
     fn highlight(&mut self) {
         self.highlight = true;
     }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
+    }
 }
 
 /// A set of points.
@@ -557,5 +562,9 @@ impl PlotItem for Points {
 
     fn highlight(&mut self) {
         self.highlight = true;
+    }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
     }
 }

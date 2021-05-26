@@ -373,6 +373,8 @@ impl Widget for Plot {
                 .filter(|entry| entry.name() == hovered_name)
                 .for_each(|entry| entry.highlight());
         }
+        // Move highlighted items to front.
+        items.sort_by(|a, b| a.highlighted().cmp(&b.highlighted()));
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
