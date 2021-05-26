@@ -155,7 +155,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color != Color32::TRANSPARENT {
+        if vline.stroke.color == Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.vlines.push(vline);
