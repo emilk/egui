@@ -270,13 +270,7 @@ impl GridLayout {
     pub(crate) fn paint_column(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
         let col_f = col as f32;
 
-        let color = match color {
-            GuiColor::Single(color) => color,
-            GuiColor::LightDark { light, dark } => match self.style.visuals.dark_mode {
-                true => dark,
-                false => light,
-            },
-        };
+        let color = color.pick(&self.style);
 
         // Paint a column:
         // Offset from the cursor to paint the col at the right spot.
