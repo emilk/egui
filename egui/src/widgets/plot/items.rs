@@ -64,8 +64,8 @@ impl VLine {
 
 pub(super) trait PlotItem {
     fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
-    fn series(&self) -> &ValueSeries;
-    fn series_mut(&mut self) -> &mut ValueSeries;
+    fn series(&self) -> &Values;
+    fn series_mut(&mut self) -> &mut Values;
     fn name(&self) -> &str;
     fn color(&self) -> Color32;
     fn highlight(&mut self);
@@ -80,12 +80,12 @@ struct ExplicitGenerator {
     points: usize,
 }
 
-pub struct ValueSeries {
+pub struct Values {
     pub(super) values: Vec<Value>,
     generator: Option<ExplicitGenerator>,
 }
 
-impl Default for ValueSeries {
+impl Default for Values {
     fn default() -> Self {
         Self {
             values: Vec::new(),
@@ -94,7 +94,7 @@ impl Default for ValueSeries {
     }
 }
 
-impl ValueSeries {
+impl Values {
     pub fn from_values(values: Vec<Value>) -> Self {
         Self {
             values,
@@ -231,14 +231,14 @@ impl MarkerShape {
 
 /// A series of values forming a path.
 pub struct Line {
-    pub(super) series: ValueSeries,
+    pub(super) series: Values,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
 }
 
 impl Line {
-    pub fn new(series: ValueSeries) -> Self {
+    pub fn new(series: Values) -> Self {
         Self {
             series,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
@@ -265,7 +265,7 @@ impl Line {
         self
     }
 
-    /// Stroke color.
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
         self
@@ -309,11 +309,11 @@ impl PlotItem for Line {
         shapes.push(line_shape);
     }
 
-    fn series(&self) -> &ValueSeries {
+    fn series(&self) -> &Values {
         &self.series
     }
 
-    fn series_mut(&mut self) -> &mut ValueSeries {
+    fn series_mut(&mut self) -> &mut Values {
         &mut self.series
     }
 
@@ -330,9 +330,9 @@ impl PlotItem for Line {
     }
 }
 
-/// A series of points.
+/// A set of points.
 pub struct Points {
-    pub(super) series: ValueSeries,
+    pub(super) series: Values,
     pub(super) shape: MarkerShape,
     /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
     pub(super) color: Color32,
@@ -345,7 +345,7 @@ pub struct Points {
 }
 
 impl Points {
-    pub fn new(series: ValueSeries) -> Self {
+    pub fn new(series: Values) -> Self {
         Self {
             series,
             shape: MarkerShape::Circle,
@@ -539,11 +539,11 @@ impl PlotItem for Points {
             });
     }
 
-    fn series(&self) -> &ValueSeries {
+    fn series(&self) -> &Values {
         &self.series
     }
 
-    fn series_mut(&mut self) -> &mut ValueSeries {
+    fn series_mut(&mut self) -> &mut Values {
         &mut self.series
     }
 

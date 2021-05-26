@@ -1,5 +1,5 @@
 use egui::*;
-use plot::{Legend, LegendPosition, Line, MarkerShape, Plot, Points, Value, ValueSeries};
+use plot::{Legend, LegendPosition, Line, MarkerShape, Plot, Points, Value, Values};
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
@@ -69,16 +69,6 @@ impl LineDemo {
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
-
-        ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
-        if cfg!(target_arch = "wasm32") {
-            ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
-        } else if cfg!(target_os = "macos") {
-            ui.label("Zoom with ctrl / ⌘ + scroll.");
-        } else {
-            ui.label("Zoom with ctrl + scroll.");
-        }
-        ui.label("Reset view with double-click.");
     }
 
     fn circle(&self) -> Line {
@@ -91,14 +81,14 @@ impl LineDemo {
                 r * t.sin() + self.circle_center.y as f64,
             )
         });
-        Line::new(ValueSeries::from_values_iter(circle))
+        Line::new(Values::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
             .name("circle")
     }
 
     fn sin(&self) -> Line {
         let time = self.time;
-        Line::new(ValueSeries::from_explicit_callback(
+        Line::new(Values::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             512,
@@ -109,7 +99,7 @@ impl LineDemo {
 
     fn thingy(&self) -> Line {
         let time = self.time;
-        Line::new(ValueSeries::from_parametric_callback(
+        Line::new(Values::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
             256,
@@ -168,7 +158,7 @@ impl MarkerDemo {
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
-                let mut points = Points::new(ValueSeries::from_values(vec![
+                let mut points = Points::new(Values::from_values(vec![
                     Value::new(1.0, 0.0 + y_offset),
                     Value::new(2.0, 0.5 + y_offset),
                     Value::new(3.0, 0.0 + y_offset),
@@ -176,7 +166,7 @@ impl MarkerDemo {
                     Value::new(5.0, 0.0 + y_offset),
                     Value::new(6.0, 0.5 + y_offset),
                 ]))
-                .name("Marker Lines")
+                .name(format!("{:?}", marker))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
                 .shape(marker);
@@ -230,21 +220,21 @@ impl Default for LegendDemo {
 
 impl LegendDemo {
     fn line_with_slope(slope: f64) -> Line {
-        Line::new(ValueSeries::from_explicit_callback(
+        Line::new(Values::from_explicit_callback(
             move |x| slope * x,
             f64::NEG_INFINITY..=f64::INFINITY,
             100,
         ))
     }
     fn sin() -> Line {
-        Line::new(ValueSeries::from_explicit_callback(
+        Line::new(Values::from_explicit_callback(
             move |x| x.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             100,
         ))
     }
     fn cos() -> Line {
-        Line::new(ValueSeries::from_explicit_callback(
+        Line::new(Values::from_explicit_callback(
             move |x| x.cos(),
             f64::NEG_INFINITY..=f64::INFINITY,
             100,
@@ -280,12 +270,25 @@ impl Widget for &mut LegendDemo {
         ui.add(legend_plot)
     }
 }
+#[derive(PartialEq, Eq)]
+enum Panel {
+    Lines,
+    Markers,
+    Legend,
+}
+
+impl Default for Panel {
+    fn default() -> Self {
+        Self::Lines
+    }
+}
 
 #[derive(PartialEq, Default)]
 pub struct PlotDemo {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
+    open_panel: Panel,
 }
 
 impl super::Demo for PlotDemo {
@@ -308,9 +311,33 @@ impl super::View for PlotDemo {
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
+            ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+            if cfg!(target_arch = "wasm32") {
+                ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+            } else if cfg!(target_os = "macos") {
+                ui.label("Zoom with ctrl / ⌘ + scroll.");
+            } else {
+                ui.label("Zoom with ctrl + scroll.");
+            }
+            ui.label("Reset view with double-click.");
         });
-        ui.collapsing("Lines", |ui| ui.add(&mut self.line_demo));
-        ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
-        ui.collapsing("Legend", |ui| ui.add(&mut self.legend_demo));
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.open_panel, Panel::Lines, "Lines");
+            ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
+        });
+        ui.separator();
+
+        match self.open_panel {
+            Panel::Lines => {
+                ui.add(&mut self.line_demo);
+            }
+            Panel::Markers => {
+                ui.add(&mut self.marker_demo);
+            }
+            Panel::Legend => {
+                ui.add(&mut self.legend_demo);
+            }
+        }
     }
 }

@@ -7,8 +7,8 @@ mod transform;
 use std::collections::HashSet;
 
 use items::PlotItem;
-use items::{HLine, VLine};
-pub use items::{Line, MarkerShape, Points, Value, ValueSeries};
+pub use items::{HLine, VLine};
+pub use items::{Line, MarkerShape, Points, Value, Values};
 use legend::LegendWidget;
 pub use legend::{Legend, LegendPosition};
 use transform::{Bounds, ScreenTransform};
@@ -146,7 +146,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color != Color32::TRANSPARENT {
+        if hline.stroke.color == Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
         self.hlines.push(hline);
@@ -157,7 +157,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color != Color32::TRANSPARENT {
+        if vline.stroke.color == Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.vlines.push(vline);

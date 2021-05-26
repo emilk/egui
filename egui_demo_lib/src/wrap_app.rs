@@ -74,49 +74,14 @@ impl epi::App for WrapApp {
             self.selected_anchor = self.apps.iter_mut().next().unwrap().0.to_owned();
         }
 
-        egui::TopPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            // A menu-bar is a horizontal layout with some special styles applied.
-            // egui::menu::bar(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                dark_light_mode_switch(ui);
-
-                ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
-                ui.separator();
-
-                for (anchor, app) in self.apps.iter_mut() {
-                    if ui
-                        .selectable_label(self.selected_anchor == anchor, app.name())
-                        .clicked()
-                    {
-                        self.selected_anchor = anchor.to_owned();
-                        if frame.is_web() {
-                            ui.output().open_url(format!("#{}", anchor));
-                        }
-                    }
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                    if false {
-                        // TODO: fix the overlap on small screens
-                        if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
-                            if clock_button(ui, seconds_since_midnight).clicked() {
-                                self.selected_anchor = "clock".to_owned();
-                                if frame.is_web() {
-                                    ui.output().open_url("#clock");
-                                }
-                            }
-                        }
-                    }
-
-                    egui::warn_if_debug_build(ui);
-                });
-            });
+        egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
+            self.bar_contents(ui, frame);
         });
 
         self.backend_panel.update(ctx, frame);
 
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
-            egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
+            egui::SidePanel::left("backend_panel").show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
             });
         }
@@ -128,6 +93,47 @@ impl epi::App for WrapApp {
         }
 
         self.backend_panel.end_of_frame(ctx);
+    }
+}
+
+impl WrapApp {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+        // A menu-bar is a horizontal layout with some special styles applied.
+        // egui::menu::bar(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            dark_light_mode_switch(ui);
+
+            ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
+            ui.separator();
+
+            for (anchor, app) in self.apps.iter_mut() {
+                if ui
+                    .selectable_label(self.selected_anchor == anchor, app.name())
+                    .clicked()
+                {
+                    self.selected_anchor = anchor.to_owned();
+                    if frame.is_web() {
+                        ui.output().open_url(format!("#{}", anchor));
+                    }
+                }
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                if false {
+                    // TODO: fix the overlap on small screens
+                    if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
+                        if clock_button(ui, seconds_since_midnight).clicked() {
+                            self.selected_anchor = "clock".to_owned();
+                            if frame.is_web() {
+                                ui.output().open_url("#clock");
+                            }
+                        }
+                    }
+                }
+
+                egui::warn_if_debug_build(ui);
+            });
+        });
     }
 }
 
@@ -256,9 +262,20 @@ impl BackendPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
-        ui.heading("💻 Backend");
+        ui.vertical_centered(|ui| {
+            ui.heading("💻 Backend");
+        });
+        ui.separator();
 
         self.run_mode_ui(ui);
+
+        if ui
+            .button("Clear egui memory")
+            .on_hover_text("Forget scroll, positions, sizes etc")
+            .clicked()
+        {
+            *ui.ctx().memory() = Default::default();
+        }
 
         ui.separator();
 
@@ -272,6 +289,15 @@ impl BackendPanel {
             if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
                 ui.ctx().set_pixels_per_point(new_pixels_per_point);
             }
+        }
+
+        if !frame.is_web()
+            && ui
+                .button("📱 Phone Size")
+                .on_hover_text("Resize the window to be small like a phone.")
+                .clicked()
+        {
+            frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
         }
 
         ui.separator();
@@ -299,17 +325,6 @@ impl BackendPanel {
             if !ui.ctx().is_using_pointer() {
                 self.max_size_points_active = self.max_size_points_ui;
             }
-        } else {
-            if ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-            {
-                frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
-            }
-            if ui.button("Quit").clicked() {
-                frame.quit();
-            }
         }
 
         let mut screen_reader = ui.ctx().memory().options.screen_reader;
@@ -328,6 +343,13 @@ impl BackendPanel {
                 ui.label(format!("{:?}", event));
             }
         });
+
+        if !frame.is_web() {
+            ui.separator();
+            if ui.button("Quit").clicked() {
+                frame.quit();
+            }
+        }
     }
 
     fn pixels_per_point_ui(
@@ -347,6 +369,7 @@ impl BackendPanel {
             ui.add(
                 egui::Slider::new(pixels_per_point, 0.5..=5.0)
                     .logarithmic(true)
+                    .clamp_to_range(true)
                     .text("Scale"),
             )
             .on_hover_text("Physical pixels per point.");
