@@ -5,7 +5,7 @@
 //!
 //! The order in which you add panels matter!
 //!
-//! Add [`CentralPanel`] and [`Window`]:s last.
+//! Add any [`Panel`] first, and [`CentralPanel`] and [`Window`]:s last.
 
 use std::ops::RangeInclusive;
 
@@ -57,7 +57,7 @@ impl Side {
 /// # let mut ctx = egui::CtxRef::default();
 /// # ctx.begin_frame(Default::default());
 /// # let ctx = &ctx;
-/// egui::SidePanel::left("my_side_panel", 0.0).show(ctx, |ui| {
+/// egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// ```
@@ -72,17 +72,17 @@ pub struct SidePanel {
 }
 
 impl SidePanel {
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_left_panel"`.
     pub fn left(id_source: impl std::hash::Hash) -> Self {
         Self::new(Side::Left, id_source)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_right_panel"`.
     pub fn right(id_source: impl std::hash::Hash) -> Self {
         Self::new(Side::Right, id_source)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_panel"`.
     pub fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
@@ -287,17 +287,17 @@ pub struct TopBottomPanel {
 }
 
 impl TopBottomPanel {
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_top_panel"`.
     pub fn top(id_source: impl std::hash::Hash) -> Self {
         Self::new(TopBottomSide::Top, id_source)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_bottom_panel"`.
     pub fn bottom(id_source: impl std::hash::Hash) -> Self {
         Self::new(TopBottomSide::Bottom, id_source)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+    /// `id_source`: Something unique, e.g. `"my_panel"`.
     pub fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
@@ -317,7 +317,7 @@ impl TopBottomPanel {
     }
 
     /// The initial height of the `SidePanel`.
-    /// Defaults to [`Spacing::interact_size`].y.
+    /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
         self
@@ -452,114 +452,14 @@ impl TopBottomPanel {
 
 // ----------------------------------------------------------------------------
 
-/// A panel that covers the left, right, top or bottom of the screen.
-///
-/// `Panel`s must be added before adding [`CentralPanel`] or any [`Window`]s.
-///
-/// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
-/// egui::Panel::left("my_side_panel").show(ctx, |ui| {
-///    ui.label("Hello World!");
-/// });
-/// ```
-pub struct Panel {}
+#[deprecated = "Use TopBottomPanel::top instead"]
+pub struct TopPanel {}
 
-impl Panel {
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
-    pub fn left(id_source: impl std::hash::Hash) -> SidePanel {
-        SidePanel::left(id_source)
-    }
-
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
-    pub fn right(id_source: impl std::hash::Hash) -> SidePanel {
-        SidePanel::right(id_source)
-    }
-
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
+#[allow(deprecated)]
+impl TopPanel {
+    #[deprecated = "Use TopBottomPanel::top instead"]
     pub fn top(id_source: impl std::hash::Hash) -> TopBottomPanel {
         TopBottomPanel::top(id_source)
-    }
-
-    /// `id_source`: Something unique, e.g. `"my_side_panel"`.
-    pub fn bottom(id_source: impl std::hash::Hash) -> TopBottomPanel {
-        TopBottomPanel::bottom(id_source)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// A panel that covers the entire top side of the screen.
-///
-/// `TopPanel`s must be added before adding any [`CentralPanel`] or [`Window`]s.
-///
-/// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
-/// egui::TopPanel::top("my_top_panel").show(ctx, |ui| {
-///    ui.label("Hello World!");
-/// });
-/// ```
-#[must_use = "You should call .show()"]
-pub struct TopPanel {
-    id: Id,
-    max_height: Option<f32>,
-    frame: Option<Frame>,
-}
-
-impl TopPanel {
-    /// `id_source`: Something unique, e.g. `"my_top_panel"`.
-    /// Default height is that of `interact_size.y` (i.e. a button),
-    /// but the panel will expand as needed.
-    pub fn top(id_source: impl std::hash::Hash) -> Self {
-        Self {
-            id: Id::new(id_source),
-            max_height: None,
-            frame: None,
-        }
-    }
-
-    /// Change the background color, margins, etc.
-    pub fn frame(mut self, frame: Frame) -> Self {
-        self.frame = Some(frame);
-        self
-    }
-}
-
-impl TopPanel {
-    pub fn show<R>(
-        self,
-        ctx: &CtxRef,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        let Self {
-            id,
-            max_height,
-            frame,
-        } = self;
-        let max_height = max_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y);
-
-        let mut panel_rect = ctx.available_rect();
-        panel_rect.max.y = panel_rect.max.y.at_most(panel_rect.min.y + max_height);
-
-        let layer_id = LayerId::background();
-
-        let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
-
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(&ctx.style()));
-        let inner_response = frame.show(&mut panel_ui, |ui| {
-            ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
-            add_contents(ui)
-        });
-
-        // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state()
-            .allocate_top_panel(inner_response.response.rect);
-
-        inner_response
     }
 }
 

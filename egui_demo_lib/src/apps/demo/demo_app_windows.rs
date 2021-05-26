@@ -152,7 +152,7 @@ impl DemoWindows {
             egui_windows,
         } = self;
 
-        egui::SidePanel::right("side_panel")
+        egui::SidePanel::right("egui_demo_panel")
             .min_width(150.0)
             .default_width(190.0)
             .show(ctx, |ui| {
@@ -195,7 +195,7 @@ impl DemoWindows {
                 });
             });
 
-        egui::Panel::top("menu_bar").show(ctx, |ui| {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             show_menu_bar(ui);
         });
 

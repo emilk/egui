@@ -74,7 +74,7 @@ impl epi::App for WrapApp {
             self.selected_anchor = self.apps.iter_mut().next().unwrap().0.to_owned();
         }
 
-        egui::Panel::top("wrap_app_top_bar").show(ctx, |ui| {
+        egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
             self.bar_contents(ui, frame);
         });
 
