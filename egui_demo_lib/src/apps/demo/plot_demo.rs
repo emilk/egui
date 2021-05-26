@@ -124,7 +124,6 @@ impl Widget for &mut LineDemo {
             .line(self.circle())
             .line(self.sin())
             .line(self.thingy())
-            .height(300.0)
             .show_legend(self.legend);
         if self.square {
             plot = plot.view_aspect(1.0);
