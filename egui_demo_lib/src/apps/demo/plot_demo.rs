@@ -325,6 +325,7 @@ impl super::View for PlotDemo {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.open_panel, Panel::Lines, "Lines");
             ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
+            ui.selectable_value(&mut self.open_panel, Panel::Legend, "Legend");
         });
         ui.separator();
 
