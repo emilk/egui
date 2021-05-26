@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use items::PlotItem;
 pub use items::{HLine, VLine};
-pub use items::{Line, MarkerShape, Points, Value, ValueSeries};
+pub use items::{Line, MarkerShape, Points, Value, Values};
 use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
 

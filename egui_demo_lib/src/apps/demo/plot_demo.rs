@@ -1,4 +1,4 @@
-use egui::plot::{Line, MarkerShape, Plot, Points, Value, ValueSeries};
+use egui::plot::{Line, MarkerShape, Plot, Points, Value, Values};
 use egui::*;
 use std::f64::consts::TAU;
 
@@ -65,25 +65,14 @@ impl LineDemo {
                 });
             });
 
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
-                ui.add_space(8.0);
                 ui.checkbox(square, "square view");
                 ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
-
-        ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
-        if cfg!(target_arch = "wasm32") {
-            ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
-        } else if cfg!(target_os = "macos") {
-            ui.label("Zoom with ctrl / ⌘ + scroll.");
-        } else {
-            ui.label("Zoom with ctrl + scroll.");
-        }
-        ui.label("Reset view with double-click.");
     }
 
     fn circle(&self) -> Line {
@@ -96,14 +85,14 @@ impl LineDemo {
                 r * t.sin() + self.circle_center.y as f64,
             )
         });
-        Line::new(ValueSeries::from_values_iter(circle))
+        Line::new(Values::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
             .name("circle")
     }
 
     fn sin(&self) -> Line {
         let time = self.time;
-        Line::new(ValueSeries::from_explicit_callback(
+        Line::new(Values::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             f64::NEG_INFINITY..=f64::INFINITY,
             512,
@@ -114,7 +103,7 @@ impl LineDemo {
 
     fn thingy(&self) -> Line {
         let time = self.time;
-        Line::new(ValueSeries::from_parametric_callback(
+        Line::new(Values::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
             256,
@@ -173,7 +162,7 @@ impl MarkerDemo {
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
-                let mut points = Points::new(ValueSeries::from_values(vec![
+                let mut points = Points::new(Values::from_values(vec![
                     Value::new(1.0, 0.0 + y_offset),
                     Value::new(2.0, 0.5 + y_offset),
                     Value::new(3.0, 0.0 + y_offset),
@@ -220,10 +209,23 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
+#[derive(PartialEq, Eq)]
+enum Panel {
+    Lines,
+    Markers,
+}
+
+impl Default for Panel {
+    fn default() -> Self {
+        Self::Lines
+    }
+}
+
 #[derive(PartialEq, Default)]
 pub struct PlotDemo {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,
+    open_panel: Panel,
 }
 
 impl super::Demo for PlotDemo {
@@ -246,18 +248,30 @@ impl super::View for PlotDemo {
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
+            ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+            if cfg!(target_arch = "wasm32") {
+                ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+            } else if cfg!(target_os = "macos") {
+                ui.label("Zoom with ctrl / ⌘ + scroll.");
+            } else {
+                ui.label("Zoom with ctrl + scroll.");
+            }
+            ui.label("Reset view with double-click.");
         });
         ui.separator();
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.showing_markers, false, "Lines");
-            ui.selectable_value(&mut self.showing_markers, true, "Markers");
+            ui.selectable_value(&mut self.open_panel, Panel::Lines, "Lines");
+            ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
         });
         ui.separator();
 
-        if self.showing_markers {
-            ui.add(&mut self.marker_demo);
-        } else {
-            ui.add(&mut self.line_demo);
+        match self.open_panel {
+            Panel::Lines => {
+                ui.add(&mut self.line_demo);
+            }
+            Panel::Markers => {
+                ui.add(&mut self.marker_demo);
+            }
         }
     }
 }

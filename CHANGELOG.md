@@ -16,6 +16,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add an option to overwrite frame of `SidePanel` and `TopPanel`.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 
+### Changed 🔧
+* Plot: Changed `Curve` to `Line`.
+
 ## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
 
 ### Added ⭐
