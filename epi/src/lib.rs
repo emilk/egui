@@ -91,7 +91,7 @@ pub use egui; // Re-export for user convenience
 /// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a [`egui::SidePanel`], [`egui::TopPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
