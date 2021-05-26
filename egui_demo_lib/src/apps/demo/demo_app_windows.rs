@@ -195,7 +195,7 @@ impl DemoWindows {
                 });
             });
 
-        egui::TopPanel::top("menu_bar").show(ctx, |ui| {
+        egui::Panel::top("menu_bar").show(ctx, |ui| {
             show_menu_bar(ui);
         });
 
@@ -305,7 +305,7 @@ fn show_menu_bar(ui: &mut Ui) {
             }
             if ui
                 .button("Clear egui memory")
-                .on_hover_text("Forget scroll, collapsing headers etc")
+                .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();

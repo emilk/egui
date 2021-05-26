@@ -110,6 +110,17 @@ impl FrameState {
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 
+    /// Shrink `available_rect`.
+    pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
+        crate::egui_assert!(
+            panel_rect.max.distance(self.available_rect.max) < 0.1,
+            "Mismatching bottom panel. You must not create a panel from within another panel."
+        );
+        self.available_rect.max.y = panel_rect.min.y;
+        self.unused_rect.max.y = panel_rect.min.y;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
