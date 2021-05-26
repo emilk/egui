@@ -4,8 +4,9 @@
 //! the only places where you can put you widgets.
 //!
 //! The order in which you add panels matter!
+//! The first panel you add will always be the outermost, and the last you add will always be the innermost.
 //!
-//! Add any [`Panel`] first, and [`CentralPanel`] and [`Window`]:s last.
+//! Always add any [`CentralPanel`] and [`Window`]:s last.
 
 use std::ops::RangeInclusive;
 
@@ -21,7 +22,7 @@ struct PanelState {
 
 /// `Left` or `Right`
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Side {
+enum Side {
     Left,
     Right,
 }
@@ -49,9 +50,12 @@ impl Side {
     }
 }
 
-/// A panel that covers the entire side of the screen.
+/// A panel that covers the entire left or right side of the screen.
 ///
-/// `SidePanel`s must be added before adding any [`CentralPanel`] or [`Window`]s.
+/// The order in which you add panels matter!
+/// The first panel you add will always be the outermost, and the last you add will always be the innermost.
+///
+/// Always add any [`CentralPanel`] and [`Window`]:s last.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -61,6 +65,8 @@ impl Side {
 ///    ui.label("Hello World!");
 /// });
 /// ```
+///
+/// See also [`TopBottomPanel`].
 #[must_use = "You should call .show()"]
 pub struct SidePanel {
     side: Side,
@@ -83,7 +89,7 @@ impl SidePanel {
     }
 
     /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
+    fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
             id: Id::new(id_source),
@@ -147,14 +153,14 @@ impl SidePanel {
 
         let layer_id = LayerId::background();
 
-        let mut panel_rect = ctx.available_rect();
-        let available_width = panel_rect.width();
+        let available_rect = ctx.available_rect();
+        let mut panel_rect = available_rect;
         {
             let mut width = default_width;
             if let Some(state) = ctx.memory().id_data.get::<PanelState>(&id) {
                 width = state.rect.width();
             }
-            width = clamp_to_range(width, width_range.clone()).at_most(available_width);
+            width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
             side.set_rect_width(&mut panel_rect, width);
         }
 
@@ -177,7 +183,7 @@ impl SidePanel {
                 is_resizing = ctx.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
-                    let width = clamp_to_range(width, width_range).at_most(available_width);
+                    let width = clamp_to_range(width, width_range).at_most(available_rect.width());
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
@@ -204,6 +210,7 @@ impl SidePanel {
         });
 
         let rect = inner_response.response.rect;
+        ctx.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
@@ -220,13 +227,14 @@ impl SidePanel {
                 .line_segment([top, bottom], stroke);
         }
 
-        // Only inform ctx about what we actually used, so we can shrink the native window to fit.
         match side {
-            Side::Left => ctx.frame_state().allocate_left_panel(rect),
-            Side::Right => ctx.frame_state().allocate_right_panel(rect),
+            Side::Left => ctx
+                .frame_state()
+                .allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max)),
+            Side::Right => ctx
+                .frame_state()
+                .allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max)),
         }
-
-        ctx.memory().id_data.insert(id, PanelState { rect });
 
         inner_response
     }
@@ -236,7 +244,7 @@ impl SidePanel {
 
 /// `Top` or `Bottom`
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum TopBottomSide {
+enum TopBottomSide {
     Top,
     Bottom,
 }
@@ -266,7 +274,10 @@ impl TopBottomSide {
 
 /// A panel that covers the entire top or bottom of the screen.
 ///
-/// `TopBottomPanel`s must be added before adding any [`CentralPanel`] or [`Window`]s.
+/// The order in which you add panels matter!
+/// The first panel you add will always be the outermost, and the last you add will always be the innermost.
+///
+/// Always add any [`CentralPanel`] and [`Window`]:s last.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -276,6 +287,8 @@ impl TopBottomSide {
 ///    ui.label("Hello World!");
 /// });
 /// ```
+///
+/// See also [`SidePanel`].
 #[must_use = "You should call .show()"]
 pub struct TopBottomPanel {
     side: TopBottomSide,
@@ -298,7 +311,7 @@ impl TopBottomPanel {
     }
 
     /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
+    fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
             id: Id::new(id_source),
@@ -363,8 +376,8 @@ impl TopBottomPanel {
 
         let layer_id = LayerId::background();
 
-        let mut panel_rect = ctx.available_rect();
-        let available_height = panel_rect.height();
+        let available_rect = ctx.available_rect();
+        let mut panel_rect = available_rect;
         {
             let state = ctx.memory().id_data.get::<PanelState>(&id).copied();
             let mut height = if let Some(state) = state {
@@ -372,7 +385,7 @@ impl TopBottomPanel {
             } else {
                 default_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y)
             };
-            height = clamp_to_range(height, height_range.clone()).at_most(available_height);
+            height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
         }
 
@@ -395,7 +408,8 @@ impl TopBottomPanel {
                 is_resizing = ctx.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
-                    let height = clamp_to_range(height, height_range).at_most(available_height);
+                    let height =
+                        clamp_to_range(height, height_range).at_most(available_rect.height());
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
@@ -422,6 +436,7 @@ impl TopBottomPanel {
         });
 
         let rect = inner_response.response.rect;
+        ctx.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
@@ -438,13 +453,16 @@ impl TopBottomPanel {
                 .line_segment([left, right], stroke);
         }
 
-        // Only inform ctx about what we actually used, so we can shrink the native window to fit.
         match side {
-            TopBottomSide::Top => ctx.frame_state().allocate_top_panel(rect),
-            TopBottomSide::Bottom => ctx.frame_state().allocate_bottom_panel(rect),
+            TopBottomSide::Top => {
+                ctx.frame_state()
+                    .allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
+            }
+            TopBottomSide::Bottom => {
+                ctx.frame_state()
+                    .allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
+            }
         }
-
-        ctx.memory().id_data.insert(id, PanelState { rect });
 
         inner_response
     }

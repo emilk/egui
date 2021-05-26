@@ -298,7 +298,7 @@ impl CtxRef {
 
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
-        Self::layer_painter(&self, LayerId::debug())
+        Self::layer_painter(self, LayerId::debug())
     }
 }
 
