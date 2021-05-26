@@ -34,12 +34,12 @@ struct PlotMemory {
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::plot::{Line, Plot, Value, ValueSeries};
+/// use egui::plot::{Line, Plot, Value, Values};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
 /// });
-/// let line = Line::new(ValueSeries::from_values_iter(sin));
+/// let line = Line::new(Values::from_values_iter(sin));
 /// ui.add(
 ///     Plot::new("Test Plot").line(line).view_aspect(2.0)
 /// );
