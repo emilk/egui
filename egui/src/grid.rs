@@ -254,13 +254,7 @@ impl GridLayout {
 
     /// Paint a row.
     pub(crate) fn paint_row(&self, min: Pos2, color: GuiColor, painter: &Painter) {
-        let color = match color {
-            GuiColor::Single(color) => color,
-            GuiColor::LightDark { light, dark } => match self.style.visuals.dark_mode {
-                true => dark,
-                false => light,
-            },
-        };
+        let color = color.pick(&self.style);
         if let Some(height) = self.prev_state.row_height(self.row) {
             // Paint background for coming row:
             let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
