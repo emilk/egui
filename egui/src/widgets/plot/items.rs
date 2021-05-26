@@ -215,6 +215,9 @@ impl Curve {
     }
 
     /// Name of this curve.
+    ///
+    /// If a curve is given a name it will show up in the plot legend
+    /// (if legends are turned on).
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();

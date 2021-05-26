@@ -5,9 +5,12 @@
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(broken_intra_doc_links)]
-#![deny(invalid_codeblock_attributes)]
-#![deny(private_intra_doc_links)]
+#![deny(
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::private_intra_doc_links
+)]
 #![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 
@@ -114,13 +117,65 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
     }
 }
 
-pub fn pos_from_touch_event(canvas_id: &str, event: &web_sys::TouchEvent) -> egui::Pos2 {
-    let canvas = canvas_element(canvas_id).unwrap();
-    let rect = canvas.get_bounding_client_rect();
-    let t = event.touches().get(0).unwrap();
+/// A single touch is translated to a pointer movement. When a second touch is added, the pointer
+/// should not jump to a different position. Therefore, we do not calculate the average position
+/// of all touches, but we keep using the same touch as long as it is available.
+///
+/// `touch_id_for_pos` is the `TouchId` of the `Touch` we previously used to determine the
+/// pointer position.
+pub fn pos_from_touch_event(
+    canvas_id: &str,
+    event: &web_sys::TouchEvent,
+    touch_id_for_pos: &mut Option<egui::TouchId>,
+) -> egui::Pos2 {
+    let touch_for_pos;
+    if let Some(touch_id_for_pos) = touch_id_for_pos {
+        // search for the touch we previously used for the position
+        // (unfortunately, `event.touches()` is not a rust collection):
+        touch_for_pos = (0..event.touches().length())
+            .into_iter()
+            .map(|i| event.touches().get(i).unwrap())
+            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos);
+    } else {
+        touch_for_pos = None;
+    }
+    // Use the touch found above or pick the first, or return a default position if there is no
+    // touch at all. (The latter is not expected as the current method is only called when there is
+    // at least one touch.)
+    touch_for_pos
+        .or_else(|| event.touches().get(0))
+        .map_or(Default::default(), |touch| {
+            *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
+            pos_from_touch(canvas_origin(canvas_id), &touch)
+        })
+}
+
+fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
     egui::Pos2 {
-        x: t.page_x() as f32 - rect.left() as f32,
-        y: t.page_y() as f32 - rect.top() as f32,
+        x: touch.page_x() as f32 - canvas_origin.x as f32,
+        y: touch.page_y() as f32 - canvas_origin.y as f32,
+    }
+}
+
+fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
+    let rect = canvas_element(canvas_id)
+        .unwrap()
+        .get_bounding_client_rect();
+    egui::Pos2::new(rect.left() as f32, rect.top() as f32)
+}
+
+fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys::TouchEvent) {
+    let canvas_origin = canvas_origin(runner.canvas_id());
+    for touch_idx in 0..event.changed_touches().length() {
+        if let Some(touch) = event.changed_touches().item(touch_idx) {
+            runner.input.raw.events.push(egui::Event::Touch {
+                device_id: egui::TouchDeviceId(0),
+                id: egui::TouchId::from(touch.identifier()),
+                phase,
+                pos: pos_from_touch(canvas_origin, &touch),
+                force: touch.force(),
+            });
+        }
     }
 }
 
@@ -244,7 +299,7 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
-        text_cursor: cursor,
+        text_cursor_pos,
     } = output;
 
     set_cursor_icon(*cursor_icon);
@@ -260,9 +315,9 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
 
-    if &runner.text_cursor != cursor {
-        move_text_cursor(cursor, runner.canvas_id());
-        runner.text_cursor = *cursor;
+    if &runner.last_text_cursor_pos != text_cursor_pos {
+        move_text_cursor(text_cursor_pos, runner.canvas_id());
+        runner.last_text_cursor_pos = *text_cursor_pos;
     }
 }
 
@@ -578,7 +633,8 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    {
+    // paste is handled by IME text agent!
+    if false {
         // paste
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
@@ -876,7 +932,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
+            let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
+            let pos =
+                pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
+            runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             let modifiers = runner_lock.input.raw.modifiers;
@@ -890,6 +949,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     pressed: true,
                     modifiers,
                 });
+
+            push_touches(&mut *runner_lock, egui::TouchPhase::Start, &event);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -903,7 +964,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            let pos = pos_from_touch_event(runner_lock.canvas_id(), &event);
+            let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
+            let pos =
+                pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
+            runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
             runner_lock.input.is_touch = true;
             runner_lock
@@ -911,6 +975,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 .raw
                 .events
                 .push(egui::Event::PointerMoved(pos));
+
+            push_touches(&mut *runner_lock, egui::TouchPhase::Move, &event);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -940,6 +1006,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     });
                 // Then remove hover effect:
                 runner_lock.input.raw.events.push(egui::Event::PointerGone);
+
+                push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
@@ -947,6 +1015,20 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 // Finally, focus or blur on agent to toggle keyboard
                 manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "touchcancel";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.is_touch = true;
+            push_touches(&mut *runner_lock, egui::TouchPhase::Cancel, &event);
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -963,13 +1045,23 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
-                    24.0 // TODO: tweak this
+                    8.0 // magic value!
                 }
                 _ => 1.0,
             };
 
-            runner_lock.input.raw.scroll_delta.x -= scroll_multiplier * event.delta_x() as f32;
-            runner_lock.input.raw.scroll_delta.y -= scroll_multiplier * event.delta_y() as f32;
+            let delta = -scroll_multiplier
+                * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
+
+            // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
+            // This if-statement is equivalent to how `Modifiers.command` is determined in
+            // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
+            if event.ctrl_key() || event.meta_key() {
+                runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
+            } else {
+                runner_lock.input.raw.scroll_delta += delta;
+            }
+
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
@@ -1027,12 +1119,13 @@ fn is_mobile() -> Option<bool> {
     Some(is_mobile)
 }
 
-// Move angnt to text cursor's position, on desktop/laptop, candidate window moves following text elemt(agent),
+// Move text agent to text cursor's position, on desktop/laptop,
+// candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
 fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpreditable scroll.
+    // Note: movint agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
             let canvas = canvas_element(canvas_id)?;

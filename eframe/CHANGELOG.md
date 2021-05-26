@@ -5,6 +5,11 @@ All notable changes to the `eframe` crate.
 ## Unreleased
 
 
+## 0.12.0 - 2021-05-10
+* Moved options out of `trait App` into new `NativeOptions`.
+* Add option for `always_on_top`.
+
+
 ## 0.11.0 - 2021-04-05
 * You can now turn your window transparent with the `App::transparent` option.
 * You can now disable window decorations with the `App::decorated` option.

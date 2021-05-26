@@ -122,7 +122,7 @@ pub fn show_tooltip_at(
 ///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// ```
-pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<String>) {
+pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl ToString) {
     show_tooltip(ctx, id, |ui| {
         ui.add(crate::widgets::Label::new(text));
     })
@@ -162,6 +162,7 @@ fn show_tooltip_area(
 ///     ui.memory().toggle_popup(popup_id);
 /// }
 /// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
+///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
 /// });

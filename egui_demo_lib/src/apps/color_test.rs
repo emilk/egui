@@ -70,7 +70,7 @@ impl ColorTest {
 
         ui.heading("sRGB color test");
         ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
-        ui.wrap(|ui| {
+        ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
@@ -86,7 +86,7 @@ impl ColorTest {
         ui.separator();
 
         ui.label("Test that vertex color times texture color is done in linear space:");
-        ui.wrap(|ui| {
+        ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
 
             let tex_color = Rgba::from_rgb(1.0, 0.25, 0.25);
@@ -185,7 +185,7 @@ impl ColorTest {
             show_color(ui, right, color_size);
         });
 
-        ui.wrap(|ui| {
+        ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             if is_opaque {
                 let g = Gradient::ground_truth_linear_gradient(left, right);

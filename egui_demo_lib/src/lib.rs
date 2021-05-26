@@ -3,30 +3,41 @@
 //! The demo-code is also used in benchmarks and tests.
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(broken_intra_doc_links)]
-#![deny(invalid_codeblock_attributes)]
-#![deny(private_intra_doc_links)]
+#![deny(
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::private_intra_doc_links
+)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,
+    clippy::char_lit_as_u8,
+    clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
     clippy::exit,
+    clippy::expl_impl_clone_on_copy,
+    clippy::explicit_deref_methods,
     clippy::explicit_into_iter_loop,
+    clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
     clippy::if_let_mutex,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
+    clippy::invalid_upcast_comparisons,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
     clippy::lossy_float_literal,
     clippy::macro_use_imports,
+    clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
     clippy::match_on_vec_items,
@@ -36,25 +47,36 @@
     clippy::mismatched_target_os,
     clippy::missing_errors_doc,
     clippy::missing_safety_doc,
+    clippy::mut_mut,
+    clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
     clippy::needless_pass_by_value,
     clippy::option_option,
+    clippy::path_buf_push_overwrite,
+    clippy::ptr_as_ptr,
     clippy::pub_enum_variant_names,
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
+    clippy::same_functions_in_if_condition,
     clippy::string_add_assign,
     clippy::string_add,
+    clippy::string_lit_as_bytes,
     clippy::string_to_string,
     clippy::todo,
+    clippy::trait_duplication_in_bounds,
     clippy::unimplemented,
     clippy::unnested_or_patterns,
     clippy::unused_self,
+    clippy::useless_transmute,
     clippy::verbose_file_reads,
+    clippy::wrong_pub_self_convention,
+    clippy::zero_sized_map_values,
     future_incompatible,
     nonstandard_style,
     rust_2018_idioms
 )]
+#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 mod apps;
@@ -115,5 +137,24 @@ fn test_egui_e2e() {
         let (_output, shapes) = ctx.end_frame();
         let clipped_meshes = ctx.tessellate(shapes);
         assert!(!clipped_meshes.is_empty());
+    }
+}
+
+#[test]
+fn test_egui_zero_window_size() {
+    let mut demo_windows = crate::DemoWindows::default();
+    let mut ctx = egui::CtxRef::default();
+    let raw_input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::ZERO)),
+        ..Default::default()
+    };
+
+    const NUM_FRAMES: usize = 5;
+    for _ in 0..NUM_FRAMES {
+        ctx.begin_frame(raw_input.clone());
+        demo_windows.ui(&ctx);
+        let (_output, shapes) = ctx.end_frame();
+        let clipped_meshes = ctx.tessellate(shapes);
+        assert!(clipped_meshes.is_empty(), "There should be nothing to show");
     }
 }

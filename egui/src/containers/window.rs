@@ -21,6 +21,7 @@ use super::*;
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+#[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title_label: Label,
     open: Option<&'open mut bool>,
@@ -36,8 +37,9 @@ impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
-    pub fn new(title: impl Into<String>) -> Self {
-        let title = title.into();
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(title: impl ToString) -> Self {
+        let title = title.to_string();
         let area = Area::new(&title);
         let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
         Self {
@@ -211,7 +213,7 @@ impl<'open> Window<'open> {
             if self.scroll.is_none() {
                 self.scroll = Some(ScrollArea::auto_sized());
             }
-            debug_assert!(
+            crate::egui_assert!(
                 self.scroll.is_some(),
                 "Window::scroll called multiple times"
             );
@@ -430,7 +432,7 @@ fn paint_resize_corner(
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
     movable: bool,
-    // Which sized can we drag to resize?
+    // Which sides can we drag to resize?
     resize_left: bool,
     resize_right: bool,
     resize_top: bool,

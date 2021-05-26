@@ -29,9 +29,10 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn new(text: impl Into<String>) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(text: impl ToString) -> Self {
         Self {
-            text: text.into(),
+            text: text.to_string(),
             wrap: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,
@@ -144,9 +145,9 @@ impl Label {
         self
     }
 
-    /// Make the label response to clicks and/or drags.
+    /// Make the label respond to clicks and/or drags.
     ///
-    /// By default, a label is inert and does not response to click or drags.
+    /// By default, a label is inert and does not respond to click or drags.
     /// By calling this you can turn the label into a button of sorts.
     /// This will also give the label the hover-effect of a button, but without the frame.
     ///
@@ -270,7 +271,9 @@ impl Label {
 
     /// Read the text style, or get the default for the current style
     pub fn text_style_or_default(&self, style: &Style) -> TextStyle {
-        self.text_style.unwrap_or(style.body_text_style)
+        self.text_style
+            .or(style.override_text_style)
+            .unwrap_or(style.body_text_style)
     }
 
     fn should_wrap(&self, ui: &Ui) -> bool {

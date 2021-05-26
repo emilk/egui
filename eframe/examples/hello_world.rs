@@ -41,5 +41,6 @@ impl epi::App for MyApp {
 }
 
 fn main() {
-    eframe::run_native(Box::new(MyApp::default()));
+    let options = eframe::NativeOptions::default();
+    eframe::run_native(Box::new(MyApp::default()), options);
 }

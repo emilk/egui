@@ -67,7 +67,7 @@ impl State {
         if openness <= 0.0 {
             None
         } else if openness < 1.0 {
-            Some(ui.wrap(|child_ui| {
+            Some(ui.scope(|child_ui| {
                 let max_height = if self.open && self.open_height.is_none() {
                     // First frame of expansion.
                     // We don't know full height yet, but we will next frame.
@@ -93,7 +93,7 @@ impl State {
                 ret
             }))
         } else {
-            let ret_response = ui.wrap(add_contents);
+            let ret_response = ui.scope(add_contents);
             let full_size = ret_response.response.rect.size();
             self.open_height = Some(full_size.y);
             Some(ret_response)
@@ -134,6 +134,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 /// // Short version:
 /// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
@@ -148,8 +149,8 @@ impl CollapsingHeader {
     /// If the label is unique and static this is fine,
     /// but if it changes or there are several `CollapsingHeader` with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
-    pub fn new(label: impl Into<String>) -> Self {
-        let label = Label::new(label).text_style(TextStyle::Button).wrap(false);
+    pub fn new(label: impl ToString) -> Self {
+        let label = Label::new(label).wrap(false);
         let id_source = Id::new(label.text());
         Self {
             label,
@@ -202,11 +203,16 @@ impl CollapsingHeader {
             "Horizontal collapsing is unimplemented"
         );
         let Self {
-            label,
+            mut label,
             default_open,
             id_source,
             enabled: _,
         } = self;
+
+        label.text_style = label
+            .text_style
+            .or(ui.style().override_text_style)
+            .or(Some(TextStyle::Button));
 
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 

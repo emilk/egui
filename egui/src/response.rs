@@ -356,21 +356,21 @@ impl Response {
     ///
     /// The text will not be visible if the widget is not enabled.
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
-    pub fn on_hover_text(self, text: impl Into<String>) -> Self {
+    pub fn on_hover_text(self, text: impl ToString) -> Self {
         self.on_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, text: impl Into<String>) -> Self {
+    pub fn on_disabled_hover_text(self, text: impl ToString) -> Self {
         self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
-    pub fn tooltip_text(self, text: impl Into<String>) -> Self {
+    pub fn tooltip_text(self, text: impl ToString) -> Self {
         self.on_hover_text(text)
     }
 
@@ -442,8 +442,8 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
-        debug_assert_eq!(
-            self.layer_id, other.layer_id,
+        crate::egui_assert!(
+            self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"
         );
         Self {

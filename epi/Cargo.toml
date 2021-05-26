@@ -1,6 +1,6 @@
 [package]
 name = "epi"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
@@ -17,10 +17,13 @@ include = [
   "Cargo.toml",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 
 [dependencies]
-egui = { version = "0.11.0", path = "../egui", default-features = false }
+egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 

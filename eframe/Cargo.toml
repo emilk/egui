@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2018"
@@ -17,19 +17,22 @@ include = [
   "Cargo.toml",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 
 [dependencies]
-egui = { version = "0.11.0", path = "../egui", default-features = false }
-epi = { version = "0.11.0", path = "../epi" }
+egui = { version = "0.12.0", path = "../egui", default-features = false }
+epi = { version = "0.12.0", path = "../epi" }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { version = "0.11.0", path = "../egui_glium", default-features = false }
+egui_glium = { version = "0.12.0", path = "../egui_glium", default-features = false }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.11.0", path = "../egui_web", default-features = false }
+egui_web = { version = "0.12.0", path = "../egui_web", default-features = false }
 
 [features]
 default = ["default_fonts"]

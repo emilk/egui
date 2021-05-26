@@ -7,30 +7,41 @@
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(broken_intra_doc_links)]
-#![deny(invalid_codeblock_attributes)]
-#![deny(private_intra_doc_links)]
+#![deny(
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::private_intra_doc_links
+)]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
     clippy::await_holding_lock,
+    clippy::char_lit_as_u8,
+    clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
     clippy::exit,
+    clippy::expl_impl_clone_on_copy,
+    clippy::explicit_deref_methods,
     clippy::explicit_into_iter_loop,
+    clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
     clippy::if_let_mutex,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
+    clippy::invalid_upcast_comparisons,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
     clippy::lossy_float_literal,
     clippy::macro_use_imports,
+    clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
     clippy::match_on_vec_items,
@@ -40,25 +51,36 @@
     clippy::mismatched_target_os,
     clippy::missing_errors_doc,
     clippy::missing_safety_doc,
+    clippy::mut_mut,
+    clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
     clippy::needless_pass_by_value,
     clippy::option_option,
+    clippy::path_buf_push_overwrite,
+    clippy::ptr_as_ptr,
     clippy::pub_enum_variant_names,
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
+    clippy::same_functions_in_if_condition,
     clippy::string_add_assign,
     clippy::string_add,
+    clippy::string_lit_as_bytes,
     clippy::string_to_string,
     clippy::todo,
+    clippy::trait_duplication_in_bounds,
     clippy::unimplemented,
     clippy::unnested_or_patterns,
     clippy::unused_self,
+    clippy::useless_transmute,
     clippy::verbose_file_reads,
+    clippy::wrong_pub_self_convention,
+    clippy::zero_sized_map_values,
     future_incompatible,
     nonstandard_style,
     rust_2018_idioms
 )]
+#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 pub use egui; // Re-export for user convenience
@@ -108,19 +130,9 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
-    /// The initial size of the native window in points (logical pixels).
-    fn initial_window_size(&self) -> Option<egui::Vec2> {
-        None
-    }
-
     /// Time between automatic calls to `save()`
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
-    }
-
-    /// Returns true if this app window should be resizable.
-    fn is_resizable(&self) -> bool {
-        true
     }
 
     /// The size limit of the web app canvas
@@ -137,33 +149,54 @@ pub trait App {
         // `transparent()` option they get immediate results.
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
+}
 
-    /// The application icon, e.g. in the Windows task bar etc.
-    fn icon_data(&self) -> Option<IconData> {
-        None
-    }
+/// Options controlling the behavior of a native window
+#[derive(Clone)]
+pub struct NativeOptions {
+    /// Sets whether or not the window will always be on top of other windows.
+    pub always_on_top: bool,
 
     /// On desktop: add window decorations (i.e. a frame around your app)?
     /// If false it will be difficult to move and resize the app.
-    fn decorated(&self) -> bool {
-        true
-    }
-
-    /// On desktop: make the window transparent.
-    /// You control the transparency with [`Self::clear_color()`].
-    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
-    fn transparent(&self) -> bool {
-        false
-    }
+    pub decorated: bool,
 
     /// On Windows: enable drag and drop support.
-    /// Set to false to avoid issues with crates such as cpal which uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
-    fn drag_and_drop_support(&self) -> bool {
-        true
+    /// Set to false to avoid issues with crates such as cpal which
+    /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    pub drag_and_drop_support: bool,
+
+    /// The application icon, e.g. in the Windows task bar etc.
+    pub icon_data: Option<IconData>,
+
+    /// The initial size of the native window in points (logical pixels).
+    pub initial_window_size: Option<egui::Vec2>,
+
+    /// Should the app window be resizable?
+    pub resizable: bool,
+
+    /// On desktop: make the window transparent.
+    /// You control the transparency with [`App::clear_color()`].
+    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
+    pub transparent: bool,
+}
+
+impl Default for NativeOptions {
+    fn default() -> Self {
+        Self {
+            always_on_top: false,
+            decorated: true,
+            drag_and_drop_support: true,
+            icon_data: None,
+            initial_window_size: None,
+            resizable: true,
+            transparent: false,
+        }
     }
 }
 
 /// Image data for the icon.
+#[derive(Clone)]
 pub struct IconData {
     /// RGBA pixels.
     pub rgba: Vec<u8>,
@@ -340,20 +373,22 @@ pub mod http {
 
     impl Request {
         /// Create a `GET` requests with the given url.
-        pub fn get(url: impl Into<String>) -> Self {
+        #[allow(clippy::needless_pass_by_value)]
+        pub fn get(url: impl ToString) -> Self {
             Self {
                 method: "GET".to_owned(),
-                url: url.into(),
+                url: url.to_string(),
                 body: "".to_string(),
             }
         }
 
         /// Create a `POST` requests with the give url and body.
-        pub fn post(url: impl Into<String>, body: impl Into<String>) -> Self {
+        #[allow(clippy::needless_pass_by_value)]
+        pub fn post(url: impl ToString, body: impl ToString) -> Self {
             Self {
                 method: "POST".to_owned(),
-                url: url.into(),
-                body: body.into(),
+                url: url.to_string(),
+                body: body.to_string(),
             }
         }
     }

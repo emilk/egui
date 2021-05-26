@@ -30,6 +30,7 @@ impl Default for State {
 // TODO: rename VScroll
 /// Add vertical scrolling to a contained [`Ui`].
 #[derive(Clone, Debug)]
+#[must_use = "You should call .show()"]
 pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,
@@ -141,9 +142,9 @@ impl ScrollArea {
         Prepared {
             id,
             state,
+            current_scroll_bar_width,
             always_show_scroll,
             inner_rect,
-            current_scroll_bar_width,
             content_ui,
         }
     }
@@ -301,7 +302,7 @@ impl Prepared {
             let unbounded_offset_y = state.offset.y;
             state.offset.y = state.offset.y.max(0.0);
             state.offset.y = state.offset.y.min(max_offset);
-            #[allow(clippy::float_cmp)]
+
             if state.offset.y != unbounded_offset_y {
                 state.vel = Vec2::ZERO;
             }

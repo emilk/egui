@@ -29,6 +29,7 @@ pub enum Shape {
         /// If true, connect the first and last of the points together.
         /// This is required if `fill != TRANSPARENT`.
         closed: bool,
+        /// Fill is only supported for convex polygons.
         fill: Color32,
         stroke: Stroke,
     },
@@ -54,6 +55,8 @@ pub enum Shape {
 
 /// ## Constructors
 impl Shape {
+    /// A line between two points.
+    /// More efficient than calling [`Self::line`].
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -61,6 +64,9 @@ impl Shape {
         }
     }
 
+    /// A line through many points.
+    ///
+    /// Use [`Self::line_segment`] instead if your line only connect two points.
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -70,6 +76,7 @@ impl Shape {
         }
     }
 
+    /// A line that closes back to the start point again.
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -79,13 +86,23 @@ impl Shape {
         }
     }
 
-    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
+    /// A convex polygon with a fill and optional stroke.
+    pub fn convex_polygon(
+        points: Vec<Pos2>,
+        fill: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
         Self::Path {
             points,
             closed: true,
             fill: fill.into(),
             stroke: stroke.into(),
         }
+    }
+
+    #[deprecated = "Renamed convex_polygon"]
+    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
+        Self::convex_polygon(points, fill, stroke)
     }
 
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
@@ -124,15 +141,16 @@ impl Shape {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,
         anchor: Align2,
-        text: impl Into<String>,
+        text: impl ToString,
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_multiline(text_style, text.into(), f32::INFINITY);
+        let galley = fonts.layout_multiline(text_style, text.to_string(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::Text {
             pos: rect.min,
@@ -147,7 +165,7 @@ impl Shape {
 /// ## Operations
 impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
-        debug_assert!(mesh.is_valid());
+        crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
     }
 

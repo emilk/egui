@@ -10,6 +10,8 @@ use crate::*;
 /// // Shorter version:
 /// ui.image(my_texture_id, [640.0, 480.0]);
 /// ```
+///
+/// Se also [`crate::ImageButton`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
 pub struct Image {
@@ -18,6 +20,7 @@ pub struct Image {
     size: Vec2,
     bg_fill: Color32,
     tint: Color32,
+    sense: Sense,
 }
 
 impl Image {
@@ -28,6 +31,7 @@ impl Image {
             size: size.into(),
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            sense: Sense::hover(),
         }
     }
 
@@ -48,6 +52,14 @@ impl Image {
         self.tint = tint.into();
         self
     }
+
+    /// Make the image respond to clicks and/or drags.
+    ///
+    /// Consider using [`ImageButton`] instead, for an on-hover effect.
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
 }
 
 impl Image {
@@ -63,6 +75,7 @@ impl Image {
             size: _,
             bg_fill,
             tint,
+            sense: _,
         } = self;
 
         if *bg_fill != Default::default() {
@@ -82,7 +95,7 @@ impl Image {
 
 impl Widget for Image {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_exact_size(self.size, Sense::hover());
+        let (rect, response) = ui.allocate_exact_size(self.size, self.sense);
         self.paint_at(ui, rect);
         response
     }

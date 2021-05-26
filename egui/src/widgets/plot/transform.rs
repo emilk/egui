@@ -118,6 +118,7 @@ impl Bounds {
 }
 
 /// Contains the screen rectangle and the plot bounds and provides methods to transform them.
+#[derive(Clone)]
 pub(crate) struct ScreenTransform {
     /// The screen rectangle.
     frame: Rect,
@@ -159,25 +160,19 @@ impl ScreenTransform {
         self.bounds.translate(delta_pos);
     }
 
-    /// Zoom by a relative amount with the given screen position as center.
-    pub fn zoom(&mut self, delta: f32, mut center: Pos2) {
-        if self.x_centered {
-            center.x = self.frame.center().x as f32;
+    /// Zoom by a relative factor with the given screen position as center.
+    pub fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
+        let center = self.value_from_position(center);
+
+        let mut new_bounds = self.bounds;
+        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / (zoom_factor.x as f64);
+        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / (zoom_factor.x as f64);
+        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / (zoom_factor.y as f64);
+        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / (zoom_factor.y as f64);
+
+        if new_bounds.is_valid() {
+            self.bounds = new_bounds;
         }
-        if self.y_centered {
-            center.y = self.frame.center().y as f32;
-        }
-        let delta = delta.clamp(-1., 1.);
-        let frame_width = self.frame.width();
-        let frame_height = self.frame.height();
-        let bounds_width = self.bounds.width() as f32;
-        let bounds_height = self.bounds.height() as f32;
-        let t_x = (center.x - self.frame.min[0]) / frame_width;
-        let t_y = (self.frame.max[1] - center.y) / frame_height;
-        self.bounds.min[0] -= ((t_x * delta) * bounds_width) as f64;
-        self.bounds.min[1] -= ((t_y * delta) * bounds_height) as f64;
-        self.bounds.max[0] += (((1. - t_x) * delta) * bounds_width) as f64;
-        self.bounds.max[1] += (((1. - t_y) * delta) * bounds_height) as f64;
     }
 
     pub fn position_from_value(&self, value: &Value) -> Pos2 {

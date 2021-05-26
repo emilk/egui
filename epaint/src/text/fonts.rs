@@ -74,11 +74,42 @@ fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'
 /// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
 ///
 /// ```
-/// let mut fonts = epaint::text::FontDefinitions::default();
+/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily}};
+/// # struct FakeEguiCtx {};
+/// # impl FakeEguiCtx { fn set_fonts(&self, _: FontDefinitions) {} }
+/// # let ctx = FakeEguiCtx {};
+/// let mut fonts = FontDefinitions::default();
+///
 /// // Large button text:
 /// fonts.family_and_size.insert(
-///     epaint::text::TextStyle::Button,
-///     (epaint::text::FontFamily::Proportional, 32.0));
+///     TextStyle::Button,
+///     (FontFamily::Proportional, 32.0)
+/// );
+///
+/// ctx.set_fonts(fonts);
+/// ```
+///
+/// You can also install your own custom fonts:
+/// ```
+/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily}};
+/// # struct FakeEguiCtx {};
+/// # impl FakeEguiCtx { fn set_fonts(&self, _: FontDefinitions) {} }
+/// # let ctx = FakeEguiCtx {};
+/// let mut fonts = FontDefinitions::default();
+///
+/// // Install my own font (maybe supporting non-latin characters):
+/// fonts.font_data.insert("my_font".to_owned(),
+///    std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
+///
+/// // Put my font first (highest priority):
+/// fonts.fonts_for_family.get_mut(&FontFamily::Proportional).unwrap()
+///     .insert(0, "my_font".to_owned());
+///
+/// // Put my font as last fallback for monospace:
+/// fonts.fonts_for_family.get_mut(&FontFamily::Monospace).unwrap()
+///     .push("my_font".to_owned());
+///
+/// ctx.set_fonts(fonts);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -287,8 +318,9 @@ impl Fonts {
         self.fonts[&text_style].row_height()
     }
 
-    /// Always returns at least one row.
     /// Will line break at `\n`.
+    ///
+    /// Always returns at least one row.
     pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
         self.layout_multiline(text_style, text, f32::INFINITY)
     }
@@ -310,8 +342,9 @@ impl Fonts {
         )
     }
 
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
     /// Always returns at least one row.
-    /// Will wrap text at the given width.
     pub fn layout_multiline(
         &self,
         text_style: TextStyle,
@@ -328,6 +361,7 @@ impl Fonts {
 
     /// * `first_row_indentation`: extra space before the very first character (in points).
     /// * `max_width_in_points`: wrapping width.
+    ///
     /// Always returns at least one row.
     pub fn layout_multiline_with_indentation_and_max_width(
         &self,

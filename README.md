@@ -10,7 +10,7 @@
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
-egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
+egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
@@ -68,7 +68,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Goals
 
-* The easiest to use GUI libary
+* The easiest to use GUI library
 * Responsive: target 60 Hz in debug build
 * Friendly: difficult to make mistakes, and shouldn't panic
 * Portable: the same code works on the web and as a native app
@@ -79,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/) [`rusttype`](https://crates.io/crates/rusttype).
+* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float) [`rusttype`](https://crates.io/crates/rusttype).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -87,7 +87,7 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 
 ### Non-goals
 
-* Become the most powerful GUI libary
+* Become the most powerful GUI library
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
@@ -134,7 +134,11 @@ egui is in active development. It works well for what it does, but it lacks many
 * Tooltips on hover
 * More
 
-<img src="media/widget_gallery_0.8.0.gif" width="50%">
+<img src="media/widget_gallery.gif" width="50%">
+
+Light Theme:
+
+<img src="media/light_theme.png" width="50%">
 
 ## How it works
 
@@ -176,6 +180,7 @@ The same code can be compiled to a native app or a web app.
 * For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):
   * [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) with [example code](https://github.com/hasenbanck/egui_example)
   * Alternative: [`egui_winit_wgpu`](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
+* [`nannou_egui`](https://github.com/AlexEne/nannou_egui): backend for [nannou](https://nannou.cc).
 
 ### Writing your own egui integration
 
@@ -229,12 +234,12 @@ There are advantages and disadvantages to both systems.
 
 The short of it is this: immediate mode GUI libraries are easier to use, but less powerful.
 
-### Advantaged of immediate mode
+### Advantages of immediate mode
 #### Usability
 The main advantage of immediate mode is that the application code becomes vastly simpler:
 
 * You never need to have any on-click handlers and callbacks that disrupts your code flow.
-* You don't have to worry about a linger callback calling something that is gone.
+* You don't have to worry about a lingering callback calling something that is gone.
 * Your GUI code can easily live in a simple function (no need for an object just for the UI).
 * You don't have to worry about app state and GUI state being out-of-sync (i.e. the GUI showing something outdated), because the GUI isn't storing any state - it is showing the latest state *immediately*.
 
@@ -274,6 +279,17 @@ Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 ## FAQ
 
 Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categories/q-a).
+
+### Can I use `egui` with non-latin characters?
+Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::set_fonts`.
+
+### Can I customize the look of egui?
+Yes! You can customize the colors, spacing and sizes of everything. By default egui comes with a dark and a light theme.
+
+### What about accessibility, such as screen readers?
+There is experimental support for a screen reader. In [the web demo](https://emilk.github.io/egui/index.html) you can enable it in the "Backend" tab.
+
+Read more at <https://github.com/emilk/egui/issues/167>.
 
 ### What is the difference between egui and eframe?
 

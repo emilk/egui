@@ -8,10 +8,10 @@ pub(crate) struct AnyMapElement(AnyMapElementInner);
 
 enum AnyMapElementInner {
     Deserialized {
-        value: Box<dyn Any + 'static>,
-        clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
+        value: Box<dyn Any + 'static + Send + Sync>,
+        clone_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Box<dyn Any + 'static + Send + Sync>,
 
-        serialize_fn: fn(&Box<dyn Any + 'static>) -> Result<String, ron::Error>,
+        serialize_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Result<String, ron::Error>,
     },
     Serialized(String, TypeId),
 }
@@ -84,8 +84,14 @@ impl Clone for AnyMapElement {
     }
 }
 
-pub trait AnyMapTrait: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a> {}
-impl<T: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a>> AnyMapTrait for T {}
+pub trait AnyMapTrait:
+    'static + Any + Clone + Serialize + for<'a> Deserialize<'a> + Send + Sync
+{
+}
+impl<T: 'static + Any + Clone + Serialize + for<'a> Deserialize<'a> + Send + Sync> AnyMapTrait
+    for T
+{
+}
 
 impl AnyMapElement {
     pub(crate) fn new<T: AnyMapTrait>(t: T) -> Self {

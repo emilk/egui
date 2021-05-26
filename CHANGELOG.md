@@ -2,21 +2,41 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) has their own changelogs!
+NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
 
 ### Added ⭐
+* Add `Style::override_text_style` to easily change the text style of everything in a `Ui` (or globally).
+* You can now change `TextStyle` on checkboxes, radio buttons and `SelectableLabel`.
+* Add support for [cint](https://crates.io/crates/cint) under `cint` feature.
+* Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
+* Add an option to overwrite frame of `SidePanel` and `TopPanel`.
+* `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
+
+## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
+
+### Added ⭐
 * Add anchors to windows and areas so you can put a window in e.g. the top right corner.
 * Make labels interactive with `Label::sense(Sense::click())`.
 * Add `Response::request_focus` and `Response::surrender_focus`.
+* Add `TextEdit::code_editor` (VERY basic).
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
-* [Users can now store custom state in `egui::Memory`.](https://github.com/emilk/egui/pull/257).
+* [Add plot legends](https://github.com/emilk/egui/pull/349).
+* [Users can now store custom state in `egui::Memory`](https://github.com/emilk/egui/pull/257).
+* Add `Response::on_disabled_hover_text` to show tooltip for disabled widgets.
+* Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.
+* Support for raw [multi touch](https://github.com/emilk/egui/pull/306) events,
+  enabling zoom, rotate, and more. Works with `egui_web` on mobile devices,
+  and should work with `egui_glium` for certain touch devices/screens.
+* Add (optional) compatibility with [mint](https://docs.rs/mint).
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
 * `Plot` must now be given a name that is unique within its scope.
+* Tab only selects labels if the `screen_reader` option is turned on.
+* Rename `ui.wrap` to `ui.scope`.
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).

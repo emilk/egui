@@ -60,6 +60,10 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
+    /// Create a new `Ui`.
+    ///
+    /// Normally you would not use this directly, but instead use
+    /// [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn new(ctx: CtxRef, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
@@ -72,8 +76,9 @@ impl Ui {
         }
     }
 
+    /// Create a new `Ui` at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        debug_assert!(!max_rect.any_nan());
+        crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
@@ -718,7 +723,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -764,7 +769,26 @@ impl Ui {
         InnerResponse::new(ret, response)
     }
 
-    /// Convenience function to get a region to paint on
+    /// Convenience function to get a region to paint on.
+    ///
+    /// Note that egui uses screen coordinates for everything.
+    ///
+    /// ```
+    /// # use egui::*;
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// # use std::f32::consts::TAU;
+    /// let size = Vec2::splat(16.0);
+    /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
+    /// let rect = response.rect;
+    /// let c = rect.center();
+    /// let r = rect.width() / 2.0 - 1.0;
+    /// let color = Color32::from_gray(128);
+    /// let stroke = Stroke::new(1.0, color);
+    /// painter.circle_stroke(c, r, stroke);
+    /// painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+    /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
@@ -817,6 +841,8 @@ impl Ui {
     /// Add a [`Widget`] to this `Ui` with a given size.
     /// The widget will attempt to fit within the given size, but some widgets may overflow.
     ///
+    /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
+    ///
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
@@ -825,6 +851,10 @@ impl Ui {
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
+        // TODO: configure to overflow to main_dir instead of centered overflow
+        // to handle the bug mentioned at https://github.com/emilk/egui/discussions/318#discussioncomment-627578
+        // and fixed in https://github.com/emilk/egui/commit/035166276322b3f2324bd8b97ffcedc63fa8419f
+        //
         // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
         let layout = Layout::centered_and_justified(self.layout().main_dir());
         self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
@@ -899,7 +929,7 @@ impl Ui {
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink(&mut self, url: impl Into<String>) -> Response {
+    pub fn hyperlink(&mut self, url: impl ToString) -> Response {
         Hyperlink::new(url).ui(self)
     }
 
@@ -911,7 +941,7 @@ impl Ui {
     /// ```
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink_to(&mut self, label: impl Into<String>, url: impl Into<String>) -> Response {
+    pub fn hyperlink_to(&mut self, label: impl ToString, url: impl ToString) -> Response {
         Hyperlink::new(url).text(label).ui(self)
     }
 
@@ -923,15 +953,30 @@ impl Ui {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_singleline(&mut self, text: &mut String) -> Response {
+    pub fn text_edit_singleline<S: widgets::text_edit::TextBuffer>(
+        &mut self,
+        text: &mut S,
+    ) -> Response {
         TextEdit::singleline(text).ui(self)
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_multiline(&mut self, text: &mut String) -> Response {
+    pub fn text_edit_multiline<S: widgets::text_edit::TextBuffer>(
+        &mut self,
+        text: &mut S,
+    ) -> Response {
         TextEdit::multiline(text).ui(self)
+    }
+
+    /// A `TextEdit` for code editing.
+    ///
+    /// This will be multiline, monospace, and will insert tabs instead of moving focus.
+    ///
+    /// See also [`TextEdit::code_editor`].
+    pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
+        self.add(TextEdit::multiline(text).code_editor())
     }
 
     /// Usage: `if ui.button("Click me").clicked() { … }`
@@ -941,7 +986,7 @@ impl Ui {
     /// See also [`Button`].
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline(always)]
-    pub fn button(&mut self, text: impl Into<String>) -> Response {
+    pub fn button(&mut self, text: impl ToString) -> Response {
         Button::new(text).ui(self)
     }
 
@@ -951,19 +996,19 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<String>) -> Response {
+    pub fn small_button(&mut self, text: impl ToString) -> Response {
         Button::new(text).small().ui(self)
     }
 
     /// Show a checkbox.
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<String>) -> Response {
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl ToString) -> Response {
         Checkbox::new(checked, text).ui(self)
     }
 
     /// Show a [`RadioButton`].
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
-    pub fn radio(&mut self, selected: bool, text: impl Into<String>) -> Response {
+    pub fn radio(&mut self, selected: bool, text: impl ToString) -> Response {
         RadioButton::new(selected, text).ui(self)
     }
 
@@ -988,7 +1033,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl Into<String>,
+        text: impl ToString,
     ) -> Response {
         let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {
@@ -1002,7 +1047,7 @@ impl Ui {
     ///
     /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl Into<String>) -> Response {
+    pub fn selectable_label(&mut self, checked: bool, text: impl ToString) -> Response {
         SelectableLabel::new(checked, text).ui(self)
     }
 
@@ -1016,7 +1061,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl Into<String>,
+        text: impl ToString,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
@@ -1035,8 +1080,6 @@ impl Ui {
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
     pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -1053,8 +1096,6 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        #![allow(clippy::float_cmp)]
-
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
@@ -1179,13 +1220,28 @@ impl Ui {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
-    /// Create a child ui. You can use this to temporarily change the Style of a sub-region, for instance.
-    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    /// Create a scoped child ui.
+    ///
+    /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.scope(|ui|{
+    ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
+    ///     // …
+    /// });
+    /// ```
+    pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
+    }
+
+    #[deprecated = "Renamed scope()"]
+    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.scope(add_contents)
     }
 
     /// Redirect shapes to another paint layer.
@@ -1194,7 +1250,7 @@ impl Ui {
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
         })
@@ -1212,7 +1268,7 @@ impl Ui {
     /// A [`CollapsingHeader`] that starts out collapsed.
     pub fn collapsing<R>(
         &mut self,
-        heading: impl Into<String>,
+        heading: impl ToString,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)
@@ -1308,7 +1364,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();
@@ -1352,7 +1408,7 @@ impl Ui {
         text_style: TextStyle,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.wrap(|ui| {
+        self.scope(|ui| {
             let row_height = ui.fonts().row_height(text_style);
             let space_width = ui.fonts().glyph_width(text_style, ' ');
             let spacing = ui.spacing_mut();

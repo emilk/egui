@@ -58,7 +58,7 @@ impl std::ops::Deref for CtxRef {
     type Target = Context;
 
     fn deref(&self) -> &Context {
-        self.0.deref()
+        &*self.0
     }
 }
 
@@ -123,7 +123,7 @@ impl CtxRef {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollpasingHeaders share names,\n\
+                            "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
                         );
                     }
@@ -202,7 +202,11 @@ impl CtxRef {
             return response;
         }
 
-        if sense.focusable {
+        // We only want to focus labels if the screen reader is on.
+        let interested_in_focus =
+            sense.interactive() || sense.focusable && self.memory().options.screen_reader;
+
+        if interested_in_focus {
             self.memory().interested_in_focus(id);
         }
 
@@ -411,7 +415,12 @@ impl Context {
         self.fonts().texture()
     }
 
-    /// Will become active at the start of the next frame.
+    /// Tell `egui` which fonts to use.
+    ///
+    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// but you can call this to install additional fonts that support e.g. korean characters.
+    ///
+    /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &self.fonts {
             // NOTE: this comparison is expensive since it checks TTF data for equality
@@ -429,6 +438,8 @@ impl Context {
     }
 
     /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
     ///
     /// Example:
     /// ```

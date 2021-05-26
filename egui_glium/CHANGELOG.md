@@ -5,6 +5,13 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 ## Unreleased
 
+* [Fix modifier key for zoom with mouse wheel on Mac](https://github.com/emilk/egui/issues/401)
+
+## 0.12.0 - 2021-05-10
+
+* Simplify usage with a new `EguiGlium` wrapper type.
+
+
 ## 0.11.0 - 2021-04-05
 * [Position IME candidate window next to text cursor](https://github.com/emilk/egui/pull/258).
 * [Register your own glium textures](https://github.com/emilk/egui/pull/226).

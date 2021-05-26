@@ -40,6 +40,7 @@ impl State {
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
 ///     });
+#[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     pub(crate) id: Id,

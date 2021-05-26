@@ -1,6 +1,6 @@
 pub struct ScreenReader {
     #[cfg(feature = "screen_reader")]
-    tts: Option<tts::TTS>,
+    tts: Option<tts::Tts>,
 }
 
 #[cfg(not(feature = "screen_reader"))]
@@ -13,7 +13,7 @@ impl Default for ScreenReader {
 #[cfg(feature = "screen_reader")]
 impl Default for ScreenReader {
     fn default() -> Self {
-        let tts = match tts::TTS::default() {
+        let tts = match tts::Tts::default() {
             Ok(screen_reader) => {
                 eprintln!("Initialized screen reader.");
                 Some(screen_reader)

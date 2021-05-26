@@ -4,7 +4,7 @@ use egui::{color::*, *};
 /// Showcase some ui code
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub struct DemoWindow {
+pub struct MiscDemoWindow {
     num_columns: usize,
 
     widgets: Widgets,
@@ -13,9 +13,9 @@ pub struct DemoWindow {
     box_painting: BoxPainting,
 }
 
-impl Default for DemoWindow {
-    fn default() -> DemoWindow {
-        DemoWindow {
+impl Default for MiscDemoWindow {
+    fn default() -> MiscDemoWindow {
+        MiscDemoWindow {
             num_columns: 2,
 
             widgets: Default::default(),
@@ -26,7 +26,7 @@ impl Default for DemoWindow {
     }
 }
 
-impl Demo for DemoWindow {
+impl Demo for MiscDemoWindow {
     fn name(&self) -> &'static str {
         "✨ Misc Demos"
     }
@@ -39,7 +39,7 @@ impl Demo for DemoWindow {
     }
 }
 
-impl View for DemoWindow {
+impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
         CollapsingHeader::new("Widgets")
             .default_open(true)
@@ -88,8 +88,9 @@ impl View for DemoWindow {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
                     use std::f32::consts::TAU;
-                    let (rect, _response) = ui.allocate_at_least(Vec2::splat(16.0), Sense::hover());
-                    let painter = ui.painter();
+                    let size = Vec2::splat(16.0);
+                    let (response, painter) = ui.allocate_painter(size, Sense::hover());
+                    let rect = response.rect;
                     let c = rect.center();
                     let r = rect.width() / 2.0 - 1.0;
                     let color = Color32::from_gray(128);
@@ -100,6 +101,116 @@ impl View for DemoWindow {
                     painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
                 });
             });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
+pub struct Widgets {
+    angle: f32,
+    password: String,
+    lock_focus: bool,
+    code_snippet: String,
+}
+
+impl Default for Widgets {
+    fn default() -> Self {
+        Self {
+            angle: std::f32::consts::TAU / 3.0,
+            password: "hunter2".to_owned(),
+            lock_focus: true,
+            code_snippet: "\
+fn main() {
+\tprintln!(\"Hello world!\");
+}
+"
+            .to_owned(),
+        }
+    }
+}
+
+impl Widgets {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            angle,
+            password,
+            lock_focus,
+            code_snippet,
+        } = self;
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file_line!());
+        });
+
+        ui.horizontal_wrapped(|ui| {
+            // Trick so we don't have to add spaces in the text below:
+            ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
+
+            ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
+            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
+            ui.label("and tooltips.").on_hover_text(
+                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+            );
+
+            ui.label("You can mix in other widgets into text, like");
+            let _ = ui.small_button("this button");
+            ui.label(".");
+
+            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+                .on_hover_text("There is currently no support for right-to-left languages.");
+            ui.label("See the 🔤 Font Book for more!");
+
+            ui.monospace("There is also a monospace font.");
+        });
+
+        let tooltip_ui = |ui: &mut Ui| {
+            ui.heading("The name of the tooltip");
+            ui.horizontal(|ui| {
+                ui.label("This tooltip was created with");
+                ui.monospace(".on_hover_ui(...)");
+            });
+            let _ = ui.button("A button you can never press");
+        };
+        ui.label("Tooltips can be more than just simple text.")
+            .on_hover_ui(tooltip_ui);
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.label("An angle:");
+            ui.drag_angle(angle);
+            ui.label(format!("≈ {:.3}τ", *angle / std::f32::consts::TAU))
+                .on_hover_text("Each τ represents one turn (τ = 2π)");
+        })
+        .response
+        .on_hover_text("The angle is stored in radians, but presented in degrees");
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.hyperlink_to("Password:", super::password::url_to_file_source_code())
+                .on_hover_text("See the example code for how to use egui to store UI state");
+            ui.add(super::password::password(password));
+        });
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.label("Code editor:");
+
+            ui.separator();
+
+            ui.checkbox(lock_focus, "Lock focus").on_hover_text(
+                "When checked, pressing TAB will insert a tab instead of moving focus",
+            );
+        });
+
+        ui.add(
+            TextEdit::multiline(code_snippet)
+                .code_editor()
+                .lock_focus(*lock_focus),
+        );
     }
 }
 

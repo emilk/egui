@@ -85,6 +85,23 @@ impl From<&Pos2> for (f32, f32) {
 }
 
 // ----------------------------------------------------------------------------
+// Mint compatibility and convenience conversions
+
+#[cfg(feature = "mint")]
+impl From<mint::Point2<f32>> for Pos2 {
+    fn from(v: mint::Point2<f32>) -> Self {
+        Self::new(v.x, v.y)
+    }
+}
+
+#[cfg(feature = "mint")]
+impl From<Pos2> for mint::Point2<f32> {
+    fn from(v: Pos2) -> Self {
+        Self { x: v.x, y: v.y }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl Pos2 {
     /// The zero position, the origin.

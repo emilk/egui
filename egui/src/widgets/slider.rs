@@ -1,5 +1,4 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-#![allow(clippy::float_cmp)]
 
 use crate::{widgets::Label, *};
 use std::ops::RangeInclusive;
@@ -49,6 +48,8 @@ struct SliderSpec {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
 /// ```
+///
+/// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
@@ -174,8 +175,8 @@ impl<'a> Slider<'a> {
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
-    pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.text = text.into();
+    pub fn text(mut self, text: impl ToString) -> Self {
+        self.text = text.to_string();
         self
     }
 
@@ -522,7 +523,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             }
         }
     } else {
-        debug_assert!(
+        crate::egui_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -571,7 +572,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             }
         }
     } else {
-        debug_assert!(
+        crate::egui_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -619,6 +620,6 @@ fn logaritmic_zero_cutoff(min: f64, max: f64) -> f64 {
     };
 
     let cutoff = min_magnitude / (min_magnitude + max_magnitude);
-    debug_assert!(0.0 <= cutoff && cutoff <= 1.0);
+    crate::egui_assert!(0.0 <= cutoff && cutoff <= 1.0);
     cutoff
 }

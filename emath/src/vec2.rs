@@ -82,6 +82,23 @@ impl From<&Vec2> for (f32, f32) {
 }
 
 // ----------------------------------------------------------------------------
+// Mint compatibility and convenience conversions
+
+#[cfg(feature = "mint")]
+impl From<mint::Vector2<f32>> for Vec2 {
+    fn from(v: mint::Vector2<f32>) -> Self {
+        Self::new(v.x, v.y)
+    }
+}
+
+#[cfg(feature = "mint")]
+impl From<Vec2> for mint::Vector2<f32> {
+    fn from(v: Vec2) -> Self {
+        Self { x: v.x, y: v.y }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl Vec2 {
     pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };
@@ -405,8 +422,6 @@ impl std::fmt::Debug for Vec2 {
 
 #[test]
 fn test_vec2() {
-    #![allow(clippy::float_cmp)]
-
     macro_rules! almost_eq {
         ($left:expr, $right:expr) => {
             let left = $left;

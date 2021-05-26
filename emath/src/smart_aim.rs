@@ -1,7 +1,5 @@
 //! Find "simple" numbers is some range. Used by sliders.
 
-#![allow(clippy::float_cmp)] // I know what I'm doing
-
 const NUM_DECIMALS: usize = 15;
 
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.
@@ -35,7 +33,7 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     if !max.is_finite() {
         return min;
     }
-    debug_assert!(min.is_finite() && max.is_finite());
+    crate::emath_assert!(min.is_finite() && max.is_finite());
 
     let min_exponent = min.log10();
     let max_exponent = max.log10();
@@ -84,7 +82,7 @@ fn is_integer(f: f64) -> bool {
 }
 
 fn to_decimal_string(v: f64) -> [i32; NUM_DECIMALS] {
-    debug_assert!(v < 10.0, "{:?}", v);
+    crate::emath_assert!(v < 10.0, "{:?}", v);
     let mut digits = [0; NUM_DECIMALS];
     let mut v = v.abs();
     for r in digits.iter_mut() {
@@ -106,7 +104,7 @@ fn from_decimal_string(s: &[i32]) -> f64 {
 
 /// Find the simplest integer in the range [min, max]
 fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    debug_assert!(1 <= min && min <= max && max <= 9);
+    crate::emath_assert!(1 <= min && min <= max && max <= 9);
     if min <= 5 && 5 <= max {
         5
     } else {

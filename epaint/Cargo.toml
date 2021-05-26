@@ -1,6 +1,6 @@
 [package]
 name = "epaint"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition = "2018"
@@ -22,10 +22,11 @@ include = [
 [lib]
 
 [dependencies]
-emath = { version = "0.11.0", path = "../emath" }
+emath = { version = "0.12.0", path = "../emath" }
 
 ahash = { version = "0.7", features = ["std"], default-features = false }
 atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
+cint = { version = "^0.2.1", optional = true }
 ordered-float = "2"
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 rusttype = "0.9"
@@ -33,11 +34,20 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["multi_threaded", "default_fonts"]
-persistence = ["serde", "emath/serde"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
+
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["emath/extra_debug_asserts"]
+# Always enable additional checks.
+extra_asserts = ["emath/extra_asserts"]
+
+# Add compatability with https://github.com/kvark/mint
+mint = ["emath/mint"]
+
+persistence = ["serde", "emath/serde"]
 
 single_threaded = ["atomic_refcell"]
 
