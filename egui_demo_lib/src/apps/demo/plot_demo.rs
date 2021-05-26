@@ -247,7 +247,17 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
-        ui.collapsing("Lines", |ui| ui.add(&mut self.line_demo));
-        ui.collapsing("Markers", |ui| ui.add(&mut self.marker_demo));
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.showing_markers, false, "Lines");
+            ui.selectable_value(&mut self.showing_markers, true, "Markers");
+        });
+        ui.separator();
+
+        if self.showing_markers {
+            ui.add(&mut self.marker_demo);
+        } else {
+            ui.add(&mut self.line_demo);
+        }
     }
 }
