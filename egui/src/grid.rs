@@ -1,5 +1,4 @@
 use crate::*;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
