@@ -181,7 +181,7 @@ impl MarkerDemo {
                     Value::new(5.0, 0.0 + y_offset),
                     Value::new(6.0, 0.5 + y_offset),
                 ]))
-                .name("Marker Lines")
+                .name(format!("{:?}", marker))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
                 .shape(marker);
