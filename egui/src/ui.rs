@@ -63,7 +63,7 @@ impl Ui {
     /// Create a new `Ui`.
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn new(ctx: CtxRef, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
