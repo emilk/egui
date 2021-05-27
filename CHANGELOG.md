@@ -8,6 +8,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ## Unreleased
 
 ### Added ⭐
+* [Line markers for plots](https://github.com/emilk/egui/pull/363).
 * Add right and bottom panels (`SidePanel::right` and `Panel::bottom`).
 * Add resizable panels.
 * Add an option to overwrite frame of a `Panel`.
@@ -18,6 +19,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 
 ### Changed 🔧
+* Plot: Changed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
 * `SidePanel::left` no longet takes the default width by argument, but by a builder call.
 
