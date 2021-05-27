@@ -152,47 +152,50 @@ impl DemoWindows {
             egui_windows,
         } = self;
 
-        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.heading("✒ egui demos");
-            });
-
-            ui.separator();
-
-            ScrollArea::auto_sized().show(ui, |ui| {
-                use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
-
-                ui.label("egui is an immediate mode GUI library written in Rust.");
-
-                ui.label(format!(
-                    "egui runs on the web, or natively on {}{}{}",
-                    OS_APPLE, OS_LINUX, OS_WINDOWS,
-                ));
-
+        egui::SidePanel::right("egui_demo_panel")
+            .min_width(150.0)
+            .default_width(190.0)
+            .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.hyperlink_to(
-                        format!("{} egui home page", GITHUB),
-                        "https://github.com/emilk/egui",
-                    );
+                    ui.heading("✒ egui demos");
                 });
 
                 ui.separator();
-                demos.checkboxes(ui);
-                ui.separator();
-                tests.checkboxes(ui);
-                ui.separator();
-                egui_windows.checkboxes(ui);
-                ui.separator();
 
-                ui.vertical_centered(|ui| {
-                    if ui.button("Organize windows").clicked() {
-                        ui.ctx().memory().reset_areas();
-                    }
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+
+                    ui.label("egui is an immediate mode GUI library written in Rust.");
+
+                    ui.label(format!(
+                        "egui runs on the web, or natively on {}{}{}",
+                        OS_APPLE, OS_LINUX, OS_WINDOWS,
+                    ));
+
+                    ui.vertical_centered(|ui| {
+                        ui.hyperlink_to(
+                            format!("{} egui home page", GITHUB),
+                            "https://github.com/emilk/egui",
+                        );
+                    });
+
+                    ui.separator();
+                    demos.checkboxes(ui);
+                    ui.separator();
+                    tests.checkboxes(ui);
+                    ui.separator();
+                    egui_windows.checkboxes(ui);
+                    ui.separator();
+
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Organize windows").clicked() {
+                            ui.ctx().memory().reset_areas();
+                        }
+                    });
                 });
             });
-        });
 
-        egui::TopPanel::top("menu_bar").show(ctx, |ui| {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             show_menu_bar(ui);
         });
 
@@ -302,7 +305,7 @@ fn show_menu_bar(ui: &mut Ui) {
             }
             if ui
                 .button("Clear egui memory")
-                .on_hover_text("Forget scroll, collapsing headers etc")
+                .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();

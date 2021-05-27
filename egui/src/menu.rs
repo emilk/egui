@@ -36,7 +36,7 @@ impl BarState {
     }
 }
 
-/// The menu bar goes well in `TopPanel`,
+/// The menu bar goes well in a [`TopBottomPanel::top`],
 /// but can also be placed in a `Window`.
 /// In the latter case you may want to wrap it in `Frame`.
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {

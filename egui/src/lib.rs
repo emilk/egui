@@ -41,7 +41,7 @@
 //!
 //! ### Getting a [`Ui`]
 //!
-//! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
+//! Use one of [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
 //! ```

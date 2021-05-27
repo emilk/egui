@@ -202,6 +202,11 @@ impl Rect {
         self.min.x <= p.x && p.x <= self.max.x && self.min.y <= p.y && p.y <= self.max.y
     }
 
+    #[must_use]
+    pub fn contains_rect(&self, other: Rect) -> bool {
+        self.contains(other.min) && self.contains(other.max)
+    }
+
     /// Return the given points clamped to be inside the rectangle
     /// Panics if [`Self::is_negative`].
     #[must_use]

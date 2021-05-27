@@ -97,7 +97,7 @@ impl CtxRef {
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
-    /// Put your widgets into a [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
@@ -291,8 +291,14 @@ impl CtxRef {
         response
     }
 
+    /// Get a full-screen painter for a new or existing layer
+    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
+        Painter::new(self.clone(), layer_id, self.input.screen_rect())
+    }
+
+    /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
-        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
+        Self::layer_painter(self, LayerId::debug())
     }
 }
 
