@@ -49,6 +49,8 @@ impl Color32 {
     pub const LIGHT_BLUE: Color32 = Color32::from_rgb(140, 160, 255);
     pub const GOLD: Color32 = Color32::from_rgb(255, 215, 0);
 
+    pub const DEBUG_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 200, 0, 128);
+
     #[inline(always)]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 255])

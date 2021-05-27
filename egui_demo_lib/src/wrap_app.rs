@@ -75,6 +75,7 @@ impl epi::App for WrapApp {
         }
 
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
+            egui::trace!(ui);
             self.bar_contents(ui, frame);
         });
 
@@ -262,6 +263,7 @@ impl BackendPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+        egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
         });
@@ -327,9 +329,20 @@ impl BackendPanel {
             }
         }
 
-        let mut screen_reader = ui.ctx().memory().options.screen_reader;
-        ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-        ui.ctx().memory().options.screen_reader = screen_reader;
+        {
+            let mut debug_on_hover = ui.ctx().debug_on_hover();
+            ui.checkbox(&mut debug_on_hover, "🐛 Debug on hover")
+                .on_hover_text("Show structure of the ui when you hover with the mouse");
+            ui.ctx().set_debug_on_hover(debug_on_hover);
+        }
+
+        ui.separator();
+
+        {
+            let mut screen_reader = ui.ctx().memory().options.screen_reader;
+            ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
+            ui.ctx().memory().options.screen_reader = screen_reader;
+        }
 
         ui.collapsing("Output events", |ui| {
             ui.set_max_width(450.0);

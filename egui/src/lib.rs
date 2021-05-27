@@ -416,6 +416,31 @@ macro_rules! github_link_file {
 
 // ----------------------------------------------------------------------------
 
+/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// // Turn on tracing of widgets
+/// ui.ctx().set_debug_on_hover(true);
+///
+/// /// Show [`std::file`], [`std::line`] and argument on hover
+/// egui::trace!(ui, "MyWindow");
+///
+/// /// Show [`std::file`] and [`std::line`] on hover
+/// egui::trace!(ui);
+/// ```
+#[macro_export]
+macro_rules! trace {
+    ($ui:expr) => {{
+        $ui.trace_location(format!("{}:{}", file!(), line!()))
+    }};
+    ($ui:expr, $label:expr) => {{
+        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
+    }};
+}
+
+// ----------------------------------------------------------------------------
+
 /// An assert that is only active when `egui` is compiled with the `egui_assert` feature
 /// or with the `debug_egui_assert` feature in debug builds.
 #[macro_export]

@@ -17,6 +17,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add support for [cint](https://crates.io/crates/cint) under `cint` feature.
 * Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
+* Add `Context::set_debug_on_hover` and `egui::trace!(ui)`
 
 ### Changed 🔧
 * Plot: Changed `Curve` to `Line`.

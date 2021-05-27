@@ -156,6 +156,7 @@ impl DemoWindows {
             .min_width(150.0)
             .default_width(190.0)
             .show(ctx, |ui| {
+                egui::trace!(ui);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
                 });
@@ -296,6 +297,7 @@ impl EguiWindows {
 }
 
 fn show_menu_bar(ui: &mut Ui) {
+    trace!(ui);
     use egui::*;
 
     menu::bar(ui, |ui| {

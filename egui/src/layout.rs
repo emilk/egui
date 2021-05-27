@@ -731,14 +731,13 @@ impl Layout {
 /// ## Debug stuff
 impl Layout {
     /// Shows where the next widget is going to be placed
-    pub(crate) fn debug_paint_cursor(
+    pub(crate) fn paint_text_at_cursor(
         &self,
+        painter: &crate::Painter,
         region: &Region,
         stroke: epaint::Stroke,
-        painter: &crate::Painter,
+        text: impl ToString,
     ) {
-        use epaint::*;
-
         let cursor = region.cursor;
         let next_pos = self.next_widget_position(region);
 
@@ -769,12 +768,6 @@ impl Layout {
             }
         }
 
-        painter.text(
-            next_pos,
-            align,
-            "cursor",
-            TextStyle::Monospace,
-            Color32::WHITE,
-        );
+        painter.debug_text(next_pos, align, stroke.color, text);
     }
 }
