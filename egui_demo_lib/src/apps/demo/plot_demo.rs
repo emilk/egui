@@ -196,7 +196,9 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let mut markers_plot = Plot::new("Markers Demo").height(300.0).data_aspect(1.0);
+        let mut markers_plot = Plot::new("Markers Demo")
+            .data_aspect(1.0)
+            .legend(Legend::default());
         for marker in self.markers() {
             markers_plot = markers_plot.points(marker);
         }
@@ -263,7 +265,6 @@ impl Widget for &mut LegendDemo {
             .line(LegendDemo::line_with_slope(2.0).name("lines"))
             .line(LegendDemo::sin().name("sin(x)"))
             .line(LegendDemo::cos().name("cos(x)"))
-            .height(300.0)
             .legend(*config)
             .data_aspect(1.0);
         ui.add(legend_plot)
