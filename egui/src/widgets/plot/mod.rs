@@ -590,8 +590,7 @@ impl Prepared {
 
             let text_alpha = remap_clamp(spacing_in_points, 40.0..=150.0, 0.0..=0.4);
 
-            if text_alpha > 0.0 {
-                let color = color_from_alpha(ui, text_alpha);
+            if text_alpha > 0.0 {                
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
                 let galley = ui.fonts().layout_single_line(text_style, text);

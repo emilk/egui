@@ -372,15 +372,13 @@ impl Painter {
     pub fn multicolor_galley(
         &self,
         pos: Pos2,
-        galley: Galley,
-        text_style: TextStyle,
+	galley: std::sync::Arc<Galley>,
         color_map: TextColorMap,
         default_color: Color32,
     ) {
         self.add(Shape::Text {
             pos,
             galley,
-            text_style,
             color_map,
             default_color,
             fake_italics: false,
