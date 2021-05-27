@@ -200,7 +200,7 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let mut markers_plot = Plot::new("Markers Demo").height(300.0).data_aspect(1.0);
+        let mut markers_plot = Plot::new("Markers Demo").data_aspect(1.0);
         for marker in self.markers() {
             markers_plot = markers_plot.points(marker);
         }
