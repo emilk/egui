@@ -374,7 +374,7 @@ impl Widget for Plot {
                 .for_each(|entry| entry.highlight());
         }
         // Move highlighted items to front.
-        items.sort_by(|a, b| a.highlighted().cmp(&b.highlighted()));
+        items.sort_by_key(|item| item.highlighted());
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
