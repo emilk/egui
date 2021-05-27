@@ -392,7 +392,7 @@ impl Points {
         self
     }
 
-    /// Name of this series of markers.
+    /// Name of this set of points.
     ///
     /// This name will show up in the plot legend, if legends are turned on. Multiple lines may
     /// share the same name.
