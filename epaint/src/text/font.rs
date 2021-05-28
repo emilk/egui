@@ -92,6 +92,9 @@ impl FontImpl {
         // let height_in_pixels = v.ascent - v.descent + v.line_gap;
         // let height_in_points = height_in_pixels / pixels_per_point;
 
+        // Round to closest pixel:
+        let y_offset = (y_offset * pixels_per_point).round() / pixels_per_point;
+
         Self {
             rusttype_font,
             scale_in_pixels,
