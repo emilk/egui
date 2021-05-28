@@ -88,10 +88,12 @@ impl super::View for Scrolling {
             }
             ui.vertical(|ui| {
                 for item in 1..=50 {
-                    if track_item && item == self.track_item {
+                    if item == self.track_item {
                         let response =
                             ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
-                        response.scroll_to_me(self.tack_item_align);
+                        if track_item {
+                            response.scroll_to_me(self.tack_item_align);
+                        }
                     } else {
                         ui.label(format!("This is item {}", item));
                     }
