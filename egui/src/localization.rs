@@ -59,7 +59,6 @@ impl Localization {
 
     pub fn lang(&self) -> Language {
         match self.lang {
-            "English" => Language::English,
             "Bahasa Malaysia" => Language::BahasaMalaysia,
             _ => Language::English,
         }

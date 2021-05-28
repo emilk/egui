@@ -206,7 +206,7 @@ pub enum Alpha {
 
 fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
     let color = color.into();
-    let button_text = &ui.ctx().localization().click_copy.clone();
+    let button_text = ui.ctx().localization().click_copy;
     ui.horizontal(|ui| {
         let [r, g, b, a] = color.to_array();
 
@@ -223,9 +223,9 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
 fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_text_ui(ui, *hsva);
 
-    let blending_text = ui.ctx().localization().cp_blending.clone();
-    let additive_text = ui.ctx().localization().cp_additive.clone();
-    let normal_text = ui.ctx().localization().cp_normal.clone();
+    let blending_text = ui.ctx().localization().cp_blending;
+    let additive_text = ui.ctx().localization().cp_additive;
+    let normal_text = ui.ctx().localization().cp_normal;
 
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).

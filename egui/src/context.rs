@@ -938,7 +938,7 @@ impl Context {
 impl Context {
     pub fn set_localization(&self, lang: Language) {
         self.localization().set_localization(lang.clone());
-        self.memory().new_language = Some(lang.clone());
+        self.memory().new_language = Some(lang);
     }
 
     pub fn localization(&self) -> MutexGuard<'_, Localization> {
