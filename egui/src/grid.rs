@@ -246,6 +246,7 @@ impl GridLayout {
 ///     ui.end_row();
 /// });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct Grid {
     id_source: Id,
     striped: bool,

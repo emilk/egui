@@ -41,7 +41,7 @@
 //!
 //! ### Getting a [`Ui`]
 //!
-//! Use one of [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
+//! Use one of [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
 //! ```
@@ -231,13 +231,11 @@
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
 //! ui.scope(|ui|{
-//!     // Change text color on subsequent widgets:
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
-//!
-//!     // Turn off text wrapping on subsequent widgets:
+//!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 //!     ui.style_mut().wrap = Some(false);
 //!
-//!     ui.label("This text will be red, and won't wrap to a new line");
+//!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
 //! ```
 
@@ -414,6 +412,31 @@ macro_rules! github_link_file {
     ($github_url:expr, $label:expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::new(url).text($label)
+    }};
+}
+
+// ----------------------------------------------------------------------------
+
+/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// // Turn on tracing of widgets
+/// ui.ctx().set_debug_on_hover(true);
+///
+/// /// Show [`std::file`], [`std::line`] and argument on hover
+/// egui::trace!(ui, "MyWindow");
+///
+/// /// Show [`std::file`] and [`std::line`] on hover
+/// egui::trace!(ui);
+/// ```
+#[macro_export]
+macro_rules! trace {
+    ($ui:expr) => {{
+        $ui.trace_location(format!("{}:{}", file!(), line!()))
+    }};
+    ($ui:expr, $label:expr) => {{
+        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 

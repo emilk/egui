@@ -17,9 +17,12 @@ pub use {
     collapsing_header::*,
     combo_box::*,
     frame::Frame,
-    panel::{CentralPanel, SidePanel, TopPanel},
+    panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
     window::Window,
 };
+
+#[allow(deprecated)]
+pub use panel::TopPanel;

@@ -18,6 +18,7 @@ pub(crate) struct State {
 
 /// A region that can be resized by dragging the bottom right corner.
 #[derive(Clone, Copy, Debug)]
+#[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
     id_source: Option<Id>,

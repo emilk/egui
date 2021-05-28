@@ -21,6 +21,7 @@ use super::*;
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+#[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title_label: Label,
     open: Option<&'open mut bool>,
