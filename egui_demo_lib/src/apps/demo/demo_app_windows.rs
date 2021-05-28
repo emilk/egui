@@ -178,6 +178,22 @@ impl DemoWindows {
                     );
                 });
 
+                ui.separator();
+                demos.checkboxes(ui);
+                ui.separator();
+                tests.checkboxes(ui);
+                ui.separator();
+                egui_windows.checkboxes(ui);
+                ui.separator();
+
+                ui.vertical_centered(|ui| {
+                    if ui.button("Organize windows").clicked() {
+                        ui.ctx().memory().reset_areas();
+                    }
+                });
+
+                ui.separator();
+
                 let lang_text = ctx.localization().lang_text;
                 let previous_lang = lang.clone();
 
@@ -193,20 +209,6 @@ impl DemoWindows {
                 if previous_lang != current_lang {
                     ctx.set_localization(current_lang);
                 }
-
-                ui.separator();
-                demos.checkboxes(ui);
-                ui.separator();
-                tests.checkboxes(ui);
-                ui.separator();
-                egui_windows.checkboxes(ui);
-                ui.separator();
-
-                ui.vertical_centered(|ui| {
-                    if ui.button("Organize windows").clicked() {
-                        ui.ctx().memory().reset_areas();
-                    }
-                });
             });
         });
 
