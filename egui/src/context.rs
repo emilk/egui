@@ -936,17 +936,22 @@ impl Context {
 
 /// ## Localization
 impl Context {
+    /// Sets the current language of the default texts within [`crate::Widgets`] and [`crate::Containers`].
+    ///
+    /// The languages available for localization can be seen in [`crate::localization::Language`].
     pub fn set_localization(&self, lang: Language) {
         self.localization().set_localization(lang.clone());
         self.memory().new_language = Some(lang);
     }
 
+    /// Use this to access the `Localization` struct stored within context and also all the texts stored within it.
     pub fn localization(&self) -> MutexGuard<'_, Localization> {
         self.localization.lock()
     }
 
+    /// Returns the language that will be set in the next frame
     pub fn lang(&self) -> Language {
-        let current_lang = self.memory().new_language.clone().unwrap_or_default();
-        current_lang
+        let new_lang = self.memory().new_language.clone().unwrap_or_default();
+        new_lang
     }
 }

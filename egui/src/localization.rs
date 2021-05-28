@@ -1,10 +1,19 @@
 use std::default::Default;
+
+/// Handles the localization of default texts in widgets and containers.
+///
+/// You can set the current language with [`crate::Context::set_localization`]. For example: `ctx.set_localization(Language::BahasaMalaysia)`.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Localization {
-    pub lang: &'static str,
+    /// The current language used for texts.
+    pub lang: Language,
+
+    // Texts for sliders
     pub slider_tooltip: &'static str,
+
+    // Texts for colour pickers
     pub click_copy: &'static str,
     pub cp_edit: &'static str,
     pub cp_blending: &'static str,
@@ -18,9 +27,12 @@ pub struct Localization {
 }
 
 impl Default for Localization {
+    /// Sets English as the default language for texts.
+    ///
+    /// It can also be used to switch from another language to English.
     fn default() -> Self {
         Self {
-            lang: "English",
+            lang: Language::English,
             slider_tooltip: "Drag to edit or click to enter a value.\nPress 'Shift' while dragging for better control",
             click_copy: "Click to copy",
             cp_edit: "Click to edit color",
@@ -38,6 +50,7 @@ impl Default for Localization {
 
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+/// Specifies the languages currently available for localization and is required by [`crate::Context::set_localization`] as the parameter type.
 pub enum Language {
     English,
     BahasaMalaysia,
@@ -50,6 +63,7 @@ impl Default for Language {
 }
 
 impl Localization {
+    /// Pattern matches on ['Language'] to call the function that'll set the fields within Localization accordingly.
     pub fn set_localization(&mut self, lang: Language) {
         *self = match lang {
             Language::English => Localization::default(),
@@ -57,16 +71,18 @@ impl Localization {
         };
     }
 
+    /// Returns the current language used for texts.
     pub fn lang(&self) -> Language {
         match self.lang {
-            "Bahasa Malaysia" => Language::BahasaMalaysia,
+            Language::BahasaMalaysia => Language::BahasaMalaysia,
             _ => Language::English,
         }
     }
 
-    pub fn malay() -> Self {
+    /// Sets Bahasa Malaysia as the language for texts.
+    fn malay() -> Self {
         Self {
-            lang: "Bahasa Malaysia",
+            lang: Language::BahasaMalaysia,
             slider_tooltip: "Tarik untuk ubah atau klik untuk masukkan jumlah.\nTekan 'Shift' sambil tarik untuk pergerakan lebih terkawal.",
             click_copy: "Klik untuk salin",
             cp_edit: "Klik untuk ubah warna",
