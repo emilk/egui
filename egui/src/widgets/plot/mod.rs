@@ -518,13 +518,11 @@ impl Prepared {
             item.get_shapes(transform, &mut shapes);
         }
 
-        let painter_rect = ui.painter().sub_region(*transform.frame());
-
-        painter_rect.extend(shapes);
-
         if let Some(pointer) = response.hover_pos() {
-            painter_rect.extend(self.hover(ui, pointer));
+            self.hover(ui, pointer, &mut shapes);
         }
+
+        ui.painter().sub_region(*transform.frame()).extend(shapes);
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -616,7 +614,7 @@ impl Prepared {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2) -> Vec<Shape> {
+    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
         let Self {
             transform,
             show_x,
@@ -625,10 +623,8 @@ impl Prepared {
             ..
         } = self;
 
-        let mut shapes = Vec::new();
-
         if !show_x && !show_y {
-            return Vec::new();
+            return;
         }
 
         let interact_radius: f32 = 16.0;
@@ -712,7 +708,5 @@ impl Prepared {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
-
-        shapes
     }
 }

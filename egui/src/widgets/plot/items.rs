@@ -394,8 +394,8 @@ impl Points {
 
     /// Name of this set of points.
     ///
-    /// This name will show up in the plot legend, if legends are turned on. Multiple lines may
-    /// share the same name.
+    /// This name will show up in the plot legend, if legends are turned on. Multiple sets of points
+    /// may share the same name.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
