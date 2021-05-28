@@ -199,7 +199,7 @@ impl GridLayout {
                 let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
                 let color = if self.style.visuals.dark_mode {
-                    Rgba::from_white_alpha(0.0075)
+                    Rgba::from_white_alpha(0.0065)
                 } else {
                     Rgba::from_black_alpha(0.075)
                 };

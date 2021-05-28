@@ -176,8 +176,8 @@ fn combo_box(
 ) -> Response {
     let popup_id = button_id.with("popup");
 
-    let button_active = ui.memory().is_popup_open(popup_id);
-    let button_response = button_frame(ui, button_id, button_active, Sense::click(), |ui| {
+    let is_popup_open = ui.memory().is_popup_open(popup_id);
+    let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
         // We don't want to change width when user selects something new
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
@@ -193,10 +193,14 @@ fn combo_box(
         let (_, rect) = ui.allocate_space(Vec2::new(width, height));
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
         let response = ui.interact(button_rect, button_id, Sense::click());
-        // response.active |= button_active;
+        // response.active |= is_popup_open;
 
         let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
-        let visuals = ui.style().interact(&response);
+        let visuals = if is_popup_open {
+            &ui.visuals().widgets.open
+        } else {
+            ui.style().interact(&response)
+        };
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
@@ -207,9 +211,8 @@ fn combo_box(
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-    const MAX_COMBO_HEIGHT: f32 = 128.0;
     crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
-        ScrollArea::from_max_height(MAX_COMBO_HEIGHT).show(ui, menu_contents)
+        ScrollArea::from_max_height(ui.spacing().combo_height).show(ui, menu_contents)
     });
 
     button_response
@@ -218,7 +221,7 @@ fn combo_box(
 fn button_frame(
     ui: &mut Ui,
     id: Id,
-    button_active: bool,
+    is_popup_open: bool,
     sense: Sense,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Response {
@@ -237,9 +240,12 @@ fn button_frame(
     let mut outer_rect = content_ui.min_rect().expand2(margin);
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
-    let mut response = ui.interact(outer_rect, id, sense);
-    response.is_pointer_button_down_on |= button_active;
-    let visuals = ui.style().interact(&response);
+    let response = ui.interact(outer_rect, id, sense);
+    let visuals = if is_popup_open {
+        &ui.visuals().widgets.open
+    } else {
+        ui.style().interact(&response)
+    };
 
     ui.painter().set(
         where_to_put_background,

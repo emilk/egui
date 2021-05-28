@@ -246,13 +246,16 @@ impl CollapsingHeader {
 
         let visuals = ui.style().interact(&header_response);
         let text_color = visuals.text_color();
-        ui.painter().add(Shape::Rect {
-            rect: header_response.rect.expand(visuals.expansion),
-            corner_radius: visuals.corner_radius,
-            fill: visuals.bg_fill,
-            stroke: visuals.bg_stroke,
-            // stroke: Default::default(),
-        });
+
+        if ui.visuals().collapsing_header_frame {
+            ui.painter().add(Shape::Rect {
+                rect: header_response.rect.expand(visuals.expansion),
+                corner_radius: visuals.corner_radius,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+                // stroke: Default::default(),
+            });
+        }
 
         {
             let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);

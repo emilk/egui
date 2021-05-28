@@ -18,9 +18,10 @@ pub struct Button {
     text_style: Option<TextStyle>,
     /// None means default for interact
     fill: Option<Color32>,
+    stroke: Option<Stroke>,
     sense: Sense,
     small: bool,
-    frame: bool,
+    frame: Option<bool>,
     wrap: Option<bool>,
     min_size: Vec2,
 }
@@ -32,10 +33,11 @@ impl Button {
             text: text.to_string(),
             text_color: None,
             text_style: None,
-            fill: Default::default(),
+            fill: None,
+            stroke: None,
             sense: Sense::click(),
             small: false,
-            frame: true,
+            frame: None,
             wrap: None,
             min_size: Vec2::ZERO,
         }
@@ -56,8 +58,19 @@ impl Button {
         self
     }
 
-    pub fn fill(mut self, fill: Option<Color32>) -> Self {
-        self.fill = fill;
+    /// Override background fill color. Note that this will override any on-hover effects.
+    /// Calling this will also turn on the frame.
+    pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
+        self.fill = Some(fill.into());
+        self.frame = Some(true);
+        self
+    }
+
+    /// Override button stroke. Note that this will override any on-hover effects.
+    /// Calling this will also turn on the frame.
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = Some(stroke.into());
+        self.frame = Some(true);
         self
     }
 
@@ -70,7 +83,7 @@ impl Button {
 
     /// Turn off the frame
     pub fn frame(mut self, frame: bool) -> Self {
-        self.frame = frame;
+        self.frame = Some(frame);
         self
     }
 
@@ -116,12 +129,15 @@ impl Button {
             text_color,
             text_style,
             fill,
+            stroke,
             sense,
             small,
             frame,
             wrap,
             min_size,
         } = self;
+
+        let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
         let text_style = text_style
             .or(ui.style().override_text_style)
@@ -159,11 +175,12 @@ impl Button {
 
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
+                let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 ui.painter().rect(
                     rect.expand(visuals.expansion),
                     visuals.corner_radius,
                     fill,
-                    visuals.bg_stroke,
+                    stroke,
                 );
             }
 

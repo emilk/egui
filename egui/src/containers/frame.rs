@@ -24,8 +24,8 @@ impl Frame {
     pub fn group(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 6.0),
-            corner_radius: 4.0,
-            stroke: style.visuals.window_stroke(),
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
         }
     }
@@ -63,7 +63,7 @@ impl Frame {
     pub fn menu(style: &Style) -> Self {
         Self {
             margin: Vec2::splat(1.0),
-            corner_radius: 2.0,
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
             shadow: Shadow::small(),
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -73,7 +73,7 @@ impl Frame {
     pub fn popup(style: &Style) -> Self {
         Self {
             margin: style.spacing.window_padding,
-            corner_radius: 5.0,
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
             shadow: Shadow::small(),
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -84,7 +84,7 @@ impl Frame {
     pub fn dark_canvas(style: &Style) -> Self {
         Self {
             margin: Vec2::new(10.0, 10.0),
-            corner_radius: 5.0,
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
             fill: Color32::from_black_alpha(250),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
