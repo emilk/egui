@@ -1,6 +1,7 @@
+//! Localization of texts in widgets and containers.
 use std::default::Default;
 
-/// Handles the localization of default texts in widgets and containers.
+/// Handles the localization of default texts in [`crate::widgets`] and [`crate::containers`].
 ///
 /// You can set the current language with [`crate::Context::set_localization`]. For example: `ctx.set_localization(Language::BahasaMalaysia)`.
 #[derive(Clone, Debug)]

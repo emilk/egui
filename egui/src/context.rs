@@ -936,7 +936,7 @@ impl Context {
 
 /// ## Localization
 impl Context {
-    /// Sets the current language of the default texts within [`crate::Widgets`] and [`crate::Containers`].
+    /// Sets the current language of the default texts within [`crate::widgets`] and [`crate::containers`].
     ///
     /// The languages available for localization can be seen in [`crate::localization::Language`].
     pub fn set_localization(&self, lang: Language) {
