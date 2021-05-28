@@ -80,6 +80,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod apps;
+mod backend_panel;
 pub mod easy_mark;
 pub(crate) mod frame_history;
 mod wrap_app;

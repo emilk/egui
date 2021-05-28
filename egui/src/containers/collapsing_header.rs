@@ -134,6 +134,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 /// // Short version:
 /// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
 /// ```
+#[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     label: Label,
     default_open: bool,
@@ -149,7 +150,7 @@ impl CollapsingHeader {
     /// but if it changes or there are several `CollapsingHeader` with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
     pub fn new(label: impl ToString) -> Self {
-        let label = Label::new(label).text_style(TextStyle::Button).wrap(false);
+        let label = Label::new(label).wrap(false);
         let id_source = Id::new(label.text());
         Self {
             label,
@@ -202,11 +203,16 @@ impl CollapsingHeader {
             "Horizontal collapsing is unimplemented"
         );
         let Self {
-            label,
+            mut label,
             default_open,
             id_source,
             enabled: _,
         } = self;
+
+        label.text_style = label
+            .text_style
+            .or(ui.style().override_text_style)
+            .or(Some(TextStyle::Button));
 
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 

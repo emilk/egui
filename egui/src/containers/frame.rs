@@ -5,6 +5,7 @@ use epaint::*;
 
 /// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[must_use = "You should call .show()"]
 pub struct Frame {
     /// On each side
     pub margin: Vec2,

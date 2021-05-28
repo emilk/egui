@@ -31,7 +31,7 @@ fn main() {
 
             let mut quit = false;
 
-            egui::SidePanel::left("my_side_panel", 300.0).show(egui.ctx(), |ui| {
+            egui::SidePanel::left("my_side_panel").show(egui.ctx(), |ui| {
                 ui.heading("Hello World!");
                 if ui.button("Quit").clicked() {
                     quit = true;

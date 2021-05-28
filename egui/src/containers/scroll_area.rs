@@ -30,6 +30,7 @@ impl Default for State {
 // TODO: rename VScroll
 /// Add vertical scrolling to a contained [`Ui`].
 #[derive(Clone, Debug)]
+#[must_use = "You should call .show()"]
 pub struct ScrollArea {
     max_height: f32,
     always_show_scroll: bool,

@@ -40,6 +40,7 @@ impl State {
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
 ///     });
+#[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     pub(crate) id: Id,
@@ -281,7 +282,7 @@ impl Prepared {
         // (except in rare cases where they don't fit).
         // Adjust clip rect so we don't cast shadows on side panels:
         let central_area = ctx.available_rect();
-        let is_within_central_area = central_area.contains(self.state.pos);
+        let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
         if is_within_central_area {
             clip_rect = clip_rect.intersect(central_area);
         }

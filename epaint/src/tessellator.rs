@@ -229,7 +229,7 @@ pub enum PathType {
 use self::PathType::{Closed, Open};
 
 /// Tessellation quality options
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct TessellationOptions {

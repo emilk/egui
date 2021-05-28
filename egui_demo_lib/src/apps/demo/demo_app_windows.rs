@@ -1,5 +1,5 @@
 use super::Demo;
-use egui::{localization::Language, CtxRef, ScrollArea, Ui, Window};
+use egui::{localization::Language, CtxRef, ScrollArea, Ui};
 use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
@@ -11,6 +11,8 @@ struct Demos {
     demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
+
+    lang: Language,
 }
 
 impl Default for Demos {
@@ -40,12 +42,13 @@ impl Demos {
                 .name()
                 .to_owned(),
         );
+        let lang = Language::English;
 
-        Self { demos, open }
+        Self { demos, open, lang }
     }
 
     pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { demos, open } = self;
+        let Self { demos, open, .. } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
             ui.checkbox(&mut is_open, demo.name());
@@ -54,7 +57,7 @@ impl Demos {
     }
 
     pub fn windows(&mut self, ctx: &CtxRef) {
-        let Self { demos, open } = self;
+        let Self { demos, open, .. } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
             demo.show(ctx, &mut is_open);
@@ -139,7 +142,6 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 pub struct DemoWindows {
     demos: Demos,
     tests: Tests,
-    egui_windows: EguiWindows,
     lang: Language,
 }
 
@@ -147,72 +149,69 @@ impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        let Self {
-            demos,
-            tests,
-            egui_windows,
-            lang,
-        } = self;
+        let Self { demos, tests, lang } = self;
 
-        egui::SidePanel::left("side_panel", 190.0).show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.heading("✒ egui demos");
-            });
-
-            ui.separator();
-
-            ScrollArea::auto_sized().show(ui, |ui| {
-                use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
-
-                ui.label("egui is an immediate mode GUI library written in Rust.");
-
-                ui.label(format!(
-                    "egui runs on the web, or natively on {}{}{}",
-                    OS_APPLE, OS_LINUX, OS_WINDOWS,
-                ));
-
+        egui::SidePanel::right("egui_demo_panel")
+            .min_width(150.0)
+            .default_width(190.0)
+            .show(ctx, |ui| {
+                egui::trace!(ui);
                 ui.vertical_centered(|ui| {
-                    ui.hyperlink_to(
-                        format!("{} egui home page", GITHUB),
-                        "https://github.com/emilk/egui",
-                    );
-                });
-
-                ui.separator();
-                demos.checkboxes(ui);
-                ui.separator();
-                tests.checkboxes(ui);
-                ui.separator();
-                egui_windows.checkboxes(ui);
-                ui.separator();
-
-                ui.vertical_centered(|ui| {
-                    if ui.button("Organize windows").clicked() {
-                        ui.ctx().memory().reset_areas();
-                    }
+                    ui.heading("✒ egui demos");
                 });
 
                 ui.separator();
 
-                let lang_text = ctx.localization().lang_text;
-                let previous_lang = lang.clone();
+                ScrollArea::auto_sized().show(ui, |ui| {
+                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
-                egui::ComboBox::from_label(lang_text)
-                    .selected_text(format!("{:?}", lang))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(lang, Language::English, "English");
-                        ui.selectable_value(lang, Language::BahasaMalaysia, "BahasaMalaysia");
+                    ui.label("egui is an immediate mode GUI library written in Rust.");
+
+                    ui.label(format!(
+                        "egui runs on the web, or natively on {}{}{}",
+                        OS_APPLE, OS_LINUX, OS_WINDOWS,
+                    ));
+
+                    ui.vertical_centered(|ui| {
+                        ui.hyperlink_to(
+                            format!("{} egui home page", GITHUB),
+                            "https://github.com/emilk/egui",
+                        );
                     });
 
-                let current_lang = lang.clone();
+                    ui.separator();
+                    demos.checkboxes(ui);
+                    ui.separator();
+                    tests.checkboxes(ui);
+                    ui.separator();
 
-                if previous_lang != current_lang {
-                    ctx.set_localization(current_lang);
-                }
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Organize windows").clicked() {
+                            ui.ctx().memory().reset_areas();
+                        }
+                    });
+
+                    ui.separator();
+
+                    let lang_text = ctx.localization().lang_text;
+                    let previous_lang = lang.clone();
+
+                    egui::ComboBox::from_label(lang_text)
+                        .selected_text(format!("{:?}", lang))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(lang, Language::English, "English");
+                            ui.selectable_value(lang, Language::BahasaMalaysia, "BahasaMalaysia");
+                        });
+
+                    let current_lang = lang.clone();
+
+                    if previous_lang != current_lang {
+                        ctx.set_localization(current_lang);
+                    }
+                });
             });
-        });
 
-        egui::TopPanel::top("menu_bar").show(ctx, |ui| {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             show_menu_bar(ui);
         });
 
@@ -233,87 +232,17 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn windows(&mut self, ctx: &CtxRef) {
-        let Self {
-            demos,
-            tests,
-            egui_windows,
-            ..
-        } = self;
+        let Self { demos, tests, .. } = self;
 
         demos.windows(ctx);
         tests.windows(ctx);
-        egui_windows.windows(ctx);
     }
 }
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct EguiWindows {
-    // egui stuff:
-    settings: bool,
-    inspection: bool,
-    memory: bool,
-}
-
-impl Default for EguiWindows {
-    fn default() -> Self {
-        EguiWindows::none()
-    }
-}
-
-impl EguiWindows {
-    fn none() -> Self {
-        Self {
-            settings: false,
-            inspection: false,
-            memory: false,
-        }
-    }
-
-    fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self {
-            settings,
-            inspection,
-            memory,
-        } = self;
-
-        ui.checkbox(settings, "🔧 Settings");
-        ui.checkbox(inspection, "🔍 Inspection");
-        ui.checkbox(memory, "📝 Memory");
-    }
-
-    fn windows(&mut self, ctx: &CtxRef) {
-        let Self {
-            settings,
-            inspection,
-            memory,
-        } = self;
-
-        Window::new("🔧 Settings")
-            .open(settings)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.settings_ui(ui);
-            });
-
-        Window::new("🔍 Inspection")
-            .open(inspection)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
-            });
-
-        Window::new("📝 Memory")
-            .open(memory)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ctx.memory_ui(ui);
-            });
-    }
-}
-
 fn show_menu_bar(ui: &mut Ui) {
+    trace!(ui);
     use egui::*;
 
     menu::bar(ui, |ui| {
@@ -323,7 +252,7 @@ fn show_menu_bar(ui: &mut Ui) {
             }
             if ui
                 .button("Clear egui memory")
-                .on_hover_text("Forget scroll, collapsing headers etc")
+                .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();

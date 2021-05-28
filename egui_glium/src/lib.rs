@@ -188,7 +188,7 @@ pub fn input_to_egui(
                 delta.x *= -1.0;
             }
 
-            if input_state.raw.modifiers.ctrl {
+            if input_state.raw.modifiers.ctrl || input_state.raw.modifiers.command {
                 // Treat as zoom instead:
                 input_state.raw.zoom_delta *= (delta.y / 200.0).exp();
             } else {
@@ -381,7 +381,7 @@ pub fn handle_output(
         }
     }
 
-    if let Some(egui::Pos2 { x, y }) = output.text_cursor {
+    if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
         display
             .gl_window()
             .window()
