@@ -360,7 +360,7 @@ pub use {
     context::{Context, CtxRef},
     data::{
         input::*,
-        output::{self, CursorIcon, Output, WidgetInfo, WidgetType},
+        output::{self, CursorIcon, Output, WidgetInfo},
     },
     grid::Grid,
     id::Id,
@@ -493,4 +493,27 @@ pub mod special_emojis {
     pub const GIT: char = '';
 
     // I really would like to have ferris here.
+}
+
+/// The different types of built-in widgets in egui
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WidgetType {
+    Label, // TODO: emit Label events
+    Hyperlink,
+    TextEdit,
+    Button,
+    Checkbox,
+    RadioButton,
+    SelectableLabel,
+    ComboBox,
+    Slider,
+    DragValue,
+    ColorButton,
+    ImageButton,
+    CollapsingHeader,
+
+    /// If you cannot fit any of the above slots.
+    ///
+    /// If this is something you think should be added, file an issue.
+    Other,
 }
