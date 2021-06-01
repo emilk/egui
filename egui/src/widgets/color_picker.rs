@@ -19,6 +19,9 @@ const N: u32 = 6 * 6;
 
 fn background_checkers(painter: &Painter, rect: Rect) {
     let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
+    if !rect.is_positive() {
+        return;
+    }
 
     let mut top_color = Color32::from_gray(128);
     let mut bottom_color = Color32::from_gray(32);
@@ -126,7 +129,7 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
         let x = lerp(rect.left()..=rect.right(), *value);
         let r = rect.height() / 4.0;
         let picked_color = color_at(*value);
-        ui.painter().add(Shape::polygon(
+        ui.painter().add(Shape::convex_polygon(
             vec![
                 pos2(x - r, rect.bottom()),
                 pos2(x + r, rect.bottom()),

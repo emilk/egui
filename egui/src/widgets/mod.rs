@@ -28,12 +28,24 @@ pub use {button::*, drag_value::DragValue, image::Image, slider::*, text_edit::*
 
 /// Anything implementing Widget can be added to a [`Ui`] with [`Ui::add`].
 ///
-/// Examples include `[Button]`, `[Label]` and [`Slider`].
+/// `[Button]`, `[Label]`, [`Slider`], etc all implement the `Widget` trait.
 ///
-/// `|ui: &mut Ui| -> Response { … }` also implemented `Widget`.
+/// Note that the widgets (`Button`, `TextEdit` etc) are
+/// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html),
+/// and not objects that hold state.
+///
+/// Tip: you can `impl Widget for &mut YourThing { }`.
+///
+/// `|ui: &mut Ui| -> Response { … }` also implements `Widget`.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].
+    ///
+    /// Note that this consumes `self`.
+    /// This is because most widgets ([`Button`], [`TextEdit`] etc) are
+    /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html)
+    ///
+    /// Tip: you can `impl Widget for &mut YourObject { }`.
     fn ui(self, ui: &mut Ui) -> Response;
 }
 

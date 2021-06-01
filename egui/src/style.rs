@@ -18,6 +18,12 @@ pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
 
+    /// If set this will change the default [`TextStyle`] for all widgets.
+    ///
+    /// On most widgets you can also set an explicit text style,
+    /// which will take precedence over this.
+    pub override_text_style: Option<TextStyle>,
+
     /// If set, labels buttons wtc will use this to determine whether or not
     /// to wrap the text at the right edge of the `Ui` they are in.
     /// By default this is `None`.
@@ -307,7 +313,7 @@ impl WidgetVisuals {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
-    pub show_widgets: bool,
+    pub debug_on_hover: bool,
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
     /// Show which widgets make their parent higher
@@ -321,6 +327,7 @@ impl Default for Style {
     fn default() -> Self {
         Self {
             body_text_style: TextStyle::Body,
+            override_text_style: None,
             wrap: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
@@ -502,6 +509,7 @@ impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             body_text_style,
+            override_text_style,
             wrap: _,
             spacing,
             interaction,
@@ -518,6 +526,19 @@ impl Style {
                 ui.radio_value(body_text_style, value, format!("{:?}", value));
             }
         });
+
+        crate::ComboBox::from_label("Global text style override")
+            .selected_text(match override_text_style {
+                None => "None".to_owned(),
+                Some(override_text_style) => format!("{:?}", override_text_style),
+            })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(override_text_style, None, "None");
+                for style in TextStyle::all() {
+                    ui.selectable_value(override_text_style, Some(style), format!("{:?}", style));
+                }
+            });
+
         ui.add(
             Slider::new(animation_time, 0.0..=1.0)
                 .text("animation durations")
@@ -527,7 +548,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.collapsing("⁉ Debug", |ui| debug.ui(ui));
+        ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -725,13 +746,13 @@ impl Visuals {
 impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            show_widgets: debug_widgets,
+            debug_on_hover,
             show_expand_width: debug_expand_width,
             show_expand_height: debug_expand_height,
             show_resize: debug_resize,
         } = self;
 
-        ui.checkbox(debug_widgets, "Show widget bounds on hover");
+        ui.checkbox(debug_on_hover, "Show debug info on hover");
         ui.checkbox(
             debug_expand_width,
             "Show which widgets make their parent wider",

@@ -89,6 +89,17 @@ impl FrameState {
     }
 
     /// Shrink `available_rect`.
+    pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
+        crate::egui_assert!(
+            panel_rect.max.distance(self.available_rect.max) < 0.1,
+            "Mismatching right panel. You must not create a panel from within another panel."
+        );
+        self.available_rect.max.x = panel_rect.min.x;
+        self.unused_rect.max.x = panel_rect.min.x;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    /// Shrink `available_rect`.
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
         crate::egui_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
@@ -96,6 +107,17 @@ impl FrameState {
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    /// Shrink `available_rect`.
+    pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
+        crate::egui_assert!(
+            panel_rect.max.distance(self.available_rect.max) < 0.1,
+            "Mismatching bottom panel. You must not create a panel from within another panel."
+        );
+        self.available_rect.max.y = panel_rect.min.y;
+        self.unused_rect.max.y = panel_rect.min.y;
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 

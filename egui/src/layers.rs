@@ -13,6 +13,8 @@ use std::sync::Arc;
 pub enum Order {
     /// Painted behind all floating windows
     Background,
+    /// Special layer between panels and windows
+    PanelResizeLine,
     /// Normal moveable windows that you reorder by click
     Middle,
     /// Popups, menus etc that should always be painted on top of windows
@@ -25,9 +27,10 @@ pub enum Order {
     Debug,
 }
 impl Order {
-    const COUNT: usize = 5;
+    const COUNT: usize = 6;
     const ALL: [Order; Self::COUNT] = [
         Self::Background,
+        Self::PanelResizeLine,
         Self::Middle,
         Self::Foreground,
         Self::Tooltip,
@@ -37,7 +40,11 @@ impl Order {
     #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         match self {
-            Self::Background | Self::Middle | Self::Foreground | Self::Debug => true,
+            Self::Background
+            | Self::PanelResizeLine
+            | Self::Middle
+            | Self::Foreground
+            | Self::Debug => true,
             Self::Tooltip => false,
         }
     }

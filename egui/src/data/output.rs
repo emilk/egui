@@ -24,8 +24,8 @@ pub struct Output {
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
-    /// Position of text widget's cursor
-    pub text_cursor: Option<crate::Pos2>,
+    /// Position of text edit cursor (used for IME).
+    pub text_cursor_pos: Option<crate::Pos2>,
 }
 
 impl Output {
