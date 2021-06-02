@@ -248,15 +248,17 @@ impl Placer {
 }
 
 impl Placer {
-    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter) {
-        let color = Color32::GREEN.linear_multiply(0.5);
-        let stroke = Stroke::new(2.0, color);
+    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl ToString) {
+        let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 
         if let Some(grid) = &self.grid {
-            painter.rect_stroke(grid.next_cell(self.cursor(), Vec2::splat(0.0)), 1.0, stroke)
+            let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
+            painter.rect_stroke(rect, 1.0, stroke);
+            let align = Align2::CENTER_CENTER;
+            painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
-                .debug_paint_cursor(&self.region, stroke, painter)
+                .paint_text_at_cursor(painter, &self.region, stroke, text)
         }
     }
 }

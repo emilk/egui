@@ -726,6 +726,20 @@ impl Context {
             false
         }
     }
+
+    // ---------------------------------------------------------------------
+
+    /// Wether or not to debug widget layout on hover.
+    pub fn debug_on_hover(&self) -> bool {
+        self.memory().options.style.debug.debug_on_hover
+    }
+
+    /// Turn on/off wether or not to debug widget layout on hover.
+    pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
+        let mut style = (*self.memory().options.style).clone();
+        style.debug.debug_on_hover = debug_on_hover;
+        self.set_style(style);
+    }
 }
 
 /// ## Animation
@@ -780,12 +794,14 @@ impl Context {
             .show(ui, |ui| {
                 let mut tessellation_options = self.memory().options.tessellation_options;
                 tessellation_options.ui(ui);
+                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
                 self.memory().options.tessellation_options = tessellation_options;
             });
     }
 
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
+        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(

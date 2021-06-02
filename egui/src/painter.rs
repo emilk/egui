@@ -187,20 +187,31 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let galley = self.fonts().layout_multiline(
-            TextStyle::Monospace,
-            format!("🔥 {}", text),
-            f32::INFINITY,
-        );
-        let rect = Rect::from_min_size(pos, galley.size);
+        self.debug_text(pos, Align2::LEFT_TOP, Color32::RED, format!("🔥 {}", text))
+    }
+
+    /// text with a background
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn debug_text(
+        &self,
+        pos: Pos2,
+        anchor: Align2,
+        color: Color32,
+        text: impl ToString,
+    ) -> Rect {
+        let galley = self
+            .fonts()
+            .layout_no_wrap(TextStyle::Monospace, text.to_string());
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
             rect: frame_rect,
             corner_radius: 0.0,
             fill: Color32::from_black_alpha(240),
-            stroke: Stroke::new(1.0, Color32::RED),
+            // stroke: Stroke::new(1.0, color),
+            stroke: Default::default(),
         });
-        self.galley(rect.min, galley, Color32::RED);
+        self.galley(rect.min, galley, color);
         frame_rect
     }
 }
