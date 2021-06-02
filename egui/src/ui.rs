@@ -401,10 +401,16 @@ impl Ui {
         self.set_max_width(*width.end());
     }
 
-    /// `ui.set_width_range(width);` is equivalent to `ui.set_min_width(width); ui.set_max_width(width);`.
+    /// Set both the minimum and maximum width.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
         self.set_max_width(width);
+    }
+
+    /// Set both the minimum and maximum height.
+    pub fn set_height(&mut self, height: f32) {
+        self.set_min_height(height);
+        self.set_max_height(height);
     }
 
     /// Ensure we are big enough to contain the given x-coordinate.
@@ -472,6 +478,10 @@ impl Ui {
         IdSource: Hash + std::fmt::Debug,
     {
         Id::new(self.next_auto_id_source).with(id_source)
+    }
+
+    pub fn skip_ahead_auto_ids(&mut self, count: usize) {
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(count as u64);
     }
 }
 
