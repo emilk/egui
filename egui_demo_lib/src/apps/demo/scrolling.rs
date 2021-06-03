@@ -1,22 +1,25 @@
 use egui::{color::*, *};
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
-#[derive(PartialEq)]
-pub struct Scrolling {
-    track_item: usize,
-    tack_item_align: Align,
-    offset: f32,
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ScrollDemo {
+    ScrollTo,
+    ManyLines,
+    LargeCanvas,
 }
 
-impl Default for Scrolling {
+impl Default for ScrollDemo {
     fn default() -> Self {
-        Self {
-            track_item: 25,
-            tack_item_align: Align::Center,
-            offset: 0.0,
-        }
+        Self::ScrollTo
     }
+}
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
+#[derive(Default, PartialEq)]
+pub struct Scrolling {
+    demo: ScrollDemo,
+    scroll_to: ScrollTo,
 }
 
 impl super::Demo for Scrolling {
@@ -36,6 +39,111 @@ impl super::Demo for Scrolling {
 }
 
 impl super::View for Scrolling {
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::ManyLines,
+                "Scroll a lot of lines",
+            );
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::LargeCanvas,
+                "Scroll a large canvas",
+            );
+        });
+        ui.separator();
+        match self.demo {
+            ScrollDemo::ScrollTo => {
+                self.scroll_to.ui(ui);
+            }
+            ScrollDemo::ManyLines => {
+                huge_content_lines(ui);
+            }
+            ScrollDemo::LargeCanvas => {
+                huge_content_painter(ui);
+            }
+        }
+    }
+}
+
+fn huge_content_lines(ui: &mut egui::Ui) {
+    ui.label(
+        "A lot of rows, but only the visible ones are layed out, so performance is still good:",
+    );
+    ui.add_space(4.0);
+
+    let text_style = TextStyle::Body;
+    let row_height = ui.fonts()[text_style].row_height();
+    let num_rows = 10_000;
+    ScrollArea::auto_sized().show_rows(ui, row_height, num_rows, |ui, row_range| {
+        for row in row_range {
+            let text = format!("This is row {}/{}", row + 1, num_rows);
+            ui.label(text);
+        }
+    });
+}
+
+fn huge_content_painter(ui: &mut egui::Ui) {
+    // This is similar to the other demo, but is fully manual, for when you want to do custom painting.
+    ui.label("A lot of rows, but only the visible ones are painted, so performance is still good:");
+    ui.add_space(4.0);
+
+    let text_style = TextStyle::Body;
+    let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
+    let num_rows = 10_000;
+
+    ScrollArea::auto_sized().show_viewport(ui, |ui, viewport| {
+        ui.set_height(row_height * num_rows as f32);
+
+        let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
+        let last_item = (viewport.max.y / row_height).ceil() as usize + 1;
+        let last_item = last_item.at_most(num_rows);
+
+        for i in first_item..last_item {
+            let indentation = (i % 100) as f32;
+            let x = ui.min_rect().left() + indentation;
+            let y = ui.min_rect().top() + i as f32 * row_height;
+            let text = format!(
+                "This is row {}/{}, indented by {} pixels",
+                i + 1,
+                num_rows,
+                indentation
+            );
+            ui.painter().text(
+                pos2(x, y),
+                Align2::LEFT_TOP,
+                text,
+                text_style,
+                ui.visuals().text_color(),
+            );
+        }
+    });
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
+#[derive(PartialEq)]
+struct ScrollTo {
+    track_item: usize,
+    tack_item_align: Align,
+    offset: f32,
+}
+
+impl Default for ScrollTo {
+    fn default() -> Self {
+        Self {
+            track_item: 25,
+            tack_item_align: Align::Center,
+            offset: 0.0,
+        }
+    }
+}
+
+impl super::View for ScrollTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 

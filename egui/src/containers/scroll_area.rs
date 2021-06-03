@@ -84,6 +84,9 @@ struct Prepared {
     always_show_scroll: bool,
     inner_rect: Rect,
     content_ui: Ui,
+    /// Relative coordinates: the offset and size of the view of the inner UI.
+    /// `viewport.min == ZERO` means we scrolled to the top.
+    viewport: Rect,
 }
 
 impl ScrollArea {
@@ -139,6 +142,8 @@ impl ScrollArea {
         content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
         content_ui.set_clip_rect(content_clip_rect);
 
+        let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
+
         Prepared {
             id,
             state,
@@ -146,12 +151,69 @@ impl ScrollArea {
             always_show_scroll,
             inner_rect,
             content_ui,
+            viewport,
         }
     }
 
+    /// Show the `ScrollArea`, and add the contents to the viewport.
+    ///
+    /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        self.show_viewport(ui, |ui, _viewport| add_contents(ui))
+    }
+
+    /// Efficiently show only the visible part of a large number of rows.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// let text_style = egui::TextStyle::Body;
+    /// let row_height = ui.fonts()[text_style].row_height();
+    /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
+    /// let num_rows = 10_000;
+    /// egui::ScrollArea::auto_sized().show_rows(ui, row_height, num_rows, |ui, row_range| {
+    ///     for row in row_range {
+    ///         let text = format!("Row {}/{}", row + 1, num_rows);
+    ///         ui.label(text);
+    ///     }
+    /// });
+    pub fn show_rows<R>(
+        self,
+        ui: &mut Ui,
+        row_height_sans_spacing: f32,
+        num_rows: usize,
+        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+    ) -> R {
+        let spacing = ui.spacing().item_spacing;
+        let row_height_with_spacing = row_height_sans_spacing + spacing.y;
+        self.show_viewport(ui, |ui, viewport| {
+            ui.set_height((row_height_with_spacing * num_rows as f32 - spacing.y).at_least(0.0));
+
+            let min_row = (viewport.min.y / row_height_with_spacing)
+                .floor()
+                .at_least(0.0) as usize;
+            let max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
+            let max_row = max_row.at_most(num_rows);
+
+            let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
+            let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
+            let mut viewport_ui = ui.child_ui(
+                Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max),
+                *ui.layout(),
+            );
+
+            viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+
+            add_contents(&mut viewport_ui, min_row..max_row)
+        })
+    }
+
+    /// This can be used to only paint the visible part of the contents.
+    ///
+    /// `add_contents` is past the viewport, which is the relative view of the content.
+    /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
+    pub fn show_viewport<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, Rect) -> R) -> R {
         let mut prepared = self.begin(ui);
-        let ret = add_contents(&mut prepared.content_ui);
+        let ret = add_contents(&mut prepared.content_ui, prepared.viewport);
         prepared.end(ui);
         ret
     }
@@ -166,6 +228,7 @@ impl Prepared {
             always_show_scroll,
             mut current_scroll_bar_width,
             content_ui,
+            viewport: _,
         } = self;
 
         let content_size = content_ui.min_size();
