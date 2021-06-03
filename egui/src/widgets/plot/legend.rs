@@ -87,7 +87,7 @@ impl Widget for (&String, &mut LegendEntry) {
         response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
 
         let visuals = ui.style().interact(&response);
-        let flipped = ui.layout().cross_align() == Align::RIGHT;
+        let flipped = ui.layout().horizontal_align() == Align::RIGHT;
 
         let icon_position_x = if flipped {
             rect.right() - icon_size / 2.0
