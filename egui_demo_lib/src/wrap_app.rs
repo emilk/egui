@@ -32,7 +32,7 @@ impl Apps {
 pub struct WrapApp {
     selected_anchor: String,
     apps: Apps,
-    backend_panel: BackendPanel,
+    backend_panel: super::backend_panel::BackendPanel,
 }
 
 impl epi::App for WrapApp {
@@ -74,49 +74,15 @@ impl epi::App for WrapApp {
             self.selected_anchor = self.apps.iter_mut().next().unwrap().0.to_owned();
         }
 
-        egui::TopPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            // A menu-bar is a horizontal layout with some special styles applied.
-            // egui::menu::bar(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                dark_light_mode_switch(ui);
-
-                ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
-                ui.separator();
-
-                for (anchor, app) in self.apps.iter_mut() {
-                    if ui
-                        .selectable_label(self.selected_anchor == anchor, app.name())
-                        .clicked()
-                    {
-                        self.selected_anchor = anchor.to_owned();
-                        if frame.is_web() {
-                            ui.output().open_url(format!("#{}", anchor));
-                        }
-                    }
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                    if false {
-                        // TODO: fix the overlap on small screens
-                        if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
-                            if clock_button(ui, seconds_since_midnight).clicked() {
-                                self.selected_anchor = "clock".to_owned();
-                                if frame.is_web() {
-                                    ui.output().open_url("#clock");
-                                }
-                            }
-                        }
-                    }
-
-                    egui::warn_if_debug_build(ui);
-                });
-            });
+        egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
+            egui::trace!(ui);
+            self.bar_contents(ui, frame);
         });
 
         self.backend_panel.update(ctx, frame);
 
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
-            egui::SidePanel::left("backend_panel", 150.0).show(ctx, |ui| {
+            egui::SidePanel::left("backend_panel").show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
             });
         }
@@ -128,6 +94,47 @@ impl epi::App for WrapApp {
         }
 
         self.backend_panel.end_of_frame(ctx);
+    }
+}
+
+impl WrapApp {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+        // A menu-bar is a horizontal layout with some special styles applied.
+        // egui::menu::bar(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            dark_light_mode_switch(ui);
+
+            ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
+            ui.separator();
+
+            for (anchor, app) in self.apps.iter_mut() {
+                if ui
+                    .selectable_label(self.selected_anchor == anchor, app.name())
+                    .clicked()
+                {
+                    self.selected_anchor = anchor.to_owned();
+                    if frame.is_web() {
+                        ui.output().open_url(format!("#{}", anchor));
+                    }
+                }
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                if false {
+                    // TODO: fix the overlap on small screens
+                    if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
+                        if clock_button(ui, seconds_since_midnight).clicked() {
+                            self.selected_anchor = "clock".to_owned();
+                            if frame.is_web() {
+                                ui.output().open_url("#clock");
+                            }
+                        }
+                    }
+                }
+
+                egui::warn_if_debug_build(ui);
+            });
+        });
     }
 }
 
@@ -150,247 +157,5 @@ fn dark_light_mode_switch(ui: &mut egui::Ui) {
     let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
     if let Some(visuals) = new_visuals {
         ui.ctx().set_visuals(visuals);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// How often we repaint the demo app by default
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RunMode {
-    /// This is the default for the demo.
-    ///
-    /// If this is selected, egui is only updated if are input events
-    /// (like mouse movements) or there are some animations in the GUI.
-    ///
-    /// Reactive mode saves CPU.
-    ///
-    /// The downside is that the UI can become out-of-date if something it is supposed to monitor changes.
-    /// For instance, a GUI for a thermostat need to repaint each time the temperature changes.
-    /// To ensure the UI is up to date you need to call `egui::Context::request_repaint()` each
-    /// time such an event happens. You can also chose to call `request_repaint()` once every second
-    /// or after every single frame - this is called `Continuous` mode,
-    /// and for games and interactive tools that need repainting every frame anyway, this should be the default.
-    Reactive,
-
-    /// This will call `egui::Context::request_repaint()` at the end of each frame
-    /// to request the backend to repaint as soon as possible.
-    ///
-    /// On most platforms this will mean that egui will run at the display refresh rate of e.g. 60 Hz.
-    ///
-    /// For this demo it is not any reason to do so except to
-    /// demonstrate how quickly egui runs.
-    ///
-    /// For games or other interactive apps, this is probably what you want to do.
-    /// It will guarantee that egui is always up-to-date.
-    Continuous,
-}
-
-/// Default for demo is Reactive since
-/// 1) We want to use minimal CPU
-/// 2) There are no external events that could invalidate the UI
-///    so there are no events to miss.
-impl Default for RunMode {
-    fn default() -> Self {
-        RunMode::Reactive
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
-struct BackendPanel {
-    open: bool,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    // go back to `Reactive` mode each time we start
-    run_mode: RunMode,
-
-    /// current slider value for current gui scale
-    pixels_per_point: Option<f32>,
-
-    /// maximum size of the web browser canvas
-    max_size_points_ui: egui::Vec2,
-    max_size_points_active: egui::Vec2,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    frame_history: crate::frame_history::FrameHistory,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
-}
-
-impl Default for BackendPanel {
-    fn default() -> Self {
-        Self {
-            open: false,
-            run_mode: Default::default(),
-            pixels_per_point: Default::default(),
-            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
-            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
-            frame_history: Default::default(),
-            output_event_history: Default::default(),
-        }
-    }
-}
-
-impl BackendPanel {
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        self.frame_history
-            .on_new_frame(ctx.input().time, frame.info().cpu_usage);
-
-        if self.run_mode == RunMode::Continuous {
-            // Tell the backend to repaint as soon as possible
-            ctx.request_repaint();
-        }
-    }
-
-    fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
-        for event in &ctx.output().events {
-            self.output_event_history.push_back(event.clone());
-        }
-        while self.output_event_history.len() > 10 {
-            self.output_event_history.pop_front();
-        }
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
-        ui.heading("💻 Backend");
-
-        self.run_mode_ui(ui);
-
-        ui.separator();
-
-        self.frame_history.ui(ui);
-
-        // For instance: `egui_web` sets `pixels_per_point` every frame to force
-        // egui to use the same scale as the web zoom factor.
-        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
-        if !integration_controls_pixels_per_point {
-            ui.separator();
-            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
-                ui.ctx().set_pixels_per_point(new_pixels_per_point);
-            }
-        }
-
-        ui.separator();
-
-        if frame.is_web() {
-            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-            ui.label(
-                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
-                This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
-            ui.label("This is also work in progress, and not ready for production... yet :)");
-            ui.horizontal_wrapped(|ui| {
-                ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/egui");
-            });
-
-            ui.separator();
-
-            ui.add(
-                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
-                    .logarithmic(true)
-                    .largest_finite(8192.0)
-                    .text("Max width"),
-            )
-            .on_hover_text("Maximum width of the egui region of the web page.");
-            if !ui.ctx().is_using_pointer() {
-                self.max_size_points_active = self.max_size_points_ui;
-            }
-        } else {
-            if ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-            {
-                frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
-            }
-            if ui.button("Quit").clicked() {
-                frame.quit();
-            }
-        }
-
-        let mut screen_reader = ui.ctx().memory().options.screen_reader;
-        ui.checkbox(&mut screen_reader, "Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-        ui.ctx().memory().options.screen_reader = screen_reader;
-
-        ui.collapsing("Output events", |ui| {
-            ui.set_max_width(450.0);
-            ui.label(
-                "Recent output events from egui. \
-            These are emitted when you switch selected widget with tab, \
-            and can be hooked up to a screen reader on supported platforms.",
-            );
-            ui.add_space(8.0);
-            for event in &self.output_event_history {
-                ui.label(format!("{:?}", event));
-            }
-        });
-    }
-
-    fn pixels_per_point_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        info: &epi::IntegrationInfo,
-    ) -> Option<f32> {
-        self.pixels_per_point = self
-            .pixels_per_point
-            .or(info.native_pixels_per_point)
-            .or_else(|| Some(ui.ctx().pixels_per_point()));
-
-        let pixels_per_point = self.pixels_per_point.as_mut()?;
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().slider_width = 90.0;
-            ui.add(
-                egui::Slider::new(pixels_per_point, 0.5..=5.0)
-                    .logarithmic(true)
-                    .text("Scale"),
-            )
-            .on_hover_text("Physical pixels per point.");
-            if let Some(native_pixels_per_point) = info.native_pixels_per_point {
-                let button = egui::Button::new("Reset")
-                    .enabled(*pixels_per_point != native_pixels_per_point);
-                if ui
-                    .add(button)
-                    .on_hover_text(format!(
-                        "Reset scale to native value ({:.1})",
-                        native_pixels_per_point
-                    ))
-                    .clicked()
-                {
-                    *pixels_per_point = native_pixels_per_point;
-                }
-            }
-        });
-
-        // We wait until mouse release to activate:
-        if ui.ctx().is_using_pointer() {
-            None
-        } else {
-            Some(*pixels_per_point)
-        }
-    }
-
-    fn run_mode_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let run_mode = &mut self.run_mode;
-            ui.label("Mode:");
-            ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
-                .on_hover_text("Repaint everything each frame");
-            ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
-                .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
-        });
-
-        if self.run_mode == RunMode::Continuous {
-            ui.label(format!(
-                "Repainting the UI each frame. FPS: {:.1}",
-                self.frame_history.fps()
-            ));
-        } else {
-            ui.label("Only running UI code when there are animations or input");
-        }
     }
 }

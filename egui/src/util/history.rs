@@ -104,7 +104,7 @@ where
     /// Values must be added with a monotonically increasing time, or at least not decreasing.
     pub fn add(&mut self, now: f64, value: T) {
         if let Some((last_time, _)) = self.values.back() {
-            debug_assert!(now >= *last_time, "Time shouldn't move backwards");
+            crate::egui_assert!(now >= *last_time, "Time shouldn't move backwards");
         }
         self.total_count += 1;
         self.values.push_back((now, value));

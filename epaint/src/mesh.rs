@@ -74,7 +74,7 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self`.
     pub fn append(&mut self, other: Mesh) {
-        debug_assert!(other.is_valid());
+        crate::epaint_assert!(other.is_valid());
 
         if self.is_empty() {
             *self = other;
@@ -94,7 +94,7 @@ impl Mesh {
 
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::Egui);
+        crate::epaint_assert!(self.texture_id == TextureId::Egui);
         self.vertices.push(Vertex {
             pos,
             uv: WHITE_UV,
@@ -157,7 +157,7 @@ impl Mesh {
     /// Uniformly colored rectangle.
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::Egui);
+        crate::epaint_assert!(self.texture_id == TextureId::Egui);
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
     }
 
@@ -166,7 +166,7 @@ impl Mesh {
     /// Splits this mesh into many smaller meshes (if needed)
     /// where the smaller meshes have 16-bit indices.
     pub fn split_to_u16(self) -> Vec<Mesh16> {
-        debug_assert!(self.is_valid());
+        crate::epaint_assert!(self.is_valid());
 
         const MAX_SIZE: u32 = 1 << 16;
 
@@ -220,7 +220,7 @@ impl Mesh {
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
             };
-            debug_assert!(mesh.is_valid());
+            crate::epaint_assert!(mesh.is_valid());
             output.push(mesh);
         }
         output

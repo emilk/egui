@@ -6,14 +6,14 @@ mod transform;
 
 use std::collections::{BTreeMap, HashSet};
 
-pub use items::{Curve, Value};
-use items::{HLine, VLine};
+use items::PlotItem;
+pub use items::{HLine, VLine};
+pub use items::{Line, MarkerShape, Points, Value, Values};
+use legend::LegendEntry;
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
-
-use self::legend::LegendEntry;
 
 // ----------------------------------------------------------------------------
 
@@ -23,32 +23,32 @@ use self::legend::LegendEntry;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
-    hidden_curves: HashSet<String>,
+    hidden_items: HashSet<String>,
 }
 
 // ----------------------------------------------------------------------------
 
 /// A 2D plot, e.g. a graph of a function.
 ///
-/// `Plot` supports multiple curves.
+/// `Plot` supports multiple lines and points.
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
-/// use egui::plot::{Curve, Plot, Value};
+/// use egui::plot::{Line, Plot, Value, Values};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     Value::new(x, x.sin())
 /// });
-/// let curve = Curve::from_values_iter(sin);
+/// let line = Line::new(Values::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").curve(curve).view_aspect(2.0)
+///     Plot::new("Test Plot").line(line).view_aspect(2.0)
 /// );
 /// ```
 pub struct Plot {
     name: String,
     next_auto_color_idx: usize,
 
-    curves: Vec<Curve>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
 
@@ -77,7 +77,7 @@ impl Plot {
             name: name.to_string(),
             next_auto_color_idx: 0,
 
-            curves: Default::default(),
+            items: Default::default(),
             hlines: Default::default(),
             vlines: Default::default(),
 
@@ -100,23 +100,43 @@ impl Plot {
         }
     }
 
-    fn auto_color(&mut self, color: &mut Color32) {
-        if *color == Color32::TRANSPARENT {
-            let i = self.next_auto_color_idx;
-            self.next_auto_color_idx += 1;
-            let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-            let h = i as f32 * golden_ratio;
-            *color = Hsva::new(h, 0.85, 0.5, 1.0).into(); // TODO: OkLab or some other perspective color space
-        }
+    fn auto_color(&mut self) -> Color32 {
+        let i = self.next_auto_color_idx;
+        self.next_auto_color_idx += 1;
+        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+        let h = i as f32 * golden_ratio;
+        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    /// Add a data curve.
-    /// You can add multiple curves.
-    pub fn curve(mut self, mut curve: Curve) -> Self {
-        if !curve.no_data() {
-            self.auto_color(&mut curve.stroke.color);
-            self.curves.push(curve);
+    /// Add a data lines.
+    /// You can add multiple lines.
+    pub fn line(mut self, mut line: Line) -> Self {
+        if line.series.is_empty() {
+            return self;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if line.stroke.color == Color32::TRANSPARENT {
+            line.stroke.color = self.auto_color();
         }
+        self.items.push(Box::new(line));
+
+        self
+    }
+
+    /// Add data points.
+    /// You can add multiple sets of points.
+    pub fn points(mut self, mut points: Points) -> Self {
+        if points.series.is_empty() {
+            return self;
+        };
+
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.items.push(Box::new(points));
+
         self
     }
 
@@ -124,7 +144,9 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        self.auto_color(&mut hline.stroke.color);
+        if hline.stroke.color == Color32::TRANSPARENT {
+            hline.stroke.color = self.auto_color();
+        }
         self.hlines.push(hline);
         self
     }
@@ -133,7 +155,9 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        self.auto_color(&mut vline.stroke.color);
+        if vline.stroke.color == Color32::TRANSPARENT {
+            vline.stroke.color = self.auto_color();
+        }
         self.vlines.push(vline);
         self
     }
@@ -238,7 +262,7 @@ impl Plot {
         self
     }
 
-    /// Whether to show a legend including all named curves. Default: `true`.
+    /// Whether to show a legend including all named items. Default: `true`.
     pub fn show_legend(mut self, show: bool) -> Self {
         self.show_legend = show;
         self
@@ -250,7 +274,7 @@ impl Widget for Plot {
         let Self {
             name,
             next_auto_color_idx: _,
-            mut curves,
+            mut items,
             hlines,
             vlines,
             center_x_axis,
@@ -276,14 +300,14 @@ impl Widget for Plot {
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
-                hidden_curves: HashSet::new(),
+                hidden_items: HashSet::new(),
             })
             .clone();
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
-            mut hidden_curves,
+            mut hidden_items,
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -324,23 +348,26 @@ impl Widget for Plot {
         // --- Legend ---
 
         if show_legend {
-            // Collect the legend entries. If multiple curves have the same name, they share a
+            // Collect the legend entries. If multiple items have the same name, they share a
             // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
             let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
-            curves
+            let neutral_color = ui.visuals().noninteractive().fg_stroke.color;
+            items
                 .iter()
-                .filter(|curve| !curve.name.is_empty())
-                .for_each(|curve| {
-                    let checked = !hidden_curves.contains(&curve.name);
-                    let text = curve.name.clone();
+                .filter(|item| !item.name().is_empty())
+                .for_each(|item| {
+                    let checked = !hidden_items.contains(item.name());
+                    let text = item.name();
                     legend_entries
-                        .entry(curve.name.clone())
+                        .entry(item.name().to_string())
                         .and_modify(|entry| {
-                            if entry.color != curve.stroke.color {
-                                entry.color = ui.visuals().noninteractive().fg_stroke.color
+                            if entry.color != item.color() {
+                                entry.color = neutral_color
                             }
                         })
-                        .or_insert_with(|| LegendEntry::new(text, curve.stroke.color, checked));
+                        .or_insert_with(|| {
+                            LegendEntry::new(text.to_string(), item.color(), checked)
+                        });
                 });
 
             // Show the legend.
@@ -353,28 +380,27 @@ impl Widget for Plot {
                 }
             });
 
-            // Get the names of the hidden curves.
-            hidden_curves = legend_entries
+            // Get the names of the hidden items.
+            hidden_items = legend_entries
                 .values()
                 .filter(|entry| !entry.checked)
                 .map(|entry| entry.text.clone())
                 .collect();
 
-            // Highlight the hovered curves.
+            // Highlight the hovered items.
             legend_entries
                 .values()
                 .filter(|entry| entry.hovered)
                 .for_each(|entry| {
-                    curves
-                        .iter_mut()
-                        .filter(|curve| curve.name == entry.text)
-                        .for_each(|curve| {
-                            curve.stroke.width *= 2.0;
-                        });
+                    items.iter_mut().for_each(|item| {
+                        if item.name() == entry.text {
+                            item.highlight();
+                        }
+                    });
                 });
 
-            // Remove deselected curves.
-            curves.retain(|curve| !hidden_curves.contains(&curve.name));
+            // Remove deselected items.
+            items.retain(|item| !hidden_items.contains(item.name()));
         }
 
         // ---
@@ -386,7 +412,9 @@ impl Widget for Plot {
             bounds = min_auto_bounds;
             hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
             vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
-            curves.iter().for_each(|curve| bounds.merge(&curve.bounds));
+            items
+                .iter()
+                .for_each(|item| bounds.merge(&item.series().get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
@@ -437,14 +465,15 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        curves
-            .iter_mut()
-            .for_each(|curve| curve.generate_points(transform.bounds().range_x()));
+        items.iter_mut().for_each(|item| {
+            item.series_mut()
+                .generate_points(transform.bounds().range_x())
+        });
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
-            curves,
+            items,
             hlines,
             vlines,
             show_x,
@@ -458,7 +487,7 @@ impl Widget for Plot {
             PlotMemory {
                 bounds,
                 auto_bounds,
-                hidden_curves,
+                hidden_items,
             },
         );
 
@@ -471,7 +500,7 @@ impl Widget for Plot {
 }
 
 struct Prepared {
-    curves: Vec<Curve>,
+    items: Vec<Box<dyn PlotItem>>,
     hlines: Vec<HLine>,
     vlines: Vec<VLine>,
     show_x: bool,
@@ -480,14 +509,14 @@ struct Prepared {
 }
 
 impl Prepared {
-    fn ui(&self, ui: &mut Ui, response: &Response) {
-        let Self { transform, .. } = self;
-
+    fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
             self.paint_axis(ui, d, &mut shapes);
         }
+
+        let transform = &self.transform;
 
         for &hline in &self.hlines {
             let HLine { y, stroke } = hline;
@@ -507,22 +536,8 @@ impl Prepared {
             shapes.push(Shape::line_segment(points, stroke));
         }
 
-        for curve in &self.curves {
-            let stroke = curve.stroke;
-            let values = &curve.values;
-            let shape = if values.len() == 1 {
-                let point = transform.position_from_value(&values[0]);
-                Shape::circle_filled(point, stroke.width / 2.0, stroke.color)
-            } else {
-                Shape::line(
-                    values
-                        .iter()
-                        .map(|v| transform.position_from_value(v))
-                        .collect(),
-                    stroke,
-                )
-            };
-            shapes.push(shape);
+        for item in &self.items {
+            item.get_shapes(transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -538,13 +553,14 @@ impl Prepared {
         let bounds = transform.bounds();
         let text_style = TextStyle::Body;
 
-        let base: f64 = 10.0;
+        let base: i64 = 10;
+        let basef = base as f64;
 
-        let min_label_spacing_in_points = 60.0; // TODO: large enough for a wide label
-        let step_size = transform.dvalue_dpos()[axis] * min_label_spacing_in_points;
-        let step_size = base.powi(step_size.abs().log(base).ceil() as i32);
+        let min_line_spacing_in_points = 6.0; // TODO: large enough for a wide label
+        let step_size = transform.dvalue_dpos()[axis] * min_line_spacing_in_points;
+        let step_size = basef.powi(step_size.abs().log(basef).ceil() as i32);
 
-        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size) as f32;
+        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size).abs() as f32;
 
         // Where on the cross-dimension to show the label values
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
@@ -562,53 +578,61 @@ impl Prepared {
             };
             let pos_in_gui = transform.position_from_value(&value);
 
-            {
-                // Grid: subdivide each label tick in `n` grid lines:
-                let n = if step_size_in_points.abs() < 40.0 {
-                    2
-                } else if step_size_in_points.abs() < 100.0 {
-                    5
-                } else {
-                    10
-                };
+            let n = (value_main / step_size).round() as i64;
+            let spacing_in_points = if n % (base * base) == 0 {
+                step_size_in_points * (basef * basef) as f32 // think line (multiple of 100)
+            } else if n % base == 0 {
+                step_size_in_points * basef as f32 // medium line (multiple of 10)
+            } else {
+                step_size_in_points // thin line
+            };
 
-                for i in 0..n {
-                    let strength = if i == 0 && value_main == 0.0 {
-                        Strength::Strong
-                    } else if i == 0 {
-                        Strength::Middle
-                    } else {
-                        Strength::Weak
-                    };
-                    let color = line_color(ui, strength);
+            let line_alpha = remap_clamp(
+                spacing_in_points,
+                (min_line_spacing_in_points as f32)..=300.0,
+                0.0..=0.15,
+            );
 
-                    let mut pos_in_gui = pos_in_gui;
-                    pos_in_gui[axis] += step_size_in_points * (i as f32) / (n as f32);
-                    let mut p0 = pos_in_gui;
-                    let mut p1 = pos_in_gui;
-                    p0[1 - axis] = transform.frame().min[1 - axis];
-                    p1[1 - axis] = transform.frame().max[1 - axis];
-                    shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, color)));
-                }
+            if line_alpha > 0.0 {
+                let line_color = color_from_alpha(ui, line_alpha);
+
+                let mut p0 = pos_in_gui;
+                let mut p1 = pos_in_gui;
+                p0[1 - axis] = transform.frame().min[1 - axis];
+                p1[1 - axis] = transform.frame().max[1 - axis];
+                shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
             }
 
-            let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
+            let text_alpha = remap_clamp(spacing_in_points, 40.0..=150.0, 0.0..=0.4);
 
-            let galley = ui.fonts().layout_multiline(text_style, text, f32::INFINITY);
+            if text_alpha > 0.0 {
+                let color = color_from_alpha(ui, text_alpha);
+                let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-            let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
+                let galley = ui.fonts().layout_single_line(text_style, text);
 
-            // Make sure we see the labels, even if the axis is off-screen:
-            text_pos[1 - axis] = text_pos[1 - axis]
-                .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
-                .at_least(transform.frame().min[1 - axis] + 1.0);
+                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 
-            shapes.push(Shape::Text {
-                pos: text_pos,
-                galley,
-                color: ui.visuals().text_color(),
-                fake_italics: false,
-            });
+                // Make sure we see the labels, even if the axis is off-screen:
+                text_pos[1 - axis] = text_pos[1 - axis]
+                    .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                    .at_least(transform.frame().min[1 - axis] + 1.0);
+
+                shapes.push(Shape::Text {
+                    pos: text_pos,
+                    galley,
+                    color,
+                    fake_italics: false,
+                });
+            }
+        }
+
+        fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
+            if ui.visuals().dark_mode {
+                Rgba::from_white_alpha(alpha).into()
+            } else {
+                Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
+            }
         }
     }
 
@@ -617,7 +641,7 @@ impl Prepared {
             transform,
             show_x,
             show_y,
-            curves,
+            items,
             ..
         } = self;
 
@@ -627,28 +651,32 @@ impl Prepared {
 
         let interact_radius: f32 = 16.0;
         let mut closest_value = None;
-        let mut closest_curve = None;
+        let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
-        for curve in curves {
-            for value in &curve.values {
+        for item in items {
+            for value in &item.series().values {
                 let pos = transform.position_from_value(value);
                 let dist_sq = pointer.distance_sq(pos);
                 if dist_sq < closest_dist_sq {
                     closest_dist_sq = dist_sq;
                     closest_value = Some(value);
-                    closest_curve = Some(curve);
+                    closest_item = Some(item.name());
                 }
             }
         }
 
         let mut prefix = String::new();
-        if let Some(curve) = closest_curve {
-            if !curve.name.is_empty() {
-                prefix = format!("{}\n", curve.name);
+        if let Some(name) = closest_item {
+            if !name.is_empty() {
+                prefix = format!("{}\n", name);
             }
         }
 
-        let line_color = line_color(ui, Strength::Middle);
+        let line_color = if ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
 
         let value = if let Some(value) = closest_value {
             let position = transform.position_from_value(value);
@@ -702,28 +730,5 @@ impl Prepared {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
-    }
-}
-
-#[derive(Clone, Copy)]
-enum Strength {
-    Strong,
-    Middle,
-    Weak,
-}
-
-fn line_color(ui: &Ui, strength: Strength) -> Color32 {
-    if ui.visuals().dark_mode {
-        match strength {
-            Strength::Strong => Color32::from_gray(130).additive(),
-            Strength::Middle => Color32::from_gray(55).additive(),
-            Strength::Weak => Color32::from_gray(25).additive(),
-        }
-    } else {
-        match strength {
-            Strength::Strong => Color32::from_black_alpha(220),
-            Strength::Middle => Color32::from_black_alpha(120),
-            Strength::Weak => Color32::from_black_alpha(35),
-        }
     }
 }

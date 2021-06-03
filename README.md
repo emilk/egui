@@ -10,7 +10,7 @@
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
-egui aims to be the easiest-to-use Rust GUI libary, and the simplest way to make a web app in Rust.
+egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
@@ -68,7 +68,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Goals
 
-* The easiest to use GUI libary
+* The easiest to use GUI library
 * Responsive: target 60 Hz in debug build
 * Friendly: difficult to make mistakes, and shouldn't panic
 * Portable: the same code works on the web and as a native app
@@ -79,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/) [`rusttype`](https://crates.io/crates/rusttype).
+* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float) [`rusttype`](https://crates.io/crates/rusttype).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -87,7 +87,7 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 
 ### Non-goals
 
-* Become the most powerful GUI libary
+* Become the most powerful GUI library
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
@@ -134,7 +134,11 @@ egui is in active development. It works well for what it does, but it lacks many
 * Tooltips on hover
 * More
 
-<img src="media/widget_gallery_0.8.0.gif" width="50%">
+<img src="media/widget_gallery.gif" width="50%">
+
+Light Theme:
+
+<img src="media/light_theme.png" width="50%">
 
 ## How it works
 
@@ -176,6 +180,7 @@ The same code can be compiled to a native app or a web app.
 * For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):
   * [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) with [example code](https://github.com/hasenbanck/egui_example)
   * Alternative: [`egui_winit_wgpu`](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
+* [`nannou_egui`](https://github.com/AlexEne/nannou_egui): backend for [nannou](https://nannou.cc).
 
 ### Writing your own egui integration
 
@@ -234,7 +239,7 @@ The short of it is this: immediate mode GUI libraries are easier to use, but les
 The main advantage of immediate mode is that the application code becomes vastly simpler:
 
 * You never need to have any on-click handlers and callbacks that disrupts your code flow.
-* You don't have to worry about a linger callback calling something that is gone.
+* You don't have to worry about a lingering callback calling something that is gone.
 * Your GUI code can easily live in a simple function (no need for an object just for the UI).
 * You don't have to worry about app state and GUI state being out-of-sync (i.e. the GUI showing something outdated), because the GUI isn't storing any state - it is showing the latest state *immediately*.
 
@@ -258,9 +263,9 @@ For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so
 #### CPU usage
 Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be layed out each frame.
 
-If you design the GUI with this in mind and refrain from huge scroll areas then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
+If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
 
-If your GUI is highly interactive, then immediate mode may actually be more performant compared to retained mode. Go to any web page and resize the browser window, and you'll notice that the browser is very slow to do the layout and eats a lot of CPU doing it. Resize a window in `egui` by contrast, and you'll get smooth 60 FPS for no extra CPU cost.
+If your GUI is highly interactive, then immediate mode may actually be more performant compared to retained mode. Go to any web page and resize the browser window, and you'll notice that the browser is very slow to do the layout and eats a lot of CPU doing it. Resize a window in `egui` by contrast, and you'll get smooth 60 FPS at no extra CPU cost.
 
 
 #### IDs
@@ -275,6 +280,17 @@ Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
 Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categories/q-a).
 
+### Can I use `egui` with non-latin characters?
+Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::set_fonts`.
+
+### Can I customize the look of egui?
+Yes! You can customize the colors, spacing and sizes of everything. By default egui comes with a dark and a light theme.
+
+### What about accessibility, such as screen readers?
+There is experimental support for a screen reader. In [the web demo](https://emilk.github.io/egui/index.html) you can enable it in the "Backend" tab.
+
+Read more at <https://github.com/emilk/egui/issues/167>.
+
 ### What is the difference between egui and eframe?
 
 `egui` is a 2D user interface library for laying out and interacting with buttons, sliders, etc.
@@ -287,6 +303,9 @@ The _frame_ in `eframe` stands both for the frame in which your egui app resides
 
 ### Why is `egui_web` using so much CPU in Firefox?
 On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again: https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0
+
+### Why does my web app not fill the full width of the screen?
+To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by ovveriding the `fn max_size_points` of `epi::App`.
 
 
 ## Other

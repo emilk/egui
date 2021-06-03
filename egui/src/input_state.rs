@@ -14,6 +14,9 @@ const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
 const MAX_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 
 /// Input state that egui updates each frame.
+///
+/// You can check if `egui` is using the inputs using
+/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 #[derive(Clone, Debug)]
 pub struct InputState {
     /// The raw input we got this frame from the backend.

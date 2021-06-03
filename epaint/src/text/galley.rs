@@ -158,9 +158,9 @@ impl Galley {
             row.sanity_check();
             char_count += row.char_count_including_newline();
         }
-        debug_assert_eq!(char_count, self.text.chars().count());
+        crate::epaint_assert!(char_count == self.text.chars().count());
         if let Some(last_row) = self.rows.last() {
-            debug_assert!(
+            crate::epaint_assert!(
                 !last_row.ends_with_newline,
                 "If the text ends with '\\n', there would be an empty row last.\n\
                 Galley: {:#?}",
@@ -304,7 +304,7 @@ impl Galley {
 
     pub fn end_rcursor(&self) -> RCursor {
         if let Some(last_row) = self.rows.last() {
-            debug_assert!(!last_row.ends_with_newline);
+            crate::epaint_assert!(!last_row.ends_with_newline);
             RCursor {
                 row: self.rows.len() - 1,
                 column: last_row.char_count_excluding_newline(),
@@ -361,7 +361,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        debug_assert_eq!(ccursor_it, self.end().ccursor);
+        crate::epaint_assert!(ccursor_it == self.end().ccursor);
         Cursor {
             ccursor: ccursor_it, // clamp
             rcursor: self.end_rcursor(),

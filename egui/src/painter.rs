@@ -187,20 +187,31 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let galley = self.fonts().layout_multiline(
-            TextStyle::Monospace,
-            format!("🔥 {}", text),
-            f32::INFINITY,
-        );
-        let rect = Rect::from_min_size(pos, galley.size);
+        self.debug_text(pos, Align2::LEFT_TOP, Color32::RED, format!("🔥 {}", text))
+    }
+
+    /// text with a background
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn debug_text(
+        &self,
+        pos: Pos2,
+        anchor: Align2,
+        color: Color32,
+        text: impl ToString,
+    ) -> Rect {
+        let galley = self
+            .fonts()
+            .layout_no_wrap(TextStyle::Monospace, text.to_string());
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
             rect: frame_rect,
             corner_radius: 0.0,
             fill: Color32::from_black_alpha(240),
-            stroke: Stroke::new(1.0, Color32::RED),
+            // stroke: Stroke::new(1.0, color),
+            stroke: Default::default(),
         });
-        self.galley(rect.min, galley, Color32::RED);
+        self.galley(rect.min, galley, color);
         frame_rect
     }
 }
@@ -299,6 +310,9 @@ impl Painter {
     ///
     /// To center the text at the given position, use `anchor: (Center, Center)`.
     ///
+    /// To find out the size of text before painting it, use
+    /// [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
+    ///
     /// Returns where the text ended up.
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(
@@ -309,15 +323,40 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let galley = self
-            .fonts()
-            .layout_multiline(text_style, text.to_string(), f32::INFINITY);
+        let galley = self.layout_no_wrap(text_style, text.to_string());
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley, text_color);
         rect
     }
 
-    /// Paint text that has already been layed out in a `Galley`.
+    /// Will line break at `\n`.
+    ///
+    /// Paint the results with [`Self::galley`].
+    /// Always returns at least one row.
+    #[inline(always)]
+    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> std::sync::Arc<Galley> {
+        self.layout_multiline(text_style, text, f32::INFINITY)
+    }
+
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
+    /// Paint the results with [`Self::galley`].
+    /// Always returns at least one row.
+    #[inline(always)]
+    pub fn layout_multiline(
+        &self,
+        text_style: TextStyle,
+        text: String,
+        max_width_in_points: f32,
+    ) -> std::sync::Arc<Galley> {
+        self.fonts()
+            .layout_multiline(text_style, text, max_width_in_points)
+    }
+
+    /// Paint text that has already been layed out in a [`Galley`].
+    ///
+    /// You can create the `Galley` with [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
+    #[inline(always)]
     pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
         self.galley_with_italics(pos, galley, color, false)
     }

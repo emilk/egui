@@ -80,11 +80,20 @@ impl FontImpl {
 
         let scale_in_pixels = pixels_per_point * scale_in_points;
 
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round();
+        let scale_in_points = scale_in_pixels / pixels_per_point;
+
         let height_in_points = scale_in_points;
+
         // TODO: use v_metrics for line spacing ?
         // let v = rusttype_font.v_metrics(Scale::uniform(scale_in_pixels));
         // let height_in_pixels = v.ascent - v.descent + v.line_gap;
         // let height_in_points = height_in_pixels / pixels_per_point;
+
+        // Round to closest pixel:
+        let y_offset = (y_offset * pixels_per_point).round() / pixels_per_point;
 
         Self {
             rusttype_font,
@@ -335,20 +344,23 @@ impl Font {
         self.finalize_galley(galley)
     }
 
-    /// Always returns at least one row.
     /// Will line break at `\n`.
+    ///
+    /// Always returns at least one row.
     pub fn layout_no_wrap(&self, text: String) -> Galley {
         self.layout_multiline(text, f32::INFINITY)
     }
 
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
     /// Always returns at least one row.
-    /// Will wrap text at the given width.
     pub fn layout_multiline(&self, text: String, max_width_in_points: f32) -> Galley {
         self.layout_multiline_with_indentation_and_max_width(text, 0.0, max_width_in_points)
     }
 
     /// * `first_row_indentation`: extra space before the very first character (in points).
     /// * `max_width_in_points`: wrapping width.
+    ///
     /// Always returns at least one row.
     pub fn layout_multiline_with_indentation_and_max_width(
         &self,
@@ -461,7 +473,7 @@ impl Font {
         let mut out_rows = vec![];
 
         for (i, (x, chr)) in full_x_offsets.iter().skip(1).zip(text.chars()).enumerate() {
-            debug_assert!(chr != '\n');
+            crate::epaint_assert!(chr != '\n');
             let potential_row_width = first_row_indentation + x - row_start_x;
 
             if potential_row_width > max_width_in_points {

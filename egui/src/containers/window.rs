@@ -21,6 +21,7 @@ use super::*;
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+#[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title_label: Label,
     open: Option<&'open mut bool>,
@@ -212,7 +213,7 @@ impl<'open> Window<'open> {
             if self.scroll.is_none() {
                 self.scroll = Some(ScrollArea::auto_sized());
             }
-            debug_assert!(
+            crate::egui_assert!(
                 self.scroll.is_some(),
                 "Window::scroll called multiple times"
             );
@@ -431,7 +432,7 @@ fn paint_resize_corner(
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
     movable: bool,
-    // Which sized can we drag to resize?
+    // Which sides can we drag to resize?
     resize_left: bool,
     resize_right: bool,
     resize_top: bool,

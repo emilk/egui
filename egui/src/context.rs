@@ -97,7 +97,7 @@ impl CtxRef {
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
-    /// Put your widgets into a [`SidePanel`], [`TopPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
@@ -291,8 +291,14 @@ impl CtxRef {
         response
     }
 
+    /// Get a full-screen painter for a new or existing layer
+    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
+        Painter::new(self.clone(), layer_id, self.input.screen_rect())
+    }
+
+    /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
-        Painter::new(self.clone(), LayerId::debug(), self.input.screen_rect())
+        Self::layer_painter(self, LayerId::debug())
     }
 }
 
@@ -415,7 +421,12 @@ impl Context {
         self.fonts().texture()
     }
 
-    /// Will become active at the start of the next frame.
+    /// Tell `egui` which fonts to use.
+    ///
+    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// but you can call this to install additional fonts that support e.g. korean characters.
+    ///
+    /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &self.fonts {
             // NOTE: this comparison is expensive since it checks TTF data for equality
@@ -433,6 +444,8 @@ impl Context {
     }
 
     /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
     ///
     /// Example:
     /// ```
@@ -713,6 +726,20 @@ impl Context {
             false
         }
     }
+
+    // ---------------------------------------------------------------------
+
+    /// Wether or not to debug widget layout on hover.
+    pub fn debug_on_hover(&self) -> bool {
+        self.memory().options.style.debug.debug_on_hover
+    }
+
+    /// Turn on/off wether or not to debug widget layout on hover.
+    pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
+        let mut style = (*self.memory().options.style).clone();
+        style.debug.debug_on_hover = debug_on_hover;
+        self.set_style(style);
+    }
 }
 
 /// ## Animation
@@ -767,12 +794,14 @@ impl Context {
             .show(ui, |ui| {
                 let mut tessellation_options = self.memory().options.tessellation_options;
                 tessellation_options.ui(ui);
+                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
                 self.memory().options.tessellation_options = tessellation_options;
             });
     }
 
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
+        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(

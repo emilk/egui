@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -20,7 +20,7 @@ include = [
 [lib]
 
 [dependencies]
-epaint = { version = "0.11.0", path = "../epaint", default-features = false }
+epaint = { version = "0.12.0", path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 ron = { version = "0.6.4", optional = true }
 
@@ -31,13 +31,22 @@ default = ["default_fonts", "single_threaded"]
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["epaint/extra_debug_asserts"]
+# Always enable additional checks.
+extra_asserts = ["epaint/extra_asserts"]
+
+# Add compatability with https://github.com/kvark/mint
+mint = ["epaint/mint"]
+
+# add compatibility with https://crates.io/crates/cint
+cint = ["epaint/cint"]
+
 persistence = ["serde", "epaint/persistence", "ron"]
 
 # Only needed if you plan to use the same egui::Context from multiple threads.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
-
-mint = ["epaint/mint"]
 
 [dev-dependencies]
 serde_json = "1"

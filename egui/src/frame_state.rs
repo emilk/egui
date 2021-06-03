@@ -70,7 +70,7 @@ impl FrameState {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
-        debug_assert!(
+        crate::egui_assert!(
             self.available_rect.is_finite(),
             "Called `available_rect()` before `CtxRef::begin_frame()`"
         );
@@ -79,7 +79,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
+        crate::egui_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching left panel. You must not create a panel from within another panel."
         );
@@ -89,13 +89,35 @@ impl FrameState {
     }
 
     /// Shrink `available_rect`.
+    pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
+        crate::egui_assert!(
+            panel_rect.max.distance(self.available_rect.max) < 0.1,
+            "Mismatching right panel. You must not create a panel from within another panel."
+        );
+        self.available_rect.max.x = panel_rect.min.x;
+        self.unused_rect.max.x = panel_rect.min.x;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    /// Shrink `available_rect`.
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
+        crate::egui_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching top panel. You must not create a panel from within another panel."
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
+        self.used_by_panels = self.used_by_panels.union(panel_rect);
+    }
+
+    /// Shrink `available_rect`.
+    pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
+        crate::egui_assert!(
+            panel_rect.max.distance(self.available_rect.max) < 0.1,
+            "Mismatching bottom panel. You must not create a panel from within another panel."
+        );
+        self.available_rect.max.y = panel_rect.min.y;
+        self.unused_rect.max.y = panel_rect.min.y;
         self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 

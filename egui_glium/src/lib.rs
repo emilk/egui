@@ -145,11 +145,11 @@ pub fn input_to_egui(
 
                     // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
                     // so we detect these things manually:
-                    if input_state.raw.modifiers.command && keycode == VirtualKeyCode::X {
+                    if is_cut_command(input_state.raw.modifiers, keycode) {
                         input_state.raw.events.push(Event::Cut);
-                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::C {
+                    } else if is_copy_command(input_state.raw.modifiers, keycode) {
                         input_state.raw.events.push(Event::Copy);
-                    } else if input_state.raw.modifiers.command && keycode == VirtualKeyCode::V {
+                    } else if is_paste_command(input_state.raw.modifiers, keycode) {
                         if let Some(clipboard) = clipboard {
                             match clipboard.get_contents() {
                                 Ok(contents) => {
@@ -188,7 +188,7 @@ pub fn input_to_egui(
                 delta.x *= -1.0;
             }
 
-            if input_state.raw.modifiers.ctrl {
+            if input_state.raw.modifiers.ctrl || input_state.raw.modifiers.command {
                 // Treat as zoom instead:
                 input_state.raw.zoom_delta *= (delta.y / 200.0).exp();
             } else {
@@ -245,6 +245,21 @@ fn is_printable_char(chr: char) -> bool {
         || '\u{100000}' <= chr && chr <= '\u{10fffd}';
 
     !is_in_private_use_area && !chr.is_ascii_control()
+}
+
+fn is_cut_command(modifiers: egui::Modifiers, keycode: VirtualKeyCode) -> bool {
+    (modifiers.command && keycode == VirtualKeyCode::X)
+        || (cfg!(target_os = "windows") && modifiers.shift && keycode == VirtualKeyCode::Delete)
+}
+
+fn is_copy_command(modifiers: egui::Modifiers, keycode: VirtualKeyCode) -> bool {
+    (modifiers.command && keycode == VirtualKeyCode::C)
+        || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == VirtualKeyCode::Insert)
+}
+
+fn is_paste_command(modifiers: egui::Modifiers, keycode: VirtualKeyCode) -> bool {
+    (modifiers.command && keycode == VirtualKeyCode::V)
+        || (cfg!(target_os = "windows") && modifiers.shift && keycode == VirtualKeyCode::Insert)
 }
 
 pub fn translate_mouse_button(button: glutin::event::MouseButton) -> Option<egui::PointerButton> {
@@ -381,7 +396,7 @@ pub fn handle_output(
         }
     }
 
-    if let Some(egui::Pos2 { x, y }) = output.text_cursor {
+    if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
         display
             .gl_window()
             .window()

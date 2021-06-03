@@ -83,6 +83,7 @@ pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
+
     /// Controls the tessellator.
     pub(crate) tessellation_options: epaint::TessellationOptions,
 

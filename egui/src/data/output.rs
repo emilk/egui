@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use crate::WidgetType;
+
 /// What egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
@@ -24,8 +26,8 @@ pub struct Output {
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
-    /// Position of text widgts' cursor
-    pub text_cursor: Option<crate::Pos2>,
+    /// Position of text edit cursor (used for IME).
+    pub text_cursor_pos: Option<crate::Pos2>,
 }
 
 impl Output {
@@ -379,27 +381,4 @@ impl WidgetInfo {
 
         description.trim().to_owned()
     }
-}
-
-/// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WidgetType {
-    Label, // TODO: emit Label events
-    Hyperlink,
-    TextEdit,
-    Button,
-    Checkbox,
-    RadioButton,
-    SelectableLabel,
-    ComboBox,
-    Slider,
-    DragValue,
-    ColorButton,
-    ImageButton,
-    CollapsingHeader,
-
-    /// If you cannot fit any of the above slots.
-    ///
-    /// If this is something you think should be added, file an issue.
-    Other,
 }

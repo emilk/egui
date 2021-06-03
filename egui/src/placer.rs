@@ -133,8 +133,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        debug_assert!(!rect.any_nan());
-        debug_assert!(!child_size.any_nan());
+        crate::egui_assert!(!rect.any_nan());
+        crate::egui_assert!(!child_size.any_nan());
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -146,7 +146,7 @@ impl Placer {
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
-        debug_assert!(
+        crate::egui_assert!(
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
@@ -254,15 +254,17 @@ impl Placer {
 }
 
 impl Placer {
-    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter) {
-        let color = Color32::GREEN.linear_multiply(0.5);
-        let stroke = Stroke::new(2.0, color);
+    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl ToString) {
+        let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 
         if let Some(grid) = &self.grid {
-            painter.rect_stroke(grid.next_cell(self.cursor(), Vec2::splat(0.0)), 1.0, stroke)
+            let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
+            painter.rect_stroke(rect, 1.0, stroke);
+            let align = Align2::CENTER_CENTER;
+            painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
-                .debug_paint_cursor(&self.region, stroke, painter)
+                .paint_text_at_cursor(painter, &self.region, stroke, text)
         }
     }
 }
