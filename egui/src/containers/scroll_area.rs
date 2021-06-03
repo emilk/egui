@@ -187,7 +187,7 @@ impl Prepared {
         }
 
         let width = if inner_rect.width().is_finite() {
-            inner_rect.width().min(content_size.x) // Position scroll bar correctly
+            inner_rect.width() // Position scroll bar correctly
         } else {
             // ScrollArea is in an infinitely wide parent
             content_size.x
