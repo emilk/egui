@@ -1,14 +1,15 @@
 use crate::{util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
+use std::ops::Range;
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct State {
+pub(crate) struct State<S: TextBuffer> {
     cursorp: Option<CursorPair>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    undoer: Undoer<(CCursorPair, String)>,
+    undoer: Undoer<(CCursorPair, S)>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -108,6 +109,52 @@ impl CCursorPair {
     }
 }
 
+/// Trait constraining what types [`TextEdit`] may use as
+/// an underlying buffer.
+///
+/// Most likely you will use a `String` which implements `TextBuffer`.
+pub trait TextBuffer:
+    AsRef<str> + Into<String> + PartialEq + Clone + Default + Send + Sync + 'static + std::fmt::Display
+{
+    /// Inserts text `text` into this buffer at character index `ch_idx`.
+    ///
+    /// # Notes
+    /// `ch_idx` is a *character index*, not a byte index.
+    ///
+    /// # Return
+    /// Returns how many *characters* were successfully inserted
+    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize;
+
+    /// Deletes a range of text `ch_range` from this buffer.
+    ///
+    /// # Notes
+    /// `ch_range` is a *character range*, not a byte range.
+    fn delete_char_range(&mut self, ch_range: Range<usize>);
+}
+
+impl TextBuffer for String {
+    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
+        // Get the byte index from the character index
+        let byte_idx = self::byte_index_from_char_index(self, ch_idx);
+
+        // Then insert the string
+        self.insert_str(byte_idx, text);
+
+        text.chars().count()
+    }
+
+    fn delete_char_range(&mut self, ch_range: Range<usize>) {
+        assert!(ch_range.start <= ch_range.end);
+
+        // Get both byte indices
+        let byte_start = self::byte_index_from_char_index(self, ch_range.start);
+        let byte_end = self::byte_index_from_char_index(self, ch_range.end);
+
+        // Then drain all characters within this range
+        self.drain(byte_start..byte_end);
+    }
+}
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -136,8 +183,8 @@ impl CCursorPair {
 ///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
-pub struct TextEdit<'t> {
-    text: &'t mut String,
+pub struct TextEdit<'t, S: TextBuffer = String> {
+    text: &'t mut S,
     hint_text: String,
     id: Option<Id>,
     id_source: Option<Id>,
@@ -151,23 +198,23 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
 }
-impl<'t> TextEdit<'t> {
+impl<'t, S: TextBuffer> TextEdit<'t, S> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
             .id_data
-            .get::<State>(&id)
+            .get::<State<S>>(&id)
             .and_then(|state| state.cursorp)
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, S: TextBuffer> TextEdit<'t, S> {
     #[deprecated = "Use `TextEdit::singleline` or `TextEdit::multiline` (or the helper `ui.text_edit_singleline`, `ui.text_edit_multiline`) instead"]
-    pub fn new(text: &'t mut String) -> Self {
+    pub fn new(text: &'t mut S) -> Self {
         Self::multiline(text)
     }
 
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
-    pub fn singleline(text: &'t mut String) -> Self {
+    pub fn singleline(text: &'t mut S) -> Self {
         TextEdit {
             text,
             hint_text: Default::default(),
@@ -186,7 +233,7 @@ impl<'t> TextEdit<'t> {
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
-    pub fn multiline(text: &'t mut String) -> Self {
+    pub fn multiline(text: &'t mut S) -> Self {
         TextEdit {
             text,
             hint_text: Default::default(),
@@ -289,7 +336,7 @@ impl<'t> TextEdit<'t> {
     }
 }
 
-impl<'t> Widget for TextEdit<'t> {
+impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     fn ui(self, ui: &mut Ui) -> Response {
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
@@ -328,7 +375,7 @@ impl<'t> Widget for TextEdit<'t> {
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, S: TextBuffer> TextEdit<'t, S> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
@@ -346,7 +393,9 @@ impl<'t> TextEdit<'t> {
             lock_focus,
         } = self;
 
-        let text_style = text_style.unwrap_or_else(|| ui.style().body_text_style);
+        let text_style = text_style
+            .or(ui.style().override_text_style)
+            .unwrap_or_else(|| ui.style().body_text_style);
         let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
 
@@ -372,7 +421,7 @@ impl<'t> TextEdit<'t> {
             }
         };
 
-        let mut galley = make_galley(ui, text);
+        let mut galley = make_galley(ui, text.as_ref());
 
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
@@ -389,7 +438,7 @@ impl<'t> TextEdit<'t> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
+        let mut state = ui.memory().id_data.get_or_default::<State<S>>(id).clone();
 
         let sense = if enabled {
             Sense::click_and_drag()
@@ -416,7 +465,7 @@ impl<'t> TextEdit<'t> {
                 if response.double_clicked() {
                     // Select word:
                     let center = cursor_at_pointer;
-                    let ccursorp = select_word_at(text, center.ccursor);
+                    let ccursorp = select_word_at(text.as_ref(), center.ccursor);
                     state.cursorp = Some(CursorPair {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
@@ -447,7 +496,6 @@ impl<'t> TextEdit<'t> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        let mut text_cursor = None;
         if ui.memory().has_focus(id) && enabled {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -478,18 +526,24 @@ impl<'t> TextEdit<'t> {
                 let did_mutate_text = match event {
                     Event::Copy => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, text.clone());
+                            copy_if_not_password(ui, text.as_ref().to_owned());
                         } else {
-                            copy_if_not_password(ui, selected_str(text, &cursorp).to_owned());
+                            copy_if_not_password(
+                                ui,
+                                selected_str(text.as_ref(), &cursorp).to_owned(),
+                            );
                         }
                         None
                     }
                     Event::Cut => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, std::mem::take(text));
+                            copy_if_not_password(ui, std::mem::take(text).into());
                             Some(CCursorPair::default())
                         } else {
-                            copy_if_not_password(ui, selected_str(text, &cursorp).to_owned());
+                            copy_if_not_password(
+                                ui,
+                                selected_str(text.as_ref(), &cursorp).to_owned(),
+                            );
                             Some(CCursorPair::one(delete_selected(text, &cursorp)))
                         }
                     }
@@ -603,7 +657,7 @@ impl<'t> TextEdit<'t> {
                     response.mark_changed();
 
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-                    galley = make_galley(ui, text);
+                    galley = make_galley(ui, text.as_ref());
 
                     // Set cursorp using new galley:
                     cursorp = CursorPair {
@@ -612,7 +666,6 @@ impl<'t> TextEdit<'t> {
                     };
                 }
             }
-            text_cursor = Some(cursorp);
             state.cursorp = Some(cursorp);
 
             state
@@ -621,18 +674,18 @@ impl<'t> TextEdit<'t> {
         }
 
         if ui.memory().has_focus(id) {
-            {
-                let mut output = ui.ctx().output();
-                output.text_cursor = text_cursor.map(|c| {
-                    galley
-                        .pos_from_cursor(&c.primary)
-                        .translate(response.rect.min.to_vec2())
-                        .left_top()
-                });
-            }
             if let Some(cursorp) = state.cursorp {
                 paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
                 paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);
+
+                if enabled {
+                    ui.ctx().output().text_cursor_pos = Some(
+                        galley
+                            .pos_from_cursor(&cursorp.primary)
+                            .translate(response.rect.min.to_vec2())
+                            .left_top(),
+                    );
+                }
             }
         }
 
@@ -642,7 +695,7 @@ impl<'t> TextEdit<'t> {
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
         ui.painter().galley(response.rect.min, galley, text_color);
 
-        if text.is_empty() && !hint_text.is_empty() {
+        if text.as_ref().is_empty() && !hint_text.is_empty() {
             let galley = if multiline {
                 ui.fonts()
                     .layout_multiline(text_style, hint_text, available_width)
@@ -741,45 +794,26 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
     s.len()
 }
 
-fn insert_text(ccursor: &mut CCursor, text: &mut String, text_to_insert: &str) {
-    let mut char_it = text.chars();
-    let mut new_text = String::with_capacity(text.len() + text_to_insert.len());
-    for _ in 0..ccursor.index {
-        let c = char_it.next().unwrap();
-        new_text.push(c);
-    }
-    ccursor.index += text_to_insert.chars().count();
-    new_text += text_to_insert;
-    new_text.extend(char_it);
-    *text = new_text;
+fn insert_text<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S, text_to_insert: &str) {
+    ccursor.index += text.insert_text(text_to_insert, ccursor.index);
 }
 
 // ----------------------------------------------------------------------------
 
-fn delete_selected(text: &mut String, cursorp: &CursorPair) -> CCursor {
+fn delete_selected<S: TextBuffer>(text: &mut S, cursorp: &CursorPair) -> CCursor {
     let [min, max] = cursorp.sorted();
     delete_selected_ccursor_range(text, [min.ccursor, max.ccursor])
 }
 
-fn delete_selected_ccursor_range(text: &mut String, [min, max]: [CCursor; 2]) -> CCursor {
-    let [min, max] = [min.index, max.index];
-    assert!(min <= max);
-    if min < max {
-        let mut char_it = text.chars();
-        let mut new_text = String::with_capacity(text.len());
-        for _ in 0..min {
-            new_text.push(char_it.next().unwrap())
-        }
-        new_text.extend(char_it.skip(max - min));
-        *text = new_text;
-    }
+fn delete_selected_ccursor_range<S: TextBuffer>(text: &mut S, [min, max]: [CCursor; 2]) -> CCursor {
+    text.delete_char_range(min.index..max.index);
     CCursor {
-        index: min,
+        index: min.index,
         prefer_next_row: true,
     }
 }
 
-fn delete_previous_char(text: &mut String, ccursor: CCursor) -> CCursor {
+fn delete_previous_char<S: TextBuffer>(text: &mut S, ccursor: CCursor) -> CCursor {
     if ccursor.index > 0 {
         let max_ccursor = ccursor;
         let min_ccursor = max_ccursor - 1;
@@ -789,22 +823,22 @@ fn delete_previous_char(text: &mut String, ccursor: CCursor) -> CCursor {
     }
 }
 
-fn delete_next_char(text: &mut String, ccursor: CCursor) -> CCursor {
+fn delete_next_char<S: TextBuffer>(text: &mut S, ccursor: CCursor) -> CCursor {
     delete_selected_ccursor_range(text, [ccursor, ccursor + 1])
 }
 
-fn delete_previous_word(text: &mut String, max_ccursor: CCursor) -> CCursor {
-    let min_ccursor = ccursor_previous_word(text, max_ccursor);
+fn delete_previous_word<S: TextBuffer>(text: &mut S, max_ccursor: CCursor) -> CCursor {
+    let min_ccursor = ccursor_previous_word(text.as_ref(), max_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
-fn delete_next_word(text: &mut String, min_ccursor: CCursor) -> CCursor {
-    let max_ccursor = ccursor_next_word(text, min_ccursor);
+fn delete_next_word<S: TextBuffer>(text: &mut S, min_ccursor: CCursor) -> CCursor {
+    let max_ccursor = ccursor_next_word(text.as_ref(), min_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
-fn delete_paragraph_before_cursor(
-    text: &mut String,
+fn delete_paragraph_before_cursor<S: TextBuffer>(
+    text: &mut S,
     galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
@@ -821,8 +855,8 @@ fn delete_paragraph_before_cursor(
     }
 }
 
-fn delete_paragraph_after_cursor(
-    text: &mut String,
+fn delete_paragraph_after_cursor<S: TextBuffer>(
+    text: &mut S,
     galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
@@ -842,9 +876,9 @@ fn delete_paragraph_after_cursor(
 // ----------------------------------------------------------------------------
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
-fn on_key_press(
+fn on_key_press<S: TextBuffer>(
     cursorp: &mut CursorPair,
-    text: &mut String,
+    text: &mut S,
     galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
@@ -865,7 +899,7 @@ fn on_key_press(
             };
             Some(CCursorPair::one(ccursor))
         }
-        Key::Delete => {
+        Key::Delete if !(cfg!(target_os = "windows") && modifiers.shift) => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursorp)
             } else if let Some(cursor) = cursorp.single() {
@@ -1078,39 +1112,25 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
-fn decrease_identation(ccursor: &mut CCursor, text: &mut String) {
-    let mut new_text = String::with_capacity(text.len());
+fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
+    let line_start = find_line_start(text.as_ref(), *ccursor);
 
-    let line_start = find_line_start(text, *ccursor);
+    let remove_len = if text.as_ref()[line_start.index..].starts_with('\t') {
+        Some(1)
+    } else if text.as_ref()[line_start.index..]
+        .chars()
+        .take(text::TAB_SIZE)
+        .all(|c| c == ' ')
+    {
+        Some(text::TAB_SIZE)
+    } else {
+        None
+    };
 
-    let mut char_it = text.chars().peekable();
-    for _ in 0..line_start.index {
-        let c = char_it.next().unwrap();
-        new_text.push(c);
-    }
-
-    let mut chars_removed = 0;
-    while let Some(&c) = char_it.peek() {
-        if c == '\t' {
-            char_it.next();
-            chars_removed += 1;
-            break;
-        } else if c == ' ' {
-            char_it.next();
-            chars_removed += 1;
-            if chars_removed == text::TAB_SIZE {
-                break;
-            }
-        } else {
-            break;
+    if let Some(len) = remove_len {
+        text.delete_char_range(line_start.index..(line_start.index + len));
+        if *ccursor != line_start {
+            *ccursor -= len;
         }
-    }
-
-    new_text.extend(char_it);
-
-    *text = new_text;
-
-    if *ccursor != line_start {
-        *ccursor -= chars_removed;
     }
 }
