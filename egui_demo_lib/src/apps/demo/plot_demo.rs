@@ -1,5 +1,5 @@
 use egui::*;
-use plot::{Legend, LegendPosition, Line, MarkerShape, Plot, Points, Value, Values};
+use plot::{Corner, Legend, Line, MarkerShape, Plot, Points, Value, Values};
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
@@ -255,7 +255,7 @@ impl Widget for &mut LegendDemo {
         });
         ui.label("Position:");
         ui.horizontal(|ui| {
-            LegendPosition::all().for_each(|position| {
+            Corner::all().for_each(|position| {
                 ui.selectable_value(&mut config.position, position, format!("{:?}", position));
             });
         });

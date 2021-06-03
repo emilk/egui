@@ -10,7 +10,7 @@ use items::PlotItem;
 pub use items::{HLine, VLine};
 pub use items::{Line, MarkerShape, Points, Value, Values};
 use legend::LegendWidget;
-pub use legend::{Legend, LegendPosition};
+pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;

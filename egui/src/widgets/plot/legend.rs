@@ -9,20 +9,20 @@ use super::items::PlotItem;
 
 /// Where to place the plot legend.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LegendPosition {
+pub enum Corner {
     LeftTop,
     RightTop,
     LeftBottom,
     RightBottom,
 }
 
-impl LegendPosition {
-    pub fn all() -> impl Iterator<Item = LegendPosition> {
+impl Corner {
+    pub fn all() -> impl Iterator<Item = Corner> {
         [
-            LegendPosition::TopLeft,
-            LegendPosition::TopRight,
-            LegendPosition::BottomLeft,
-            LegendPosition::BottomRight,
+            Corner::LeftTop,
+            Corner::RightTop,
+            Corner::LeftBottom,
+            Corner::RightBottom,
         ]
         .iter()
         .copied()
@@ -33,14 +33,14 @@ impl LegendPosition {
 #[derive(Clone, Copy, PartialEq)]
 pub struct Legend {
     pub text_style: TextStyle,
-    pub position: LegendPosition,
+    pub position: Corner,
 }
 
 impl Default for Legend {
     fn default() -> Self {
         Self {
             text_style: TextStyle::Body,
-            position: LegendPosition::TopRight,
+            position: Corner::RightTop,
         }
     }
 }
@@ -60,22 +60,15 @@ impl LegendEntry {
             hovered: false,
         }
     }
-}
 
-impl Widget for (&String, &mut LegendEntry) {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let (
-            text,
-            LegendEntry {
-                color,
-                checked,
-                hovered,
-            },
-        ) = self;
+    fn ui(&mut self, ui: &mut Ui, text: String) -> Response {
+        let Self {
+            color,
+            checked,
+            hovered,
+        } = self;
 
-        let galley = ui
-            .fonts()
-            .layout_no_wrap(ui.style().body_text_style, text.clone());
+        let galley = ui.fonts().layout_no_wrap(ui.style().body_text_style, text);
 
         let icon_size = galley.size.y;
         let icon_spacing = icon_size / 5.0;
@@ -87,9 +80,9 @@ impl Widget for (&String, &mut LegendEntry) {
         response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
 
         let visuals = ui.style().interact(&response);
-        let flipped = ui.layout().horizontal_align() == Align::RIGHT;
+        let label_on_the_left = ui.layout().cross_align() == Align::RIGHT;
 
-        let icon_position_x = if flipped {
+        let icon_position_x = if label_on_the_left {
             rect.right() - icon_size / 2.0
         } else {
             rect.left() + icon_size / 2.0
@@ -120,7 +113,7 @@ impl Widget for (&String, &mut LegendEntry) {
             });
         }
 
-        let text_position_x = if flipped {
+        let text_position_x = if label_on_the_left {
             rect.right() - icon_size - icon_spacing - galley.size.x
         } else {
             rect.left() + icon_size + icon_spacing
@@ -207,12 +200,12 @@ impl Widget for &mut LegendWidget {
         } = self;
 
         let main_dir = match config.position {
-            LegendPosition::TopLeft | LegendPosition::TopRight => Direction::TopDown,
-            LegendPosition::BottomLeft | LegendPosition::BottomRight => Direction::BottomUp,
+            Corner::LeftTop | Corner::RightTop => Direction::TopDown,
+            Corner::LeftBottom | Corner::RightBottom => Direction::BottomUp,
         };
         let cross_align = match config.position {
-            LegendPosition::TopLeft | LegendPosition::BottomLeft => Align::LEFT,
-            LegendPosition::TopRight | LegendPosition::BottomRight => Align::RIGHT,
+            Corner::LeftTop | Corner::LeftBottom => Align::LEFT,
+            Corner::RightTop | Corner::RightBottom => Align::RIGHT,
         };
         let layout = Layout::from_main_dir_and_cross_align(main_dir, cross_align);
         let legend_pad = 2.0;
@@ -223,7 +216,7 @@ impl Widget for &mut LegendWidget {
                 ui.style_mut().body_text_style = config.text_style;
                 entries
                     .iter_mut()
-                    .map(|entry| ui.add(entry))
+                    .map(|(name, entry)| entry.ui(ui, name.clone()))
                     .reduce(|r1, r2| r1.union(r2))
                     .unwrap()
             })
