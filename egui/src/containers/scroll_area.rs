@@ -133,9 +133,9 @@ impl ScrollArea {
             ),
             *ui.layout(),
         );
-        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
-        content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
-        content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
+        let content_clip_rect = inner_rect
+            .expand(ui.visuals().clip_rect_margin)
+            .intersect(ui.clip_rect());
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {
