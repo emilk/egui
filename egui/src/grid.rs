@@ -296,32 +296,6 @@ impl GridLayout {
         painter.rect_filled(rect, 2.0, color);
     }
 
-    /// Paint a cell. Note that we can only paint for the current row.
-    pub(crate) fn paint_cell(&self, column: usize, min: Pos2, color: GuiColor, painter: &Painter) {
-        let color = color.pick(&self.style);
-
-        // Paint a column:
-        // Offset from the cursor to paint the col at the right spot.
-        let min_offset = min
-            + Vec2::new(
-                // Sum up all the previous widths and add the padding
-                self.prev_state.col_widths.iter().take(column).sum::<f32>()
-                    + (self.spacing.x + 1.0) * (column as f32 - 1.0),
-                0.0,
-            );
-        let size = Vec2::new(self.prev_col_width(column), self.prev_row_height(self.row));
-        let size = size
-            + Vec2::new(
-                // Add padding
-                0.5 * self.spacing.x + 5.0,
-                3.0,
-            );
-
-        let rect = Rect::from_min_size(min_offset, size);
-
-        painter.rect_filled(rect, 2.0, color);
-    }
-
     /// Paint the background for the next row & columns.
     pub(crate) fn do_paint(&mut self, min: Pos2, painter: &Painter) {
         for p in &self.color_spec.row_pickers {
@@ -427,7 +401,7 @@ impl Grid {
         self
     }
 
-    /// Add a ColorPickerFn to the color spec without overwriting existing column colors.
+    /// Add a `ColorPickerFn` to the color spec without overwriting existing column colors.
     pub fn add_column_color(mut self, predicate: ColorPickerFn) -> Self {
         self.color_spec.col_pickers.push(predicate);
         self
@@ -439,7 +413,7 @@ impl Grid {
         self
     }
 
-    /// Add a ColorPickerFn to the color spec without overwriting existing row colors.
+    /// Add a `ColorPickerFn` to the color spec without overwriting existing row colors.
     pub fn add_row_color(mut self, predicate: ColorPickerFn) -> Self {
         self.color_spec.row_pickers.push(predicate);
         self
