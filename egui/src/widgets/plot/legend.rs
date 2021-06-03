@@ -163,7 +163,8 @@ impl LegendWidget {
                     .entry(item.name().to_string())
                     .and_modify(|entry| {
                         if entry.color != item.color() {
-                            entry.color = Color32::TRANSPARENT
+                            // Multiple items with different colors
+                            entry.color = Color32::TRANSPARENT;
                         }
                     })
                     .or_insert_with(|| {
