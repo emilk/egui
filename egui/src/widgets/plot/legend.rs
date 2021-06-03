@@ -10,10 +10,10 @@ use super::items::PlotItem;
 /// Where to place the plot legend.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LegendPosition {
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight,
+    LeftTop,
+    RightTop,
+    LeftBottom,
+    RightBottom,
 }
 
 impl LegendPosition {
