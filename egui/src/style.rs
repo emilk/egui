@@ -123,6 +123,8 @@ pub struct Spacing {
 
     /// Height of a combo-box before showing scroll bars.
     pub combo_height: f32,
+
+    pub scroll_bar_width: f32,
 }
 
 impl Spacing {
@@ -366,6 +368,7 @@ impl Default for Spacing {
             icon_spacing: 0.0,
             tooltip_width: 600.0,
             combo_height: 200.0,
+            scroll_bar_width: 8.0,
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -626,6 +629,7 @@ impl Spacing {
             tooltip_width,
             indent_ends_with_horizontal_line,
             combo_height,
+            scroll_bar_width,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -644,6 +648,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
             ui.label("TextEdit width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar width width");
         });
 
         ui.horizontal(|ui| {
