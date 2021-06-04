@@ -6,6 +6,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ## Unreleased
 
 ### Fixed ⭐
+* Improve alpha blending, making fonts look much better (especially in light mode)
 * Fix double-paste bug
 
 
