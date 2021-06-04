@@ -36,6 +36,7 @@ pub struct ScrollArea {
     always_show_scroll: bool,
     id_source: Option<Id>,
     offset: Option<Vec2>,
+    scrolling_enabled: bool,
 }
 
 impl ScrollArea {
@@ -51,6 +52,7 @@ impl ScrollArea {
             always_show_scroll: false,
             id_source: None,
             offset: None,
+            scrolling_enabled: true,
         }
     }
 
@@ -75,6 +77,17 @@ impl ScrollArea {
         self.offset = Some(Vec2::new(0.0, offset));
         self
     }
+
+    /// Control the scrolling behavior
+    /// If `true` (default), the scroll area will respond to user scrolling
+    /// If `false`, the scroll area will not respond to user scrolling
+    ///
+    /// This can be used, for example, to optionally freeze scrolling while the user
+    /// is inputing text in a TextEdit widget contained within the scroll area
+    pub fn enable_scrolling(mut self, enable: bool) -> Self {
+        self.scrolling_enabled = enable;
+        self
+    }
 }
 
 struct Prepared {
@@ -87,6 +100,7 @@ struct Prepared {
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
+    scrolling_enabled: bool,
 }
 
 impl ScrollArea {
@@ -96,6 +110,7 @@ impl ScrollArea {
             always_show_scroll,
             id_source,
             offset,
+            scrolling_enabled,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -152,6 +167,7 @@ impl ScrollArea {
             inner_rect,
             content_ui,
             viewport,
+            scrolling_enabled,
         }
     }
 
@@ -229,6 +245,7 @@ impl Prepared {
             mut current_scroll_bar_width,
             content_ui,
             viewport: _,
+            scrolling_enabled,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -293,7 +310,7 @@ impl Prepared {
         }
 
         let max_offset = content_size.y - inner_rect.height();
-        if ui.rect_contains_pointer(outer_rect) {
+        if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             let mut frame_state = ui.ctx().frame_state();
             let scroll_delta = frame_state.scroll_delta;
 
