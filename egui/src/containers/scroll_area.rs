@@ -285,7 +285,12 @@ impl Prepared {
 
         if content_is_too_small {
             // Drag contents to scroll (for touch screens mostly):
-            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            let sense = if self.scrolling_enabled {
+                Sense::drag()
+            } else {
+                Sense::hover()
+            };
+            let content_response = ui.interact(inner_rect, id.with("area"), sense);
 
             let input = ui.input();
             if content_response.dragged() {
@@ -357,7 +362,12 @@ impl Prepared {
             );
 
             let interact_id = id.with("vertical");
-            let response = ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
+            let sense = if self.scrolling_enabled {
+                Sense::click_and_drag()
+            } else {
+                Sense::hover()
+            };
+            let response = ui.interact(outer_scroll_rect, interact_id, sense);
 
             if let Some(pointer_pos) = response.interact_pointer_pos() {
                 let scroll_start_offset_from_top =
