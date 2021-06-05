@@ -45,6 +45,18 @@ impl Default for Legend {
     }
 }
 
+impl Legend {
+    pub fn text_style(mut self, style: TextStyle) -> Self {
+        self.text_style = style;
+        self
+    }
+
+    pub fn position(mut self, corner: Corner) -> Self {
+        self.position = corner;
+        self
+    }
+}
+
 #[derive(Clone)]
 struct LegendEntry {
     color: Color32,
