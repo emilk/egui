@@ -360,7 +360,7 @@ pub use {
     context::{Context, CtxRef},
     data::{
         input::*,
-        output::{self, CursorIcon, Output, WidgetInfo, WidgetType},
+        output::{self, CursorIcon, Output, WidgetInfo},
     },
     grid::Grid,
     id::Id,
@@ -411,6 +411,31 @@ macro_rules! github_link_file {
     ($github_url:expr, $label:expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::new(url).text($label)
+    }};
+}
+
+// ----------------------------------------------------------------------------
+
+/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// // Turn on tracing of widgets
+/// ui.ctx().set_debug_on_hover(true);
+///
+/// /// Show [`std::file`], [`std::line`] and argument on hover
+/// egui::trace!(ui, "MyWindow");
+///
+/// /// Show [`std::file`] and [`std::line`] on hover
+/// egui::trace!(ui);
+/// ```
+#[macro_export]
+macro_rules! trace {
+    ($ui:expr) => {{
+        $ui.trace_location(format!("{}:{}", file!(), line!()))
+    }};
+    ($ui:expr, $label:expr) => {{
+        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 
@@ -468,4 +493,27 @@ pub mod special_emojis {
     pub const GIT: char = '';
 
     // I really would like to have ferris here.
+}
+
+/// The different types of built-in widgets in egui
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WidgetType {
+    Label, // TODO: emit Label events
+    Hyperlink,
+    TextEdit,
+    Button,
+    Checkbox,
+    RadioButton,
+    SelectableLabel,
+    ComboBox,
+    Slider,
+    DragValue,
+    ColorButton,
+    ImageButton,
+    CollapsingHeader,
+
+    /// If you cannot fit any of the above slots.
+    ///
+    /// If this is something you think should be added, file an issue.
+    Other,
 }

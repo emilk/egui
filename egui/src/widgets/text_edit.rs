@@ -899,7 +899,7 @@ fn on_key_press<S: TextBuffer>(
             };
             Some(CCursorPair::one(ccursor))
         }
-        Key::Delete => {
+        Key::Delete if !(cfg!(target_os = "windows") && modifiers.shift) => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursorp)
             } else if let Some(cursor) = cursorp.single() {

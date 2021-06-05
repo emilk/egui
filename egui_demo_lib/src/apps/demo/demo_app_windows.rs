@@ -1,5 +1,5 @@
 use super::Demo;
-use egui::{CtxRef, ScrollArea, Ui, Window};
+use egui::{CtxRef, ScrollArea, Ui};
 use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
@@ -139,23 +139,19 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 pub struct DemoWindows {
     demos: Demos,
     tests: Tests,
-    egui_windows: EguiWindows,
 }
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &CtxRef) {
-        let Self {
-            demos,
-            tests,
-            egui_windows,
-        } = self;
+        let Self { demos, tests } = self;
 
         egui::SidePanel::right("egui_demo_panel")
             .min_width(150.0)
             .default_width(190.0)
             .show(ctx, |ui| {
+                egui::trace!(ui);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
                 });
@@ -183,8 +179,6 @@ impl DemoWindows {
                     demos.checkboxes(ui);
                     ui.separator();
                     tests.checkboxes(ui);
-                    ui.separator();
-                    egui_windows.checkboxes(ui);
                     ui.separator();
 
                     ui.vertical_centered(|ui| {
@@ -216,86 +210,17 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn windows(&mut self, ctx: &CtxRef) {
-        let Self {
-            demos,
-            tests,
-            egui_windows,
-        } = self;
+        let Self { demos, tests } = self;
 
         demos.windows(ctx);
         tests.windows(ctx);
-        egui_windows.windows(ctx);
     }
 }
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct EguiWindows {
-    // egui stuff:
-    settings: bool,
-    inspection: bool,
-    memory: bool,
-}
-
-impl Default for EguiWindows {
-    fn default() -> Self {
-        EguiWindows::none()
-    }
-}
-
-impl EguiWindows {
-    fn none() -> Self {
-        Self {
-            settings: false,
-            inspection: false,
-            memory: false,
-        }
-    }
-
-    fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self {
-            settings,
-            inspection,
-            memory,
-        } = self;
-
-        ui.checkbox(settings, "🔧 Settings");
-        ui.checkbox(inspection, "🔍 Inspection");
-        ui.checkbox(memory, "📝 Memory");
-    }
-
-    fn windows(&mut self, ctx: &CtxRef) {
-        let Self {
-            settings,
-            inspection,
-            memory,
-        } = self;
-
-        Window::new("🔧 Settings")
-            .open(settings)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.settings_ui(ui);
-            });
-
-        Window::new("🔍 Inspection")
-            .open(inspection)
-            .scroll(true)
-            .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
-            });
-
-        Window::new("📝 Memory")
-            .open(memory)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ctx.memory_ui(ui);
-            });
-    }
-}
-
 fn show_menu_bar(ui: &mut Ui) {
+    trace!(ui);
     use egui::*;
 
     menu::bar(ui, |ui| {

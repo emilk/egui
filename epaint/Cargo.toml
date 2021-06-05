@@ -27,7 +27,7 @@ emath = { version = "0.12.0", path = "../emath" }
 ahash = { version = "0.7", features = ["std"], default-features = false }
 atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
 cint = { version = "^0.2.1", optional = true }
-ordered-float = "2"
+ordered-float = { version = "2", default-features = false }
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }

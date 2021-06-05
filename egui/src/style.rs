@@ -313,7 +313,7 @@ impl WidgetVisuals {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
-    pub show_widgets: bool,
+    pub debug_on_hover: bool,
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
     /// Show which widgets make their parent higher
@@ -548,7 +548,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.collapsing("⁉ Debug", |ui| debug.ui(ui));
+        ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -746,13 +746,13 @@ impl Visuals {
 impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            show_widgets: debug_widgets,
+            debug_on_hover,
             show_expand_width: debug_expand_width,
             show_expand_height: debug_expand_height,
             show_resize: debug_resize,
         } = self;
 
-        ui.checkbox(debug_widgets, "Show widget bounds on hover");
+        ui.checkbox(debug_on_hover, "Show debug info on hover");
         ui.checkbox(
             debug_expand_width,
             "Show which widgets make their parent wider",

@@ -401,10 +401,16 @@ impl Ui {
         self.set_max_width(*width.end());
     }
 
-    /// `ui.set_width_range(width);` is equivalent to `ui.set_min_width(width); ui.set_max_width(width);`.
+    /// Set both the minimum and maximum width.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
         self.set_max_width(width);
+    }
+
+    /// Set both the minimum and maximum height.
+    pub fn set_height(&mut self, height: f32) {
+        self.set_min_height(height);
+        self.set_max_height(height);
     }
 
     /// Ensure we are big enough to contain the given x-coordinate.
@@ -472,6 +478,10 @@ impl Ui {
         IdSource: Hash + std::fmt::Debug,
     {
         Id::new(self.next_auto_id_source).with(id_source)
+    }
+
+    pub fn skip_ahead_auto_ids(&mut self, count: usize) {
+        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(count as u64);
     }
 }
 
@@ -601,10 +611,10 @@ impl Ui {
 
         let rect = self.allocate_space_impl(desired_size);
 
-        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter);
+            self.placer.debug_paint_cursor(&painter, "next");
         }
 
         let debug_expand_width = self.style().debug.show_expand_width;
@@ -666,10 +676,10 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter);
+            self.placer.debug_paint_cursor(&painter, "next");
         }
 
         let id = Id::new(self.next_auto_id_source);
@@ -735,11 +745,11 @@ impl Ui {
         self.placer
             .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
 
-        if self.style().debug.show_widgets && self.rect_contains_pointer(final_child_rect) {
+        if self.style().debug.debug_on_hover && self.rect_contains_pointer(final_child_rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter);
+            self.placer.debug_paint_cursor(&painter, "next");
         }
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
@@ -1523,10 +1533,10 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        if self.style().debug.show_widgets && self.rect_contains_pointer(rect) {
+        if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
             painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter);
+            self.placer.debug_paint_cursor(&painter, "next");
         }
 
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
@@ -1628,6 +1638,16 @@ impl Ui {
 impl Ui {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {
-        self.placer.debug_paint_cursor(&self.painter);
+        self.placer.debug_paint_cursor(&self.painter, "next");
+    }
+
+    /// Shows the given text where the next widget is to be placed
+    /// if when [`Context::set_debug_on_hover`] has been turned on and the mouse is hovering the Ui.
+    pub fn trace_location(&self, text: impl ToString) {
+        let rect = self.max_rect_finite();
+        if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
+            self.placer
+                .debug_paint_cursor(&self.ctx().debug_painter(), text);
+        }
     }
 }

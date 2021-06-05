@@ -13,11 +13,13 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add right and bottom panels (`SidePanel::right` and `Panel::bottom`).
 * Add resizable panels.
 * Add an option to overwrite frame of a `Panel`.
+* Add `ScrollArea::show_rows` for efficient scrolling of huge UI:s.
 * Add `Style::override_text_style` to easily change the text style of everything in a `Ui` (or globally).
 * You can now change `TextStyle` on checkboxes, radio buttons and `SelectableLabel`.
 * Add support for [cint](https://crates.io/crates/cint) under `cint` feature.
 * Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
+* Add `Context::set_debug_on_hover` and `egui::trace!(ui)`
 
 ### Changed 🔧
 * Plot: Changed `Curve` to `Line`.
