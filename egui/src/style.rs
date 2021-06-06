@@ -196,13 +196,17 @@ pub struct Visuals {
 
     pub selection: Selection,
 
+    /// The color used for `Hyperlink`,
+    pub hyperlink_color: Color32,
+
+    /// Something just barely different from the background color.
+    /// Used for [`Grid::striped`].
+    pub faint_bg_color: Color32,
+
     /// Very dark or light color (for corresponding theme).
     /// Used as the background of text edits, scroll bars and others things
     /// that needs to look different from other interactive stuff.
     pub extreme_bg_color: Color32,
-
-    /// The color used for `Hyperlink`,
-    pub hyperlink_color: Color32,
 
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
@@ -392,8 +396,9 @@ impl Visuals {
             override_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
-            extreme_bg_color: Color32::from_gray(10),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
+            faint_bg_color: Color32::from_gray(24),
+            extreme_bg_color: Color32::from_gray(10),
             code_bg_color: Color32::from_gray(64),
             window_corner_radius: 6.0,
             window_shadow: Shadow::big_dark(),
@@ -412,8 +417,9 @@ impl Visuals {
             dark_mode: false,
             widgets: Widgets::light(),
             selection: Selection::light(),
-            extreme_bg_color: Color32::from_gray(235), // TODO: rename
-            hyperlink_color: Color32::from_rgb(0, 133, 218),
+            hyperlink_color: Color32::from_rgb(0, 155, 255),
+            faint_bg_color: Color32::from_gray(240),
+            extreme_bg_color: Color32::from_gray(250),
             code_bg_color: Color32::from_gray(200),
             window_shadow: Shadow::big_light(),
             ..Self::dark()
@@ -506,7 +512,7 @@ impl Widgets {
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(190),
+                bg_fill: Color32::from_gray(210),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 corner_radius: 3.0,
@@ -740,7 +746,7 @@ impl Widgets {
             open.ui(ui)
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        // ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
@@ -812,8 +818,9 @@ impl Visuals {
             override_text_color: _,
             widgets,
             selection,
-            extreme_bg_color,
             hyperlink_color,
+            faint_bg_color,
+            extreme_bg_color,
             code_bg_color,
             window_corner_radius,
             window_shadow,
@@ -824,6 +831,16 @@ impl Visuals {
             button_frame,
             collapsing_header_frame,
         } = self;
+
+        ui.collapsing("Background Colors", |ui| {
+            ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
+            ui_color(ui, &mut widgets.noninteractive.bg_fill, "Windows");
+            ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
+                "Used for faint accentuation of interactive things, like striped grids.",
+            );
+            ui_color(ui, extreme_bg_color, "Extreme")
+                .on_hover_text("Background of plots and paintings");
+        });
 
         ui.collapsing("Window", |ui| {
             // Common shortcuts
@@ -841,13 +858,19 @@ impl Visuals {
             &mut widgets.noninteractive.fg_stroke.color,
             "Text color",
         );
+        ui_color(ui, code_bg_color, Label::new("Code background").code()).on_hover_ui(|ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("For monospaced inlined text ");
+                ui.code("like this");
+                ui.label(".");
+            });
+        });
 
-        ui_color(ui, extreme_bg_color, "extreme_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
-        ui_color(ui, code_bg_color, "code_bg_color");
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::new(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
-        ui.checkbox(text_cursor_preview, "text_cursor_preview");
+        ui.add(Slider::new(text_cursor_width, 0.0..=4.0).text("text_cursor_width"));
+        ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.checkbox(button_frame, "Button has a frame");
@@ -905,9 +928,10 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: &str) {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(text);
-    });
+    })
+    .response
 }
