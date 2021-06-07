@@ -69,6 +69,7 @@ pub(super) trait PlotItem {
     fn name(&self) -> &str;
     fn color(&self) -> Color32;
     fn highlight(&mut self);
+    fn highlighted(&self) -> bool;
 }
 
 // ----------------------------------------------------------------------------
@@ -273,7 +274,8 @@ impl Line {
 
     /// Name of this line.
     ///
-    /// This name will show up in the plot legend, if legends are turned on.
+    /// This name will show up in the plot legend, if legends are turned on. Multiple lines may
+    /// share the same name, in which case they will also share an entry in the legend.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
@@ -326,6 +328,10 @@ impl PlotItem for Line {
 
     fn highlight(&mut self) {
         self.highlight = true;
+    }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
     }
 }
 
@@ -386,9 +392,10 @@ impl Points {
         self
     }
 
-    /// Name of this series of markers.
+    /// Name of this set of points.
     ///
-    /// This name will show up in the plot legend, if legends are turned on.
+    /// This name will show up in the plot legend, if legends are turned on. Multiple sets of points
+    /// may share the same name, in which case they will also share an entry in the legend.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
@@ -555,5 +562,9 @@ impl PlotItem for Points {
 
     fn highlight(&mut self) {
         self.highlight = true;
+    }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
     }
 }
