@@ -92,7 +92,7 @@ impl LegendEntry {
         response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
 
         let visuals = ui.style().interact(&response);
-        let label_on_the_left = ui.layout().cross_align() == Align::RIGHT;
+        let label_on_the_left = ui.layout().horizontal_align() == Align::RIGHT;
 
         let icon_position_x = if label_on_the_left {
             rect.right() - icon_size / 2.0
