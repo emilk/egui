@@ -137,6 +137,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
+    prefer_dark_mode: Option<bool>,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
@@ -147,14 +148,24 @@ pub struct AppRunner {
 impl AppRunner {
     pub fn new(web_backend: WebBackend, app: Box<dyn epi::App>) -> Result<Self, JsValue> {
         load_memory(&web_backend.egui_ctx);
-        let storage = LocalStorage::default();
+
         let prefer_dark_mode = crate::prefer_dark_mode();
+
+        if prefer_dark_mode == Some(true) {
+            web_backend.egui_ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            web_backend.egui_ctx.set_visuals(egui::Visuals::light());
+        }
+
+        let storage = LocalStorage::default();
+
         let mut runner = Self {
             web_backend,
             input: Default::default(),
             app,
             needs_repaint: Default::default(),
             storage,
+            prefer_dark_mode,
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             #[cfg(feature = "http")]
@@ -221,6 +232,7 @@ impl AppRunner {
             web_info: Some(epi::WebInfo {
                 web_location_hash: location_hash().unwrap_or_default(),
             }),
+            prefer_dark_mode: self.prefer_dark_mode,
             cpu_usage: self.web_backend.previous_frame_time,
             seconds_since_midnight: Some(seconds_since_midnight()),
             native_pixels_per_point: Some(native_pixels_per_point()),

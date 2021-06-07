@@ -279,6 +279,10 @@ pub struct IntegrationInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 
+    /// Does the system prefer dark mode (over light mode)?
+    /// `None` means "don't know".
+    pub prefer_dark_mode: Option<bool>,
+
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,

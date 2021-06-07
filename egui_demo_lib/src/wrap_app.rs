@@ -42,8 +42,8 @@ impl epi::App for WrapApp {
 
     fn setup(
         &mut self,
-        ctx: &egui::CtxRef,
-        frame: &mut epi::Frame<'_>,
+        _ctx: &egui::CtxRef,
+        _frame: &mut epi::Frame<'_>,
         storage: Option<&dyn epi::Storage>,
     ) {
         #[cfg(feature = "persistence")]

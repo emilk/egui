@@ -92,6 +92,15 @@ pub fn native_pixels_per_point() -> f32 {
     }
 }
 
+pub fn prefer_dark_mode() -> Option<bool> {
+    Some(
+        web_sys::window()?
+            .match_media("(prefers-color-scheme: dark)")
+            .ok()??
+            .matches(),
+    )
+}
+
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     use wasm_bindgen::JsCast;
     let document = web_sys::window()?.document()?;
