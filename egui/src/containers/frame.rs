@@ -64,7 +64,7 @@ impl Frame {
         Self {
             margin: Vec2::splat(1.0),
             corner_radius: style.visuals.widgets.noninteractive.corner_radius,
-            shadow: Shadow::small(),
+            shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
         }
@@ -74,7 +74,7 @@ impl Frame {
         Self {
             margin: style.spacing.window_padding,
             corner_radius: style.visuals.widgets.noninteractive.corner_radius,
-            shadow: Shadow::small(),
+            shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
         }

@@ -214,6 +214,8 @@ pub struct Visuals {
     pub window_corner_radius: f32,
     pub window_shadow: Shadow,
 
+    pub popup_shadow: Shadow,
+
     pub resize_corner_size: f32,
 
     pub text_cursor_width: f32,
@@ -402,6 +404,7 @@ impl Visuals {
             code_bg_color: Color32::from_gray(64),
             window_corner_radius: 6.0,
             window_shadow: Shadow::big_dark(),
+            popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             text_cursor_preview: false,
@@ -422,6 +425,7 @@ impl Visuals {
             extreme_bg_color: Color32::from_gray(250),
             code_bg_color: Color32::from_gray(200),
             window_shadow: Shadow::big_light(),
+            popup_shadow: Shadow::small_light(),
             ..Self::dark()
         }
     }
@@ -824,6 +828,7 @@ impl Visuals {
             code_bg_color,
             window_corner_radius,
             window_shadow,
+            popup_shadow,
             resize_corner_size,
             text_cursor_width,
             text_cursor_preview,
@@ -848,6 +853,7 @@ impl Visuals {
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
             ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Rounding"));
             shadow_ui(ui, window_shadow, "Shadow");
+            shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
         });
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
