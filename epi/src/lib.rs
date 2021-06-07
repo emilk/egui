@@ -95,9 +95,18 @@ pub trait App {
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
-    /// Allows you to do setup code and to call `ctx.set_fonts()`.
-    /// Optional.
-    fn setup(&mut self, _ctx: &egui::CtxRef) {}
+    ///
+    /// Allows you to do setup code, e.g to call `[Context::set_fonts]`,
+    /// `[Context::set_visuals]` etc.
+    ///
+    /// Also allows you to restore state, if there is a storage.
+    fn setup(
+        &mut self,
+        _ctx: &egui::CtxRef,
+        _frame: &mut Frame<'_>,
+        _storage: Option<&dyn Storage>,
+    ) {
+    }
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
@@ -106,9 +115,6 @@ pub trait App {
     fn warm_up_enabled(&self) -> bool {
         false
     }
-
-    /// Called once on start. Allows you to restore state.
-    fn load(&mut self, _storage: &dyn Storage) {}
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///

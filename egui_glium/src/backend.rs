@@ -167,9 +167,8 @@ fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
 pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> ! {
     let mut storage = create_storage(app.name());
 
-    if let Some(storage) = &mut storage {
-        app.load(storage.as_ref());
-    }
+    #[cfg(feature = "http")]
+    let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
@@ -183,7 +182,20 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
     let mut egui = EguiGlium::new(&display);
     *egui.ctx().memory() = deserialize_memory(&storage).unwrap_or_default();
 
-    app.setup(&egui.ctx());
+    {
+        let (ctx, painter) = egui.ctx_and_painter_mut();
+        let mut app_output = epi::backend::AppOutput::default();
+        let mut frame = epi::backend::FrameBuilder {
+            info: integration_info(&display, None),
+            tex_allocator: painter,
+            #[cfg(feature = "http")]
+            http: http.clone(),
+            output: &mut app_output,
+            repaint_signal: repaint_signal.clone(),
+        }
+        .build();
+        app.setup(&ctx, &mut frame, storage.as_deref());
+    }
 
     let mut previous_frame_time = None;
 
@@ -191,9 +203,6 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
-
-    #[cfg(feature = "http")]
-    let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     if app.warm_up_enabled() {
         let saved_memory = egui.ctx().memory().clone();

@@ -15,8 +15,15 @@ impl epi::App for DemoApp {
     }
 
     #[cfg(feature = "persistence")]
-    fn load(&mut self, storage: &dyn epi::Storage) {
-        *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+    fn setup(
+        &mut self,
+        _ctx: &egui::CtxRef,
+        _frame: &mut epi::Frame<'_>,
+        storage: Option<&dyn epi::Storage>,
+    ) {
+        if let Some(storage) = storage {
+            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+        }
     }
 
     #[cfg(feature = "persistence")]
