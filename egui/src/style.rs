@@ -200,7 +200,7 @@ pub struct Visuals {
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
-    /// Used for [`Grid::striped`].
+    /// Used for [`crate::Grid::striped`].
     pub faint_bg_color: Color32,
 
     /// Very dark or light color (for corresponding theme).
