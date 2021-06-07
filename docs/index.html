@@ -14,9 +14,17 @@
         }
 
         body {
-            /* Background color for what is not covered by the egui canvas,
+            /* Light mode background color for what is not covered by the egui canvas,
             or where the egui canvas is translucent. */
-            background: #404040;
+            background: #909090;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                /* Dark mode background color for what is not covered by the egui canvas,
+                or where the egui canvas is translucent. */
+                background: #404040;
+            }
         }
 
         /* Allow canvas to fill entire web page: */

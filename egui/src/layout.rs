@@ -302,7 +302,7 @@ impl Layout {
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
     }
 
-    fn horizontal_align(&self) -> Align {
+    pub fn horizontal_align(&self) -> Align {
         if self.is_horizontal() {
             self.main_align
         } else {
@@ -310,7 +310,7 @@ impl Layout {
         }
     }
 
-    fn vertical_align(&self) -> Align {
+    pub fn vertical_align(&self) -> Align {
         if self.is_vertical() {
             self.main_align
         } else {
@@ -322,7 +322,7 @@ impl Layout {
         Align2([self.horizontal_align(), self.vertical_align()])
     }
 
-    fn horizontal_justify(&self) -> bool {
+    pub fn horizontal_justify(&self) -> bool {
         if self.is_horizontal() {
             self.main_justify
         } else {
@@ -330,7 +330,7 @@ impl Layout {
         }
     }
 
-    fn vertical_justify(&self) -> bool {
+    pub fn vertical_justify(&self) -> bool {
         if self.is_vertical() {
             self.main_justify
         } else {
