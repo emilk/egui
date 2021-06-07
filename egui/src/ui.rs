@@ -215,11 +215,41 @@ impl Ui {
     /// ```
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled &= enabled;
-        if self.enabled {
-            self.painter.set_fade_to_color(None);
-        } else {
+        if !self.enabled && self.visible() {
             self.painter
                 .set_fade_to_color(Some(self.visuals().window_fill()));
+        }
+    }
+
+    /// If `false`, any widgets added to the `Ui` will be invisible and non-interactive.
+    #[inline(always)]
+    pub fn visible(&self) -> bool {
+        self.painter.visible()
+    }
+
+    /// Calling `set_visible(false)` will cause all further widgets to be invisible,
+    /// yet still allocate space.
+    ///
+    /// The widgets will not be interactive (`set_visible(false)` implies `set_enabled(false)`).
+    ///
+    /// Calling `set_visible(true)` has no effect.
+    ///
+    /// ### Example
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut visible = true;
+    /// ui.group(|ui|{
+    ///     ui.checkbox(&mut visible, "Show subsection");
+    ///     ui.set_visible(visible);
+    ///     if ui.button("Button that is not always shown").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// ```
+    pub fn set_visible(&mut self, visible: bool) {
+        self.set_enabled(visible);
+        if !visible {
+            self.painter.set_invisible();
         }
     }
 
@@ -1226,6 +1256,8 @@ impl Ui {
     ///     ui.label("Within a frame");
     /// });
     /// ```
+    ///
+    /// Se also [`Self::scope`].
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }

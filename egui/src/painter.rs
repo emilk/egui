@@ -66,6 +66,15 @@ impl Painter {
         self.fade_to_color = fade_to_color;
     }
 
+    pub(crate) fn visible(&self) -> bool {
+        self.fade_to_color != Some(Color32::TRANSPARENT)
+    }
+
+    /// If `false`, nothing added to the painter will be visible
+    pub(crate) fn set_invisible(&mut self) {
+        self.fade_to_color = Some(Color32::TRANSPARENT)
+    }
+
     /// Create a painter for a sub-region of this `Painter`.
     ///
     /// The clip-rect of the returned `Painter` will be the intersection
@@ -145,14 +154,21 @@ impl Painter {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, mut shape: Shape) -> ShapeIdx {
-        self.transform_shape(&mut shape);
-        self.paint_list.lock().add(self.clip_rect, shape)
+        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+            self.paint_list.lock().add(self.clip_rect, Shape::Noop)
+        } else {
+            self.transform_shape(&mut shape);
+            self.paint_list.lock().add(self.clip_rect, shape)
+        }
     }
 
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend(&self, mut shapes: Vec<Shape>) {
+        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+            return;
+        }
         if !shapes.is_empty() {
             if self.fade_to_color.is_some() {
                 for shape in &mut shapes {
@@ -166,6 +182,9 @@ impl Painter {
 
     /// Modify an existing [`Shape`].
     pub fn set(&self, idx: ShapeIdx, mut shape: Shape) {
+        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+            return;
+        }
         self.transform_shape(&mut shape);
         self.paint_list.lock().set(idx, self.clip_rect, shape)
     }
