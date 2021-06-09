@@ -334,7 +334,7 @@ impl Grid {
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
-        ui.horizontal(|ui| {
+        ui.allocate_ui_at_rect(ui.cursor(), |ui|{
             let id = ui.make_persistent_id(id_source);
             let grid = GridLayout {
                 striped,
