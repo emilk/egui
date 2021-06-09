@@ -297,10 +297,10 @@ impl GridLayout {
     }
 
     /// Paint the background for the next row & columns.
-    pub(crate) fn do_paint(&mut self, min: Pos2, painter: &Painter) {
+    pub(crate) fn paint(&mut self, cursor_min: Pos2, painter: &Painter) {
         for p in &self.color_spec.row_pickers {
             if let Some(color) = p(self.row) {
-                self.paint_row(min, color, painter)
+                self.paint_row(cursor_min, color, painter)
             }
         }
         // Only paint columns when we're on the first row.
@@ -310,7 +310,7 @@ impl GridLayout {
                 // Iterate over columns
                 for col in 0..self.prev_state.dimensions().y {
                     if let Some(color) = p(col) {
-                        self.paint_column(col, min, color, painter);
+                        self.paint_column(col, cursor_min, color, painter);
                     }
                 }
             }
@@ -325,7 +325,7 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        self.do_paint(cursor.min, painter);
+        self.paint(cursor.min, painter);
     }
 
     pub(crate) fn save(&self) {
@@ -369,7 +369,7 @@ impl GridLayout {
 #[must_use = "You should call .show()"]
 pub struct Grid {
     id_source: Id,
-    striped: bool,
+    row_stripes: bool,
     header_row: bool,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -384,7 +384,7 @@ impl Grid {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
-            striped: false,
+            row_stripes: false,
             header_row: false,
             min_col_width: None,
             min_row_height: None,
@@ -395,21 +395,9 @@ impl Grid {
         }
     }
 
-    /// Replace the color picker for columns
-    pub fn with_column_color(mut self, predicate: ColorPickerFn) -> Self {
-        self.color_spec.col_pickers = vec![predicate];
-        self
-    }
-
     /// Add a `ColorPickerFn` to the color spec without overwriting existing column colors.
     pub fn add_column_color(mut self, predicate: ColorPickerFn) -> Self {
         self.color_spec.col_pickers.push(predicate);
-        self
-    }
-
-    /// Replace the color picker for rows
-    pub fn with_row_color(mut self, predicate: ColorPickerFn) -> Self {
-        self.color_spec.row_pickers = vec![predicate];
         self
     }
 
@@ -423,11 +411,13 @@ impl Grid {
     ///
     /// This can make a table easier to read.
     /// Default: `false`.
-    pub fn striped(mut self, striped: bool) -> Self {
-        self.striped = striped;
+    pub fn striped(mut self, row_stripes: bool) -> Self {
+        self.row_stripes = row_stripes;
         self
     }
 
+    /// If `true`, adds a contrasting color to the first row.
+    /// Default: `false`.
     pub fn header_row(mut self, header_row: bool) -> Self {
         self.header_row = header_row;
         self
@@ -472,7 +462,7 @@ impl Grid {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
-            striped,
+            row_stripes,
             header_row,
             min_col_width,
             min_row_height,
@@ -501,7 +491,7 @@ impl Grid {
             };
 
             // Set convenience color specs
-            if striped {
+            if row_stripes {
                 grid.color_spec.row_pickers.push(|row| {
                     if row % 2 == 0 {
                         Some(GuiColor::light_dark(

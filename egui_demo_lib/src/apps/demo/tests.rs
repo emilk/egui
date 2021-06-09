@@ -1,5 +1,3 @@
-use egui::Rgba;
-
 #[derive(Default)]
 pub struct CursorTest {}
 
@@ -182,8 +180,8 @@ pub struct GridTest {
     min_col_width: f32,
     max_col_width: f32,
     with_header: bool,
-    with_columns: bool,
-    striped: bool,
+    with_column_stripes: bool,
+    with_row_stripes: bool,
 }
 
 impl Default for GridTest {
@@ -193,8 +191,8 @@ impl Default for GridTest {
             num_rows: 4,
             min_col_width: 10.0,
             max_col_width: 200.0,
-            striped: true,
-            with_columns: false,
+            with_row_stripes: true,
+            with_column_stripes: false,
             with_header: false,
         }
     }
@@ -215,6 +213,8 @@ impl super::Demo for GridTest {
 
 impl super::View for GridTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        use egui::Rgba;
+
         ui.add(
             egui::Slider::new(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
         );
@@ -225,9 +225,15 @@ impl super::View for GridTest {
         ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
         ui.horizontal(|ui| {
-            ui.add(egui::Checkbox::new(&mut self.striped, "Striped"));
+            ui.add(egui::Checkbox::new(
+                &mut self.with_row_stripes,
+                "Row stripes",
+            ));
             ui.add(egui::Checkbox::new(&mut self.with_header, "Headers"));
-            ui.add(egui::Checkbox::new(&mut self.with_columns, "Columns"));
+            ui.add(egui::Checkbox::new(
+                &mut self.with_column_stripes,
+                "Column stripes",
+            ));
         });
         ui.separator();
 
@@ -237,11 +243,11 @@ impl super::View for GridTest {
         ];
 
         let mut grid = egui::Grid::new("my_grid")
-            .striped(self.striped)
+            .striped(self.with_row_stripes)
             .header_row(self.with_header)
             .min_col_width(self.min_col_width)
             .max_col_width(self.max_col_width);
-        if self.with_columns {
+        if self.with_column_stripes {
             grid = grid.add_column_color(|col| {
                 if col % 2 == 0 {
                     Some(Rgba::from_rgba_premultiplied(0.01, 0.01, 0.01, 0.01).into())
