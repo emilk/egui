@@ -4,7 +4,7 @@ pub(crate) struct Placer {
     /// If set this will take precedence over [`layout`].
     grid: Option<grid::GridLayout>,
     layout: Layout,
-    region: Region,
+    pub(crate) region: Region,
 }
 
 impl Placer {
@@ -176,12 +176,6 @@ impl Placer {
         }
 
         self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
-    }
-
-    pub(crate) fn start_row(&mut self, painter: &Painter) {
-        if let Some(grid) = &mut self.grid {
-            grid.paint(self.region.cursor.min, painter)
-        }
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

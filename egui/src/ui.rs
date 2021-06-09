@@ -1553,7 +1553,8 @@ impl Ui {
         )
     }
 
-    pub(crate) fn set_grid(&mut self, grid: grid::GridLayout) {
+    pub(crate) fn set_grid(&mut self, mut grid: grid::GridLayout) {
+        grid.paint(self.placer.region.cursor.min, self.painter());
         self.placer.set_grid(grid);
     }
 
@@ -1574,10 +1575,6 @@ impl Ui {
     pub fn end_row(&mut self) {
         self.placer
             .end_row(self.spacing().item_spacing, &self.painter().clone());
-    }
-
-    pub(crate) fn start_row(&mut self) {
-        self.placer.start_row(&self.painter().clone());
     }
 
     /// Set row height in horizontal wrapping layout.

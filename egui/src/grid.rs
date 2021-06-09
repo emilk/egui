@@ -252,7 +252,7 @@ impl GridLayout {
     }
 
     /// Paint a row.
-    pub(crate) fn paint_row(&self, min: Pos2, color: GuiColor, painter: &Painter) {
+    fn paint_row(&self, min: Pos2, color: GuiColor, painter: &Painter) {
         let color = color.pick(&self.style);
         if let Some(height) = self.prev_state.row_height(self.row) {
             // Paint background for coming row:
@@ -266,7 +266,7 @@ impl GridLayout {
     }
 
     /// Paint a column
-    pub(crate) fn paint_column(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
+    fn paint_column(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
         let col_f = col as f32;
 
         let color = color.pick(&self.style);
@@ -520,7 +520,6 @@ impl Grid {
             // ---
 
             ui.set_grid(grid);
-            ui.start_row();
             let r = add_contents(ui);
             ui.save_grid();
             r
