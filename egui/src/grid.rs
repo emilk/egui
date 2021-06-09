@@ -7,13 +7,6 @@ pub(crate) struct State {
     row_heights: Vec<f32>,
 }
 
-/// Describe the dimensions of a grid state
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Dimensions {
-    x: usize,
-    y: usize,
-}
-
 impl State {
     fn set_min_col_width(&mut self, col: usize, width: f32) {
         self.col_widths
@@ -25,13 +18,6 @@ impl State {
         self.row_heights
             .resize(self.row_heights.len().max(row + 1), 0.0);
         self.row_heights[row] = self.row_heights[row].max(height);
-    }
-
-    fn dimensions(&self) -> Dimensions {
-        Dimensions {
-            x: self.row_heights.len(),
-            y: self.col_widths.len(),
-        }
     }
 
     fn col_width(&self, col: usize) -> Option<f32> {
@@ -265,10 +251,17 @@ impl GridLayout {
         }
     }
 
-    /// Paint a column
-    fn paint_column(&self, col: usize, min: Pos2, color: GuiColor, painter: &Painter) {
-        let col_f = col as f32;
-
+    /// Paint a column.
+    ///
+    /// col_widths: The width of all the columns before the current column we wish to paint.
+    fn paint_column(
+        &self,
+        col: usize,
+        col_widths: f32,
+        min: Pos2,
+        color: GuiColor,
+        painter: &Painter,
+    ) {
         let color = color.pick(&self.style);
 
         // Paint a column:
@@ -276,8 +269,7 @@ impl GridLayout {
         let min_offset = min
             + Vec2::new(
                 // Sum up all the previous widths and add the padding
-                self.prev_state.col_widths.iter().take(col).sum::<f32>()
-                    + (self.spacing.x + 1.0) * (col_f - 1.0),
+                col_widths + (self.spacing.x + 1.0) * (col as f32 - 1.0),
                 -1.0,
             );
         let size = Vec2::new(
@@ -308,10 +300,12 @@ impl GridLayout {
         if self.row == 0 {
             for p in &self.color_spec.col_pickers {
                 // Iterate over columns
-                for col in 0..self.prev_state.dimensions().y {
+                let mut col_widths = 0.0;
+                for col in 0..self.prev_state.col_widths.len() {
                     if let Some(color) = p(col) {
-                        self.paint_column(col, cursor_min, color, painter);
+                        self.paint_column(col, col_widths, cursor_min, color, painter);
                     }
+                    col_widths += self.prev_col_width(col);
                 }
             }
         }
