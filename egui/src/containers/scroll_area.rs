@@ -410,7 +410,11 @@ impl Prepared {
                 );
             }
 
-            let visuals = ui.style().interact(&response);
+            let visuals = if scrolling_enabled {
+                ui.style().interact(&response)
+            } else {
+                &ui.style().visuals.widgets.inactive
+            };
 
             ui.painter().add(epaint::Shape::Rect {
                 rect: outer_scroll_rect,
