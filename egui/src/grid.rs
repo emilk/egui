@@ -183,10 +183,8 @@ impl GridLayout {
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        let row_height = self.prev_row_height(self.row);
-
         cursor.min.x = self.initial_x;
-        cursor.min.y += row_height + self.spacing.y;
+        cursor.min.y += self.curr_state.row_height(self.row).unwrap_or(self.min_cell_size.y) + self.spacing.y;
         self.col = 0;
         self.row += 1;
 
