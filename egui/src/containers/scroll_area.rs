@@ -250,14 +250,25 @@ impl Prepared {
             state.offset.y = offset_y + spacing;
         }
 
-        let width = if inner_rect.width().is_finite() {
-            inner_rect.width().max(content_size.x) // Expand width to fit content
-        } else {
-            // ScrollArea is in an infinitely wide parent
-            content_size.x
-        };
+        let inner_rect = {
+            let width = if inner_rect.width().is_finite() {
+                inner_rect.width().max(content_size.x) // Expand width to fit content
+            } else {
+                // ScrollArea is in an infinitely wide parent
+                content_size.x
+            };
 
-        let inner_rect = Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
+            let mut inner_rect =
+                Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
+
+            // The window that egui sits in can't be expanded by egui, so we need to respect it:
+            let max_x = ui.ctx().available_rect().right() - current_scroll_bar_width;
+            inner_rect.max.x = inner_rect.max.x.at_most(max_x);
+            // TODO: when we support it, we should maybe auto-enable
+            // horizontal scrolling if this limit is reached
+
+            inner_rect
+        };
 
         let outer_rect = Rect::from_min_size(
             inner_rect.min,
