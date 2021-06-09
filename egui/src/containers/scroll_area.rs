@@ -83,7 +83,7 @@ impl ScrollArea {
     /// If `false`, the scroll area will not respond to user scrolling
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is inputing text in a TextEdit widget contained within the scroll area
+    /// is inputing text in a `TextEdit` widget contained within the scroll area
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
         self
