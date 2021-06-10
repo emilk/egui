@@ -353,7 +353,7 @@ impl WidgetInfo {
             Some(prev_text_value)
         };
         Self {
-            current_text_value: Some(text_value.to_string()),
+            current_text_value: Some(text_value),
             prev_text_value,
             ..Self::new(WidgetType::TextEdit)
         }
