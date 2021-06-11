@@ -721,18 +721,36 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             false
         };
 
+        let masked = if self.password {
+            let prev_text_len = prev_text.to_string().len();
+            let text_len = text.to_string().len();
+            Some(("*".repeat(prev_text_len), "*".repeat(text_len)))
+        } else {
+            None
+        };
+
         if response.changed {
-            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            if let Some((prev_text, text)) = masked {
+                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            } else {
+                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            }
         } else if selection_changed {
             let text_cursor = text_cursor.unwrap();
             let char_range =
                 text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
-            let info = WidgetInfo::text_selection_changed(char_range, &*text);
+            let info = if let Some((_, text)) = masked {
+                WidgetInfo::text_selection_changed(char_range, text)
+            } else {
+                WidgetInfo::text_selection_changed(char_range, &*text)
+            };
             response
                 .ctx
                 .output()
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
+        } else if let Some((prev_text, text)) = masked {
+            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
         } else {
             response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
         }
