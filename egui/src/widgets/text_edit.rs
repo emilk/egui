@@ -130,6 +130,10 @@ pub trait TextBuffer:
     /// # Notes
     /// `ch_range` is a *character range*, not a byte range.
     fn delete_char_range(&mut self, ch_range: Range<usize>);
+
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
 }
 
 impl TextBuffer for String {
@@ -375,6 +379,12 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     }
 }
 
+fn mask_massword(text: &str) -> String {
+    std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+        .take(text.chars().count())
+        .collect::<String>()
+}
+
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
@@ -393,6 +403,14 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
         } = self;
 
+        let mask_if_password = |text: &str| {
+            if password {
+                mask_massword(text)
+            } else {
+                text.to_owned()
+            }
+        };
+
         let prev_text = text.clone();
         let text_style = text_style
             .or(ui.style().override_text_style)
@@ -401,13 +419,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let available_width = ui.available_width();
 
         let make_galley = |ui: &Ui, text: &str| {
-            let text = if password {
-                std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
-                    .take(text.chars().count())
-                    .collect::<String>()
-            } else {
-                text.to_owned()
-            };
+            let text = mask_if_password(text);
             if multiline {
                 ui.fonts()
                     .layout_multiline(text_style, text, available_width)
@@ -718,38 +730,31 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             false
         };
 
-        let masked = if self.password {
-            let prev_text_len = prev_text.to_string().len();
-            let text_len = text.to_string().len();
-            Some(("*".repeat(prev_text_len), "*".repeat(text_len)))
-        } else {
-            None
-        };
-
         if response.changed {
-            if let Some((prev_text, text)) = masked {
-                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
-            } else {
-                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
-            }
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
         } else if selection_changed {
             let text_cursor = text_cursor.unwrap();
             let char_range =
                 text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
-            let info = if let Some((_, text)) = masked {
-                WidgetInfo::text_selection_changed(char_range, text)
-            } else {
-                WidgetInfo::text_selection_changed(char_range, &*text)
-            };
+            let info =
+                WidgetInfo::text_selection_changed(char_range, mask_if_password(text.as_str()));
             response
                 .ctx
                 .output()
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
-        } else if let Some((prev_text, text)) = masked {
-            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
         } else {
-            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
         }
         response
     }
