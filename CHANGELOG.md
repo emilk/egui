@@ -21,6 +21,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 * Add `Context::set_debug_on_hover` and `egui::trace!(ui)`
+* Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
 
 ### Changed 🔧
 * Plot: Changed `Curve` to `Line`.
