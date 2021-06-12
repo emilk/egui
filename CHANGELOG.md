@@ -24,6 +24,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
 
 ### Changed 🔧
+* [Tweaked the default visuals style](https://github.com/emilk/egui/pull/450).
 * Plot: Changed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
 * `SidePanel::left` no longet takes the default width by argument, but by a builder call.
