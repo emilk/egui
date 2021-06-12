@@ -262,7 +262,9 @@ impl Prepared {
                 Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
 
             // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            let max_x = ui.input().screen_rect().right() - current_scroll_bar_width;
+            let max_x = ui.input().screen_rect().right()
+                - current_scroll_bar_width
+                - ui.spacing().item_spacing.x;
             inner_rect.max.x = inner_rect.max.x.at_most(max_x);
             // TODO: when we support it, we should maybe auto-enable
             // horizontal scrolling if this limit is reached
