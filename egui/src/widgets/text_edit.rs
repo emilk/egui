@@ -1,4 +1,4 @@
-use crate::{util::undoer::Undoer, *};
+use crate::{output::OutputEvent, util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
 use std::ops::Range;
 
@@ -393,6 +393,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
         } = self;
 
+        let prev_text = text.clone();
         let text_style = text_style
             .or(ui.style().override_text_style)
             .unwrap_or_else(|| ui.style().body_text_style);
@@ -496,6 +497,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
+        let mut text_cursor = None;
+        let prev_text_cursor = state.cursorp;
         if ui.memory().has_focus(id) && enabled {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -554,7 +557,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
-
                             insert_text(&mut ccursor, text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -667,6 +669,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 }
             }
             state.cursorp = Some(cursorp);
+            text_cursor = Some(cursorp);
 
             state
                 .undoer
@@ -709,7 +712,48 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         ui.memory().id_data.insert(id, state);
 
-        response.widget_info(|| WidgetInfo::text_edit(&*text));
+        let selection_changed = if let (Some(text_cursor), Some(prev_text_cursor)) =
+            (text_cursor, prev_text_cursor)
+        {
+            text_cursor.primary.ccursor.index != prev_text_cursor.primary.ccursor.index
+                || text_cursor.secondary.ccursor.index != prev_text_cursor.secondary.ccursor.index
+        } else {
+            false
+        };
+
+        let masked = if self.password {
+            let prev_text_len = prev_text.to_string().len();
+            let text_len = text.to_string().len();
+            Some(("*".repeat(prev_text_len), "*".repeat(text_len)))
+        } else {
+            None
+        };
+
+        if response.changed {
+            if let Some((prev_text, text)) = masked {
+                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            } else {
+                response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+            }
+        } else if selection_changed {
+            let text_cursor = text_cursor.unwrap();
+            let char_range =
+                text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
+            let info = if let Some((_, text)) = masked {
+                WidgetInfo::text_selection_changed(char_range, text)
+            } else {
+                WidgetInfo::text_selection_changed(char_range, &*text)
+            };
+            response
+                .ctx
+                .output()
+                .events
+                .push(OutputEvent::TextSelectionChanged(info));
+        } else if let Some((prev_text, text)) = masked {
+            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+        } else {
+            response.widget_info(|| WidgetInfo::text_edit(&prev_text, &text));
+        }
         response
     }
 }
