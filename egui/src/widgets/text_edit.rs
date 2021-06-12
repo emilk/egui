@@ -113,7 +113,7 @@ impl CCursorPair {
 /// an underlying buffer.
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
-pub trait TextBuffer: AsRef<str> + Into<String> + PartialEq + std::fmt::Display {
+pub trait TextBuffer: AsRef<str> + Into<String> + std::fmt::Display {
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
     /// # Notes
