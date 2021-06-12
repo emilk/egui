@@ -27,6 +27,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * `TopPanel::top` is now `TopBottomPanel::top`.
 * `SidePanel::left` no longet takes the default width by argument, but by a builder call.
 
+### Fixed 🐛
+* Fix invisible scroll bar when native window is too narrow for egui.
+
 
 ## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
 
