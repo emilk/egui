@@ -117,6 +117,14 @@ pub struct Spacing {
 
     /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
     pub tooltip_width: f32,
+
+    /// End indented regions with a horizontal line
+    pub indent_ends_with_horizontal_line: bool,
+
+    /// Height of a combo-box before showing scroll bars.
+    pub combo_height: f32,
+
+    pub scroll_bar_width: f32,
 }
 
 impl Spacing {
@@ -188,19 +196,25 @@ pub struct Visuals {
 
     pub selection: Selection,
 
+    /// The color used for `Hyperlink`,
+    pub hyperlink_color: Color32,
+
+    /// Something just barely different from the background color.
+    /// Used for [`crate::Grid::striped`].
+    pub faint_bg_color: Color32,
+
     /// Very dark or light color (for corresponding theme).
     /// Used as the background of text edits, scroll bars and others things
     /// that needs to look different from other interactive stuff.
     pub extreme_bg_color: Color32,
-
-    /// The color used for `Hyperlink`,
-    pub hyperlink_color: Color32,
 
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
     pub window_corner_radius: f32,
     pub window_shadow: Shadow,
+
+    pub popup_shadow: Shadow,
 
     pub resize_corner_size: f32,
 
@@ -210,6 +224,12 @@ pub struct Visuals {
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
+
+    /// Show a background behind buttons.
+    pub button_frame: bool,
+
+    /// Show a background behind collapsing headers.
+    pub collapsing_header_frame: bool,
 }
 
 impl Visuals {
@@ -264,6 +284,8 @@ pub struct Widgets {
     pub hovered: WidgetVisuals,
     /// The style of an interactive widget as you are clicking or dragging it.
     pub active: WidgetVisuals,
+    /// The style of a button that has an open menu beneath it (e.g. a combo-box)
+    pub open: WidgetVisuals,
 }
 
 impl Widgets {
@@ -344,13 +366,16 @@ impl Default for Spacing {
             item_spacing: vec2(8.0, 3.0),
             window_padding: Vec2::splat(6.0),
             button_padding: vec2(4.0, 1.0),
-            indent: 25.0,
-            interact_size: vec2(40.0, 20.0),
+            indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
+            interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
             text_edit_width: 280.0,
-            icon_width: 16.0,
+            icon_width: 14.0,
             icon_spacing: 0.0,
             tooltip_width: 600.0,
+            combo_height: 200.0,
+            scroll_bar_width: 8.0,
+            indent_ends_with_horizontal_line: false,
         }
     }
 }
@@ -373,15 +398,19 @@ impl Visuals {
             override_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
-            extreme_bg_color: Color32::from_gray(10),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
+            faint_bg_color: Color32::from_gray(24),
+            extreme_bg_color: Color32::from_gray(10),
             code_bg_color: Color32::from_gray(64),
-            window_corner_radius: 10.0,
+            window_corner_radius: 6.0,
             window_shadow: Shadow::big_dark(),
+            popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
+            button_frame: true,
+            collapsing_header_frame: false,
         }
     }
 
@@ -391,10 +420,12 @@ impl Visuals {
             dark_mode: false,
             widgets: Widgets::light(),
             selection: Selection::light(),
-            extreme_bg_color: Color32::from_gray(235), // TODO: rename
-            hyperlink_color: Color32::from_rgb(0, 133, 218),
+            hyperlink_color: Color32::from_rgb(0, 155, 255),
+            faint_bg_color: Color32::from_gray(240),
+            extreme_bg_color: Color32::from_gray(250),
             code_bg_color: Color32::from_gray(200),
             window_shadow: Shadow::big_light(),
+            popup_shadow: Shadow::small_light(),
             ..Self::dark()
         }
     }
@@ -431,32 +462,39 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(30), // window background
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(65)), // window outline
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(160)), // normal text color
-                corner_radius: 4.0,
+                bg_fill: Color32::from_gray(27), // window background
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
+                corner_radius: 2.0,
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(70),
+                bg_fill: Color32::from_gray(60), // button background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(200)), // Should NOT look grayed out!
-                corner_radius: 4.0,
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
+                corner_radius: 2.0,
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(80),
+                bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                corner_radius: 4.0,
+                corner_radius: 3.0,
                 expansion: 1.0,
             },
             active: WidgetVisuals {
-                bg_fill: Color32::from_gray(90),
+                bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                corner_radius: 4.0,
-                expansion: 2.0,
+                corner_radius: 2.0,
+                expansion: 1.0,
+            },
+            open: WidgetVisuals {
+                bg_fill: Color32::from_gray(27),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
+                corner_radius: 2.0,
+                expansion: 0.0,
             },
         }
     }
@@ -464,32 +502,39 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(220), // window background
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // window outline
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(70)), // normal text color
-                corner_radius: 4.0,
+                bg_fill: Color32::from_gray(235), // window background
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(100)), // normal text color
+                corner_radius: 2.0,
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(195),
+                bg_fill: Color32::from_gray(215), // button background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(55)), // Should NOT look grayed out!
-                corner_radius: 4.0,
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)), // button text
+                corner_radius: 2.0,
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(175),
+                bg_fill: Color32::from_gray(210),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: 4.0,
+                fg_stroke: Stroke::new(1.5, Color32::BLACK),
+                corner_radius: 3.0,
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: 4.0,
-                expansion: 2.0,
+                corner_radius: 2.0,
+                expansion: 1.0,
+            },
+            open: WidgetVisuals {
+                bg_fill: Color32::from_gray(220),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
+                fg_stroke: Stroke::new(1.0, Color32::BLACK),
+                corner_radius: 2.0,
+                expansion: 0.0,
             },
         }
     }
@@ -520,30 +565,55 @@ impl Style {
 
         visuals.light_dark_radio_buttons(ui);
 
-        ui.horizontal(|ui| {
-            ui.label("Default text style:");
-            for &value in &[TextStyle::Body, TextStyle::Monospace] {
-                ui.radio_value(body_text_style, value, format!("{:?}", value));
-            }
-        });
-
-        crate::ComboBox::from_label("Global text style override")
-            .selected_text(match override_text_style {
-                None => "None".to_owned(),
-                Some(override_text_style) => format!("{:?}", override_text_style),
-            })
-            .show_ui(ui, |ui| {
-                ui.selectable_value(override_text_style, None, "None");
-                for style in TextStyle::all() {
-                    ui.selectable_value(override_text_style, Some(style), format!("{:?}", style));
+        crate::Grid::new("_options").show(ui, |ui| {
+            ui.label("Default body text style:");
+            ui.horizontal(|ui| {
+                for &style in &[TextStyle::Body, TextStyle::Monospace] {
+                    if ui
+                        .add(
+                            RadioButton::new(*body_text_style == style, format!("{:?}", style))
+                                .text_style(style),
+                        )
+                        .clicked()
+                    {
+                        *body_text_style = style;
+                    };
                 }
             });
+            ui.end_row();
 
-        ui.add(
-            Slider::new(animation_time, 0.0..=1.0)
-                .text("animation durations")
-                .suffix(" s"),
-        );
+            ui.label("Override text style:");
+            crate::ComboBox::from_id_source("Override text style")
+                .selected_text(match override_text_style {
+                    None => "None".to_owned(),
+                    Some(override_text_style) => format!("{:?}", override_text_style),
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(override_text_style, None, "None");
+                    for style in TextStyle::all() {
+                        // ui.selectable_value(override_text_style, Some(style), format!("{:?}", style));
+                        let selected = *override_text_style == Some(style);
+                        if ui
+                            .add(
+                                SelectableLabel::new(selected, format!("{:?}", style))
+                                    .text_style(style),
+                            )
+                            .clicked()
+                        {
+                            *override_text_style = Some(style);
+                        }
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Animation duration:");
+            ui.add(
+                Slider::new(animation_time, 0.0..=1.0)
+                    .clamp_to_range(true)
+                    .suffix(" s"),
+            );
+            ui.end_row();
+        });
 
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
@@ -567,19 +637,61 @@ impl Spacing {
             icon_width,
             icon_spacing,
             tooltip_width,
+            indent_ends_with_horizontal_line,
+            combo_height,
+            scroll_bar_width,
         } = self;
 
-        ui.add(slider_vec2(item_spacing, 0.0..=10.0, "item_spacing"));
-        ui.add(slider_vec2(window_padding, 0.0..=10.0, "window_padding"));
-        ui.add(slider_vec2(button_padding, 0.0..=10.0, "button_padding"));
-        ui.add(slider_vec2(interact_size, 0.0..=60.0, "interact_size"))
+        ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
+        ui.add(slider_vec2(window_padding, 0.0..=20.0, "Window padding"));
+        ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
+        ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
             .on_hover_text("Minimum size of an interactive widget");
-        ui.add(Slider::new(indent, 0.0..=100.0).text("indent"));
-        ui.add(Slider::new(slider_width, 0.0..=1000.0).text("slider_width"));
-        ui.add(Slider::new(text_edit_width, 0.0..=1000.0).text("text_edit_width"));
-        ui.add(Slider::new(icon_width, 0.0..=60.0).text("icon_width"));
-        ui.add(Slider::new(icon_spacing, 0.0..=10.0).text("icon_spacing"));
-        ui.add(Slider::new(tooltip_width, 0.0..=1000.0).text("tooltip_width"));
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
+            ui.label("Indent");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
+            ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
+            ui.label("TextEdit width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar width width");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Checkboxes etc:");
+            ui.add(
+                DragValue::new(icon_width)
+                    .prefix("width:")
+                    .clamp_range(0.0..=60.0),
+            );
+            ui.add(
+                DragValue::new(icon_spacing)
+                    .prefix("spacing:")
+                    .clamp_range(0.0..=10.0),
+            );
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
+            ui.label("Tooltip wrap width");
+        });
+
+        ui.checkbox(
+            indent_ends_with_horizontal_line,
+            "End indented regions with a horizontal separator",
+        );
+
+        ui.horizontal(|ui| {
+            ui.label("Max height of a combo box");
+            ui.add(DragValue::new(combo_height).clamp_range(0.0..=1000.0));
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -612,33 +724,40 @@ impl Widgets {
             hovered,
             inactive,
             noninteractive,
+            open,
         } = self;
 
-        ui.collapsing("noninteractive", |ui| {
-            ui.label("The style of a widget that you cannot interact with.");
+        ui.collapsing("Noninteractive", |ui| {
+            ui.label(
+                "The style of a widget that you cannot interact with, e.g. labels and separators.",
+            );
             noninteractive.ui(ui)
         });
-        ui.collapsing("interactive & inactive", |ui| {
+        ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
             inactive.ui(ui)
         });
-        ui.collapsing("interactive & hovered", |ui| {
+        ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
             hovered.ui(ui)
         });
-        ui.collapsing("interactive & active", |ui| {
+        ui.collapsing("Interactive and active", |ui| {
             ui.label("The style of an interactive widget as you are clicking or dragging it.");
             active.ui(ui)
         });
+        ui.collapsing("Open menu", |ui| {
+            ui.label("The style of an open combo-box or menu button");
+            open.ui(ui)
+        });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        // ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
 impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
-
+        ui.label("Selectable labels");
         ui_color(ui, bg_fill, "bg_fill");
         stroke_ui(ui, stroke, "stroke");
     }
@@ -653,12 +772,12 @@ impl WidgetVisuals {
             fg_stroke,
             expansion,
         } = self;
-
         ui_color(ui, bg_fill, "bg_fill");
         stroke_ui(ui, bg_stroke, "bg_stroke");
         ui.add(Slider::new(corner_radius, 0.0..=10.0).text("corner_radius"));
         stroke_ui(ui, fg_stroke, "fg_stroke (text)");
-        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"));
+        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
+            .on_hover_text("make shapes this much larger");
     }
 }
 
@@ -703,41 +822,65 @@ impl Visuals {
             override_text_color: _,
             widgets,
             selection,
-            extreme_bg_color,
             hyperlink_color,
+            faint_bg_color,
+            extreme_bg_color,
             code_bg_color,
             window_corner_radius,
             window_shadow,
+            popup_shadow,
             resize_corner_size,
             text_cursor_width,
             text_cursor_preview,
             clip_rect_margin,
+            button_frame,
+            collapsing_header_frame,
         } = self;
 
-        ui.collapsing("widgets", |ui| widgets.ui(ui));
-        ui.collapsing("selection", |ui| selection.ui(ui));
+        ui.collapsing("Background Colors", |ui| {
+            ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
+            ui_color(ui, &mut widgets.noninteractive.bg_fill, "Windows");
+            ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
+                "Used for faint accentuation of interactive things, like striped grids.",
+            );
+            ui_color(ui, extreme_bg_color, "Extreme")
+                .on_hover_text("Background of plots and paintings");
+        });
 
-        ui.group(|ui| {
-            ui.label("Window");
+        ui.collapsing("Window", |ui| {
             // Common shortcuts
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
-            ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Corner Radius"));
+            ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Rounding"));
             shadow_ui(ui, window_shadow, "Shadow");
+            shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
         });
+
+        ui.collapsing("Widgets", |ui| widgets.ui(ui));
+        ui.collapsing("Selection", |ui| selection.ui(ui));
+
         ui_color(
             ui,
             &mut widgets.noninteractive.fg_stroke.color,
             "Text color",
         );
+        ui_color(ui, code_bg_color, Label::new("Code background").code()).on_hover_ui(|ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("For monospaced inlined text ");
+                ui.code("like this");
+                ui.label(".");
+            });
+        });
 
-        ui_color(ui, extreme_bg_color, "extreme_bg_color");
         ui_color(ui, hyperlink_color, "hyperlink_color");
-        ui_color(ui, code_bg_color, "code_bg_color");
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::new(text_cursor_width, 0.0..=2.0).text("text_cursor_width"));
-        ui.checkbox(text_cursor_preview, "text_cursor_preview");
+        ui.add(Slider::new(text_cursor_width, 0.0..=4.0).text("text_cursor_width"));
+        ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
+
+        ui.checkbox(button_frame, "Button has a frame");
+        ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -775,17 +918,26 @@ fn slider_vec2<'a>(
 ) -> impl Widget + 'a {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
-            ui.add(Slider::new(&mut value.x, range.clone()).text("w"));
-            ui.add(Slider::new(&mut value.y, range.clone()).text("h"));
+            ui.add(
+                DragValue::new(&mut value.x)
+                    .clamp_range(range.clone())
+                    .prefix("x: "),
+            );
+            ui.add(
+                DragValue::new(&mut value.y)
+                    .clamp_range(range.clone())
+                    .prefix("y: "),
+            );
             ui.label(text);
         })
         .response
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: &str) {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(text);
-    });
+    })
+    .response
 }

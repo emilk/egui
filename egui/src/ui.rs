@@ -137,6 +137,11 @@ impl Ui {
         self.style = style.into();
     }
 
+    /// Reset to the default style set in [`Context`].
+    pub fn reset_style(&mut self) {
+        self.style = self.ctx().style();
+    }
+
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
     #[inline(always)]
@@ -215,11 +220,41 @@ impl Ui {
     /// ```
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled &= enabled;
-        if self.enabled {
-            self.painter.set_fade_to_color(None);
-        } else {
+        if !self.enabled && self.visible() {
             self.painter
                 .set_fade_to_color(Some(self.visuals().window_fill()));
+        }
+    }
+
+    /// If `false`, any widgets added to the `Ui` will be invisible and non-interactive.
+    #[inline(always)]
+    pub fn visible(&self) -> bool {
+        self.painter.visible()
+    }
+
+    /// Calling `set_visible(false)` will cause all further widgets to be invisible,
+    /// yet still allocate space.
+    ///
+    /// The widgets will not be interactive (`set_visible(false)` implies `set_enabled(false)`).
+    ///
+    /// Calling `set_visible(true)` has no effect.
+    ///
+    /// ### Example
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut visible = true;
+    /// ui.group(|ui|{
+    ///     ui.checkbox(&mut visible, "Show subsection");
+    ///     ui.set_visible(visible);
+    ///     if ui.button("Button that is not always shown").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// ```
+    pub fn set_visible(&mut self, visible: bool) {
+        self.set_enabled(visible);
+        if !visible {
+            self.painter.set_invisible();
         }
     }
 
@@ -1226,6 +1261,8 @@ impl Ui {
     ///     ui.label("Within a frame");
     /// });
     /// ```
+    ///
+    /// Se also [`Self::scope`].
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
@@ -1285,6 +1322,9 @@ impl Ui {
     }
 
     /// Create a child ui which is indented to the right.
+    ///
+    /// The `id_source` here be anything at all.
+    // TODO: remove `id_source` argument?
     #[inline(always)]
     pub fn indent<R>(
         &mut self,
@@ -1315,7 +1355,8 @@ impl Ui {
         };
         let ret = add_contents(&mut child_ui);
 
-        let end_with_horizontal_line = true;
+        let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
+
         if end_with_horizontal_line {
             child_ui.add_space(4.0);
         }

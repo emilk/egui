@@ -67,11 +67,15 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
     response
 }
 
-fn color_button(ui: &mut Ui, color: Color32) -> Response {
+fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
-    let visuals = ui.style().interact(&response);
+    let visuals = if open {
+        &ui.visuals().widgets.open
+    } else {
+        ui.style().interact(&response)
+    };
     let rect = rect.expand(visuals.expansion);
 
     background_checkers(ui.painter(), rect);
@@ -83,7 +87,7 @@ fn color_button(ui: &mut Ui, color: Color32) -> Response {
 
     let corner_radius = visuals.corner_radius.at_most(2.0);
     ui.painter()
-        .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional!
+        .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
 
     response
 }
@@ -335,7 +339,9 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let pupup_id = ui.auto_id_with("popup");
-    let mut button_response = color_button(ui, (*hsva).into()).on_hover_text("Click to edit color");
+    let open = ui.memory().is_popup_open(pupup_id);
+    let mut button_response =
+        color_button(ui, (*hsva).into(), open).on_hover_text("Click to edit color");
 
     if button_response.clicked() {
         ui.memory().toggle_popup(pupup_id);

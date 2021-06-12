@@ -1,4 +1,4 @@
-use crate::{util::undoer::Undoer, *};
+use crate::{output::OutputEvent, util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
 use std::ops::Range;
 
@@ -130,6 +130,10 @@ pub trait TextBuffer:
     /// # Notes
     /// `ch_range` is a *character range*, not a byte range.
     fn delete_char_range(&mut self, ch_range: Range<usize>);
+
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
 }
 
 impl TextBuffer for String {
@@ -375,6 +379,12 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     }
 }
 
+fn mask_massword(text: &str) -> String {
+    std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+        .take(text.chars().count())
+        .collect::<String>()
+}
+
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
@@ -393,6 +403,15 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
         } = self;
 
+        let mask_if_password = |text: &str| {
+            if password {
+                mask_massword(text)
+            } else {
+                text.to_owned()
+            }
+        };
+
+        let prev_text = text.clone();
         let text_style = text_style
             .or(ui.style().override_text_style)
             .unwrap_or_else(|| ui.style().body_text_style);
@@ -400,13 +419,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let available_width = ui.available_width();
 
         let make_galley = |ui: &Ui, text: &str| {
-            let text = if password {
-                std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
-                    .take(text.chars().count())
-                    .collect::<String>()
-            } else {
-                text.to_owned()
-            };
+            let text = mask_if_password(text);
             if multiline {
                 ui.fonts()
                     .layout_multiline(text_style, text, available_width)
@@ -470,7 +483,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                    response.mark_changed();
                 } else if response.hovered() && ui.input().pointer.any_pressed() {
                     ui.memory().request_focus(id);
                     if ui.input().modifiers.shift {
@@ -482,11 +494,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     } else {
                         state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                    response.mark_changed();
                 } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_pointer;
-                        response.mark_changed();
                     }
                 }
             }
@@ -496,6 +506,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
+        let mut text_cursor = None;
+        let prev_text_cursor = state.cursorp;
         if ui.memory().has_focus(id) && enabled {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -554,7 +566,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
-
                             insert_text(&mut ccursor, text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -667,6 +678,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 }
             }
             state.cursorp = Some(cursorp);
+            text_cursor = Some(cursorp);
 
             state
                 .undoer
@@ -709,7 +721,41 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         ui.memory().id_data.insert(id, state);
 
-        response.widget_info(|| WidgetInfo::text_edit(&*text));
+        let selection_changed = if let (Some(text_cursor), Some(prev_text_cursor)) =
+            (text_cursor, prev_text_cursor)
+        {
+            text_cursor.primary.ccursor.index != prev_text_cursor.primary.ccursor.index
+                || text_cursor.secondary.ccursor.index != prev_text_cursor.secondary.ccursor.index
+        } else {
+            false
+        };
+
+        if response.changed {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
+        } else if selection_changed {
+            let text_cursor = text_cursor.unwrap();
+            let char_range =
+                text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
+            let info =
+                WidgetInfo::text_selection_changed(char_range, mask_if_password(text.as_str()));
+            response
+                .ctx
+                .output()
+                .events
+                .push(OutputEvent::TextSelectionChanged(info));
+        } else {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
+        }
         response
     }
 }

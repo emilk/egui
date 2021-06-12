@@ -4,12 +4,13 @@ mod items;
 mod legend;
 mod transform;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 use items::PlotItem;
 pub use items::{HLine, VLine};
 pub use items::{Line, MarkerShape, Points, Value, Values};
-use legend::LegendEntry;
+use legend::LegendWidget;
+pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;
@@ -23,6 +24,7 @@ use color::Hsva;
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
+    hovered_entry: Option<String>,
     hidden_items: HashSet<String>,
 }
 
@@ -67,7 +69,7 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
-    show_legend: bool,
+    legend_config: Option<Legend>,
 }
 
 impl Plot {
@@ -96,7 +98,7 @@ impl Plot {
 
             show_x: true,
             show_y: true,
-            show_legend: true,
+            legend_config: None,
         }
     }
 
@@ -262,9 +264,16 @@ impl Plot {
         self
     }
 
+    #[deprecated = "Use `Plot::legend` instead"]
     /// Whether to show a legend including all named items. Default: `true`.
     pub fn show_legend(mut self, show: bool) -> Self {
-        self.show_legend = show;
+        self.legend_config = show.then(Legend::default);
+        self
+    }
+
+    /// Show a legend including all named items.
+    pub fn legend(mut self, legend: Legend) -> Self {
+        self.legend_config = Some(legend);
         self
     }
 }
@@ -290,7 +299,7 @@ impl Widget for Plot {
             view_aspect,
             mut show_x,
             mut show_y,
-            show_legend,
+            legend_config,
         } = self;
 
         let plot_id = ui.make_persistent_id(name);
@@ -300,6 +309,7 @@ impl Widget for Plot {
             .get_mut_or_insert_with(plot_id, || PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
+                hovered_entry: None,
                 hidden_items: HashSet::new(),
             })
             .clone();
@@ -307,6 +317,7 @@ impl Widget for Plot {
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
+            mut hovered_entry,
             mut hidden_items,
         } = memory;
 
@@ -342,68 +353,28 @@ impl Widget for Plot {
             rect,
             corner_radius: 2.0,
             fill: ui.visuals().extreme_bg_color,
-            stroke: ui.visuals().window_stroke(),
+            stroke: ui.visuals().widgets.noninteractive.bg_stroke,
         });
 
-        // --- Legend ---
-
-        if show_legend {
-            // Collect the legend entries. If multiple items have the same name, they share a
-            // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
-            let mut legend_entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
-            let neutral_color = ui.visuals().noninteractive().fg_stroke.color;
-            items
-                .iter()
-                .filter(|item| !item.name().is_empty())
-                .for_each(|item| {
-                    let checked = !hidden_items.contains(item.name());
-                    let text = item.name();
-                    legend_entries
-                        .entry(item.name().to_string())
-                        .and_modify(|entry| {
-                            if entry.color != item.color() {
-                                entry.color = neutral_color
-                            }
-                        })
-                        .or_insert_with(|| {
-                            LegendEntry::new(text.to_string(), item.color(), checked)
-                        });
-                });
-
-            // Show the legend.
-            let mut legend_ui = ui.child_ui(rect, Layout::top_down(Align::LEFT));
-            legend_entries.values_mut().for_each(|entry| {
-                let response = legend_ui.add(entry);
-                if response.hovered() {
-                    show_x = false;
-                    show_y = false;
-                }
-            });
-
-            // Get the names of the hidden items.
-            hidden_items = legend_entries
-                .values()
-                .filter(|entry| !entry.checked)
-                .map(|entry| entry.text.clone())
-                .collect();
-
-            // Highlight the hovered items.
-            legend_entries
-                .values()
-                .filter(|entry| entry.hovered)
-                .for_each(|entry| {
-                    items.iter_mut().for_each(|item| {
-                        if item.name() == entry.text {
-                            item.highlight();
-                        }
-                    });
-                });
-
-            // Remove deselected items.
-            items.retain(|item| !hidden_items.contains(item.name()));
+        // Legend
+        let legend = legend_config
+            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+        // Don't show hover cursor when hovering over legend.
+        if hovered_entry.is_some() {
+            show_x = false;
+            show_y = false;
         }
-
-        // ---
+        // Remove the deselected items.
+        items.retain(|item| !hidden_items.contains(item.name()));
+        // Highlight the hovered items.
+        if let Some(hovered_name) = &hovered_entry {
+            items
+                .iter_mut()
+                .filter(|entry| entry.name() == hovered_name)
+                .for_each(|entry| entry.highlight());
+        }
+        // Move highlighted items to front.
+        items.sort_by_key(|item| item.highlighted());
 
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -482,11 +453,18 @@ impl Widget for Plot {
         };
         prepared.ui(ui, &response);
 
+        if let Some(mut legend) = legend {
+            ui.add(&mut legend);
+            hidden_items = legend.get_hidden_items();
+            hovered_entry = legend.get_hovered_entry_name();
+        }
+
         ui.memory().id_data.insert(
             plot_id,
             PlotMemory {
                 bounds,
                 auto_bounds,
+                hovered_entry,
                 hidden_items,
             },
         );
