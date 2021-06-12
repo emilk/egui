@@ -79,7 +79,7 @@ impl GuiColor {
 
 /// Provided either a row or column number, return a color to paint for the background.
 /// Returning None means painting is skipped.
-pub type ColorPickerFn = fn(usize) -> Option<GuiColor>;
+pub type ColorPickerFn = Box<dyn Fn(usize) -> Option<GuiColor>>;
 
 /// Describe conditional colors for a grid.
 /// All predicates are evaluated for each row/col, and colors will be painted on top of each other.
@@ -486,7 +486,7 @@ impl Grid {
 
             // Set convenience color specs
             if row_stripes {
-                grid.color_spec.row_pickers.push(|row| {
+                grid.color_spec.row_pickers.push(Box::new(move |row| {
                     if row % 2 == 0 {
                         Some(GuiColor::light_dark(
                             Rgba::from_black_alpha(0.075),
@@ -495,11 +495,11 @@ impl Grid {
                     } else {
                         None
                     }
-                });
+                }));
             }
 
             if header_row {
-                grid.color_spec.row_pickers.push(|row| {
+                grid.color_spec.row_pickers.push(Box::new(|row| {
                     if row == 0 {
                         Some(GuiColor::light_dark(
                             Rgba::from_black_alpha(0.75),
@@ -508,7 +508,7 @@ impl Grid {
                     } else {
                         None
                     }
-                });
+                }));
             }
 
             // ---

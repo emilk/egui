@@ -248,13 +248,13 @@ impl super::View for GridTest {
             .min_col_width(self.min_col_width)
             .max_col_width(self.max_col_width);
         if self.with_column_stripes {
-            grid = grid.add_column_color(|col| {
+            grid = grid.add_column_color(Box::new(|col| {
                 if col % 2 == 0 {
                     Some(Rgba::from_rgba_premultiplied(0.01, 0.01, 0.01, 0.01).into())
                 } else {
                     None
                 }
-            });
+            }));
         }
         grid.show(ui, |ui| {
             for row in 0..self.num_rows {
