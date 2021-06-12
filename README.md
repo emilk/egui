@@ -291,7 +291,7 @@ There is experimental support for a screen reader. In [the web demo](https://emi
 
 Read more at <https://github.com/emilk/egui/issues/167>.
 
-### What is the difference between egui and eframe?
+### What is the difference between [egui](https://docs.rs/egui) and [eframe](https://docs.rs/eframe)?
 
 `egui` is a 2D user interface library for laying out and interacting with buttons, sliders, etc.
 `egui` has no idea if it is running on the web or natively, and does not know how to collect input or show things on screen.

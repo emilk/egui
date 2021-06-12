@@ -698,9 +698,9 @@ impl Ui {
         widget_rect
     }
 
-    /// Allocate a specific part of the `Ui‘.
+    /// Allocate a specific part of the `Ui`.
     ///
-    /// Ignore the layout of the `Ui‘: just put my widget here!
+    /// Ignore the layout of the `Ui`: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);

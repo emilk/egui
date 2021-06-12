@@ -6,6 +6,7 @@ enum Enum {
     Third,
 }
 
+/// Shows off one example of each major type of widget.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetGallery {
     enabled: bool,
@@ -141,7 +142,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label("Combo box", "combo_box"));
+        ui.add(doc_link_label("Combo box", "ComboBox"));
 
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{:?}", radio))
