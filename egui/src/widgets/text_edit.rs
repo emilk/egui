@@ -5,11 +5,11 @@ use std::ops::Range;
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct State<S: TextBuffer> {
+pub(crate) struct State {
     cursorp: Option<CursorPair>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    undoer: Undoer<(CCursorPair, S)>,
+    undoer: Undoer<(CCursorPair, String)>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -113,9 +113,7 @@ impl CCursorPair {
 /// an underlying buffer.
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
-pub trait TextBuffer:
-    AsRef<str> + Into<String> + PartialEq + Clone + Default + Send + Sync + 'static + std::fmt::Display
-{
+pub trait TextBuffer: AsRef<str> + Into<String> {
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
     /// # Notes
@@ -131,8 +129,30 @@ pub trait TextBuffer:
     /// `ch_range` is a *character range*, not a byte range.
     fn delete_char_range(&mut self, ch_range: Range<usize>);
 
+    /// Returns this buffer as a `str`.
+    ///
+    /// This is an utility method, as it simply relies on the `AsRef<str>`
+    /// implementation.
     fn as_str(&self) -> &str {
         self.as_ref()
+    }
+
+    /// Clears all characters in this buffer
+    fn clear(&mut self) {
+        self.delete_char_range(0..self.as_ref().len());
+    }
+
+    /// Replaces all contents of this string with `text`
+    fn replace(&mut self, text: &str) {
+        self.clear();
+        self.insert_text(text, 0);
+    }
+
+    /// Clears all characters in this buffer and returns a string of the contents.
+    fn take(&mut self) -> String {
+        let s = self.as_ref().to_owned();
+        self.clear();
+        s
     }
 }
 
@@ -156,6 +176,18 @@ impl TextBuffer for String {
 
         // Then drain all characters within this range
         self.drain(byte_start..byte_end);
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+
+    fn replace(&mut self, text: &str) {
+        *self = text.to_owned();
+    }
+
+    fn take(&mut self) -> String {
+        std::mem::take(self)
     }
 }
 
@@ -206,7 +238,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
             .id_data
-            .get::<State<S>>(&id)
+            .get::<State>(&id)
             .and_then(|state| state.cursorp)
     }
 }
@@ -411,7 +443,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         };
 
-        let prev_text = text.clone();
+        let prev_text = text.as_ref().to_owned();
         let text_style = text_style
             .or(ui.style().override_text_style)
             .unwrap_or_else(|| ui.style().body_text_style);
@@ -451,7 +483,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = ui.memory().id_data.get_or_default::<State<S>>(id).clone();
+        let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
         let sense = if enabled {
             Sense::click_and_drag()
@@ -530,9 +562,10 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
-            state
-                .undoer
-                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
+            state.undoer.feed_state(
+                ui.input().time,
+                &(cursorp.as_ccursorp(), text.as_ref().to_owned()),
+            );
 
             for event in &ui.input().events {
                 let did_mutate_text = match event {
@@ -549,7 +582,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     }
                     Event::Cut => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, std::mem::take(text).into());
+                            copy_if_not_password(ui, text.take());
                             Some(CCursorPair::default())
                         } else {
                             copy_if_not_password(
@@ -610,10 +643,11 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         modifiers,
                     } if modifiers.command && !modifiers.shift => {
                         // TODO: redo
-                        if let Some((undo_ccursorp, undo_txt)) =
-                            state.undoer.undo(&(cursorp.as_ccursorp(), text.clone()))
+                        if let Some((undo_ccursorp, undo_txt)) = state
+                            .undoer
+                            .undo(&(cursorp.as_ccursorp(), text.as_ref().to_owned()))
                         {
-                            *text = undo_txt.clone();
+                            text.replace(undo_txt);
                             Some(*undo_ccursorp)
                         } else {
                             None
@@ -680,9 +714,10 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             state.cursorp = Some(cursorp);
             text_cursor = Some(cursorp);
 
-            state
-                .undoer
-                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
+            state.undoer.feed_state(
+                ui.input().time,
+                &(cursorp.as_ccursorp(), text.as_ref().to_owned()),
+            );
         }
 
         if ui.memory().has_focus(id) {
