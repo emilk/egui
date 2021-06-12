@@ -132,14 +132,17 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
             } = self;
-            ui.checkbox(anti_alias, "Antialias");
-            ui.checkbox(
-                coarse_tessellation_culling,
-                "Do coarse culling in the tessellator",
-            );
-            ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles (debug)");
-            ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles (debug)");
-            ui.checkbox(debug_paint_text_rects, "Paint text bounds (debug)");
+            ui.checkbox(anti_alias, "Antialias")
+                .on_hover_text("Turn off for small performance gain.");
+            ui.collapsing("debug", |ui| {
+                ui.checkbox(
+                    coarse_tessellation_culling,
+                    "Do coarse culling in the tessellator)",
+                );
+                ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
+                ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
+                ui.checkbox(debug_paint_text_rects, "Paint text bounds");
+            });
         })
         .response
     }

@@ -15,10 +15,18 @@ pub struct Shadow {
 
 impl Shadow {
     /// Tooltips, menus, ...
-    pub fn small() -> Self {
+    pub fn small_dark() -> Self {
         Self {
-            extrusion: 8.0,
-            color: Color32::from_black_alpha(64),
+            extrusion: 16.0,
+            color: Color32::from_black_alpha(96),
+        }
+    }
+
+    /// Tooltips, menus, ...
+    pub fn small_light() -> Self {
+        Self {
+            extrusion: 16.0,
+            color: Color32::from_black_alpha(32),
         }
     }
 

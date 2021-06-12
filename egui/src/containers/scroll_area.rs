@@ -357,7 +357,6 @@ impl Prepared {
             let margin = animation_t * ui.spacing().item_spacing.x;
             let left = inner_rect.right() + margin;
             let right = outer_rect.right();
-            let corner_radius = (right - left) / 2.0;
             let top = inner_rect.top();
             let bottom = inner_rect.bottom();
 
@@ -415,7 +414,7 @@ impl Prepared {
                 pos2(left, from_content(state.offset.y)),
                 pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
-            let min_handle_height = (2.0 * corner_radius).max(8.0);
+            let min_handle_height = ui.spacing().scroll_bar_width;
             if handle_rect.size().y < min_handle_height {
                 handle_rect = Rect::from_center_size(
                     handle_rect.center(),
@@ -429,21 +428,17 @@ impl Prepared {
                 &ui.style().visuals.widgets.inactive
             };
 
-            ui.painter().add(epaint::Shape::Rect {
-                rect: outer_scroll_rect,
-                corner_radius,
-                fill: ui.visuals().extreme_bg_color,
-                stroke: Default::default(),
-                // fill: visuals.bg_fill,
-                // stroke: visuals.bg_stroke,
-            });
+            ui.painter().add(epaint::Shape::rect_filled(
+                outer_scroll_rect,
+                visuals.corner_radius,
+                ui.visuals().extreme_bg_color,
+            ));
 
-            ui.painter().add(epaint::Shape::Rect {
-                rect: handle_rect.expand(-2.0),
-                corner_radius,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            });
+            ui.painter().add(epaint::Shape::rect_filled(
+                handle_rect,
+                visuals.corner_radius,
+                visuals.bg_fill,
+            ));
         }
 
         let size = vec2(
@@ -465,5 +460,5 @@ impl Prepared {
 }
 
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().item_spacing.x + 16.0
+    ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
 }

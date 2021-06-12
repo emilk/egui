@@ -75,7 +75,8 @@ fn menu_impl<'c>(ui: &mut Ui, title: impl ToString, add_contents: Box<dyn FnOnce
     let mut button = Button::new(title);
 
     if bar_state.open_menu == Some(menu_id) {
-        button = button.fill(Some(ui.visuals().selection.bg_fill));
+        button = button.fill(ui.visuals().widgets.open.bg_fill);
+        button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
     let button_response = ui.add(button);
