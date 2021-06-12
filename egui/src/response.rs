@@ -273,8 +273,12 @@ impl Response {
     ///
     /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
     /// Always `false` for something like a `Button`.
+    ///
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
+    ///
+    /// This is not set if the *view* of the data was changed.
+    /// For instance, moving the cursor in a `TextEdit` does not set this to `true`.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
@@ -284,6 +288,9 @@ impl Response {
     ///
     /// This must be called by widgets that represent some mutable data,
     /// e.g. checkboxes, sliders etc.
+    ///
+    /// This should be called when the *content* changes, but not when the view does.
+    /// So we call this when the text of a [`crate::TextEdit`], but not when the cursors changes.
     #[inline(always)]
     pub fn mark_changed(&mut self) {
         self.changed = true;

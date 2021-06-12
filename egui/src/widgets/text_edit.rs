@@ -471,7 +471,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                    response.mark_changed();
                 } else if response.hovered() && ui.input().pointer.any_pressed() {
                     ui.memory().request_focus(id);
                     if ui.input().modifiers.shift {
@@ -483,11 +482,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     } else {
                         state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                    response.mark_changed();
                 } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_pointer;
-                        response.mark_changed();
                     }
                 }
             }
