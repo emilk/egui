@@ -113,7 +113,6 @@ impl Frame {
 
 pub struct Prepared {
     pub frame: Frame,
-    outer_rect_bounds: Rect,
     where_to_put_background: ShapeIdx,
     pub content_ui: Ui,
 }
@@ -134,7 +133,6 @@ impl Frame {
 
         Prepared {
             frame: self,
-            outer_rect_bounds,
             where_to_put_background,
             content_ui,
         }
@@ -175,10 +173,7 @@ impl Frame {
 
 impl Prepared {
     pub fn outer_rect(&self) -> Rect {
-        Rect::from_min_max(
-            self.outer_rect_bounds.min,
-            self.content_ui.min_rect().max + self.frame.margin,
-        )
+        self.content_ui.min_rect().expand2(self.frame.margin)
     }
 
     pub fn end(self, ui: &mut Ui) -> Response {
