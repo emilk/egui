@@ -253,7 +253,7 @@ impl GridLayout {
 
     /// Paint a column.
     ///
-    /// col_widths: The width of all the columns before the current column we wish to paint.
+    /// `col_widths`: The width of all the columns before the current column we wish to paint.
     fn paint_column(
         &self,
         col: usize,
