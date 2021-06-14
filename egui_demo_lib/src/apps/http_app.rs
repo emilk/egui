@@ -41,8 +41,8 @@ impl Resource {
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 enum Method {
-    GET,
-    POST,
+    Get,
+    Post,
 }
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -67,7 +67,7 @@ impl Default for HttpApp {
     fn default() -> Self {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
-            method: Method::GET,
+            method: Method::Get,
             request_body: r#"["posting some json", { "more_json" : true }]"#.to_owned(),
             in_progress: Default::default(),
             result: Default::default(),
@@ -155,14 +155,13 @@ fn ui_url(
                 .selected_text(format!("{:?}", method))
                 .width(60.0)
                 .show_ui(ui, |ui| {
-                    [Method::GET, Method::POST].iter().for_each(|v| {
-                        ui.selectable_value(method, *v, format!("{:?}", *v));
-                    });
+                    ui.selectable_value(method, Method::Get, "GET");
+                    ui.selectable_value(method, Method::Post, "POST");
                 });
             trigger_fetch |= ui.button("▶").clicked();
         });
         ui.end_row();
-        if *method == Method::POST {
+        if *method == Method::Post {
             ui.label("Body:");
             ui.add(
                 egui::TextEdit::multiline(request_body)
@@ -183,7 +182,7 @@ fn ui_url(
                 "https://raw.githubusercontent.com/emilk/egui/master/{}",
                 file!()
             );
-            *method = Method::GET;
+            *method = Method::Get;
             trigger_fetch = true;
         }
         if ui.button("Random image").clicked() {
@@ -191,20 +190,20 @@ fn ui_url(
             let width = 640;
             let height = 480;
             *url = format!("https://picsum.photos/seed/{}/{}/{}", seed, width, height);
-            *method = Method::GET;
+            *method = Method::Get;
             trigger_fetch = true;
         }
         if ui.button("Post to httpbin.org").clicked() {
             *url = "https://httpbin.org/post".to_owned();
-            *method = Method::POST;
+            *method = Method::Post;
             trigger_fetch = true;
         }
     });
 
     if trigger_fetch {
         Some(match *method {
-            Method::GET => Request::get(url),
-            Method::POST => Request::post(url, request_body),
+            Method::Get => Request::get(url),
+            Method::Post => Request::post(url, request_body),
         })
     } else {
         None

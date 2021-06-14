@@ -57,8 +57,12 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
         let array: js_sys::Array = item.into();
         let v: Vec<JsValue> = array.to_vec();
 
-        let mut key = v[0].as_string().ok_or(JsValue::from_str("headers name"))?;
-        let value = v[1].as_string().ok_or(JsValue::from_str("headers value"))?;
+        let mut key = v[0]
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("headers name"))?;
+        let value = v[1]
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("headers value"))?;
 
         // for easy lookup
         key.make_ascii_lowercase();
