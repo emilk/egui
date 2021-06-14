@@ -250,6 +250,12 @@ impl Widget for &mut LegendDemo {
                 ui.selectable_value(&mut config.position, position, format!("{:?}", position));
             });
         });
+        ui.label("Background alpha:");
+        ui.add(
+            egui::DragValue::new(&mut config.background_alpha)
+                .speed(0.02)
+                .clamp_range(0.0..=1.0),
+        );
         let legend_plot = Plot::new("Legend Demo")
             .line(LegendDemo::line_with_slope(0.5).name("lines"))
             .line(LegendDemo::line_with_slope(1.0).name("lines"))
