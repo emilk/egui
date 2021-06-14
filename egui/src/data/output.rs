@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use crate::WidgetType;
+
 /// What egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
@@ -40,7 +42,11 @@ impl Output {
         // only describe last event:
         if let Some(event) = self.events.iter().rev().next() {
             match event {
-                OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info) => {
+                OutputEvent::Clicked(widget_info)
+                | OutputEvent::DoubleClicked(widget_info)
+                | OutputEvent::FocusGained(widget_info)
+                | OutputEvent::TextSelectionChanged(widget_info)
+                | OutputEvent::ValueChanged(widget_info) => {
                     return widget_info.description();
                 }
             }
@@ -204,24 +210,28 @@ impl Default for CursorIcon {
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
 pub enum OutputEvent {
+    // A widget was clicked.
+    Clicked(WidgetInfo),
+    // A widget was double-clicked.
+    DoubleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
-    WidgetEvent(WidgetEvent, WidgetInfo),
+    FocusGained(WidgetInfo),
+    // Text selection was updated.
+    TextSelectionChanged(WidgetInfo),
+    // A widget's value changed.
+    ValueChanged(WidgetInfo),
 }
 
 impl std::fmt::Debug for OutputEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WidgetEvent(we, wi) => write!(f, "{:?}: {:?}", we, wi),
+            Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
+            Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
+            Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
+            Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({:?})", wi),
+            Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WidgetEvent {
-    /// Keyboard focused moved onto the widget.
-    Focus,
-    // /// Started hovering a new widget.
-    // Hover, // TODO: cursor hovered events
 }
 
 /// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
@@ -229,41 +239,57 @@ pub enum WidgetEvent {
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
+    // Whether the widget is enabled.
+    pub enabled: bool,
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
     /// The contents of some editable text (for `TextEdit` fields).
-    pub edit_text: Option<String>,
+    pub current_text_value: Option<String>,
+    // The previous text value.
+    pub prev_text_value: Option<String>,
     /// The current value of checkboxes and radio buttons.
     pub selected: Option<bool>,
     /// The current value of sliders etc.
     pub value: Option<f64>,
+    // Selected range of characters in [`Self::current_text_value`].
+    pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             typ,
+            enabled,
             label,
-            edit_text,
+            current_text_value: text_value,
+            prev_text_value,
             selected,
             value,
+            text_selection,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
 
         s.field("typ", typ);
+        s.field("enabled", enabled);
 
         if let Some(label) = label {
             s.field("label", label);
         }
-        if let Some(edit_text) = edit_text {
-            s.field("edit_text", edit_text);
+        if let Some(text_value) = text_value {
+            s.field("text_value", text_value);
+        }
+        if let Some(prev_text_value) = prev_text_value {
+            s.field("prev_text_value", prev_text_value);
         }
         if let Some(selected) = selected {
             s.field("selected", selected);
         }
         if let Some(value) = value {
             s.field("value", value);
+        }
+        if let Some(text_selection) = text_selection {
+            s.field("text_selection", text_selection);
         }
 
         s.finish()
@@ -274,10 +300,13 @@ impl WidgetInfo {
     pub fn new(typ: WidgetType) -> Self {
         Self {
             typ,
+            enabled: true,
             label: None,
-            edit_text: None,
+            current_text_value: None,
+            prev_text_value: None,
             selected: None,
             value: None,
+            text_selection: None,
         }
     }
 
@@ -317,9 +346,29 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn text_edit(edit_text: impl ToString) -> Self {
+    pub fn text_edit(prev_text_value: impl ToString, text_value: impl ToString) -> Self {
+        let text_value = text_value.to_string();
+        let prev_text_value = prev_text_value.to_string();
+        let prev_text_value = if text_value == prev_text_value {
+            None
+        } else {
+            Some(prev_text_value)
+        };
         Self {
-            edit_text: Some(edit_text.to_string()),
+            current_text_value: Some(text_value),
+            prev_text_value,
+            ..Self::new(WidgetType::TextEdit)
+        }
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn text_selection_changed(
+        text_selection: std::ops::RangeInclusive<usize>,
+        current_text_value: impl ToString,
+    ) -> Self {
+        Self {
+            text_selection: Some(text_selection),
+            current_text_value: Some(current_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -328,14 +377,17 @@ impl WidgetInfo {
     pub fn description(&self) -> String {
         let Self {
             typ,
+            enabled,
             label,
-            edit_text,
+            current_text_value: text_value,
+            prev_text_value: _,
             selected,
             value,
+            text_selection: _,
         } = self;
 
         // TODO: localization
-        let widget_name = match typ {
+        let widget_type = match typ {
             WidgetType::Hyperlink => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
@@ -351,25 +403,33 @@ impl WidgetInfo {
             WidgetType::Label | WidgetType::Other => "",
         };
 
-        let mut description = widget_name.to_owned();
+        let mut description = widget_type.to_owned();
 
         if let Some(selected) = selected {
             if *typ == WidgetType::Checkbox {
-                description += " ";
-                description += if *selected { "checked" } else { "unchecked" };
+                let state = if *selected { "checked" } else { "unchecked" };
+                description = format!("{} {}", state, description);
             } else {
                 description += if *selected { "selected" } else { "" };
             };
         }
 
         if let Some(label) = label {
-            description += " ";
-            description += label;
+            description = format!("{}: {}", label, description);
         }
 
-        if let Some(edit_text) = edit_text {
-            description += " ";
-            description += edit_text;
+        if typ == &WidgetType::TextEdit {
+            let text;
+            if let Some(text_value) = text_value {
+                if text_value.is_empty() {
+                    text = "blank".into();
+                } else {
+                    text = text_value.to_string();
+                }
+            } else {
+                text = "blank".into();
+            }
+            description = format!("{}: {}", text, description);
         }
 
         if let Some(value) = value {
@@ -377,29 +437,9 @@ impl WidgetInfo {
             description += &value.to_string();
         }
 
+        if !enabled {
+            description += ": disabled";
+        }
         description.trim().to_owned()
     }
-}
-
-/// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WidgetType {
-    Label, // TODO: emit Label events
-    Hyperlink,
-    TextEdit,
-    Button,
-    Checkbox,
-    RadioButton,
-    SelectableLabel,
-    ComboBox,
-    Slider,
-    DragValue,
-    ColorButton,
-    ImageButton,
-    CollapsingHeader,
-
-    /// If you cannot fit any of the above slots.
-    ///
-    /// If this is something you think should be added, file an issue.
-    Other,
 }

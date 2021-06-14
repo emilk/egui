@@ -360,7 +360,7 @@ pub use {
     context::{Context, CtxRef},
     data::{
         input::*,
-        output::{self, CursorIcon, Output, WidgetInfo, WidgetType},
+        output::{self, CursorIcon, Output, WidgetInfo},
     },
     grid::Grid,
     id::Id,
@@ -394,7 +394,10 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
-/// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ```
 #[macro_export]
 macro_rules! github_link_file_line {
     ($github_url:expr, $label:expr) => {{
@@ -405,7 +408,10 @@ macro_rules! github_link_file_line {
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
 ///
-/// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ```
 #[macro_export]
 macro_rules! github_link_file {
     ($github_url:expr, $label:expr) => {{
@@ -493,4 +499,27 @@ pub mod special_emojis {
     pub const GIT: char = '';
 
     // I really would like to have ferris here.
+}
+
+/// The different types of built-in widgets in egui
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WidgetType {
+    Label, // TODO: emit Label events
+    Hyperlink,
+    TextEdit,
+    Button,
+    Checkbox,
+    RadioButton,
+    SelectableLabel,
+    ComboBox,
+    Slider,
+    DragValue,
+    ColorButton,
+    ImageButton,
+    CollapsingHeader,
+
+    /// If you cannot fit any of the above slots.
+    ///
+    /// If this is something you think should be added, file an issue.
+    Other,
 }

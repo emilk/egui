@@ -1,15 +1,15 @@
-use crate::{util::undoer::Undoer, *};
+use crate::{output::OutputEvent, util::undoer::Undoer, *};
 use epaint::{text::cursor::*, *};
 use std::ops::Range;
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
-pub(crate) struct State<S: TextBuffer> {
+pub(crate) struct State {
     cursorp: Option<CursorPair>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    undoer: Undoer<(CCursorPair, S)>,
+    undoer: Undoer<(CCursorPair, String)>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -113,9 +113,7 @@ impl CCursorPair {
 /// an underlying buffer.
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
-pub trait TextBuffer:
-    AsRef<str> + Into<String> + PartialEq + Clone + Default + Send + Sync + 'static + std::fmt::Display
-{
+pub trait TextBuffer: AsRef<str> + Into<String> {
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
     /// # Notes
@@ -130,6 +128,32 @@ pub trait TextBuffer:
     /// # Notes
     /// `ch_range` is a *character range*, not a byte range.
     fn delete_char_range(&mut self, ch_range: Range<usize>);
+
+    /// Returns this buffer as a `str`.
+    ///
+    /// This is an utility method, as it simply relies on the `AsRef<str>`
+    /// implementation.
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    /// Clears all characters in this buffer
+    fn clear(&mut self) {
+        self.delete_char_range(0..self.as_ref().len());
+    }
+
+    /// Replaces all contents of this string with `text`
+    fn replace(&mut self, text: &str) {
+        self.clear();
+        self.insert_text(text, 0);
+    }
+
+    /// Clears all characters in this buffer and returns a string of the contents.
+    fn take(&mut self) -> String {
+        let s = self.as_ref().to_owned();
+        self.clear();
+        s
+    }
 }
 
 impl TextBuffer for String {
@@ -152,6 +176,18 @@ impl TextBuffer for String {
 
         // Then drain all characters within this range
         self.drain(byte_start..byte_end);
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+
+    fn replace(&mut self, text: &str) {
+        *self = text.to_owned();
+    }
+
+    fn take(&mut self) -> String {
+        std::mem::take(self)
     }
 }
 
@@ -202,7 +238,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
             .id_data
-            .get::<State<S>>(&id)
+            .get::<State>(&id)
             .and_then(|state| state.cursorp)
     }
 }
@@ -375,6 +411,12 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     }
 }
 
+fn mask_massword(text: &str) -> String {
+    std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+        .take(text.chars().count())
+        .collect::<String>()
+}
+
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
@@ -393,6 +435,15 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
         } = self;
 
+        let mask_if_password = |text: &str| {
+            if password {
+                mask_massword(text)
+            } else {
+                text.to_owned()
+            }
+        };
+
+        let prev_text = text.as_ref().to_owned();
         let text_style = text_style
             .or(ui.style().override_text_style)
             .unwrap_or_else(|| ui.style().body_text_style);
@@ -400,13 +451,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let available_width = ui.available_width();
 
         let make_galley = |ui: &Ui, text: &str| {
-            let text = if password {
-                std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
-                    .take(text.chars().count())
-                    .collect::<String>()
-            } else {
-                text.to_owned()
-            };
+            let text = mask_if_password(text);
             if multiline {
                 ui.fonts()
                     .layout_multiline(text_style, text, available_width)
@@ -438,7 +483,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = ui.memory().id_data.get_or_default::<State<S>>(id).clone();
+        let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
         let sense = if enabled {
             Sense::click_and_drag()
@@ -470,7 +515,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                    response.mark_changed();
                 } else if response.hovered() && ui.input().pointer.any_pressed() {
                     ui.memory().request_focus(id);
                     if ui.input().modifiers.shift {
@@ -482,11 +526,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     } else {
                         state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                     }
-                    response.mark_changed();
                 } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
                     if let Some(cursorp) = &mut state.cursorp {
                         cursorp.primary = cursor_at_pointer;
-                        response.mark_changed();
                     }
                 }
             }
@@ -496,6 +538,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
+        let mut text_cursor = None;
+        let prev_text_cursor = state.cursorp;
         if ui.memory().has_focus(id) && enabled {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -518,9 +562,10 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
-            state
-                .undoer
-                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
+            state.undoer.feed_state(
+                ui.input().time,
+                &(cursorp.as_ccursorp(), text.as_ref().to_owned()),
+            );
 
             for event in &ui.input().events {
                 let did_mutate_text = match event {
@@ -537,7 +582,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     }
                     Event::Cut => {
                         if cursorp.is_empty() {
-                            copy_if_not_password(ui, std::mem::take(text).into());
+                            copy_if_not_password(ui, text.take());
                             Some(CCursorPair::default())
                         } else {
                             copy_if_not_password(
@@ -554,7 +599,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                             && text_to_insert != "\r"
                         {
                             let mut ccursor = delete_selected(text, &cursorp);
-
                             insert_text(&mut ccursor, text, text_to_insert);
                             Some(CCursorPair::one(ccursor))
                         } else {
@@ -599,10 +643,11 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         modifiers,
                     } if modifiers.command && !modifiers.shift => {
                         // TODO: redo
-                        if let Some((undo_ccursorp, undo_txt)) =
-                            state.undoer.undo(&(cursorp.as_ccursorp(), text.clone()))
+                        if let Some((undo_ccursorp, undo_txt)) = state
+                            .undoer
+                            .undo(&(cursorp.as_ccursorp(), text.as_ref().to_owned()))
                         {
-                            *text = undo_txt.clone();
+                            text.replace(undo_txt);
                             Some(*undo_ccursorp)
                         } else {
                             None
@@ -667,10 +712,12 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 }
             }
             state.cursorp = Some(cursorp);
+            text_cursor = Some(cursorp);
 
-            state
-                .undoer
-                .feed_state(ui.input().time, &(cursorp.as_ccursorp(), text.clone()));
+            state.undoer.feed_state(
+                ui.input().time,
+                &(cursorp.as_ccursorp(), text.as_ref().to_owned()),
+            );
         }
 
         if ui.memory().has_focus(id) {
@@ -709,7 +756,41 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         ui.memory().id_data.insert(id, state);
 
-        response.widget_info(|| WidgetInfo::text_edit(&*text));
+        let selection_changed = if let (Some(text_cursor), Some(prev_text_cursor)) =
+            (text_cursor, prev_text_cursor)
+        {
+            text_cursor.primary.ccursor.index != prev_text_cursor.primary.ccursor.index
+                || text_cursor.secondary.ccursor.index != prev_text_cursor.secondary.ccursor.index
+        } else {
+            false
+        };
+
+        if response.changed {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
+        } else if selection_changed {
+            let text_cursor = text_cursor.unwrap();
+            let char_range =
+                text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
+            let info =
+                WidgetInfo::text_selection_changed(char_range, mask_if_password(text.as_str()));
+            response
+                .ctx
+                .output()
+                .events
+                .push(OutputEvent::TextSelectionChanged(info));
+        } else {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    mask_if_password(prev_text.as_str()),
+                    mask_if_password(text.as_str()),
+                )
+            });
+        }
         response
     }
 }
@@ -899,7 +980,7 @@ fn on_key_press<S: TextBuffer>(
             };
             Some(CCursorPair::one(ccursor))
         }
-        Key::Delete => {
+        Key::Delete if !(cfg!(target_os = "windows") && modifiers.shift) => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursorp)
             } else if let Some(cursor) = cursorp.single() {

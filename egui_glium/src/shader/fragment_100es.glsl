@@ -1,4 +1,4 @@
-#version 100 es
+#version 100
 
 precision mediump float;
 uniform sampler2D u_sampler;

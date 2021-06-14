@@ -56,8 +56,8 @@ version = "0.3"
 features = [
   "Clipboard",
   "ClipboardEvent",
-  "console",
   "CompositionEvent",
+  "console",
   "CssStyleDeclaration",
   "DataTransfer",
   "Document",
@@ -73,6 +73,7 @@ features = [
   "InputEvent",
   "KeyboardEvent",
   "Location",
+  "MediaQueryList",
   "MouseEvent",
   "Navigator",
   "Performance",

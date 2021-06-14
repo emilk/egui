@@ -1,5 +1,5 @@
-use egui::plot::{Line, MarkerShape, Plot, Points, Value, Values};
 use egui::*;
+use plot::{Corner, Legend, Line, MarkerShape, Plot, Points, Value, Values};
 use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
@@ -9,7 +9,6 @@ struct LineDemo {
     circle_radius: f64,
     circle_center: Pos2,
     square: bool,
-    legend: bool,
     proportional: bool,
 }
 
@@ -21,7 +20,6 @@ impl Default for LineDemo {
             circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
-            legend: true,
             proportional: true,
         }
     }
@@ -35,7 +33,6 @@ impl LineDemo {
             circle_radius,
             circle_center,
             square,
-            legend,
             proportional,
             ..
         } = self;
@@ -69,7 +66,6 @@ impl LineDemo {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
                 ui.checkbox(square, "square view");
-                ui.checkbox(legend, "legend");
                 ui.checkbox(proportional, "proportional data axes");
             });
         });
@@ -124,7 +120,7 @@ impl Widget for &mut LineDemo {
             .line(self.circle())
             .line(self.sin())
             .line(self.thingy())
-            .show_legend(self.legend);
+            .legend(Legend::default());
         if self.square {
             plot = plot.view_aspect(1.0);
         }
@@ -200,7 +196,9 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let mut markers_plot = Plot::new("Markers Demo").data_aspect(1.0);
+        let mut markers_plot = Plot::new("Markers Demo")
+            .data_aspect(1.0)
+            .legend(Legend::default());
         for marker in self.markers() {
             markers_plot = markers_plot.points(marker);
         }
@@ -208,10 +206,75 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
+#[derive(PartialEq)]
+struct LegendDemo {
+    config: Legend,
+}
+
+impl Default for LegendDemo {
+    fn default() -> Self {
+        Self {
+            config: Legend::default(),
+        }
+    }
+}
+
+impl LegendDemo {
+    fn line_with_slope(slope: f64) -> Line {
+        Line::new(Values::from_explicit_callback(
+            move |x| slope * x,
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
+    }
+    fn sin() -> Line {
+        Line::new(Values::from_explicit_callback(
+            move |x| x.sin(),
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
+    }
+    fn cos() -> Line {
+        Line::new(Values::from_explicit_callback(
+            move |x| x.cos(),
+            f64::NEG_INFINITY..=f64::INFINITY,
+            100,
+        ))
+    }
+}
+
+impl Widget for &mut LegendDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let LegendDemo { config } = self;
+
+        ui.label("Text Style:");
+        ui.horizontal(|ui| {
+            TextStyle::all().for_each(|style| {
+                ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
+            });
+        });
+        ui.label("Position:");
+        ui.horizontal(|ui| {
+            Corner::all().for_each(|position| {
+                ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+            });
+        });
+        let legend_plot = Plot::new("Legend Demo")
+            .line(LegendDemo::line_with_slope(0.5).name("lines"))
+            .line(LegendDemo::line_with_slope(1.0).name("lines"))
+            .line(LegendDemo::line_with_slope(2.0).name("lines"))
+            .line(LegendDemo::sin().name("sin(x)"))
+            .line(LegendDemo::cos().name("cos(x)"))
+            .legend(*config)
+            .data_aspect(1.0);
+        ui.add(legend_plot)
+    }
+}
 #[derive(PartialEq, Eq)]
 enum Panel {
     Lines,
     Markers,
+    Legend,
 }
 
 impl Default for Panel {
@@ -224,6 +287,7 @@ impl Default for Panel {
 pub struct PlotDemo {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,
+    legend_demo: LegendDemo,
     open_panel: Panel,
 }
 
@@ -261,6 +325,7 @@ impl super::View for PlotDemo {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.open_panel, Panel::Lines, "Lines");
             ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
+            ui.selectable_value(&mut self.open_panel, Panel::Legend, "Legend");
         });
         ui.separator();
 
@@ -270,6 +335,9 @@ impl super::View for PlotDemo {
             }
             Panel::Markers => {
                 ui.add(&mut self.marker_demo);
+            }
+            Panel::Legend => {
+                ui.add(&mut self.legend_demo);
             }
         }
     }

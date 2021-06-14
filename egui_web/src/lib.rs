@@ -3,6 +3,11 @@
 //! This library is an [`epi`] backend.
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
+//!
+//! ## Specifying the size of the egui canvas
+//! For performance reasons (on some browsers) the egui canvas does not, by default,
+//! fill the whole width of the browser.
+//! This can be changed by overriding [`epi::App::max_size_points`].
 
 #![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
 #![deny(
@@ -85,6 +90,15 @@ pub fn native_pixels_per_point() -> f32 {
     } else {
         1.0
     }
+}
+
+pub fn prefer_dark_mode() -> Option<bool> {
+    Some(
+        web_sys::window()?
+            .match_media("(prefers-color-scheme: dark)")
+            .ok()??
+            .matches(),
+    )
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {

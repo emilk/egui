@@ -35,6 +35,10 @@ pub use egui_web::wasm_bindgen;
 /// Install event listeners to register different input events
 /// and start running the given app.
 ///
+/// For performance reasons (on some browsers) the egui canvas does not, by default,
+/// fill the whole width of the browser.
+/// This can be changed by overriding [`epi::Frame::max_size_points`].
+///
 /// Usage:
 /// ``` no_run
 /// #[cfg(target_arch = "wasm32")]

@@ -5,7 +5,7 @@ pub use egui::{pos2, Color32};
 // ----------------------------------------------------------------------------
 
 pub struct WebBackend {
-    ctx: egui::CtxRef,
+    egui_ctx: egui::CtxRef,
     painter: Box<dyn Painter>,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
@@ -25,7 +25,7 @@ impl WebBackend {
             };
 
         Ok(Self {
-            ctx,
+            egui_ctx: ctx,
             painter,
             previous_frame_time: None,
             frame_start: None,
@@ -39,7 +39,7 @@ impl WebBackend {
 
     pub fn begin_frame(&mut self, raw_input: egui::RawInput) {
         self.frame_start = Some(now_sec());
-        self.ctx.begin_frame(raw_input)
+        self.egui_ctx.begin_frame(raw_input)
     }
 
     pub fn end_frame(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
@@ -48,8 +48,8 @@ impl WebBackend {
             .take()
             .expect("unmatched calls to begin_frame/end_frame");
 
-        let (output, shapes) = self.ctx.end_frame();
-        let clipped_meshes = self.ctx.tessellate(shapes);
+        let (output, shapes) = self.egui_ctx.end_frame();
+        let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
         let now = now_sec();
         self.previous_frame_time = Some((now - frame_start) as f32);
@@ -62,10 +62,10 @@ impl WebBackend {
         clear_color: egui::Rgba,
         clipped_meshes: Vec<egui::ClippedMesh>,
     ) -> Result<(), JsValue> {
-        self.painter.upload_egui_texture(&self.ctx.texture());
+        self.painter.upload_egui_texture(&self.egui_ctx.texture());
         self.painter.clear(clear_color);
         self.painter
-            .paint_meshes(clipped_meshes, self.ctx.pixels_per_point())
+            .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())
     }
 
     pub fn painter_debug_info(&self) -> String {
@@ -137,6 +137,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
+    prefer_dark_mode: Option<bool>,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
     #[cfg(feature = "http")]
@@ -145,27 +146,56 @@ pub struct AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(web_backend: WebBackend, mut app: Box<dyn epi::App>) -> Result<Self, JsValue> {
-        load_memory(&web_backend.ctx);
+    pub fn new(web_backend: WebBackend, app: Box<dyn epi::App>) -> Result<Self, JsValue> {
+        load_memory(&web_backend.egui_ctx);
+
+        let prefer_dark_mode = crate::prefer_dark_mode();
+
+        if prefer_dark_mode == Some(true) {
+            web_backend.egui_ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            web_backend.egui_ctx.set_visuals(egui::Visuals::light());
+        }
+
         let storage = LocalStorage::default();
-        app.load(&storage);
-        app.setup(&web_backend.ctx);
-        Ok(Self {
+
+        let mut runner = Self {
             web_backend,
             input: Default::default(),
             app,
             needs_repaint: Default::default(),
             storage,
+            prefer_dark_mode,
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             #[cfg(feature = "http")]
             http: Arc::new(http::WebHttp {}),
             last_text_cursor_pos: None,
-        })
+        };
+
+        {
+            let mut app_output = epi::backend::AppOutput::default();
+            let mut frame = epi::backend::FrameBuilder {
+                info: runner.integration_info(),
+                tex_allocator: runner.web_backend.painter.as_tex_allocator(),
+                #[cfg(feature = "http")]
+                http: runner.http.clone(),
+                output: &mut app_output,
+                repaint_signal: runner.needs_repaint.clone(),
+            }
+            .build();
+            runner.app.setup(
+                &runner.web_backend.egui_ctx,
+                &mut frame,
+                Some(&runner.storage),
+            );
+        }
+
+        Ok(runner)
     }
 
     pub fn egui_ctx(&self) -> &egui::CtxRef {
-        &self.web_backend.ctx
+        &self.web_backend.egui_ctx
     }
 
     pub fn auto_save(&mut self) {
@@ -173,7 +203,7 @@ impl AppRunner {
         let time_since_last_save = now - self.last_save_time;
 
         if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
-            save_memory(&self.web_backend.ctx);
+            save_memory(&self.web_backend.egui_ctx);
             self.app.save(&mut self.storage);
             self.last_save_time = now;
         }
@@ -185,16 +215,28 @@ impl AppRunner {
 
     pub fn warm_up(&mut self) -> Result<(), JsValue> {
         if self.app.warm_up_enabled() {
-            let saved_memory = self.web_backend.ctx.memory().clone();
+            let saved_memory = self.web_backend.egui_ctx.memory().clone();
             self.web_backend
-                .ctx
+                .egui_ctx
                 .memory()
                 .set_everything_is_visible(true);
             self.logic()?;
-            *self.web_backend.ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
-            self.web_backend.ctx.clear_animations();
+            *self.web_backend.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+            self.web_backend.egui_ctx.clear_animations();
         }
         Ok(())
+    }
+
+    fn integration_info(&self) -> epi::IntegrationInfo {
+        epi::IntegrationInfo {
+            web_info: Some(epi::WebInfo {
+                web_location_hash: location_hash().unwrap_or_default(),
+            }),
+            prefer_dark_mode: self.prefer_dark_mode,
+            cpu_usage: self.web_backend.previous_frame_time,
+            seconds_since_midnight: Some(seconds_since_midnight()),
+            native_pixels_per_point: Some(native_pixels_per_point()),
+        }
     }
 
     pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
@@ -202,20 +244,11 @@ impl AppRunner {
         let canvas_size = canvas_size_in_points(self.web_backend.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let info = epi::IntegrationInfo {
-            web_info: Some(epi::WebInfo {
-                web_location_hash: location_hash().unwrap_or_default(),
-            }),
-            cpu_usage: self.web_backend.previous_frame_time,
-            seconds_since_midnight: Some(seconds_since_midnight()),
-            native_pixels_per_point: Some(native_pixels_per_point()),
-        };
-
         self.web_backend.begin_frame(raw_input);
 
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
-            info,
+            info: self.integration_info(),
             tex_allocator: self.web_backend.painter.as_tex_allocator(),
             #[cfg(feature = "http")]
             http: self.http.clone(),
@@ -224,10 +257,10 @@ impl AppRunner {
         }
         .build();
 
-        self.app.update(&self.web_backend.ctx, &mut frame);
+        self.app.update(&self.web_backend.egui_ctx, &mut frame);
         let (egui_output, clipped_meshes) = self.web_backend.end_frame()?;
 
-        if self.web_backend.ctx.memory().options.screen_reader {
+        if self.web_backend.egui_ctx.memory().options.screen_reader {
             self.screen_reader.speak(&egui_output.events_description());
         }
         handle_output(&egui_output, self);

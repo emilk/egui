@@ -8,7 +8,7 @@ pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+        ui.spacing_mut().item_spacing.x = 0.0;
         ui.set_row_height(ui.fonts()[TextStyle::Body].row_height());
 
         for item in items {

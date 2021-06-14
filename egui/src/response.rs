@@ -273,8 +273,12 @@ impl Response {
     ///
     /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
     /// Always `false` for something like a `Button`.
+    ///
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
+    ///
+    /// This is not set if the *view* of the data was changed.
+    /// For instance, moving the cursor in a `TextEdit` does not set this to `true`.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
@@ -284,6 +288,9 @@ impl Response {
     ///
     /// This must be called by widgets that represent some mutable data,
     /// e.g. checkboxes, sliders etc.
+    ///
+    /// This should be called when the *content* changes, but not when the view does.
+    /// So we call this when the text of a [`crate::TextEdit`], but not when the cursors changes.
     #[inline(always)]
     pub fn mark_changed(&mut self) {
         self.changed = true;
@@ -428,10 +435,19 @@ impl Response {
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
     pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
-        if self.gained_focus() {
-            use crate::output::{OutputEvent, WidgetEvent};
-            let widget_info = make_info();
-            let event = OutputEvent::WidgetEvent(WidgetEvent::Focus, widget_info);
+        use crate::output::OutputEvent;
+        let event = if self.clicked() {
+            Some(OutputEvent::Clicked(make_info()))
+        } else if self.double_clicked() {
+            Some(OutputEvent::DoubleClicked(make_info()))
+        } else if self.gained_focus() {
+            Some(OutputEvent::FocusGained(make_info()))
+        } else if self.changed {
+            Some(OutputEvent::ValueChanged(make_info()))
+        } else {
+            None
+        };
+        if let Some(event) = event {
             self.ctx.output().events.push(event);
         }
     }

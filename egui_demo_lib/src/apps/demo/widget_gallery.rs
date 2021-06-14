@@ -6,9 +6,11 @@ enum Enum {
     Third,
 }
 
+/// Shows off one example of each major type of widget.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetGallery {
     enabled: bool,
+    visible: bool,
     boolean: bool,
     radio: Enum,
     scalar: f32,
@@ -20,6 +22,7 @@ impl Default for WidgetGallery {
     fn default() -> Self {
         Self {
             enabled: true,
+            visible: true,
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
@@ -47,13 +50,27 @@ impl super::Demo for WidgetGallery {
 
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        self.gallery(ui);
+        ui.scope(|ui| {
+            ui.set_visible(self.visible);
+            ui.set_enabled(self.enabled);
+
+            egui::Grid::new("my_grid")
+                .striped(true)
+                .spacing([40.0, 4.0])
+                .show(ui, |ui| {
+                    self.gallery_grid_contents(ui);
+                });
+        });
 
         ui.separator();
 
-        ui.vertical_centered(|ui| {
-            ui.checkbox(&mut self.enabled, "Interactive")
-                .on_hover_text("Convenient way to inspect how the widgets look when disabled.");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.visible, "Visible")
+                .on_hover_text("Uncheck to hide all the widgets.");
+            if self.visible {
+                ui.checkbox(&mut self.enabled, "Interactive")
+                    .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
+            }
         });
 
         ui.separator();
@@ -69,26 +86,16 @@ impl super::View for WidgetGallery {
 }
 
 impl WidgetGallery {
-    fn gallery(&mut self, ui: &mut egui::Ui) {
-        egui::Grid::new("my_grid")
-            .striped(true)
-            .spacing([40.0, 4.0])
-            .show(ui, |ui| {
-                self.gallery_grid_contents(ui);
-            });
-    }
-
     fn gallery_grid_contents(&mut self, ui: &mut egui::Ui) {
         let Self {
-            enabled,
+            enabled: _,
+            visible: _,
             boolean,
             radio,
             scalar,
             string,
             color,
         } = self;
-
-        ui.set_enabled(*enabled);
 
         ui.add(doc_link_label("Label", "label,heading"));
         ui.label("Welcome to the widget gallery!");
@@ -135,7 +142,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label("Combo box", "combo_box"));
+        ui.add(doc_link_label("Combo box", "ComboBox"));
 
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{:?}", radio))

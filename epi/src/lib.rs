@@ -95,9 +95,18 @@ pub trait App {
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
-    /// Allows you to do setup code and to call `ctx.set_fonts()`.
-    /// Optional.
-    fn setup(&mut self, _ctx: &egui::CtxRef) {}
+    ///
+    /// Allows you to do setup code, e.g to call `[egui::Context::set_fonts]`,
+    /// `[egui::Context::set_visuals]` etc.
+    ///
+    /// Also allows you to restore state, if there is a storage.
+    fn setup(
+        &mut self,
+        _ctx: &egui::CtxRef,
+        _frame: &mut Frame<'_>,
+        _storage: Option<&dyn Storage>,
+    ) {
+    }
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
@@ -106,9 +115,6 @@ pub trait App {
     fn warm_up_enabled(&self) -> bool {
         false
     }
-
-    /// Called once on start. Allows you to restore state.
-    fn load(&mut self, _storage: &dyn Storage) {}
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
@@ -121,7 +127,7 @@ pub trait App {
     /// where `APPNAME` is what is returned by [`Self::name()`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
-    /// Called once on shutdown (before or after `save()`)
+    /// Called once on shutdown (before or after [`Self::save`])
     fn on_exit(&mut self) {}
 
     // ---------
@@ -130,12 +136,12 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
-    /// Time between automatic calls to `save()`
+    /// Time between automatic calls to [`Self::save`]
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
     }
 
-    /// The size limit of the web app canvas
+    /// The size limit of the web app canvas.
     fn max_size_points(&self) -> egui::Vec2 {
         // Some browsers get slow with huge WebGL canvases, so we limit the size:
         egui::Vec2::new(1024.0, 2048.0)
@@ -248,6 +254,8 @@ impl<'a> Frame<'a> {
 
     /// Very simple Http fetch API.
     /// Calls the given callback when done.
+    ///
+    /// You must enable the "http" feature for this.
     #[cfg(feature = "http")]
     pub fn http_fetch(
         &self,
@@ -272,6 +280,10 @@ pub struct WebInfo {
 pub struct IntegrationInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
+
+    /// Does the system prefer dark mode (over light mode)?
+    /// `None` means "don't know".
+    pub prefer_dark_mode: Option<bool>,
 
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.
@@ -336,7 +348,7 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+/// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
@@ -360,6 +372,8 @@ pub const APP_KEY: &str = "app";
 
 #[cfg(feature = "http")]
 /// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
+///
+/// You must enable the "http" feature for this.
 pub mod http {
     /// A simple http requests.
     pub struct Request {
@@ -401,7 +415,7 @@ pub mod http {
         pub ok: bool,
         /// Status code (e.g. `404` for "File not found").
         pub status: u16,
-        /// Status tex (e.g. "File not found" for status code `404`).
+        /// Status text (e.g. "File not found" for status code `404`).
         pub status_text: String,
 
         /// Content-Type header, or empty string if missing.

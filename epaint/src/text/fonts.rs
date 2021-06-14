@@ -198,7 +198,7 @@ impl Default for FontDefinitions {
         let mut family_and_size = BTreeMap::new();
         family_and_size.insert(TextStyle::Small, (FontFamily::Proportional, 10.0));
         family_and_size.insert(TextStyle::Body, (FontFamily::Proportional, 14.0));
-        family_and_size.insert(TextStyle::Button, (FontFamily::Proportional, 16.0));
+        family_and_size.insert(TextStyle::Button, (FontFamily::Proportional, 14.0));
         family_and_size.insert(TextStyle::Heading, (FontFamily::Proportional, 20.0));
         family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
 

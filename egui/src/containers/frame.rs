@@ -24,8 +24,8 @@ impl Frame {
     pub fn group(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 6.0),
-            corner_radius: 4.0,
-            stroke: style.visuals.window_stroke(),
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
         }
     }
@@ -63,8 +63,8 @@ impl Frame {
     pub fn menu(style: &Style) -> Self {
         Self {
             margin: Vec2::splat(1.0),
-            corner_radius: 2.0,
-            shadow: Shadow::small(),
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
         }
@@ -73,8 +73,8 @@ impl Frame {
     pub fn popup(style: &Style) -> Self {
         Self {
             margin: style.spacing.window_padding,
-            corner_radius: 5.0,
-            shadow: Shadow::small(),
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
         }
@@ -84,7 +84,7 @@ impl Frame {
     pub fn dark_canvas(style: &Style) -> Self {
         Self {
             margin: Vec2::new(10.0, 10.0),
-            corner_radius: 5.0,
+            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
             fill: Color32::from_black_alpha(250),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
@@ -113,7 +113,6 @@ impl Frame {
 
 pub struct Prepared {
     pub frame: Frame,
-    outer_rect_bounds: Rect,
     where_to_put_background: ShapeIdx,
     pub content_ui: Ui,
 }
@@ -134,7 +133,6 @@ impl Frame {
 
         Prepared {
             frame: self,
-            outer_rect_bounds,
             where_to_put_background,
             content_ui,
         }
@@ -175,10 +173,7 @@ impl Frame {
 
 impl Prepared {
     pub fn outer_rect(&self) -> Rect {
-        Rect::from_min_max(
-            self.outer_rect_bounds.min,
-            self.content_ui.min_rect().max + self.frame.margin,
-        )
+        self.content_ui.min_rect().expand2(self.frame.margin)
     }
 
     pub fn end(self, ui: &mut Ui) -> Response {
