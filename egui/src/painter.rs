@@ -3,7 +3,7 @@ use crate::{
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, CtxRef,
 };
-use epaint::{    
+use epaint::{
     mutex::Mutex,
     text::{Fonts, Galley, TextColorMap, TextStyle},
     Shape, Stroke,
@@ -387,14 +387,14 @@ impl Painter {
         galley: std::sync::Arc<Galley>,
         color: Color32,
         fake_italics: bool,
-    ) {	
+    ) {
         if !galley.is_empty() {
             self.add(Shape::Text {
-		pos,
-		galley,            
-		default_color: color,
-		color_map: TextColorMap::default(),
-		fake_italics,
+                pos,
+                galley,
+                default_color: color,
+                color_map: TextColorMap::default(),
+                fake_italics,
             });
         }
     }
@@ -403,7 +403,7 @@ impl Painter {
     pub fn multicolor_galley(
         &self,
         pos: Pos2,
-	galley: std::sync::Arc<Galley>,
+        galley: std::sync::Arc<Galley>,
         color_map: TextColorMap,
         default_color: Color32,
     ) {

@@ -583,26 +583,25 @@ impl Prepared {
 
             let text_alpha = remap_clamp(spacing_in_points, 40.0..=150.0, 0.0..=0.4);
 
-            if text_alpha > 0.0 {                
+            if text_alpha > 0.0 {
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
                 let galley = ui.fonts().layout_single_line(text_style, text);
 
                 let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 
-		
                 // Make sure we see the labels, even if the axis is off-screen:
                 text_pos[1 - axis] = text_pos[1 - axis]
                     .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
                     .at_least(transform.frame().min[1 - axis] + 1.0);
-		
-		shapes.push(Shape::Text {
+
+                shapes.push(Shape::Text {
                     pos: text_pos,
                     galley,
                     default_color: ui.visuals().text_color(),
                     color_map: epaint::text::TextColorMap::default(),
                     fake_italics: false,
-		});
+                });
             }
         }
 
@@ -611,7 +610,7 @@ impl Prepared {
                 Rgba::from_white_alpha(alpha).into()
             } else {
                 Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
-            }	    
+            }
         }
     }
 
