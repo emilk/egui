@@ -53,6 +53,20 @@ pub fn show_tooltip(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui)) {
     show_tooltip_at_pointer(ctx, id, add_contents)
 }
 
+/// Show a tooltip at the current pointer position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_ui`].
+///
+/// See also [`show_tooltip_text`].
+///
+/// ```
+/// # let mut ui = egui::Ui::__test();
+/// if ui.ui_contains_pointer() {
+///     egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///         ui.label("Helpful text");
+///     });
+/// }
+/// ```
 pub fn show_tooltip_at_pointer(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui)) {
     let suggested_pos = ctx
         .input()

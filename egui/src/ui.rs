@@ -137,6 +137,11 @@ impl Ui {
         self.style = style.into();
     }
 
+    /// Reset to the default style set in [`Context`].
+    pub fn reset_style(&mut self) {
+        self.style = self.ctx().style();
+    }
+
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
     #[inline(always)]
@@ -693,9 +698,9 @@ impl Ui {
         widget_rect
     }
 
-    /// Allocate a specific part of the `Ui‘.
+    /// Allocate a specific part of the `Ui`.
     ///
-    /// Ignore the layout of the `Ui‘: just put my widget here!
+    /// Ignore the layout of the `Ui`: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);
@@ -1317,6 +1322,9 @@ impl Ui {
     }
 
     /// Create a child ui which is indented to the right.
+    ///
+    /// The `id_source` here be anything at all.
+    // TODO: remove `id_source` argument?
     #[inline(always)]
     pub fn indent<R>(
         &mut self,
@@ -1347,7 +1355,8 @@ impl Ui {
         };
         let ret = add_contents(&mut child_ui);
 
-        let end_with_horizontal_line = true;
+        let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
+
         if end_with_horizontal_line {
             child_ui.add_space(4.0);
         }

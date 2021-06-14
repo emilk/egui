@@ -387,7 +387,7 @@ impl Widget for Plot {
             rect,
             corner_radius: 2.0,
             fill: ui.visuals().extreme_bg_color,
-            stroke: ui.visuals().window_stroke(),
+            stroke: ui.visuals().widgets.noninteractive.bg_stroke,
         });
 
         // Legend

@@ -96,8 +96,8 @@ pub trait App {
 
     /// Called once before the first frame.
     ///
-    /// Allows you to do setup code, e.g to call `[Context::set_fonts]`,
-    /// `[Context::set_visuals]` etc.
+    /// Allows you to do setup code, e.g to call `[egui::Context::set_fonts]`,
+    /// `[egui::Context::set_visuals]` etc.
     ///
     /// Also allows you to restore state, if there is a storage.
     fn setup(
@@ -127,7 +127,7 @@ pub trait App {
     /// where `APPNAME` is what is returned by [`Self::name()`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
-    /// Called once on shutdown (before or after `save()`)
+    /// Called once on shutdown (before or after [`Self::save`])
     fn on_exit(&mut self) {}
 
     // ---------
@@ -136,12 +136,12 @@ pub trait App {
     /// The name of your App.
     fn name(&self) -> &str;
 
-    /// Time between automatic calls to `save()`
+    /// Time between automatic calls to [`Self::save`]
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
     }
 
-    /// The size limit of the web app canvas
+    /// The size limit of the web app canvas.
     fn max_size_points(&self) -> egui::Vec2 {
         // Some browsers get slow with huge WebGL canvases, so we limit the size:
         egui::Vec2::new(1024.0, 2048.0)
@@ -254,6 +254,8 @@ impl<'a> Frame<'a> {
 
     /// Very simple Http fetch API.
     /// Calls the given callback when done.
+    ///
+    /// You must enable the "http" feature for this.
     #[cfg(feature = "http")]
     pub fn http_fetch(
         &self,
@@ -346,7 +348,7 @@ impl Storage for DummyStorage {
     fn flush(&mut self) {}
 }
 
-/// Get an deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+/// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
@@ -370,6 +372,8 @@ pub const APP_KEY: &str = "app";
 
 #[cfg(feature = "http")]
 /// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
+///
+/// You must enable the "http" feature for this.
 pub mod http {
     /// A simple http requests.
     pub struct Request {
@@ -411,7 +415,7 @@ pub mod http {
         pub ok: bool,
         /// Status code (e.g. `404` for "File not found").
         pub status: u16,
-        /// Status tex (e.g. "File not found" for status code `404`).
+        /// Status text (e.g. "File not found" for status code `404`).
         pub status_text: String,
 
         /// Content-Type header, or empty string if missing.

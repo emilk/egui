@@ -36,6 +36,7 @@ pub struct ScrollArea {
     always_show_scroll: bool,
     id_source: Option<Id>,
     offset: Option<Vec2>,
+    scrolling_enabled: bool,
 }
 
 impl ScrollArea {
@@ -51,6 +52,7 @@ impl ScrollArea {
             always_show_scroll: false,
             id_source: None,
             offset: None,
+            scrolling_enabled: true,
         }
     }
 
@@ -75,6 +77,17 @@ impl ScrollArea {
         self.offset = Some(Vec2::new(0.0, offset));
         self
     }
+
+    /// Control the scrolling behavior
+    /// If `true` (default), the scroll area will respond to user scrolling
+    /// If `false`, the scroll area will not respond to user scrolling
+    ///
+    /// This can be used, for example, to optionally freeze scrolling while the user
+    /// is inputing text in a `TextEdit` widget contained within the scroll area
+    pub fn enable_scrolling(mut self, enable: bool) -> Self {
+        self.scrolling_enabled = enable;
+        self
+    }
 }
 
 struct Prepared {
@@ -87,6 +100,7 @@ struct Prepared {
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
+    scrolling_enabled: bool,
 }
 
 impl ScrollArea {
@@ -96,6 +110,7 @@ impl ScrollArea {
             always_show_scroll,
             id_source,
             offset,
+            scrolling_enabled,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -152,6 +167,7 @@ impl ScrollArea {
             inner_rect,
             content_ui,
             viewport,
+            scrolling_enabled,
         }
     }
 
@@ -229,6 +245,7 @@ impl Prepared {
             mut current_scroll_bar_width,
             content_ui,
             viewport: _,
+            scrolling_enabled,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -250,14 +267,27 @@ impl Prepared {
             state.offset.y = offset_y + spacing;
         }
 
-        let width = if inner_rect.width().is_finite() {
-            inner_rect.width().max(content_size.x) // Expand width to fit content
-        } else {
-            // ScrollArea is in an infinitely wide parent
-            content_size.x
-        };
+        let inner_rect = {
+            let width = if inner_rect.width().is_finite() {
+                inner_rect.width().max(content_size.x) // Expand width to fit content
+            } else {
+                // ScrollArea is in an infinitely wide parent
+                content_size.x
+            };
 
-        let inner_rect = Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
+            let mut inner_rect =
+                Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
+
+            // The window that egui sits in can't be expanded by egui, so we need to respect it:
+            let max_x = ui.input().screen_rect().right()
+                - current_scroll_bar_width
+                - ui.spacing().item_spacing.x;
+            inner_rect.max.x = inner_rect.max.x.at_most(max_x);
+            // TODO: when we support it, we should maybe auto-enable
+            // horizontal scrolling if this limit is reached
+
+            inner_rect
+        };
 
         let outer_rect = Rect::from_min_size(
             inner_rect.min,
@@ -268,7 +298,12 @@ impl Prepared {
 
         if content_is_too_small {
             // Drag contents to scroll (for touch screens mostly):
-            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            let sense = if self.scrolling_enabled {
+                Sense::drag()
+            } else {
+                Sense::hover()
+            };
+            let content_response = ui.interact(inner_rect, id.with("area"), sense);
 
             let input = ui.input();
             if content_response.dragged() {
@@ -293,7 +328,7 @@ impl Prepared {
         }
 
         let max_offset = content_size.y - inner_rect.height();
-        if ui.rect_contains_pointer(outer_rect) {
+        if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             let mut frame_state = ui.ctx().frame_state();
             let scroll_delta = frame_state.scroll_delta;
 
@@ -322,7 +357,6 @@ impl Prepared {
             let margin = animation_t * ui.spacing().item_spacing.x;
             let left = inner_rect.right() + margin;
             let right = outer_rect.right();
-            let corner_radius = (right - left) / 2.0;
             let top = inner_rect.top();
             let bottom = inner_rect.bottom();
 
@@ -340,7 +374,12 @@ impl Prepared {
             );
 
             let interact_id = id.with("vertical");
-            let response = ui.interact(outer_scroll_rect, interact_id, Sense::click_and_drag());
+            let sense = if self.scrolling_enabled {
+                Sense::click_and_drag()
+            } else {
+                Sense::hover()
+            };
+            let response = ui.interact(outer_scroll_rect, interact_id, sense);
 
             if let Some(pointer_pos) = response.interact_pointer_pos() {
                 let scroll_start_offset_from_top =
@@ -375,7 +414,7 @@ impl Prepared {
                 pos2(left, from_content(state.offset.y)),
                 pos2(right, from_content(state.offset.y + inner_rect.height())),
             );
-            let min_handle_height = (2.0 * corner_radius).max(8.0);
+            let min_handle_height = ui.spacing().scroll_bar_width;
             if handle_rect.size().y < min_handle_height {
                 handle_rect = Rect::from_center_size(
                     handle_rect.center(),
@@ -383,23 +422,23 @@ impl Prepared {
                 );
             }
 
-            let visuals = ui.style().interact(&response);
+            let visuals = if scrolling_enabled {
+                ui.style().interact(&response)
+            } else {
+                &ui.style().visuals.widgets.inactive
+            };
 
-            ui.painter().add(epaint::Shape::Rect {
-                rect: outer_scroll_rect,
-                corner_radius,
-                fill: ui.visuals().extreme_bg_color,
-                stroke: Default::default(),
-                // fill: visuals.bg_fill,
-                // stroke: visuals.bg_stroke,
-            });
+            ui.painter().add(epaint::Shape::rect_filled(
+                outer_scroll_rect,
+                visuals.corner_radius,
+                ui.visuals().extreme_bg_color,
+            ));
 
-            ui.painter().add(epaint::Shape::Rect {
-                rect: handle_rect.expand(-2.0),
-                corner_radius,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            });
+            ui.painter().add(epaint::Shape::rect_filled(
+                handle_rect,
+                visuals.corner_radius,
+                visuals.bg_fill,
+            ));
         }
 
         let size = vec2(
@@ -421,5 +460,5 @@ impl Prepared {
 }
 
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().item_spacing.x + 16.0
+    ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
 }

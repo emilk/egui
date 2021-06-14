@@ -172,6 +172,11 @@ pub fn input_to_egui(
                 }
             }
         }
+        WindowEvent::Focused(_) => {
+            // We will not be given a KeyboardInput event when the modifiers are released while
+            // the window does not have focus. Unset all modifier state to be safe.
+            input_state.raw.modifiers = Modifiers::default();
+        }
         WindowEvent::MouseWheel { delta, .. } => {
             let mut delta = match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {

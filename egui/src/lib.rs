@@ -394,7 +394,10 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
-/// Example: `ui.add(github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ```
 #[macro_export]
 macro_rules! github_link_file_line {
     ($github_url:expr, $label:expr) => {{
@@ -405,7 +408,10 @@ macro_rules! github_link_file_line {
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
 ///
-/// Example: `ui.add(github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));`
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ```
 #[macro_export]
 macro_rules! github_link_file {
     ($github_url:expr, $label:expr) => {{
