@@ -19,7 +19,7 @@ Examples: `Vec2, Pos2, Rect, lerp, remap`
 
 Example: `Shape::Circle { center, radius, fill, stroke }`
 
-Depends on `emath`, [`rusttype`](https://crates.io/crates/rusttype), [`atomic_refcell`](https://crates.io/crates/atomic_refcell), [`ahash`](https://crates.io/crates/ahash).
+Depends on `emath`, [`ab_glyph`](https://crates.io/crates/ab_glyph), [`atomic_refcell`](https://crates.io/crates/atomic_refcell), [`ahash`](https://crates.io/crates/ahash).
 
 ### `epi`
 Depends only on `egui`.

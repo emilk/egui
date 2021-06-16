@@ -1,10 +1,3 @@
-use std::sync::Arc;
-
-use {
-    ahash::AHashMap,
-    rusttype::{point, Scale},
-};
-
 use crate::{
     mutex::{Mutex, RwLock},
     text::{
@@ -13,7 +6,9 @@ use crate::{
     },
     TextureAtlas,
 };
+use ahash::AHashMap;
 use emath::{vec2, Vec2};
+use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 
@@ -32,7 +27,7 @@ pub struct UvRect {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GlyphInfo {
-    id: rusttype::GlyphId,
+    id: ab_glyph::GlyphId,
 
     /// Unit: points.
     pub advance_width: f32,
@@ -44,7 +39,7 @@ pub struct GlyphInfo {
 impl Default for GlyphInfo {
     fn default() -> Self {
         Self {
-            id: rusttype::GlyphId(0),
+            id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
             uv_rect: None,
         }
@@ -56,7 +51,7 @@ impl Default for GlyphInfo {
 /// A specific font with a size.
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
-    rusttype_font: Arc<rusttype::Font<'static>>,
+    ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
     scale_in_pixels: f32,
     height_in_points: f32,
@@ -71,7 +66,7 @@ impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
-        rusttype_font: Arc<rusttype::Font<'static>>,
+        ab_glyph_font: ab_glyph::FontArc,
         scale_in_points: f32,
         y_offset: f32,
     ) -> FontImpl {
@@ -96,7 +91,7 @@ impl FontImpl {
         let y_offset = (y_offset * pixels_per_point).round() / pixels_per_point;
 
         Self {
-            rusttype_font,
+            ab_glyph_font,
             scale_in_pixels,
             height_in_points,
             y_offset,
@@ -115,8 +110,9 @@ impl FontImpl {
         }
 
         // Add new character:
-        let glyph = self.rusttype_font.glyph(c);
-        if glyph.id().0 == 0 {
+        use ab_glyph::Font;
+        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        if glyph_id.0 == 0 {
             if invisible_char(c) {
                 // hack
                 let glyph_info = GlyphInfo::default();
@@ -128,7 +124,8 @@ impl FontImpl {
         } else {
             let mut glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
-                glyph,
+                &self.ab_glyph_font,
+                glyph_id,
                 self.scale_in_pixels,
                 self.y_offset,
                 self.pixels_per_point,
@@ -147,12 +144,13 @@ impl FontImpl {
 
     pub fn pair_kerning(
         &self,
-        last_glyph_id: rusttype::GlyphId,
-        glyph_id: rusttype::GlyphId,
+        last_glyph_id: ab_glyph::GlyphId,
+        glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        let scale_in_pixels = Scale::uniform(self.scale_in_pixels);
-        self.rusttype_font
-            .pair_kerning(scale_in_pixels, last_glyph_id, glyph_id)
+        use ab_glyph::{Font, ScaleFont};
+        self.ab_glyph_font
+            .as_scaled(self.scale_in_pixels)
+            .kern(last_glyph_id, glyph_id)
             / self.pixels_per_point
     }
 
@@ -618,20 +616,22 @@ fn invisible_char(c: char) -> bool {
 
 fn allocate_glyph(
     atlas: &mut TextureAtlas,
-    glyph: rusttype::Glyph<'static>,
+    font: &ab_glyph::FontArc,
+    glyph_id: ab_glyph::GlyphId,
     scale_in_pixels: f32,
     y_offset: f32,
     pixels_per_point: f32,
 ) -> GlyphInfo {
-    assert!(glyph.id().0 != 0);
+    assert!(glyph_id.0 != 0);
+    use ab_glyph::{Font, ScaleFont};
 
-    let glyph = glyph.scaled(Scale::uniform(scale_in_pixels));
-    let glyph = glyph.positioned(point(0.0, 0.0));
+    let glyph =
+        glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
 
-    let uv_rect = if let Some(bb) = glyph.pixel_bounding_box() {
+    let uv_rect = font.outline_glyph(glyph).and_then(|glyph| {
+        let bb = glyph.px_bounds();
         let glyph_width = bb.width() as usize;
         let glyph_height = bb.height() as usize;
-
         if glyph_width == 0 || glyph_height == 0 {
             None
         } else {
@@ -658,15 +658,13 @@ fn allocate_glyph(
                 ),
             })
         }
-    } else {
-        // No bounding box. Maybe a space?
-        None
-    };
+    });
 
-    let advance_width_in_points = glyph.unpositioned().h_metrics().advance_width / pixels_per_point;
+    let advance_width_in_points =
+        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
 
     GlyphInfo {
-        id: glyph.id(),
+        id: glyph_id,
         advance_width: advance_width_in_points,
         uv_rect,
     }

@@ -29,8 +29,8 @@ atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_
 cint = { version = "^0.2.2", optional = true }
 ordered-float = { version = "2", default-features = false }
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-rusttype = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
+ab_glyph = "0.2.11"
 
 [features]
 default = ["multi_threaded", "default_fonts"]
