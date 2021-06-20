@@ -1635,6 +1635,7 @@ fn horizontal_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn rulers_at_value(
     ui: &Ui,
     pointer: Pos2,
