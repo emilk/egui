@@ -350,9 +350,7 @@ impl PlotItem for Line {
             .zip(closest_item)
             .map(move |(value, name)| HoverElement {
                 distance_square: closest_dist_sq,
-                hover_shapes: Box::new(move || {
-                    let mut hover_shapes = Vec::new();
-
+                hover_shapes: Box::new(move |mut shapes| {
                     let line_color = if ui.visuals().dark_mode {
                         Color32::from_gray(100).additive()
                     } else {
@@ -360,7 +358,7 @@ impl PlotItem for Line {
                     };
 
                     let position = transform.position_from_value(value);
-                    hover_shapes.push(Shape::circle_filled(position, 3.0, line_color));
+                    shapes.push(Shape::circle_filled(position, 3.0, line_color));
 
                     rulers_at_value(
                         ui,
@@ -370,10 +368,8 @@ impl PlotItem for Line {
                         show_y,
                         *value,
                         name,
-                        &mut hover_shapes,
+                        &mut shapes,
                     );
-
-                    hover_shapes
                 }),
             })
     }
@@ -636,9 +632,7 @@ impl PlotItem for Points {
             .zip(closest_item)
             .map(move |(value, name)| HoverElement {
                 distance_square: closest_dist_sq,
-                hover_shapes: Box::new(move || {
-                    let mut hover_shapes = Vec::new();
-
+                hover_shapes: Box::new(move |mut shapes| {
                     let line_color = if ui.visuals().dark_mode {
                         Color32::from_gray(100).additive()
                     } else {
@@ -646,7 +640,7 @@ impl PlotItem for Points {
                     };
 
                     let position = transform.position_from_value(value);
-                    hover_shapes.push(Shape::circle_filled(position, 3.0, line_color));
+                    shapes.push(Shape::circle_filled(position, 3.0, line_color));
 
                     rulers_at_value(
                         ui,
@@ -656,10 +650,8 @@ impl PlotItem for Points {
                         show_y,
                         *value,
                         name,
-                        &mut hover_shapes,
+                        &mut shapes,
                     );
-
-                    hover_shapes
                 }),
             })
     }
@@ -1111,11 +1103,9 @@ impl PlotItem for BarChart {
         }
         closest.map(move |bar| HoverElement {
             distance_square: closest_dist_sq,
-            hover_shapes: Box::new(move || {
-                let mut hover_shapes = Vec::new();
-                bar.shapes(transform, true, &mut hover_shapes);
-                bar.rulers(self, ui, transform, show_x, show_y, &mut hover_shapes);
-                hover_shapes
+            hover_shapes: Box::new(move |mut shapes| {
+                bar.shapes(transform, true, &mut shapes);
+                bar.rulers(self, ui, transform, show_x, show_y, &mut shapes);
             }),
         })
     }
@@ -1575,11 +1565,9 @@ impl PlotItem for BoxplotSeries {
         }
         closest.map(move |boxplot| HoverElement {
             distance_square: closest_dist_sq,
-            hover_shapes: Box::new(move || {
-                let mut hover_shapes = Vec::new();
-                boxplot.shapes(transform, true, &mut hover_shapes);
-                boxplot.rulers(self, ui, transform, show_x, show_y, &mut hover_shapes);
-                hover_shapes
+            hover_shapes: Box::new(move |mut shapes| {
+                boxplot.shapes(transform, true, &mut shapes);
+                boxplot.rulers(self, ui, transform, show_x, show_y, &mut shapes);
             }),
         })
     }
@@ -1606,7 +1594,7 @@ pub(crate) struct HoverElement<'a> {
     // Note: the Box<dyn Fn> here is a compromise between an owned Vec<Shape>
     //       (overhead of precalculating the shapes) and an impl Fn
     //       (typing all the way up to PlotItem with trait object safety workarounds)
-    pub(crate) hover_shapes: Box<dyn Fn() -> Vec<Shape> + 'a>,
+    pub(crate) hover_shapes: Box<dyn Fn(&mut Vec<Shape>) + 'a>,
 }
 
 fn highlighted_color(mut stroke: Stroke, fill: Color32) -> (Stroke, Color32) {
