@@ -670,7 +670,7 @@ impl Prepared {
         }
 
         if let Some(ref mut closest) = closest_item {
-            shapes.append(&mut closest.hover_shapes);
+            shapes.append(&mut (closest.hover_shapes)());
         } else {
             let value = transform.value_from_position(pointer);
             shapes.append(&mut items::rulers_at_value(
