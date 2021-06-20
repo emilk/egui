@@ -673,9 +673,7 @@ impl Prepared {
             shapes.append(&mut (closest.hover_shapes)());
         } else {
             let value = transform.value_from_position(pointer);
-            shapes.append(&mut items::rulers_at_value(
-                ui, pointer, transform, *show_x, *show_y, value, "",
-            ))
+            items::rulers_at_value(ui, pointer, transform, *show_x, *show_y, value, "", shapes)
         }
     }
 }

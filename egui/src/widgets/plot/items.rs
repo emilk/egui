@@ -362,9 +362,16 @@ impl PlotItem for Line {
                     let position = transform.position_from_value(value);
                     hover_shapes.push(Shape::circle_filled(position, 3.0, line_color));
 
-                    hover_shapes.append(&mut rulers_at_value(
-                        ui, position, transform, show_x, show_y, *value, name,
-                    ));
+                    rulers_at_value(
+                        ui,
+                        position,
+                        transform,
+                        show_x,
+                        show_y,
+                        *value,
+                        name,
+                        &mut hover_shapes,
+                    );
 
                     hover_shapes
                 }),
@@ -641,9 +648,16 @@ impl PlotItem for Points {
                     let position = transform.position_from_value(value);
                     hover_shapes.push(Shape::circle_filled(position, 3.0, line_color));
 
-                    hover_shapes.append(&mut rulers_at_value(
-                        ui, position, transform, show_x, show_y, *value, name,
-                    ));
+                    rulers_at_value(
+                        ui,
+                        position,
+                        transform,
+                        show_x,
+                        show_y,
+                        *value,
+                        name,
+                        &mut hover_shapes,
+                    );
 
                     hover_shapes
                 }),
@@ -839,14 +853,12 @@ impl Bar {
         bounds
     }
 
-    fn shapes(&self, transform: &ScreenTransform, highlighted: bool) -> Vec<Shape> {
+    fn shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
         let (stroke, fill) = if highlighted {
             highlighted_color(self.stroke, self.fill)
         } else {
             (self.stroke, self.fill)
         };
-
-        let mut shapes = Vec::new();
 
         let rect = transform.rect_from_values(&self.min(), &self.max());
         let rect = Shape::Rect {
@@ -856,7 +868,6 @@ impl Bar {
             stroke,
         };
         shapes.push(rect);
-        shapes
     }
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
@@ -874,9 +885,8 @@ impl Bar {
         transform: &ScreenTransform,
         show_x: bool,
         show_y: bool,
-    ) -> Vec<Shape> {
-        let mut shapes = Vec::new();
-
+        shapes: &mut Vec<Shape>,
+    ) {
         let value_center = self.value_center();
 
         let show_position = show_x && self.orientation == Orientation::Vertical
@@ -904,9 +914,9 @@ impl Bar {
         };
 
         if show_values {
-            push_value_ruler(value_center, &mut shapes);
+            push_value_ruler(value_center, shapes);
             if self.base_offset.is_some() {
-                push_value_ruler(self.base_center(), &mut shapes);
+                push_value_ruler(self.base_center(), shapes);
             }
         }
 
@@ -933,8 +943,6 @@ impl Bar {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
-
-        shapes
     }
 }
 
@@ -1067,7 +1075,7 @@ impl BarChart {
 impl PlotItem for BarChart {
     fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         self.bars.iter().for_each(|b| {
-            shapes.extend(b.shapes(transform, self.highlight));
+            b.shapes(transform, self.highlight, shapes);
         });
     }
 
@@ -1105,8 +1113,8 @@ impl PlotItem for BarChart {
             distance_square: closest_dist_sq,
             hover_shapes: Box::new(move || {
                 let mut hover_shapes = Vec::new();
-                hover_shapes.extend(bar.shapes(transform, true));
-                hover_shapes.extend(bar.rulers(self, ui, transform, show_x, show_y));
+                bar.shapes(transform, true, &mut hover_shapes);
+                bar.rulers(self, ui, transform, show_x, show_y, &mut hover_shapes);
                 hover_shapes
             }),
         })
@@ -1307,13 +1315,12 @@ impl Boxplot {
         bounds
     }
 
-    fn shapes(&self, transform: &ScreenTransform, highlighted: bool) -> Vec<Shape> {
+    fn shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
         let (stroke, fill) = if highlighted {
             highlighted_color(self.stroke, self.fill)
         } else {
             (self.stroke, self.fill)
         };
-        let mut shapes = Vec::new();
         let rect = transform.rect_from_values(&self.box_min(), &self.box_max());
         let rect = Shape::Rect {
             rect,
@@ -1355,7 +1362,6 @@ impl Boxplot {
                 shapes.push(low_whisker_end);
             }
         }
-        shapes
     }
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
@@ -1377,9 +1383,8 @@ impl Boxplot {
         transform: &ScreenTransform,
         show_x: bool,
         show_y: bool,
-    ) -> Vec<Shape> {
-        let mut shapes = Vec::new();
-
+        shapes: &mut Vec<Shape>,
+    ) {
         let median = self.median_center();
         let q1 = self.box_lower_center();
         let q3 = self.box_upper_center();
@@ -1411,11 +1416,11 @@ impl Boxplot {
         };
 
         if show_values {
-            push_value_ruler(median, &mut shapes);
-            push_value_ruler(q1, &mut shapes);
-            push_value_ruler(q3, &mut shapes);
-            push_value_ruler(upper, &mut shapes);
-            push_value_ruler(lower, &mut shapes);
+            push_value_ruler(median, shapes);
+            push_value_ruler(q1, shapes);
+            push_value_ruler(q3, shapes);
+            push_value_ruler(upper, shapes);
+            push_value_ruler(lower, shapes);
         }
 
         let text = match parent.element_formatter {
@@ -1441,8 +1446,6 @@ impl Boxplot {
             TextStyle::Body,
             ui.visuals().text_color(),
         ));
-
-        shapes
     }
 }
 
@@ -1535,7 +1538,7 @@ impl BoxplotSeries {
 impl PlotItem for BoxplotSeries {
     fn get_shapes(&self, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         self.plots.iter().for_each(|b| {
-            shapes.extend(b.shapes(transform, self.highlight));
+            b.shapes(transform, self.highlight, shapes);
         });
     }
 
@@ -1574,8 +1577,8 @@ impl PlotItem for BoxplotSeries {
             distance_square: closest_dist_sq,
             hover_shapes: Box::new(move || {
                 let mut hover_shapes = Vec::new();
-                hover_shapes.extend(boxplot.shapes(transform, true));
-                hover_shapes.extend(boxplot.rulers(self, ui, transform, show_x, show_y));
+                boxplot.shapes(transform, true, &mut hover_shapes);
+                boxplot.rulers(self, ui, transform, show_x, show_y, &mut hover_shapes);
                 hover_shapes
             }),
         })
@@ -1652,9 +1655,8 @@ pub(crate) fn rulers_at_value(
     show_y: bool,
     value: Value,
     name: &str,
-) -> Vec<Shape> {
-    let mut shapes = Vec::new();
-
+    shapes: &mut Vec<Shape>,
+) {
     let line_color = rulers_color(ui);
     if show_x {
         shapes.push(vertical_line(pointer, transform, line_color));
@@ -1695,6 +1697,4 @@ pub(crate) fn rulers_at_value(
         TextStyle::Body,
         ui.visuals().text_color(),
     ));
-
-    shapes
 }
