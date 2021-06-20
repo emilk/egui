@@ -825,11 +825,9 @@ impl Bar {
     }
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
-        let mut text = String::new();
         let scale = transform.dvalue_dpos();
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        text.push_str(&format!("\n{:.*}", y_decimals, self.height));
-        text
+        format!("\n{:.*}", y_decimals, self.height)
     }
 
     fn rulers(
@@ -1280,15 +1278,21 @@ impl Boxplot {
     }
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
-        let mut text = String::new();
         let scale = transform.dvalue_dpos();
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        text.push_str(&format!("\nMax = {:.*}", y_decimals, self.upper_whisker));
-        text.push_str(&format!("\nQuartile 3 = {:.*}", y_decimals, self.quartile3));
-        text.push_str(&format!("\nMedian = {:.*}", y_decimals, self.median));
-        text.push_str(&format!("\nQuartile 1 = {:.*}", y_decimals, self.quartile1));
-        text.push_str(&format!("\nMin = {:.*}", y_decimals, self.lower_whisker));
-        text
+        format!(
+            "\nMax = {max:.decimals$}\
+             \nQuartile 3 = {q3:.decimals$}\
+             \nMedian = {med:.decimals$}\
+             \nQuartile 1 = {q1:.decimals$}\
+             \nMin = {min:.decimals$}",
+            max = self.upper_whisker,
+            q3 = self.quartile3,
+            med = self.median,
+            q1 = self.quartile1,
+            min = self.lower_whisker,
+            decimals = y_decimals
+        )
     }
 
     fn rulers(
