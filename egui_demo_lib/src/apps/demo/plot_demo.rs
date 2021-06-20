@@ -525,7 +525,7 @@ pub struct PlotDemo {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
-    histogram_demo: ChartsDemo,
+    charts_demo: ChartsDemo,
     open_panel: Panel,
 }
 
@@ -579,7 +579,7 @@ impl super::View for PlotDemo {
                 ui.add(&mut self.legend_demo);
             }
             Panel::Charts => {
-                ui.add(&mut self.histogram_demo);
+                ui.add(&mut self.charts_demo);
             }
         }
     }
