@@ -793,49 +793,11 @@ impl Bar {
     }
 
     fn bounds_min(&self) -> Value {
-        let key = self.position - self.width / 2.0;
-        let value = self.lower();
-        self.point_at(key, value)
+        self.point_at(self.position - self.width / 2.0, self.lower())
     }
 
     fn bounds_max(&self) -> Value {
-        let key = self.position + self.width / 2.0;
-        let value = self.upper();
-        self.point_at(key, value)
-    }
-
-    fn min(&self) -> Value {
-        let key = self.position - self.width / 2.0;
-        let value = self.lower();
-        self.point_at(key, value)
-    }
-
-    fn max(&self) -> Value {
-        let key = self.position + self.width / 2.0;
-        let value = self.upper();
-        self.point_at(key, value)
-    }
-
-    fn base_center(&self) -> Value {
-        self.point_at(self.position, self.base_offset.unwrap_or(0.0))
-    }
-
-    fn value_center(&self) -> Value {
-        self.point_at(
-            self.position,
-            self.base_offset
-                .map(|o| o + self.height)
-                .unwrap_or(self.height),
-        )
-    }
-
-    fn value_right_end(&self) -> Value {
-        self.point_at(
-            self.position + self.width / 2.0,
-            self.base_offset
-                .map(|o| o + self.height)
-                .unwrap_or(self.height),
-        )
+        self.point_at(self.position + self.width / 2.0, self.upper())
     }
 
     fn bounds(&self) -> Bounds {
@@ -852,7 +814,7 @@ impl Bar {
             (self.stroke, self.fill)
         };
 
-        let rect = transform.rect_from_values(&self.min(), &self.max());
+        let rect = transform.rect_from_values(&self.bounds_min(), &self.bounds_max());
         let rect = Shape::Rect {
             rect,
             corner_radius: 0.0,
@@ -879,7 +841,12 @@ impl Bar {
         show_y: bool,
         shapes: &mut Vec<Shape>,
     ) {
-        let value_center = self.value_center();
+        let value = self
+            .base_offset
+            .map(|o| o + self.height)
+            .unwrap_or(self.height);
+        let value_center = self.point_at(self.position, value);
+        let value_right_end = self.point_at(self.position + self.width / 2.0, value);
 
         let show_position = show_x && self.orientation == Orientation::Vertical
             || show_y && self.orientation == Orientation::Horizontal;
@@ -908,7 +875,10 @@ impl Bar {
         if show_values {
             push_value_ruler(value_center, shapes);
             if self.base_offset.is_some() {
-                push_value_ruler(self.base_center(), shapes);
+                push_value_ruler(
+                    self.point_at(self.position, self.base_offset.unwrap_or(0.0)),
+                    shapes,
+                );
             }
         }
 
@@ -929,7 +899,7 @@ impl Bar {
 
         shapes.push(Shape::text(
             ui.fonts(),
-            transform.position_from_value(&self.value_right_end()) + vec2(3.0, -2.0),
+            transform.position_from_value(&value_right_end) + vec2(3.0, -2.0),
             Align2::LEFT_BOTTOM,
             text,
             TextStyle::Body,
@@ -1241,63 +1211,6 @@ impl Boxplot {
         self.point_at(key, value)
     }
 
-    fn box_min(&self) -> Value {
-        let key = self.position - self.box_width / 2.0;
-        let value = self.quartile1;
-        self.point_at(key, value)
-    }
-
-    fn box_max(&self) -> Value {
-        let key = self.position + self.box_width / 2.0;
-        let value = self.quartile3;
-        self.point_at(key, value)
-    }
-
-    fn median_center(&self) -> Value {
-        self.point_at(self.position, self.median)
-    }
-
-    /// Lower point of the box, at `self.position`
-    fn box_lower_center(&self) -> Value {
-        self.point_at(self.position, self.quartile1)
-    }
-
-    fn box_upper_center(&self) -> Value {
-        self.point_at(self.position, self.quartile3)
-    }
-
-    fn median_left_end(&self) -> Value {
-        self.point_at(self.position - self.box_width / 2.0, self.median)
-    }
-
-    fn median_right_end(&self) -> Value {
-        self.point_at(self.position + self.box_width / 2.0, self.median)
-    }
-
-    fn upper_whisker_left_end(&self) -> Value {
-        self.point_at(self.position - self.whisker_width / 2.0, self.upper_whisker)
-    }
-
-    fn upper_whisker_center(&self) -> Value {
-        self.point_at(self.position, self.upper_whisker)
-    }
-
-    fn upper_whisker_right_end(&self) -> Value {
-        self.point_at(self.position + self.whisker_width / 2.0, self.upper_whisker)
-    }
-
-    fn lower_whisker_left_end(&self) -> Value {
-        self.point_at(self.position - self.whisker_width / 2.0, self.lower_whisker)
-    }
-
-    fn lower_whisker_center(&self) -> Value {
-        self.point_at(self.position, self.lower_whisker)
-    }
-
-    fn lower_whisker_right_end(&self) -> Value {
-        self.point_at(self.position + self.whisker_width / 2.0, self.lower_whisker)
-    }
-
     fn bounds(&self) -> Bounds {
         let mut bounds = Bounds::NOTHING;
         bounds.extend_with(&self.bounds_min());
@@ -1311,7 +1224,10 @@ impl Boxplot {
         } else {
             (self.stroke, self.fill)
         };
-        let rect = transform.rect_from_values(&self.box_min(), &self.box_max());
+        let rect = transform.rect_from_values(
+            &self.point_at(self.position - self.box_width / 2.0, self.quartile1),
+            &self.point_at(self.position + self.box_width / 2.0, self.quartile3),
+        );
         let rect = Shape::Rect {
             rect,
             corner_radius: 0.0,
@@ -1328,26 +1244,35 @@ impl Boxplot {
                 stroke,
             )
         };
-        let median = line_between(self.median_left_end(), self.median_right_end());
+        let median = line_between(
+            self.point_at(self.position - self.box_width / 2.0, self.median),
+            self.point_at(self.position + self.box_width / 2.0, self.median),
+        );
         shapes.push(median);
         if self.upper_whisker > self.quartile3 {
-            let high_whisker = line_between(self.box_upper_center(), self.upper_whisker_center());
+            let high_whisker = line_between(
+                self.point_at(self.position, self.quartile3),
+                self.point_at(self.position, self.upper_whisker),
+            );
             shapes.push(high_whisker);
             if self.box_width > 0.0 {
                 let high_whisker_end = line_between(
-                    self.upper_whisker_left_end(),
-                    self.upper_whisker_right_end(),
+                    self.point_at(self.position - self.whisker_width / 2.0, self.upper_whisker),
+                    self.point_at(self.position + self.whisker_width / 2.0, self.upper_whisker),
                 );
                 shapes.push(high_whisker_end);
             }
         }
         if self.lower_whisker < self.quartile1 {
-            let low_whisker = line_between(self.box_lower_center(), self.lower_whisker_center());
+            let low_whisker = line_between(
+                self.point_at(self.position, self.quartile1),
+                self.point_at(self.position, self.lower_whisker),
+            );
             shapes.push(low_whisker);
             if self.box_width > 0.0 {
                 let low_whisker_end = line_between(
-                    self.lower_whisker_left_end(),
-                    self.lower_whisker_right_end(),
+                    self.point_at(self.position - self.whisker_width / 2.0, self.lower_whisker),
+                    self.point_at(self.position + self.whisker_width / 2.0, self.lower_whisker),
                 );
                 shapes.push(low_whisker_end);
             }
@@ -1375,11 +1300,11 @@ impl Boxplot {
         show_y: bool,
         shapes: &mut Vec<Shape>,
     ) {
-        let median = self.median_center();
-        let q1 = self.box_lower_center();
-        let q3 = self.box_upper_center();
-        let upper = self.upper_whisker_center();
-        let lower = self.lower_whisker_center();
+        let median = self.point_at(self.position, self.median);
+        let q1 = self.point_at(self.position, self.quartile1);
+        let q3 = self.point_at(self.position, self.quartile3);
+        let upper = self.point_at(self.position, self.upper_whisker);
+        let lower = self.point_at(self.position, self.lower_whisker);
 
         let show_position = show_x && self.orientation == Orientation::Vertical
             || show_y && self.orientation == Orientation::Horizontal;
