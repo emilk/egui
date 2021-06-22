@@ -24,6 +24,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
 
 ### Changed 🔧
+* Minimum Rust version is now 1.51 (used to be 1.52)
 * [Tweaked the default visuals style](https://github.com/emilk/egui/pull/450).
 * Plot: Changed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
