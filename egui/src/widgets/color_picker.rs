@@ -269,9 +269,6 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 
         if alpha == Alpha::Opaque {
             hsva.a = 1.0;
-            show_color(ui, *hsva, current_color_size);
-            ui.label("Selected color");
-            ui.end_row();
         } else {
             let a = &mut hsva.a;
 
@@ -287,11 +284,11 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
                 ui.label("Alpha");
                 ui.end_row();
             }
-
-            show_color(ui, *hsva, current_color_size);
-            ui.label("Selected color");
-            ui.end_row();
         }
+
+        show_color(ui, *hsva, current_color_size);
+        ui.label("Selected color");
+        ui.end_row();
 
         ui.separator(); // TODO: fix ever-expansion
         ui.end_row();

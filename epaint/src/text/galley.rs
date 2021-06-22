@@ -583,6 +583,8 @@ impl Galley {
 
 #[test]
 fn test_text_layout() {
+    #![allow(clippy::bool_assert_comparison)]
+
     impl PartialEq for Cursor {
         fn eq(&self, other: &Cursor) -> bool {
             (self.ccursor, self.rcursor, self.pcursor)

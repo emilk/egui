@@ -109,7 +109,7 @@ fn create_display(
         .with_stencil_buffer(0)
         .with_vsync(true);
 
-    let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
+    let display = glium::Display::new(window_builder, context_builder, event_loop).unwrap();
 
     if let Some(window_settings) = &window_settings {
         window_settings.restore_positions(&display);
@@ -154,7 +154,7 @@ fn integration_info(
         prefer_dark_mode: None, // TODO: figure out system default
         cpu_usage: previous_frame_time,
         seconds_since_midnight: seconds_since_midnight(),
-        native_pixels_per_point: Some(native_pixels_per_point(&display)),
+        native_pixels_per_point: Some(native_pixels_per_point(display)),
     }
 }
 
@@ -195,7 +195,7 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
             repaint_signal: repaint_signal.clone(),
         }
         .build();
-        app.setup(&ctx, &mut frame, storage.as_deref());
+        app.setup(ctx, &mut frame, storage.as_deref());
     }
 
     let mut previous_frame_time = None;
@@ -222,7 +222,7 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
         }
         .build();
 
-        app.update(&ctx, &mut frame);
+        app.update(ctx, &mut frame);
 
         let _ = egui.end_frame(&display);
 

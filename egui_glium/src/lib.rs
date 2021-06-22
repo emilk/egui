@@ -504,7 +504,7 @@ impl EguiGlium {
         self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
         self.input_state.raw.screen_rect = Some(Rect::from_min_size(
             Default::default(),
-            screen_size_in_pixels(&display) / pixels_per_point,
+            screen_size_in_pixels(display) / pixels_per_point,
         ));
 
         self.egui_ctx.begin_frame(self.input_state.raw.take());
