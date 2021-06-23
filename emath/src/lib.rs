@@ -230,9 +230,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
-    if min_decimals == max_decimals {
-        format!("{:.*}", max_decimals, value)
-    } else {
+    if min_decimals != max_decimals {
         // Ugly/slow way of doing this. TODO: clean up precision.
         for decimals in min_decimals..max_decimals {
             let text = format!("{:.*}", decimals, value);
@@ -245,8 +243,8 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         // The value has more precision than we expected.
         // Probably the value was set not by the slider, but from outside.
         // In any case: show the full value
-        format!("{:.*}", max_decimals, value)
     }
+    format!("{:.*}", max_decimals, value)
 }
 
 /// Return true when arguments are the same within some rounding error.

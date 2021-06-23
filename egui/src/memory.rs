@@ -315,6 +315,11 @@ impl Memory {
         self.interaction.focus.id == Some(id)
     }
 
+    /// Which widget has keyboard focus?
+    pub fn focus(&self) -> Option<Id> {
+        self.interaction.focus.id
+    }
+
     pub(crate) fn lock_focus(&mut self, id: Id, lock_focus: bool) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked = lock_focus;
@@ -459,7 +464,7 @@ impl Areas {
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -510,7 +515,7 @@ impl Areas {
         self.visible_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }

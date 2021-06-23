@@ -92,14 +92,15 @@ impl Painter {
 
 /// ## Accessors etc
 impl Painter {
+    /// Get a reference to the parent [`CtxRef`].
     #[inline(always)]
-    pub(crate) fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &CtxRef {
         &self.ctx
     }
 
-    /// Available fonts
+    /// Available fonts.
     #[inline(always)]
-    pub(crate) fn fonts(&self) -> &Fonts {
+    pub fn fonts(&self) -> &Fonts {
         self.ctx.fonts()
     }
 
@@ -123,19 +124,19 @@ impl Painter {
         self.clip_rect = clip_rect;
     }
 
-    /// Useful for pixel-perfect rendering
+    /// Useful for pixel-perfect rendering.
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel(point)
     }
 
-    /// Useful for pixel-perfect rendering
+    /// Useful for pixel-perfect rendering.
     #[inline(always)]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         self.ctx().round_vec_to_pixels(vec)
     }
 
-    /// Useful for pixel-perfect rendering
+    /// Useful for pixel-perfect rendering.
     #[inline(always)]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)

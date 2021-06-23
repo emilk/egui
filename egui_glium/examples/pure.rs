@@ -16,12 +16,12 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
         .with_stencil_buffer(0)
         .with_vsync(true);
 
-    glium::Display::new(window_builder, context_builder, &event_loop).unwrap()
+    glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }
 
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(&&event_loop);
+    let display = create_display(&event_loop);
 
     let mut egui = egui_glium::EguiGlium::new(&display);
 

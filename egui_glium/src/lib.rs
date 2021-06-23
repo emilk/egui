@@ -172,6 +172,11 @@ pub fn input_to_egui(
                 }
             }
         }
+        WindowEvent::Focused(_) => {
+            // We will not be given a KeyboardInput event when the modifiers are released while
+            // the window does not have focus. Unset all modifier state to be safe.
+            input_state.raw.modifiers = Modifiers::default();
+        }
         WindowEvent::MouseWheel { delta, .. } => {
             let mut delta = match delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
@@ -499,7 +504,7 @@ impl EguiGlium {
         self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
         self.input_state.raw.screen_rect = Some(Rect::from_min_size(
             Default::default(),
-            screen_size_in_pixels(&display) / pixels_per_point,
+            screen_size_in_pixels(display) / pixels_per_point,
         ));
 
         self.egui_ctx.begin_frame(self.input_state.raw.take());
