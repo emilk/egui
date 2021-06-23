@@ -296,9 +296,9 @@ checksum = "fff857943da45f546682664a79488be82e69e43c1a7a2307679ab9afb3a66d2e"
 
 [[package]]
 name = "cint"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00709959bb62458ca8d7f043b1039e0d99e91f5500f004164ec371f546eadc47"
+checksum = "5d83feae28854d73f33659f9018546157422ddf5b84264ce171a766d8547d77b"
 
 [[package]]
 name = "clang-sys"

@@ -1,0 +1,10 @@
+# If you see this, run "rustup self update" to get rustup 1.23 or newer.
+
+# NOTE: above comment is for older `rustup` (before TOML support was added),
+# which will treat the first line as the toolchain name, and therefore show it
+# to the user in the error, instead of "error: invalid channel name '[toolchain]'".
+
+[toolchain]
+channel = "1.51.0"
+components = [ "rustfmt", "clippy" ]
+targets = [ "wasm32-unknown-unknown" ]
