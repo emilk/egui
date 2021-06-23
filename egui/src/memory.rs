@@ -230,7 +230,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Rect>) {
         if let Some(id) = self.id {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(id);
@@ -284,7 +284,7 @@ impl Memory {
     pub(crate) fn end_frame(
         &mut self,
         input: &InputState,
-        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
+        used_ids: &epaint::ahash::AHashMap<Id, Rect>,
     ) {
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
