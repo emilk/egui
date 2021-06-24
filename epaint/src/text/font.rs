@@ -8,6 +8,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
@@ -101,6 +102,24 @@ impl FontImpl {
         }
     }
 
+    /// An un-ordered iterator over all supported characters.
+    fn characters(&self) -> impl Iterator<Item = char> + '_ {
+        use ab_glyph::Font as _;
+        self.ab_glyph_font
+            .codepoint_ids()
+            .map(|(_, chr)| chr)
+            .filter(|chr| {
+                !matches!(
+                    chr,
+                    // Strip out a religious symbol with secondary nefarious interpretation:
+                    '\u{534d}' | '\u{5350}' |
+
+                    // Ignore ubuntu-specific stuff in `Ubuntu-Light.ttf`:
+                    '\u{E0FF}' | '\u{EFFD}' | '\u{F0FF}' | '\u{F200}'
+                )
+            })
+    }
+
     /// `\n` will result in `None`
     fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
         {
@@ -173,6 +192,7 @@ type FontIndex = usize;
 pub struct Font {
     text_style: TextStyle,
     fonts: Vec<Arc<FontImpl>>,
+    characters: std::collections::BTreeSet<char>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -181,10 +201,16 @@ pub struct Font {
 
 impl Font {
     pub fn new(text_style: TextStyle, fonts: Vec<Arc<FontImpl>>) -> Self {
+        let mut characters = BTreeSet::new();
+        for font in &fonts {
+            characters.extend(font.characters());
+        }
+
         if fonts.is_empty() {
             return Self {
                 text_style,
                 fonts,
+                characters,
                 replacement_glyph: Default::default(),
                 pixels_per_point: 0.0,
                 row_height: 0.0,
@@ -198,6 +224,7 @@ impl Font {
         let mut slf = Self {
             text_style,
             fonts,
+            characters,
             replacement_glyph: Default::default(),
             pixels_per_point,
             row_height,
@@ -228,6 +255,11 @@ impl Font {
         slf.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR); // password replacement character
 
         slf
+    }
+
+    /// All supported characters
+    pub fn characters(&self) -> &BTreeSet<char> {
+        &self.characters
     }
 
     #[inline(always)]
