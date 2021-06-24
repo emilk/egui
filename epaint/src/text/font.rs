@@ -110,7 +110,7 @@ impl FontImpl {
         }
 
         // Add new character:
-        use ab_glyph::Font;
+        use ab_glyph::Font as _;
         let glyph_id = self.ab_glyph_font.glyph_id(c);
         if glyph_id.0 == 0 {
             if invisible_char(c) {
@@ -147,7 +147,7 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        use ab_glyph::{Font, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont};
         self.ab_glyph_font
             .as_scaled(self.scale_in_pixels)
             .kern(last_glyph_id, glyph_id)
@@ -623,7 +623,7 @@ fn allocate_glyph(
     pixels_per_point: f32,
 ) -> GlyphInfo {
     assert!(glyph_id.0 != 0);
-    use ab_glyph::{Font, ScaleFont};
+    use ab_glyph::{Font as _, ScaleFont};
 
     let glyph =
         glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
