@@ -111,6 +111,7 @@ fn char_name(chr: char) -> String {
     unicode_names2::name(chr)
         .map(|name| name.to_string().to_lowercase())
         .unwrap_or_else(|| {
+            #[allow(clippy::match_same_arms)]
             match chr {
                 // Special private-use-area extensions found in `emoji-icon-font.ttf`:
                 // Private use area extensions:
