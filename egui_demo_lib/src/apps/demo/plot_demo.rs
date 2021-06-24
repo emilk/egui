@@ -18,7 +18,7 @@ struct LineDemo {
 impl Default for LineDemo {
     fn default() -> Self {
         Self {
-            animate: true,
+            animate: !cfg!(debug_assertions),
             time: 0.0,
             circle_radius: 1.5,
             circle_center: Pos2::new(0.0, 0.0),
@@ -68,8 +68,10 @@ impl LineDemo {
             ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "animate");
-                ui.checkbox(square, "square view");
-                ui.checkbox(proportional, "proportional data axes");
+                ui.checkbox(square, "square view")
+                    .on_hover_text("Always keep the viewport square.");
+                ui.checkbox(proportional, "Proportional data axes")
+                    .on_hover_text("Tick are the same size on both axes.");
             });
         });
     }
@@ -138,7 +140,7 @@ impl Widget for &mut LineDemo {
 struct MarkerDemo {
     fill_markers: bool,
     marker_radius: f32,
-    custom_marker_color: bool,
+    automatic_colors: bool,
     marker_color: Color32,
 }
 
@@ -147,8 +149,8 @@ impl Default for MarkerDemo {
         Self {
             fill_markers: true,
             marker_radius: 5.0,
-            custom_marker_color: false,
-            marker_color: Color32::GRAY,
+            automatic_colors: true,
+            marker_color: Color32::GREEN,
         }
     }
 }
@@ -173,7 +175,7 @@ impl MarkerDemo {
                 .radius(self.marker_radius)
                 .shape(marker);
 
-                if self.custom_marker_color {
+                if !self.automatic_colors {
                     points = points.color(self.marker_color);
                 }
 
@@ -186,15 +188,15 @@ impl MarkerDemo {
 impl Widget for &mut MarkerDemo {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.fill_markers, "fill markers");
+            ui.checkbox(&mut self.fill_markers, "Fill");
             ui.add(
                 egui::DragValue::new(&mut self.marker_radius)
                     .speed(0.1)
                     .clamp_range(0.0..=f64::INFINITY)
-                    .prefix("marker radius: "),
+                    .prefix("Radius: "),
             );
-            ui.checkbox(&mut self.custom_marker_color, "custom marker color");
-            if self.custom_marker_color {
+            ui.checkbox(&mut self.automatic_colors, "Automatic colors");
+            if !self.automatic_colors {
                 ui.color_edit_button_srgba(&mut self.marker_color);
             }
         });
@@ -238,24 +240,32 @@ impl Widget for &mut LegendDemo {
     fn ui(self, ui: &mut Ui) -> Response {
         let LegendDemo { config } = self;
 
-        ui.label("Text Style:");
-        ui.horizontal(|ui| {
-            TextStyle::all().for_each(|style| {
-                ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
+        egui::Grid::new("settings").show(ui, |ui| {
+            ui.label("Text style:");
+            ui.horizontal(|ui| {
+                TextStyle::all().for_each(|style| {
+                    ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
+                });
             });
-        });
-        ui.label("Position:");
-        ui.horizontal(|ui| {
-            Corner::all().for_each(|position| {
-                ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+            ui.end_row();
+
+            ui.label("Position:");
+            ui.horizontal(|ui| {
+                Corner::all().for_each(|position| {
+                    ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+                });
             });
+            ui.end_row();
+
+            ui.label("Opacity:");
+            ui.add(
+                egui::DragValue::new(&mut config.background_alpha)
+                    .speed(0.02)
+                    .clamp_range(0.0..=1.0),
+            );
+            ui.end_row();
         });
-        ui.label("Background alpha:");
-        ui.add(
-            egui::DragValue::new(&mut config.background_alpha)
-                .speed(0.02)
-                .clamp_range(0.0..=1.0),
-        );
+
         let legend_plot = Plot::new("Legend Demo")
             .line(LegendDemo::line_with_slope(0.5).name("lines"))
             .line(LegendDemo::line_with_slope(1.0).name("lines"))
@@ -377,18 +387,20 @@ impl super::Demo for PlotDemo {
 
 impl super::View for PlotDemo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.vertical_centered(|ui| {
+        ui.horizontal(|ui| {
             egui::reset_button(ui, self);
-            ui.add(crate::__egui_github_link_file!());
-            ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
-            if cfg!(target_arch = "wasm32") {
-                ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
-            } else if cfg!(target_os = "macos") {
-                ui.label("Zoom with ctrl / ⌘ + scroll.");
-            } else {
-                ui.label("Zoom with ctrl + scroll.");
-            }
-            ui.label("Reset view with double-click.");
+            ui.collapsing("Instructions", |ui| {
+                ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+                if cfg!(target_arch = "wasm32") {
+                    ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+                } else if cfg!(target_os = "macos") {
+                    ui.label("Zoom with ctrl / ⌘ + scroll.");
+                } else {
+                    ui.label("Zoom with ctrl + scroll.");
+                }
+                ui.label("Reset view with double-click.");
+                ui.add(crate::__egui_github_link_file!());
+            });
         });
         ui.separator();
         ui.horizontal(|ui| {
