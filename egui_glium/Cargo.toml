@@ -25,7 +25,7 @@ all-features = true
 copypasta = "0.7"
 egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 epi = { version = "0.12.0", path = "../epi" }
-glium = "0.29"
+glium = "0.30"
 webbrowser = "0.5"
 
 # feature "http":
@@ -37,7 +37,7 @@ ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
 # feature screen_reader
-tts = { version = "0.16", optional = true }
+tts = { version = "0.17", optional = true }
 
 # feature "time"
 chrono = { version = "0.4", optional = true }
