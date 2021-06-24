@@ -102,7 +102,8 @@
 //!
 //! # Integrating with egui
 //!
-//! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe) or [`bevy_egui`](https://docs.rs/bevy_egui),
+//! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe), [`bevy_egui`](https://docs.rs/bevy_egui),
+//! or [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad),
 //! but if you want to integrate `egui` into a new game engine, this is the section for you.
 //!
 //! To write your own integration for egui you need to do this:

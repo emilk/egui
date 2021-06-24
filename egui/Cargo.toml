@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.12.0"
+version = "0.13.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -20,7 +20,7 @@ include = [
 [lib]
 
 [dependencies]
-epaint = { version = "0.12.0", path = "../epaint", default-features = false }
+epaint = { version = "0.13.0", path = "../epaint", default-features = false }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 ron = { version = "0.6.4", optional = true }
 

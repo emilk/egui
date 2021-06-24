@@ -1,6 +1,6 @@
 [package]
 name = "epi"
-version = "0.12.0"
+version = "0.13.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
@@ -23,7 +23,7 @@ all-features = true
 [lib]
 
 [dependencies]
-egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.13.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 

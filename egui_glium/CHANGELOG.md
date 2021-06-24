@@ -5,8 +5,12 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 ## Unreleased
 
+
+## 0.13.0 - 2021-06-24
+
 * Add `EguiGlium::is_quit_event` to replace `control_flow` arguemnt to `EguiGlium::on_event`.
 * [Fix modifier key for zoom with mouse wheel on Mac](https://github.com/emilk/egui/issues/401)
+* [Fix stuck modifier keys](https://github.com/emilk/egui/pull/479)
 
 ## 0.12.0 - 2021-05-10
 

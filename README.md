@@ -64,7 +64,7 @@ if ui.button("Click each year").clicked() {
 ui.label(format!("Hello '{}', age {}", name, age));
 ```
 
-<img src="media/demo-2021-01-17.gif">
+<img src="media/demo.gif">
 
 ## Goals
 

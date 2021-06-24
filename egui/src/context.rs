@@ -141,8 +141,6 @@ impl CtxRef {
                 show_error(prev_rect.min, format!("First use of ID {}", id_str));
                 show_error(new_rect.min, format!("Second use of ID {}", id_str));
             }
-
-            // TODO: a tooltip explaining this.
         }
     }
 
