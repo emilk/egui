@@ -90,7 +90,12 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                egui.on_event(event, control_flow);
+                if egui.is_quit_event(&event) {
+                    *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
+                }
+
+                egui.on_event(&event);
+
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
 

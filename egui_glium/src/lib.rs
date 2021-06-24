@@ -38,7 +38,6 @@ use {
     glium::glutin::{
         self,
         event::{Force, VirtualKeyCode},
-        event_loop::ControlFlow,
     },
     std::hash::{Hash, Hasher},
 };
@@ -62,16 +61,43 @@ impl GliumInputState {
     }
 }
 
+/// Helper: checks for Alt-F4 (windows/linux) or Cmd-Q (Mac)
+pub fn is_quit_shortcut(
+    input_state: &GliumInputState,
+    input: &glium::glutin::event::KeyboardInput,
+) -> bool {
+    if cfg!(target_os = "macos") {
+        input.state == glutin::event::ElementState::Pressed
+            && input_state.raw.modifiers.mac_cmd
+            && input.virtual_keycode == Some(VirtualKeyCode::Q)
+    } else {
+        input.state == glutin::event::ElementState::Pressed
+            && input_state.raw.modifiers.alt
+            && input.virtual_keycode == Some(VirtualKeyCode::F4)
+    }
+}
+
+/// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
+pub fn is_quit_event(
+    input_state: &GliumInputState,
+    event: &glutin::event::WindowEvent<'_>,
+) -> bool {
+    use glutin::event::WindowEvent;
+    match event {
+        WindowEvent::CloseRequested | WindowEvent::Destroyed => true,
+        WindowEvent::KeyboardInput { input, .. } => is_quit_shortcut(input_state, input),
+        _ => false,
+    }
+}
+
 pub fn input_to_egui(
     pixels_per_point: f32,
     event: &glutin::event::WindowEvent<'_>,
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
-    control_flow: &mut ControlFlow,
 ) {
     use glutin::event::WindowEvent;
     match event {
-        WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
             input_state.raw.pixels_per_point = Some(*scale_factor as f32);
         }
@@ -138,13 +164,6 @@ pub fn input_to_egui(
                 }
 
                 if pressed {
-                    if cfg!(target_os = "macos")
-                        && input_state.raw.modifiers.mac_cmd
-                        && keycode == VirtualKeyCode::Q
-                    {
-                        *control_flow = ControlFlow::Exit;
-                    }
-
                     // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
                     // so we detect these things manually:
                     if is_cut_command(input_state.raw.modifiers, keycode) {
@@ -482,18 +501,18 @@ impl EguiGlium {
         (&self.egui_ctx, &mut self.painter)
     }
 
-    pub fn on_event(
-        &mut self,
-        event: &glium::glutin::event::WindowEvent<'_>,
-        control_flow: &mut glium::glutin::event_loop::ControlFlow,
-    ) {
+    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
         crate::input_to_egui(
             self.egui_ctx.pixels_per_point(),
             &event,
             self.clipboard.as_mut(),
             &mut self.input_state,
-            control_flow,
         );
+    }
+
+    /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
+    pub fn is_quit_event(&self, event: &glutin::event::WindowEvent<'_>) -> bool {
+        crate::is_quit_event(&self.input_state, event)
     }
 
     pub fn begin_frame(&mut self, display: &glium::Display) {

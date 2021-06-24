@@ -326,11 +326,15 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
+                if egui.is_quit_event(&event) {
+                    *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
+                }
+
                 if let glutin::event::WindowEvent::Focused(new_focused) = event {
                     is_focused = new_focused;
                 }
 
-                egui.on_event(&event, control_flow);
+                egui.on_event(&event);
 
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
