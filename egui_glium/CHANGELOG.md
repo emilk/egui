@@ -6,6 +6,11 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 ## Unreleased
 
 
+## 0.13.1 - 2021-06-24
+
+* Fix `http` feature flag and docs
+
+
 ## 0.13.0 - 2021-06-24
 
 * Add `EguiGlium::is_quit_event` to replace `control_flow` arguemnt to `EguiGlium::on_event`.

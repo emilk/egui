@@ -766,7 +766,7 @@ checksum = "ee2626afccd7561a06cf1367e2950c4718ea04565e20fb5029b6c7d8ad09abcf"
 
 [[package]]
 name = "eframe"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "egui",
  "egui_glium",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glium"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "chrono",
  "copypasta",
