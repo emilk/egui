@@ -64,7 +64,7 @@ impl GliumInputState {
 
 pub fn input_to_egui(
     pixels_per_point: f32,
-    event: glutin::event::WindowEvent<'_>,
+    event: &glutin::event::WindowEvent<'_>,
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
     control_flow: &mut ControlFlow,
@@ -73,15 +73,15 @@ pub fn input_to_egui(
     match event {
         WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-            input_state.raw.pixels_per_point = Some(scale_factor as f32);
+            input_state.raw.pixels_per_point = Some(*scale_factor as f32);
         }
         WindowEvent::MouseInput { state, button, .. } => {
             if let Some(pos_in_points) = input_state.pointer_pos_in_points {
-                if let Some(button) = translate_mouse_button(button) {
+                if let Some(button) = translate_mouse_button(*button) {
                     input_state.raw.events.push(egui::Event::PointerButton {
                         pos: pos_in_points,
                         button,
-                        pressed: state == glutin::event::ElementState::Pressed,
+                        pressed: *state == glutin::event::ElementState::Pressed,
                         modifiers: input_state.raw.modifiers,
                     });
                 }
@@ -106,7 +106,7 @@ pub fn input_to_egui(
             input_state.raw.events.push(egui::Event::PointerGone);
         }
         WindowEvent::ReceivedCharacter(ch) => {
-            if is_printable_char(ch)
+            if is_printable_char(*ch)
                 && !input_state.raw.modifiers.ctrl
                 && !input_state.raw.modifiers.mac_cmd
             {
@@ -180,7 +180,7 @@ pub fn input_to_egui(
             input_state.raw.modifiers = Modifiers::default();
         }
         WindowEvent::MouseWheel { delta, .. } => {
-            let mut delta = match delta {
+            let mut delta = match *delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 8.0; // magic value!
                     vec2(x, y) * line_height
@@ -484,12 +484,12 @@ impl EguiGlium {
 
     pub fn on_event(
         &mut self,
-        event: glium::glutin::event::WindowEvent<'_>,
+        event: &glium::glutin::event::WindowEvent<'_>,
         control_flow: &mut glium::glutin::event_loop::ControlFlow,
     ) {
         crate::input_to_egui(
             self.egui_ctx.pixels_per_point(),
-            event,
+            &event,
             self.clipboard.as_mut(),
             &mut self.input_state,
             control_flow,
