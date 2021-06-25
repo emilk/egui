@@ -6,7 +6,8 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 
 ## Unreleased
-
+* Plot:
+  * [Line styles](https://github.com/emilk/egui/pull/482)
 
 ## 0.13.0 - 2021-06-24 - Better panels, plots and new visual style
 
