@@ -1,7 +1,7 @@
 use egui::*;
 use plot::{
-    Arrows, Corner, HLine, Legend, Line, MarkerShape, Plot, PlotImage, Points, Polygon, Text,
-    VLine, Value, Values,
+    Arrows, Corner, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, Points, Polygon,
+    Text, VLine, Value, Values,
 };
 use std::f64::consts::TAU;
 
@@ -13,6 +13,7 @@ struct LineDemo {
     circle_center: Pos2,
     square: bool,
     proportional: bool,
+    line_style: LineStyle,
 }
 
 impl Default for LineDemo {
@@ -24,6 +25,7 @@ impl Default for LineDemo {
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
             proportional: true,
+            line_style: LineStyle::Solid,
         }
     }
 }
@@ -37,6 +39,7 @@ impl LineDemo {
             circle_center,
             square,
             proportional,
+            line_style,
             ..
         } = self;
 
@@ -73,6 +76,23 @@ impl LineDemo {
                 ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
             });
+            ui.vertical(|ui| {
+                ComboBox::from_label("Line style")
+                    .selected_text(line_style.to_string())
+                    .show_ui(ui, |ui| {
+                        [
+                            LineStyle::Solid,
+                            LineStyle::dashed_dense(),
+                            LineStyle::dashed_loose(),
+                            LineStyle::dotted_dense(),
+                            LineStyle::dotted_loose(),
+                        ]
+                        .iter()
+                        .for_each(|style| {
+                            ui.selectable_value(line_style, *style, style.to_string());
+                        });
+                    });
+            });
         });
     }
 
@@ -88,6 +108,7 @@ impl LineDemo {
         });
         Line::new(Values::from_values_iter(circle))
             .color(Color32::from_rgb(100, 200, 100))
+            .style(self.line_style)
             .name("circle")
     }
 
@@ -99,6 +120,7 @@ impl LineDemo {
             512,
         ))
         .color(Color32::from_rgb(200, 100, 100))
+        .style(self.line_style)
         .name("wave")
     }
 
@@ -110,6 +132,7 @@ impl LineDemo {
             256,
         ))
         .color(Color32::from_rgb(100, 150, 250))
+        .style(self.line_style)
         .name("x = sin(2t), y = sin(3t)")
     }
 }
@@ -158,7 +181,6 @@ impl Default for MarkerDemo {
 impl MarkerDemo {
     fn markers(&self) -> Vec<Points> {
         MarkerShape::all()
-            .into_iter()
             .enumerate()
             .map(|(i, marker)| {
                 let y_offset = i as f32 * 0.5 + 1.0;
