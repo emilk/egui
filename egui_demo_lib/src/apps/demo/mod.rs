@@ -15,6 +15,7 @@ pub mod multi_touch;
 pub mod painting;
 pub mod password;
 pub mod plot_demo;
+pub mod progress_bar;
 pub mod scrolling;
 pub mod sliders;
 pub mod tests;
