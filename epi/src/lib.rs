@@ -387,12 +387,12 @@ pub mod http {
         pub url: String,
         /// The raw bytes.
         pub body: Vec<u8>,
-
+        // ("Accept", "*/*"), …
         pub headers: BTreeMap<String, String>,
     }
 
     impl Request {
-        fn create_headers_map(headers: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pub fn create_headers_map(headers: &[(&str, &str)]) -> BTreeMap<String, String> {
             headers
                 .iter()
                 .map(|e| (e.0.to_owned(), e.1.to_owned()))
