@@ -192,6 +192,30 @@ impl HLine {
         }
     }
 
+    /// Highlight this line in the plot by scaling up the line.
+    pub fn highlight(mut self) -> Self {
+        self.highlight = true;
+        self
+    }
+
+    /// Add a stroke.
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
+        self
+    }
+
+    /// Stroke width. A high value means the plot thickens.
+    pub fn width(mut self, width: impl Into<f32>) -> Self {
+        self.stroke.width = width.into();
+        self
+    }
+
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.stroke.color = color.into();
+        self
+    }
+
     /// Set the line's style. Default is `LineStyle::Solid`.
     pub fn style(mut self, style: LineStyle) -> Self {
         self.style = style;
@@ -276,6 +300,30 @@ impl VLine {
             highlight: false,
             style: LineStyle::Solid,
         }
+    }
+
+    /// Highlight this line in the plot by scaling up the line.
+    pub fn highlight(mut self) -> Self {
+        self.highlight = true;
+        self
+    }
+
+    /// Add a stroke.
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
+        self
+    }
+
+    /// Stroke width. A high value means the plot thickens.
+    pub fn width(mut self, width: impl Into<f32>) -> Self {
+        self.stroke.width = width.into();
+        self
+    }
+
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.stroke.color = color.into();
+        self
     }
 
     /// Set the line's style. Default is `LineStyle::Solid`.
@@ -562,7 +610,7 @@ impl Line {
         }
     }
 
-    /// Highlight this line in the plot by scaling up the line and marker size.
+    /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self) -> Self {
         self.highlight = true;
         self
