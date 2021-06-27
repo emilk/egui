@@ -14,7 +14,7 @@ impl ProgressBar {
             progress: progress.clamp(0.0, 1.0),
             desired_width: None,
             text: "".to_string(),
-            animate: true,
+            animate: false,
         }
     }
 
@@ -31,7 +31,7 @@ impl ProgressBar {
         self
     }
 
-    /// Whether to animate the bar. Note that this require the UI to be redrawn.
+    /// Whether to display a loading animation. Note that this require the UI to be redrawn.
     /// Defaults to `false`.
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
@@ -70,7 +70,7 @@ impl Widget for ProgressBar {
             ),
         );
 
-        let (dark, bright) = (0.8, 1.0);
+        let (dark, bright) = (0.7, 1.0);
         let color_factor = if animate {
             ui.ctx().request_repaint();
             lerp(dark..=bright, ui.input().time.cos().abs())
