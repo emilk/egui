@@ -1,4 +1,4 @@
-use egui::*;
+use crate::*;
 
 /// A simple progress bar.
 pub struct ProgressBar {
@@ -19,7 +19,6 @@ impl ProgressBar {
     }
 
     /// The desired width of the bar. Will use all horizonal space if not set.
-    #[allow(dead_code)]
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
@@ -34,7 +33,6 @@ impl ProgressBar {
 
     /// Whether to animate the bar. Note that this require the UI to be redrawn.
     /// Defaults to `false`.
-    #[allow(dead_code)]
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
         self
@@ -72,11 +70,7 @@ impl Widget for ProgressBar {
             ),
         );
 
-        let (dark, bright) = if visuals.dark_mode {
-            (0.2, 0.3)
-        } else {
-            (0.8, 0.9)
-        };
+        let (dark, bright) = (0.8, 1.0);
         let color_factor = if animate {
             ui.ctx().request_repaint();
             lerp(dark..=bright, ui.input().time.cos().abs())
@@ -87,7 +81,7 @@ impl Widget for ProgressBar {
         ui.painter().rect(
             inner_rect,
             corner_radius,
-            Color32::from_gray((color_factor * 255.0) as u8),
+            Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
             Stroke::none(),
         );
 
@@ -119,14 +113,12 @@ impl Widget for ProgressBar {
                 Align2::LEFT_CENTER,
                 text,
                 TextStyle::Button,
-                visuals.text_color(),
+                visuals
+                    .override_text_color
+                    .unwrap_or(visuals.selection.stroke.color),
             );
         }
 
         response
     }
-}
-
-pub fn url_to_file_source_code() -> String {
-    format!("https://github.com/emilk/egui/blob/master/{}", file!())
 }

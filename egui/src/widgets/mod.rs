@@ -13,6 +13,7 @@ mod hyperlink;
 mod image;
 mod label;
 pub mod plot;
+mod progress_bar;
 mod selected_label;
 mod separator;
 mod slider;
@@ -20,6 +21,7 @@ pub(crate) mod text_edit;
 
 pub use hyperlink::*;
 pub use label::*;
+pub use progress_bar::ProgressBar;
 pub use selected_label::*;
 pub use separator::*;
 pub use {button::*, drag_value::DragValue, image::Image, slider::*, text_edit::*};

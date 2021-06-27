@@ -157,15 +157,9 @@ impl WidgetGallery {
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
-        ui.hyperlink_to(
-            "Progress bar:",
-            super::progress_bar::url_to_file_source_code(),
-        );
+        ui.add(doc_link_label("ProgressBar", "ProgressBar"));
         let progress = *scalar / 360.0;
-        ui.add(
-            super::progress_bar::ProgressBar::new(progress)
-                .text(format!("{}%", (progress * 100.0) as usize)),
-        );
+        ui.add(egui::ProgressBar::new(progress).text(format!("{}%", (progress * 100.0) as usize)));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
