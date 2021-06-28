@@ -163,14 +163,12 @@ impl WidgetGallery {
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));
         let progress = *scalar / 360.0;
         let progress_bar = egui::ProgressBar::new(progress)
-            .text(format!("{}%", (progress * 100.0) as usize))
+            .show_percentage()
             .animate(*animate_progress_bar);
-        let progress_bar_response = ui
+        *animate_progress_bar = ui
             .add(progress_bar)
-            .on_hover_text("Click to enable the animation!");
-        if progress_bar_response.clicked() {
-            *animate_progress_bar = !*animate_progress_bar;
-        }
+            .on_hover_text("The progress bar can be animated!")
+            .hovered();
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));

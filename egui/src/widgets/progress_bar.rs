@@ -1,10 +1,15 @@
 use crate::*;
 
+enum ProgressBarText {
+    Custom(String),
+    Percentage,
+}
+
 /// A simple progress bar.
 pub struct ProgressBar {
     progress: f32,
     desired_width: Option<f32>,
-    text: String,
+    text: Option<ProgressBarText>,
     animate: bool,
 }
 
@@ -14,7 +19,7 @@ impl ProgressBar {
         Self {
             progress: progress.clamp(0.0, 1.0),
             desired_width: None,
-            text: "".to_string(),
+            text: None,
             animate: false,
         }
     }
@@ -28,7 +33,13 @@ impl ProgressBar {
     /// A custom text to display on the progress bar.
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = text.to_string();
+        self.text = Some(ProgressBarText::Custom(text.to_string()));
+        self
+    }
+
+    /// Show the progress in percent on the progress bar.
+    pub fn show_percentage(mut self) -> Self {
+        self.text = Some(ProgressBarText::Percentage);
         self
     }
 
@@ -77,7 +88,7 @@ impl Widget for ProgressBar {
             ui.ctx().request_repaint();
             lerp(dark..=bright, ui.input().time.cos().abs())
         } else {
-            (bright + dark) / 2.0
+            bright
         };
 
         ui.painter().rect(
@@ -109,8 +120,12 @@ impl Widget for ProgressBar {
             });
         }
 
-        if !text.is_empty() {
-            ui.painter().text(
+        if let Some(text_kind) = text {
+            let text = match text_kind {
+                ProgressBarText::Custom(string) => string,
+                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize),
+            };
+            ui.painter().sub_region(outer_rect).text(
                 outer_rect.left_center() + vec2(ui.spacing().item_spacing.x, 0.0),
                 Align2::LEFT_CENTER,
                 text,
