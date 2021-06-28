@@ -43,11 +43,11 @@ struct PlotMemory {
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").line(line).view_aspect(2.0)
+///     Plot::new("my_plot").line(line).view_aspect(2.0)
 /// );
 /// ```
 pub struct Plot {
-    name: String,
+    id_source: Id,
     next_auto_color_idx: usize,
 
     items: Vec<Box<dyn PlotItem>>,
@@ -71,10 +71,10 @@ pub struct Plot {
 }
 
 impl Plot {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(name: impl ToString) -> Self {
+    /// Give a unique id for each plot within the same `Ui`.
+    pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
-            name: name.to_string(),
+            id_source: Id::new(id_source),
             next_auto_color_idx: 0,
 
             items: Default::default(),
@@ -317,7 +317,7 @@ impl Plot {
 impl Widget for Plot {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
-            name,
+            id_source,
             next_auto_color_idx: _,
             mut items,
             center_x_axis,
@@ -336,7 +336,7 @@ impl Widget for Plot {
             legend_config,
         } = self;
 
-        let plot_id = ui.make_persistent_id(name);
+        let plot_id = ui.make_persistent_id(id_source);
         let memory = ui
             .memory()
             .id_data

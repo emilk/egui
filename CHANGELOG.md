@@ -7,6 +7,13 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+### Added ⭐
+* Plot: you can now set the stroke of a `HLine/VLine`.
+
+### Changed 🔧
+* `Plot::new` now takes an `id_source: impl Hash` instead of a `name: impl ToString`. Functionally it is the same.
+
+
 
 ## 0.13.0 - 2021-06-24 - Better panels, plots and new visual style
 
