@@ -179,6 +179,7 @@ pub struct TableTest {
     num_rows: usize,
     min_col_width: f32,
     max_col_width: f32,
+    text_length: usize,
 }
 
 impl Default for TableTest {
@@ -188,6 +189,7 @@ impl Default for TableTest {
             num_rows: 4,
             min_col_width: 10.0,
             max_col_width: 200.0,
+            text_length: 10,
         }
     }
 }
@@ -248,7 +250,7 @@ impl super::View for TableTest {
             });
 
         ui.separator();
-
+        ui.add(egui::Slider::new(&mut self.text_length, 1..=40).text("Text length"));
         egui::Grid::new("parent grid").striped(true).show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.label("Vertical nest1");
@@ -282,7 +284,9 @@ impl super::View for TableTest {
             ui.label("Fourth row, second column");
             ui.end_row();
 
-            ui.label("Fifth row, first column");
+            let mut dyn_text = String::from("O");
+            dyn_text.extend(std::iter::repeat('h').take(self.text_length));
+            ui.label(dyn_text);
             ui.label("Fifth row, second column");
             ui.end_row();
         });
