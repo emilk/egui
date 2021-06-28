@@ -55,7 +55,7 @@ impl Widget for ProgressBar {
         let desired_width = desired_width.unwrap_or(ui.available_size_before_wrap().x);
         let height = ui.spacing().interact_size.y;
         let (outer_rect, response) =
-            ui.allocate_exact_size(vec2(desired_width, height), Sense::click());
+            ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
         let visuals = ui.style().visuals.clone();
         let corner_radius = outer_rect.height() / 2.0;
         ui.painter().rect(
