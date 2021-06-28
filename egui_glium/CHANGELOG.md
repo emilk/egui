@@ -5,6 +5,14 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 ## Unreleased
 
+### Fixed 🐛
+* [Fix minimize on Windows](https://github.com/emilk/egui/issues/518)
+
+
+## 0.13.1 - 2021-06-24
+
+* Fix `http` feature flag and docs
+
 
 ## 0.13.0 - 2021-06-24
 

@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.13.0"
+version = "0.13.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
@@ -48,7 +48,7 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = ["ureq"]
+http = ["epi/http", "ureq"]
 persistence = [
     "directories-next",
     "egui/persistence",

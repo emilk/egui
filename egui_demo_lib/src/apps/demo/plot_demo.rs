@@ -144,7 +144,7 @@ impl Widget for &mut LineDemo {
             ui.ctx().request_repaint();
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("Lines Demo")
+        let mut plot = Plot::new("lines_demo")
             .line(self.circle())
             .line(self.sin())
             .line(self.thingy())
@@ -223,7 +223,7 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let mut markers_plot = Plot::new("Markers Demo")
+        let mut markers_plot = Plot::new("markers_demo")
             .data_aspect(1.0)
             .legend(Legend::default());
         for marker in self.markers() {
@@ -288,7 +288,7 @@ impl Widget for &mut LegendDemo {
             ui.end_row();
         });
 
-        let legend_plot = Plot::new("Legend Demo")
+        let legend_plot = Plot::new("legend_demo")
             .line(LegendDemo::line_with_slope(0.5).name("lines"))
             .line(LegendDemo::line_with_slope(1.0).name("lines"))
             .line(LegendDemo::line_with_slope(2.0).name("lines"))
@@ -347,7 +347,7 @@ impl Widget for &mut ItemsDemo {
             ],
         );
 
-        let plot = Plot::new("Items Demo")
+        let plot = Plot::new("items_demo")
             .hline(HLine::new(9.0).name("Lines horizontal"))
             .hline(HLine::new(-9.0).name("Lines horizontal"))
             .vline(VLine::new(9.0).name("Lines vertical"))
