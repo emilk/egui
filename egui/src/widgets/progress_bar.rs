@@ -9,6 +9,7 @@ pub struct ProgressBar {
 }
 
 impl ProgressBar {
+    /// Progress in the `[0, 1]` range, where `1` means "completed".
     pub fn new(progress: f32) -> Self {
         Self {
             progress: progress.clamp(0.0, 1.0),
