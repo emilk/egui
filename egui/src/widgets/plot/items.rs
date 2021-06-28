@@ -53,6 +53,24 @@ impl HLine {
         }
     }
 
+    /// Set the stroke.
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
+        self
+    }
+
+    /// Stroke width. A high value means the plot thickens.
+    pub fn width(mut self, width: impl Into<f32>) -> Self {
+        self.stroke.width = width.into();
+        self
+    }
+
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.stroke.color = color.into();
+        self
+    }
+
     /// Name of this horizontal line.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
@@ -131,6 +149,24 @@ impl VLine {
             name: String::default(),
             highlight: false,
         }
+    }
+
+    /// Set the stroke.
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
+        self
+    }
+
+    /// Stroke width. A high value means the plot thickens.
+    pub fn width(mut self, width: impl Into<f32>) -> Self {
+        self.stroke.width = width.into();
+        self
+    }
+
+    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.stroke.color = color.into();
+        self
     }
 
     /// Name of this vertical line.
