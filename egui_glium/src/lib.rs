@@ -523,10 +523,19 @@ impl EguiGlium {
             .unwrap_or_else(|| self.egui_ctx.pixels_per_point());
 
         self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
-        self.input_state.raw.screen_rect = Some(Rect::from_min_size(
-            Default::default(),
-            screen_size_in_pixels(display) / pixels_per_point,
-        ));
+
+        // On Windows, a minimized window will have 0 width and height.
+        // See: https://github.com/rust-windowing/winit/issues/208
+        // This solves an issue where egui window positions would be changed when minimizing on Windows.
+        let screen_size = screen_size_in_pixels(display);
+        self.input_state.raw.screen_rect = if screen_size.x > 0.0 && screen_size.y > 0.0 {
+            Some(Rect::from_min_size(
+                Default::default(),
+                screen_size / pixels_per_point,
+            ))
+        } else {
+            None
+        };
 
         self.egui_ctx.begin_frame(self.input_state.raw.take());
     }
