@@ -246,33 +246,32 @@ impl super::View for TableTest {
                     ui.end_row();
                 }
             });
-            
+
         ui.separator();
-        
-        egui::Grid::new("parent grid")
-        .show(ui, |ui| {
+
+        egui::Grid::new("parent grid").striped(true).show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.label("Vertical nest1");
                 ui.label("Vertical nest2");
             });
             ui.label("First row, second column");
             ui.end_row();
-            
+
             ui.horizontal(|ui| {
                 ui.label("Horizontal nest1");
                 ui.label("Horizontal nest2");
             });
             ui.label("Second row, second column");
             ui.end_row();
-            
+
             ui.scope(|ui| {
                 ui.label("Scope nest 1");
                 ui.label("Scope nest 2");
-                });
+            });
             ui.label("Third row, second column");
             ui.end_row();
 
-            egui::Grid::new("nested grid").show(ui, |ui|{
+            egui::Grid::new("nested grid").show(ui, |ui| {
                 ui.label("Grid nest11");
                 ui.label("Grid nest12");
                 ui.end_row();
@@ -282,7 +281,7 @@ impl super::View for TableTest {
             });
             ui.label("Fourth row, second column");
             ui.end_row();
-            
+
             ui.label("Fifth row, first column");
             ui.label("Fifth row, second column");
             ui.end_row();
