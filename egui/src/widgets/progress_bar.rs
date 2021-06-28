@@ -32,7 +32,8 @@ impl ProgressBar {
         self
     }
 
-    /// Whether to display a loading animation. Note that this require the UI to be redrawn.
+    /// Whether to display a loading animation when progress `< 1`.
+    /// Note that this require the UI to be redrawn.
     /// Defaults to `false`.
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
