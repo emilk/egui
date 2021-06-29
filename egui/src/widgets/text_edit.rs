@@ -14,6 +14,10 @@ pub(crate) struct State {
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "persistence", serde(skip))]
     has_ime: bool,
+
+    // Visual offset when editing singleline text bigger than the width.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    singleline_offset: Option<f32>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -455,12 +459,13 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             .unwrap_or_else(|| ui.style().body_text_style);
         let line_spacing = ui.fonts().row_height(text_style);
         let available_width = ui.available_width();
+        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
 
         let make_galley = |ui: &Ui, text: &str| {
             let text = mask_if_password(text);
             if multiline {
                 ui.fonts()
-                    .layout_multiline(text_style, text, available_width)
+                    .layout_multiline(text_style, text, desired_width.min(available_width))
             } else {
                 ui.fonts().layout_single_line(text_style, text)
             }
@@ -474,10 +479,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         let mut galley = make_galley(ui, text.as_ref());
 
-        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(
-            galley.size.x.max(desired_width.min(available_width)),
+            desired_width.min(available_width),
             galley.size.y.max(desired_height),
         );
         let (auto_id, rect) = ui.allocate_space(desired_size);
@@ -502,8 +506,10 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
-
-                let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
+                let singleline_offset = state.singleline_offset.unwrap_or(0.0);
+                let singleline_offset = vec2(singleline_offset, 0.0);
+                let cursor_at_pointer =
+                    galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
 
                 if ui.visuals().text_cursor_preview
                     && response.hovered()
@@ -726,10 +732,44 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             );
         }
 
+        let mut text_draw_pos = response.rect.min;
+
+        // Visual clipping for singleline text editor with text larger than width
+        if !multiline {
+            ui.set_clip_rect(Rect::from_min_size(response.rect.min, desired_size));
+
+            let cursor_pos = match (state.cursorp, ui.memory().has_focus(id)) {
+                (Some(cursorp), true) => galley.pos_from_cursor(&cursorp.primary).min.x,
+                _ => 0.0,
+            };
+
+            let mut offset_x = state.singleline_offset.unwrap_or(0.0);
+            let visible_range = offset_x..=offset_x + desired_size.x;
+
+            if !visible_range.contains(&cursor_pos) {
+                if cursor_pos < *visible_range.start() {
+                    offset_x = cursor_pos;
+                } else {
+                    offset_x = cursor_pos - desired_size.x;
+                }
+            }
+
+            if offset_x + desired_size.x > galley.size.x {
+                offset_x = galley.size.x - desired_size.x;
+            }
+
+            if offset_x < 0.0 {
+                offset_x = 0.0;
+            }
+
+            state.singleline_offset = Some(offset_x);
+            text_draw_pos -= vec2(offset_x, 0.0);
+        }
+
         if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
-                paint_cursor_selection(ui, response.rect.min, &galley, &cursorp);
-                paint_cursor_end(ui, response.rect.min, &galley, &cursorp.primary);
+                paint_cursor_selection(ui, text_draw_pos, &galley, &cursorp);
+                paint_cursor_end(ui, text_draw_pos, &galley, &cursorp.primary);
 
                 if enabled {
                     ui.ctx().output().text_cursor_pos = Some(
@@ -746,12 +786,12 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             .or(ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
-        ui.painter().galley(response.rect.min, galley, text_color);
 
+        ui.painter().galley(text_draw_pos, galley, text_color);
         if text.as_ref().is_empty() && !hint_text.is_empty() {
             let galley = if multiline {
                 ui.fonts()
-                    .layout_multiline(text_style, hint_text, available_width)
+                    .layout_multiline(text_style, hint_text, desired_size.x)
             } else {
                 ui.fonts().layout_single_line(text_style, hint_text)
             };
