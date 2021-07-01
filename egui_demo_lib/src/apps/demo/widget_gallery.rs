@@ -16,6 +16,7 @@ pub struct WidgetGallery {
     scalar: f32,
     string: String,
     color: egui::Color32,
+    animate_progress_bar: bool,
 }
 
 impl Default for WidgetGallery {
@@ -28,6 +29,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
+            animate_progress_bar: false,
         }
     }
 }
@@ -95,6 +97,7 @@ impl WidgetGallery {
             scalar,
             string,
             color,
+            animate_progress_bar,
         } = self;
 
         ui.add(doc_link_label("Label", "label,heading"));
@@ -155,6 +158,17 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Slider", "Slider"));
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        ui.end_row();
+
+        ui.add(doc_link_label("ProgressBar", "ProgressBar"));
+        let progress = *scalar / 360.0;
+        let progress_bar = egui::ProgressBar::new(progress)
+            .show_percentage()
+            .animate(*animate_progress_bar);
+        *animate_progress_bar = ui
+            .add(progress_bar)
+            .on_hover_text("The progress bar can be animated!")
+            .hovered();
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
