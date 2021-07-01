@@ -7,8 +7,8 @@ mod transform;
 use std::collections::HashSet;
 
 use items::PlotItem;
+pub use items::{Arrows, Line, MarkerShape, PlotImage, Points, Polygon, Text, Value, Values};
 pub use items::{HLine, VLine};
-pub use items::{Line, MarkerShape, Points, Value, Values};
 use legend::LegendWidget;
 pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
@@ -43,16 +43,14 @@ struct PlotMemory {
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").line(line).view_aspect(2.0)
+///     Plot::new("my_plot").line(line).view_aspect(2.0)
 /// );
 /// ```
 pub struct Plot {
-    name: String,
+    id_source: Id,
     next_auto_color_idx: usize,
 
     items: Vec<Box<dyn PlotItem>>,
-    hlines: Vec<HLine>,
-    vlines: Vec<VLine>,
 
     center_x_axis: bool,
     center_y_axis: bool,
@@ -73,15 +71,13 @@ pub struct Plot {
 }
 
 impl Plot {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(name: impl ToString) -> Self {
+    /// Give a unique id for each plot within the same `Ui`.
+    pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
-            name: name.to_string(),
+            id_source: Id::new(id_source),
             next_auto_color_idx: 0,
 
             items: Default::default(),
-            hlines: Default::default(),
-            vlines: Default::default(),
 
             center_x_axis: false,
             center_y_axis: false,
@@ -111,7 +107,6 @@ impl Plot {
     }
 
     /// Add a data lines.
-    /// You can add multiple lines.
     pub fn line(mut self, mut line: Line) -> Self {
         if line.series.is_empty() {
             return self;
@@ -122,12 +117,34 @@ impl Plot {
             line.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(line));
+        self
+    }
 
+    /// Add a polygon. The polygon has to be convex.
+    pub fn polygon(mut self, mut polygon: Polygon) -> Self {
+        if polygon.series.is_empty() {
+            return self;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if polygon.stroke.color == Color32::TRANSPARENT {
+            polygon.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(polygon));
+        self
+    }
+
+    /// Add a text.
+    pub fn text(mut self, text: Text) -> Self {
+        if text.text.is_empty() {
+            return self;
+        };
+
+        self.items.push(Box::new(text));
         self
     }
 
     /// Add data points.
-    /// You can add multiple sets of points.
     pub fn points(mut self, mut points: Points) -> Self {
         if points.series.is_empty() {
             return self;
@@ -138,7 +155,26 @@ impl Plot {
             points.color = self.auto_color();
         }
         self.items.push(Box::new(points));
+        self
+    }
 
+    /// Add arrows.
+    pub fn arrows(mut self, mut arrows: Arrows) -> Self {
+        if arrows.origins.is_empty() || arrows.tips.is_empty() {
+            return self;
+        };
+
+        // Give the arrows an automatic color if no color has been assigned.
+        if arrows.color == Color32::TRANSPARENT {
+            arrows.color = self.auto_color();
+        }
+        self.items.push(Box::new(arrows));
+        self
+    }
+
+    /// Add an image.
+    pub fn image(mut self, image: PlotImage) -> Self {
+        self.items.push(Box::new(image));
         self
     }
 
@@ -149,7 +185,7 @@ impl Plot {
         if hline.stroke.color == Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
-        self.hlines.push(hline);
+        self.items.push(Box::new(hline));
         self
     }
 
@@ -160,7 +196,7 @@ impl Plot {
         if vline.stroke.color == Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
-        self.vlines.push(vline);
+        self.items.push(Box::new(vline));
         self
     }
 
@@ -281,11 +317,9 @@ impl Plot {
 impl Widget for Plot {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
-            name,
+            id_source,
             next_auto_color_idx: _,
             mut items,
-            hlines,
-            vlines,
             center_x_axis,
             center_y_axis,
             allow_zoom,
@@ -302,7 +336,7 @@ impl Widget for Plot {
             legend_config,
         } = self;
 
-        let plot_id = ui.make_persistent_id(name);
+        let plot_id = ui.make_persistent_id(id_source);
         let memory = ui
             .memory()
             .id_data
@@ -381,11 +415,9 @@ impl Widget for Plot {
         // Set bounds automatically based on content.
         if auto_bounds || !bounds.is_valid() {
             bounds = min_auto_bounds;
-            hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
-            vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
             items
                 .iter()
-                .for_each(|item| bounds.merge(&item.series().get_bounds()));
+                .for_each(|item| bounds.merge(&item.get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
         // Make sure they are not empty.
@@ -436,17 +468,14 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        items.iter_mut().for_each(|item| {
-            item.series_mut()
-                .generate_points(transform.bounds().range_x())
-        });
+        items
+            .iter_mut()
+            .for_each(|item| item.initialize(transform.bounds().range_x()));
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
             items,
-            hlines,
-            vlines,
             show_x,
             show_y,
             transform,
@@ -479,8 +508,6 @@ impl Widget for Plot {
 
 struct Prepared {
     items: Vec<Box<dyn PlotItem>>,
-    hlines: Vec<HLine>,
-    vlines: Vec<VLine>,
     show_x: bool,
     show_y: bool,
     transform: ScreenTransform,
@@ -496,26 +523,10 @@ impl Prepared {
 
         let transform = &self.transform;
 
-        for &hline in &self.hlines {
-            let HLine { y, stroke } = hline;
-            let points = [
-                transform.position_from_value(&Value::new(transform.bounds().min[0], y)),
-                transform.position_from_value(&Value::new(transform.bounds().max[0], y)),
-            ];
-            shapes.push(Shape::line_segment(points, stroke));
-        }
-
-        for &vline in &self.vlines {
-            let VLine { x, stroke } = vline;
-            let points = [
-                transform.position_from_value(&Value::new(x, transform.bounds().min[1])),
-                transform.position_from_value(&Value::new(x, transform.bounds().max[1])),
-            ];
-            shapes.push(Shape::line_segment(points, stroke));
-        }
-
+        let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
+        plot_ui.set_clip_rect(*transform.frame());
         for item in &self.items {
-            item.get_shapes(transform, &mut shapes);
+            item.get_shapes(&mut plot_ui, transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -632,13 +643,15 @@ impl Prepared {
         let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
         for item in items {
-            for value in &item.series().values {
-                let pos = transform.position_from_value(value);
-                let dist_sq = pointer.distance_sq(pos);
-                if dist_sq < closest_dist_sq {
-                    closest_dist_sq = dist_sq;
-                    closest_value = Some(value);
-                    closest_item = Some(item.name());
+            if let Some(values) = item.values() {
+                for value in &values.values {
+                    let pos = transform.position_from_value(value);
+                    let dist_sq = pointer.distance_sq(pos);
+                    if dist_sq < closest_dist_sq {
+                        closest_dist_sq = dist_sq;
+                        closest_value = Some(value);
+                        closest_item = Some(item.name());
+                    }
                 }
             }
         }

@@ -5,6 +5,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 
+
+## 0.13.0 - 2021-06-24
+
 ### Changed 🔧
 * Default to light visuals unless the system reports a preference for dark mode.
 

@@ -108,11 +108,14 @@ impl CtxRef {
 
     /// If the given [`Id`] is not unique, an error will be printed at the given position.
     /// Call this for [`Id`]:s that need interaction or persistence.
-    pub(crate) fn register_interaction_id(&self, id: Id, new_pos: Pos2) {
-        let prev_pos = self.frame_state().used_ids.insert(id, new_pos);
-        if let Some(prev_pos) = prev_pos {
-            if prev_pos.distance(new_pos) < 0.1 {
-                // Likely same Widget being interacted with twice, which is fine.
+    pub(crate) fn register_interaction_id(&self, id: Id, new_rect: Rect) {
+        let prev_rect = self.frame_state().used_ids.insert(id, new_rect);
+        if let Some(prev_rect) = prev_rect {
+            // it is ok to reuse the same ID for e.g. a frame around a widget,
+            // or to check for interaction with the same widget twice:
+            if prev_rect.expand(0.1).contains_rect(new_rect)
+                || new_rect.expand(0.1).contains_rect(prev_rect)
+            {
                 return;
             }
 
@@ -132,14 +135,12 @@ impl CtxRef {
 
             let id_str = id.short_debug_format();
 
-            if prev_pos.distance(new_pos) < 4.0 {
-                show_error(new_pos, format!("Double use of ID {}", id_str));
+            if prev_rect.min.distance(new_rect.min) < 4.0 {
+                show_error(new_rect.min, format!("Double use of ID {}", id_str));
             } else {
-                show_error(prev_pos, format!("First use of ID {}", id_str));
-                show_error(new_pos, format!("Second use of ID {}", id_str));
+                show_error(prev_rect.min, format!("First use of ID {}", id_str));
+                show_error(new_rect.min, format!("Second use of ID {}", id_str));
             }
-
-            // TODO: a tooltip explaining this.
         }
     }
 
@@ -218,7 +219,7 @@ impl CtxRef {
             response.clicked[PointerButton::Primary as usize] = true;
         }
 
-        self.register_interaction_id(id, rect.min);
+        self.register_interaction_id(id, rect);
 
         if sense.click || sense.drag {
             let mut memory = self.memory();

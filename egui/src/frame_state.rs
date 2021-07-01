@@ -7,7 +7,7 @@ use epaint::ahash;
 pub(crate) struct FrameState {
     /// All `Id`s that were used this frame.
     /// Used to debug `Id` clashes of widgets.
-    pub(crate) used_ids: ahash::AHashMap<Id, Pos2>,
+    pub(crate) used_ids: ahash::AHashMap<Id, Rect>,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
     /// The `CentralPanel` does not change this.

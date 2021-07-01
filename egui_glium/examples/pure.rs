@@ -16,12 +16,12 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
         .with_stencil_buffer(0)
         .with_vsync(true);
 
-    glium::Display::new(window_builder, context_builder, &event_loop).unwrap()
+    glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }
 
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let display = create_display(&&event_loop);
+    let display = create_display(&event_loop);
 
     let mut egui = egui_glium::EguiGlium::new(&display);
 
@@ -90,7 +90,12 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                egui.on_event(event, control_flow);
+                if egui.is_quit_event(&event) {
+                    *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
+                }
+
+                egui.on_event(&event);
+
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
 

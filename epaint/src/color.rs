@@ -4,6 +4,8 @@
 //! If you want to manipulate RGBA colors use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
 
+#![allow(clippy::wrong_self_convention)]
+
 /// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better

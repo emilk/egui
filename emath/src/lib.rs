@@ -9,13 +9,15 @@
 //! * (0,0) is left top.
 //! * Dimension order is always `x y`
 
-#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(
-    rustdoc::broken_intra_doc_links,
-    rustdoc::invalid_codeblock_attributes,
-    rustdoc::missing_crate_level_docs,
-    rustdoc::private_intra_doc_links
-)]
+// Forbid warnings in release builds:
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+// Disabled so we can support rust 1.51:
+// #![deny(
+//     rustdoc::broken_intra_doc_links,
+//     rustdoc::invalid_codeblock_attributes,
+//     rustdoc::missing_crate_level_docs,
+//     rustdoc::private_intra_doc_links
+// )]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -230,9 +232,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
-    if min_decimals == max_decimals {
-        format!("{:.*}", max_decimals, value)
-    } else {
+    if min_decimals != max_decimals {
         // Ugly/slow way of doing this. TODO: clean up precision.
         for decimals in min_decimals..max_decimals {
             let text = format!("{:.*}", decimals, value);
@@ -245,8 +245,8 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         // The value has more precision than we expected.
         // Probably the value was set not by the slider, but from outside.
         // In any case: show the full value
-        format!("{:.*}", max_decimals, value)
     }
+    format!("{:.*}", max_decimals, value)
 }
 
 /// Return true when arguments are the same within some rounding error.

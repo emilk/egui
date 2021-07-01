@@ -7,13 +7,30 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+
+## 0.13.1 - 2021-06-28 - Plot fixes
+
 ### Added ⭐
-* [Plot legend improvements](https://github.com/emilk/egui/pull/410).
-* [Line markers for plots](https://github.com/emilk/egui/pull/363).
-* Add right and bottom panels (`SidePanel::right` and `Panel::bottom`).
-* Add resizable panels.
-* Add an option to overwrite frame of a `Panel`.
+* Plot: you can now set the stroke of a `HLine/VLine`.
+
+### Changed 🔧
+* `Plot::new` now takes an `id_source: impl Hash` instead of a `name: impl ToString`. Functionally it is the same.
+
+
+## 0.13.0 - 2021-06-24 - Better panels, plots and new visual style
+
+### Added ⭐
+* Plot:
+  * [More plot items: Arrows, Polygons, Text, Images](https://github.com/emilk/egui/pull/471).
+  * [Plot legend improvements](https://github.com/emilk/egui/pull/410).
+  * [Line markers for plots](https://github.com/emilk/egui/pull/363).
+* Panels:
+  * Add right and bottom panels (`SidePanel::right` and `Panel::bottom`).
+  * Panels can now be resized.
+  * Add an option to overwrite frame of a `Panel`.
+* [Improve accessibility / screen reader](https://github.com/emilk/egui/pull/412).
 * Add `ScrollArea::show_rows` for efficient scrolling of huge UI:s.
+* Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
 * Add `Ui::set_visible` as a way to hide widgets.
 * Add `Style::override_text_style` to easily change the text style of everything in a `Ui` (or globally).
 * You can now change `TextStyle` on checkboxes, radio buttons and `SelectableLabel`.
@@ -21,15 +38,17 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
 * Add `Context::set_debug_on_hover` and `egui::trace!(ui)`
-* Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
 
 ### Changed 🔧
+* Minimum Rust version is now 1.51 (used to be 1.52)
 * [Tweaked the default visuals style](https://github.com/emilk/egui/pull/450).
-* Plot: Changed `Curve` to `Line`.
+* Plot: Renamed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
 * `SidePanel::left` no longet takes the default width by argument, but by a builder call.
+* `SidePanel::left` is resizable by default.
 
 ### Fixed 🐛
+* Fix uneven lettering on non-integral device scales ("extortion lettering").
 * Fix invisible scroll bar when native window is too narrow for egui.
 
 

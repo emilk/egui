@@ -28,7 +28,7 @@ async fn fetch_jsvalue(request: &Request) -> Result<Response, JsValue> {
         opts.body(Some(&JsValue::from_str(body)));
     }
 
-    let request = web_sys::Request::new_with_str_and_init(&url, &opts)?;
+    let request = web_sys::Request::new_with_str_and_init(url, &opts)?;
     request.headers().set("Accept", "*/*")?;
 
     let window = web_sys::window().unwrap();

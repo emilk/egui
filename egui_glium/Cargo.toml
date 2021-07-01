@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.12.0"
+version = "0.13.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
@@ -23,9 +23,9 @@ all-features = true
 
 [dependencies]
 copypasta = "0.7"
-egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-epi = { version = "0.12.0", path = "../epi" }
-glium = "0.29"
+egui = { version = "0.13.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+epi = { version = "0.13.0", path = "../epi" }
+glium = "0.30"
 webbrowser = "0.5"
 
 # feature "http":
@@ -37,7 +37,7 @@ ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
 # feature screen_reader
-tts = { version = "0.16", optional = true }
+tts = { version = "0.17", optional = true }
 
 # feature "time"
 chrono = { version = "0.4", optional = true }
@@ -48,7 +48,7 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = ["ureq"]
+http = ["epi/http", "ureq"]
 persistence = [
     "directories-next",
     "egui/persistence",

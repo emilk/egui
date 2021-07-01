@@ -320,12 +320,13 @@ impl RawInput {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TouchDeviceId(pub u64);
 
-/// Unique identifiction of a touch occurence (finger or pen or ...).
+/// Unique identification of a touch occurrence (finger or pen or ...).
 /// A Touch ID is valid until the finger is lifted.
 /// A new ID is used for the next touch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TouchId(pub u64);
 
+/// In what phase a touch event is in.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TouchPhase {
     /// User just placed a touch point on the touch surface

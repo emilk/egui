@@ -61,12 +61,12 @@ pub enum FontFamily {
 /// The data of a `.ttf` or `.otf` file.
 pub type FontData = std::borrow::Cow<'static, [u8]>;
 
-fn rusttype_font_from_font_data(name: &str, data: &FontData) -> rusttype::Font<'static> {
+fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
     match data {
-        std::borrow::Cow::Borrowed(bytes) => rusttype::Font::try_from_bytes(bytes),
-        std::borrow::Cow::Owned(bytes) => rusttype::Font::try_from_vec(bytes.clone()),
+        std::borrow::Cow::Borrowed(bytes) => ab_glyph::FontArc::try_from_slice(bytes),
+        std::borrow::Cow::Owned(bytes) => ab_glyph::FontArc::try_from_vec(bytes.clone()),
     }
-    .unwrap_or_else(|| panic!("Error parsing {:?} TTF/OTF font file", name))
+    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
 }
 
 /// Describes the font data and the sizes to use.
@@ -487,7 +487,7 @@ impl GalleyCache {
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    rusttype_fonts: BTreeMap<String, Arc<rusttype::Font<'static>>>,
+    ab_glyph_fonts: BTreeMap<String, ab_glyph::FontArc>,
 
     /// Map font names and size to the cached `FontImpl`.
     /// Can't have f32 in a HashMap or BTreeMap, so let's do a linear search
@@ -500,27 +500,22 @@ impl FontImplCache {
         pixels_per_point: f32,
         definitions: &super::FontDefinitions,
     ) -> Self {
-        let rusttype_fonts = definitions
+        let ab_glyph_fonts = definitions
             .font_data
             .iter()
-            .map(|(name, font_data)| {
-                (
-                    name.clone(),
-                    Arc::new(rusttype_font_from_font_data(name, font_data)),
-                )
-            })
+            .map(|(name, font_data)| (name.clone(), ab_glyph_font_from_font_data(name, font_data)))
             .collect();
 
         Self {
             atlas,
             pixels_per_point,
-            rusttype_fonts,
+            ab_glyph_fonts,
             cache: Default::default(),
         }
     }
 
-    pub fn rusttype_font(&self, font_name: &str) -> Arc<rusttype::Font<'static>> {
-        self.rusttype_fonts
+    pub fn ab_glyph_font(&self, font_name: &str) -> ab_glyph::FontArc {
+        self.ab_glyph_fonts
             .get(font_name)
             .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
             .clone()
@@ -549,7 +544,7 @@ impl FontImplCache {
         let font_impl = Arc::new(FontImpl::new(
             self.atlas.clone(),
             self.pixels_per_point,
-            self.rusttype_font(font_name),
+            self.ab_glyph_font(font_name),
             scale_in_points,
             y_offset,
         ));

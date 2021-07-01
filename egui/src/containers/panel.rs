@@ -169,8 +169,13 @@ impl SidePanel {
         if resizable {
             let resize_id = id.with("__resize");
             if let Some(pointer) = ctx.input().pointer.latest_pos() {
+                let we_are_on_top = ctx
+                    .layer_id_at(pointer)
+                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
+
                 let resize_x = side.opposite().side_x(panel_rect);
-                let mouse_over_resize_line = panel_rect.y_range().contains(&pointer.y)
+                let mouse_over_resize_line = we_are_on_top
+                    && panel_rect.y_range().contains(&pointer.y)
                     && (resize_x - pointer.x).abs()
                         <= ctx.style().interaction.resize_grab_radius_side;
 
@@ -187,12 +192,9 @@ impl SidePanel {
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
-                let we_are_on_top = ctx
-                    .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
                 let dragging_something_else =
                     ctx.input().pointer.any_down() || ctx.input().pointer.any_pressed();
-                resize_hover = mouse_over_resize_line && !dragging_something_else && we_are_on_top;
+                resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
                     ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
@@ -394,8 +396,13 @@ impl TopBottomPanel {
         if resizable {
             let resize_id = id.with("__resize");
             if let Some(pointer) = ctx.input().pointer.latest_pos() {
+                let we_are_on_top = ctx
+                    .layer_id_at(pointer)
+                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
+
                 let resize_y = side.opposite().side_y(panel_rect);
-                let mouse_over_resize_line = panel_rect.x_range().contains(&pointer.x)
+                let mouse_over_resize_line = we_are_on_top
+                    && panel_rect.x_range().contains(&pointer.x)
                     && (resize_y - pointer.y).abs()
                         <= ctx.style().interaction.resize_grab_radius_side;
 
@@ -413,12 +420,9 @@ impl TopBottomPanel {
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
-                let we_are_on_top = ctx
-                    .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
                 let dragging_something_else =
                     ctx.input().pointer.any_down() || ctx.input().pointer.any_pressed();
-                resize_hover = mouse_over_resize_line && !dragging_something_else && we_are_on_top;
+                resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
                     ctx.output().cursor_icon = CursorIcon::ResizeVertical;

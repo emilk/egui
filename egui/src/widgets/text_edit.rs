@@ -381,8 +381,14 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let response = self.content_ui(&mut content_ui);
+        let id = response.id;
         let frame_rect = response.rect.expand2(margin);
-        let response = response | ui.allocate_rect(frame_rect, Sense::hover());
+        ui.allocate_rect(frame_rect, Sense::hover());
+        let frame_response = ui.interact(frame_rect, id, Sense::click());
+        let response = response | frame_response;
+        if response.clicked() {
+            ui.memory().request_focus(response.id);
+        }
 
         if frame {
             let visuals = ui.style().interact(&response);

@@ -1280,7 +1280,9 @@ impl Ui {
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
+        let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui = self.child_ui(child_rect, *self.layout());
+        self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)

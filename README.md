@@ -64,7 +64,7 @@ if ui.button("Click each year").clicked() {
 ui.label(format!("Hello '{}', age {}", name, age));
 ```
 
-<img src="media/demo-2021-01-17.gif">
+<img src="media/demo.gif">
 
 ## Goals
 
@@ -79,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float) [`rusttype`](https://crates.io/crates/rusttype).
+* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float) [`ab_glyph`](https://crates.io/crates/ab_glyph).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 

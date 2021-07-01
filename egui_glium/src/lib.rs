@@ -5,13 +5,15 @@
 //! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(
-    rustdoc::broken_intra_doc_links,
-    rustdoc::invalid_codeblock_attributes,
-    rustdoc::missing_crate_level_docs,
-    rustdoc::private_intra_doc_links
-)]
+// Forbid warnings in release builds:
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+// Disabled so we can support rust 1.51:
+// #![deny(
+//     rustdoc::broken_intra_doc_links,
+//     rustdoc::invalid_codeblock_attributes,
+//     rustdoc::missing_crate_level_docs,
+//     rustdoc::private_intra_doc_links
+// )]
 #![forbid(unsafe_code)]
 #![warn(clippy::all, rust_2018_idioms)]
 #![allow(clippy::manual_range_contains, clippy::single_match)]
@@ -36,7 +38,6 @@ use {
     glium::glutin::{
         self,
         event::{Force, VirtualKeyCode},
-        event_loop::ControlFlow,
     },
     std::hash::{Hash, Hasher},
 };
@@ -60,26 +61,53 @@ impl GliumInputState {
     }
 }
 
+/// Helper: checks for Alt-F4 (windows/linux) or Cmd-Q (Mac)
+pub fn is_quit_shortcut(
+    input_state: &GliumInputState,
+    input: &glium::glutin::event::KeyboardInput,
+) -> bool {
+    if cfg!(target_os = "macos") {
+        input.state == glutin::event::ElementState::Pressed
+            && input_state.raw.modifiers.mac_cmd
+            && input.virtual_keycode == Some(VirtualKeyCode::Q)
+    } else {
+        input.state == glutin::event::ElementState::Pressed
+            && input_state.raw.modifiers.alt
+            && input.virtual_keycode == Some(VirtualKeyCode::F4)
+    }
+}
+
+/// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
+pub fn is_quit_event(
+    input_state: &GliumInputState,
+    event: &glutin::event::WindowEvent<'_>,
+) -> bool {
+    use glutin::event::WindowEvent;
+    match event {
+        WindowEvent::CloseRequested | WindowEvent::Destroyed => true,
+        WindowEvent::KeyboardInput { input, .. } => is_quit_shortcut(input_state, input),
+        _ => false,
+    }
+}
+
 pub fn input_to_egui(
     pixels_per_point: f32,
-    event: glutin::event::WindowEvent<'_>,
+    event: &glutin::event::WindowEvent<'_>,
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
-    control_flow: &mut ControlFlow,
 ) {
     use glutin::event::WindowEvent;
     match event {
-        WindowEvent::CloseRequested | WindowEvent::Destroyed => *control_flow = ControlFlow::Exit,
         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-            input_state.raw.pixels_per_point = Some(scale_factor as f32);
+            input_state.raw.pixels_per_point = Some(*scale_factor as f32);
         }
         WindowEvent::MouseInput { state, button, .. } => {
             if let Some(pos_in_points) = input_state.pointer_pos_in_points {
-                if let Some(button) = translate_mouse_button(button) {
+                if let Some(button) = translate_mouse_button(*button) {
                     input_state.raw.events.push(egui::Event::PointerButton {
                         pos: pos_in_points,
                         button,
-                        pressed: state == glutin::event::ElementState::Pressed,
+                        pressed: *state == glutin::event::ElementState::Pressed,
                         modifiers: input_state.raw.modifiers,
                     });
                 }
@@ -104,7 +132,7 @@ pub fn input_to_egui(
             input_state.raw.events.push(egui::Event::PointerGone);
         }
         WindowEvent::ReceivedCharacter(ch) => {
-            if is_printable_char(ch)
+            if is_printable_char(*ch)
                 && !input_state.raw.modifiers.ctrl
                 && !input_state.raw.modifiers.mac_cmd
             {
@@ -136,13 +164,6 @@ pub fn input_to_egui(
                 }
 
                 if pressed {
-                    if cfg!(target_os = "macos")
-                        && input_state.raw.modifiers.mac_cmd
-                        && keycode == VirtualKeyCode::Q
-                    {
-                        *control_flow = ControlFlow::Exit;
-                    }
-
                     // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
                     // so we detect these things manually:
                     if is_cut_command(input_state.raw.modifiers, keycode) {
@@ -178,7 +199,7 @@ pub fn input_to_egui(
             input_state.raw.modifiers = Modifiers::default();
         }
         WindowEvent::MouseWheel { delta, .. } => {
-            let mut delta = match delta {
+            let mut delta = match *delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 8.0; // magic value!
                     vec2(x, y) * line_height
@@ -480,18 +501,18 @@ impl EguiGlium {
         (&self.egui_ctx, &mut self.painter)
     }
 
-    pub fn on_event(
-        &mut self,
-        event: glium::glutin::event::WindowEvent<'_>,
-        control_flow: &mut glium::glutin::event_loop::ControlFlow,
-    ) {
+    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
         crate::input_to_egui(
             self.egui_ctx.pixels_per_point(),
-            event,
+            &event,
             self.clipboard.as_mut(),
             &mut self.input_state,
-            control_flow,
         );
+    }
+
+    /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
+    pub fn is_quit_event(&self, event: &glutin::event::WindowEvent<'_>) -> bool {
+        crate::is_quit_event(&self.input_state, event)
     }
 
     pub fn begin_frame(&mut self, display: &glium::Display) {
@@ -502,10 +523,19 @@ impl EguiGlium {
             .unwrap_or_else(|| self.egui_ctx.pixels_per_point());
 
         self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
-        self.input_state.raw.screen_rect = Some(Rect::from_min_size(
-            Default::default(),
-            screen_size_in_pixels(&display) / pixels_per_point,
-        ));
+
+        // On Windows, a minimized window will have 0 width and height.
+        // See: https://github.com/rust-windowing/winit/issues/208
+        // This solves an issue where egui window positions would be changed when minimizing on Windows.
+        let screen_size = screen_size_in_pixels(display);
+        self.input_state.raw.screen_rect = if screen_size.x > 0.0 && screen_size.y > 0.0 {
+            Some(Rect::from_min_size(
+                Default::default(),
+                screen_size / pixels_per_point,
+            ))
+        } else {
+            None
+        };
 
         self.egui_ctx.begin_frame(self.input_state.raw.take());
     }

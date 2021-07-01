@@ -223,8 +223,11 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let galley = label.layout_width(ui, available.right() - text_pos.x);
         let text_max_x = text_pos.x + galley.size.x;
-        let desired_width = text_max_x + button_padding.x - available.left();
-        let desired_width = desired_width.max(available.width());
+
+        let mut desired_width = text_max_x + button_padding.x - available.left();
+        if ui.visuals().collapsing_header_frame {
+            desired_width = desired_width.max(available.width()); // fill full width
+        }
 
         let mut desired_size = vec2(desired_width, galley.size.y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);

@@ -230,7 +230,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Rect>) {
         if let Some(id) = self.id {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(id);
@@ -284,7 +284,7 @@ impl Memory {
     pub(crate) fn end_frame(
         &mut self,
         input: &InputState,
-        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
+        used_ids: &epaint::ahash::AHashMap<Id, Rect>,
     ) {
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
@@ -464,7 +464,7 @@ impl Areas {
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -515,7 +515,7 @@ impl Areas {
         self.visible_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }

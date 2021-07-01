@@ -17,7 +17,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: sudo apt-get install libspeechd-dev
       - uses: actions-rs/cargo@v1
@@ -32,7 +32,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: sudo apt-get install libspeechd-dev
       - uses: actions-rs/cargo@v1
@@ -48,7 +48,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
@@ -64,7 +64,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
@@ -80,7 +80,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev
       - uses: actions-rs/cargo@v1
@@ -96,7 +96,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
@@ -112,7 +112,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: rustup component add clippy
       - run: sudo apt-get install libspeechd-dev
@@ -129,7 +129,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: sudo apt-get install libspeechd-dev
       - run: cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_glium --lib --no-deps --all-features
@@ -142,7 +142,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.51.0
           override: true
       - run: sudo apt-get install libspeechd-dev
       - run: rustup target add wasm32-unknown-unknown

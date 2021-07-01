@@ -46,7 +46,7 @@ impl Align {
 
     /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.
     #[inline(always)]
-    pub fn to_factor(&self) -> f32 {
+    pub fn to_factor(self) -> f32 {
         match self {
             Self::Min => 0.0,
             Self::Center => 0.5,
@@ -56,7 +56,7 @@ impl Align {
 
     /// Convert `Min => -1.0`, `Center => 0.0` or `Max => 1.0`.
     #[inline(always)]
-    pub fn to_sign(&self) -> f32 {
+    pub fn to_sign(self) -> f32 {
         match self {
             Self::Min => -1.0,
             Self::Center => 0.0,
@@ -104,7 +104,7 @@ impl Align2 {
     }
 
     /// -1, 0, or +1 for each axis
-    pub fn to_sign(&self) -> Vec2 {
+    pub fn to_sign(self) -> Vec2 {
         vec2(self.x().to_sign(), self.y().to_sign())
     }
 
