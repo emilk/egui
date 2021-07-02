@@ -102,6 +102,18 @@ impl Frame {
         self.stroke = stroke;
         self
     }
+    pub fn corner_radius(mut self, corner_radius: f32) -> Self {
+        self.corner_radius = corner_radius;
+        self
+    }
+    pub fn margin(mut self, margin: impl Into<Vec2>) -> Self {
+        self.margin = margin.into();
+        self
+    }
+    pub fn shadow(mut self, shadow: Shadow) -> Self {
+        self.shadow = shadow;
+        self
+    }
 
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.linear_multiply(opacity);
