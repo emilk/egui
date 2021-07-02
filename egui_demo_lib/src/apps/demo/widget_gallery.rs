@@ -42,7 +42,8 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(false)
+            .resizable(true)
+            .default_width(300.0)
             .show(ctx, |ui| {
                 use super::View;
                 self.ui(ui);
@@ -57,8 +58,9 @@ impl super::View for WidgetGallery {
             ui.set_enabled(self.enabled);
 
             egui::Grid::new("my_grid")
-                .striped(true)
+                .num_columns(2)
                 .spacing([40.0, 4.0])
+                .striped(true)
                 .show(ui, |ui| {
                     self.gallery_grid_contents(ui);
                 });

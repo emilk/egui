@@ -46,13 +46,16 @@ pub(crate) struct GridLayout {
     prev_state: State,
     /// State accumulated during the current frame.
     curr_state: State,
+    initial_available: Rect,
 
+    // Options:
+    num_columns: Option<usize>,
     spacing: Vec2,
-
-    striped: bool,
-    initial_x: f32,
     min_cell_size: Vec2,
     max_cell_size: Vec2,
+    striped: bool,
+
+    // Cursor:
     col: usize,
     row: usize,
 }
@@ -63,10 +66,9 @@ impl GridLayout {
 
         // TODO: respect current layout
 
-        let available = ui.placer().max_rect().intersect(ui.cursor());
-        let initial_x = available.min.x;
+        let initial_available = ui.placer().max_rect().intersect(ui.cursor());
         assert!(
-            initial_x.is_finite(),
+            initial_available.min.x.is_finite(),
             "Grid not yet available for right-to-left layouts"
         );
 
@@ -76,11 +78,14 @@ impl GridLayout {
             id,
             prev_state,
             curr_state: State::default(),
+            initial_available,
+
+            num_columns: None,
             spacing: ui.spacing().item_spacing,
-            striped: false,
-            initial_x,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
+            striped: false,
+
             col: 0,
             row: 0,
         }
@@ -109,7 +114,11 @@ impl GridLayout {
     }
 
     pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
-        let width = if self.max_cell_size.x.is_finite() {
+        let is_last_column = Some(self.col + 1) == self.num_columns;
+
+        let width = if is_last_column {
+            (self.initial_available.right() - region.cursor.left()).at_most(self.max_cell_size.x)
+        } else if self.max_cell_size.x.is_finite() {
             // TODO: should probably heed `prev_state` here too
             self.max_cell_size.x
         } else {
@@ -183,7 +192,7 @@ impl GridLayout {
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        cursor.min.x = self.initial_x;
+        cursor.min.x = self.initial_available.min.x;
         cursor.min.y += self.spacing.y;
         cursor.min.y += self
             .curr_state
@@ -247,6 +256,7 @@ impl GridLayout {
 #[must_use = "You should call .show()"]
 pub struct Grid {
     id_source: Id,
+    num_columns: Option<usize>,
     striped: bool,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -260,6 +270,7 @@ impl Grid {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
+            num_columns: None,
             striped: false,
             min_col_width: None,
             min_row_height: None,
@@ -267,6 +278,12 @@ impl Grid {
             spacing: None,
             start_row: 0,
         }
+    }
+
+    /// Setting this will allow the last column to expand to take up the rest of the space of the parent [`Ui`].
+    pub fn num_columns(mut self, num_columns: usize) -> Self {
+        self.num_columns = Some(num_columns);
+        self
     }
 
     /// If `true`, add a subtle background color to every other row.
@@ -317,6 +334,7 @@ impl Grid {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
+            num_columns,
             striped,
             min_col_width,
             min_row_height,
@@ -336,10 +354,11 @@ impl Grid {
             ui.horizontal(|ui| {
                 let id = ui.make_persistent_id(id_source);
                 let grid = GridLayout {
+                    num_columns,
                     striped,
-                    spacing,
                     min_cell_size: vec2(min_col_width, min_row_height),
                     max_cell_size,
+                    spacing,
                     row: start_row,
                     ..GridLayout::new(ui, id)
                 };
