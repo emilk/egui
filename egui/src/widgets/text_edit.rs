@@ -17,7 +17,7 @@ pub(crate) struct State {
 
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    singleline_offset: Option<f32>,
+    singleline_offset: f32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -501,13 +501,13 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             Sense::hover()
         };
         let mut response = ui.interact(rect, id, sense);
+        let painter = ui.painter_at(Rect::from_min_size(response.rect.min, desired_size));
 
         if enabled {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
-                let singleline_offset = state.singleline_offset.unwrap_or(0.0);
-                let singleline_offset = vec2(singleline_offset, 0.0);
+                let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
 
@@ -516,7 +516,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     && ui.input().pointer.is_moving()
                 {
                     // preview:
-                    paint_cursor_end(ui, response.rect.min, &galley, &cursor_at_pointer);
+                    paint_cursor_end(ui, &painter, response.rect.min, &galley, &cursor_at_pointer);
                 }
 
                 if response.double_clicked() {
@@ -736,14 +736,12 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         // Visual clipping for singleline text editor with text larger than width
         if !multiline {
-            ui.set_clip_rect(Rect::from_min_size(response.rect.min, desired_size));
-
             let cursor_pos = match (state.cursorp, ui.memory().has_focus(id)) {
                 (Some(cursorp), true) => galley.pos_from_cursor(&cursorp.primary).min.x,
                 _ => 0.0,
             };
 
-            let mut offset_x = state.singleline_offset.unwrap_or(0.0);
+            let mut offset_x = state.singleline_offset;
             let visible_range = offset_x..=offset_x + desired_size.x;
 
             if !visible_range.contains(&cursor_pos) {
@@ -754,22 +752,18 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 }
             }
 
-            if offset_x + desired_size.x > galley.size.x {
-                offset_x = galley.size.x - desired_size.x;
-            }
+            offset_x = offset_x
+                .at_most(galley.size.x - desired_size.x)
+                .at_least(0.0);
 
-            if offset_x < 0.0 {
-                offset_x = 0.0;
-            }
-
-            state.singleline_offset = Some(offset_x);
+            state.singleline_offset = offset_x;
             text_draw_pos -= vec2(offset_x, 0.0);
         }
 
         if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
-                paint_cursor_selection(ui, text_draw_pos, &galley, &cursorp);
-                paint_cursor_end(ui, text_draw_pos, &galley, &cursorp.primary);
+                paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursorp);
+                paint_cursor_end(ui, &painter, text_draw_pos, &galley, &cursorp.primary);
 
                 if enabled {
                     ui.ctx().output().text_cursor_pos = Some(
@@ -787,7 +781,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
-        ui.painter().galley(text_draw_pos, galley, text_color);
+        painter.galley(text_draw_pos, galley, text_color);
         if text.as_ref().is_empty() && !hint_text.is_empty() {
             let galley = if multiline {
                 ui.fonts()
@@ -796,8 +790,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                 ui.fonts().layout_single_line(text_style, hint_text)
             };
             let hint_text_color = ui.visuals().weak_text_color();
-            ui.painter()
-                .galley(response.rect.min, galley, hint_text_color);
+            painter.galley(response.rect.min, galley, hint_text_color);
         }
 
         ui.memory().id_data.insert(id, state);
@@ -843,7 +836,13 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
 // ----------------------------------------------------------------------------
 
-fn paint_cursor_selection(ui: &mut Ui, pos: Pos2, galley: &Galley, cursorp: &CursorPair) {
+fn paint_cursor_selection(
+    ui: &mut Ui,
+    painter: &Painter,
+    pos: Pos2,
+    galley: &Galley,
+    cursorp: &CursorPair,
+) {
     let color = ui.visuals().selection.bg_fill;
     if cursorp.is_empty() {
         return;
@@ -870,11 +869,11 @@ fn paint_cursor_selection(ui: &mut Ui, pos: Pos2, galley: &Galley, cursorp: &Cur
             row.max_x() + newline_size
         };
         let rect = Rect::from_min_max(pos + vec2(left, row.y_min), pos + vec2(right, row.y_max));
-        ui.painter().rect_filled(rect, 0.0, color);
+        painter.rect_filled(rect, 0.0, color);
     }
 }
 
-fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
+fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley, cursor: &Cursor) {
     let stroke = ui.visuals().selection.stroke;
 
     let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
@@ -883,7 +882,7 @@ fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    ui.painter().line_segment(
+    painter.line_segment(
         [top, bottom],
         (ui.visuals().text_cursor_width, stroke.color),
     );
@@ -892,11 +891,11 @@ fn paint_cursor_end(ui: &mut Ui, pos: Pos2, galley: &Galley, cursor: &Cursor) {
         // Roof/floor:
         let extrusion = 3.0;
         let width = 1.0;
-        ui.painter().line_segment(
+        painter.line_segment(
             [top - vec2(extrusion, 0.0), top + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );
-        ui.painter().line_segment(
+        painter.line_segment(
             [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );
