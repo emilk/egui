@@ -148,7 +148,7 @@ impl GridLayout {
         self.align_size_within_rect(size, frame)
     }
 
-    pub(crate) fn advance(&mut self, cursor: &mut Rect, frame_rect: Rect, widget_rect: Rect) {
+    pub(crate) fn advance(&mut self, cursor: &mut Rect, _frame_rect: Rect, widget_rect: Rect) {
         let debug_expand_width = self.style.debug.show_expand_width;
         let debug_expand_height = self.style.debug.show_expand_height;
         if debug_expand_width || debug_expand_height {
@@ -178,15 +178,18 @@ impl GridLayout {
             widget_rect.height().at_least(self.min_cell_size.y),
         );
 
+        cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
         self.col += 1;
-        cursor.min.x += frame_rect.width() + self.spacing.x;
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        let row_height = self.prev_row_height(self.row);
-
         cursor.min.x = self.initial_x;
-        cursor.min.y += row_height + self.spacing.y;
+        cursor.min.y += self.spacing.y;
+        cursor.min.y += self
+            .curr_state
+            .row_height(self.row)
+            .unwrap_or(self.min_cell_size.y);
+
         self.col = 0;
         self.row += 1;
 
@@ -329,21 +332,24 @@ impl Grid {
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
-        ui.horizontal(|ui| {
-            let id = ui.make_persistent_id(id_source);
-            let grid = GridLayout {
-                striped,
-                spacing,
-                min_cell_size: vec2(min_col_width, min_row_height),
-                max_cell_size,
-                row: start_row,
-                ..GridLayout::new(ui, id)
-            };
+        ui.allocate_ui_at_rect(ui.cursor(), |ui| {
+            ui.horizontal(|ui| {
+                let id = ui.make_persistent_id(id_source);
+                let grid = GridLayout {
+                    striped,
+                    spacing,
+                    min_cell_size: vec2(min_col_width, min_row_height),
+                    max_cell_size,
+                    row: start_row,
+                    ..GridLayout::new(ui, id)
+                };
 
-            ui.set_grid(grid);
-            let r = add_contents(ui);
-            ui.save_grid();
-            r
+                ui.set_grid(grid);
+                let r = add_contents(ui);
+                ui.save_grid();
+                r
+            })
+            .inner
         })
     }
 }
