@@ -1,7 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::*;
-use crate::vec2::{Vec2, vec2};
+use crate::vec2::Vec2;
 
 /// A position on screen.
 ///
