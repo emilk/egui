@@ -73,6 +73,8 @@ impl epi::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        self.context_menu(ctx, frame);
+
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
@@ -126,6 +128,39 @@ impl epi::App for WrapApp {
 }
 
 impl WrapApp {
+    fn context_menu(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
+        use egui::context_menu::SubMenu;
+        self.context_menu.listen(ctx, |ui, menu_state| {
+            let open_button = ui.button("Open...");
+            if open_button.clicked() {
+                menu_state.close();
+            }
+            SubMenu::new("SubMenu")
+                .show(ui, menu_state, |ui, menu_state| {
+                    let open_button = ui.button("Open...");
+                    if open_button.clicked() {
+                        menu_state.close();
+                    }
+                    SubMenu::new("SubMenu")
+                        .show(ui, menu_state, |ui, menu_state| {
+                            let open_button = ui.button("Open...");
+                            if open_button.clicked() {
+                                menu_state.close();
+                            }
+                            let _ = ui.button("Item");
+                        });
+                    let _ = ui.button("Item");
+                });
+            SubMenu::new("SubMenu")
+                .show(ui, menu_state, |ui, _menu_state| {
+                    let _ = ui.button("Item1");
+                    let _ = ui.button("Item2");
+                    let _ = ui.button("Item3");
+                    let _ = ui.button("Item4");
+                });
+            let _ = ui.button("Item");
+        });
+    }
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
         // A menu-bar is a horizontal layout with some special styles applied.
         // egui::menu::bar(ui, |ui| {
