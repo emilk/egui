@@ -16,6 +16,7 @@ pub struct WidgetGallery {
     scalar: f32,
     string: String,
     color: egui::Color32,
+    animate_progress_bar: bool,
 }
 
 impl Default for WidgetGallery {
@@ -28,6 +29,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
+            animate_progress_bar: false,
         }
     }
 }
@@ -40,7 +42,8 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(false)
+            .resizable(true)
+            .default_width(300.0)
             .show(ctx, |ui| {
                 use super::View;
                 self.ui(ui);
@@ -55,8 +58,9 @@ impl super::View for WidgetGallery {
             ui.set_enabled(self.enabled);
 
             egui::Grid::new("my_grid")
-                .striped(true)
+                .num_columns(2)
                 .spacing([40.0, 4.0])
+                .striped(true)
                 .show(ui, |ui| {
                     self.gallery_grid_contents(ui);
                 });
@@ -95,6 +99,7 @@ impl WidgetGallery {
             scalar,
             string,
             color,
+            animate_progress_bar,
         } = self;
 
         ui.add(doc_link_label("Label", "label,heading"));
@@ -155,6 +160,17 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Slider", "Slider"));
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        ui.end_row();
+
+        ui.add(doc_link_label("ProgressBar", "ProgressBar"));
+        let progress = *scalar / 360.0;
+        let progress_bar = egui::ProgressBar::new(progress)
+            .show_percentage()
+            .animate(*animate_progress_bar);
+        *animate_progress_bar = ui
+            .add(progress_bar)
+            .on_hover_text("The progress bar can be animated!")
+            .hovered();
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
