@@ -191,6 +191,7 @@ impl Shape {
     }
 }
 
+/// Creates equally spaced filled circles from a line.
 fn points_from_line(
     line: &[Pos2],
     spacing: f32,
@@ -213,6 +214,7 @@ fn points_from_line(
     });
 }
 
+/// Creates dashes from a line.
 fn dashes_from_line(
     line: &[Pos2],
     stroke: Stroke,
