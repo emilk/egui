@@ -107,7 +107,7 @@ impl Shape {
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
         dashes_from_line(
-            &points,
+            points,
             stroke.into(),
             dash_length,
             dash_gap_ratio,
