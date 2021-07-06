@@ -6,7 +6,7 @@ This aims to be the entry-level crate if you want to write an egui app.
 
 `eframe` is a very thin crate that re-exports [`egui`](https://crates.io/crates/egui), [`epi`](https://crates.io/crates/epi) and thin wrappers over the backends.
 
-On Linux you need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev` to compile `eframe` natively.
+On Linux you need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev` to compile `eframe` natively.
 
 ## Name
 
