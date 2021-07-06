@@ -444,21 +444,6 @@ pub mod http {
     impl Response {
         pub fn text(&self) -> Option<String> {
             String::from_utf8(self.bytes.clone()).ok()
-
-            // The following check doesn't accurately detect utf8 text:
-            // - it ignores the content-type charset parameter
-            // - the whitelist is incomplete, e.g. missing application/json
-            /*
-            let content_type = self.content_type().unwrap_or_default();
-
-            if content_type.starts_with("text")
-                || content_type == "application/javascript"
-            {
-                String::from_utf8(self.bytes.clone()).ok()
-            } else {
-                None
-            }
-            */
         }
         pub fn content_type(&self) -> Option<String> {
             self.headers.get("content-type").cloned()
