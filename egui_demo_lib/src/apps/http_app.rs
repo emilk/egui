@@ -339,7 +339,7 @@ impl ColoredText {
 }
 
 #[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_: &Response) -> Option<ColoredText> {
+fn syntax_highlighting(_: &Response, _: &str) -> Option<ColoredText> {
     None
 }
 #[cfg(not(feature = "syntect"))]
