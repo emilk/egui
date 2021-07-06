@@ -103,16 +103,10 @@ impl Shape {
         points: &[Pos2],
         stroke: impl Into<Stroke>,
         dash_length: f32,
-        dash_gap_ratio: f32,
+        gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(
-            points,
-            stroke.into(),
-            dash_length,
-            dash_gap_ratio,
-            &mut shapes,
-        );
+        dashes_from_line(points, stroke.into(), dash_length, gap_length, &mut shapes);
         shapes
     }
 
@@ -219,10 +213,9 @@ fn dashes_from_line(
     line: &[Pos2],
     stroke: Stroke,
     dash_length: f32,
-    dash_gap_ratio: f32,
+    gap_length: f32,
     shapes: &mut Vec<Shape>,
 ) {
-    let gap_length = dash_length / dash_gap_ratio;
     let mut position_on_segment = 0.0;
     let mut drawing_dash = false;
     line.windows(2).for_each(|window| {

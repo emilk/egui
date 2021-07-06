@@ -100,7 +100,7 @@ impl LineStyle {
                             &line,
                             stroke,
                             *length,
-                            1.0 / golden_ratio,
+                            length * golden_ratio,
                         ))
                     }
                 }
