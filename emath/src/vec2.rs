@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
-use crate::pos2::{Pos2, pos2};
+use crate::pos2::Pos2;
 
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
@@ -83,18 +83,6 @@ impl From<&Vec2> for (f32, f32) {
     }
 }
 // ----------------------------------------------------------------------------
-// Compatibility and convenience conversions to and from Pos2:
-impl From<Pos2> for Vec2 {
-    fn from(pos: Pos2) -> Self {
-        vec2(pos.x, pos.y)
-    }
-}
-impl From<Vec2> for Pos2 {
-    fn from(pos: Vec2) -> Self {
-        pos2(pos.x, pos.y)
-    }
-}
-// ----------------------------------------------------------------------------
 // Mint compatibility and convenience conversions
 
 #[cfg(feature = "mint")]
@@ -144,7 +132,7 @@ impl Vec2 {
     /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
     #[inline(always)]
     pub fn to_pos2(self) -> Pos2 {
-        Pos2::from(self)
+        Pos2::new(self.x, self.y)
     }
 
     /// Set both `x` and `y` to the same value.

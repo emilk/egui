@@ -122,7 +122,7 @@ impl Pos2 {
     /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
     #[inline(always)]
     pub fn to_vec2(self) -> Vec2 {
-        Vec2::from(self)
+        Vec2::new(self.x, self.y)
     }
 
     #[inline]
