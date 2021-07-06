@@ -387,7 +387,7 @@ pub mod http {
         pub url: String,
         /// The raw bytes.
         pub body: Vec<u8>,
-        // ("Accept", "*/*"), …
+        /// ("Accept", "*/*"), …
         pub headers: BTreeMap<String, String>,
     }
 
