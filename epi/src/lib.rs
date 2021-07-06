@@ -440,6 +440,7 @@ pub mod http {
 
         pub headers: BTreeMap<String, String>,
     }
+    
     impl Response {
         pub fn text(&self) -> Option<String> {
             String::from_utf8(self.bytes.clone()).ok()
