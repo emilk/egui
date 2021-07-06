@@ -445,6 +445,7 @@ pub mod http {
         pub fn text(&self) -> Option<String> {
             String::from_utf8(self.bytes.clone()).ok()
         }
+        
         pub fn content_type(&self) -> Option<String> {
             self.headers.get("content-type").cloned()
         }
