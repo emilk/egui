@@ -131,17 +131,20 @@ impl WrapApp {
     fn context_menu(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
         use egui::context_menu::SubMenu;
         self.context_menu.listen(ctx, |ui, menu_state| {
-            if ui.button("Open...").clicked() {
+            let open_button = ui.button("Open...");
+            if open_button.clicked() {
                 menu_state.close();
             }
             SubMenu::new("SubMenu")
                 .show(ui, menu_state, |ui, menu_state| {
-                    if ui.button("Open...").clicked() {
+                    let open_button = ui.button("Open...");
+                    if open_button.clicked() {
                         menu_state.close();
                     }
                     SubMenu::new("SubMenu")
                         .show(ui, menu_state, |ui, menu_state| {
-                            if ui.button("Open...").clicked() {
+                            let open_button = ui.button("Open...");
+                            if open_button.clicked() {
                                 menu_state.close();
                             }
                             let _ = ui.button("Item");

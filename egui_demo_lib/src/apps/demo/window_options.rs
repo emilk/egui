@@ -87,10 +87,15 @@ impl super::View for WindowOptions {
             anchor,
             anchor_offset,
         } = self;
-
         ui.horizontal(|ui| {
             ui.label("title:");
             ui.text_edit_singleline(title);
+            ui.context_menu(|ui, menu_state| {
+                if ui.button("Clear..").clicked() {
+                    *title = String::new();
+                    menu_state.close();
+                }
+            });
         });
 
         ui.horizontal(|ui| {
