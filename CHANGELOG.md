@@ -8,6 +8,8 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ## Unreleased
 
 ### Added ⭐
+* Plot:
+  * [Line styles](https://github.com/emilk/egui/pull/482)
 * [Progress bar](https://github.com/emilk/egui/pull/519)
 * `Grid::num_columns`: allow the last column to take up the rest of the space of the parent `Ui`.
 

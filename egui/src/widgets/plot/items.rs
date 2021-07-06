@@ -34,6 +34,93 @@ impl Value {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LineStyle {
+    Solid,
+    Dotted { spacing: f32 },
+    Dashed { length: f32 },
+}
+
+impl LineStyle {
+    pub fn dashed_loose() -> Self {
+        Self::Dashed { length: 10.0 }
+    }
+
+    pub fn dashed_dense() -> Self {
+        Self::Dashed { length: 5.0 }
+    }
+
+    pub fn dotted_loose() -> Self {
+        Self::Dotted { spacing: 10.0 }
+    }
+
+    pub fn dotted_dense() -> Self {
+        Self::Dotted { spacing: 5.0 }
+    }
+
+    fn style_line(
+        &self,
+        line: Vec<Pos2>,
+        mut stroke: Stroke,
+        highlight: bool,
+        shapes: &mut Vec<Shape>,
+    ) {
+        match line.len() {
+            0 => {}
+            1 => {
+                let mut radius = stroke.width / 2.0;
+                if highlight {
+                    radius *= 2f32.sqrt();
+                }
+                shapes.push(Shape::circle_filled(line[0], radius, stroke.color));
+            }
+            _ => {
+                match self {
+                    LineStyle::Solid => {
+                        if highlight {
+                            stroke.width *= 2.0;
+                        }
+                        shapes.push(Shape::line(line, stroke));
+                    }
+                    LineStyle::Dotted { spacing } => {
+                        // Take the stroke width for the radius even though it's not "correct", otherwise
+                        // the dots would become too small.
+                        let mut radius = stroke.width;
+                        if highlight {
+                            radius *= 2f32.sqrt();
+                        }
+                        shapes.extend(Shape::dotted_line(&line, stroke.color, *spacing, radius))
+                    }
+                    LineStyle::Dashed { length } => {
+                        if highlight {
+                            stroke.width *= 2.0;
+                        }
+                        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+                        shapes.extend(Shape::dashed_line(
+                            &line,
+                            stroke,
+                            *length,
+                            length * golden_ratio,
+                        ))
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl ToString for LineStyle {
+    fn to_string(&self) -> String {
+        match self {
+            LineStyle::Solid => "Solid".into(),
+            LineStyle::Dotted { spacing } => format!("Dotted{}Px", spacing),
+            LineStyle::Dashed { length } => format!("Dashed{}Px", length),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A horizontal line in a plot, filling the full width
 #[derive(Clone, Debug, PartialEq)]
 pub struct HLine {
@@ -41,6 +128,7 @@ pub struct HLine {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) style: LineStyle,
 }
 
 impl HLine {
@@ -50,10 +138,17 @@ impl HLine {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
             highlight: false,
+            style: LineStyle::Solid,
         }
     }
 
-    /// Set the stroke.
+    /// Highlight this line in the plot by scaling up the line.
+    pub fn highlight(mut self) -> Self {
+        self.highlight = true;
+        self
+    }
+
+    /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
@@ -68,6 +163,12 @@ impl HLine {
     /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
+        self
+    }
+
+    /// Set the line's style. Default is `LineStyle::Solid`.
+    pub fn style(mut self, style: LineStyle) -> Self {
+        self.style = style;
         self
     }
 
@@ -88,18 +189,16 @@ impl PlotItem for HLine {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let HLine {
             y,
-            mut stroke,
+            stroke,
             highlight,
+            style,
             ..
         } = self;
-        if *highlight {
-            stroke.width *= 2.0;
-        }
-        let points = [
+        let points = vec![
             transform.position_from_value(&Value::new(transform.bounds().min[0], *y)),
             transform.position_from_value(&Value::new(transform.bounds().max[0], *y)),
         ];
-        shapes.push(Shape::line_segment(points, stroke));
+        style.style_line(points, *stroke, *highlight, shapes);
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -139,6 +238,7 @@ pub struct VLine {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) style: LineStyle,
 }
 
 impl VLine {
@@ -148,10 +248,17 @@ impl VLine {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
             highlight: false,
+            style: LineStyle::Solid,
         }
     }
 
-    /// Set the stroke.
+    /// Highlight this line in the plot by scaling up the line.
+    pub fn highlight(mut self) -> Self {
+        self.highlight = true;
+        self
+    }
+
+    /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
@@ -166,6 +273,12 @@ impl VLine {
     /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
+        self
+    }
+
+    /// Set the line's style. Default is `LineStyle::Solid`.
+    pub fn style(mut self, style: LineStyle) -> Self {
+        self.style = style;
         self
     }
 
@@ -186,18 +299,16 @@ impl PlotItem for VLine {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let VLine {
             x,
-            mut stroke,
+            stroke,
             highlight,
+            style,
             ..
         } = self;
-        if *highlight {
-            stroke.width *= 2.0;
-        }
-        let points = [
+        let points = vec![
             transform.position_from_value(&Value::new(*x, transform.bounds().min[1])),
             transform.position_from_value(&Value::new(*x, transform.bounds().max[1])),
         ];
-        shapes.push(Shape::line_segment(points, stroke));
+        style.style_line(points, *stroke, *highlight, shapes)
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -409,8 +520,8 @@ pub enum MarkerShape {
 
 impl MarkerShape {
     /// Get a vector containing all marker shapes.
-    pub fn all() -> Vec<Self> {
-        vec![
+    pub fn all() -> impl Iterator<Item = MarkerShape> {
+        [
             Self::Circle,
             Self::Diamond,
             Self::Square,
@@ -422,6 +533,8 @@ impl MarkerShape {
             Self::Right,
             Self::Asterisk,
         ]
+        .iter()
+        .copied()
     }
 }
 
@@ -432,6 +545,7 @@ pub struct Line {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) fill: Option<f32>,
+    pub(super) style: LineStyle,
 }
 
 impl Line {
@@ -442,10 +556,11 @@ impl Line {
             name: Default::default(),
             highlight: false,
             fill: None,
+            style: LineStyle::Solid,
         }
     }
 
-    /// Highlight this line in the plot by scaling up the line and marker size.
+    /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self) -> Self {
         self.highlight = true;
         self
@@ -475,6 +590,12 @@ impl Line {
         self
     }
 
+    /// Set the line's style. Default is `LineStyle::Solid`.
+    pub fn style(mut self, style: LineStyle) -> Self {
+        self.style = style;
+        self
+    }
+
     /// Name of this line.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
@@ -499,18 +620,12 @@ impl PlotItem for Line {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
-            mut stroke,
+            stroke,
             highlight,
             mut fill,
+            style,
             ..
         } = self;
-
-        let mut fill_alpha = DEFAULT_FILL_ALPHA;
-
-        if *highlight {
-            stroke.width *= 2.0;
-            fill_alpha = (2.0 * fill_alpha).at_most(1.0);
-        }
 
         let values_tf: Vec<_> = series
             .values
@@ -524,6 +639,10 @@ impl PlotItem for Line {
             fill = None;
         }
         if let Some(y_reference) = fill {
+            let mut fill_alpha = DEFAULT_FILL_ALPHA;
+            if *highlight {
+                fill_alpha = (2.0 * fill_alpha).at_most(1.0);
+            }
             let y = transform
                 .position_from_value(&Value::new(0.0, y_reference))
                 .y;
@@ -554,13 +673,7 @@ impl PlotItem for Line {
             mesh.colored_vertex(pos2(last.x, y), fill_color);
             shapes.push(Shape::Mesh(mesh));
         }
-
-        let line_shape = if n_values > 1 {
-            Shape::line(values_tf, stroke)
-        } else {
-            Shape::circle_filled(values_tf[0], stroke.width / 2.0, stroke.color)
-        };
-        shapes.push(line_shape);
+        style.style_line(values_tf, *stroke, *highlight, shapes);
     }
 
     fn initialize(&mut self, x_range: RangeInclusive<f64>) {
@@ -599,6 +712,7 @@ pub struct Polygon {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) fill_alpha: f32,
+    pub(super) style: LineStyle,
 }
 
 impl Polygon {
@@ -609,6 +723,7 @@ impl Polygon {
             name: Default::default(),
             highlight: false,
             fill_alpha: DEFAULT_FILL_ALPHA,
+            style: LineStyle::Solid,
         }
     }
 
@@ -643,6 +758,12 @@ impl Polygon {
         self
     }
 
+    /// Set the outline's style. Default is `LineStyle::Solid`.
+    pub fn style(mut self, style: LineStyle) -> Self {
+        self.style = style;
+        self
+    }
+
     /// Name of this polygon.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
@@ -660,18 +781,18 @@ impl PlotItem for Polygon {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
-            mut stroke,
+            stroke,
             highlight,
             mut fill_alpha,
+            style,
             ..
         } = self;
 
         if *highlight {
-            stroke.width *= 2.0;
             fill_alpha = (2.0 * fill_alpha).at_most(1.0);
         }
 
-        let values_tf: Vec<_> = series
+        let mut values_tf: Vec<_> = series
             .values
             .iter()
             .map(|v| transform.position_from_value(v))
@@ -679,9 +800,15 @@ impl PlotItem for Polygon {
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
 
-        let shape = Shape::convex_polygon(values_tf, fill, stroke);
-
+        let shape = Shape::Path {
+            points: values_tf.clone(),
+            closed: true,
+            fill: fill.into(),
+            stroke: Stroke::none(),
+        };
         shapes.push(shape);
+        values_tf.push(*values_tf.first().unwrap());
+        style.style_line(values_tf, *stroke, *highlight, shapes);
     }
 
     fn initialize(&mut self, x_range: RangeInclusive<f64>) {
