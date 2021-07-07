@@ -1,3 +1,4 @@
+use super::backend_panel::BackendPanel;
 /// All the different demo apps.
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -112,7 +113,9 @@ impl epi::App for WrapApp {
                         *ui.ctx().memory() = Default::default();
                     }
                 });
-            });
+            })
+            .response
+            .context_menu(|ui, menu_state| BackendPanel::context_menu(ui, menu_state));
         }
 
         for (anchor, app) in self.apps.iter_mut() {
@@ -197,6 +200,12 @@ impl WrapApp {
 
                 egui::warn_if_debug_build(ui);
             });
+        })
+        .response
+        .context_menu(|ui, _menu_state| {
+            if ui.button("Print something").clicked() {
+                println!("something");
+            }
         });
     }
 

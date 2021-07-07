@@ -222,8 +222,8 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Plot", "plot"));
-        ui.scope(|ui| {
-            ui.context_menu(|ui, menu_state| {
+        ui.add(example_plot(plot))
+            .context_menu(|ui, menu_state| {
                 if ui.button("Sin").clicked() {
                     *plot = Plot::Sin;
                     menu_state.close();
@@ -235,8 +235,6 @@ impl WidgetGallery {
                     menu_state.close();
                 }
             });
-            ui.add(example_plot(plot));
-        });
 
         ui.end_row();
 

@@ -344,9 +344,6 @@ impl Ui {
         self.painter.set_clip_rect(clip_rect);
     }
 
-    pub fn context_menu(&mut self, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) {
-        self.ctx().clone().show_ui_context_menu(self, add_contents)
-    }
 }
 
 // ------------------------------------------------------------------------
