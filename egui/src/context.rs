@@ -281,10 +281,6 @@ impl CtxRef {
             response.interact_pointer_pos = self.input().pointer.interact_pos();
         }
 
-        if self.input.pointer.any_down() {
-            response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
-        }
-
         if response.has_focus() && response.clicked_elsewhere() {
             self.memory().surrender_focus(id);
         }
