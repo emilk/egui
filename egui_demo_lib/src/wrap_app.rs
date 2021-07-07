@@ -115,7 +115,7 @@ impl epi::App for WrapApp {
                 });
             })
             .response
-            .context_menu(|ui, menu_state| BackendPanel::context_menu(ui, menu_state));
+            .context_menu(BackendPanel::context_menu);
         }
 
         for (anchor, app) in self.apps.iter_mut() {
