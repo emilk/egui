@@ -67,7 +67,8 @@ pub fn menu(ui: &mut Ui, title: impl ToString, add_contents: impl FnOnce(&mut Ui
 pub(crate) fn menu_ui<'c>(ctx: &CtxRef, menu_id: Id, pos: Pos2, mut style: Style, add_contents: impl FnOnce(&mut Ui) + 'c) -> Response {
     let area = Area::new(menu_id)
         .order(Order::Foreground)
-        .fixed_pos(pos);
+        .fixed_pos(pos)
+        .drag_bounds(Rect::EVERYTHING);
     let frame = Frame::menu(&style);
 
     area.show(ctx, |ui| {
