@@ -7,12 +7,12 @@ use std::sync::{
 
 use crate::{
     animation_manager::AnimationManager,
+    context_menu::{ContextMenuSystem, MenuState},
     data::output::Output,
     frame_state::FrameState,
     input_state::*,
     layers::GraphicLayers,
     mutex::{Mutex, MutexGuard},
-    context_menu::{ ContextMenuSystem, MenuState },
     *,
 };
 use epaint::{stats::*, text::Fonts, *};
@@ -250,7 +250,8 @@ impl CtxRef {
                             // the slider will steal the drag away from the window.
                             // This is needed because we do window interaction first (to prevent frame delay),
                             // and then do content layout.
-                            if sense.drag && self.input().pointer.button_down(PointerButton::Primary)
+                            if sense.drag
+                                && self.input().pointer.button_down(PointerButton::Primary)
                                 && (memory.interaction.drag_id.is_none()
                                     || memory.interaction.drag_is_window)
                             {
@@ -305,8 +306,13 @@ impl CtxRef {
         Self::layer_painter(self, LayerId::debug())
     }
 
-    pub(crate) fn show_context_menu(&self, response: &Response, add_contents: impl FnOnce(&mut Ui, &mut MenuState))  {
-        self.context_menu_system().context_menu(response, add_contents)
+    pub(crate) fn show_context_menu(
+        &self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+    ) {
+        self.context_menu_system()
+            .context_menu(response, add_contents)
     }
 }
 
@@ -337,7 +343,6 @@ pub struct Context {
     context_menu_system: Arc<Mutex<ContextMenuSystem>>,
 
     input: InputState,
-
 
     /// State that is collected during a frame and then cleared
     frame_state: Arc<Mutex<FrameState>>,
@@ -383,8 +388,6 @@ impl Context {
         self.memory.lock()
     }
 
-    /// Stores all the egui state.
-    /// If you want to store/restore egui, serialize this.
     pub fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
         self.context_menu_system.lock()
     }
