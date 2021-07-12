@@ -43,7 +43,7 @@ To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
 The native backend is currently using [`glium`](https://github.com/glium/glium) ([though there are plans to change that](https://github.com/emilk/egui/issues/93)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev`
+`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev`
 
 On Fedora Rawhide you need to run `dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel`
 

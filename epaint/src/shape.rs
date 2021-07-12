@@ -66,7 +66,7 @@ impl Shape {
 
     /// A line through many points.
     ///
-    /// Use [`Self::line_segment`] instead if your line only connect two points.
+    /// Use [`Self::line_segment`] instead if your line only connects two points.
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -84,6 +84,30 @@ impl Shape {
             fill: Default::default(),
             stroke: stroke.into(),
         }
+    }
+
+    /// Turn a line into equally spaced dots.
+    pub fn dotted_line(
+        points: &[Pos2],
+        color: impl Into<Color32>,
+        spacing: f32,
+        radius: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        points_from_line(points, spacing, radius, color.into(), &mut shapes);
+        shapes
+    }
+
+    /// Turn a line into dashes.
+    pub fn dashed_line(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_length: f32,
+        gap_length: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(points, stroke.into(), dash_length, gap_length, &mut shapes);
+        shapes
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -160,6 +184,69 @@ impl Shape {
             fake_italics: false,
         }
     }
+}
+
+/// Creates equally spaced filled circles from a line.
+fn points_from_line(
+    line: &[Pos2],
+    spacing: f32,
+    radius: f32,
+    color: Color32,
+    shapes: &mut Vec<Shape>,
+) {
+    let mut position_on_segment = 0.0;
+    line.windows(2).for_each(|window| {
+        let start = window[0];
+        let end = window[1];
+        let vector = end - start;
+        let segment_length = vector.length();
+        while position_on_segment < segment_length {
+            let new_point = start + vector * (position_on_segment / segment_length);
+            shapes.push(Shape::circle_filled(new_point, radius, color));
+            position_on_segment += spacing;
+        }
+        position_on_segment -= segment_length;
+    });
+}
+
+/// Creates dashes from a line.
+fn dashes_from_line(
+    line: &[Pos2],
+    stroke: Stroke,
+    dash_length: f32,
+    gap_length: f32,
+    shapes: &mut Vec<Shape>,
+) {
+    let mut position_on_segment = 0.0;
+    let mut drawing_dash = false;
+    line.windows(2).for_each(|window| {
+        let start = window[0];
+        let end = window[1];
+        let vector = end - start;
+        let segment_length = vector.length();
+        while position_on_segment < segment_length {
+            let new_point = start + vector * (position_on_segment / segment_length);
+            if drawing_dash {
+                // This is the end point.
+                if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+                    points.push(new_point);
+                }
+                position_on_segment += gap_length;
+            } else {
+                // Start a new dash.
+                shapes.push(Shape::line(vec![new_point], stroke));
+                position_on_segment += dash_length;
+            }
+            drawing_dash = !drawing_dash;
+        }
+        // If the segment ends and the dash is not finished, add the segment's end point.
+        if drawing_dash {
+            if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+                points.push(end);
+            }
+        }
+        position_on_segment -= segment_length;
+    });
 }
 
 /// ## Operations

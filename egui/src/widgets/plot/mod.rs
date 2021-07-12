@@ -7,8 +7,10 @@ mod transform;
 use std::collections::HashSet;
 
 use items::PlotItem;
-pub use items::{Arrows, Line, MarkerShape, PlotImage, Points, Polygon, Text, Value, Values};
-pub use items::{HLine, VLine};
+pub use items::{
+    Arrows, HLine, Line, LineStyle, MarkerShape, PlotImage, Points, Polygon, Text, VLine, Value,
+    Values,
+};
 use legend::LegendWidget;
 pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
