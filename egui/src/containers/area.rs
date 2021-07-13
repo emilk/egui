@@ -219,11 +219,16 @@ impl Area {
         }
     }
 
-    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Response {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
         let prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
-        add_contents(&mut content_ui);
-        prepared.end(ctx, content_ui)
+        let inner = add_contents(&mut content_ui);
+        let response = prepared.end(ctx, content_ui);
+        InnerResponse { inner, response }
     }
 
     pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {

@@ -232,13 +232,8 @@ impl<'open> Window<'open> {
 
 impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
-    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
-        self.show_impl(ctx, Box::new(add_contents))
-            .map(|inner_response| inner_response.response)
-    }
-    /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
-    pub fn show_with_return<R>(
+    pub fn show<R>(
         self,
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
