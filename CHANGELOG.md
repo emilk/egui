@@ -12,6 +12,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
   * [Line styles](https://github.com/emilk/egui/pull/482)
 * [Progress bar](https://github.com/emilk/egui/pull/519)
 * `Grid::num_columns`: allow the last column to take up the rest of the space of the parent `Ui`.
+* Add `show_background` and `show_axes` methods to `Plot`.
 
 ### Changed 🔧
 * Return closure return value from `Area::show`, `ComboBox::show_ui`, `ComboBox::combo_box_with_label`, `Window::show`, `popup::*`, `menu::menu`.
