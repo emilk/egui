@@ -355,7 +355,8 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
                         button_response.mark_changed();
                     }
                 });
-            });
+            })
+            .response;
 
         if !button_response.clicked()
             && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())

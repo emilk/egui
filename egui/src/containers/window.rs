@@ -231,16 +231,21 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    /// Returns `None` if the windows is not open (if [`Window::open`] was called with `&mut false`.
-    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
+    /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
+    /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<Option<R>>> {
         self.show_impl(ctx, Box::new(add_contents))
     }
 
-    fn show_impl<'c>(
+    fn show_impl<'c, R>(
         self,
         ctx: &CtxRef,
-        add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
-    ) -> Option<Response> {
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title_label,
             open,
@@ -315,7 +320,7 @@ impl<'open> Window<'open> {
 
         let mut area_content_ui = area.content_ui(ctx);
 
-        {
+        let content_inner = {
             // BEGIN FRAME --------------------------------
             let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
@@ -342,7 +347,7 @@ impl<'open> Window<'open> {
                 None
             };
 
-            let content_response = collapsing
+            let (content_inner, content_response) = collapsing
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
@@ -350,13 +355,14 @@ impl<'open> Window<'open> {
                         }
 
                         if let Some(scroll) = scroll {
-                            scroll.show(ui, add_contents);
+                            scroll.show(ui, add_contents)
                         } else {
-                            add_contents(ui);
+                            add_contents(ui)
                         }
                     })
                 })
-                .map(|ir| ir.response);
+                .map(|ir| (Some(ir.inner), Some(ir.response)))
+                .unwrap_or((None, None));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
@@ -396,10 +402,15 @@ impl<'open> Window<'open> {
                     );
                 }
             }
-        }
+            content_inner
+        };
         let full_response = area.end(ctx, area_content_ui);
 
-        Some(full_response)
+        let inner_response = InnerResponse {
+            inner: content_inner,
+            response: full_response,
+        };
+        Some(inner_response)
     }
 }
 
