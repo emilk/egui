@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::*;
+use crate::vec2::Vec2;
 
 /// A position on screen.
 ///
@@ -122,10 +122,7 @@ impl Pos2 {
     /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
     #[inline(always)]
     pub fn to_vec2(self) -> Vec2 {
-        Vec2 {
-            x: self.x,
-            y: self.y,
-        }
+        Vec2::new(self.x, self.y)
     }
 
     #[inline]
