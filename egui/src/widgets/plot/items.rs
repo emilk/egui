@@ -2,7 +2,7 @@
 
 use std::ops::{Bound, RangeBounds, RangeInclusive};
 
-use epaint::{Mesh, text::TextColorMap};
+use epaint::{text::TextColorMap, Mesh};
 
 use super::transform::{Bounds, ScreenTransform};
 use crate::*;
@@ -919,7 +919,7 @@ impl PlotItem for Text {
         shapes.push(Shape::Text {
             pos: rect.min,
             galley,
-	    color_map: TextColorMap::default(),
+            color_map: TextColorMap::default(),
             default_color: color,
             fake_italics: false,
         });
