@@ -60,12 +60,22 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
 }
 
 /// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
-pub fn menu(ui: &mut Ui, title: impl ToString, add_contents: impl FnOnce(&mut Ui)) {
+///
+/// Returns `None` if the menu is not open.
+pub fn menu<R>(
+    ui: &mut Ui,
+    title: impl ToString,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
     menu_impl(ui, title, Box::new(add_contents))
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn menu_impl<'c>(ui: &mut Ui, title: impl ToString, add_contents: Box<dyn FnOnce(&mut Ui) + 'c>) {
+fn menu_impl<'c, R>(
+    ui: &mut Ui,
+    title: impl ToString,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+) -> Option<R> {
     let title = title.to_string();
     let bar_id = ui.id();
     let menu_id = bar_id.with(&title);
@@ -91,32 +101,42 @@ fn menu_impl<'c>(ui: &mut Ui, title: impl ToString, add_contents: Box<dyn FnOnce
         bar_state.open_menu = Some(menu_id);
     }
 
-    if bar_state.open_menu == Some(menu_id) || ui.ctx().memory().everything_is_visible() {
+    let inner = if bar_state.open_menu == Some(menu_id) || ui.ctx().memory().everything_is_visible()
+    {
         let area = Area::new(menu_id)
             .order(Order::Foreground)
             .fixed_pos(button_response.rect.left_bottom());
         let frame = Frame::menu(ui.style());
 
-        area.show(ui.ctx(), |ui| {
-            frame.show(ui, |ui| {
-                let mut style = (**ui.style()).clone();
-                style.spacing.button_padding = vec2(2.0, 0.0);
-                // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.active.bg_stroke = Stroke::none();
-                // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-                ui.set_style(style);
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents);
-            });
-        });
+        let inner = area
+            .show(ui.ctx(), |ui| {
+                frame
+                    .show(ui, |ui| {
+                        let mut style = (**ui.style()).clone();
+                        style.spacing.button_padding = vec2(2.0, 0.0);
+                        // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+                        style.visuals.widgets.active.bg_stroke = Stroke::none();
+                        // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+                        style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+                        style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                        style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+                        ui.set_style(style);
+                        ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                            .inner
+                    })
+                    .inner
+            })
+            .inner;
 
         // TODO: this prevents sub-menus in menus. We should fix that.
         if ui.input().key_pressed(Key::Escape) || button_response.clicked_elsewhere() {
             bar_state.open_menu = None;
         }
-    }
+        Some(inner)
+    } else {
+        None
+    };
 
     bar_state.save(ui.ctx(), bar_id);
+    inner
 }
