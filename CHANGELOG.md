@@ -6,6 +6,13 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 
 ## Unreleased
+* Replaced all missed opportunities to return an inner return value. (this is a breaking change!)
+  * `Area::show`
+  * `ComboBox::show_ui`
+  * `ComboBox::combo_box_with_label`
+  * `Window::show`
+  * `popup::*`
+  * `menu::menu`
 
 ### Added ⭐
 * Plot:
