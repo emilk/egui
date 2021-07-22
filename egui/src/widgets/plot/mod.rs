@@ -72,7 +72,7 @@ pub struct Plot {
     show_y: bool,
     legend_config: Option<Legend>,
     show_background: bool,
-    show_axes: bool,
+    show_axes: [bool; 2],
 }
 
 impl Plot {
@@ -101,7 +101,7 @@ impl Plot {
             show_y: true,
             legend_config: None,
             show_background: true,
-            show_axes: true,
+            show_axes: [true; 2],
         }
     }
 
@@ -330,8 +330,8 @@ impl Plot {
 
     /// Show the axes.
     /// Can be useful to disable if the plot is overlaid over an existing grid or content.
-    /// Default: `true`.
-    pub fn show_axes(mut self, show: bool) -> Self {
+    /// Default: `[true; 2]`.
+    pub fn show_axes(mut self, show: [bool; 2]) -> Self {
         self.show_axes = show;
         self
     }
@@ -554,7 +554,7 @@ struct Prepared {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
-    show_axes: bool,
+    show_axes: [bool; 2],
     transform: ScreenTransform,
 }
 
@@ -562,8 +562,8 @@ impl Prepared {
     fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 
-        if self.show_axes {
-            for d in 0..2 {
+        for d in 0..2 {
+            if self.show_axes[d] {
                 self.paint_axis(ui, d, &mut shapes);
             }
         }
