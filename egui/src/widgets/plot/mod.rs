@@ -358,8 +358,8 @@ impl Widget for Plot {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
-                hidden_items: HashSet::new(),
                 min_auto_bounds,
+                ..memory
             };
             ui.memory().id_data.insert(plot_id, memory.clone());
         }
