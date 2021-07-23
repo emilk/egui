@@ -93,7 +93,7 @@ impl BackendPanel {
     }
 
     pub fn context_menu(ui: &mut egui::Ui, menu_state: &mut egui::context_menu::MenuState) {
-        if ui.button("Open...").clicked() {
+        if menu_state.item("Open...").show(ui).clicked() {
             menu_state.close();
         }
         menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
@@ -101,26 +101,26 @@ impl BackendPanel {
                 if ui.button("Open...").clicked() {
                     menu_state.close();
                 }
-                let _ = ui.button("Item");
+                let _ = menu_state.item("Item").show(ui);
             });
             menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-                if ui.button("Open...").clicked() {
+                if menu_state.item("Open...").show(ui).clicked() {
                     menu_state.close();
                 }
-                let _ = ui.button("Item");
+                let _ = menu_state.item("Item").show(ui);
             });
-            let _ = ui.button("Item");
-            if ui.button("Open...").clicked() {
+            let _ = menu_state.item("Item").show(ui);
+            if menu_state.item("Open...").show(ui).clicked() {
                 menu_state.close();
             }
         });
-        menu_state.submenu("SubMenu").show(ui, |ui, _menu_state| {
-            let _ = ui.button("Item1");
-            let _ = ui.button("Item2");
-            let _ = ui.button("Item3");
-            let _ = ui.button("Item4");
+        menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
+            let _ = menu_state.item("Item1").show(ui);
+            let _ = menu_state.item("Item1").show(ui);
+            let _ = menu_state.item("Item1").show(ui);
+            let _ = menu_state.item("Item1").show(ui);
         });
-        let _ = ui.button("Very long text for this item");
+        let _ = menu_state.item("Very long text for this item").show(ui);
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {

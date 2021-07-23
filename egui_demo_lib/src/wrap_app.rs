@@ -168,8 +168,8 @@ impl WrapApp {
             });
         })
         .response
-        .context_menu(|ui, _menu_state| {
-            if ui.button("Print something").clicked() {
+        .context_menu(|ui, menu_state| {
+            if menu_state.item("Print something").show(ui).clicked() {
                 println!("something");
             }
         });

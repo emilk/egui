@@ -223,13 +223,13 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Plot", "plot"));
         ui.add(example_plot(plot)).context_menu(|ui, menu_state| {
-            if ui.button("Sin").clicked() {
+            if menu_state.item("Sin").show(ui).clicked() {
                 *plot = Plot::Sin;
                 menu_state.close();
-            } else if ui.button("Bell").clicked() {
+            } else if menu_state.item("Bell").show(ui).clicked() {
                 *plot = Plot::Bell;
                 menu_state.close();
-            } else if ui.button("Sigmoid").clicked() {
+            } else if menu_state.item("Sigmoid").show(ui).clicked() {
                 *plot = Plot::Sigmoid;
                 menu_state.close();
             }

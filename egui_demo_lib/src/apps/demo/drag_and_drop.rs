@@ -130,7 +130,7 @@ impl super::View for DragAndDropDemo {
                         drag_source(ui, item_id, |ui| {
                             ui.add(Label::new(item).sense(Sense::click())).context_menu(
                                 |ui, menu_state| {
-                                    if ui.button("Remove...").clicked() {
+                                    if menu_state.item("Remove...").show(ui).clicked() {
                                         self.columns[col_idx].remove(row_idx);
                                         menu_state.close();
                                     }
@@ -147,7 +147,7 @@ impl super::View for DragAndDropDemo {
 
                 if col_idx == 0 {
                     response.context_menu(|ui, menu_state| {
-                        if ui.button("New Item...").clicked() {
+                        if menu_state.item("New Item...").show(ui).clicked() {
                             self.columns[0].push("New Item".to_string());
                             menu_state.close();
                         }

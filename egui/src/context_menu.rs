@@ -1,5 +1,8 @@
 use super::{
-    style::Spacing, CtxRef, Frame, Id, Label, Layout, PointerState, Pos2, Rect, Response, Sense,
+    style::{
+        Spacing,
+        WidgetVisuals,
+    }, CtxRef, Align, Id, PointerState, Pos2, Rect, Response, Sense,
     Style, TextStyle, Ui, Vec2,
 };
 
@@ -103,48 +106,132 @@ impl std::ops::DerefMut for ContextMenuRoot {
     }
 }
 
-pub struct SubMenu<'a> {
+pub enum EntryState {
+    /// will not show hover visuals
+    Inactive,
+    /// listening for hovers
+    Active,
+    /// show open visuals
+    Open,
+}
+impl EntryState {
+    fn visuals<'a>(self, ui: &'a Ui, response: &'_ Response) -> &'a WidgetVisuals {
+        let widgets = &ui.style().visuals.widgets;
+        match self {
+            Self::Inactive => &widgets.inactive,
+            Self::Active => ui.style().interact(response),
+            Self::Open => &widgets.hovered,
+        }
+    }
+    fn submenu(menu_state: &MenuState, sub_id: Id) -> Self {
+        if menu_state.is_open(sub_id) {
+            Self::Open
+        } else if menu_state.any_open() {
+            Self::Inactive
+        } else {
+            Self::Active
+        }
+    }
+    fn entry(menu_state: &MenuState) -> Self {
+        if menu_state.any_open() {
+            Self::Inactive
+        } else {
+            Self::Active
+        }
+    }
+}
+pub struct MenuEntry {
     text: String,
+    icon: String,
+    state: EntryState,
+}
+impl MenuEntry {
+    #[allow(clippy::needless_pass_by_value)]
+    fn new(text: impl ToString, icon: impl ToString, state: EntryState) -> Self {
+        Self {
+            text: text.to_string(),
+            icon: icon.to_string(),
+            state,
+        }
+    }
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn icon(mut self, icon: impl ToString) -> Self {
+        self.icon = icon.to_string();
+        self
+    }
+    fn show_with_state(mut self, ui: &mut Ui, state: EntryState) -> Response {
+        self.state = state;
+        self.show(ui)
+    }
+    pub fn show(self, ui: &mut Ui) -> Response {
+        let MenuEntry {
+            text,
+            icon,
+            state
+        } = self;
+
+        let text_style = TextStyle::Button;
+        let sense = Sense::click();
+
+        let button_padding = ui.spacing().button_padding;
+        let total_extra = button_padding + button_padding;
+        let text_available_width = ui.available_width() - total_extra.x;
+        let text_galley = ui.fonts()
+                .layout_multiline(text_style, text, text_available_width);
+
+        let icon_available_width = text_available_width - text_galley.size.x;
+        let icon_galley = ui.fonts()
+                .layout_multiline(text_style, icon, icon_available_width);
+        let text_and_icon_size = Vec2::new(
+            text_galley.size.x + icon_galley.size.x,
+            text_galley.size.y.max(icon_galley.size.y)
+        );
+        let desired_size = text_and_icon_size + 2.0 * button_padding;
+
+        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        response.widget_info(|| crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text));
+
+        if ui.clip_rect().intersects(rect) {
+            response.interact(sense);
+            let visuals = state.visuals(ui, &response);
+            let text_pos = ui.layout()
+                .align_size_within_rect(text_galley.size, rect.shrink2(button_padding))
+                .min;
+            let icon_pos = ui.layout().with_cross_align(Align::RIGHT)
+                .align_size_within_rect(icon_galley.size, rect.shrink2(button_padding))
+                .min;
+
+            let fill = visuals.bg_fill;
+            let stroke = crate::Stroke::none();
+            ui.painter().rect(
+                rect.expand(visuals.expansion),
+                visuals.corner_radius,
+                fill,
+                stroke,
+            );
+
+            let text_color = visuals.text_color();
+            ui.painter().galley(text_pos, text_galley, text_color);
+            ui.painter().galley(icon_pos, icon_galley, text_color);
+        }
+        response
+    }
+}
+pub struct SubMenu<'a> {
+    entry: MenuEntry,
     parent_state: &'a mut MenuState,
 }
 impl<'a> SubMenu<'a> {
     #[allow(clippy::needless_pass_by_value)]
     fn new(text: impl ToString, parent_state: &'a mut MenuState) -> Self {
         Self {
-            text: text.to_string(),
+            entry: MenuEntry::new(text, "⏵", EntryState::Active),
             parent_state,
         }
     }
     pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) -> Response {
         let sub_id = ui.id().with(format!("{:?}", ui.placer.cursor().min));
-        let mut label = Label::new(self.text)
-            .text_style(TextStyle::Button)
-            .text_color(ui.visuals().widgets.inactive.fg_stroke.color);
-        let mut icon = Label::new("⏵")
-            .text_style(TextStyle::Button)
-            .text_color(ui.visuals().widgets.inactive.fg_stroke.color);
-        let mut frame = Frame::none();
-        let open = self.parent_state.is_open(sub_id);
-        if open {
-            icon = icon.text_color(ui.visuals().widgets.hovered.fg_stroke.color);
-            label = label.text_color(ui.visuals().widgets.hovered.fg_stroke.color);
-            frame = frame.fill(ui.visuals().widgets.hovered.bg_fill);
-        }
-        let padding = ui.spacing().button_padding.x;
-        let button = frame
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::left_to_right(), |ui| {
-                        ui.add_space(padding);
-                        ui.label(label);
-                    });
-                    ui.with_layout(Layout::right_to_left(), |ui| {
-                        ui.add(icon);
-                        ui.add_space(padding);
-                    });
-                });
-            })
-            .response;
+        let button = self.entry.show_with_state(ui, EntryState::submenu(self.parent_state, sub_id));
         self.parent_state
             .submenu_button_interaction(ui, sub_id, &button);
         self.parent_state
@@ -162,6 +249,14 @@ impl MenuState {
     /// close menu hierarchy
     pub fn close(&mut self) {
         self.response = MenuResponse::Close;
+    }
+    /// create a menu item
+    pub fn item(&self, text: impl ToString) -> MenuEntry {
+        MenuEntry::new(text, "", EntryState::entry(self))
+    }
+    /// create a menu item with an icon
+    pub fn item_with_icon(&self, text: impl ToString, icon: impl ToString) -> MenuEntry {
+        MenuEntry::new(text, icon, EntryState::entry(self))
     }
     /// create a sub-menu
     pub fn submenu(&'_ mut self, text: impl ToString) -> SubMenu<'_> {
@@ -268,6 +363,9 @@ impl MenuState {
         if response.is_close() {
             self.response = response;
         }
+    }
+    fn any_open(&self) -> bool {
+        self.get_sub_id().is_some()
     }
     fn is_open(&self, id: Id) -> bool {
         self.get_sub_id() == Some(id)

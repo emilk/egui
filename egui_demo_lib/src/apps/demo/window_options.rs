@@ -93,7 +93,7 @@ impl super::View for WindowOptions {
         })
         .response
         .context_menu(|ui, menu_state| {
-            if ui.button("Clear..").clicked() {
+            if menu_state.item("Clear..").show(ui).clicked() {
                 *title = String::new();
                 menu_state.close();
             }
