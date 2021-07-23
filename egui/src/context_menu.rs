@@ -10,6 +10,7 @@ use super::{
 pub struct ContextMenuSystem {
     context_menu: Option<ContextMenuRoot>,
 }
+
 impl ContextMenuSystem {
     /// sense if a context menu needs to be (re-)created or destroyed
     fn sense_click(&mut self, response: &Response) -> MenuResponse {
@@ -42,7 +43,7 @@ impl ContextMenuSystem {
     ) -> MenuResponse {
         if let Some(context_menu) = &mut self.context_menu {
             if context_menu.ui_id == response.id {
-                let response = context_menu.show(&response.ctx, response.id, add_contents);
+                let response = context_menu.show(&response.ctx, add_contents);
                 context_menu.rect = response.rect;
 
                 if context_menu.response.is_close() {
@@ -92,6 +93,13 @@ impl ContextMenuRoot {
             context_menu: MenuState::new(position),
             ui_id,
         }
+    }
+    fn show(
+        &mut self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+    ) -> Response {
+        self.context_menu.show(ctx, self.ui_id, add_contents)
     }
 }
 impl std::ops::Deref for ContextMenuRoot {

@@ -98,7 +98,7 @@ impl BackendPanel {
         }
         menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
             menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-                if ui.button("Open...").clicked() {
+                if menu_state.item("Open...").show(ui).clicked() {
                     menu_state.close();
                 }
                 let _ = menu_state.item("Item").show(ui);
@@ -116,9 +116,12 @@ impl BackendPanel {
         });
         menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
             let _ = menu_state.item("Item1").show(ui);
-            let _ = menu_state.item("Item1").show(ui);
-            let _ = menu_state.item("Item1").show(ui);
-            let _ = menu_state.item("Item1").show(ui);
+            let _ = menu_state.item("Item2").show(ui);
+            let _ = menu_state.item("Item3").show(ui);
+            let _ = menu_state.item("Item4").show(ui);
+            if menu_state.item("Open...").show(ui).clicked() {
+                menu_state.close();
+            }
         });
         let _ = menu_state.item("Very long text for this item").show(ui);
     }
