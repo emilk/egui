@@ -329,6 +329,7 @@ impl MenuState {
             Style {
                 spacing: Spacing {
                     item_spacing: Vec2::ZERO,
+                    button_padding: crate::vec2(2.0, 0.0),
                     ..Default::default()
                 },
                 ..Default::default()
