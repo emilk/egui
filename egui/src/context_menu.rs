@@ -240,14 +240,13 @@ impl<'a> SubMenu<'a> {
             parent_state,
         }
     }
-    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) -> Response {
+    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) {
         let sub_id = ui.id().with(self.entry.index);
         let button = self.entry.show_with_state(ui, EntryState::submenu(self.parent_state, sub_id));
         self.parent_state
             .submenu_button_interaction(ui, sub_id, &button);
         self.parent_state
-            .show_submenu(ui.ctx(), sub_id, add_contents)
-            .unwrap_or(button)
+            .show_submenu(ui.ctx(), sub_id, add_contents);
     }
 }
 
