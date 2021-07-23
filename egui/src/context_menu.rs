@@ -144,14 +144,16 @@ pub struct MenuEntry {
     text: String,
     icon: String,
     state: EntryState,
+    index: usize,
 }
 impl MenuEntry {
     #[allow(clippy::needless_pass_by_value)]
-    fn new(text: impl ToString, icon: impl ToString, state: EntryState) -> Self {
+    fn new(text: impl ToString, icon: impl ToString, state: EntryState, index: usize) -> Self {
         Self {
             text: text.to_string(),
             icon: icon.to_string(),
             state,
+            index,
         }
     }
     #[allow(clippy::needless_pass_by_value)]
@@ -167,7 +169,8 @@ impl MenuEntry {
         let MenuEntry {
             text,
             icon,
-            state
+            state,
+            ..
         } = self;
 
         let text_style = TextStyle::Button;
@@ -223,14 +226,14 @@ pub struct SubMenu<'a> {
 }
 impl<'a> SubMenu<'a> {
     #[allow(clippy::needless_pass_by_value)]
-    fn new(text: impl ToString, parent_state: &'a mut MenuState) -> Self {
+    fn new(text: impl ToString, parent_state: &'a mut MenuState, index: usize) -> Self {
         Self {
-            entry: MenuEntry::new(text, "⏵", EntryState::Active),
+            entry: MenuEntry::new(text, "⏵", EntryState::Active, index),
             parent_state,
         }
     }
     pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) -> Response {
-        let sub_id = ui.id().with(format!("{:?}", ui.placer.cursor().min));
+        let sub_id = ui.id().with(self.entry.index);
         let button = self.entry.show_with_state(ui, EntryState::submenu(self.parent_state, sub_id));
         self.parent_state
             .submenu_button_interaction(ui, sub_id, &button);
@@ -244,6 +247,7 @@ pub struct MenuState {
     sub_menu: Option<(Id, Box<MenuState>)>,
     rect: Rect,
     response: MenuResponse,
+    entry_count: usize,
 }
 impl MenuState {
     /// close menu hierarchy
@@ -251,22 +255,28 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
     /// create a menu item
-    pub fn item(&self, text: impl ToString) -> MenuEntry {
-        MenuEntry::new(text, "", EntryState::entry(self))
+    pub fn item(&mut self, text: impl ToString) -> MenuEntry {
+        MenuEntry::new(text, "", EntryState::entry(self), self.next_entry_index())
     }
     /// create a menu item with an icon
-    pub fn item_with_icon(&self, text: impl ToString, icon: impl ToString) -> MenuEntry {
-        MenuEntry::new(text, icon, EntryState::entry(self))
+    pub fn item_with_icon(&mut self, text: impl ToString, icon: impl ToString) -> MenuEntry {
+        MenuEntry::new(text, icon, EntryState::entry(self), self.next_entry_index())
+    }
+    fn next_entry_index(&mut self) -> usize {
+        self.entry_count += 1;
+        self.entry_count-1
     }
     /// create a sub-menu
     pub fn submenu(&'_ mut self, text: impl ToString) -> SubMenu<'_> {
-        SubMenu::new(text, self)
+        let index = self.next_entry_index();
+        SubMenu::new(text, self, index)
     }
     fn new(position: Pos2) -> Self {
         Self {
             rect: Rect::from_min_size(position, Vec2::ZERO),
             sub_menu: None,
             response: MenuResponse::Stay,
+            entry_count: 0,
         }
     }
     /// sense button interaction opening and closing submenu
@@ -303,6 +313,7 @@ impl MenuState {
         id: Id,
         add_contents: impl FnOnce(&mut Ui, &mut MenuState),
     ) -> Response {
+        self.entry_count = 0;
         crate::menu::menu_ui(
             ctx,
             id,
