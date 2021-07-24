@@ -4,6 +4,7 @@ use super::{
         WidgetVisuals,
     }, CtxRef, Align, Id, PointerState, Pos2, Rect, Response, Sense,
     Style, TextStyle, Ui, Vec2,
+    InnerResponse,
 };
 
 #[derive(Default)]
@@ -240,13 +241,14 @@ impl<'a> SubMenu<'a> {
             parent_state,
         }
     }
-    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) {
+    pub fn show(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, &mut MenuState)) -> InnerResponse<Option<Response>> {
         let sub_id = ui.id().with(self.entry.index);
         let button = self.entry.show_with_state(ui, EntryState::submenu(self.parent_state, sub_id));
         self.parent_state
             .submenu_button_interaction(ui, sub_id, &button);
-        self.parent_state
+        let inner = self.parent_state
             .show_submenu(ui.ctx(), sub_id, add_contents);
+        InnerResponse::new(inner, button)
     }
 }
 
