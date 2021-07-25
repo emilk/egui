@@ -603,6 +603,24 @@ impl PointerState {
     pub(crate) fn could_any_button_be_click(&self) -> bool {
         self.could_be_click
     }
+
+    /// Is the primary button currently down?
+    #[inline(always)]
+    pub fn primary_down(&self) -> bool {
+        self.button_down(PointerButton::Primary)
+    }
+
+    /// Is the secondary button currently down?
+    #[inline(always)]
+    pub fn secondary_down(&self) -> bool {
+        self.button_down(PointerButton::Secondary)
+    }
+
+    /// Is the middle button currently down?
+    #[inline(always)]
+    pub fn middle_down(&self) -> bool {
+        self.button_down(PointerButton::Middle)
+    }
 }
 
 impl InputState {
