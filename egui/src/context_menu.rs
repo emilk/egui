@@ -17,7 +17,7 @@ impl ContextMenuSystem {
     fn sense_click(&mut self, response: &Response) -> MenuResponse {
         let response = response.interact(Sense::click());
         let pointer = &response.ctx.input().pointer;
-        if pointer.any_click() {
+        if pointer.any_pressed() {
             if let Some(pos) = pointer.interact_pos() {
                 let mut destroy = false;
                 let mut in_old_menu = false;
@@ -26,9 +26,10 @@ impl ContextMenuSystem {
                     destroy = context_menu.ui_id == response.id;
                 }
                 if !in_old_menu {
-                    if response.secondary_clicked() {
+                    let in_target = response.rect.contains(pos);
+                    if in_target && pointer.secondary_down() {
                         return MenuResponse::Create(pos);
-                    } else if response.clicked() || destroy {
+                    } else if (in_target && pointer.primary_down()) || destroy {
                         return MenuResponse::Close;
                     }
                 }
