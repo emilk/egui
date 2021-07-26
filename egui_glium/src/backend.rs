@@ -166,6 +166,7 @@ fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
 
 /// Run an egui app
 pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> ! {
+    #[allow(unused_mut)]
     let mut storage = create_storage(app.name());
 
     #[cfg(feature = "http")]
