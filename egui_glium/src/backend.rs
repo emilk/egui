@@ -4,6 +4,7 @@ use egui::Color32;
 use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
 use glium::backend::glutin::glutin::platform::windows::EventLoopExtWindows;
+use glium::glutin::event_loop::EventLoop;
 
 #[cfg(feature = "persistence")]
 const EGUI_MEMORY_KEY: &str = "egui";
@@ -173,7 +174,11 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     let window_settings = deserialize_window_settings(&storage);
-    let event_loop = EventLoopExtWindows::new_any_thread();
+    let event_loop = if cfg!(windows) {
+        EventLoopExtWindows::new_any_thread() // allow running ui in any thread on windows
+    } else {
+        EventLoop::with_user_event()
+    };
     let icon = nativve_options.icon_data.clone().and_then(load_icon);
     let display = create_display(&*app, &nativve_options, window_settings, icon, &event_loop);
 
