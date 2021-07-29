@@ -294,7 +294,7 @@ There is experimental support for a screen reader. In [the web demo](https://emi
 
 Read more at <https://github.com/emilk/egui/issues/167>.
 
-### What is the difference between [egui](https://docs.rs/egui) and [eframe](https://docs.rs/eframe)?
+### What is the difference between [egui](https://docs.rs/egui) and [eframe](https://github.com/emilk/egui/tree/master/eframe)?
 
 `egui` is a 2D user interface library for laying out and interacting with buttons, sliders, etc.
 `egui` has no idea if it is running on the web or natively, and does not know how to collect input or show things on screen.
@@ -308,7 +308,7 @@ The _frame_ in `eframe` stands both for the frame in which your egui app resides
 On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again: https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0
 
 ### Why does my web app not fill the full width of the screen?
-To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by ovveriding the `fn max_size_points` of `epi::App`.
+To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by ovveriding the `fn max_size_points` of [`epi::App`](https://docs.rs/epi/latest/epi/trait.App.html).
 
 
 ## Other
