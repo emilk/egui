@@ -3,6 +3,7 @@ use egui::Color32;
 #[cfg(target_os = "windows")]
 use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
+use glium::backend::glutin::glutin::platform::windows::EventLoopExtWindows;
 
 #[cfg(feature = "persistence")]
 const EGUI_MEMORY_KEY: &str = "egui";
@@ -172,7 +173,7 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     let window_settings = deserialize_window_settings(&storage);
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let event_loop = EventLoopExtWindows::new_any_thread();
     let icon = nativve_options.icon_data.clone().and_then(load_icon);
     let display = create_display(&*app, &nativve_options, window_settings, icon, &event_loop);
 
@@ -353,7 +354,7 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
                 }
             }
 
-            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
+            glutin::event::Event::UserEvent(_RequestRepaintEvent) => {
                 display.gl_window().window().request_redraw();
             }
 
