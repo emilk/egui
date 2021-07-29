@@ -160,30 +160,30 @@ The integration needs to do two things:
 
 ### Official
 
-I maintain two official egui integrations:
+I maintain two official egui integrations made for apps:
 
-* [egui_web](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
-* [egui_glium](https://crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
+* [`egui_web`](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
+* [`egui_glium`](https://crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 
-The same code can be compiled to a native app or a web app.
+If you making an app, consider using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), a framework which allows you to write code that works on both the web (`egui_web`) and native (using `egui_glium`).
 
 ### 3rd party
 
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad).
-* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad)
-* [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
+* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad).
+* [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2).
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_ash_vk_mem`](https://crates.io/crates/egui_winit_ash_vk_mem) for for [winit](https://github.com/rust-windowing/winit), [ash](https://github.com/MaikKlein/ash) and [vk_mem](https://github.com/gwihlidal/vk-mem-rs).
-* [`egui_winit_platform`](https://github.com/hasenbanck/egui_winit_platform) provides bindings between [winit](https://crates.io/crates/winit) and egui. It only provides the first half of an egui integration (IO). Painting can be done with e.g. [egui_wgpu_backend](https://crates.io/crates/egui_wgpu_backend).
+* [`egui_winit_platform`](https://github.com/hasenbanck/egui_winit_platform) for [winit](https://crates.io/crates/winit) (requires separate painter).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`ggez-egui`](https://github.com/NemuiSen/ggez-egui) for the [ggez](https://ggez.rs/) game framework.
 * [`godot-egui`](https://github.com/setzer22/godot-egui) for [`godot-rust`](https://github.com/godot-rust/godot-rust).
 * [`nannou_egui`](https://github.com/AlexEne/nannou_egui) for [nannou](https://nannou.cc).
 * [`egui-tetra`](https://crates.io/crates/egui-tetra) for [Tetra](https://crates.io/crates/tetra), a 2D game framework.
-* For [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API):
-  * [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) with [example code](https://github.com/hasenbanck/egui_example)
-  * Alternative: [`egui_winit_wgpu`](https://github.com/Gonkalbell/egui_winit_wgpu) (not available to crates.io)
+* [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) for [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API).
+
+Missing an integration for the thing you're working on? Create one, it is easy!
 
 ### Writing your own egui integration
 
