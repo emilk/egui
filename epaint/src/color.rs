@@ -15,7 +15,7 @@
 /// Alpha channel is in linear space.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-pub struct Color32(pub(crate) [u8; 4]);
+pub struct Color32(pub [u8; 4]);
 
 impl std::ops::Index<usize> for Color32 {
     type Output = u8;
