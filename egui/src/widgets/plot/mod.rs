@@ -122,6 +122,19 @@ impl Plot {
         self
     }
 
+    pub fn lines(mut self, lines: Vec<Line>) -> Self {
+        for mut line in lines{
+            if line.series.is_empty(){
+                return self;
+            }
+            if line.stroke.color == Color32::TRANSPARENT {
+                line.stroke.color = self.auto_color();
+            }
+            self.items.push(Box::new(line));
+        }
+        self
+    }
+    
     /// Add a polygon. The polygon has to be convex.
     pub fn polygon(mut self, mut polygon: Polygon) -> Self {
         if polygon.series.is_empty() {
