@@ -25,7 +25,9 @@ all-features = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.13.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.13.0", path = "../egui", default-features = false, features = [
+  "single_threaded",
+] }
 epi = { version = "0.13.0", path = "../epi" }
 js-sys = "0.3"
 ron = { version = "0.6", optional = true }
@@ -52,7 +54,7 @@ persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]
-version = "0.3"
+version = "0.3.52"
 features = [
   "Clipboard",
   "ClipboardEvent",
