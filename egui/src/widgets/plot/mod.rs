@@ -123,14 +123,8 @@ impl Plot {
     }
 
     pub fn lines(mut self, lines: Vec<Line>) -> Self {
-        for mut line in lines{
-            if line.series.is_empty(){
-                return self;
-            }
-            if line.stroke.color == Color32::TRANSPARENT {
-                line.stroke.color = self.auto_color();
-            }
-            self.items.push(Box::new(line));
+        for line in lines {
+            self = self.line(line);
         }
         self
     }
