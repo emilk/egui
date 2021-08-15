@@ -255,7 +255,7 @@ impl Font {
 
     /// All supported characters
     pub fn characters(&self) -> BTreeSet<char> {
-        if self.characters.read().is_none(){
+        if self.characters.read().is_none() {
             let mut characters = BTreeSet::new();
             for font in &self.fonts {
                 characters.extend(font.characters());
