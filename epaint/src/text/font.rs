@@ -192,6 +192,7 @@ type FontIndex = usize;
 pub struct Font {
     text_style: TextStyle,
     fonts: Vec<Arc<FontImpl>>,
+    /// Lazily calculated.
     characters: Option<std::collections::BTreeSet<char>>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
