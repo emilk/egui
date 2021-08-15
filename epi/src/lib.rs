@@ -170,7 +170,7 @@ pub struct NativeOptions {
     pub decorated: bool,
 
     /// On Windows: enable drag and drop support.
-    /// Set to false to avoid issues with crates such as cpal which
+    /// Default is `false` to avoid issues with crates such as cpal which
     /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
     pub drag_and_drop_support: bool,
 
@@ -194,7 +194,7 @@ impl Default for NativeOptions {
         Self {
             always_on_top: false,
             decorated: true,
-            drag_and_drop_support: true,
+            drag_and_drop_support: false,
             icon_data: None,
             initial_window_size: None,
             resizable: true,
