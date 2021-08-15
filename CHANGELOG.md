@@ -6,13 +6,6 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 
 ## Unreleased
-* Replaced all missed opportunities to return an inner return value. (this is a breaking change!)
-  * `Area::show`
-  * `ComboBox::show_ui`
-  * `ComboBox::combo_box_with_label`
-  * `Window::show`
-  * `popup::*`
-  * `menu::menu`
 
 ### Added ⭐
 * Plot:
@@ -20,9 +13,16 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * [Progress bar](https://github.com/emilk/egui/pull/519)
 * `Grid::num_columns`: allow the last column to take up the rest of the space of the parent `Ui`.
 
+### Changed 🔧
+* Return closure return value from `Area::show`, `ComboBox::show_ui`, `ComboBox::combo_box_with_label`, `Window::show`, `popup::*`, `menu::menu`.
+* Only move/resize windows with primary mouse button.
+* Tooltips are now moved to not cover the widget they are attached to.
+
 ### Fixed 🐛
 * Fix custom font definitions getting replaced when `pixels_per_point` is changed.
 * Fix case where `Plot`'s `min_auto_bounds` could be ignored after the first call to `Plot::ui`.
+* Fix `lost_focus` for `TextEdit`.
+* Fix hover detection close to an `Area`.
 
 
 ## 0.13.1 - 2021-06-28 - Plot fixes

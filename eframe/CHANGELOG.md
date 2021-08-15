@@ -3,15 +3,14 @@ All notable changes to the `eframe` crate.
 
 
 ## Unreleased
+* Improve http fetch API.
 
 
 ## 0.13.1 - 2021-06-24
-
 * Fix `http` feature flag and docs
 
 
 ## 0.13.0 - 2021-06-24
-
 * `App::setup` now takes a `Frame` and `Storage` by argument.
 * `App::load` has been removed. Implement `App::setup` instead.
 
