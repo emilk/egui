@@ -193,7 +193,7 @@ pub struct Font {
     text_style: TextStyle,
     fonts: Vec<Arc<FontImpl>>,
     /// Lazily calculated.
-    characters: Option<std::collections::BTreeSet<char>>,
+    characters: RwLock<Option<std::collections::BTreeSet<char>>>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -206,7 +206,7 @@ impl Font {
             return Self {
                 text_style,
                 fonts,
-                characters: None,
+                characters: RwLock::new(None),
                 replacement_glyph: Default::default(),
                 pixels_per_point: 0.0,
                 row_height: 0.0,
@@ -220,7 +220,7 @@ impl Font {
         let mut slf = Self {
             text_style,
             fonts,
-            characters: None,
+            characters: RwLock::new(None),
             replacement_glyph: Default::default(),
             pixels_per_point,
             row_height,
@@ -254,15 +254,15 @@ impl Font {
     }
 
     /// All supported characters
-    pub fn characters(&mut self) -> &BTreeSet<char> {
-        if self.characters.is_none() {
+    pub fn characters(&self) -> BTreeSet<char> {
+        if self.characters.read().is_none(){
             let mut characters = BTreeSet::new();
             for font in &self.fonts {
                 characters.extend(font.characters());
             }
-            self.characters = Some(characters);
+            self.characters.write().replace(characters);
         }
-        self.characters.as_ref().unwrap()
+        self.characters.read().clone().unwrap()
     }
 
     #[inline(always)]
