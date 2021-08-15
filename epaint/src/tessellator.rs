@@ -272,13 +272,8 @@ impl TessellationOptions {
 }
 
 /// Tessellate the given convex area into a polygon.
-fn fill_closed_path(
-    path: &[PathPoint],
-    color: Color32,
-    options: TessellationOptions,
-    out: &mut Mesh,
-) {
-    if color == Color32::TRANSPARENT {
+fn fill_closed_path(path: &[PathPoint], color: Rgba, options: TessellationOptions, out: &mut Mesh) {
+    if color == Rgba::TRANSPARENT {
         return;
     }
 
@@ -286,7 +281,7 @@ fn fill_closed_path(
     if options.anti_alias {
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
-        let color_outer = Color32::TRANSPARENT;
+        let color_outer = Rgba::TRANSPARENT;
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
         for i in 2..n {
@@ -324,7 +319,7 @@ fn stroke_path(
     options: TessellationOptions,
     out: &mut Mesh,
 ) {
-    if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
+    if stroke.width <= 0.0 || stroke.color == Rgba::TRANSPARENT {
         return;
     }
 
@@ -333,7 +328,7 @@ fn stroke_path(
 
     if options.anti_alias {
         let color_inner = stroke.color;
-        let color_outer = Color32::TRANSPARENT;
+        let color_outer = Rgba::TRANSPARENT;
 
         let thin_line = stroke.width <= options.aa_size;
         if thin_line {
@@ -346,7 +341,7 @@ fn stroke_path(
 
             // Fade out as it gets thinner:
             let color_inner = mul_color(color_inner, stroke.width / options.aa_size);
-            if color_inner == Color32::TRANSPARENT {
+            if color_inner == Rgba::TRANSPARENT {
                 return;
             }
 
@@ -438,7 +433,7 @@ fn stroke_path(
             // Fade out thin lines rather than making them thinner
             let radius = options.aa_size / 2.0;
             let color = mul_color(stroke.color, stroke.width / options.aa_size);
-            if color == Color32::TRANSPARENT {
+            if color == Rgba::TRANSPARENT {
                 return;
             }
             for p in path {
@@ -455,11 +450,10 @@ fn stroke_path(
     }
 }
 
-fn mul_color(color: Color32, factor: f32) -> Color32 {
+#[inline]
+fn mul_color(color: Rgba, factor: f32) -> Rgba {
     crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
-    // As an unfortunate side-effect of using premultiplied alpha
-    // we need a somewhat expensive conversion to linear space and back.
-    color.linear_multiply(factor)
+    color * factor
 }
 
 // ----------------------------------------------------------------------------
@@ -552,7 +546,7 @@ impl Tessellator {
                         path.add_open_points(&points);
                     }
 
-                    if fill != Color32::TRANSPARENT {
+                    if fill != Rgba::TRANSPARENT {
                         crate::epaint_assert!(
                             closed,
                             "You asked to fill a path that is not closed. That makes no sense."
@@ -634,11 +628,11 @@ impl Tessellator {
         tex_size: [usize; 2],
         pos: Pos2,
         galley: &super::Galley,
-        color: Color32,
+        color: Rgba,
         fake_italics: bool,
         out: &mut Mesh,
     ) {
-        if color == Color32::TRANSPARENT || galley.is_empty() {
+        if color == Rgba::TRANSPARENT || galley.is_empty() {
             return;
         }
         if cfg!(any(

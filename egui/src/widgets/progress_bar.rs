@@ -94,7 +94,7 @@ impl Widget for ProgressBar {
         ui.painter().rect(
             inner_rect,
             corner_radius,
-            Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
+            Rgba::from(visuals.selection.bg_fill) * color_factor as f32,
             Stroke::none(),
         );
 
@@ -115,7 +115,7 @@ impl Widget for ProgressBar {
             ui.painter().add(Shape::Path {
                 points,
                 closed: false,
-                fill: Color32::TRANSPARENT,
+                fill: Rgba::TRANSPARENT,
                 stroke: Stroke::new(2.0, visuals.faint_bg_color),
             });
         }

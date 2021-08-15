@@ -10,7 +10,7 @@ pub struct Shadow {
     pub extrusion: f32,
 
     /// Color of the opaque center of the shadow.
-    pub color: Color32,
+    pub color: Rgba,
 }
 
 impl Shadow {
@@ -18,7 +18,7 @@ impl Shadow {
     pub fn small_dark() -> Self {
         Self {
             extrusion: 16.0,
-            color: Color32::from_black_alpha(96),
+            color: Color32::from_black_alpha(96).into(),
         }
     }
 
@@ -26,7 +26,7 @@ impl Shadow {
     pub fn small_light() -> Self {
         Self {
             extrusion: 16.0,
-            color: Color32::from_black_alpha(32),
+            color: Color32::from_black_alpha(32).into(),
         }
     }
 
@@ -34,7 +34,7 @@ impl Shadow {
     pub fn big_dark() -> Self {
         Self {
             extrusion: 32.0,
-            color: Color32::from_black_alpha(96),
+            color: Color32::from_black_alpha(96).into(),
         }
     }
 
@@ -42,7 +42,7 @@ impl Shadow {
     pub fn big_light() -> Self {
         Self {
             extrusion: 32.0,
-            color: Color32::from_black_alpha(40),
+            color: Color32::from_black_alpha(40).into(),
         }
     }
 

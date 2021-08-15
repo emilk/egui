@@ -23,8 +23,8 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         return;
     }
 
-    let mut top_color = Color32::from_gray(128);
-    let mut bottom_color = Color32::from_gray(32);
+    let mut top_color = Color32::from_gray(128).into();
+    let mut bottom_color = Color32::from_gray(32).into();
     let checker_size = Vec2::splat(rect.height() / 2.0);
     let n = (rect.width() / checker_size.x).round() as u32;
 
@@ -92,7 +92,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
     response
 }
 
-fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
+fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Rgba) -> Response {
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(
@@ -151,7 +151,7 @@ fn color_slider_2d(
     ui: &mut Ui,
     x_value: &mut f32,
     y_value: &mut f32,
-    color_at: impl Fn(f32, f32) -> Color32,
+    color_at: impl Fn(f32, f32) -> Rgba,
 ) -> Response {
     let desired_size = Vec2::splat(ui.spacing().slider_width);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
@@ -211,7 +211,7 @@ pub enum Alpha {
     BlendOrAdditive,
 }
 
-fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>) {
+fn color_text_ui(ui: &mut Ui, color: impl Into<Rgba>) {
     let color = color.into();
     ui.horizontal(|ui| {
         let [r, g, b, a] = color.to_array();
@@ -366,6 +366,17 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     }
 
     button_response
+}
+
+/// Shows a button with the given color.
+/// If the user clicks the button, a full color picker is shown.
+pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Response {
+    let mut srgba = (*rgba).into();
+    let response = color_edit_button_srgba(ui, &mut srgba, alpha);
+    if response.changed() {
+        *rgba = srgba.into();
+    }
+    response
 }
 
 /// Shows a button with the given color.

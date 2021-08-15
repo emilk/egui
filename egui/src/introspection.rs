@@ -20,11 +20,7 @@ impl Widget for &epaint::Texture {
             }
             let (rect, response) = ui.allocate_at_least(size, Sense::hover());
             let mut mesh = Mesh::default();
-            mesh.add_rect_with_uv(
-                rect,
-                [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
-                Color32::WHITE,
-            );
+            mesh.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), Rgba::WHITE);
             ui.painter().add(Shape::mesh(mesh));
 
             let (tex_w, tex_h) = (self.width as f32, self.height as f32);
@@ -46,7 +42,7 @@ impl Widget for &epaint::Texture {
                             pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
                         );
                         let mut mesh = Mesh::default();
-                        mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
+                        mesh.add_rect_with_uv(zoom_rect, uv_rect, Rgba::WHITE);
                         ui.painter().add(Shape::mesh(mesh));
                     }
                 });

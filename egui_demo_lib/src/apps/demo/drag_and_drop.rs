@@ -59,8 +59,8 @@ pub fn drop_target<R>(
     let mut stroke = style.bg_stroke;
     if is_being_dragged && !can_accept_what_is_being_dragged {
         // gray out:
-        fill = color::tint_color_towards(fill, ui.visuals().window_fill());
-        stroke.color = color::tint_color_towards(stroke.color, ui.visuals().window_fill());
+        fill = color::tint_rgba_towards(fill, ui.visuals().window_fill());
+        stroke.color = color::tint_rgba_towards(stroke.color, ui.visuals().window_fill());
     }
 
     ui.painter().set(

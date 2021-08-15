@@ -8,7 +8,7 @@ use std::sync::Arc;
 /// # let ui = &mut egui::Ui::__test();
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
-/// ui.add(egui::Label::new("With Options").text_color(egui::Color32::RED));
+/// ui.add(egui::Label::new("With Options").text_color(egui::Rgba::RED));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
@@ -16,8 +16,8 @@ pub struct Label {
     pub(crate) text: String,
     pub(crate) wrap: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
-    pub(crate) background_color: Color32,
-    pub(crate) text_color: Option<Color32>,
+    pub(crate) background_color: Rgba,
+    pub(crate) text_color: Option<Rgba>,
     code: bool,
     strong: bool,
     weak: bool,
@@ -35,7 +35,7 @@ impl Label {
             text: text.to_string(),
             wrap: None,
             text_style: None,
-            background_color: Color32::TRANSPARENT,
+            background_color: Rgba::TRANSPARENT,
             text_color: None,
             code: false,
             strong: false,
@@ -135,12 +135,12 @@ impl Label {
     }
 
     /// Fill-color behind the text
-    pub fn background_color(mut self, background_color: impl Into<Color32>) -> Self {
+    pub fn background_color(mut self, background_color: impl Into<Rgba>) -> Self {
         self.background_color = background_color.into();
         self
     }
 
-    pub fn text_color(mut self, text_color: impl Into<Color32>) -> Self {
+    pub fn text_color(mut self, text_color: impl Into<Rgba>) -> Self {
         self.text_color = Some(text_color.into());
         self
     }
@@ -206,7 +206,7 @@ impl Label {
         pos: Pos2,
         galley: Arc<Galley>,
         has_focus: bool,
-        response_color: Color32,
+        response_color: Rgba,
     ) {
         let Self {
             mut background_color,
@@ -238,11 +238,11 @@ impl Label {
 
         let mut lines = vec![];
 
-        if strikethrough || underline || background_color != Color32::TRANSPARENT {
+        if strikethrough || underline || background_color != Rgba::TRANSPARENT {
             for row in &galley.rows {
                 let rect = row.rect().translate(pos.to_vec2());
 
-                if background_color != Color32::TRANSPARENT {
+                if background_color != Rgba::TRANSPARENT {
                     let rect = rect.expand(1.0); // looks better
                     ui.painter().rect_filled(rect, 0.0, background_color);
                 }

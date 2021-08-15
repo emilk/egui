@@ -1,7 +1,7 @@
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, CtxRef,
+    Color32, CtxRef, Rgba,
 };
 use epaint::{
     mutex::Mutex,
@@ -28,7 +28,7 @@ pub struct Painter {
 
     /// If set, all shapes will have their colors modified to be closer to this.
     /// This is used to implement grayed out interfaces.
-    fade_to_color: Option<Color32>,
+    fade_to_color: Option<Rgba>,
 }
 
 impl Painter {
@@ -62,17 +62,17 @@ impl Painter {
     }
 
     /// If set, colors will be modified to look like this
-    pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
+    pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Rgba>) {
         self.fade_to_color = fade_to_color;
     }
 
     pub(crate) fn visible(&self) -> bool {
-        self.fade_to_color != Some(Color32::TRANSPARENT)
+        self.fade_to_color != Some(Rgba::TRANSPARENT)
     }
 
     /// If `false`, nothing added to the painter will be visible
     pub(crate) fn set_invisible(&mut self) {
-        self.fade_to_color = Some(Color32::TRANSPARENT)
+        self.fade_to_color = Some(Rgba::TRANSPARENT)
     }
 
     /// Create a painter for a sub-region of this `Painter`.
@@ -155,7 +155,7 @@ impl Painter {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, mut shape: Shape) -> ShapeIdx {
-        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+        if self.fade_to_color == Some(Rgba::TRANSPARENT) {
             self.paint_list.lock().add(self.clip_rect, Shape::Noop)
         } else {
             self.transform_shape(&mut shape);
@@ -167,7 +167,7 @@ impl Painter {
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend(&self, mut shapes: Vec<Shape>) {
-        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+        if self.fade_to_color == Some(Rgba::TRANSPARENT) {
             return;
         }
         if !shapes.is_empty() {
@@ -183,7 +183,7 @@ impl Painter {
 
     /// Modify an existing [`Shape`].
     pub fn set(&self, idx: ShapeIdx, mut shape: Shape) {
-        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+        if self.fade_to_color == Some(Rgba::TRANSPARENT) {
             return;
         }
         self.transform_shape(&mut shape);
@@ -194,7 +194,7 @@ impl Painter {
 /// ## Debug painting
 impl Painter {
     #[allow(clippy::needless_pass_by_value)]
-    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(&mut self, rect: Rect, color: Rgba, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
         self.text(
@@ -207,18 +207,12 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        self.debug_text(pos, Align2::LEFT_TOP, Color32::RED, format!("🔥 {}", text))
+        self.debug_text(pos, Align2::LEFT_TOP, Rgba::RED, format!("🔥 {}", text))
     }
 
     /// text with a background
     #[allow(clippy::needless_pass_by_value)]
-    pub fn debug_text(
-        &self,
-        pos: Pos2,
-        anchor: Align2,
-        color: Color32,
-        text: impl ToString,
-    ) -> Rect {
+    pub fn debug_text(&self, pos: Pos2, anchor: Align2, color: Rgba, text: impl ToString) -> Rect {
         let galley = self
             .fonts()
             .layout_no_wrap(TextStyle::Monospace, text.to_string());
@@ -227,7 +221,7 @@ impl Painter {
         self.add(Shape::Rect {
             rect: frame_rect,
             corner_radius: 0.0,
-            fill: Color32::from_black_alpha(240),
+            fill: Color32::from_black_alpha(240).into(),
             // stroke: Stroke::new(1.0, color),
             stroke: Default::default(),
         });
@@ -249,7 +243,7 @@ impl Painter {
         &self,
         center: Pos2,
         radius: f32,
-        fill_color: impl Into<Color32>,
+        fill_color: impl Into<Rgba>,
         stroke: impl Into<Stroke>,
     ) {
         self.add(Shape::Circle {
@@ -260,7 +254,7 @@ impl Painter {
         });
     }
 
-    pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
+    pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Rgba>) {
         self.add(Shape::Circle {
             center,
             radius,
@@ -282,7 +276,7 @@ impl Painter {
         &self,
         rect: Rect,
         corner_radius: f32,
-        fill_color: impl Into<Color32>,
+        fill_color: impl Into<Rgba>,
         stroke: impl Into<Stroke>,
     ) {
         self.add(Shape::Rect {
@@ -293,7 +287,7 @@ impl Painter {
         });
     }
 
-    pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) {
+    pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Rgba>) {
         self.add(Shape::Rect {
             rect,
             corner_radius,
@@ -341,7 +335,7 @@ impl Painter {
         anchor: Align2,
         text: impl ToString,
         text_style: TextStyle,
-        text_color: Color32,
+        text_color: Rgba,
     ) -> Rect {
         let galley = self.layout_no_wrap(text_style, text.to_string());
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
@@ -377,7 +371,7 @@ impl Painter {
     ///
     /// You can create the `Galley` with [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
+    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Rgba) {
         self.galley_with_italics(pos, galley, color, false)
     }
 
@@ -385,7 +379,7 @@ impl Painter {
         &self,
         pos: Pos2,
         galley: std::sync::Arc<Galley>,
-        color: Color32,
+        color: Rgba,
         fake_italics: bool,
     ) {
         if !galley.is_empty() {
@@ -399,8 +393,8 @@ impl Painter {
     }
 }
 
-fn tint_shape_towards(shape: &mut Shape, target: Color32) {
+fn tint_shape_towards(shape: &mut Shape, target: Rgba) {
     epaint::shape_transform::adjust_colors(shape, &|color| {
-        *color = crate::color::tint_color_towards(*color, target);
+        *color = crate::color::tint_rgba_towards(*color, target);
     });
 }

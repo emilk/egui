@@ -189,7 +189,7 @@ pub struct Visuals {
     /// so that `visuals.text_color` is always used,
     /// but its alpha may be different based on whether or not
     /// it is disabled, non-interactive, hovered etc.
-    pub override_text_color: Option<Color32>,
+    pub override_text_color: Option<Rgba>,
 
     /// Visual styles of widgets
     pub widgets: Widgets,
@@ -197,19 +197,19 @@ pub struct Visuals {
     pub selection: Selection,
 
     /// The color used for `Hyperlink`,
-    pub hyperlink_color: Color32,
+    pub hyperlink_color: Rgba,
 
     /// Something just barely different from the background color.
     /// Used for [`crate::Grid::striped`].
-    pub faint_bg_color: Color32,
+    pub faint_bg_color: Rgba,
 
     /// Very dark or light color (for corresponding theme).
     /// Used as the background of text edits, scroll bars and others things
     /// that needs to look different from other interactive stuff.
-    pub extreme_bg_color: Color32,
+    pub extreme_bg_color: Rgba,
 
     /// Background color behind code-styled monospaced labels.
-    pub code_bg_color: Color32,
+    pub code_bg_color: Rgba,
 
     pub window_corner_radius: f32,
     pub window_shadow: Shadow,
@@ -237,20 +237,20 @@ impl Visuals {
         &self.widgets.noninteractive
     }
 
-    pub fn text_color(&self) -> Color32 {
+    pub fn text_color(&self) -> Rgba {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
 
-    pub fn weak_text_color(&self) -> Color32 {
-        crate::color::tint_color_towards(self.text_color(), self.window_fill())
+    pub fn weak_text_color(&self) -> Rgba {
+        crate::color::tint_rgba_towards(self.text_color(), self.window_fill())
     }
 
-    pub fn strong_text_color(&self) -> Color32 {
+    pub fn strong_text_color(&self) -> Rgba {
         self.widgets.active.text_color()
     }
 
-    pub fn window_fill(&self) -> Color32 {
+    pub fn window_fill(&self) -> Rgba {
         self.widgets.noninteractive.bg_fill
     }
 
@@ -264,7 +264,7 @@ impl Visuals {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Selection {
-    pub bg_fill: Color32,
+    pub bg_fill: Rgba,
     pub stroke: Stroke,
 }
 
@@ -307,7 +307,7 @@ impl Widgets {
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget.
-    pub bg_fill: Color32,
+    pub bg_fill: Rgba,
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
@@ -325,7 +325,7 @@ pub struct WidgetVisuals {
 }
 
 impl WidgetVisuals {
-    pub fn text_color(&self) -> Color32 {
+    pub fn text_color(&self) -> Rgba {
         self.fg_stroke.color
     }
 }
@@ -398,10 +398,10 @@ impl Visuals {
             override_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
-            hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color: Color32::from_gray(24),
-            extreme_bg_color: Color32::from_gray(10),
-            code_bg_color: Color32::from_gray(64),
+            hyperlink_color: Color32::from_rgb(90, 170, 255).into(),
+            faint_bg_color: Color32::from_gray(24).into(),
+            extreme_bg_color: Color32::from_gray(10).into(),
+            code_bg_color: Color32::from_gray(64).into(),
             window_corner_radius: 6.0,
             window_shadow: Shadow::big_dark(),
             popup_shadow: Shadow::small_dark(),
@@ -420,10 +420,10 @@ impl Visuals {
             dark_mode: false,
             widgets: Widgets::light(),
             selection: Selection::light(),
-            hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(240),
-            extreme_bg_color: Color32::from_gray(250),
-            code_bg_color: Color32::from_gray(200),
+            hyperlink_color: Color32::from_rgb(0, 155, 255).into(),
+            faint_bg_color: Color32::from_gray(240).into(),
+            extreme_bg_color: Color32::from_gray(250).into(),
+            code_bg_color: Color32::from_gray(200).into(),
             window_shadow: Shadow::big_light(),
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
@@ -440,13 +440,13 @@ impl Default for Visuals {
 impl Selection {
     fn dark() -> Self {
         Self {
-            bg_fill: Color32::from_rgb(0, 92, 128),
+            bg_fill: Color32::from_rgb(0, 92, 128).into(),
             stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
     fn light() -> Self {
         Self {
-            bg_fill: Color32::from_rgb(144, 209, 255),
+            bg_fill: Color32::from_rgb(144, 209, 255).into(),
             stroke: Stroke::new(1.0, Color32::from_rgb(0, 83, 125)),
         }
     }
@@ -462,35 +462,35 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(27), // window background
+                bg_fill: Color32::from_gray(27).into(), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 corner_radius: 2.0,
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(60), // button background
+                bg_fill: Color32::from_gray(60).into(), // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 corner_radius: 2.0,
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(70),
+                bg_fill: Color32::from_gray(70).into(),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 corner_radius: 3.0,
                 expansion: 1.0,
             },
             active: WidgetVisuals {
-                bg_fill: Color32::from_gray(55),
-                bg_stroke: Stroke::new(1.0, Color32::WHITE),
-                fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                bg_fill: Color32::from_gray(55).into(),
+                bg_stroke: Stroke::new(1.0, Rgba::WHITE),
+                fg_stroke: Stroke::new(2.0, Rgba::WHITE),
                 corner_radius: 2.0,
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                bg_fill: Color32::from_gray(27),
+                bg_fill: Color32::from_gray(27).into(),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
                 corner_radius: 2.0,
@@ -502,37 +502,37 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(235), // window background
+                bg_fill: Color32::from_gray(235).into(), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(100)), // normal text color
                 corner_radius: 2.0,
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(215), // button background
+                bg_fill: Color32::from_gray(215).into(), // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)), // button text
                 corner_radius: 2.0,
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(210),
+                bg_fill: Color32::from_gray(210).into(),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(1.5, Color32::BLACK),
+                fg_stroke: Stroke::new(1.5, Rgba::BLACK),
                 corner_radius: 3.0,
                 expansion: 1.0,
             },
             active: WidgetVisuals {
-                bg_fill: Color32::from_gray(165),
-                bg_stroke: Stroke::new(1.0, Color32::BLACK),
-                fg_stroke: Stroke::new(2.0, Color32::BLACK),
+                bg_fill: Color32::from_gray(165).into(),
+                bg_stroke: Stroke::new(1.0, Rgba::BLACK),
+                fg_stroke: Stroke::new(2.0, Rgba::BLACK),
                 corner_radius: 2.0,
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                bg_fill: Color32::from_gray(220),
+                bg_fill: Color32::from_gray(220).into(),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
-                fg_stroke: Stroke::new(1.0, Color32::BLACK),
+                fg_stroke: Stroke::new(1.0, Rgba::BLACK),
                 corner_radius: 2.0,
                 expansion: 0.0,
             },
@@ -934,9 +934,9 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
+fn ui_color(ui: &mut Ui, rgba: &mut Rgba, text: impl Into<Label>) -> Response {
     ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(srgba);
+        ui.color_edit_button_rgba(rgba);
         ui.label(text);
     })
     .response

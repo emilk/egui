@@ -18,8 +18,8 @@ pub struct Image {
     texture_id: TextureId,
     uv: Rect,
     size: Vec2,
-    bg_fill: Color32,
-    tint: Color32,
+    bg_fill: Rgba,
+    tint: Rgba,
     sense: Sense,
 }
 
@@ -30,7 +30,7 @@ impl Image {
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
             bg_fill: Default::default(),
-            tint: Color32::WHITE,
+            tint: Rgba::WHITE,
             sense: Sense::hover(),
         }
     }
@@ -42,13 +42,13 @@ impl Image {
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
+    pub fn bg_fill(mut self, bg_fill: impl Into<Rgba>) -> Self {
         self.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
+    pub fn tint(mut self, tint: impl Into<Rgba>) -> Self {
         self.tint = tint.into();
         self
     }

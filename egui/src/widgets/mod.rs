@@ -97,7 +97,7 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     ui.horizontal(|ui| {
         ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
             .on_hover_text("Width");
-        ui.color_edit_button_srgba(color);
+        ui.color_edit_button_rgba(color);
         ui.label(text);
 
         // stroke preview:
@@ -118,6 +118,6 @@ pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
                 .clamp_range(0.0..=100.0),
         )
         .on_hover_text("Extrusion");
-        ui.color_edit_button_srgba(color);
+        ui.color_edit_button_rgba(color);
     });
 }

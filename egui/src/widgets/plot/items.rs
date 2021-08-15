@@ -135,7 +135,7 @@ impl HLine {
     pub fn new(y: impl Into<f64>) -> Self {
         Self {
             y: y.into(),
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.0, Rgba::TRANSPARENT),
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
@@ -160,8 +160,8 @@ impl HLine {
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    /// Stroke color. Default is `Rgba::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.stroke.color = color.into();
         self
     }
@@ -207,7 +207,7 @@ impl PlotItem for HLine {
         &self.name
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.stroke.color
     }
 
@@ -245,7 +245,7 @@ impl VLine {
     pub fn new(x: impl Into<f64>) -> Self {
         Self {
             x: x.into(),
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.0, Rgba::TRANSPARENT),
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
@@ -270,8 +270,8 @@ impl VLine {
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    /// Stroke color. Default is `Rgba::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.stroke.color = color.into();
         self
     }
@@ -317,7 +317,7 @@ impl PlotItem for VLine {
         &self.name
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.stroke.color
     }
 
@@ -346,7 +346,7 @@ pub(super) trait PlotItem {
     fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
     fn name(&self) -> &str;
-    fn color(&self) -> Color32;
+    fn color(&self) -> Rgba;
     fn highlight(&mut self);
     fn highlighted(&self) -> bool;
     fn values(&self) -> Option<&Values>;
@@ -552,7 +552,7 @@ impl Line {
     pub fn new(series: Values) -> Self {
         Self {
             series,
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.0, Rgba::TRANSPARENT),
             name: Default::default(),
             highlight: false,
             fill: None,
@@ -578,8 +578,8 @@ impl Line {
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    /// Stroke color. Default is `Rgba::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.stroke.color = color.into();
         self
     }
@@ -684,7 +684,7 @@ impl PlotItem for Line {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.stroke.color
     }
 
@@ -719,7 +719,7 @@ impl Polygon {
     pub fn new(series: Values) -> Self {
         Self {
             series,
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.0, Rgba::TRANSPARENT),
             name: Default::default(),
             highlight: false,
             fill_alpha: DEFAULT_FILL_ALPHA,
@@ -746,8 +746,8 @@ impl Polygon {
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    /// Stroke color. Default is `Rgba::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.stroke.color = color.into();
         self
     }
@@ -819,7 +819,7 @@ impl PlotItem for Polygon {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.stroke.color
     }
 
@@ -847,7 +847,7 @@ pub struct Text {
     pub(super) position: Value,
     pub(super) name: String,
     pub(super) highlight: bool,
-    pub(super) color: Color32,
+    pub(super) color: Rgba,
     pub(super) anchor: Align2,
 }
 
@@ -860,7 +860,7 @@ impl Text {
             position,
             name: Default::default(),
             highlight: false,
-            color: Color32::TRANSPARENT,
+            color: Rgba::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
         }
     }
@@ -877,8 +877,8 @@ impl Text {
         self
     }
 
-    /// Text color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    /// Text color. Default is `Rgba::TRANSPARENT` which means a color will be auto-assigned.
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.color = color.into();
         self
     }
@@ -904,7 +904,7 @@ impl Text {
 
 impl PlotItem for Text {
     fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
-        let color = if self.color == Color32::TRANSPARENT {
+        let color = if self.color == Rgba::TRANSPARENT {
             ui.style().visuals.text_color()
         } else {
             self.color
@@ -937,7 +937,7 @@ impl PlotItem for Text {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.color
     }
 
@@ -964,8 +964,8 @@ impl PlotItem for Text {
 pub struct Points {
     pub(super) series: Values,
     pub(super) shape: MarkerShape,
-    /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
-    pub(super) color: Color32,
+    /// Color of the marker. `Rgba::TRANSPARENT` means that it will be picked automatically.
+    pub(super) color: Rgba,
     /// Whether to fill the marker. Does not apply to all types.
     pub(super) filled: bool,
     /// The maximum extent of the marker from its center.
@@ -980,7 +980,7 @@ impl Points {
         Self {
             series,
             shape: MarkerShape::Circle,
-            color: Color32::TRANSPARENT,
+            color: Rgba::TRANSPARENT,
             filled: true,
             radius: 1.0,
             name: Default::default(),
@@ -1002,7 +1002,7 @@ impl Points {
     }
 
     /// Set the marker's color.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.color = color.into();
         self
     }
@@ -1200,7 +1200,7 @@ impl PlotItem for Points {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.color
     }
 
@@ -1225,7 +1225,7 @@ impl PlotItem for Points {
 pub struct Arrows {
     pub(super) origins: Values,
     pub(super) tips: Values,
-    pub(super) color: Color32,
+    pub(super) color: Rgba,
     pub(super) name: String,
     pub(super) highlight: bool,
 }
@@ -1235,7 +1235,7 @@ impl Arrows {
         Self {
             origins,
             tips,
-            color: Color32::TRANSPARENT,
+            color: Rgba::TRANSPARENT,
             name: Default::default(),
             highlight: false,
         }
@@ -1248,7 +1248,7 @@ impl Arrows {
     }
 
     /// Set the arrows' color.
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+    pub fn color(mut self, color: impl Into<Rgba>) -> Self {
         self.color = color.into();
         self
     }
@@ -1315,7 +1315,7 @@ impl PlotItem for Arrows {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
+    fn color(&self) -> Rgba {
         self.color
     }
 
@@ -1342,8 +1342,8 @@ pub struct PlotImage {
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
     pub(super) size: Vec2,
-    pub(super) bg_fill: Color32,
-    pub(super) tint: Color32,
+    pub(super) bg_fill: Rgba,
+    pub(super) tint: Rgba,
     pub(super) highlight: bool,
     pub(super) name: String,
 }
@@ -1359,7 +1359,7 @@ impl PlotImage {
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
             bg_fill: Default::default(),
-            tint: Color32::WHITE,
+            tint: Rgba::WHITE,
         }
     }
 
@@ -1376,13 +1376,13 @@ impl PlotImage {
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
+    pub fn bg_fill(mut self, bg_fill: impl Into<Rgba>) -> Self {
         self.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
+    pub fn tint(mut self, tint: impl Into<Rgba>) -> Self {
         self.tint = tint.into();
         self
     }
@@ -1445,8 +1445,8 @@ impl PlotItem for PlotImage {
         self.name.as_str()
     }
 
-    fn color(&self) -> Color32 {
-        Color32::TRANSPARENT
+    fn color(&self) -> Rgba {
+        Rgba::TRANSPARENT
     }
 
     fn highlight(&mut self) {

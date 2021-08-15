@@ -14,10 +14,10 @@ use crate::*;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: String,
-    text_color: Option<Color32>,
+    text_color: Option<Rgba>,
     text_style: Option<TextStyle>,
     /// None means default for interact
-    fill: Option<Color32>,
+    fill: Option<Rgba>,
     stroke: Option<Stroke>,
     sense: Sense,
     small: bool,
@@ -43,12 +43,12 @@ impl Button {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text_color = Some(text_color);
+    pub fn text_color(mut self, text_color: impl Into<Rgba>) -> Self {
+        self.text_color = Some(text_color.into());
         self
     }
 
-    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
+    pub fn text_color_opt(mut self, text_color: Option<Rgba>) -> Self {
         self.text_color = text_color;
         self
     }
@@ -60,7 +60,7 @@ impl Button {
 
     /// Override background fill color. Note that this will override any on-hover effects.
     /// Calling this will also turn on the frame.
-    pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
+    pub fn fill(mut self, fill: impl Into<Rgba>) -> Self {
         self.fill = Some(fill.into());
         self.frame = Some(true);
         self
@@ -229,7 +229,7 @@ impl Widget for Button {
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: String,
-    text_color: Option<Color32>,
+    text_color: Option<Rgba>,
     text_style: Option<TextStyle>,
 }
 
@@ -244,7 +244,7 @@ impl<'a> Checkbox<'a> {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color32) -> Self {
+    pub fn text_color(mut self, text_color: Rgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -351,7 +351,7 @@ impl<'a> Widget for Checkbox<'a> {
 pub struct RadioButton {
     checked: bool,
     text: String,
-    text_color: Option<Color32>,
+    text_color: Option<Rgba>,
     text_style: Option<TextStyle>,
 }
 
@@ -366,7 +366,7 @@ impl RadioButton {
         }
     }
 
-    pub fn text_color(mut self, text_color: Color32) -> Self {
+    pub fn text_color(mut self, text_color: Rgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
@@ -475,7 +475,7 @@ impl ImageButton {
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
+    pub fn tint(mut self, tint: impl Into<Rgba>) -> Self {
         self.image = self.image.tint(tint);
         self
     }

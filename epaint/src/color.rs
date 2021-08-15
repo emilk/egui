@@ -201,6 +201,7 @@ impl Rgba {
     pub const RED: Rgba = Rgba::from_rgb(1.0, 0.0, 0.0);
     pub const GREEN: Rgba = Rgba::from_rgb(0.0, 1.0, 0.0);
     pub const BLUE: Rgba = Rgba::from_rgb(0.0, 0.0, 1.0);
+    pub const LIGHT_BLUE: Rgba = Rgba::from_rgb(0.26, 0.35, 1.0);
 
     #[inline(always)]
     pub const fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
@@ -753,10 +754,11 @@ impl From<Hsva> for HsvaGamma {
 
 /// Cheap and ugly.
 /// Made for graying out disabled `Ui`:s.
-pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
+pub fn tint_color32_towards(color: Color32, target: Color32) -> Color32 {
     let [mut r, mut g, mut b, mut a] = color.to_array();
 
     if a == 0 {
+        // Additive color.
         r /= 2;
         g /= 2;
         b /= 2;
@@ -774,6 +776,11 @@ pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
         b = b / 2 + target.b() / 2;
     }
     Color32::from_rgba_premultiplied(r, g, b, a)
+}
+
+pub fn tint_rgba_towards(color: Rgba, target: Rgba) -> Rgba {
+    // sRGBA (gamma) is more of a perceptual color space, so we use that
+    tint_color32_towards(color.into(), target.into()).into()
 }
 
 #[cfg(feature = "cint")]

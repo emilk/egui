@@ -11,7 +11,7 @@ pub struct Frame {
     pub margin: Vec2,
     pub corner_radius: f32,
     pub shadow: Shadow,
-    pub fill: Color32,
+    pub fill: Rgba,
     pub stroke: Stroke,
 }
 
@@ -85,7 +85,7 @@ impl Frame {
         Self {
             margin: Vec2::new(10.0, 10.0),
             corner_radius: style.visuals.widgets.noninteractive.corner_radius,
-            fill: Color32::from_black_alpha(250),
+            fill: Color32::from_black_alpha(250).into(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
@@ -93,7 +93,7 @@ impl Frame {
 }
 
 impl Frame {
-    pub fn fill(mut self, fill: Color32) -> Self {
+    pub fn fill(mut self, fill: Rgba) -> Self {
         self.fill = fill;
         self
     }
@@ -120,9 +120,9 @@ impl Frame {
     }
 
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
-        self.fill = self.fill.linear_multiply(opacity);
-        self.stroke.color = self.stroke.color.linear_multiply(opacity);
-        self.shadow.color = self.shadow.color.linear_multiply(opacity);
+        self.fill = self.fill * opacity;
+        self.stroke.color = self.stroke.color * opacity;
+        self.shadow.color = self.shadow.color * opacity;
         self
     }
 }

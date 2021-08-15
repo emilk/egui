@@ -101,7 +101,7 @@ impl Plot {
         }
     }
 
-    fn auto_color(&mut self) -> Color32 {
+    fn auto_color(&mut self) -> Rgba {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
         let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
@@ -116,7 +116,7 @@ impl Plot {
         };
 
         // Give the stroke an automatic color if no color has been assigned.
-        if line.stroke.color == Color32::TRANSPARENT {
+        if line.stroke.color == Rgba::TRANSPARENT {
             line.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(line));
@@ -130,7 +130,7 @@ impl Plot {
         };
 
         // Give the stroke an automatic color if no color has been assigned.
-        if polygon.stroke.color == Color32::TRANSPARENT {
+        if polygon.stroke.color == Rgba::TRANSPARENT {
             polygon.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(polygon));
@@ -154,7 +154,7 @@ impl Plot {
         };
 
         // Give the points an automatic color if no color has been assigned.
-        if points.color == Color32::TRANSPARENT {
+        if points.color == Rgba::TRANSPARENT {
             points.color = self.auto_color();
         }
         self.items.push(Box::new(points));
@@ -168,7 +168,7 @@ impl Plot {
         };
 
         // Give the arrows an automatic color if no color has been assigned.
-        if arrows.color == Color32::TRANSPARENT {
+        if arrows.color == Rgba::TRANSPARENT {
             arrows.color = self.auto_color();
         }
         self.items.push(Box::new(arrows));
@@ -185,7 +185,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
     pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color == Color32::TRANSPARENT {
+        if hline.stroke.color == Rgba::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(hline));
@@ -196,7 +196,7 @@ impl Plot {
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
     pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color == Color32::TRANSPARENT {
+        if vline.stroke.color == Rgba::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(vline));
@@ -634,7 +634,7 @@ impl Prepared {
             }
         }
 
-        fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
+        fn color_from_alpha(ui: &Ui, alpha: f32) -> Rgba {
             if ui.visuals().dark_mode {
                 Rgba::from_white_alpha(alpha).into()
             } else {

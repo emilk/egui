@@ -9,15 +9,15 @@ use emath::*;
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
-    pub pos: Pos2, // 64 bit
+    pub pos: Pos2, // 2xf32 (64 bit)
 
     /// Normalized texture coordinates.
     /// (0, 0) is the top left corner of the texture.
     /// (1, 1) is the bottom right corner of the texture.
-    pub uv: Pos2, // 64 bit
+    pub uv: Pos2, // 2xf32 (64 bit)
 
-    /// sRGBA with premultiplied alpha
-    pub color: Color32, // 32 bit
+    /// Linear RGBA with premultiplied alpha
+    pub color: Rgba, // 4xf32 (128 bit)
 }
 
 /// Textured triangles in two dimensions.
@@ -93,7 +93,7 @@ impl Mesh {
     }
 
     #[inline(always)]
-    pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
+    pub fn colored_vertex(&mut self, pos: Pos2, color: Rgba) {
         crate::epaint_assert!(self.texture_id == TextureId::Egui);
         self.vertices.push(Vertex {
             pos,
@@ -125,7 +125,7 @@ impl Mesh {
     }
 
     /// Rectangle with a texture and color.
-    pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
+    pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Rgba) {
         #![allow(clippy::identity_op)]
 
         let idx = self.vertices.len() as u32;
@@ -156,7 +156,7 @@ impl Mesh {
 
     /// Uniformly colored rectangle.
     #[inline(always)]
-    pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
+    pub fn add_colored_rect(&mut self, rect: Rect, color: Rgba) {
         crate::epaint_assert!(self.texture_id == TextureId::Egui);
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
     }

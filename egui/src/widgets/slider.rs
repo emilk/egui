@@ -61,7 +61,7 @@ pub struct Slider<'a> {
     prefix: String,
     suffix: String,
     text: String,
-    text_color: Option<Color32>,
+    text_color: Option<Rgba>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -180,7 +180,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Color32) -> Self {
+    pub fn text_color(mut self, text_color: Rgba) -> Self {
         self.text_color = Some(text_color);
         self
     }

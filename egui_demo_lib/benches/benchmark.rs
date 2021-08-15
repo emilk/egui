@@ -90,7 +90,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     fonts.texture().size(),
                     egui::Pos2::ZERO,
                     &galley,
-                    egui::Color32::WHITE,
+                    egui::Rgba::WHITE,
                     fake_italics,
                     &mut mesh,
                 );

@@ -229,7 +229,7 @@ pub struct TextEdit<'t, S: TextBuffer = String> {
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
-    text_color: Option<Color32>,
+    text_color: Option<Rgba>,
     password: bool,
     frame: bool,
     multiline: bool,
@@ -329,12 +329,12 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         self
     }
 
-    pub fn text_color(mut self, text_color: Color32) -> Self {
+    pub fn text_color(mut self, text_color: Rgba) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
-    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
+    pub fn text_color_opt(mut self, text_color: Option<Rgba>) -> Self {
         self.text_color = text_color;
         self
     }

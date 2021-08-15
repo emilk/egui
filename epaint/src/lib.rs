@@ -134,7 +134,7 @@ pub(crate) struct PaintRect {
     pub rect: emath::Rect,
     /// How rounded the corners are. Use `0.0` for no rounding.
     pub corner_radius: f32,
-    pub fill: Color32,
+    pub fill: Rgba,
     pub stroke: Stroke,
 }
 

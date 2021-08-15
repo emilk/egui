@@ -1,6 +1,6 @@
 use crate::*;
 
-pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
+pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Rgba)) {
     #![allow(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}

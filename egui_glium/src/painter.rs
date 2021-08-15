@@ -127,9 +127,9 @@ impl Painter {
             struct Vertex {
                 a_pos: [f32; 2],
                 a_tc: [f32; 2],
-                a_srgba: [u8; 4],
+                a_rgba: [f32; 4],
             }
-            implement_vertex!(Vertex, a_pos, a_tc, a_srgba);
+            implement_vertex!(Vertex, a_pos, a_tc, a_rgba);
 
             let vertices: Vec<Vertex> = mesh
                 .vertices
@@ -137,7 +137,7 @@ impl Painter {
                 .map(|v| Vertex {
                     a_pos: [v.pos.x, v.pos.y],
                     a_tc: [v.uv.x, v.uv.y],
-                    a_srgba: v.color.to_array(),
+                    a_rgba: v.color.to_array(),
                 })
                 .collect();
 

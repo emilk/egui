@@ -1,6 +1,6 @@
 use crate::{
     text::{Fonts, Galley, TextStyle},
-    Color32, Mesh, Stroke,
+    Mesh, Rgba, Stroke,
 };
 use emath::*;
 
@@ -17,7 +17,7 @@ pub enum Shape {
     Circle {
         center: Pos2,
         radius: f32,
-        fill: Color32,
+        fill: Rgba,
         stroke: Stroke,
     },
     LineSegment {
@@ -30,14 +30,14 @@ pub enum Shape {
         /// This is required if `fill != TRANSPARENT`.
         closed: bool,
         /// Fill is only supported for convex polygons.
-        fill: Color32,
+        fill: Rgba,
         stroke: Stroke,
     },
     Rect {
         rect: Rect,
         /// How rounded the corners are. Use `0.0` for no rounding.
         corner_radius: f32,
-        fill: Color32,
+        fill: Rgba,
         stroke: Stroke,
     },
     Text {
@@ -46,7 +46,7 @@ pub enum Shape {
         /// The layed out text.
         galley: std::sync::Arc<Galley>,
         /// Text color (foreground).
-        color: Color32,
+        color: Rgba,
         /// If true, tilt the letters for a hacky italics effect.
         fake_italics: bool,
     },
@@ -89,7 +89,7 @@ impl Shape {
     /// Turn a line into equally spaced dots.
     pub fn dotted_line(
         points: &[Pos2],
-        color: impl Into<Color32>,
+        color: impl Into<Rgba>,
         spacing: f32,
         radius: f32,
     ) -> Vec<Self> {
@@ -113,7 +113,7 @@ impl Shape {
     /// A convex polygon with a fill and optional stroke.
     pub fn convex_polygon(
         points: Vec<Pos2>,
-        fill: impl Into<Color32>,
+        fill: impl Into<Rgba>,
         stroke: impl Into<Stroke>,
     ) -> Self {
         Self::Path {
@@ -125,11 +125,11 @@ impl Shape {
     }
 
     #[deprecated = "Renamed convex_polygon"]
-    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
+    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Rgba>, stroke: impl Into<Stroke>) -> Self {
         Self::convex_polygon(points, fill, stroke)
     }
 
-    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
+    pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Rgba>) -> Self {
         Self::Circle {
             center,
             radius,
@@ -147,7 +147,7 @@ impl Shape {
         }
     }
 
-    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
+    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Rgba>) -> Self {
         Self::Rect {
             rect,
             corner_radius,
@@ -172,7 +172,7 @@ impl Shape {
         anchor: Align2,
         text: impl ToString,
         text_style: TextStyle,
-        color: Color32,
+        color: Rgba,
     ) -> Self {
         let galley = fonts.layout_multiline(text_style, text.to_string(), f32::INFINITY);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
@@ -190,7 +190,7 @@ fn points_from_line(
     line: &[Pos2],
     spacing: f32,
     radius: f32,
-    color: Color32,
+    color: Rgba,
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;

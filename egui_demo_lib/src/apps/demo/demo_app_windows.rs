@@ -199,7 +199,7 @@ impl DemoWindows {
                 // Native: WrapApp uses a transparent window, so let's show that off:
                 // NOTE: the OS compositor assumes "normal" blending, so we need to hack it:
                 let [r, g, b, _] = fill.to_array();
-                fill = egui::Color32::from_rgba_premultiplied(r, g, b, 180);
+                fill = egui::Rgba::from_rgba_premultiplied(r, g, b, 0.70);
             }
             let frame = egui::Frame::none().fill(fill);
             egui::CentralPanel::default().frame(frame).show(ctx, |_| {});

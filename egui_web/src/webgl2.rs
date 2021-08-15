@@ -211,7 +211,7 @@ impl WebGl2Painter {
 
         let mut positions: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
         let mut tex_coords: Vec<f32> = Vec::with_capacity(2 * mesh.vertices.len());
-        let mut colors: Vec<u8> = Vec::with_capacity(4 * mesh.vertices.len());
+        let mut colors: Vec<f32> = Vec::with_capacity(4 * mesh.vertices.len());
         for v in &mesh.vertices {
             positions.push(v.pos.x);
             positions.push(v.pos.y);
@@ -290,29 +290,22 @@ impl WebGl2Painter {
         let colors_memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
             .buffer();
-        let colors_ptr = colors.as_ptr() as u32;
+        let colors_ptr = colors.as_ptr() as u32 / 4;
         let colors_array = js_sys::Uint8Array::new(&colors_memory_buffer)
             .subarray(colors_ptr, colors_ptr + colors.len() as u32);
 
         gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&self.color_buffer));
         gl.buffer_data_with_array_buffer_view(Gl::ARRAY_BUFFER, &colors_array, Gl::STREAM_DRAW);
 
-        let a_srgba_loc = gl.get_attrib_location(&self.program, "a_srgba");
-        assert!(a_srgba_loc >= 0);
-        let a_srgba_loc = a_srgba_loc as u32;
+        let a_rgba_loc = gl.get_attrib_location(&self.program, "a_rgba");
+        assert!(a_rgba_loc >= 0);
+        let a_rgba_loc = a_rgba_loc as u32;
 
         let normalize = false;
         let stride = 0;
         let offset = 0;
-        gl.vertex_attrib_pointer_with_i32(
-            a_srgba_loc,
-            4,
-            Gl::UNSIGNED_BYTE,
-            normalize,
-            stride,
-            offset,
-        );
-        gl.enable_vertex_attrib_array(a_srgba_loc);
+        gl.vertex_attrib_pointer_with_i32(a_rgba_loc, 4, Gl::FLOAT, normalize, stride, offset);
+        gl.enable_vertex_attrib_array(a_rgba_loc);
 
         // --------------------------------------------------------------------
 

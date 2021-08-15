@@ -69,13 +69,13 @@ impl Legend {
 
 #[derive(Clone)]
 struct LegendEntry {
-    color: Color32,
+    color: Rgba,
     checked: bool,
     hovered: bool,
 }
 
 impl LegendEntry {
-    fn new(color: Color32, checked: bool) -> Self {
+    fn new(color: Rgba, checked: bool) -> Self {
         Self {
             color,
             checked,
@@ -122,7 +122,7 @@ impl LegendEntry {
         });
 
         if *checked {
-            let fill = if *color == Color32::TRANSPARENT {
+            let fill = if *color == Rgba::TRANSPARENT {
                 ui.visuals().noninteractive().fg_stroke.color
             } else {
                 *color
@@ -179,7 +179,7 @@ impl LegendWidget {
                     .and_modify(|entry| {
                         if entry.color != item.color() {
                             // Multiple items with different colors
-                            entry.color = Color32::TRANSPARENT;
+                            entry.color = Rgba::TRANSPARENT;
                         }
                     })
                     .or_insert_with(|| {

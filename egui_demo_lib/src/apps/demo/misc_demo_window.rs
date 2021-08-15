@@ -363,7 +363,7 @@ impl Tree {
     fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
         if depth > 0
             && ui
-                .add(Button::new("delete").text_color(Color32::RED))
+                .add(Button::new("delete").text_color(Rgba::RED))
                 .clicked()
         {
             return Action::Delete;

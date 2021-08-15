@@ -945,11 +945,7 @@ impl Ui {
     }
 
     /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(
-        &mut self,
-        color: impl Into<Color32>,
-        label: impl Into<Label>,
-    ) -> Response {
+    pub fn colored_label(&mut self, color: impl Into<Rgba>, label: impl Into<Label>) -> Response {
         label.into().text_color(color).ui(self)
     }
 
@@ -1172,6 +1168,12 @@ impl Ui {
 
 /// # Colors
 impl Ui {
+    /// Shows a button with the given color.
+    /// If the user clicks the button, a full color picker is shown.
+    pub fn color_edit_button_rgba(&mut self, rgba: &mut Rgba) -> Response {
+        color_picker::color_edit_button_rgba(self, rgba, color_picker::Alpha::BlendOrAdditive)
+    }
+
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {

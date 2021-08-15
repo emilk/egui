@@ -888,7 +888,7 @@ impl Context {
                     {
                         ui.ctx()
                             .debug_painter()
-                            .debug_rect(area.rect(), Color32::RED, "");
+                            .debug_rect(area.rect(), Rgba::RED, "");
                     }
                 }
             }
