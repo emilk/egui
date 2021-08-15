@@ -248,6 +248,7 @@ impl CtxRef {
                             // This is needed because we do window interaction first (to prevent frame delay),
                             // and then do content layout.
                             if sense.drag
+                                && self.input().pointer.primary_down()
                                 && (memory.interaction.drag_id.is_none()
                                     || memory.interaction.drag_is_window)
                             {
