@@ -37,11 +37,11 @@ If you have questions, use [Discussions](https://github.com/emilk/egui/discussio
 
 ## Demo
 
-[Click to run egui web demo](https://emilk.github.io/egui/index.html) (works in any browser with WASM and WebGL support).
+[Click to run egui web demo](https://emilk.github.io/egui/index.html) (works in any browser with WASM and WebGL support). Uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
-The native backend is currently using [`glium`](https://github.com/glium/glium) ([though there are plans to change that](https://github.com/emilk/egui/issues/93)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
+The native backend is [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) (using [`glium`](https://github.com/glium/glium)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
 `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev`
 
@@ -79,7 +79,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float) [`ab_glyph`](https://crates.io/crates/ab_glyph).
+* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float).
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -101,11 +101,11 @@ But if you are writing something interactive in Rust that needs a simple GUI, eg
 
 ### egui vs Dear ImGui
 
-The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library, which a lot more features and polish compared to egui. However, egui provides some benefits for Rust users:
+The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library (and the main inspiration for egui), with a lot more features and polish. However, egui provides some benefits for Rust users:
 
 * egui is pure Rust
 * egui is easily compiled to WASM
-* egui lets you use native Rust String types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
+* egui lets you use native Rust string types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
 * [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 
 egui also tries to improve your experience in other small ways:
@@ -162,8 +162,8 @@ The integration needs to do two things:
 
 I maintain two official egui integrations made for apps:
 
-* [`egui_web`](https://crates.io/crates/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
-* [`egui_glium`](https://crates.io/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
+* [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
+* [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 
 If you making an app, consider using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), a framework which allows you to write code that works on both the web (`egui_web`) and native (using `egui_glium`).
 
