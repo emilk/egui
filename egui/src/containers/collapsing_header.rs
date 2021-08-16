@@ -193,11 +193,14 @@ impl CollapsingHeader {
         self
     }
 
+    /// Can the `CollapsingHeader` be selected by clicking it? Default: `false`.
+
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
     }
 
+    /// If you set this to 'true', the `CollapsingHeader` will be shown as selected.
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
