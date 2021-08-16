@@ -28,6 +28,7 @@ impl Default for Demos {
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
+            Box::new(super::window_with_panels::WindowWithPanels::default()),
         ])
     }
 }
