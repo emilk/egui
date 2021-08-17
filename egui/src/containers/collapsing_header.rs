@@ -199,9 +199,9 @@ impl CollapsingHeader {
     /// # let ui = &mut egui::Ui::__test();
     /// let mut selected = false;
     /// let response = CollapsingHeader::new("Select and open me")
-            .selectable(true)
-            .selected(selected)
-            .show(ui, |ui| ui.label("Content"));
+    ///     .selectable(true)
+    ///     .selected(selected)
+    ///     .show(ui, |ui| ui.label("Content"));
     /// if response.header_response.clicked() {
     ///     selected = true;
     /// }
