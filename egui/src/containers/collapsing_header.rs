@@ -195,10 +195,18 @@ impl CollapsingHeader {
 
     /// Can the `CollapsingHeader` be selected by clicking it? Default: `false`.
     ///
-    /// ``` rust
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = selectable;
+        self
+    }
+
+    /// If you set this to 'true', the `CollapsingHeader` will be shown as selected.
+    ///
+    /// Example:
+    /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// let mut selected = false;
-    /// let response = CollapsingHeader::new("Select and open me")
+    /// let response = egui::CollapsingHeader::new("Select and open me")
     ///     .selectable(true)
     ///     .selected(selected)
     ///     .show(ui, |ui| ui.label("Content"));
@@ -206,12 +214,6 @@ impl CollapsingHeader {
     ///     selected = true;
     /// }
     /// ```
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// If you set this to 'true', the `CollapsingHeader` will be shown as selected.
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
