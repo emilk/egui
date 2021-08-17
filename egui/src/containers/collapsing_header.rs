@@ -285,8 +285,9 @@ impl CollapsingHeader {
             });
         }
 
-        let selected = self.selected || header_response.hovered() || header_response.has_focus();
-        if self.selectable && selected {
+        if self.selected
+            || self.selectable && (header_response.hovered() || header_response.has_focus())
+        {
             let rect = rect.expand(visuals.expansion);
 
             let corner_radius = 2.0;

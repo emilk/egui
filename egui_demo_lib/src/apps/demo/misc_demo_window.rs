@@ -344,7 +344,7 @@ struct Tree(String, SubTree);
 impl Tree {
     pub fn demo() -> Self {
         Self(
-            String::default(),
+            String::from("root"),
             SubTree(vec![
                 SubTree(vec![SubTree::default(); 4]),
                 SubTree(vec![SubTree(vec![SubTree::default(); 2]); 3]),
@@ -372,14 +372,20 @@ impl SubTree {
             .default_open(depth < 1)
             .selectable(true)
             .selected(selected_name.as_str() == name)
-            .show(ui, |ui| self.children_ui(ui, depth, selected_name));
+            .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
         if response.header_response.clicked() {
             *selected_name = name.to_string();
         }
         response.body_returned.unwrap_or(Action::Keep)
     }
 
-    fn children_ui(&mut self, ui: &mut Ui, depth: usize, selected_name: &mut String) -> Action {
+    fn children_ui(
+        &mut self,
+        ui: &mut Ui,
+        parent_name: &str,
+        depth: usize,
+        selected_name: &mut String,
+    ) -> Action {
         if depth > 0
             && ui
                 .add(Button::new("delete").text_color(Color32::RED))
@@ -396,7 +402,7 @@ impl SubTree {
                 if tree.ui(
                     ui,
                     depth + 1,
-                    &format!("child[{}][{}]", depth, i),
+                    &format!("{}/{}", parent_name, i),
                     selected_name,
                 ) == Action::Keep
                 {
