@@ -111,8 +111,15 @@ fn create_display(
 
     let display = glium::Display::new(window_builder, context_builder, event_loop).unwrap();
 
-    if let Some(window_settings) = &window_settings {
-        window_settings.restore_positions(&display);
+    if !cfg!(target_os = "windows") {
+        // If the app last ran on two monitors and only one is now connected, then
+        // the given position is invalid.
+        // If this happens on Mac, the window is clamped into valid area.
+        // If this happens on Windows, the window is hidden and impossible to bring to get at.
+        // So we don't restore window positions on Windows.
+        if let Some(window_settings) = &window_settings {
+            window_settings.restore_positions(&display);
+        }
     }
 
     display
@@ -165,7 +172,7 @@ fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
 // ----------------------------------------------------------------------------
 
 /// Run an egui app
-pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> ! {
+pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
     #[allow(unused_mut)]
     let mut storage = create_storage(app.name());
 
@@ -174,8 +181,8 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let icon = nativve_options.icon_data.clone().and_then(load_icon);
-    let display = create_display(&*app, &nativve_options, window_settings, icon, &event_loop);
+    let icon = native_options.icon_data.clone().and_then(load_icon);
+    let display = create_display(&*app, &native_options, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
