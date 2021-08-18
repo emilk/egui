@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 eframe = { version = "0.13.0", path = "../eframe", features = ["time"] }
-egui_demo_lib = { version = "0.13.0", path = "../egui_demo_lib" }
+egui_demo_lib = { version = "0.13.0", path = "../egui_demo_lib", features = ["extra_debug_asserts"] }
 
 [features]
 default = ["persistence"]
