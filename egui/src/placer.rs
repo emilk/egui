@@ -72,6 +72,11 @@ impl Placer {
     pub(crate) fn cursor(&self) -> Rect {
         self.region.cursor
     }
+
+    #[inline(always)]
+    pub(crate) fn set_cursor(&mut self, cursor: Rect) {
+        self.region.cursor = cursor
+    }
 }
 
 impl Placer {

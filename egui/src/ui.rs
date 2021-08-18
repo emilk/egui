@@ -750,6 +750,10 @@ impl Ui {
         self.placer.cursor()
     }
 
+    pub(crate) fn set_cursor(&mut self, cursor: Rect) {
+        self.placer.set_cursor(cursor)
+    }
+
     /// Where do we expect a zero-sized widget to be placed?
     pub(crate) fn next_widget_position(&self) -> Pos2 {
         self.placer.next_widget_position()

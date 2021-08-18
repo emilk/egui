@@ -151,7 +151,7 @@ impl SidePanel {
             width_range,
         } = self;
 
-        let available_rect = ui.max_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
             let mut width = default_width;
@@ -212,6 +212,21 @@ impl SidePanel {
         });
 
         let rect = inner_response.response.rect;
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                Side::Left => {
+                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                }
+                Side::Right => {
+                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
         ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
@@ -232,6 +247,7 @@ impl SidePanel {
 
         inner_response
     }
+
     pub fn show<R>(
         self,
         ctx: &CtxRef,
@@ -392,7 +408,7 @@ impl TopBottomPanel {
             height_range,
         } = self;
 
-        let available_rect = ui.max_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
             let state = ui.memory().id_data.get::<PanelState>(&id).copied();
@@ -455,6 +471,21 @@ impl TopBottomPanel {
         });
 
         let rect = inner_response.response.rect;
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                TopBottomSide::Top => {
+                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                }
+                TopBottomSide::Bottom => {
+                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
         ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
@@ -566,6 +597,7 @@ impl CentralPanel {
             add_contents(ui)
         })
     }
+
     pub fn show<R>(
         self,
         ctx: &CtxRef,
