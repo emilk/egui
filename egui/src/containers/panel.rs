@@ -201,7 +201,7 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
@@ -443,7 +443,7 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {

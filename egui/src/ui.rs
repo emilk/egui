@@ -78,12 +78,22 @@ impl Ui {
 
     /// Create a new `Ui` at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
+        self.child_ui_with_id_source(max_rect, layout, "child")
+    }
+
+    /// Create a new `Ui` at a specific region with a specific id.
+    pub fn child_ui_with_id_source(
+        &mut self,
+        max_rect: Rect,
+        layout: Layout,
+        id_source: impl Hash,
+    ) -> Self {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         Ui {
-            id: self.id.with("child"),
+            id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
