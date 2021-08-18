@@ -37,7 +37,7 @@ pub(crate) struct Region {
     ///
     /// So one can think of `cursor` as a constraint on the available region.
     ///
-    /// If something has already been added, this will point ot `style.spacing.item_spacing` beyond the latest child.
+    /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the min_rect.
     pub(crate) cursor: Rect,
 }
@@ -409,7 +409,7 @@ impl Layout {
         // NOTE: in normal top-down layout the cursor has moved below the current max_rect,
         // but the available shouldn't be negative.
 
-        // ALSO: with wrapping layouts, cursor jumps to new row before expanding max_rect
+        // ALSO: with wrapping layouts, cursor jumps to new row before expanding max_rect.
 
         let mut avail = max_rect;
 
@@ -417,43 +417,45 @@ impl Layout {
             Direction::LeftToRight => {
                 avail.min.x = cursor.min.x;
                 avail.max.x = avail.max.x.max(cursor.min.x);
-                if self.main_wrap {
-                    avail.min.y = cursor.min.y;
-                    avail.max.y = cursor.max.y;
-                }
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::RightToLeft => {
                 avail.max.x = cursor.max.x;
                 avail.min.x = avail.min.x.min(cursor.max.x);
-                if self.main_wrap {
-                    avail.min.y = cursor.min.y;
-                    avail.max.y = cursor.max.y;
-                }
                 avail.min.x = avail.min.x.min(avail.max.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::TopDown => {
                 avail.min.y = cursor.min.y;
                 avail.max.y = avail.max.y.max(cursor.min.y);
-                if self.main_wrap {
-                    avail.min.x = cursor.min.x;
-                    avail.max.x = cursor.max.x;
-                }
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::BottomUp => {
                 avail.max.y = cursor.max.y;
                 avail.min.y = avail.min.y.min(cursor.max.y);
-                if self.main_wrap {
-                    avail.min.x = cursor.min.x;
-                    avail.max.x = cursor.max.x;
-                }
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.min.y = avail.min.y.min(avail.max.y);
             }
+        }
+
+        // We can use the cursor to restrict the available region.
+        // For instance, we use this to restrict the available space of a parent Ui
+        // after adding a panel to it.
+        // We also use it for wrapping layouts.
+        avail = avail.intersect(cursor);
+
+        // Make sure it isn't negative:
+        if avail.max.x < avail.min.x {
+            let x = 0.5 * (avail.min.x + avail.max.x);
+            avail.min.x = x;
+            avail.max.x = x;
+        }
+        if avail.max.y < avail.min.y {
+            let y = 0.5 * (avail.min.y + avail.max.y);
+            avail.min.y = y;
+            avail.max.y = y;
         }
 
         avail
