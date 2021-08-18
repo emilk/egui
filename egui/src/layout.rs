@@ -602,7 +602,9 @@ impl Layout {
     ) -> Rect {
         let frame = self.next_frame_ignore_wrap(region, size);
         let rect = self.align_size_within_rect(size, frame);
-        crate::egui_assert!((rect.size() - size).length() < 1.0);
+        crate::egui_assert!(!rect.any_nan());
+        crate::egui_assert!((rect.width() - size.x).abs() < 1.0 || size.x == f32::INFINITY);
+        crate::egui_assert!((rect.height() - size.y).abs() < 1.0 || size.y == f32::INFINITY);
         rect
     }
 

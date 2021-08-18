@@ -446,6 +446,12 @@ impl Ui {
         self.set_max_width(*width.end());
     }
 
+    /// `ui.set_height_range(min..=max);` is equivalent to `ui.set_min_height(min); ui.set_max_height(max);`.
+    pub fn set_height_range(&mut self, height: std::ops::RangeInclusive<f32>) {
+        self.set_min_height(*height.start());
+        self.set_max_height(*height.end());
+    }
+
     /// Set both the minimum and maximum width.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
