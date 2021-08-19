@@ -223,7 +223,7 @@ impl CollapsingHeader {
 
     /// Should the `CollapsingHeader` show a background behind it? Default: `false`.
     ///
-    /// To show it behind all CollapsingHeaders you can just use:
+    /// To show it behind all `CollapsingHeader` you can just use:
     /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// ui.visuals_mut().collapsing_header_frame = true;
