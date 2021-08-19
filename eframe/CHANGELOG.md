@@ -4,6 +4,7 @@ All notable changes to the `eframe` crate.
 
 ## Unreleased
 * Improve http fetch API.
+* `run_native` now returns when the app is closed.
 
 
 ## 0.13.1 - 2021-06-24
