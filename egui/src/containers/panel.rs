@@ -151,7 +151,7 @@ impl SidePanel {
             width_range,
         } = self;
 
-        let available_rect = ui.max_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
             let mut width = default_width;
@@ -187,7 +187,8 @@ impl SidePanel {
                 is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
-                    let width = clamp_to_range(width, width_range).at_most(available_rect.width());
+                    let width =
+                        clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
@@ -201,15 +202,31 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
+            ui.set_width_range(width_range);
             add_contents(ui)
         });
 
         let rect = inner_response.response.rect;
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                Side::Left => {
+                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                }
+                Side::Right => {
+                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
         ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
@@ -230,6 +247,7 @@ impl SidePanel {
 
         inner_response
     }
+
     pub fn show<R>(
         self,
         ctx: &CtxRef,
@@ -390,7 +408,7 @@ impl TopBottomPanel {
             height_range,
         } = self;
 
-        let available_rect = ui.max_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
             let state = ui.memory().id_data.get::<PanelState>(&id).copied();
@@ -428,8 +446,8 @@ impl TopBottomPanel {
                 is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
-                    let height =
-                        clamp_to_range(height, height_range).at_most(available_rect.height());
+                    let height = clamp_to_range(height, height_range.clone())
+                        .at_most(available_rect.height());
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
@@ -443,15 +461,31 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
+            ui.set_height_range(height_range);
             add_contents(ui)
         });
 
         let rect = inner_response.response.rect;
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                TopBottomSide::Top => {
+                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                }
+                TopBottomSide::Bottom => {
+                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
         ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
@@ -563,6 +597,7 @@ impl CentralPanel {
             add_contents(ui)
         })
     }
+
     pub fn show<R>(
         self,
         ctx: &CtxRef,
