@@ -142,6 +142,7 @@ pub struct CollapsingHeader {
     enabled: bool,
     selectable: bool,
     selected: bool,
+    show_background: bool,
 }
 
 impl CollapsingHeader {
@@ -161,6 +162,7 @@ impl CollapsingHeader {
             enabled: true,
             selectable: false,
             selected: false,
+            show_background: false,
         }
     }
 
@@ -218,6 +220,18 @@ impl CollapsingHeader {
         self.selected = selected;
         self
     }
+
+    /// Should the `CollapsingHeader` show a background behind it? Default: `false`.
+    ///
+    /// To show it behind all CollapsingHeaders you can just use:
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.visuals_mut().collapsing_header_frame = true;
+    /// ```
+    pub fn show_background(mut self, show_background: bool) -> Self {
+        self.show_background = show_background;
+        self
+    }
 }
 
 struct Prepared {
@@ -239,6 +253,7 @@ impl CollapsingHeader {
             enabled: _,
             selectable: _,
             selected: _,
+            show_background: _,
         } = self;
 
         label.text_style = label
@@ -288,7 +303,7 @@ impl CollapsingHeader {
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
 
-        if ui.visuals().collapsing_header_frame {
+        if ui.visuals().collapsing_header_frame || self.show_background {
             ui.painter().add(Shape::Rect {
                 rect: header_response.rect.expand(visuals.expansion),
                 corner_radius: visuals.corner_radius,
