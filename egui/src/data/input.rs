@@ -59,10 +59,10 @@ pub struct RawInput {
     pub events: Vec<Event>,
 
     /// Dragged files hovering over egui.
-    pub hovered_files: Vec<std::path::PathBuf>,
+    pub hovered_files: Vec<HoveredFile>,
 
     /// Dragged files dropped into egui.
-    pub dropped_files: Vec<std::path::PathBuf>,
+    pub dropped_files: Vec<DroppedFile>,
 }
 
 impl Default for RawInput {
@@ -85,7 +85,10 @@ impl Default for RawInput {
 }
 
 impl RawInput {
-    /// Helper: move volatile (deltas and events), clone the rest
+    /// Helper: move volatile (deltas and events), clone the rest.
+    ///
+    /// * [`Self::hovered_files`] is cloned.
+    /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         #![allow(deprecated)] // for screen_size
         let zoom = self.zoom_delta;
@@ -100,8 +103,68 @@ impl RawInput {
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
-            hovered_files: std::mem::take(&mut self.hovered_files),
+            hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
+        }
+    }
+}
+
+/// A file about to be dropped into egui.
+#[derive(Clone, Debug, Default)]
+pub struct HoveredFile {
+    /// Set with the `egui_glium` backend.
+    pub path: Option<std::path::PathBuf>,
+    /// With the `egui_web` backend, this is set to the mime-type of file (if available).
+    pub mime: String,
+}
+
+impl HoveredFile {
+    pub fn from_path(path: std::path::PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            ..Default::default()
+        }
+    }
+
+    pub fn from_mime(mime: String) -> Self {
+        Self {
+            mime,
+            ..Default::default()
+        }
+    }
+}
+
+/// A file dropped into egui.
+#[derive(Clone, Debug, Default)]
+pub struct DroppedFile {
+    /// Set with the `egui_glium` backend.
+    pub path: Option<std::path::PathBuf>,
+    /// Set with the `egui_web` backend.
+    pub name: String,
+    /// Set with the `egui_web` backend.
+    pub last_modified: Option<std::time::SystemTime>,
+    /// Set with the `egui_web` backend.
+    pub bytes: Option<std::sync::Arc<[u8]>>,
+}
+
+impl DroppedFile {
+    pub fn from_path(path: std::path::PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            ..Default::default()
+        }
+    }
+
+    pub fn from_name_last_modified_bytes(
+        name: String,
+        last_modified: std::time::SystemTime,
+        bytes: Vec<u8>,
+    ) -> Self {
+        Self {
+            name,
+            last_modified: Some(last_modified),
+            bytes: Some(bytes.into()),
+            ..Default::default()
         }
     }
 }

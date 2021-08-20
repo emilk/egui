@@ -33,6 +33,8 @@ pub struct WrapApp {
     selected_anchor: String,
     apps: Apps,
     backend_panel: super::backend_panel::BackendPanel,
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    dropped_files: Vec<egui::DroppedFile>,
 }
 
 impl epi::App for WrapApp {
@@ -103,7 +105,7 @@ impl epi::App for WrapApp {
 
         self.backend_panel.end_of_frame(ctx);
 
-        self.detect_drag_and_drop(ctx);
+        self.ui_file_drag_and_drop(ctx);
     }
 }
 
@@ -147,13 +149,20 @@ impl WrapApp {
         });
     }
 
-    fn detect_drag_and_drop(&self, ctx: &egui::CtxRef) {
+    fn ui_file_drag_and_drop(&mut self, ctx: &egui::CtxRef) {
         use egui::*;
 
+        // Preview hovering files:
         if !ctx.input().raw.hovered_files.is_empty() {
             let mut text = "Dropping files:\n".to_owned();
             for file in &ctx.input().raw.hovered_files {
-                text += &format!("\n{}", file.display());
+                if let Some(path) = &file.path {
+                    text += &format!("\n{}", path.display());
+                } else if !file.mime.is_empty() {
+                    text += &format!("\n{}", file.mime);
+                } else {
+                    text += "\n???";
+                }
             }
 
             let painter =
@@ -170,7 +179,35 @@ impl WrapApp {
             );
         }
 
-        // check ctx.input().raw.dropped_files to see if the files were actually dropped
+        // Collect dropped files:
+        if !ctx.input().raw.dropped_files.is_empty() {
+            self.dropped_files = ctx.input().raw.dropped_files.clone();
+        }
+
+        // Show dropped files (if any):
+        if !self.dropped_files.is_empty() {
+            let mut open = true;
+            egui::Window::new("Dropped files")
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    for file in &self.dropped_files {
+                        let mut info = if let Some(path) = &file.path {
+                            path.display().to_string()
+                        } else if !file.name.is_empty() {
+                            file.name.clone()
+                        } else {
+                            "???".to_owned()
+                        };
+                        if let Some(bytes) = &file.bytes {
+                            info += &format!(" ({} bytes)", bytes.len());
+                        }
+                        ui.label(info);
+                    }
+                });
+            if !open {
+                self.dropped_files.clear();
+            }
+        }
     }
 }
 

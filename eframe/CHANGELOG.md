@@ -3,6 +3,7 @@ All notable changes to the `eframe` crate.
 
 
 ## Unreleased
+* Add dragging and dropping files into egui.
 * Improve http fetch API.
 * `run_native` now returns when the app is closed.
 
