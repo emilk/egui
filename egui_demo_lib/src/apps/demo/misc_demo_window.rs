@@ -339,28 +339,53 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+struct Tree(String, SubTree);
 
 impl Tree {
     pub fn demo() -> Self {
-        Self(vec![
-            Tree(vec![Tree::default(); 4]),
-            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
-        ])
+        Self(
+            String::from("root"),
+            SubTree(vec![
+                SubTree(vec![SubTree::default(); 4]),
+                SubTree(vec![SubTree(vec![SubTree::default(); 2]); 3]),
+            ]),
+        )
     }
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
-        self.ui_impl(ui, 0, "root")
+        self.1.ui(ui, 0, "root", &mut self.0)
     }
+}
 
-    fn ui_impl(&mut self, ui: &mut Ui, depth: usize, name: &str) -> Action {
-        CollapsingHeader::new(name)
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+struct SubTree(Vec<SubTree>);
+
+impl SubTree {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        depth: usize,
+        name: &str,
+        selected_name: &mut String,
+    ) -> Action {
+        let response = CollapsingHeader::new(name)
             .default_open(depth < 1)
-            .show(ui, |ui| self.children_ui(ui, depth))
-            .body_returned
-            .unwrap_or(Action::Keep)
+            .selectable(true)
+            .selected(selected_name.as_str() == name)
+            .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
+        if response.header_response.clicked() {
+            *selected_name = name.to_string();
+        }
+        response.body_returned.unwrap_or(Action::Keep)
     }
 
-    fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
+    fn children_ui(
+        &mut self,
+        ui: &mut Ui,
+        parent_name: &str,
+        depth: usize,
+        selected_name: &mut String,
+    ) -> Action {
         if depth > 0
             && ui
                 .add(Button::new("delete").text_color(Color32::RED))
@@ -374,7 +399,13 @@ impl Tree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
+                if tree.ui(
+                    ui,
+                    depth + 1,
+                    &format!("{}/{}", parent_name, i),
+                    selected_name,
+                ) == Action::Keep
+                {
                     Some(tree)
                 } else {
                     None
@@ -383,7 +414,7 @@ impl Tree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(Tree::default());
+            self.0.push(SubTree::default());
         }
 
         Action::Keep
