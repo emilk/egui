@@ -1087,6 +1087,105 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    {
+        let event_name = "dragover";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            if let Some(data_transfer) = event.data_transfer() {
+                let mut runner_lock = runner_ref.0.lock();
+                runner_lock.input.raw.hovered_files.clear();
+                for i in 0..data_transfer.items().length() {
+                    if let Some(item) = data_transfer.items().get(i) {
+                        runner_lock.input.raw.hovered_files.push(egui::HoveredFile {
+                            mime: item.type_(),
+                            ..Default::default()
+                        });
+                    }
+                }
+                runner_lock.needs_repaint.set_true();
+                event.stop_propagation();
+                event.prevent_default();
+            }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "dragleave";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.raw.hovered_files.clear();
+            runner_lock.needs_repaint.set_true();
+            event.stop_propagation();
+            event.prevent_default();
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "drop";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            if let Some(data_transfer) = event.data_transfer() {
+                {
+                    let mut runner_lock = runner_ref.0.lock();
+                    runner_lock.input.raw.hovered_files.clear();
+                    runner_lock.needs_repaint.set_true();
+                }
+
+                if let Some(files) = data_transfer.files() {
+                    for i in 0..files.length() {
+                        if let Some(file) = files.get(i) {
+                            let name = file.name();
+                            let last_modified = std::time::UNIX_EPOCH
+                                + std::time::Duration::from_millis(file.last_modified() as u64);
+
+                            console_log(format!("Loading {:?} ({} bytes)…", name, file.size()));
+
+                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
+
+                            let runner_ref = runner_ref.clone();
+                            let future = async move {
+                                match future.await {
+                                    Ok(array_buffer) => {
+                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
+                                        console_log(format!(
+                                            "Loaded {:?} ({} bytes).",
+                                            name,
+                                            bytes.len()
+                                        ));
+
+                                        let mut runner_lock = runner_ref.0.lock();
+                                        runner_lock.input.raw.dropped_files.push(
+                                            egui::DroppedFile {
+                                                name,
+                                                last_modified: Some(last_modified),
+                                                bytes: Some(bytes.into()),
+                                                ..Default::default()
+                                            },
+                                        );
+                                        runner_lock.needs_repaint.set_true();
+                                    }
+                                    Err(err) => {
+                                        console_error(format!("Failed to read file: {:?}", err));
+                                    }
+                                }
+                            };
+                            wasm_bindgen_futures::spawn_local(future);
+                        }
+                    }
+                }
+                event.stop_propagation();
+                event.prevent_default();
+            }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
     Ok(())
 }
 
