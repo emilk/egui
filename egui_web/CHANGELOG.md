@@ -8,6 +8,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ### Added ⭐
 * Added support for dragging and dropping files into the browser window.
 
+### Fixed 🐛
+* Made text thicker and less pixelated.
+
 
 ## 0.13.0 - 2021-06-24
 
