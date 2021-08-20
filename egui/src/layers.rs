@@ -157,14 +157,14 @@ impl GraphicLayers {
             for layer_id in area_order {
                 if layer_id.order == order {
                     if let Some(list) = order_map.get_mut(&layer_id.id) {
-                        all_shapes.extend(list.lock().0.drain(..));
+                        all_shapes.append(&mut list.lock().0);
                     }
                 }
             }
 
             // Also draw areas that are missing in `area_order`:
             for shapes in order_map.values_mut() {
-                all_shapes.extend(shapes.lock().0.drain(..));
+                all_shapes.append(&mut shapes.lock().0);
             }
         }
 

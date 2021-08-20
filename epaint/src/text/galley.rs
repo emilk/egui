@@ -598,55 +598,55 @@ fn test_text_layout() {
 
     let galley = font.layout_multiline("".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 1);
-    assert_eq!(galley.rows[0].ends_with_newline, false);
+    assert!(!galley.rows[0].ends_with_newline);
     assert_eq!(galley.rows[0].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("\n".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 2);
-    assert_eq!(galley.rows[0].ends_with_newline, true);
-    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert!(galley.rows[0].ends_with_newline);
+    assert!(!galley.rows[1].ends_with_newline);
     assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("\n\n".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 3);
-    assert_eq!(galley.rows[0].ends_with_newline, true);
-    assert_eq!(galley.rows[1].ends_with_newline, true);
-    assert_eq!(galley.rows[2].ends_with_newline, false);
+    assert!(galley.rows[0].ends_with_newline);
+    assert!(galley.rows[1].ends_with_newline);
+    assert!(!galley.rows[2].ends_with_newline);
     assert_eq!(galley.rows[2].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline(" ".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 1);
-    assert_eq!(galley.rows[0].ends_with_newline, false);
+    assert!(!galley.rows[0].ends_with_newline);
 
     let galley = font.layout_multiline("One row!".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 1);
-    assert_eq!(galley.rows[0].ends_with_newline, false);
+    assert!(!galley.rows[0].ends_with_newline);
 
     let galley = font.layout_multiline("First row!\n".to_owned(), 1024.0);
     assert_eq!(galley.rows.len(), 2);
-    assert_eq!(galley.rows[0].ends_with_newline, true);
-    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert!(galley.rows[0].ends_with_newline);
+    assert!(!galley.rows[1].ends_with_newline);
     assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
 
     let galley = font.layout_multiline("line\nbreak".to_owned(), 40.0);
     assert_eq!(galley.rows.len(), 2);
-    assert_eq!(galley.rows[0].ends_with_newline, true);
-    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert!(galley.rows[0].ends_with_newline);
+    assert!(!galley.rows[1].ends_with_newline);
 
     // Test wrapping:
     let galley = font.layout_multiline("word wrap".to_owned(), 40.0);
     assert_eq!(galley.rows.len(), 2);
-    assert_eq!(galley.rows[0].ends_with_newline, false);
-    assert_eq!(galley.rows[1].ends_with_newline, false);
+    assert!(!galley.rows[0].ends_with_newline);
+    assert!(!galley.rows[1].ends_with_newline);
 
     {
         // Test wrapping:
         let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
         assert_eq!(galley.rows.len(), 4);
-        assert_eq!(galley.rows[0].ends_with_newline, false);
+        assert!(!galley.rows[0].ends_with_newline);
         assert_eq!(galley.rows[0].char_count_excluding_newline(), "word ".len());
         assert_eq!(galley.rows[0].char_count_including_newline(), "word ".len());
-        assert_eq!(galley.rows[1].ends_with_newline, true);
+        assert!(galley.rows[1].ends_with_newline);
         assert_eq!(galley.rows[1].char_count_excluding_newline(), "wrap.".len());
         assert_eq!(
             galley.rows[1].char_count_including_newline(),
@@ -654,8 +654,8 @@ fn test_text_layout() {
         );
         assert_eq!(galley.rows[2].char_count_excluding_newline(), "New ".len());
         assert_eq!(galley.rows[3].char_count_excluding_newline(), "para.".len());
-        assert_eq!(galley.rows[2].ends_with_newline, false);
-        assert_eq!(galley.rows[3].ends_with_newline, false);
+        assert!(!galley.rows[2].ends_with_newline);
+        assert!(!galley.rows[3].ends_with_newline);
 
         let cursor = Cursor::default();
         assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
@@ -749,10 +749,10 @@ fn test_text_layout() {
         // Test cursor movement:
         let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
         assert_eq!(galley.rows.len(), 4);
-        assert_eq!(galley.rows[0].ends_with_newline, false);
-        assert_eq!(galley.rows[1].ends_with_newline, true);
-        assert_eq!(galley.rows[2].ends_with_newline, false);
-        assert_eq!(galley.rows[3].ends_with_newline, false);
+        assert!(!galley.rows[0].ends_with_newline);
+        assert!(galley.rows[1].ends_with_newline);
+        assert!(!galley.rows[2].ends_with_newline);
+        assert!(!galley.rows[3].ends_with_newline);
 
         let cursor = Cursor::default();
 
