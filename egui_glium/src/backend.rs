@@ -111,8 +111,15 @@ fn create_display(
 
     let display = glium::Display::new(window_builder, context_builder, event_loop).unwrap();
 
-    if let Some(window_settings) = &window_settings {
-        window_settings.restore_positions(&display);
+    if !cfg!(target_os = "windows") {
+        // If the app last ran on two monitors and only one is now connected, then
+        // the given position is invalid.
+        // If this happens on Mac, the window is clamped into valid area.
+        // If this happens on Windows, the window is hidden and impossible to bring to get at.
+        // So we don't restore window positions on Windows.
+        if let Some(window_settings) = &window_settings {
+            window_settings.restore_positions(&display);
+        }
     }
 
     display
@@ -165,16 +172,17 @@ fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
 // ----------------------------------------------------------------------------
 
 /// Run an egui app
-pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> ! {
+pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
+    #[allow(unused_mut)]
     let mut storage = create_storage(app.name());
 
     #[cfg(feature = "http")]
     let http = std::sync::Arc::new(crate::http::GliumHttp {});
 
     let window_settings = deserialize_window_settings(&storage);
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let icon = nativve_options.icon_data.clone().and_then(load_icon);
-    let display = create_display(&*app, &nativve_options, window_settings, icon, &event_loop);
+    let mut event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let icon = native_options.icon_data.clone().and_then(load_icon);
+    let display = create_display(&*app, &native_options, window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -199,8 +207,6 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
     }
 
     let mut previous_frame_time = None;
-
-    let mut is_focused = true;
 
     #[cfg(feature = "persistence")]
     let mut last_auto_save = Instant::now();
@@ -233,8 +239,67 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
     }
 
-    event_loop.run(move |event, _, control_flow| {
-        let mut redraw = || {
+    let mut is_focused = true;
+    let mut running = true;
+    let mut repaint_asap = true;
+
+    while running {
+        use glium::glutin::platform::run_return::EventLoopExtRunReturn as _;
+        event_loop.run_return(|event, _, control_flow| {
+            use glium::glutin::event_loop::ControlFlow;
+
+            *control_flow = ControlFlow::Wait;
+
+            match event {
+                // Platform-dependent event handlers to workaround a winit bug
+                // See: https://github.com/rust-windowing/winit/issues/987
+                // See: https://github.com/rust-windowing/winit/issues/1619
+                glutin::event::Event::RedrawEventsCleared if cfg!(windows) => {
+                    *control_flow = ControlFlow::Exit; // Time to redraw
+                }
+                glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+                    *control_flow = ControlFlow::Exit; // Time to redraw
+                }
+                glutin::event::Event::MainEventsCleared => {
+                    if repaint_asap {
+                        *control_flow = ControlFlow::Exit; // Time to redraw
+                    } else {
+                        // Winit uses up all the CPU of one core when returning ControlFlow::Wait.
+                        // Sleeping here helps, but still uses 1-3% of CPU :(
+                        if is_focused {
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                        } else {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                    }
+                }
+                glutin::event::Event::WindowEvent { event, .. } => {
+                    if egui.is_quit_event(&event) {
+                        *control_flow = ControlFlow::Exit;
+                        running = false;
+                    }
+
+                    if let glutin::event::WindowEvent::Focused(new_focused) = event {
+                        is_focused = new_focused;
+                    }
+
+                    egui.on_event(&event);
+
+                    // TODO: ask egui if the events warrants a repaint instead of repainting on each event.
+                    display.gl_window().window().request_redraw();
+                }
+                glutin::event::Event::UserEvent(RequestRepaintEvent) => {
+                    display.gl_window().window().request_redraw();
+                    *control_flow = ControlFlow::Exit; // Time to redraw
+                }
+
+                _ => (),
+            }
+        });
+
+        repaint_asap = false;
+
+        if running {
             if !is_focused {
                 // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
                 // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
@@ -291,13 +356,11 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
                     );
                 }
 
-                *control_flow = if quit {
-                    glutin::event_loop::ControlFlow::Exit
+                if quit {
+                    running = false;
                 } else if needs_repaint {
                     display.gl_window().window().request_redraw();
-                    glutin::event_loop::ControlFlow::Poll
-                } else {
-                    glutin::event_loop::ControlFlow::Wait
+                    repaint_asap = true;
                 };
             }
 
@@ -316,48 +379,20 @@ pub fn run(mut app: Box<dyn epi::App>, nativve_options: epi::NativeOptions) -> !
                     last_auto_save = now;
                 }
             }
-        };
-
-        match event {
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
-
-            glutin::event::Event::WindowEvent { event, .. } => {
-                if egui.is_quit_event(&event) {
-                    *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
-                }
-
-                if let glutin::event::WindowEvent::Focused(new_focused) = event {
-                    is_focused = new_focused;
-                }
-
-                egui.on_event(&event);
-
-                display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
-            }
-            glutin::event::Event::LoopDestroyed => {
-                app.on_exit();
-                #[cfg(feature = "persistence")]
-                if let Some(storage) = &mut storage {
-                    epi::set_value(
-                        storage.as_mut(),
-                        WINDOW_KEY,
-                        &WindowSettings::from_display(&display),
-                    );
-                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
-                    app.save(storage.as_mut());
-                    storage.flush();
-                }
-            }
-
-            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
-                display.gl_window().window().request_redraw();
-            }
-
-            _ => (),
         }
-    });
+    }
+
+    app.on_exit();
+
+    #[cfg(feature = "persistence")]
+    if let Some(storage) = &mut storage {
+        epi::set_value(
+            storage.as_mut(),
+            WINDOW_KEY,
+            &WindowSettings::from_display(&display),
+        );
+        epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
+        app.save(storage.as_mut());
+        storage.flush();
+    }
 }

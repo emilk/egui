@@ -28,6 +28,7 @@ struct PlotMemory {
     auto_bounds: bool,
     hovered_entry: Option<String>,
     hidden_items: HashSet<String>,
+    min_auto_bounds: Bounds,
 }
 
 // ----------------------------------------------------------------------------
@@ -70,6 +71,8 @@ pub struct Plot {
     show_x: bool,
     show_y: bool,
     legend_config: Option<Legend>,
+    show_background: bool,
+    show_axes: [bool; 2],
 }
 
 impl Plot {
@@ -97,6 +100,8 @@ impl Plot {
             show_x: true,
             show_y: true,
             legend_config: None,
+            show_background: true,
+            show_axes: [true; 2],
         }
     }
 
@@ -314,6 +319,22 @@ impl Plot {
         self.legend_config = Some(legend);
         self
     }
+
+    /// Whether or not to show the background `Rect`.
+    /// Can be useful to disable if the plot is overlaid over existing content.
+    /// Default: `true`.
+    pub fn show_background(mut self, show: bool) -> Self {
+        self.show_background = show;
+        self
+    }
+
+    /// Show the axes.
+    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Default: `[true; 2]`.
+    pub fn show_axes(mut self, show: [bool; 2]) -> Self {
+        self.show_axes = show;
+        self
+    }
 }
 
 impl Widget for Plot {
@@ -336,10 +357,12 @@ impl Widget for Plot {
             mut show_x,
             mut show_y,
             legend_config,
+            show_background,
+            show_axes,
         } = self;
 
         let plot_id = ui.make_persistent_id(id_source);
-        let memory = ui
+        let mut memory = ui
             .memory()
             .id_data
             .get_mut_or_insert_with(plot_id, || PlotMemory {
@@ -347,14 +370,28 @@ impl Widget for Plot {
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
                 hidden_items: HashSet::new(),
+                min_auto_bounds,
             })
             .clone();
+
+        // If the min bounds changed, recalculate everything.
+        if min_auto_bounds != memory.min_auto_bounds {
+            memory = PlotMemory {
+                bounds: min_auto_bounds,
+                auto_bounds: !min_auto_bounds.is_valid(),
+                hovered_entry: None,
+                min_auto_bounds,
+                ..memory
+            };
+            ui.memory().id_data.insert(plot_id, memory.clone());
+        }
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
             mut hovered_entry,
             mut hidden_items,
+            ..
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -385,16 +422,19 @@ impl Widget for Plot {
         let plot_painter = ui.painter().sub_region(rect);
 
         // Background
-        plot_painter.add(Shape::Rect {
-            rect,
-            corner_radius: 2.0,
-            fill: ui.visuals().extreme_bg_color,
-            stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-        });
+        if show_background {
+            plot_painter.add(Shape::Rect {
+                rect,
+                corner_radius: 2.0,
+                fill: ui.visuals().extreme_bg_color,
+                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
+            });
+        }
 
         // Legend
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
@@ -480,6 +520,7 @@ impl Widget for Plot {
             items,
             show_x,
             show_y,
+            show_axes,
             transform,
         };
         prepared.ui(ui, &response);
@@ -497,6 +538,7 @@ impl Widget for Plot {
                 auto_bounds,
                 hovered_entry,
                 hidden_items,
+                min_auto_bounds,
             },
         );
 
@@ -512,6 +554,7 @@ struct Prepared {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
+    show_axes: [bool; 2],
     transform: ScreenTransform,
 }
 
@@ -520,7 +563,9 @@ impl Prepared {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
-            self.paint_axis(ui, d, &mut shapes);
+            if self.show_axes[d] {
+                self.paint_axis(ui, d, &mut shapes);
+            }
         }
 
         let transform = &self.transform;

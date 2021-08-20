@@ -473,13 +473,13 @@ impl Areas {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
+                    let mut rect = Rect::from_min_size(state.pos, state.size);
                     if state.interactable {
-                        let rect = Rect::from_min_size(state.pos, state.size);
                         // Allow us to resize by dragging just outside the window:
-                        let rect = rect.expand(resize_interact_radius_side);
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                        rect = rect.expand(resize_interact_radius_side);
+                    }
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }

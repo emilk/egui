@@ -78,12 +78,22 @@ impl Ui {
 
     /// Create a new `Ui` at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
+        self.child_ui_with_id_source(max_rect, layout, "child")
+    }
+
+    /// Create a new `Ui` at a specific region with a specific id.
+    pub fn child_ui_with_id_source(
+        &mut self,
+        max_rect: Rect,
+        layout: Layout,
+        id_source: impl Hash,
+    ) -> Self {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
         Ui {
-            id: self.id.with("child"),
+            id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
@@ -436,6 +446,12 @@ impl Ui {
         self.set_max_width(*width.end());
     }
 
+    /// `ui.set_height_range(min..=max);` is equivalent to `ui.set_min_height(min); ui.set_max_height(max);`.
+    pub fn set_height_range(&mut self, height: std::ops::RangeInclusive<f32>) {
+        self.set_min_height(*height.start());
+        self.set_max_height(*height.end());
+    }
+
     /// Set both the minimum and maximum width.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
@@ -468,6 +484,10 @@ impl Ui {
 
     pub fn available_width(&self) -> f32 {
         self.available_size().x
+    }
+
+    pub fn available_height(&self) -> f32 {
+        self.available_size().y
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
@@ -579,7 +599,7 @@ impl Ui {
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
-    /// If you want to fill the space, ask about `available().size()` and use that.
+    /// If you want to fill the space, ask about [`Ui::available_size`] and use that.
     ///
     /// You may get MORE space than you asked for, for instance
     /// for justified layouts, like in menus.
@@ -624,7 +644,7 @@ impl Ui {
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
     /// When asking for space, ask AT LEAST for your minimum, and don't ask for more than you need.
-    /// If you want to fill the space, ask about `available().size()` and use that.
+    /// If you want to fill the space, ask about [`Ui::available_size`] and use that.
     ///
     /// You may get MORE space than you asked for, for instance
     /// for justified layouts, like in menus.
@@ -728,6 +748,10 @@ impl Ui {
 
     pub(crate) fn cursor(&self) -> Rect {
         self.placer.cursor()
+    }
+
+    pub(crate) fn set_cursor(&mut self, cursor: Rect) {
+        self.placer.set_cursor(cursor)
     }
 
     /// Where do we expect a zero-sized widget to be placed?

@@ -390,7 +390,7 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         ui.allocate_rect(frame_rect, Sense::hover());
         let frame_response = ui.interact(frame_rect, id, Sense::click());
         let response = response | frame_response;
-        if response.clicked() {
+        if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
         }
 

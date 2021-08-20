@@ -40,6 +40,7 @@ impl epi::App for WrapApp {
         "egui demo apps"
     }
 
+    #[allow(unused_variables)]
     fn setup(
         &mut self,
         _ctx: &egui::CtxRef,

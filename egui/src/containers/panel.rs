@@ -137,9 +137,9 @@ impl SidePanel {
 }
 
 impl SidePanel {
-    pub fn show<R>(
+    pub fn show_inside<R>(
         self,
-        ctx: &CtxRef,
+        ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let Self {
@@ -151,13 +151,11 @@ impl SidePanel {
             width_range,
         } = self;
 
-        let layer_id = LayerId::background();
-
-        let available_rect = ctx.available_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
             let mut width = default_width;
-            if let Some(state) = ctx.memory().id_data.get::<PanelState>(&id) {
+            if let Some(state) = ui.memory().id_data.get::<PanelState>(&id) {
                 width = state.rect.width();
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
@@ -168,66 +166,101 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ctx.input().pointer.latest_pos() {
-                let we_are_on_top = ctx
+            if let Some(pointer) = ui.input().pointer.latest_pos() {
+                let we_are_on_top = ui
+                    .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
+                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
 
                 let resize_x = side.opposite().side_x(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
                     && panel_rect.y_range().contains(&pointer.y)
                     && (resize_x - pointer.x).abs()
-                        <= ctx.style().interaction.resize_grab_radius_side;
+                        <= ui.style().interaction.resize_grab_radius_side;
 
-                if ctx.input().pointer.any_pressed()
-                    && ctx.input().pointer.any_down()
+                if ui.input().pointer.any_pressed()
+                    && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ctx.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory().interaction.drag_id = Some(resize_id);
                 }
-                is_resizing = ctx.memory().interaction.drag_id == Some(resize_id);
+                is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
-                    let width = clamp_to_range(width, width_range).at_most(available_rect.width());
+                    let width =
+                        clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
                 let dragging_something_else =
-                    ctx.input().pointer.any_down() || ctx.input().pointer.any_pressed();
+                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                    ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
                 }
             }
         }
 
-        let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
-
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(&ctx.style()));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        panel_ui.expand_to_include_rect(panel_rect);
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
+            ui.set_width_range(width_range);
             add_contents(ui)
         });
 
         let rect = inner_response.response.rect;
-        ctx.memory().id_data.insert(id, PanelState { rect });
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                Side::Left => {
+                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                }
+                Side::Right => {
+                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
+        ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
-                ctx.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.bg_stroke
             } else {
-                ctx.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.bg_stroke
             };
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::PanelResizeLine, Id::new("panel_resize"));
+            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_x = side.opposite().side_x(rect);
             let top = pos2(resize_x, rect.top());
             let bottom = pos2(resize_x, rect.bottom());
-            ctx.layer_painter(resize_layer)
+            ui.ctx()
+                .layer_painter(resize_layer)
                 .line_segment([top, bottom], stroke);
         }
+
+        inner_response
+    }
+
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let layer_id = LayerId::background();
+        let side = self.side;
+        let available_rect = ctx.available_rect();
+        let clip_rect = ctx.input().screen_rect();
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+
+        let inner_response = self.show_inside(&mut panel_ui, add_contents);
+        let rect = inner_response.response.rect;
 
         match side {
             Side::Left => ctx
@@ -237,7 +270,6 @@ impl SidePanel {
                 .frame_state()
                 .allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max)),
         }
-
         inner_response
     }
 }
@@ -362,9 +394,9 @@ impl TopBottomPanel {
 }
 
 impl TopBottomPanel {
-    pub fn show<R>(
+    pub fn show_inside<R>(
         self,
-        ctx: &CtxRef,
+        ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let Self {
@@ -376,16 +408,14 @@ impl TopBottomPanel {
             height_range,
         } = self;
 
-        let layer_id = LayerId::background();
-
-        let available_rect = ctx.available_rect();
+        let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
-            let state = ctx.memory().id_data.get::<PanelState>(&id).copied();
+            let state = ui.memory().id_data.get::<PanelState>(&id).copied();
             let mut height = if let Some(state) = state {
                 state.rect.height()
             } else {
-                default_height.unwrap_or_else(|| ctx.style().spacing.interact_size.y)
+                default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
             };
             height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
@@ -395,67 +425,102 @@ impl TopBottomPanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ctx.input().pointer.latest_pos() {
-                let we_are_on_top = ctx
+            if let Some(pointer) = ui.input().pointer.latest_pos() {
+                let we_are_on_top = ui
+                    .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == layer_id);
+                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
 
                 let resize_y = side.opposite().side_y(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
                     && panel_rect.x_range().contains(&pointer.x)
                     && (resize_y - pointer.y).abs()
-                        <= ctx.style().interaction.resize_grab_radius_side;
+                        <= ui.style().interaction.resize_grab_radius_side;
 
-                if ctx.input().pointer.any_pressed()
-                    && ctx.input().pointer.any_down()
+                if ui.input().pointer.any_pressed()
+                    && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ctx.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory().interaction.drag_id = Some(resize_id);
                 }
-                is_resizing = ctx.memory().interaction.drag_id == Some(resize_id);
+                is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
-                    let height =
-                        clamp_to_range(height, height_range).at_most(available_rect.height());
+                    let height = clamp_to_range(height, height_range.clone())
+                        .at_most(available_rect.height());
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
                 let dragging_something_else =
-                    ctx.input().pointer.any_down() || ctx.input().pointer.any_pressed();
+                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ctx.output().cursor_icon = CursorIcon::ResizeVertical;
+                    ui.output().cursor_icon = CursorIcon::ResizeVertical;
                 }
             }
         }
 
-        let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
-
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(&ctx.style()));
+        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        panel_ui.expand_to_include_rect(panel_rect);
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
+            ui.set_height_range(height_range);
             add_contents(ui)
         });
 
         let rect = inner_response.response.rect;
-        ctx.memory().id_data.insert(id, PanelState { rect });
+
+        {
+            let mut cursor = ui.cursor();
+            match side {
+                TopBottomSide::Top => {
+                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                }
+                TopBottomSide::Bottom => {
+                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                }
+            }
+            ui.set_cursor(cursor);
+        }
+        ui.expand_to_include_rect(rect);
+
+        ui.memory().id_data.insert(id, PanelState { rect });
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
-                ctx.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.bg_stroke
             } else {
-                ctx.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.bg_stroke
             };
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::PanelResizeLine, Id::new("panel_resize"));
+            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_y = side.opposite().side_y(rect);
             let left = pos2(rect.left(), resize_y);
             let right = pos2(rect.right(), resize_y);
-            ctx.layer_painter(resize_layer)
+            ui.ctx()
+                .layer_painter(resize_layer)
                 .line_segment([left, right], stroke);
         }
+
+        inner_response
+    }
+
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let layer_id = LayerId::background();
+        let available_rect = ctx.available_rect();
+        let side = self.side;
+
+        let clip_rect = ctx.input().screen_rect();
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+
+        let inner_response = self.show_inside(&mut panel_ui, add_contents);
+        let rect = inner_response.response.rect;
 
         match side {
             TopBottomSide::Top => {
@@ -516,26 +581,36 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
+    pub fn show_inside<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let Self { frame } = self;
+
+        let panel_rect = ui.available_rect_before_wrap_finite();
+        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+
+        let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
+        frame.show(&mut panel_ui, |ui| {
+            ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
+            add_contents(ui)
+        })
+    }
+
     pub fn show<R>(
         self,
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let Self { frame } = self;
-
-        let panel_rect = ctx.available_rect();
-
+        let available_rect = ctx.available_rect();
         let layer_id = LayerId::background();
         let id = Id::new("central_panel");
 
         let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
 
-        let frame = frame.unwrap_or_else(|| Frame::central_panel(&ctx.style()));
-        let inner_response = frame.show(&mut panel_ui, |ui| {
-            ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
-            add_contents(ui)
-        });
+        let inner_response = self.show_inside(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
         ctx.frame_state()

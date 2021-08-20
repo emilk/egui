@@ -241,6 +241,7 @@ impl Painter {
         self.user_textures.push(Some(Default::default()));
         id
     }
+
     /// register glium texture as egui texture
     /// Usable for render to image rectangle
     pub fn register_glium_texture(
@@ -258,13 +259,18 @@ impl Painter {
         }
         id
     }
+
     pub fn set_user_texture(
         &mut self,
         id: egui::TextureId,
         size: (usize, usize),
         pixels: &[Color32],
     ) {
-        assert_eq!(size.0 * size.1, pixels.len());
+        assert_eq!(
+            size.0 * size.1,
+            pixels.len(),
+            "Mismatch between texture size and texel count"
+        );
 
         if let egui::TextureId::User(id) = id {
             if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {

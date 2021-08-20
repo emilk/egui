@@ -533,6 +533,12 @@ fn interact(
 
 fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
+
+    // Only move/resize windows with primary mouse button:
+    if !ctx.input().pointer.primary_down() {
+        return None;
+    }
+
     let pointer_pos = ctx.input().pointer.interact_pos()?;
     let mut rect = window_interaction.start_rect; // prevent drift
 
@@ -586,7 +592,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
+            if ctx.input().pointer.any_pressed() && ctx.input().pointer.primary_down() {
                 ctx.memory().interaction.drag_id = Some(id);
                 ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);

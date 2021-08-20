@@ -107,7 +107,11 @@ impl WebGlPainter {
         srgba_pixels: &[Color32],
     ) -> egui::TextureId {
         let index = self.alloc_user_texture_index();
-        assert_eq!(size.0 * size.1, srgba_pixels.len());
+        assert_eq!(
+            size.0 * size.1,
+            srgba_pixels.len(),
+            "Mismatch between texture size and texel count"
+        );
 
         if let Some(Some(user_texture)) = self.user_textures.get_mut(index) {
             let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
@@ -136,6 +140,7 @@ impl WebGlPainter {
             }
         }
     }
+
     pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
         match texture_id {
             egui::TextureId::Egui => Some(&self.egui_texture),
