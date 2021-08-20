@@ -1096,11 +1096,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.input.raw.hovered_files.clear();
                 for i in 0..data_transfer.items().length() {
                     if let Some(item) = data_transfer.items().get(i) {
-                        runner_lock
-                            .input
-                            .raw
-                            .hovered_files
-                            .push(egui::HoveredFile::from_mime(item.type_()));
+                        runner_lock.input.raw.hovered_files.push(egui::HoveredFile {
+                            mime: item.type_(),
+                            ..Default::default()
+                        });
                     }
                 }
                 runner_lock.needs_repaint.set_true();
@@ -1161,11 +1160,12 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
 
                                         let mut runner_lock = runner_ref.0.lock();
                                         runner_lock.input.raw.dropped_files.push(
-                                            egui::DroppedFile::from_name_last_modified_bytes(
+                                            egui::DroppedFile {
                                                 name,
-                                                last_modified,
-                                                bytes,
-                                            ),
+                                                last_modified: Some(last_modified),
+                                                bytes: Some(bytes.into()),
+                                                ..Default::default()
+                                            },
                                         );
                                         runner_lock.needs_repaint.set_true();
                                     }

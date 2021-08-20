@@ -256,14 +256,20 @@ pub fn input_to_egui(
             });
         }
         WindowEvent::HoveredFile(path) => {
-            input_state.raw.hovered_files.push(egui::HoveredFile::from_path(path.clone()));
+            input_state.raw.hovered_files.push(egui::HoveredFile {
+                path: Some(path.clone()),
+                ..Default::default()
+            });
         }
         WindowEvent::HoveredFileCancelled => {
             input_state.raw.hovered_files.clear();
         }
         WindowEvent::DroppedFile(path) => {
             input_state.raw.hovered_files.clear();
-            input_state.raw.dropped_files.push(egui::DroppedFile::from_path(path.clone()));
+            input_state.raw.dropped_files.push(egui::DroppedFile {
+                path: Some(path.clone()),
+                ..Default::default()
+            });
         }
         _ => {
             // dbg!(event);
