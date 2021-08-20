@@ -47,6 +47,7 @@ pub use copypasta::ClipboardContext; // TODO: remove
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
     pub raw: egui::RawInput,
+    pub hovered_files: Vec<std::path::PathBuf>,
 }
 
 impl GliumInputState {
@@ -57,6 +58,7 @@ impl GliumInputState {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
             },
+            hovered_files: Default::default(),
         }
     }
 }
@@ -254,6 +256,16 @@ pub fn input_to_egui(
                     None => 0_f32,
                 },
             });
+        }
+        WindowEvent::DroppedFile(path) => {
+            input_state.hovered_files.clear();
+            input_state.raw.dropped_files.push(path.clone());
+        }
+        WindowEvent::HoveredFile(path) => {
+            input_state.hovered_files.push(path.clone());
+        }
+        WindowEvent::HoveredFileCancelled => {
+            input_state.hovered_files.clear();
         }
         _ => {
             // dbg!(event);
@@ -537,6 +549,7 @@ impl EguiGlium {
             None
         };
 
+        self.input_state.raw.hovered_files = self.input_state.hovered_files.clone();
         self.egui_ctx.begin_frame(self.input_state.raw.take());
     }
 

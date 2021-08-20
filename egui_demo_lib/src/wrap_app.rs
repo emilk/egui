@@ -102,6 +102,8 @@ impl epi::App for WrapApp {
         }
 
         self.backend_panel.end_of_frame(ctx);
+
+        self.detect_drag_and_drop(ctx);
     }
 }
 
@@ -143,6 +145,32 @@ impl WrapApp {
                 egui::warn_if_debug_build(ui);
             });
         });
+    }
+
+    fn detect_drag_and_drop(&self, ctx: &egui::CtxRef) {
+        use egui::*;
+
+        if !ctx.input().raw.hovered_files.is_empty() {
+            let mut text = "Dropping files:\n".to_owned();
+            for file in &ctx.input().raw.hovered_files {
+                text += &format!("\n{}", file.display());
+            }
+
+            let painter =
+                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+
+            let screen_rect = ctx.input().screen_rect();
+            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+            painter.text(
+                screen_rect.center(),
+                Align2::CENTER_CENTER,
+                text,
+                TextStyle::Heading,
+                Color32::WHITE,
+            );
+        }
+
+        // check ctx.input().raw.dropped_files to see if the files were actually dropped
     }
 }
 

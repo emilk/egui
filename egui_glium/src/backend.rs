@@ -266,10 +266,10 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
                     } else {
                         // Winit uses up all the CPU of one core when returning ControlFlow::Wait.
                         // Sleeping here helps, but still uses 1-3% of CPU :(
-                        if is_focused {
+                        if is_focused || !egui.input_state.hovered_files.is_empty() {
                             std::thread::sleep(std::time::Duration::from_millis(10));
                         } else {
-                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            std::thread::sleep(std::time::Duration::from_millis(50));
                         }
                     }
                 }
@@ -287,6 +287,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
 
                     // TODO: ask egui if the events warrants a repaint instead of repainting on each event.
                     display.gl_window().window().request_redraw();
+                    repaint_asap = true;
                 }
                 glutin::event::Event::UserEvent(RequestRepaintEvent) => {
                     display.gl_window().window().request_redraw();

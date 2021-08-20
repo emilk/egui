@@ -57,6 +57,12 @@ pub struct RawInput {
     /// but you can check if egui is using the keyboard with [`crate::Context::wants_keyboard_input`]
     /// and/or the pointer (mouse/touch) with [`crate::Context::is_using_pointer`].
     pub events: Vec<Event>,
+
+    /// Dragged files hovering over egui.
+    pub hovered_files: Vec<std::path::PathBuf>,
+
+    /// Dragged files dropped into egui.
+    pub dropped_files: Vec<std::path::PathBuf>,
 }
 
 impl Default for RawInput {
@@ -72,6 +78,8 @@ impl Default for RawInput {
             predicted_dt: 1.0 / 60.0,
             modifiers: Modifiers::default(),
             events: vec![],
+            hovered_files: Default::default(),
+            dropped_files: Default::default(),
         }
     }
 }
@@ -92,6 +100,8 @@ impl RawInput {
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
+            hovered_files: std::mem::take(&mut self.hovered_files),
+            dropped_files: std::mem::take(&mut self.dropped_files),
         }
     }
 }
@@ -295,6 +305,8 @@ impl RawInput {
             predicted_dt,
             modifiers,
             events,
+            hovered_files,
+            dropped_files,
         } = self;
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
@@ -313,6 +325,8 @@ impl RawInput {
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("events: {:?}", events))
             .on_hover_text("key presses etc");
+        ui.label(format!("hovered_files: {}", hovered_files.len()));
+        ui.label(format!("dropped_files: {}", dropped_files.len()));
     }
 }
 
