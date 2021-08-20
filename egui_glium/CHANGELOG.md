@@ -4,6 +4,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Fix native file dialogs hanging (eg. when using [`nfd2`](https://github.com/EmbarkStudios/nfd2)
 * [Fix minimize on Windows](https://github.com/emilk/egui/issues/518)
 * Change `drag_and_drop_support` to `false` by default (Windows only). See <https://github.com/emilk/egui/issues/598>.
 * Don't restore window position on Windows, because the position would sometimes be invalid.
