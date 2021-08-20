@@ -520,7 +520,7 @@ impl EguiGlium {
     pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
         crate::input_to_egui(
             self.egui_ctx.pixels_per_point(),
-            &event,
+            event,
             self.clipboard.as_mut(),
             &mut self.input_state,
         );

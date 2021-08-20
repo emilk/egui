@@ -334,7 +334,7 @@ impl Rect {
 
 /// ## Convenience functions (assumes origin is towards left top):
 impl Rect {
-    /// `min.x
+    /// `min.x`
     #[inline(always)]
     pub fn left(&self) -> f32 {
         self.min.x
