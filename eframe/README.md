@@ -16,7 +16,7 @@ This aims to be the entry-level crate if you want to write an `egui` app.
 To use on Linux, first run:
 
 ```
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev
+sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
 
 ## Name

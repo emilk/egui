@@ -11,5 +11,5 @@ This crates provides bindings between [`egui`](https://github.com/emilk/egui) an
 To use on Linux, first run:
 
 ```
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev
+sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
