@@ -142,12 +142,23 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        // We do not use self.clicked(), because we want to catch all click within our frame,
-        // even if we aren't clickable. This is important for windows and such that should close
-        // then the user clicks elsewhere.
+        // We do not use self.clicked(), because we want to catch all clicks within our frame,
+        // even if we aren't clickable (or even enabled).
+        // This is important for windows and such that should close then the user clicks elsewhere.
         let pointer = &self.ctx.input().pointer;
-        if let Some(pos) = pointer.interact_pos() {
-            pointer.any_click() && !self.rect.contains(pos)
+
+        if pointer.any_click() {
+            // We detect clicks/hover on a "interact_rect" that is slightly larger than
+            // self.rect. See Context::interact.
+            // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+            // hence the extra complexity here.
+            if self.hovered() {
+                false
+            } else if let Some(pos) = pointer.interact_pos() {
+                !self.rect.contains(pos)
+            } else {
+                false // clicked without a pointer, weird
+            }
         } else {
             false
         }

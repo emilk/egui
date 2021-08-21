@@ -159,6 +159,8 @@ impl CtxRef {
         enabled: bool,
     ) -> Response {
         let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+
+        // Make it easier to click things:
         let interact_rect = rect.expand2(
             (0.5 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
