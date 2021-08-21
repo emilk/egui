@@ -8,12 +8,14 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ## Unreleased
 
 ### Added ⭐
+* Panels can now be added to any `Ui`.
 * Plot:
-  * [Line styles](https://github.com/emilk/egui/pull/482)
+  * [Line styles](https://github.com/emilk/egui/pull/482).
   * Add `show_background` and `show_axes` methods to `Plot`.
-* [Progress bar](https://github.com/emilk/egui/pull/519)
+* [Progress bar](https://github.com/emilk/egui/pull/519).
 * `Grid::num_columns`: allow the last column to take up the rest of the space of the parent `Ui`.
 * Add an API for dropping files into egui (see `RawInput`).
+* `CollapsingHeader` can now optionally be selectable.
 
 ### Changed 🔧
 * Return closure return value from `Area::show`, `ComboBox::show_ui`, `ComboBox::combo_box_with_label`, `Window::show`, `popup::*`, `menu::menu`.
@@ -22,9 +24,11 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ### Fixed 🐛
 * Fix custom font definitions getting replaced when `pixels_per_point` is changed.
-* Fix case where `Plot`'s `min_auto_bounds` could be ignored after the first call to `Plot::ui`.
 * Fix `lost_focus` for `TextEdit`.
+* Clicking the edge of a menu button will now properly open the menu.
 * Fix hover detection close to an `Area`.
+* Fix case where `Plot`'s `min_auto_bounds` could be ignored after the first call to `Plot::ui`.
+* Fix slow startup when using large font files.
 
 
 ## 0.13.1 - 2021-06-28 - Plot fixes
