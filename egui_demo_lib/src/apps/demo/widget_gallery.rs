@@ -147,7 +147,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label("Combo box", "ComboBox"));
+        ui.add(doc_link_label("ComboBox", "ComboBox"));
 
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{:?}", radio))
@@ -162,6 +162,10 @@ impl WidgetGallery {
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
+        ui.add(doc_link_label("DragValue", "DragValue"));
+        ui.add(egui::DragValue::new(scalar).speed(1.0));
+        ui.end_row();
+
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));
         let progress = *scalar / 360.0;
         let progress_bar = egui::ProgressBar::new(progress)
@@ -171,10 +175,6 @@ impl WidgetGallery {
             .add(progress_bar)
             .on_hover_text("The progress bar can be animated!")
             .hovered();
-        ui.end_row();
-
-        ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::new(scalar).speed(1.0));
         ui.end_row();
 
         ui.add(doc_link_label("Color picker", "color_edit"));

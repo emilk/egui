@@ -145,7 +145,7 @@ impl BackendPanel {
 
         ui.separator();
 
-        ui.label("egui windows");
+        ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
         ui.separator();
