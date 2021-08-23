@@ -208,6 +208,7 @@ impl SidePanel {
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
             ui.set_width_range(width_range);
+            ui.allocate_space(Vec2::new(ui.available_width(), 0.0));
             add_contents(ui)
         });
 
