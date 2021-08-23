@@ -1,12 +1,17 @@
-//! Panels are fixed [`Ui`] regions.
+//! Panels are [`Ui`] regions taking up e.g. the left side of a [`Ui`] or screen.
 //!
-//! Together with [`Window`] and [`Area`]:s they are
+//! Panels can either be a child of a [`Ui`] (taking up a portion of the parent)
+//! or be top-level (taking up a portion of the whole screen).
+//!
+//! Together with [`Window`] and [`Area`]:s, top-level panels are
 //! the only places where you can put you widgets.
 //!
 //! The order in which you add panels matter!
 //! The first panel you add will always be the outermost, and the last you add will always be the innermost.
 //!
-//! Always add any [`CentralPanel`] and [`Window`]:s last.
+//! Always add any [`CentralPanel`] last.
+//!
+//! Add your [`Window`]:s after any top-level panels.
 
 use std::ops::RangeInclusive;
 
@@ -50,12 +55,12 @@ impl Side {
     }
 }
 
-/// A panel that covers the entire left or right side of the screen.
+/// A panel that covers the entire left or right side of a [`Ui`] or screen.
 ///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
 ///
-/// Always add any [`CentralPanel`] and [`Window`]:s last.
+/// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -137,6 +142,7 @@ impl SidePanel {
 }
 
 impl SidePanel {
+    /// Show the panel inside a `Ui`.
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -248,6 +254,7 @@ impl SidePanel {
         inner_response
     }
 
+    /// Show the panel at the top level.
     pub fn show<R>(
         self,
         ctx: &CtxRef,
@@ -306,12 +313,12 @@ impl TopBottomSide {
     }
 }
 
-/// A panel that covers the entire top or bottom of the screen.
+/// A panel that covers the entire top or bottom of a [`Ui`] or screen.
 ///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
 ///
-/// Always add any [`CentralPanel`] and [`Window`]:s last.
+/// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -394,6 +401,7 @@ impl TopBottomPanel {
 }
 
 impl TopBottomPanel {
+    /// Show the panel inside a `Ui`.
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -507,6 +515,7 @@ impl TopBottomPanel {
         inner_response
     }
 
+    /// Show the panel at the top level.
     pub fn show<R>(
         self,
         ctx: &CtxRef,
@@ -556,7 +565,10 @@ impl TopPanel {
 /// i.e. whatever area is left after adding other panels.
 ///
 /// `CentralPanel` must be added after all other panels.
-/// Any [`Window`]s and [`Area`]s will cover the `CentralPanel`.
+///
+/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level `CentralPanel`.
+///
+/// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
@@ -581,6 +593,7 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
+    /// Show the panel inside a `Ui`.
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -598,6 +611,7 @@ impl CentralPanel {
         })
     }
 
+    /// Show the panel at the top level.
     pub fn show<R>(
         self,
         ctx: &CtxRef,

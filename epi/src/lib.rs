@@ -237,7 +237,7 @@ impl<'a> Frame<'a> {
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
-    /// The framework will NOT quick immediately, but at the end of the this frame.
+    /// The framework will not quit immediately, but at the end of the this frame.
     pub fn quit(&mut self) {
         self.0.output.quit = true;
     }

@@ -24,7 +24,7 @@ impl ProgressBar {
         }
     }
 
-    /// The desired width of the bar. Will use all horizonal space if not set.
+    /// The desired width of the bar. Will use all horizontal space if not set.
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
@@ -44,7 +44,7 @@ impl ProgressBar {
     }
 
     /// Whether to display a loading animation when progress `< 1`.
-    /// Note that this require the UI to be redrawn.
+    /// Note that this will cause the UI to be redrawn.
     /// Defaults to `false`.
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
@@ -58,10 +58,14 @@ impl Widget for ProgressBar {
             progress,
             desired_width,
             text,
-            mut animate,
+            animate,
         } = self;
 
-        animate &= progress < 1.0;
+        let animate = animate && progress < 1.0;
+
+        if animate {
+            ui.ctx().request_repaint();
+        }
 
         let desired_width = desired_width.unwrap_or(ui.available_size_before_wrap().x);
         let height = ui.spacing().interact_size.y;
@@ -85,7 +89,6 @@ impl Widget for ProgressBar {
 
         let (dark, bright) = (0.7, 1.0);
         let color_factor = if animate {
-            ui.ctx().request_repaint();
             lerp(dark..=bright, ui.input().time.cos().abs())
         } else {
             bright
