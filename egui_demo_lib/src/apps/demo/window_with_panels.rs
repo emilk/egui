@@ -10,11 +10,9 @@ impl super::Demo for WindowWithPanels {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         use super::View;
         let window = egui::Window::new("Window with Panels")
+            .default_width(600.0)
+            .default_height(400.0)
             .scroll(false)
-            .title_bar(true)
-            .resizable(true)
-            .collapsible(false)
-            .enabled(true)
             .open(open);
         window.show(ctx, |ui| self.ui(ui));
     }
@@ -39,30 +37,34 @@ impl super::View for WindowWithPanels {
             .resizable(false)
             .min_height(0.0)
             .show_inside(ui, |ui| {
-                ui.label("Bottom Panel A");
+                ui.vertical_centered(|ui| {
+                    ui.heading("Outer Bottom Panel");
+                });
             });
 
         egui::SidePanel::left("left_panel")
             .resizable(true)
-            .width_range(60.0..=200.0)
+            .default_width(150.0)
+            .width_range(80.0..=200.0)
             .show_inside(ui, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.heading("Left Panel");
+                });
                 egui::ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        ui.label("Left Panel");
-                        ui.small(crate::LOREM_IPSUM_LONG);
-                    });
+                    ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
                 });
             });
 
         egui::SidePanel::right("right_panel")
             .resizable(true)
-            .width_range(60.0..=200.0)
+            .default_width(150.0)
+            .width_range(80.0..=200.0)
             .show_inside(ui, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.heading("Right Panel");
+                });
                 egui::ScrollArea::auto_sized().show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        ui.label("Right Panel");
-                        ui.small(crate::LOREM_IPSUM_LONG);
-                    });
+                    ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
                 });
             });
 
@@ -70,15 +72,17 @@ impl super::View for WindowWithPanels {
             .resizable(false)
             .min_height(0.0)
             .show_inside(ui, |ui| {
-                ui.label("Bottom Panel B");
+                ui.vertical_centered(|ui| {
+                    ui.heading("Inner Bottom Panel");
+                });
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.heading("Central Panel");
+            });
             egui::ScrollArea::auto_sized().show(ui, |ui| {
-                ui.vertical(|ui| {
-                    ui.label("Central Panel");
-                    ui.small(crate::LOREM_IPSUM_LONG);
-                });
+                ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
             });
         });
     }
