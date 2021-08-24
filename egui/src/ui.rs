@@ -1511,7 +1511,7 @@ impl Ui {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let initial_size = vec2(
-            self.available_size_before_wrap_finite().x,
+            self.available_size_before_wrap().x,
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
