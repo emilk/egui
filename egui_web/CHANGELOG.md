@@ -5,6 +5,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 
+
+## 0.14.0 - 2021-08-24
+
 ### Added ⭐
 * Added support for dragging and dropping files into the browser window.
 

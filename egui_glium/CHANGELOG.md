@@ -4,6 +4,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.14.0 - 2021-08-24
 * Fix native file dialogs hanging (eg. when using [`rfd`](https://github.com/PolyMeilex/rfd)).
 * Implement drag-and-dropping files into the application.
 * [Fix minimize on Windows](https://github.com/emilk/egui/issues/518).

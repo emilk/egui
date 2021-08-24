@@ -3,6 +3,9 @@ All notable changes to the `eframe` crate.
 
 
 ## Unreleased
+
+
+## 0.14.0 - 2021-08-24
 * Add dragging and dropping files into egui.
 * Improve http fetch API.
 * `run_native` now returns when the app is closed.
