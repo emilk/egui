@@ -71,6 +71,13 @@ impl Align {
     /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, 10.0..=20.0), 10.0..=f32::INFINITY);
     /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, 10.0..=20.0), f32::NEG_INFINITY..=f32::INFINITY);
     /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, 10.0..=20.0), f32::NEG_INFINITY..=20.0);
+    ///
+    /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
+    /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
+    /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
+    /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
+    /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
+    /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
     /// ```
     #[inline]
     pub fn align_size_within_range(
@@ -80,6 +87,11 @@ impl Align {
     ) -> RangeInclusive<f32> {
         let min = *range.start();
         let max = *range.end();
+
+        if max - min == f32::INFINITY && size == f32::INFINITY {
+            return range;
+        }
+
         match self {
             Self::Min => min..=min + size,
             Self::Center => {
