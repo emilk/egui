@@ -67,7 +67,7 @@ impl GridLayout {
         // TODO: respect current layout
 
         let initial_available = ui.placer().max_rect().intersect(ui.cursor());
-        assert!(
+        crate::egui_assert!(
             initial_available.min.x.is_finite(),
             "Grid not yet available for right-to-left layouts"
         );
