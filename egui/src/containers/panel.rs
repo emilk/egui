@@ -213,7 +213,7 @@ impl SidePanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
-            ui.set_width_range(width_range);
+            ui.set_min_width(*width_range.start());
             add_contents(ui)
         });
 
@@ -474,7 +474,7 @@ impl TopBottomPanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
-            ui.set_height_range(height_range);
+            ui.set_min_height(*height_range.start());
             add_contents(ui)
         });
 
