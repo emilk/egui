@@ -92,11 +92,13 @@ features = [
   "TouchList",
   "WebGl2RenderingContext",
   "WebGlBuffer",
+  "WebGlFramebuffer",
   "WebGlProgram",
   "WebGlRenderingContext",
   "WebGlShader",
   "WebGlTexture",
   "WebGlUniformLocation",
+  "WebGlVertexArrayObject",
   "WheelEvent",
   "Window",
 ]

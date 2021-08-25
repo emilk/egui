@@ -39,9 +39,8 @@ impl epi::App for ColorTest {
             if frame.is_web() {
                 ui.colored_label(
                     RED,
-                    "NOTE: The WebGL backend does NOT pass the color test."
+                    "NOTE: The WebGL1 backend does NOT pass the color test. The WebGL2 backend does."
                 );
-                ui.small("This is because WebGL does not support a linear framebuffer blending (not even WebGL2!).\nMaybe when WebGL3 becomes mainstream in 2030 the web can finally get colors right?");
                 ui.separator();
             }
             ScrollArea::auto_sized().show(ui, |ui| {
