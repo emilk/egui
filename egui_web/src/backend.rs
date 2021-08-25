@@ -15,14 +15,14 @@ impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
 
-        let painter: Box<dyn Painter> = Box::new(webgl1::WebGlPainter::new(canvas_id)?);
-            // if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-            //     console_log("Using WebGL2 backend");
-            //     Box::new(webgl2_painter)
-            // } else {
-            //     console_log("Falling back to WebGL1 backend");
-            //     Box::new(webgl1::WebGlPainter::new(canvas_id)?)
-            // };
+        let painter: Box<dyn Painter> =
+            if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
+                console_log("Using WebGL2 backend");
+                Box::new(webgl2_painter)
+            } else {
+                console_log("Falling back to WebGL1 backend");
+                Box::new(webgl1::WebGlPainter::new(canvas_id)?)
+            };
 
         Ok(Self {
             egui_ctx: ctx,
