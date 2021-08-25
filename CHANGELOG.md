@@ -7,6 +7,10 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+### Fixed 🐛
+
+* Fix `set_width/set_min_width/set_height/set_min_height`
+
 
 ## 0.14.0 - 2021-08-24 - Ui panels and bug fixes
 
