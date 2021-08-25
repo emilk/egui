@@ -367,8 +367,7 @@ impl crate::Painter for WebGlPainter {
         }
 
         let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        let font_gamma = 1.0 / 2.2; // HACK due to non-linear framebuffer blending.
-        for srgba in texture.srgba_pixels(font_gamma) {
+        for srgba in texture.srgba_pixels() {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());

@@ -17,19 +17,10 @@ impl Texture {
     }
 
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    ///
-    /// `gamma` should normally be set to 1.0.
-    /// If you are having problems with egui text looking skinny and pixelated, try
-    /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl Iterator<Item = super::Color32> + '_ {
+    pub fn srgba_pixels(&'_ self) -> impl Iterator<Item = super::Color32> + '_ {
         use super::Color32;
-
-        let srgba_from_luminance_lut: Vec<Color32> = (0..=255)
-            .map(|a| {
-                let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
-                super::Rgba::from_white_alpha(a).into()
-            })
-            .collect();
+        let srgba_from_luminance_lut: Vec<Color32> =
+            (0..=255).map(Color32::from_white_alpha).collect();
         self.pixels
             .iter()
             .map(move |&l| srgba_from_luminance_lut[l as usize])
