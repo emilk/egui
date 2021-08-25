@@ -498,6 +498,8 @@ impl crate::Painter for WebGlPainter {
     }
 }
 
+/// Uses a framebuffer to render everything in linear color space and convert it back to sRGB
+/// in a separate "post processing" step
 struct PostProcess {
     gl: Gl,
     pos_buffer: WebGlBuffer,
@@ -521,6 +523,8 @@ impl PostProcess {
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::NEAREST as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::NEAREST as i32);
         gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+        // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+        // Dark colors are slightly wrong when not using SRGB8_ALPHA8 format
         gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
             Gl::TEXTURE_2D,
             0,
@@ -597,6 +601,8 @@ impl PostProcess {
         if (width, height) != self.texture_size {
             gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
             gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+            // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
+            // Dark colors are slightly wrong when not using SRGB8_ALPHA8 format
             gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
                 Gl::TEXTURE_2D,
                 0,

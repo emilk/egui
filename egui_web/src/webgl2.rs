@@ -498,6 +498,8 @@ impl crate::Painter for WebGl2Painter {
     }
 }
 
+/// Uses a framebuffer to render everything in linear color space and convert it back to sRGB
+/// in a separate "post processing" step
 struct PostProcess {
     gl: Gl,
     pos_buffer: WebGlBuffer,
