@@ -223,6 +223,9 @@ impl Placer {
         region.max_rect.min.x = rect.min.x;
         region.max_rect.max.x = rect.max.x;
         region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+
+        region.cursor.min.x = region.max_rect.min.x;
+        region.cursor.max.x = region.max_rect.max.x;
     }
 
     /// Set the maximum height of the ui.
@@ -233,6 +236,9 @@ impl Placer {
         region.max_rect.min.y = rect.min.y;
         region.max_rect.max.y = rect.max.y;
         region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+
+        region.cursor.min.y = region.max_rect.min.y;
+        region.cursor.max.y = region.max_rect.max.y;
     }
 
     /// Set the minimum width of the ui.
