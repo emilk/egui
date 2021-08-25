@@ -5,6 +5,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 
+### Fixed 🐛
+* Fix alpha blending, now having identical results as egui_glium
+
 
 ## 0.14.0 - 2021-08-24
 
