@@ -36,6 +36,13 @@ impl epi::App for ColorTest {
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            if frame.is_web() {
+                ui.colored_label(
+                    RED,
+                    "NOTE: The WebGL1 backend does NOT pass the color test. The WebGL2 backend does."
+                );
+                ui.separator();
+            }
             ScrollArea::auto_sized().show(ui, |ui| {
                 self.ui(ui, &mut Some(frame.tex_allocator()));
             });

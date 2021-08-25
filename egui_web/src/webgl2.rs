@@ -376,7 +376,7 @@ impl crate::Painter for WebGl2Painter {
         }
 
         let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        for srgba in texture.srgba_pixels() {
+        for srgba in texture.srgba_pixels(1.0) {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());
