@@ -36,14 +36,6 @@ impl epi::App for ColorTest {
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if frame.is_web() {
-                ui.colored_label(
-                    RED,
-                    "NOTE: The WebGL backend does NOT pass the color test."
-                );
-                ui.small("This is because WebGL does not support a linear framebuffer blending (not even WebGL2!).\nMaybe when WebGL3 becomes mainstream in 2030 the web can finally get colors right?");
-                ui.separator();
-            }
             ScrollArea::auto_sized().show(ui, |ui| {
                 self.ui(ui, &mut Some(frame.tex_allocator()));
             });
