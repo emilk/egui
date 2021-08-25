@@ -163,6 +163,9 @@ pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.
     pub always_on_top: bool,
 
+    /// Show window in maximized mode
+    pub maximized: bool,
+
     /// On desktop: add window decorations (i.e. a frame around your app)?
     /// If false it will be difficult to move and resize the app.
     pub decorated: bool,
@@ -191,6 +194,7 @@ impl Default for NativeOptions {
     fn default() -> Self {
         Self {
             always_on_top: false,
+            maximized: false,
             decorated: true,
             drag_and_drop_support: false,
             icon_data: None,

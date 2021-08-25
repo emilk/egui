@@ -83,6 +83,7 @@ fn create_display(
 ) -> glium::Display {
     let mut window_builder = glutin::window::WindowBuilder::new()
         .with_always_on_top(native_options.always_on_top)
+        .with_maximized(native_options.maximized)
         .with_decorations(native_options.decorated)
         .with_resizable(native_options.resizable)
         .with_title(app.name())
