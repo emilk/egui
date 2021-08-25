@@ -85,7 +85,7 @@ pub struct Options {
     pub(crate) style: std::sync::Arc<Style>,
 
     /// Controls the tessellator.
-    pub(crate) tessellation_options: epaint::TessellationOptions,
+    pub tessellation_options: epaint::TessellationOptions,
 
     /// This does not at all change the behavior of egui,
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
