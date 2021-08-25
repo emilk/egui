@@ -3,7 +3,10 @@
 use {
     js_sys::WebAssembly,
     wasm_bindgen::{prelude::*, JsCast},
-    web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlShader, WebGlTexture, WebGlVertexArrayObject},
+    web_sys::{
+        WebGl2RenderingContext, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlShader,
+        WebGlTexture, WebGlVertexArrayObject,
+    },
 };
 
 use egui::{
@@ -433,7 +436,8 @@ impl crate::Painter for WebGl2Painter {
 
         let gl = &self.gl;
 
-        self.post_process.begin(self.canvas.width() as i32, self.canvas.height() as i32)?;
+        self.post_process
+            .begin(self.canvas.width() as i32, self.canvas.height() as i32)?;
 
         gl.enable(Gl::SCISSOR_TEST);
         gl.disable(Gl::CULL_FACE); // egui is not strict about winding order.
@@ -513,7 +517,9 @@ struct PostProcess {
 
 impl PostProcess {
     fn new(gl: Gl, width: i32, height: i32) -> Result<PostProcess, JsValue> {
-        let fbo = gl.create_framebuffer().ok_or("failed to create framebuffer")?;
+        let fbo = gl
+            .create_framebuffer()
+            .ok_or("failed to create framebuffer")?;
         gl.bind_framebuffer(Gl::FRAMEBUFFER, Some(&fbo));
 
         let texture = gl.create_texture().unwrap();
@@ -561,12 +567,7 @@ impl PostProcess {
         let vao = gl.create_vertex_array().ok_or("failed to create vao")?;
         gl.bind_vertex_array(Some(&vao));
 
-        let positions = vec![
-            0u8, 0,
-            1, 0,
-            0, 1,
-            1, 1,
-        ];
+        let positions = vec![0u8, 0, 1, 0, 0, 1, 1, 1];
 
         let indices = vec![0u8, 1, 2, 1, 2, 3];
 
