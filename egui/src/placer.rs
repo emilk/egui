@@ -180,7 +180,7 @@ impl Placer {
             )
         }
 
-        self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
+        self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
@@ -203,6 +203,17 @@ impl Placer {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub(crate) fn expand_to_include_rect(&mut self, rect: Rect) {
         self.region.expand_to_include_rect(rect);
+
+        if self.grid.is_none() {
+            // Make sure we also expand where we consider adding things (the cursor):
+            if self.layout.is_horizontal() {
+                self.region.cursor.min.y = self.region.cursor.min.y.min(self.region.max_rect.min.y);
+                self.region.cursor.max.y = self.region.cursor.max.y.max(self.region.max_rect.max.y);
+            } else {
+                self.region.cursor.min.x = self.region.cursor.min.x.min(self.region.max_rect.min.x);
+                self.region.cursor.max.x = self.region.cursor.max.x.max(self.region.max_rect.max.x);
+            }
+        }
     }
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given x-coordinate.
