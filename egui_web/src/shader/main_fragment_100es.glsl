@@ -18,7 +18,7 @@ vec4 linear_from_srgba(vec4 srgba) {
 }
 
 void main() {
-  // We must decode the colors, since WebGL doesn't come with sRGBA textures:
+  // We must decode the colors, since WebGL1 doesn't come with sRGBA textures:
   vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
 
   /// Multiply vertex color with texture color (in linear space).
