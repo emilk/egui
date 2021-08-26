@@ -130,6 +130,9 @@ impl GridLayout {
                 .unwrap_or(self.min_cell_size.x)
         };
 
+        // If something above was wider, we can be wider:
+        let width = width.max(self.curr_state.col_width(self.col).unwrap_or(0.0));
+
         let available = region.max_rect.intersect(region.cursor);
 
         let height = region.max_rect_finite().max.y - available.top();
@@ -181,11 +184,9 @@ impl GridLayout {
         }
 
         self.curr_state
-            .set_min_col_width(self.col, widget_rect.width().at_least(self.min_cell_size.x));
-        self.curr_state.set_min_row_height(
-            self.row,
-            widget_rect.height().at_least(self.min_cell_size.y),
-        );
+            .set_min_col_width(self.col, widget_rect.width().max(self.min_cell_size.x));
+        self.curr_state
+            .set_min_row_height(self.row, widget_rect.height().max(self.min_cell_size.y));
 
         cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
         self.col += 1;

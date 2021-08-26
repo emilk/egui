@@ -470,6 +470,12 @@ impl Ui {
         self.placer.expand_to_include_x(x);
     }
 
+    /// Ensure we are big enough to contain the given y-coordinate.
+    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    pub fn expand_to_include_y(&mut self, y: f32) {
+        self.placer.expand_to_include_y(y);
+    }
+
     // ------------------------------------------------------------------------
     // Layout related measures:
 

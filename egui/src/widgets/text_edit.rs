@@ -461,12 +461,12 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
+        let mut wrap_width = desired_width.min(available_width);
 
-        let make_galley = |ui: &Ui, text: &str| {
+        let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
             let text = mask_if_password(text);
             if multiline {
-                ui.fonts()
-                    .layout_multiline(text_style, text, desired_width.min(available_width))
+                ui.fonts().layout_multiline(text_style, text, wrap_width)
             } else {
                 ui.fonts().layout_single_line(text_style, text)
             }
@@ -478,14 +478,17 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         };
 
-        let mut galley = make_galley(ui, text.as_ref());
+        let mut galley = make_galley(ui, wrap_width, text.as_ref());
 
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
-        let desired_size = vec2(
-            desired_width.min(available_width),
-            galley.size.y.max(desired_height),
-        );
+        let desired_size = vec2(wrap_width, galley.size.y.max(desired_height));
         let (auto_id, rect) = ui.allocate_space(desired_size);
+
+        if (rect.width() - desired_size.x).abs() > 0.5 {
+            // We didn't get what we asked for. Likely we are in a justified layout, and got enlarged.
+            wrap_width = rect.width();
+            galley = make_galley(ui, wrap_width, text.as_ref())
+        }
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_source) = id_source {
@@ -502,7 +505,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             Sense::hover()
         };
         let mut response = ui.interact(rect, id, sense);
-        let painter = ui.painter_at(Rect::from_min_size(response.rect.min, desired_size));
+        let painter = ui.painter_at(rect);
 
         if enabled {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
@@ -715,7 +718,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     response.mark_changed();
 
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-                    galley = make_galley(ui, text.as_ref());
+                    galley = make_galley(ui, wrap_width, text.as_ref());
 
                     // Set cursorp using new galley:
                     cursorp = CursorPair {

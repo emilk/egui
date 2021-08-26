@@ -74,6 +74,7 @@ impl Region {
     pub fn expand_to_include_x(&mut self, x: f32) {
         self.min_rect.extend_with_x(x);
         self.max_rect.extend_with_x(x);
+        self.cursor.extend_with_x(x);
     }
 
     /// Ensure we are big enough to contain the given Y-coordinate.
@@ -81,6 +82,7 @@ impl Region {
     pub fn expand_to_include_y(&mut self, y: f32) {
         self.min_rect.extend_with_y(y);
         self.max_rect.extend_with_y(y);
+        self.cursor.extend_with_y(y);
     }
 }
 
@@ -679,6 +681,15 @@ impl Layout {
                         );
                     }
                 };
+            }
+        } else {
+            // Make sure we also expand where we consider adding things (the cursor):
+            if self.is_horizontal() {
+                cursor.min.y = cursor.min.y.min(frame_rect.min.y);
+                cursor.max.y = cursor.max.y.max(frame_rect.max.y);
+            } else {
+                cursor.min.x = cursor.min.x.min(frame_rect.min.x);
+                cursor.max.x = cursor.max.x.max(frame_rect.max.x);
             }
         }
 

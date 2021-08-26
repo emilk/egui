@@ -7,6 +7,12 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+### Fixed 🐛
+* Fix `set_width/set_min_width/set_height/set_min_height/expand_to_include_x/expand_to_include_y`.
+* Make minimum grid column width propagate properly.
+* Make sure `TextEdit` contents expand to fill width if applicable.
+* `ProgressBar`: add a minimum width and fix for having it in an infinite layout.
+
 
 ## 0.14.0 - 2021-08-24 - Ui panels and bug fixes
 
