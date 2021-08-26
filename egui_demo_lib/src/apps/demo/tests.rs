@@ -116,10 +116,13 @@ impl super::Demo for ManualLayoutTest {
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .resizable(false)
+            .open(open)
+            .show(ctx, |ui| {
+                use super::View;
+                self.ui(ui);
+            });
     }
 }
 

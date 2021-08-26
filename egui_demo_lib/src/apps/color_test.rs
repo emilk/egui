@@ -37,8 +37,7 @@ impl epi::App for ColorTest {
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
-                ui.colored_label(
-                    RED,
+                ui.label(
                     "NOTE: The WebGL1 backend without sRGB support does NOT pass the color test.",
                 );
                 ui.separator();

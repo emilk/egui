@@ -137,7 +137,7 @@ impl Widget for &mut epaint::TessellationOptions {
             ui.collapsing("debug", |ui| {
                 ui.checkbox(
                     coarse_tessellation_culling,
-                    "Do coarse culling in the tessellator)",
+                    "Do coarse culling in the tessellator",
                 );
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
