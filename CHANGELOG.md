@@ -7,6 +7,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
+### Added ⭐
+* Add `Ui::horizontal_top`.
+
 ### Fixed 🐛
 * Fix `set_width/set_min_width/set_height/set_min_height/expand_to_include_x/expand_to_include_y`.
 * Make minimum grid column width propagate properly.

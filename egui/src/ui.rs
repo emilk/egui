@@ -1420,6 +1420,8 @@ impl Ui {
     /// Centering is almost always what you want if you are
     /// planning to to mix widgets or use different types of text.
     ///
+    /// If you don't want the contents to be centered, use [`Self::horizontal_top`] instead.
+    ///
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
@@ -1434,6 +1436,22 @@ impl Ui {
     #[inline(always)]
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
+    }
+
+    /// Like [`Self::horizontal`], but aligns content with top.
+    #[inline(always)]
+    pub fn horizontal_top<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let initial_size = self.available_size_before_wrap();
+        let layout = if self.placer.prefer_right_to_left() {
+            Layout::right_to_left()
+        } else {
+            Layout::left_to_right()
+        }
+        .with_cross_align(Align::Min);
+        self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
     /// Like `horizontal`, but will set up the spacing to match that of a normal label.
