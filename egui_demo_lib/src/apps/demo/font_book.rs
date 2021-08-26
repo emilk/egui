@@ -110,7 +110,7 @@ impl super::View for FontBook {
 fn char_name(chr: char) -> String {
     special_char_name(chr)
         .map(|s| s.to_owned())
-        .or(unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
+        .or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
         .unwrap_or_else(|| "unknown".to_owned())
 }
 
