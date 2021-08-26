@@ -221,6 +221,11 @@ impl Placer {
         self.region.expand_to_include_x(x);
     }
 
+    /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given y-coordinate.
+    pub(crate) fn expand_to_include_y(&mut self, y: f32) {
+        self.region.expand_to_include_y(y);
+    }
+
     fn next_widget_space_ignore_wrap_justify(&self, size: Vec2) -> Rect {
         self.layout
             .next_widget_space_ignore_wrap_justify(&self.region, size)
