@@ -57,6 +57,19 @@ impl std::ops::AddAssign for AllocInfo {
     }
 }
 
+impl std::iter::Sum for AllocInfo {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let mut sum = Self::default();
+        for value in iter {
+            sum += value;
+        }
+        sum
+    }
+}
+
 impl AllocInfo {
     // pub fn from_shape(shape: &Shape) -> Self {
     //     match shape {
@@ -72,7 +85,13 @@ impl AllocInfo {
     // }
 
     pub fn from_galley(galley: &Galley) -> Self {
-        Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.rows)
+        Self::from_slice(galley.text.as_bytes())
+            + Self::from_slice(&galley.rows)
+            + galley.rows.iter().map(Self::from_galley_row).sum()
+    }
+
+    fn from_galley_row(row: &crate::text::Row) -> Self {
+        Self::from_slice(&row.x_offsets) + Self::from_slice(&row.uv_rects)
     }
 
     pub fn from_mesh(mesh: &Mesh) -> Self {
