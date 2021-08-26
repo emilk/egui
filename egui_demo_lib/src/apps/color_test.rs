@@ -39,7 +39,7 @@ impl epi::App for ColorTest {
             if frame.is_web() {
                 ui.colored_label(
                     RED,
-                    "NOTE: The WebGL1 backend does NOT pass the color test. The WebGL2 backend does."
+                    "NOTE: The WebGL1 backend without sRGB support does NOT pass the color test.",
                 );
                 ui.separator();
             }

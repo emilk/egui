@@ -1,7 +1,10 @@
 use {
     js_sys::WebAssembly,
     wasm_bindgen::{prelude::*, JsCast},
-    web_sys::{WebGlBuffer, WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlTexture},
+    web_sys::{
+        ExtSRgb, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlRenderingContext, WebGlShader,
+        WebGlTexture,
+    },
 };
 
 use egui::{
@@ -20,6 +23,8 @@ pub struct WebGlPainter {
     pos_buffer: WebGlBuffer,
     tc_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
+    texture_format: u32,
+    post_process: Option<PostProcess>,
 
     egui_texture: WebGlTexture,
     egui_texture_version: Option<u64>,
@@ -57,18 +62,41 @@ impl WebGlPainter {
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
-        let vert_shader = compile_shader(
-            &gl,
-            Gl::VERTEX_SHADER,
-            include_str!("shader/vertex_100es.glsl"),
-        )?;
-        let frag_shader = compile_shader(
-            &gl,
-            Gl::FRAGMENT_SHADER,
-            include_str!("shader/fragment_100es.glsl"),
-        )?;
+        let srgb_supported = matches!(gl.get_extension("EXT_sRGB"), Ok(Some(_)));
 
-        let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
+        let (texture_format, program, post_process) = if srgb_supported {
+            let vert_shader = compile_shader(
+                &gl,
+                Gl::VERTEX_SHADER,
+                include_str!("shader/main_vertex_100es.glsl"),
+            )?;
+            let frag_shader = compile_shader(
+                &gl,
+                Gl::FRAGMENT_SHADER,
+                include_str!("shader/main_fragment_100es.glsl"),
+            )?;
+            let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
+
+            let post_process =
+                PostProcess::new(gl.clone(), canvas.width() as i32, canvas.height() as i32)?;
+
+            (ExtSRgb::SRGB_ALPHA_EXT, program, Some(post_process))
+        } else {
+            let vert_shader = compile_shader(
+                &gl,
+                Gl::VERTEX_SHADER,
+                include_str!("shader/vertex_100es.glsl"),
+            )?;
+            let frag_shader = compile_shader(
+                &gl,
+                Gl::FRAGMENT_SHADER,
+                include_str!("shader/fragment_100es.glsl"),
+            )?;
+            let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
+
+            (Gl::RGBA, program, None)
+        };
+
         let index_buffer = gl.create_buffer().ok_or("failed to create index_buffer")?;
         let pos_buffer = gl.create_buffer().ok_or("failed to create pos_buffer")?;
         let tc_buffer = gl.create_buffer().ok_or("failed to create tc_buffer")?;
@@ -83,6 +111,8 @@ impl WebGlPainter {
             pos_buffer,
             tc_buffer,
             color_buffer,
+            texture_format,
+            post_process,
             egui_texture,
             egui_texture_version: None,
             user_textures: Default::default(),
@@ -169,11 +199,10 @@ impl WebGlPainter {
 
                 gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
-                // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
                 let level = 0;
-                let internal_format = Gl::RGBA;
+                let internal_format = self.texture_format;
                 let border = 0;
-                let src_format = Gl::RGBA;
+                let src_format = self.texture_format;
                 let src_type = Gl::UNSIGNED_BYTE;
                 gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
                     Gl::TEXTURE_2D,
@@ -366,9 +395,13 @@ impl crate::Painter for WebGlPainter {
             return; // No change
         }
 
+        let gamma = if self.post_process.is_none() {
+            1.0 / 2.2 // HACK due to non-linear framebuffer blending.
+        } else {
+            1.0 // post process enables linear blending
+        };
         let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        let font_gamma = 1.0 / 2.2; // HACK due to non-linear framebuffer blending.
-        for srgba in texture.srgba_pixels(font_gamma) {
+        for srgba in texture.srgba_pixels(gamma) {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());
@@ -378,12 +411,10 @@ impl crate::Painter for WebGlPainter {
         let gl = &self.gl;
         gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
 
-        // TODO: https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB
-        // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
         let level = 0;
-        let internal_format = Gl::RGBA;
+        let internal_format = self.texture_format;
         let border = 0;
-        let src_format = Gl::RGBA;
+        let src_format = self.texture_format;
         let src_type = Gl::UNSIGNED_BYTE;
         gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
             Gl::TEXTURE_2D,
@@ -428,6 +459,10 @@ impl crate::Painter for WebGlPainter {
         self.upload_user_textures();
 
         let gl = &self.gl;
+
+        if let Some(ref mut post_process) = self.post_process {
+            post_process.begin(self.canvas.width() as i32, self.canvas.height() as i32)?;
+        }
 
         gl.enable(Gl::SCISSOR_TEST);
         gl.disable(Gl::CULL_FACE); // egui is not strict about winding order.
@@ -485,7 +520,168 @@ impl crate::Painter for WebGlPainter {
                 ));
             }
         }
+
+        if let Some(ref post_process) = self.post_process {
+            post_process.end();
+        }
+
         Ok(())
+    }
+}
+
+struct PostProcess {
+    gl: Gl,
+    pos_buffer: WebGlBuffer,
+    a_pos_loc: u32,
+    index_buffer: WebGlBuffer,
+    texture: WebGlTexture,
+    texture_size: (i32, i32),
+    fbo: WebGlFramebuffer,
+    program: WebGlProgram,
+}
+
+impl PostProcess {
+    fn new(gl: Gl, width: i32, height: i32) -> Result<PostProcess, JsValue> {
+        let fbo = gl
+            .create_framebuffer()
+            .ok_or("failed to create framebuffer")?;
+        gl.bind_framebuffer(Gl::FRAMEBUFFER, Some(&fbo));
+
+        let texture = gl.create_texture().unwrap();
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&texture));
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::NEAREST as i32);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::NEAREST as i32);
+        gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+            Gl::TEXTURE_2D,
+            0,
+            ExtSRgb::SRGB_ALPHA_EXT as i32,
+            width,
+            height,
+            0,
+            ExtSRgb::SRGB_ALPHA_EXT,
+            Gl::UNSIGNED_BYTE,
+            None,
+        )
+        .unwrap();
+        gl.framebuffer_texture_2d(
+            Gl::FRAMEBUFFER,
+            Gl::COLOR_ATTACHMENT0,
+            Gl::TEXTURE_2D,
+            Some(&texture),
+            0,
+        );
+
+        gl.bind_texture(Gl::TEXTURE_2D, None);
+        gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
+
+        let vert_shader = compile_shader(
+            &gl,
+            Gl::VERTEX_SHADER,
+            include_str!("shader/post_vertex_100es.glsl"),
+        )?;
+        let frag_shader = compile_shader(
+            &gl,
+            Gl::FRAGMENT_SHADER,
+            include_str!("shader/post_fragment_100es.glsl"),
+        )?;
+        let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
+
+        let positions = vec![0u8, 0, 1, 0, 0, 1, 1, 1];
+
+        let indices = vec![0u8, 1, 2, 1, 2, 3];
+
+        let pos_buffer = gl.create_buffer().ok_or("failed to create pos_buffer")?;
+        gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&pos_buffer));
+        gl.buffer_data_with_u8_array(Gl::ARRAY_BUFFER, &positions, Gl::STATIC_DRAW);
+        gl.bind_buffer(Gl::ARRAY_BUFFER, None);
+
+        let a_pos_loc = gl.get_attrib_location(&program, "a_pos");
+        assert!(a_pos_loc >= 0);
+        let a_pos_loc = a_pos_loc as u32;
+
+        let index_buffer = gl.create_buffer().ok_or("failed to create index_buffer")?;
+        gl.bind_buffer(Gl::ELEMENT_ARRAY_BUFFER, Some(&index_buffer));
+        gl.buffer_data_with_u8_array(Gl::ELEMENT_ARRAY_BUFFER, &indices, Gl::STATIC_DRAW);
+        gl.bind_buffer(Gl::ELEMENT_ARRAY_BUFFER, None);
+
+        Ok(PostProcess {
+            gl,
+            pos_buffer,
+            a_pos_loc,
+            index_buffer,
+            texture,
+            texture_size: (width, height),
+            fbo,
+            program,
+        })
+    }
+
+    fn begin(&mut self, width: i32, height: i32) -> Result<(), JsValue> {
+        let gl = &self.gl;
+
+        if (width, height) != self.texture_size {
+            gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
+            gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+            gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                Gl::TEXTURE_2D,
+                0,
+                ExtSRgb::SRGB_ALPHA_EXT as i32,
+                width,
+                height,
+                0,
+                ExtSRgb::SRGB_ALPHA_EXT,
+                Gl::UNSIGNED_BYTE,
+                None,
+            )?;
+            gl.bind_texture(Gl::TEXTURE_2D, None);
+
+            self.texture_size = (width, height);
+        }
+
+        gl.bind_framebuffer(Gl::FRAMEBUFFER, Some(&self.fbo));
+
+        Ok(())
+    }
+
+    fn end(&self) {
+        let gl = &self.gl;
+
+        gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
+        gl.disable(Gl::SCISSOR_TEST);
+
+        gl.use_program(Some(&self.program));
+
+        gl.active_texture(Gl::TEXTURE0);
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.texture));
+        let u_sampler_loc = gl.get_uniform_location(&self.program, "u_sampler").unwrap();
+        gl.uniform1i(Some(&u_sampler_loc), 0);
+
+        gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&self.pos_buffer));
+        gl.vertex_attrib_pointer_with_i32(self.a_pos_loc, 2, Gl::UNSIGNED_BYTE, false, 0, 0);
+        gl.enable_vertex_attrib_array(self.a_pos_loc);
+
+        gl.bind_buffer(Gl::ELEMENT_ARRAY_BUFFER, Some(&self.index_buffer));
+
+        gl.draw_elements_with_i32(Gl::TRIANGLES, 6, Gl::UNSIGNED_BYTE, 0);
+
+        gl.bind_buffer(Gl::ELEMENT_ARRAY_BUFFER, None);
+        gl.bind_buffer(Gl::ARRAY_BUFFER, None);
+        gl.bind_texture(Gl::TEXTURE_2D, None);
+        gl.use_program(None);
+    }
+}
+
+impl Drop for PostProcess {
+    fn drop(&mut self) {
+        let gl = &self.gl;
+        gl.delete_buffer(Some(&self.pos_buffer));
+        gl.delete_buffer(Some(&self.index_buffer));
+        gl.delete_program(Some(&self.program));
+        gl.delete_framebuffer(Some(&self.fbo));
+        gl.delete_texture(Some(&self.texture));
     }
 }
 

@@ -66,12 +66,12 @@ impl WebGl2Painter {
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
-            include_str!("shader/main_vertex_300es.glsl"),
+            include_str!("shader/main_vertex_100es.glsl"),
         )?;
         let frag_shader = compile_shader(
             &gl,
             Gl::FRAGMENT_SHADER,
-            include_str!("shader/main_fragment_300es.glsl"),
+            include_str!("shader/main_fragment_100es.glsl"),
         )?;
 
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
@@ -555,12 +555,12 @@ impl PostProcess {
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
-            include_str!("shader/post_vertex_300es.glsl"),
+            include_str!("shader/post_vertex_100es.glsl"),
         )?;
         let frag_shader = compile_shader(
             &gl,
             Gl::FRAGMENT_SHADER,
-            include_str!("shader/post_fragment_300es.glsl"),
+            include_str!("shader/post_fragment_100es.glsl"),
         )?;
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
 

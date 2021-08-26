@@ -73,6 +73,7 @@ features = [
   "Event",
   "EventListener",
   "EventTarget",
+  "ExtSRgb",
   "File",
   "FileList",
   "FocusEvent",
