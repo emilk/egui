@@ -682,6 +682,15 @@ impl Layout {
                     }
                 };
             }
+        } else {
+            // Make sure we also expand where we consider adding things (the cursor):
+            if self.is_horizontal() {
+                cursor.min.y = cursor.min.y.min(frame_rect.min.y);
+                cursor.max.y = cursor.max.y.max(frame_rect.max.y);
+            } else {
+                cursor.min.x = cursor.min.x.min(frame_rect.min.x);
+                cursor.max.x = cursor.max.x.max(frame_rect.max.x);
+            }
         }
 
         match self.main_dir {
