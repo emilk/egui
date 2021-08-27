@@ -251,7 +251,8 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
-    /// Set window decorations
+    /// Set whether to show window decorations (i.e. a frame around you app).
+    /// If false it will be difficult to move and resize the app.
     pub fn set_decorations(&mut self, decorated: bool) {
         self.0.output.decorated = decorated;
     }

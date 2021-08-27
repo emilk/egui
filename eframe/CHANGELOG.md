@@ -3,6 +3,7 @@ All notable changes to the `eframe` crate.
 
 
 ## Unreleased
+* `Frame` now provides `set_decorations` to set whether to show window decorations.
 
 
 ## 0.14.0 - 2021-08-24
