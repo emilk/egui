@@ -310,6 +310,8 @@ impl Response {
     /// Show this UI if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_ui`] instead.
+    ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
@@ -373,6 +375,8 @@ impl Response {
     /// Show this text if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_text`] instead.
+    ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     pub fn on_hover_text(self, text: impl ToString) -> Self {
         self.on_hover_ui(|ui| {
