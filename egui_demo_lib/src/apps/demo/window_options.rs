@@ -90,13 +90,6 @@ impl super::View for WindowOptions {
         ui.horizontal(|ui| {
             ui.label("title:");
             ui.text_edit_singleline(title);
-        })
-        .response
-        .context_menu(|ui, menu_state| {
-            if menu_state.item("Clear..").show(ui).clicked() {
-                *title = String::new();
-                menu_state.close();
-            }
         });
 
         ui.horizontal(|ui| {

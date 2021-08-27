@@ -75,12 +75,17 @@ pub fn drop_target<R>(
 
     InnerResponse::new(ret, response)
 }
-
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
     columns: Vec<Vec<String>>,
+    /// edit using context menu
+    editable: bool,
+    id_source: usize,
 }
-
+use std::sync::atomic::{AtomicUsize, Ordering};
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
@@ -92,7 +97,16 @@ impl Default for DragAndDropDemo {
             .into_iter()
             .map(|v| v.into_iter().map(ToString::to_string).collect())
             .collect(),
+            editable: false,
+            id_source: COUNTER.fetch_add(1, Ordering::Relaxed),
         }
+    }
+}
+
+impl DragAndDropDemo {
+    pub fn editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
+        self
     }
 }
 
@@ -126,16 +140,17 @@ impl super::View for DragAndDropDemo {
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
                     for (row_idx, item) in column.iter().enumerate() {
-                        let item_id = Id::new("item").with(col_idx).with(row_idx);
+                        let item_id = Id::new(self.id_source).with(col_idx).with(row_idx);
                         drag_source(ui, item_id, |ui| {
-                            ui.add(Label::new(item).sense(Sense::click())).context_menu(
-                                |ui, menu_state| {
-                                    if menu_state.item("Remove...").show(ui).clicked() {
+                            let response = ui.add(Label::new(item).sense(Sense::click()));
+                            if self.editable {
+                                response.context_menu(|ui, menu_state| {
+                                    if menu_state.item("Remove").show(ui).clicked() {
                                         self.columns[col_idx].remove(row_idx);
                                         menu_state.close();
                                     }
-                                },
-                            );
+                                });
+                            }
                         });
 
                         if ui.memory().is_being_dragged(item_id) {
@@ -145,10 +160,10 @@ impl super::View for DragAndDropDemo {
                 })
                 .response;
 
-                if col_idx == 0 {
+                if self.editable {
                     response.context_menu(|ui, menu_state| {
-                        if menu_state.item("New Item...").show(ui).clicked() {
-                            self.columns[0].push("New Item".to_string());
+                        if menu_state.item("New Item").show(ui).clicked() {
+                            self.columns[col_idx].push("New Item".to_string());
                             menu_state.close();
                         }
                     });

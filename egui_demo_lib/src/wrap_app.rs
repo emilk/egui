@@ -166,12 +166,6 @@ impl WrapApp {
 
                 egui::warn_if_debug_build(ui);
             });
-        })
-        .response
-        .context_menu(|ui, menu_state| {
-            if menu_state.item("Print something").show(ui).clicked() {
-                println!("something");
-            }
         });
     }
 
