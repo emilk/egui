@@ -422,7 +422,7 @@ impl Response {
     /// ```
     /// # use egui::Align;
     /// # let mut ui = &mut egui::Ui::__test();
-    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     for i in 0..1000 {
     ///         let response = ui.button(format!("Button {}", i));
     ///         if response.clicked() {
@@ -432,8 +432,11 @@ impl Response {
     /// });
     /// ```
     pub fn scroll_to_me(&self, align: Align) {
+        let scroll_target = lerp(self.rect.x_range(), align.to_factor());
+        self.ctx.frame_state().scroll_target[0] = Some((scroll_target, align));
+
         let scroll_target = lerp(self.rect.y_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target = Some((scroll_target, align));
+        self.ctx.frame_state().scroll_target[1] = Some((scroll_target, align));
     }
 
     /// For accessibility.

@@ -211,7 +211,7 @@ impl<'open> Window<'open> {
     pub fn scroll(mut self, scroll: bool) -> Self {
         if scroll {
             if self.scroll.is_none() {
-                self.scroll = Some(ScrollArea::auto_sized());
+                self.scroll = Some(ScrollArea::vertical());
             }
             crate::egui_assert!(
                 self.scroll.is_some(),

@@ -42,7 +42,7 @@ impl epi::App for ColorTest {
                 );
                 ui.separator();
             }
-            ScrollArea::auto_sized().show(ui, |ui| {
+            ScrollArea::vertical().show(ui, |ui| {
                 self.ui(ui, &mut Some(frame.tex_allocator()));
             });
         });

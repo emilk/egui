@@ -420,7 +420,7 @@ impl super::Demo for WindowResizeTest {
                 ui.label("This window is resizable but has no built-in scroll area.");
                 ui.label("However, we have a sub-region with a scroll bar:");
                 ui.separator();
-                ScrollArea::auto_sized().show(ui, |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
                     ui.code(crate::LOREM_IPSUM_LONG);
                     ui.code(crate::LOREM_IPSUM_LONG);
                 });

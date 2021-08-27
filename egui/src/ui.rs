@@ -856,7 +856,7 @@ impl Ui {
     /// ```
     /// # use egui::Align;
     /// # let mut ui = &mut egui::Ui::__test();
-    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked();
     ///     for i in 0..1000 {
     ///         ui.label(format!("Item {}", i));
@@ -868,8 +868,11 @@ impl Ui {
     /// });
     /// ```
     pub fn scroll_to_cursor(&mut self, align: Align) {
+        let target_x = self.next_widget_position().x;
+        self.ctx().frame_state().scroll_target[0] = Some((target_x, align));
+
         let target_y = self.next_widget_position().y;
-        self.ctx().frame_state().scroll_target = Some((target_y, align));
+        self.ctx().frame_state().scroll_target[1] = Some((target_y, align));
     }
 }
 

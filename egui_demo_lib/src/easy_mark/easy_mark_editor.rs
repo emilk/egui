@@ -34,14 +34,14 @@ impl EasyMarkEditor {
         });
         ui.separator();
         ui.columns(2, |columns| {
-            ScrollArea::auto_sized()
+            ScrollArea::vertical()
                 .id_source("source")
                 .show(&mut columns[0], |ui| {
                     ui.add(TextEdit::multiline(&mut self.code).text_style(TextStyle::Monospace));
                     // let cursor = TextEdit::cursor(response.id);
                     // TODO: cmd-i, cmd-b, etc for italics, bold, ....
                 });
-            ScrollArea::auto_sized()
+            ScrollArea::vertical()
                 .id_source("rendered")
                 .show(&mut columns[1], |ui| {
                     crate::easy_mark::easy_mark(ui, &self.code);

@@ -264,7 +264,7 @@ fn ui_resource(
 
     ui.separator();
 
-    egui::ScrollArea::auto_sized().show(ui, |ui| {
+    egui::ScrollArea::vertical().show(ui, |ui| {
         if let Some(image) = image {
             if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
                 let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);

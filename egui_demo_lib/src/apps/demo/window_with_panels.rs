@@ -26,7 +26,7 @@ impl super::View for WindowWithPanels {
             .resizable(true)
             .min_height(32.0)
             .show_inside(ui, |ui| {
-                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
                     });
@@ -42,7 +42,7 @@ impl super::View for WindowWithPanels {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
-                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
                 });
             });
@@ -55,7 +55,7 @@ impl super::View for WindowWithPanels {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
-                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
                 });
             });
@@ -73,7 +73,7 @@ impl super::View for WindowWithPanels {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");
             });
-            egui::ScrollArea::auto_sized().show(ui, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
             });
         });
