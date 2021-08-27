@@ -7,7 +7,7 @@ pub struct ContextMenus {
     plot: Plot,
     drag_and_drop: DragAndDropDemo,
 }
-const DEFAULT_TITLE: &'static str = "☰ Context Menus";
+const DEFAULT_TITLE: &str = "☰ Context Menus";
 impl Default for ContextMenus {
     fn default() -> Self {
         Self {
