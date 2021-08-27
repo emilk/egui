@@ -110,15 +110,15 @@ impl super::View for WindowOptions {
                     ui.set_enabled(*anchored);
                     ui.horizontal(|ui| {
                         ui.label("x:");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::LEFT, "Left");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::RIGHT, "Right");
+                        ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
+                        ui.selectable_value(&mut anchor[0], egui::Align::Center, "Center");
+                        ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, "Right");
                     });
                     ui.horizontal(|ui| {
                         ui.label("y:");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::TOP, "Top");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::BOTTOM, "Bottom");
+                        ui.selectable_value(&mut anchor[1], egui::Align::TOP, "Top");
+                        ui.selectable_value(&mut anchor[1], egui::Align::Center, "Center");
+                        ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, "Bottom");
                     });
                     ui.horizontal(|ui| {
                         ui.label("Offset:");
