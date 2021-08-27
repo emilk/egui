@@ -20,25 +20,17 @@ impl super::Demo for WindowWithPanels {
 
 impl super::View for WindowWithPanels {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::TopBottomPanel::top("top_panel")
-            .resizable(false)
-            .min_height(0.0)
-            .show_inside(ui, |ui| {
-                egui::menu::bar(ui, |ui| {
-                    egui::menu::menu(ui, "Menu", |ui| {
-                        if ui.button("Option 1").clicked() {}
-                        if ui.button("Option 2").clicked() {}
-                        if ui.button("Option 3").clicked() {}
-                    });
-                });
-            });
+        // Note that the order we add the panels is very important!
 
-        egui::TopBottomPanel::bottom("bottom_panel_A")
-            .resizable(false)
-            .min_height(0.0)
+        egui::TopBottomPanel::top("top_panel")
+            .resizable(true)
+            .min_height(32.0)
             .show_inside(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.heading("Outer Bottom Panel");
+                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Expandable Upper Panel");
+                    });
+                    ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
                 });
             });
 
@@ -68,12 +60,12 @@ impl super::View for WindowWithPanels {
                 });
             });
 
-        egui::TopBottomPanel::bottom("bottom_panel_B")
+        egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
             .min_height(0.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.heading("Inner Bottom Panel");
+                    ui.heading("Bottom Panel");
                 });
             });
 
