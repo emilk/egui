@@ -12,7 +12,7 @@ impl super::Demo for WindowWithPanels {
         let window = egui::Window::new("Window with Panels")
             .default_width(600.0)
             .default_height(400.0)
-            .scroll(false)
+            .vscroll(false)
             .open(open);
         window.show(ctx, |ui| self.ui(ui));
     }

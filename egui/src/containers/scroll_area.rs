@@ -19,8 +19,7 @@ pub(crate) struct State {
     pub vel: Vec2,
 
     /// Mouse offset relative to the top of the handle when started moving the handle.
-    horizontal_scroll_start_offset_from_left: Option<f32>,
-    vertical_scroll_start_offset_from_top: Option<f32>,
+    scroll_start_offset_from_top_left: [Option<f32>; 2],
 }
 
 impl Default for State {
@@ -29,8 +28,7 @@ impl Default for State {
             offset: Vec2::ZERO,
             show_scroll: [false; 2],
             vel: Vec2::ZERO,
-            horizontal_scroll_start_offset_from_left: None,
-            vertical_scroll_start_offset_from_top: None,
+            scroll_start_offset_from_top_left: [None; 2],
         }
     }
 }
@@ -134,6 +132,24 @@ impl ScrollArea {
         self
     }
 
+    /// Turn on/off scrolling on the horizontal axis.
+    pub fn hscroll(mut self, hscroll: bool) -> Self {
+        self.has_bar[0] = hscroll;
+        self
+    }
+
+    /// Turn on/off scrolling on the vertical axis.
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.has_bar[1] = vscroll;
+        self
+    }
+
+    /// Turn on/off scrolling on the horizontal/vertical axes.
+    pub fn scroll2(mut self, has_bar: [bool; 2]) -> Self {
+        self.has_bar = has_bar;
+        self
+    }
+
     /// Control the scrolling behavior
     /// If `true` (default), the scroll area will respond to user scrolling
     /// If `false`, the scroll area will not respond to user scrolling
@@ -145,6 +161,10 @@ impl ScrollArea {
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
         self
+    }
+
+    pub(crate) fn has_any_bar(&self) -> bool {
+        self.has_bar[0] || self.has_bar[1]
     }
 }
 
@@ -225,8 +245,13 @@ impl ScrollArea {
         );
         let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
-        content_clip_rect.max.x = ui.clip_rect().max.x - current_vscroll_bar_width; // Nice handling of forced resizing beyond the possible
-        content_clip_rect.max.y = ui.clip_rect().max.y - current_hscroll_bar_height; // Nice handling of forced resizing beyond the possible
+        // Nice handling of forced resizing beyond the possible:
+        if !has_bar[0] {
+            content_clip_rect.max.x = ui.clip_rect().max.x - current_vscroll_bar_width;
+        }
+        if !has_bar[1] {
+            content_clip_rect.max.y = ui.clip_rect().max.y - current_hscroll_bar_height;
+        }
         content_ui.set_clip_rect(content_clip_rect);
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
@@ -461,30 +486,55 @@ impl Prepared {
                 max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true);
         }
 
-        // TODO: duplicate this IF statement *sight*
-        if current_vscroll_bar_width > 0.0 {
-            let animation_t = current_vscroll_bar_width / max_scroll_bar_width;
+        for d in 0..2 {
+            let animation_t = if d == 0 {
+                current_hscroll_bar_height / max_scroll_bar_width
+            } else {
+                current_vscroll_bar_width / max_scroll_bar_width
+            };
+
+            if animation_t == 0.0 {
+                continue;
+            }
+
             // margin between contents and scroll bar
             let margin = animation_t * ui.spacing().item_spacing.x;
-            let left = inner_rect.right() + margin;
-            let right = outer_rect.right();
-            let top = inner_rect.top();
-            let bottom = inner_rect.bottom();
+            let min_cross = inner_rect.max[1 - d] + margin; // left of vertical scroll (d == 1)
+            let max_cross = outer_rect.max[1 - d]; // right of vertical scroll (d == 1)
+            let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
+            let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
 
-            let outer_scroll_rect = Rect::from_min_max(
-                pos2(left, inner_rect.top()),
-                pos2(right, inner_rect.bottom()),
-            );
+            let outer_scroll_rect = if d == 0 {
+                Rect::from_min_max(
+                    pos2(inner_rect.left(), min_cross),
+                    pos2(inner_rect.right(), max_cross),
+                )
+            } else {
+                Rect::from_min_max(
+                    pos2(min_cross, inner_rect.top()),
+                    pos2(max_cross, inner_rect.bottom()),
+                )
+            };
 
             let from_content =
-                |content_y| remap_clamp(content_y, 0.0..=content_size.y, top..=bottom);
+                |content| remap_clamp(content, 0.0..=content_size[d], min_main..=max_main);
 
-            let handle_rect = Rect::from_min_max(
-                pos2(left, from_content(state.offset.y)),
-                pos2(right, from_content(state.offset.y + inner_rect.height())),
-            );
+            let handle_rect = if d == 0 {
+                Rect::from_min_max(
+                    pos2(from_content(state.offset.x), min_cross),
+                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                )
+            } else {
+                Rect::from_min_max(
+                    pos2(min_cross, from_content(state.offset.y)),
+                    pos2(
+                        max_cross,
+                        from_content(state.offset.y + inner_rect.height()),
+                    ),
+                )
+            };
 
-            let interact_id = id.with("vertical");
+            let interact_id = id.with(d);
             let sense = if self.scrolling_enabled {
                 Sense::click_and_drag()
             } else {
@@ -493,44 +543,57 @@ impl Prepared {
             let response = ui.interact(outer_scroll_rect, interact_id, sense);
 
             if let Some(pointer_pos) = response.interact_pointer_pos() {
-                let vertical_scroll_start_offset_from_top = state
-                    .vertical_scroll_start_offset_from_top
+                let scroll_start_offset_from_top_left = state.scroll_start_offset_from_top_left[d]
                     .get_or_insert_with(|| {
                         if handle_rect.contains(pointer_pos) {
-                            pointer_pos.y - handle_rect.top()
+                            pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                            let handle_top_pos_at_bottom = max_main - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = (pointer_pos.y - handle_rect.height() / 2.0)
-                                .clamp(top, handle_top_pos_at_bottom);
-                            pointer_pos.y - new_handle_top_pos
+                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
+                                .clamp(min_main, handle_top_pos_at_bottom);
+                            pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
-                let new_handle_top = pointer_pos.y - *vertical_scroll_start_offset_from_top;
-                state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
+                let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
+                state.offset[d] = remap(new_handle_top, min_main..=max_main, 0.0..=content_size[d]);
             } else {
-                state.vertical_scroll_start_offset_from_top = None;
+                state.scroll_start_offset_from_top_left[d] = None;
             }
 
-            let unbounded_offset_y = state.offset.y;
-            state.offset.y = state.offset.y.max(0.0);
-            state.offset.y = state.offset.y.min(max_offset.y);
+            let unbounded_offset = state.offset[d];
+            state.offset[d] = state.offset[d].max(0.0);
+            state.offset[d] = state.offset[d].min(max_offset[d]);
 
-            if state.offset.y != unbounded_offset_y {
-                state.vel = Vec2::ZERO;
+            if state.offset[d] != unbounded_offset {
+                state.vel[d] = 0.0;
             }
 
             // Avoid frame-delay by calculating a new handle rect:
-            let mut handle_rect = Rect::from_min_max(
-                pos2(left, from_content(state.offset.y)),
-                pos2(right, from_content(state.offset.y + inner_rect.height())),
-            );
-            let min_handle_height = ui.spacing().scroll_bar_width;
-            if handle_rect.size().y < min_handle_height {
+            let mut handle_rect = if d == 0 {
+                Rect::from_min_max(
+                    pos2(from_content(state.offset.x), min_cross),
+                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                )
+            } else {
+                Rect::from_min_max(
+                    pos2(min_cross, from_content(state.offset.y)),
+                    pos2(
+                        max_cross,
+                        from_content(state.offset.y + inner_rect.height()),
+                    ),
+                )
+            };
+            let min_handle_size = ui.spacing().scroll_bar_width;
+            if handle_rect.size()[d] < min_handle_size {
                 handle_rect = Rect::from_center_size(
                     handle_rect.center(),
-                    vec2(handle_rect.size().x, min_handle_height),
+                    if d == 0 {
+                        vec2(min_handle_size, handle_rect.size().y)
+                    } else {
+                        vec2(handle_rect.size().x, min_handle_size)
+                    },
                 );
             }
 

@@ -34,7 +34,7 @@ impl Demo for MiscDemoWindow {
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
         Window::new(self.name())
             .open(open)
-            .scroll(true)
+            .vscroll(true)
             .show(ctx, |ui| self.ui(ui));
     }
 }

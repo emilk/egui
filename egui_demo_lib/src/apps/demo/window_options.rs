@@ -6,7 +6,7 @@ pub struct WindowOptions {
     closable: bool,
     collapsible: bool,
     resizable: bool,
-    scroll: bool,
+    scroll2: [bool; 2],
     disabled_time: f64,
 
     anchored: bool,
@@ -22,7 +22,7 @@ impl Default for WindowOptions {
             closable: true,
             collapsible: true,
             resizable: false,
-            scroll: false,
+            scroll2: [false; 2],
             disabled_time: f64::NEG_INFINITY,
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,
@@ -43,7 +43,7 @@ impl super::Demo for WindowOptions {
             closable,
             collapsible,
             resizable,
-            scroll,
+            scroll2,
             disabled_time,
             anchored,
             anchor,
@@ -61,7 +61,7 @@ impl super::Demo for WindowOptions {
             .resizable(resizable)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll(scroll)
+            .scroll2(scroll2)
             .enabled(enabled);
         if closable {
             window = window.open(open);
@@ -81,7 +81,7 @@ impl super::View for WindowOptions {
             closable,
             collapsible,
             resizable,
-            scroll,
+            scroll2,
             disabled_time: _,
             anchored,
             anchor,
@@ -100,7 +100,8 @@ impl super::View for WindowOptions {
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
                     ui.checkbox(resizable, "resizable");
-                    ui.checkbox(scroll, "scroll");
+                    ui.checkbox(&mut scroll2[0], "hscroll");
+                    ui.checkbox(&mut scroll2[1], "vscroll");
                 });
             });
             ui.group(|ui| {

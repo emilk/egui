@@ -79,7 +79,7 @@ impl super::Demo for Painting {
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
-            .scroll(false)
+            .vscroll(false)
             .show(ctx, |ui| self.ui(ui));
     }
 }

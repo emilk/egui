@@ -323,14 +323,14 @@ impl EguiWindows {
 
         egui::Window::new("🔧 Settings")
             .open(settings)
-            .scroll(true)
+            .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
             .open(inspection)
-            .scroll(true)
+            .vscroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
