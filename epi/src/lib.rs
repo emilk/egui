@@ -251,6 +251,11 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
+    /// Set window decorations
+    pub fn set_decorations(&mut self, decorated: bool) {
+        self.0.output.decorated = decorated;
+    }
+
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
@@ -486,6 +491,8 @@ pub mod backend {
         pub output: &'a mut AppOutput,
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.
         pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
+        /// If the window has decorations
+        pub decorated: bool,
     }
 
     impl<'a> FrameBuilder<'a> {
@@ -504,5 +511,8 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// If the window has decorations
+        pub decorated: bool,
     }
 }
