@@ -349,7 +349,11 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
             }
 
             {
-                let epi::backend::AppOutput { quit, window_size, decorated } = app_output;
+                let epi::backend::AppOutput {
+                    quit,
+                    window_size,
+                    decorated,
+                } = app_output;
 
                 display.gl_window().window().set_decorations(decorated);
 
