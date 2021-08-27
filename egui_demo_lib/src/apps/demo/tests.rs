@@ -442,9 +442,20 @@ impl super::Demo for WindowResizeTest {
             .open(open)
             .scroll(false)
             .resizable(true)
+            .default_height(300.0)
             .show(ctx, |ui| {
                 ui.label("Shows how you can fill an area with a widget.");
                 ui.add_sized(ui.available_size(), TextEdit::multiline(&mut self.text));
+            });
+
+        Window::new("↔ freely resized")
+            .open(open)
+            .scroll(false)
+            .resizable(true)
+            .default_size([250.0, 150.0])
+            .show(ctx, |ui| {
+                ui.label("This window has empty space that fills up the available space, preventing auto-shrink.");
+                ui.allocate_space(ui.available_size());
             });
     }
 }
