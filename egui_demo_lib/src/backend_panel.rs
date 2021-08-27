@@ -92,40 +92,6 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn context_menu(ui: &mut egui::Ui, menu_state: &mut egui::context_menu::MenuState) {
-        if menu_state.item("Open...").show(ui).clicked() {
-            menu_state.close();
-        }
-        menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-            menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-                if menu_state.item("Open...").show(ui).clicked() {
-                    menu_state.close();
-                }
-                let _ = menu_state.item("Item").show(ui);
-            });
-            menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-                if menu_state.item("Open...").show(ui).clicked() {
-                    menu_state.close();
-                }
-                let _ = menu_state.item("Item").show(ui);
-            });
-            let _ = menu_state.item("Item").show(ui);
-            if menu_state.item("Open...").show(ui).clicked() {
-                menu_state.close();
-            }
-        });
-        menu_state.submenu("SubMenu").show(ui, |ui, menu_state| {
-            let _ = menu_state.item("Item1").show(ui);
-            let _ = menu_state.item("Item2").show(ui);
-            let _ = menu_state.item("Item3").show(ui);
-            let _ = menu_state.item("Item4").show(ui);
-            if menu_state.item("Open...").show(ui).clicked() {
-                menu_state.close();
-            }
-        });
-        let _ = menu_state.item("Very long text for this item").show(ui);
-    }
-
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {

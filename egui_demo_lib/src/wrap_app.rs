@@ -1,4 +1,3 @@
-use super::backend_panel::BackendPanel;
 /// All the different demo apps.
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -112,9 +111,7 @@ impl epi::App for WrapApp {
                             *ui.ctx().memory() = Default::default();
                         }
                     });
-                })
-                .response
-                .context_menu(BackendPanel::context_menu);
+                });
         }
 
         for (anchor, app) in self.apps.iter_mut() {

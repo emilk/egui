@@ -50,7 +50,7 @@ impl ContextMenuSystem {
     fn show(
         &mut self,
         response: &Response,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) -> MenuResponse {
         if let Some(context_menu) = &mut self.context_menu {
             if context_menu.ui_id == response.id {
@@ -69,7 +69,7 @@ impl ContextMenuSystem {
     pub fn context_menu(
         &mut self,
         response: &Response,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) {
         match self.sense_click(response) {
             MenuResponse::Create(pos) => {
@@ -106,11 +106,7 @@ impl ContextMenuRoot {
             ui_id,
         }
     }
-    fn show(
-        &mut self,
-        ctx: &CtxRef,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
-    ) -> Response {
+    fn show(&mut self, ctx: &CtxRef, add_contents: impl FnOnce(&mut MenuUi<'_, '_>)) -> Response {
         self.context_menu.show(ctx, self.ui_id, add_contents)
     }
 }
@@ -259,7 +255,7 @@ impl<'a> SubMenu<'a> {
     pub fn show(
         self,
         ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) -> InnerResponse<Option<Response>> {
         let sub_id = ui.id().with(self.entry.index);
         let button = self
@@ -282,6 +278,7 @@ pub struct MenuState {
     response: MenuResponse,
     /// Used to hash different `Id`s for sub-menus
     entry_count: usize,
+    width: f32,
 }
 impl MenuState {
     /// Close menu hierarchy.
@@ -296,14 +293,14 @@ impl MenuState {
     pub fn item_with_icon(&mut self, text: impl ToString, icon: impl ToString) -> MenuEntry {
         MenuEntry::new(text, icon, EntryState::entry(self), self.next_entry_index())
     }
-    fn next_entry_index(&mut self) -> usize {
-        self.entry_count += 1;
-        self.entry_count - 1
-    }
     /// Create a sub-menu.
     pub fn submenu(&'_ mut self, text: impl ToString) -> SubMenu<'_> {
         let index = self.next_entry_index();
         SubMenu::new(text, self, index)
+    }
+    fn next_entry_index(&mut self) -> usize {
+        self.entry_count += 1;
+        self.entry_count - 1
     }
     fn new(position: Pos2) -> Self {
         Self {
@@ -311,6 +308,7 @@ impl MenuState {
             sub_menu: None,
             response: MenuResponse::Stay,
             entry_count: 0,
+            width: 100.0,
         }
     }
     /// Sense button interaction opening and closing submenu.
@@ -331,7 +329,7 @@ impl MenuState {
         &mut self,
         ctx: &CtxRef,
         id: Id,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) -> Option<Response> {
         let (sub_response, response) = self.get_submenu(id).map(|sub| {
             let response = sub.show(ctx, id, add_contents);
@@ -345,7 +343,7 @@ impl MenuState {
         &mut self,
         ctx: &CtxRef,
         id: Id,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) -> Response {
         self.entry_count = 0;
         let style = Style {
@@ -357,8 +355,9 @@ impl MenuState {
             ..Default::default()
         };
         crate::menu::menu_ui(ctx, id, self.rect.min, style, |ui| {
-            ui.set_width(100.0);
-            add_contents(ui, self)
+            ui.set_width(self.width);
+            let mut ui = MenuUi::new(ui, self);
+            add_contents(&mut ui)
         })
         .response
     }
@@ -430,5 +429,49 @@ impl MenuState {
     }
     fn close_submenu(&mut self) {
         self.sub_menu = None;
+    }
+}
+
+// TODO: don't pub fields.
+// need trait for Uis to have MenuUi pass a MenuUi to its child uis
+pub struct MenuUi<'ui, 'm> {
+    pub ui: &'ui mut Ui,
+    pub menu_state: &'m mut MenuState,
+}
+impl<'ui, 'm> MenuUi<'ui, 'm> {
+    fn new(ui: &'ui mut Ui, menu_state: &'m mut MenuState) -> Self {
+        Self { ui, menu_state }
+    }
+    /// Close menu hierarchy.
+    pub fn close_menu(&mut self) {
+        self.menu_state.close()
+    }
+    /// Create a menu item.
+    pub fn menu_item(&mut self, text: impl ToString) -> Response {
+        self.menu_state.item(text).show(self.ui)
+    }
+    /// Create a menu item with an icon (right adjusted).
+    pub fn item_with_icon(&mut self, text: impl ToString, icon: impl ToString) -> MenuEntry {
+        self.menu_state.item_with_icon(text, icon)
+    }
+    /// Create a sub-menu.
+    pub fn submenu(
+        &mut self,
+        text: impl ToString,
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
+    ) -> InnerResponse<Option<Response>> {
+        self.menu_state.submenu(text).show(self.ui, add_contents)
+    }
+}
+use std::ops::{Deref, DerefMut};
+impl<'ui, 'm> Deref for MenuUi<'ui, 'm> {
+    type Target = Ui;
+    fn deref(&self) -> &Self::Target {
+        self.ui
+    }
+}
+impl<'ui, 'm> DerefMut for MenuUi<'ui, 'm> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.ui
     }
 }

@@ -7,7 +7,7 @@ use std::sync::{
 
 use crate::{
     animation_manager::AnimationManager,
-    context_menu::{ContextMenuSystem, MenuState},
+    context_menu::{ContextMenuSystem, MenuUi},
     data::output::Output,
     frame_state::FrameState,
     input_state::*,
@@ -309,7 +309,7 @@ impl CtxRef {
     pub(crate) fn show_context_menu(
         &self,
         response: &Response,
-        add_contents: impl FnOnce(&mut Ui, &mut MenuState),
+        add_contents: impl FnOnce(&mut MenuUi<'_, '_>),
     ) {
         self.context_menu_system()
             .context_menu(response, add_contents)
