@@ -41,6 +41,7 @@ impl Default for State {
 pub struct ScrollArea {
     /// Do we have horizontal/vertical scrolling?
     has_bar: [bool; 2],
+    auto_shrink: [bool; 2],
     max_size: Vec2,
     always_show_scroll: bool,
     id_source: Option<Id>,
@@ -76,6 +77,7 @@ impl ScrollArea {
     pub fn new(has_bar: [bool; 2]) -> Self {
         Self {
             has_bar,
+            auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
             always_show_scroll: false,
             id_source: None,
@@ -165,6 +167,18 @@ impl ScrollArea {
         self
     }
 
+    /// For each enabled axis, should the containing area shrink
+    /// if the content is small?
+    ///
+    /// If true, egui will add blank space outside the scroll area.
+    /// If false, egui will add blank space inside the scroll area.
+    ///
+    /// Default: `[true; 2]`.
+    pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
+        self.auto_shrink = auto_shrink;
+        self
+    }
+
     pub(crate) fn has_any_bar(&self) -> bool {
         self.has_bar[0] || self.has_bar[1]
     }
@@ -174,6 +188,7 @@ struct Prepared {
     id: Id,
     state: State,
     has_bar: [bool; 2],
+    auto_shrink: [bool; 2],
     /// How much horizontal and vertical space are used up by the
     /// width of the vertical bar, and the height of the horizontal bar?
     current_bar_use: Vec2,
@@ -190,6 +205,7 @@ impl ScrollArea {
     fn begin(self, ui: &mut Ui) -> Prepared {
         let Self {
             has_bar,
+            auto_shrink,
             max_size,
             always_show_scroll,
             id_source,
@@ -235,13 +251,17 @@ impl ScrollArea {
         let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
 
         let mut inner_child_max_size = inner_size;
-        if has_bar[0] {
-            // Tell the inner Ui to use as much horizontal space as possible, we can scroll to see it!
-            inner_child_max_size.x = f32::INFINITY;
-        }
-        if has_bar[1] {
-            // Tell the inner Ui to use as much vertical space as possible, we can scroll to see it!
-            inner_child_max_size.y = f32::INFINITY;
+
+        if true {
+            // Tell the inner Ui to *try* to fit the content without needing to scroll,
+            // i.e. better to wrap text than showing a horizontal scrollbar!
+        } else {
+            // Tell the inner Ui to use as much space as possible, we can scroll to see it!
+            for d in 0..2 {
+                if has_bar[d] {
+                    inner_child_max_size[d] = f32::INFINITY;
+                }
+            }
         }
 
         let mut content_ui = ui.child_ui(
@@ -264,6 +284,7 @@ impl ScrollArea {
             id,
             state,
             has_bar,
+            auto_shrink,
             current_bar_use,
             always_show_scroll,
             inner_rect,
@@ -344,6 +365,7 @@ impl Prepared {
             mut state,
             inner_rect,
             has_bar,
+            auto_shrink,
             mut current_bar_use,
             always_show_scroll,
             content_ui,
@@ -380,7 +402,11 @@ impl Prepared {
 
             for d in 0..2 {
                 inner_size[d] = if has_bar[d] {
-                    inner_size[d].min(content_size[d])
+                    if auto_shrink[d] {
+                        inner_size[d].min(content_size[d]) // shrink scroll area if content is small
+                    } else {
+                        inner_size[d] // let scroll area be larger than content; fill with blank space
+                    }
                 } else if inner_size[d].is_finite() {
                     inner_size[d].max(content_size[d]) // Expand to fit content
                 } else {
@@ -392,12 +418,11 @@ impl Prepared {
 
             // The window that egui sits in can't be expanded by egui, so we need to respect it:
             let max_x =
-                ui.input().screen_rect().right() - current_bar_use[0] - ui.spacing().item_spacing.x;
+                ui.input().screen_rect().right() - current_bar_use.x - ui.spacing().item_spacing.x;
             inner_rect.max.x = inner_rect.max.x.at_most(max_x);
 
-            let max_y = ui.input().screen_rect().bottom()
-                - current_bar_use[1]
-                - ui.spacing().item_spacing.y;
+            let max_y =
+                ui.input().screen_rect().bottom() - current_bar_use.y - ui.spacing().item_spacing.y;
             inner_rect.max.y = inner_rect.max.y.at_most(max_y);
             // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
 
@@ -475,11 +500,11 @@ impl Prepared {
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
         // Avoid frame delay; start showing scroll bar right away:
-        if show_scroll_this_frame[0] && current_bar_use[1] <= 0.0 {
-            current_bar_use[1] = max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), true);
+        if show_scroll_this_frame[0] && current_bar_use.y <= 0.0 {
+            current_bar_use.y = max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), true);
         }
-        if show_scroll_this_frame[1] && current_bar_use[0] <= 0.0 {
-            current_bar_use[0] = max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true);
+        if show_scroll_this_frame[1] && current_bar_use.x <= 0.0 {
+            current_bar_use.x = max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true);
         }
 
         for d in 0..2 {
