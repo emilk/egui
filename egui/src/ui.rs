@@ -870,11 +870,10 @@ impl Ui {
     /// });
     /// ```
     pub fn scroll_to_cursor(&mut self, align: Align) {
-        let target_x = self.next_widget_position().x;
-        self.ctx().frame_state().scroll_target[0] = Some((target_x, align));
-
-        let target_y = self.next_widget_position().y;
-        self.ctx().frame_state().scroll_target[1] = Some((target_y, align));
+        let target = self.next_widget_position();
+        for d in 0..2 {
+            self.ctx().frame_state().scroll_target[d] = Some((target[d], align));
+        }
     }
 }
 
