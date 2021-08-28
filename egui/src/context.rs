@@ -719,12 +719,24 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Wether or not to debug widget layout on hover.
+    /// Whether or not whe window is being displayed in fullscreen mode
+    pub fn fullscreen(&self) -> bool {
+        self.memory().options.style.visuals.fullscreen
+    }
+
+    /// Set fullscreen mode
+    pub fn set_fullscreen(&self, fullscreen: bool) {
+        let mut style = (*self.memory().options.style).clone();
+        style.visuals.fullscreen = fullscreen;
+        self.set_style(style);
+    }
+
+    /// Whether or not to debug widget layout on hover.
     pub fn debug_on_hover(&self) -> bool {
         self.memory().options.style.debug.debug_on_hover
     }
 
-    /// Turn on/off wether or not to debug widget layout on hover.
+    /// Turn on/off whether or not to debug widget layout on hover.
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
         let mut style = (*self.memory().options.style).clone();
         style.debug.debug_on_hover = debug_on_hover;

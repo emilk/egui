@@ -176,6 +176,9 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
+    /// Tracks whether the window is in fullscreen mode
+    pub fullscreen: bool,
+
     /// Override default text color for all text.
     ///
     /// This is great for setting the color of text for any widget.
@@ -395,6 +398,7 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
+            fullscreen: false,
             override_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
@@ -819,6 +823,7 @@ impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode: _,
+            fullscreen: _,
             override_text_color: _,
             widgets,
             selection,

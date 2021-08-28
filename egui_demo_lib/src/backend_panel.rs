@@ -145,6 +145,13 @@ impl BackendPanel {
 
         ui.separator();
 
+        let mut fullscreen = ui.ctx().fullscreen();
+        ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
+            .on_hover_text("Fullscreen the window");
+        ui.ctx().set_fullscreen(fullscreen);
+
+        ui.separator();
+
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 

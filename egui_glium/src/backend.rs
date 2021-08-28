@@ -2,6 +2,7 @@ use crate::{window_settings::WindowSettings, *};
 use egui::Color32;
 #[cfg(target_os = "windows")]
 use glium::glutin::platform::windows::WindowBuilderExtWindows;
+use glium::glutin::window::Fullscreen;
 use std::time::Instant;
 
 #[cfg(feature = "persistence")]
@@ -190,7 +191,15 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
     )));
 
     let mut egui = EguiGlium::new(&display);
-    *egui.ctx().memory() = deserialize_memory(&storage).unwrap_or_default();
+    match deserialize_memory(&storage) {
+        Some(memory) => {
+            *egui.ctx().memory() = memory;
+        }
+        None => {
+            *egui.ctx().memory() = Default::default();
+            egui.ctx().set_fullscreen(native_options.fullscreen);
+        }
+    }
 
     {
         let (ctx, painter) = egui.ctx_and_painter_mut();
@@ -312,6 +321,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
             }
 
             let frame_start = std::time::Instant::now();
+            let fullscreen = egui.ctx().fullscreen();
 
             egui.begin_frame(&display);
             let (ctx, painter) = egui.ctx_and_painter_mut();
@@ -347,6 +357,12 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
 
             {
                 let epi::backend::AppOutput { quit, window_size } = app_output;
+
+                display.gl_window().window().set_fullscreen(if fullscreen {
+                    Some(Fullscreen::Borderless(None))
+                } else {
+                    None
+                });
 
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(

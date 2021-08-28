@@ -81,7 +81,7 @@ pub struct Memory {
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Options {
     /// The default style for new `Ui`:s.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(default))]
     pub(crate) style: std::sync::Arc<Style>,
 
     /// Controls the tessellator.

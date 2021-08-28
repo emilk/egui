@@ -175,6 +175,9 @@ pub struct NativeOptions {
     /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
     pub drag_and_drop_support: bool,
 
+    /// Sets the default window to fullscreen mode.
+    pub fullscreen: bool,
+
     /// The application icon, e.g. in the Windows task bar etc.
     pub icon_data: Option<IconData>,
 
@@ -197,6 +200,7 @@ impl Default for NativeOptions {
             maximized: false,
             decorated: true,
             drag_and_drop_support: false,
+            fullscreen: false,
             icon_data: None,
             initial_window_size: None,
             resizable: true,
