@@ -21,9 +21,6 @@ pub struct RawInput {
     /// * `zoom > 1`: pinch spread
     pub zoom_delta: f32,
 
-    #[deprecated = "Use instead: `screen_rect: Some(Rect::from_pos_size(Default::default(), screen_size))`"]
-    pub screen_size: Vec2,
-
     /// Position and size of the area that egui should use.
     /// Usually you would set this to
     ///
@@ -67,11 +64,9 @@ pub struct RawInput {
 
 impl Default for RawInput {
     fn default() -> Self {
-        #![allow(deprecated)] // for screen_size
         Self {
             scroll_delta: Vec2::ZERO,
             zoom_delta: 1.0,
-            screen_size: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
             time: None,
@@ -90,13 +85,11 @@ impl RawInput {
     /// * [`Self::hovered_files`] is cloned.
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
-        #![allow(deprecated)] // for screen_size
         let zoom = self.zoom_delta;
         self.zoom_delta = 1.0;
         RawInput {
             scroll_delta: std::mem::take(&mut self.scroll_delta),
             zoom_delta: zoom,
-            screen_size: self.screen_size,
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             time: self.time.take(),
@@ -321,11 +314,9 @@ pub enum Key {
 
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        #![allow(deprecated)] // for screen_size
         let Self {
             scroll_delta,
             zoom_delta,
-            screen_size: _,
             screen_rect,
             pixels_per_point,
             time,

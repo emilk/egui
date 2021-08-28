@@ -66,22 +66,6 @@ pub struct Slider<'a> {
     max_decimals: Option<usize>,
 }
 
-macro_rules! impl_integer_constructor {
-    ($int:ident) => {
-        #[deprecated = "Use Slider::new instead"]
-        pub fn $int(value: &'a mut $int, range: RangeInclusive<$int>) -> Self {
-            let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
-            Self::from_get_set(range_f64, move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as $int
-                }
-                *value as f64
-            })
-            .integer()
-        }
-    };
-}
-
 impl<'a> Slider<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
@@ -98,38 +82,6 @@ impl<'a> Slider<'a> {
             slf
         }
     }
-
-    #[deprecated = "Use Slider::new instead"]
-    pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
-        let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
-        Self::from_get_set(range_f64, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v as f32
-            }
-            *value as f64
-        })
-    }
-
-    #[deprecated = "Use Slider::new instead"]
-    pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
-        Self::from_get_set(range, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v
-            }
-            *value
-        })
-    }
-
-    impl_integer_constructor!(i8);
-    impl_integer_constructor!(u8);
-    impl_integer_constructor!(i16);
-    impl_integer_constructor!(u16);
-    impl_integer_constructor!(i32);
-    impl_integer_constructor!(u32);
-    impl_integer_constructor!(i64);
-    impl_integer_constructor!(u64);
-    impl_integer_constructor!(isize);
-    impl_integer_constructor!(usize);
 
     pub fn from_get_set(
         range: RangeInclusive<f64>,
@@ -222,11 +174,6 @@ impl<'a> Slider<'a> {
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
         self
-    }
-
-    #[deprecated = "Use fixed_decimals instead"]
-    pub fn precision(self, precision: usize) -> Self {
-        self.max_decimals(precision)
     }
 
     // TODO: we should also have a "min precision".

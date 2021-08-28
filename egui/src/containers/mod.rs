@@ -23,6 +23,3 @@ pub use {
     scroll_area::ScrollArea,
     window::Window,
 };
-
-#[allow(deprecated)]
-pub use panel::TopPanel;

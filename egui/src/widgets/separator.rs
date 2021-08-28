@@ -26,11 +26,6 @@ impl Default for Separator {
 }
 
 impl Separator {
-    #[deprecated = "Use Separator::default() instead"]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// How much space we take up. The line is painted in the middle of this.
     pub fn spacing(mut self, spacing: f32) -> Self {
         self.spacing = spacing;

@@ -51,29 +51,6 @@ impl Rect {
         max: pos2(-f32::NAN, -f32::NAN),
     };
 
-    #[deprecated = "Use Rect::EVERYTHING"]
-    pub fn everything() -> Self {
-        let inf = f32::INFINITY;
-        Self {
-            min: pos2(-inf, -inf),
-            max: pos2(inf, inf),
-        }
-    }
-
-    #[deprecated = "Use Rect::NOTHING"]
-    pub fn nothing() -> Self {
-        let inf = f32::INFINITY;
-        Self {
-            min: pos2(inf, inf),
-            max: pos2(-inf, -inf),
-        }
-    }
-
-    #[deprecated = "Use Rect::NAN"]
-    pub fn invalid() -> Self {
-        Self::NAN
-    }
-
     #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
@@ -297,20 +274,10 @@ impl Rect {
         self.max.y..=self.min.y
     }
 
-    #[deprecated = "Use is_negative instead"]
-    pub fn is_empty(&self) -> bool {
-        self.max.x < self.min.x || self.max.y < self.min.y
-    }
-
     /// `width < 0 || height < 0`
     #[inline(always)]
     pub fn is_negative(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y
-    }
-
-    #[deprecated = "Use !is_negative() instead"]
-    pub fn is_non_negative(&self) -> bool {
-        !self.is_negative()
     }
 
     /// `width > 0 && height > 0`

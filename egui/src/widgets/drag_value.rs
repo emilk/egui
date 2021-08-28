@@ -57,23 +57,6 @@ pub struct DragValue<'a> {
     max_decimals: Option<usize>,
 }
 
-macro_rules! impl_integer_constructor {
-    ($int:ident) => {
-        #[deprecated = "Use DragValue::new instead"]
-        pub fn $int(value: &'a mut $int) -> Self {
-            Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as $int;
-                }
-                *value as f64
-            })
-            .max_decimals(0)
-            .clamp_range($int::MIN..=$int::MAX)
-            .speed(0.25)
-        }
-    };
-}
-
 impl<'a> DragValue<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
@@ -91,37 +74,6 @@ impl<'a> DragValue<'a> {
             slf
         }
     }
-
-    #[deprecated = "Use DragValue::new instead"]
-    pub fn f32(value: &'a mut f32) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v as f32
-            }
-            *value as f64
-        })
-    }
-
-    #[deprecated = "Use DragValue::new instead"]
-    pub fn f64(value: &'a mut f64) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v
-            }
-            *value
-        })
-    }
-
-    impl_integer_constructor!(i8);
-    impl_integer_constructor!(u8);
-    impl_integer_constructor!(i16);
-    impl_integer_constructor!(u16);
-    impl_integer_constructor!(i32);
-    impl_integer_constructor!(u32);
-    impl_integer_constructor!(i64);
-    impl_integer_constructor!(u64);
-    impl_integer_constructor!(isize);
-    impl_integer_constructor!(usize);
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {
@@ -145,17 +97,6 @@ impl<'a> DragValue<'a> {
     pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
         self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
-    }
-
-    #[deprecated = "Use clamp_range"]
-    pub fn clamp_range_f64(mut self, clamp_range: RangeInclusive<f64>) -> Self {
-        self.clamp_range = clamp_range;
-        self
-    }
-
-    #[deprecated = "Renamed clamp_range"]
-    pub fn range(self, clamp_range: RangeInclusive<f32>) -> Self {
-        self.clamp_range(clamp_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "

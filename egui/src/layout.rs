@@ -235,16 +235,6 @@ impl Layout {
         }
     }
 
-    #[deprecated = "Use `top_down`"]
-    pub fn vertical(cross_align: Align) -> Self {
-        Self::top_down(cross_align)
-    }
-
-    #[deprecated = "Use `left_to_right`"]
-    pub fn horizontal(cross_align: Align) -> Self {
-        Self::left_to_right().with_cross_align(cross_align)
-    }
-
     #[inline(always)]
     pub fn with_main_wrap(self, main_wrap: bool) -> Self {
         Self { main_wrap, ..self }

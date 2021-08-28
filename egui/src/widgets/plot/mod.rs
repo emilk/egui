@@ -257,18 +257,6 @@ impl Plot {
         self
     }
 
-    #[deprecated = "Renamed center_x_axis"]
-    pub fn symmetrical_x_axis(mut self, on: bool) -> Self {
-        self.center_x_axis = on;
-        self
-    }
-
-    #[deprecated = "Renamed center_y_axis"]
-    pub fn symmetrical_y_axis(mut self, on: bool) -> Self {
-        self.center_y_axis = on;
-        self
-    }
-
     /// Always keep the x-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
         self.center_x_axis = on;
@@ -304,13 +292,6 @@ impl Plot {
     /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
     pub fn include_y(mut self, y: impl Into<f64>) -> Self {
         self.min_auto_bounds.extend_with_y(y.into());
-        self
-    }
-
-    #[deprecated = "Use `Plot::legend` instead"]
-    /// Whether to show a legend including all named items. Default: `true`.
-    pub fn show_legend(mut self, show: bool) -> Self {
-        self.legend_config = show.then(Legend::default);
         self
     }
 

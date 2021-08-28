@@ -63,11 +63,6 @@ impl Label {
         self
     }
 
-    #[deprecated = "Use Label::wrap instead"]
-    pub fn multiline(self, multiline: bool) -> Self {
-        self.wrap(multiline)
-    }
-
     /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);

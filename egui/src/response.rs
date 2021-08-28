@@ -205,11 +205,6 @@ impl Response {
         self.ctx.memory().lost_focus(self.id)
     }
 
-    #[deprecated = "Renamed to lost_focus()"]
-    pub fn lost_kb_focus(&self) -> bool {
-        self.lost_focus()
-    }
-
     /// Request that this widget get keyboard focus.
     pub fn request_focus(&self) {
         self.ctx.memory().request_focus(self.id)
@@ -389,11 +384,6 @@ impl Response {
         self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
-    }
-
-    #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
-    pub fn tooltip_text(self, text: impl ToString) -> Self {
-        self.on_hover_text(text)
     }
 
     /// When hovered, use this icon for the mouse cursor.

@@ -362,12 +362,6 @@ impl Clone for Context {
 }
 
 impl Context {
-    #[allow(clippy::new_ret_no_self)]
-    #[deprecated = "Use CtxRef::default() instead"]
-    pub fn new() -> CtxRef {
-        CtxRef::default()
-    }
-
     /// How much space is still available after panels has been added.
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
@@ -695,16 +689,6 @@ impl Context {
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
     pub fn is_using_pointer(&self) -> bool {
         self.memory().interaction.is_using_pointer()
-    }
-
-    #[deprecated = "Renamed wants_pointer_input"]
-    pub fn wants_mouse_input(&self) -> bool {
-        self.wants_pointer_input()
-    }
-
-    #[deprecated = "Renamed is_using_pointer"]
-    pub fn is_using_mouse(&self) -> bool {
-        self.is_using_pointer()
     }
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).

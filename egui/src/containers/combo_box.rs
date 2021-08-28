@@ -143,43 +143,6 @@ impl ComboBox {
     }
 }
 
-/// A drop-down selection menu with a descriptive label.
-///
-/// Deprecated! Use [`ComboBox`] instead!
-///
-/// Returns `InnerResponse { inner: None }` if the combo box is closed.
-///
-/// ```
-/// # #[derive(Debug, PartialEq)]
-/// # enum Enum { First, Second, Third }
-/// # let mut selected = Enum::First;
-/// # let mut ui = &mut egui::Ui::__test();
-/// egui::combo_box_with_label(ui, "Select one!", format!("{:?}", selected), |ui| {
-///     ui.selectable_value(&mut selected, Enum::First, "First");
-///     ui.selectable_value(&mut selected, Enum::Second, "Second");
-///     ui.selectable_value(&mut selected, Enum::Third, "Third");
-/// });
-/// ```
-#[deprecated = "Use egui::ComboBox::from_label instead"]
-pub fn combo_box_with_label<R>(
-    ui: &mut Ui,
-    label: impl Into<Label>,
-    selected: impl ToString,
-    menu_contents: impl FnOnce(&mut Ui) -> R,
-) -> InnerResponse<Option<R>> {
-    let label = label.into();
-    let button_id = ui.make_persistent_id(label.text());
-
-    ui.horizontal(|ui| {
-        let mut ir = combo_box(ui, button_id, selected, menu_contents);
-        ir.response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
-        ir.response |= ui.add(label);
-        ir
-    })
-    .inner
-}
-
 #[allow(clippy::needless_pass_by_value)]
 fn combo_box<R>(
     ui: &mut Ui,

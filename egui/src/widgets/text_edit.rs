@@ -248,11 +248,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 }
 
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
-    #[deprecated = "Use `TextEdit::singleline` or `TextEdit::multiline` (or the helper `ui.text_edit_singleline`, `ui.text_edit_multiline`) instead"]
-    pub fn new(text: &'t mut S) -> Self {
-        Self::multiline(text)
-    }
-
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut S) -> Self {
         TextEdit {

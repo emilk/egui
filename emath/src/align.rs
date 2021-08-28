@@ -27,23 +27,6 @@ impl Align {
     /// Convenience for [`Self::Max`]
     pub const BOTTOM: Self = Self::Max;
 
-    #[deprecated = "Use Self::LEFT"]
-    pub fn left() -> Self {
-        Self::LEFT
-    }
-    #[deprecated = "Use Self::RIGHT"]
-    pub fn right() -> Self {
-        Self::RIGHT
-    }
-    #[deprecated = "Use Self::TOP"]
-    pub fn top() -> Self {
-        Self::TOP
-    }
-    #[deprecated = "Use Self::BOTTOM"]
-    pub fn bottom() -> Self {
-        Self::BOTTOM
-    }
-
     /// Convert `Min => 0.0`, `Center => 0.5` or `Max => 1.0`.
     #[inline(always)]
     pub fn to_factor(self) -> f32 {

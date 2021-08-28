@@ -548,19 +548,6 @@ impl TopBottomPanel {
 
 // ----------------------------------------------------------------------------
 
-#[deprecated = "Use TopBottomPanel::top instead"]
-pub struct TopPanel {}
-
-#[allow(deprecated)]
-impl TopPanel {
-    #[deprecated = "Use TopBottomPanel::top instead"]
-    pub fn top(id_source: impl std::hash::Hash) -> TopBottomPanel {
-        TopBottomPanel::top(id_source)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///

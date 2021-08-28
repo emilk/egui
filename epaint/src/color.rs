@@ -33,11 +33,6 @@ impl std::ops::IndexMut<usize> for Color32 {
     }
 }
 
-#[deprecated = "Replaced by Color32::from_rgb… family of functions."]
-pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
-    Color32::from_rgba_premultiplied(r, g, b, a)
-}
-
 impl Color32 {
     pub const TRANSPARENT: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
     pub const BLACK: Color32 = Color32::from_rgb(0, 0, 0);
@@ -87,11 +82,6 @@ impl Color32 {
 
             Self::from_rgba_premultiplied(r, g, b, a)
         }
-    }
-
-    #[deprecated = "Use from_rgb(..), from_rgba_premultiplied(..) or from_srgba_unmultiplied(..)"]
-    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self([r, g, b, a])
     }
 
     #[inline(always)]

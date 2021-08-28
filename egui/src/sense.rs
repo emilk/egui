@@ -34,11 +34,6 @@ impl Sense {
         }
     }
 
-    #[deprecated = "Use hover()"]
-    pub fn nothing() -> Self {
-        Sense::hover()
-    }
-
     /// Sense clicks and hover, but not drags.
     pub fn click() -> Self {
         Self {

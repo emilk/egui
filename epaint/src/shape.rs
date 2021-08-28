@@ -124,11 +124,6 @@ impl Shape {
         }
     }
 
-    #[deprecated = "Renamed convex_polygon"]
-    pub fn polygon(points: Vec<Pos2>, fill: impl Into<Color32>, stroke: impl Into<Stroke>) -> Self {
-        Self::convex_polygon(points, fill, stroke)
-    }
-
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle {
             center,
@@ -253,11 +248,6 @@ impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
-    }
-
-    #[deprecated = "Renamed `mesh`"]
-    pub fn triangles(mesh: Mesh) -> Self {
-        Self::mesh(mesh)
     }
 
     #[inline(always)]

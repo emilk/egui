@@ -192,24 +192,6 @@ where
     }
 }
 
-/// Returns `range.start()` if `x <= range.start()`,
-/// returns `range.end()` if `x >= range.end()`
-/// and returns `x` elsewhen.
-#[deprecated = "Use f32::clamp instead"]
-pub fn clamp<T>(x: T, range: RangeInclusive<T>) -> T
-where
-    T: Copy + PartialOrd,
-{
-    crate::emath_assert!(range.start() <= range.end());
-    if x <= *range.start() {
-        *range.start()
-    } else if *range.end() <= x {
-        *range.end()
-    } else {
-        x
-    }
-}
-
 /// Round a value to the given number of decimal places.
 pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.

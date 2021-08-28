@@ -575,26 +575,6 @@ impl Ui {
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
-
-    #[deprecated = "renamed rect_contains_pointer"]
-    pub fn rect_contains_mouse(&self, rect: Rect) -> bool {
-        self.rect_contains_pointer(rect)
-    }
-
-    #[deprecated = "renamed ui_contains_pointer"]
-    pub fn ui_contains_mouse(&self) -> bool {
-        self.ui_contains_pointer()
-    }
-
-    #[deprecated = "Use: interact(rect, id, Sense::hover())"]
-    pub fn interact_hover(&self, rect: Rect) -> Response {
-        self.interact(rect, self.auto_id_with("hover_rect"), Sense::hover())
-    }
-
-    #[deprecated = "Use: rect_contains_pointer()"]
-    pub fn hovered(&self, rect: Rect) -> bool {
-        self.interact(rect, self.id, Sense::hover()).hovered
-    }
 }
 
 /// # Allocating space: where do I put my widgets?
@@ -957,11 +937,6 @@ impl Ui {
         self.placer.advance_cursor(amount);
     }
 
-    #[deprecated = "Use add_space instead"]
-    pub fn advance_cursor(&mut self, amount: f32) {
-        self.add_space(amount);
-    }
-
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
@@ -1018,11 +993,6 @@ impl Ui {
     /// See also [`Hyperlink`].
     pub fn hyperlink_to(&mut self, label: impl ToString, url: impl ToString) -> Response {
         Hyperlink::new(url).text(label).ui(self)
-    }
-
-    #[deprecated = "Use `text_edit_singleline` or `text_edit_multiline`"]
-    pub fn text_edit(&mut self, text: &mut String) -> Response {
-        self.text_edit_multiline(text)
     }
 
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
@@ -1318,11 +1288,6 @@ impl Ui {
         InnerResponse::new(ret, response)
     }
 
-    #[deprecated = "Renamed scope()"]
-    pub fn wrap<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope(add_contents)
-    }
-
     /// Redirect shapes to another paint layer.
     pub fn with_layer_id<R>(
         &mut self,
@@ -1333,15 +1298,6 @@ impl Ui {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
         })
-    }
-
-    #[deprecated = "Use `ui.allocate_ui` instead"]
-    pub fn add_custom_contents(
-        &mut self,
-        desired_size: Vec2,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Rect {
-        self.allocate_ui(desired_size, add_contents).response.rect
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
@@ -1454,28 +1410,6 @@ impl Ui {
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
-    /// Like `horizontal`, but will set up the spacing to match that of a normal label.
-    ///
-    /// In particular, the space between widgets is the same width as the space character.
-    ///
-    /// You can still add any widgets to the layout (not only Labels).
-    #[deprecated = "Use horizontal instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
-    pub fn horizontal_for_text<R>(
-        &mut self,
-        text_style: TextStyle,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            let row_height = ui.fonts().row_height(text_style);
-            let space_width = ui.fonts().glyph_width(text_style, ' ');
-            let spacing = ui.spacing_mut();
-            spacing.interact_size.y = row_height;
-            spacing.item_spacing.x = space_width;
-            spacing.item_spacing.y = 0.0;
-            ui.horizontal(add_contents).inner
-        })
-    }
-
     /// Start a ui with horizontal layout that wraps to a new row
     /// when it reaches the right edge of the `max_size`.
     /// After you have called this, the function registers the contents as any other widget.
@@ -1494,30 +1428,6 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(true, add_contents)
-    }
-
-    /// Like `horizontal_wrapped`, but will set up the spacing and
-    /// line size to match that of a normal label.
-    ///
-    /// In particular, the space between widgets is the same width as the space character
-    /// and the line spacing is the same as that for text.
-    ///
-    /// You can still add any widgets to the layout (not only Labels).
-    #[deprecated = "Use horizontal_wrapped instead and set the desired spacing manually with `ui.spacing_mut().item_spacing`"]
-    pub fn horizontal_wrapped_for_text<R>(
-        &mut self,
-        text_style: TextStyle,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            let row_height = ui.fonts().row_height(text_style);
-            let space_width = ui.fonts().glyph_width(text_style, ' ');
-            let spacing = ui.spacing_mut();
-            spacing.interact_size.y = row_height;
-            spacing.item_spacing.x = space_width;
-            spacing.item_spacing.y = 0.0;
-            ui.horizontal_wrapped(add_contents).inner
-        })
     }
 
     #[inline(always)]
