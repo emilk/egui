@@ -36,6 +36,12 @@ impl Default for State {
 }
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
+///
+/// ```
+/// # let ui = &mut egui::Ui::__test();
+/// egui::ScrollArea::vertical().show(ui, |ui| {
+///     // Add a lot of widgets here.
+/// });
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
