@@ -382,7 +382,7 @@ impl Widget for Plot {
                     if let (Some(height), Some(aspect)) = (height, view_aspect) {
                         height * aspect
                     } else {
-                        ui.available_size_before_wrap_finite().x
+                        ui.available_size_before_wrap().x
                     }
                 })
                 .at_least(min_size.x);
@@ -392,7 +392,7 @@ impl Widget for Plot {
                     if let Some(aspect) = view_aspect {
                         width / aspect
                     } else {
-                        ui.available_size_before_wrap_finite().y
+                        ui.available_size_before_wrap().y
                     }
                 })
                 .at_least(min_size.y);

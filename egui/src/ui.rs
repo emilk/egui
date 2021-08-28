@@ -367,10 +367,9 @@ impl Ui {
         self.placer.max_rect()
     }
 
-    /// This is like `max_rect()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
+    #[deprecated = "Use .max_rect() instead"]
     pub fn max_rect_finite(&self) -> Rect {
-        self.placer.max_rect_finite()
+        self.max_rect()
     }
 
     /// Used for animation, kind of hacky
@@ -501,22 +500,18 @@ impl Ui {
         self.placer.available_rect_before_wrap().size()
     }
 
-    /// This is like `available_size_before_wrap()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    #[deprecated = "Use .available_size_before_wrap() instead"]
     pub fn available_size_before_wrap_finite(&self) -> Vec2 {
-        self.placer.available_rect_before_wrap_finite().size()
+        self.available_size_before_wrap()
     }
 
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
     }
 
-    /// This is like `available_rect_before_wrap()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    #[deprecated = "Use .available_rect_before_wrap() instead"]
     pub fn available_rect_before_wrap_finite(&self) -> Rect {
-        self.placer.available_rect_before_wrap_finite()
+        self.available_rect_before_wrap()
     }
 }
 
@@ -812,6 +807,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        egui_assert!(max_rect.is_finite());
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
@@ -1649,7 +1645,7 @@ impl Ui {
     /// Shows the given text where the next widget is to be placed
     /// if when [`Context::set_debug_on_hover`] has been turned on and the mouse is hovering the Ui.
     pub fn trace_location(&self, text: impl ToString) {
-        let rect = self.max_rect_finite();
+        let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer
                 .debug_paint_cursor(&self.ctx().debug_painter(), text);

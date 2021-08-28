@@ -274,7 +274,18 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
+        let max_rect = if ctx.available_rect().contains(self.state.pos) {
+            Rect::from_min_max(self.state.pos, ctx.available_rect().max)
+        } else {
+            Rect::from_min_max(
+                self.state.pos,
+                ctx.input()
+                    .screen_rect()
+                    .max
+                    .max(self.state.pos + Vec2::splat(32.0)),
+            )
+        };
+
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let bounds = self.drag_bounds.unwrap_or_else(|| ctx.input().screen_rect);
 

@@ -67,8 +67,8 @@ impl Widget for ProgressBar {
             ui.ctx().request_repaint();
         }
 
-        let desired_width = desired_width
-            .unwrap_or_else(|| ui.available_size_before_wrap_finite().x.at_least(96.0));
+        let desired_width =
+            desired_width.unwrap_or_else(|| ui.available_size_before_wrap().x.at_least(96.0));
         let height = ui.spacing().interact_size.y;
         let (outer_rect, response) =
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());

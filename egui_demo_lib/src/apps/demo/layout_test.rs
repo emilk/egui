@@ -53,18 +53,12 @@ impl super::View for LayoutTest {
                 if self.main_wrap {
                     if self.main_dir.is_horizontal() {
                         ui.allocate_ui(
-                            vec2(
-                                ui.available_size_before_wrap_finite().x,
-                                self.wrap_row_height,
-                            ),
+                            vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
                             |ui| ui.with_layout(self.layout(), demo_ui),
                         );
                     } else {
                         ui.allocate_ui(
-                            vec2(
-                                self.wrap_column_width,
-                                ui.available_size_before_wrap_finite().y,
-                            ),
+                            vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
                             |ui| ui.with_layout(self.layout(), demo_ui),
                         );
                     }
