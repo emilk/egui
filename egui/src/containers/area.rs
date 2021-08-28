@@ -339,11 +339,9 @@ impl Prepared {
 
         // Important check - don't try to move e.g. a combobox popup!
         if movable {
-            if let Some(bounds) = drag_bounds {
-                state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
-            } else {
-                state.pos = ctx.constrain_window_rect(state.rect()).min;
-            }
+            state.pos = ctx
+                .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                .min;
         }
 
         if (move_response.dragged() || move_response.clicked())

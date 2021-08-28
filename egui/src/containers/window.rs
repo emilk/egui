@@ -275,7 +275,7 @@ impl<'open> Window<'open> {
             && !collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
-        let area = area.movable(false); // We move it manually
+        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
@@ -301,16 +301,14 @@ impl<'open> Window<'open> {
                     0.0
                 };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
-                let bounds = area.drag_bounds();
 
                 interact(
                     window_interaction,
                     ctx,
                     margins,
                     area_layer_id,
-                    area.state_mut(),
+                    &mut area,
                     resize_id,
-                    bounds,
                 )
             })
         } else {
@@ -405,7 +403,10 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        area.movable = possible.movable; // Tell it the truth
+        area.state_mut().pos = ctx
+            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+            .min;
+
         let full_response = area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
@@ -505,21 +506,16 @@ fn interact(
     ctx: &Context,
     margins: Vec2,
     area_layer_id: LayerId,
-    area_state: &mut area::State,
+    area: &mut area::Prepared,
     resize_id: Id,
-    drag_bounds: Option<Rect>,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = if let Some(bounds) = drag_bounds {
-        ctx.constrain_window_rect_to_area(new_rect, bounds)
-    } else {
-        ctx.constrain_window_rect(new_rect)
-    };
+    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
 
     // TODO: add this to a Window state instead as a command "move here next frame"
-    area_state.pos = new_rect.min;
+    area.state_mut().pos = new_rect.min;
 
     if window_interaction.is_resize() {
         ctx.memory()
