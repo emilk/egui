@@ -53,7 +53,7 @@ pub struct Row {
     pub x_offsets: Vec<f32>,
 
     /// Per-character. Used when rendering.
-    pub uv_rects: Vec<Option<UvRect>>,
+    pub uv_rects: Vec<UvRect>,
 
     /// Top of the row, offset within the Galley.
     /// Unit: points.

@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct UvRect {
     /// X/Y offset for nice rendering (unit: points).
     pub offset: Vec2,
@@ -26,6 +26,12 @@ pub struct UvRect {
     pub max: [u16; 2],
 }
 
+impl UvRect {
+    pub fn is_nothing(&self) -> bool {
+        self.min == self.max
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct GlyphInfo {
     id: ab_glyph::GlyphId,
@@ -34,7 +40,7 @@ pub struct GlyphInfo {
     pub advance_width: f32,
 
     /// Texture coordinates. None for space.
-    pub uv_rect: Option<UvRect>,
+    pub uv_rect: UvRect,
 }
 
 impl Default for GlyphInfo {
@@ -42,7 +48,7 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
-            uv_rect: None,
+            uv_rect: Default::default(),
         }
     }
 }
@@ -281,11 +287,12 @@ impl Font {
         self.row_height
     }
 
-    pub fn uv_rect(&self, c: char) -> Option<UvRect> {
+    pub fn uv_rect(&self, c: char) -> UvRect {
         self.glyph_info_cache
             .read()
             .get(&c)
-            .and_then(|gi| gi.1.uv_rect)
+            .map(|gi| gi.1.uv_rect)
+            .unwrap_or_default()
     }
 
     /// Width of this character in points.
@@ -663,12 +670,12 @@ fn allocate_glyph(
     let glyph =
         glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
 
-    let uv_rect = font.outline_glyph(glyph).and_then(|glyph| {
+    let uv_rect = font.outline_glyph(glyph).map(|glyph| {
         let bb = glyph.px_bounds();
         let glyph_width = bb.width() as usize;
         let glyph_height = bb.height() as usize;
         if glyph_width == 0 || glyph_height == 0 {
-            None
+            UvRect::default()
         } else {
             let glyph_pos = atlas.allocate((glyph_width, glyph_height));
 
@@ -683,7 +690,7 @@ fn allocate_glyph(
 
             let offset_in_pixels = vec2(bb.min.x as f32, scale_in_pixels as f32 + bb.min.y as f32);
             let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
-            Some(UvRect {
+            UvRect {
                 offset,
                 size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
                 min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
@@ -691,9 +698,10 @@ fn allocate_glyph(
                     (glyph_pos.0 + glyph_width) as u16,
                     (glyph_pos.1 + glyph_height) as u16,
                 ],
-            })
+            }
         }
     });
+    let uv_rect = uv_rect.unwrap_or_default();
 
     let advance_width_in_points =
         font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;

@@ -679,20 +679,20 @@ impl Tessellator {
             }
 
             for (x_offset, uv_rect) in row.x_offsets.iter().zip(&row.uv_rects) {
-                if let Some(glyph) = uv_rect {
-                    let mut left_top = pos + glyph.offset + vec2(*x_offset, row.y_min);
+                if !uv_rect.is_nothing() {
+                    let mut left_top = pos + uv_rect.offset + vec2(*x_offset, row.y_min);
                     left_top.x = self.options.round_to_pixel(left_top.x); // Pixel-perfection.
                     left_top.y = self.options.round_to_pixel(left_top.y); // Pixel-perfection.
 
-                    let rect = Rect::from_min_max(left_top, left_top + glyph.size);
+                    let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
                     let uv = Rect::from_min_max(
                         pos2(
-                            glyph.min[0] as f32 * inv_tex_w,
-                            glyph.min[1] as f32 * inv_tex_h,
+                            uv_rect.min[0] as f32 * inv_tex_w,
+                            uv_rect.min[1] as f32 * inv_tex_h,
                         ),
                         pos2(
-                            glyph.max[0] as f32 * inv_tex_w,
-                            glyph.max[1] as f32 * inv_tex_h,
+                            uv_rect.max[0] as f32 * inv_tex_w,
+                            uv_rect.max[1] as f32 * inv_tex_h,
                         ),
                     );
 
