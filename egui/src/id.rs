@@ -57,7 +57,8 @@ impl Id {
         Id(hasher.finish())
     }
 
-    pub(crate) fn short_debug_format(&self) -> String {
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> String {
         format!("{:04X}", self.0 as u16)
     }
 

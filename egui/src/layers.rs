@@ -48,6 +48,18 @@ impl Order {
             Self::Tooltip => false,
         }
     }
+
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> &'static str {
+        match self {
+            Self::Background => "backg",
+            Self::PanelResizeLine => "panel",
+            Self::Middle => "middl",
+            Self::Foreground => "foreg",
+            Self::Tooltip => "toolt",
+            Self::Debug => "debug",
+        }
+    }
 }
 
 /// An identifier for a paint layer.
@@ -81,6 +93,15 @@ impl LayerId {
     #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
+    }
+
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> String {
+        format!(
+            "{} {}",
+            self.order.short_debug_format(),
+            self.id.short_debug_format()
+        )
     }
 }
 

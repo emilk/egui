@@ -722,6 +722,7 @@ impl Context {
         }
     }
 
+    /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         let resize_grab_radius_side = self.style().interaction.resize_grab_radius_side;
         self.memory().layer_id_at(pos, resize_grab_radius_side)
@@ -823,7 +824,7 @@ impl Context {
         ))
         .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
-            "keyboard focus widget: {}",
+            "Keyboard focus widget: {}",
             self.memory()
                 .interaction
                 .focus
@@ -833,6 +834,22 @@ impl Context {
                 .unwrap_or_default()
         ))
         .on_hover_text("Is egui currently listening for text input?");
+
+        let pointer_pos = self
+            .input()
+            .pointer
+            .hover_pos()
+            .map_or_else(String::new, |pos| format!("{:?}", pos));
+        ui.label(format!("Pointer pos: {}", pointer_pos));
+
+        let top_layer = self
+            .input()
+            .pointer
+            .hover_pos()
+            .and_then(|pos| self.layer_id_at(pos))
+            .map_or_else(String::new, |layer| layer.short_debug_format());
+        ui.label(format!("Top layer under mouse: {}", top_layer));
+
         ui.add_space(16.0);
 
         ui.label(format!(
@@ -864,7 +881,7 @@ impl Context {
 
         ui.horizontal(|ui| {
             ui.label(format!(
-                "{} areas (window positions)",
+                "{} areas (panels, windows, popups, …)",
                 self.memory().areas.count()
             ));
             if ui.button("Reset").clicked() {
@@ -872,18 +889,20 @@ impl Context {
             }
         });
         ui.indent("areas", |ui| {
+            ui.label("Visible areas, ordered back to front.");
+            ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory().areas.order().to_vec();
             for layer_id in layers_ids {
                 let area = self.memory().areas.get(layer_id.id).cloned();
                 if let Some(area) = area {
                     let is_visible = self.memory().areas.is_visible(&layer_id);
+                    if !is_visible {
+                        continue;
+                    }
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                    // TODO: `Sense::hover_highlight()`
                     if ui
-                        .label(format!(
-                            "{:?} {:?} {}",
-                            layer_id.order,
-                            area.rect(),
-                            if is_visible { "" } else { "(INVISIBLE)" }
-                        ))
+                        .add(Label::new(text).monospace().sense(Sense::click()))
                         .hovered
                         && is_visible
                     {
