@@ -687,12 +687,12 @@ impl Tessellator {
                     let rect = Rect::from_min_max(left_top, left_top + glyph.size);
                     let uv = Rect::from_min_max(
                         pos2(
-                            glyph.min.0 as f32 * inv_tex_w,
-                            glyph.min.1 as f32 * inv_tex_h,
+                            glyph.min[0] as f32 * inv_tex_w,
+                            glyph.min[1] as f32 * inv_tex_h,
                         ),
                         pos2(
-                            glyph.max.0 as f32 * inv_tex_w,
-                            glyph.max.1 as f32 * inv_tex_h,
+                            glyph.max[0] as f32 * inv_tex_w,
+                            glyph.max[1] as f32 * inv_tex_h,
                         ),
                     );
 

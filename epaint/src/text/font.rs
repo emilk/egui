@@ -20,10 +20,10 @@ pub struct UvRect {
     pub size: Vec2,
 
     /// Top left corner UV in texture.
-    pub min: (u16, u16),
+    pub min: [u16; 2],
 
     /// Bottom right corner (exclusive).
-    pub max: (u16, u16),
+    pub max: [u16; 2],
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -686,11 +686,11 @@ fn allocate_glyph(
             Some(UvRect {
                 offset,
                 size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-                min: (glyph_pos.0 as u16, glyph_pos.1 as u16),
-                max: (
+                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                max: [
                     (glyph_pos.0 + glyph_width) as u16,
                     (glyph_pos.1 + glyph_height) as u16,
-                ),
+                ],
             })
         }
     });
