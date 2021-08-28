@@ -6,7 +6,8 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ## Unreleased
 
 ### Fixed 🐛
-* Fix alpha blending for WebGL2 and WebGL1 with sRGB support backends, now having identical results as egui_glium
+* Fix alpha blending for WebGL2 and WebGL1 with sRGB support backends, now having identical results as egui_glium.
+* Fix use of egui on devices with both touch and mouse.
 
 
 ## 0.14.0 - 2021-08-24
