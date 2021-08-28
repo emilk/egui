@@ -8,6 +8,10 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 ## Unreleased
 
 
+### Added ⭐
+* Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
+
+
 ## 0.14.2 - 2021-08-28 - Window resize fix
 
 ### Fixed 🐛
