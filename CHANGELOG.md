@@ -9,6 +9,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ### Added ⭐
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
+* Support for fullscreen windowing.
 
 ### Changed 🔧
 * All `Ui`:s must now have a finite `max_rect`.
